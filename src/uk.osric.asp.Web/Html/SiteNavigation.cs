@@ -5,6 +5,7 @@ namespace uk.osric.asp.Web.Html;
 
 using uk.osric.asp.Sdk;
 using uk.osric.asp.Web.Pages;
+using uk.osric.asp.Web.Shell;
 
 /// <summary>The site menu the shell's own views carry.</summary>
 /// <remarks>
@@ -59,8 +60,8 @@ internal static class SiteNavigation {
         ArgumentException.ThrowIfNullOrWhiteSpace(editorPath);
 
         List<NavLink> links = [];
-        foreach (ShellLink link in ShellLinks.All(path, query, editorPath)) {
-            if (link.Section == ShellSection.Site && ShellLinks.IsFor(link, authenticated)) {
+        foreach (ShellLink link in ShellCatalogue.Links(path, query, editorPath)) {
+            if (link.Section == ShellSection.Site && ShellCatalogue.IsFor(link, authenticated)) {
                 links.Add(new(link.Href, link.Text, IsCurrent(link, path)));
             }
         }

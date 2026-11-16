@@ -347,6 +347,9 @@ reachable from the internet.
   not a public embed. `duration` is a window token (`1h`, `3h`, `8h`, `1d`, `7d`, `30d`) or a whole
   number of minutes. A malformed window is a `400`, an unknown panel a `404`, and a Prometheus that
   does not answer a `503` with the reason.
+- **`Pages:ReservedPaths` is gone.** The reserved keys are the shell's route table now. A deployment
+  whose override still carries the section stops at startup and names it: remove the key, restart,
+  and the routes reserve themselves.
 - **The shell's own files come with the image.** `/admin.css`, `/admin.js`, `/status.css`,
   `/reference.css` and `/rocket.svg` are served from the web root, not the page store, so a deploy
   replaces them and no restore is needed. An installation that predates the move still has a seeded

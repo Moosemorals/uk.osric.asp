@@ -7,7 +7,7 @@ SPDX-License-Identifier: MIT
 
 | | |
 | --- | --- |
-| Status | Proposed 2026-11-16 — waits for the owner. Nothing below is built |
+| Status | Built 2026-11-16 — the design below is what landed, amended where the build found better |
 | Size | M — one catalogue replaces two files, `ReservedPaths` derives its list from it, one configuration section is removed, and the tests, prompt, manual and docs follow. No migration, no new route, no `Sdk` change |
 | Area | Web (shell, html, assistant, pages), docs |
 | Spike | None. The three lists were read off the working tree on 2026-11-16: `ShellRoutes.All` (21 records), `ShellLinks.All` (17 links) and `ReservedPaths.Default` (21 keys); plus the prompt's own copy of the shell files |
@@ -59,15 +59,20 @@ already argues why each is its own list.
 ### D1 — One entry per route
 
 ```csharp
-internal sealed record ShellMenu(ShellSection Section, string Text, ShellMatch Match);
+internal sealed record ShellMenu(
+    ShellSection Section,
+    ShellAudience Audience,
+    int Order,
+    string Text,
+    ShellMatch Match);
 
 internal sealed record ShellRoute(
-    string Path,
+    string Key,
     string Methods,
     ShellAudience Audience,
     string Description,
     params ShellMenu[] Menus) {
-    public string Access => Audience switch {
+    public string Access => AccessNote ?? Audience switch {
         ShellAudience.Everyone => "anyone",
         ShellAudience.Anonymous => "anyone who has not signed in",
         _ => "the owner",
@@ -75,15 +80,20 @@ internal sealed record ShellRoute(
 }
 ```
 
+Two audiences are two facts, and the table keeps both. The route's is who may **reach** it, which is
+what the record says (`/login` answers anyone); the menu's is who a **link** is for (`Sign in` is for
+the visitor who has not signed in). `/admin` shows why they cannot be one: it answers anyone, the Site
+menu offers it to the owner, and the Administration menu offers it to everyone.
+
 `Access` is derived because it is the same sentence with a different subject; the two routes that say
 more keep a note (`/login`'s throttle, `/metrics`' internal-network rule), which is the only prose
 left. `Menus` is a list because `/admin` is both the Site menu's **Admin** and the root of the
 Administration menu's **Administration**, and collapsing those two into one would be the loss the
 table exists to prevent.
 
-The entries are written in *reading order*: the Site menu filters its section and the Administration
-menu its own, so one table order serves both, with no sort key to keep straight. Everything after the
-last menu entry is a route with no menu.
+`Order` is per section, because the two menus do not agree: `/admin` is first in the administration
+menu and fifth in the site menu, and the editor stands beside the assistant and beside the admin
+tools. One table position cannot say both, and a second list of hrefs would be the copy this removes.
 
 ### D2 — The links are derived
 
@@ -99,10 +109,11 @@ internal static class ShellCatalogue {
 
 - **`ShellLink` survives** as the value a menu renders: href, text, section, audience, match. It is
   the output of `Links`, not a second list.
-- **`Links` walks the table once** and yields one `ShellLink` per (entry, menu) pair, with the
-  editor's path substituted for the editor's token and `/login`'s href carrying the request's
-  `returnUrl`. That last one is the only special case and it gets one comment, as it has today.
-- **`ShellAudience` decides the filter**, and `IsFor` stays beside the values it tests.
+- **`Links` walks the table once** and yields one `ShellLink` per (entry, menu) pair, each section
+  ordered by its own numbers, with the editor's path substituted for the editor's token and
+  `/login`'s href carrying the request's `returnUrl`. That last one is the only special case and it
+  gets one comment, as it has today.
+- **The menu's audience decides the filter**, and `IsFor` stays beside the values it tests.
 - **`Text` is unchanged on the wire**: five lines, one fact per line, pinned by `ShellRoutesTests`,
   because the assistant's `cat` and `read_page` read it.
 
@@ -176,12 +187,16 @@ public static IReadOnlyList<string> Default { get; } = ShellCatalogue.Reserved;
 | A deployment with `Pages:ReservedPaths` stops on upgrade | That is the point of the refusal, and `deploy/operations.md` gains one line under the release notes |
 | The catalogue becomes the god-object both files became | It holds facts about routes and nothing else: no markup, no `IsCurrent`, no policy. The renders still decide |
 
+## What the owner decided
+
+| Question | Answer | What it settled |
+| --- | --- | --- |
+| Build it? | Yes (2026-11-16) | The whole plan, as one change |
+| How do the three page links fit? | The token form: `Home`, `Editor`, `Help` entries resolved by the builder, so the configured editor key stays out of the table | D1, D2 |
+| A leftover `Pages:ReservedPaths`? | Refused at startup, naming the key and the change | D4 |
+
 ## Open questions
 
-- **`ShellEntry` for a page link.** The token form (`Home`, `Editor`, `Help`) keeps the configured
-  editor path out of the table, at the cost of one switch in `Links`. The alternative — two tables
-  joined by an order key — trades that switch for a number to keep straight on every row. The token
-  is the recommendation.
 - **Where the table lives.** `Web/Shell/` rather than `Html/` or `Assistant/`, because three
   consumers read it and none of them owns it. The `Sdk` move that IDEA-030 proposes would put the
   values in `Sdk` and keep the table in `Web`.

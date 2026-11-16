@@ -40,6 +40,20 @@ public sealed class ConfigurationStartupTests {
         });
     }
 
+    // The reserved keys are the shell's route table now. A deployment that kept the old section
+    // would believe it still narrowed or widened something, so it is refused rather than ignored.
+    [Test]
+    public void AReservedPathsSectionFromAnEarlierReleaseStopsTheHost() {
+        string report = ReportFor(new Dictionary<string, string?> {
+            ["Pages:ReservedPaths:0"] = "/admin",
+        });
+
+        Assert.Multiple(() => {
+            Assert.That(report, Does.Contain("Pages:ReservedPaths is no longer read"));
+            Assert.That(report, Does.Contain("the reserved list"));
+        });
+    }
+
     [Test]
     public void AMissingProviderKeyStopsTheHostAndNamesIt() {
         string report = ReportFor(new Dictionary<string, string?> {

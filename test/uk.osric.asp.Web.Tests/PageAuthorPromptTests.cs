@@ -70,7 +70,7 @@ public sealed class PageAuthorPromptTests {
         Assert.Multiple(() => {
             Assert.That(prompt, Does.Contain("type=\"IPageStorage\""));
             Assert.That(prompt, Does.Contain("query=\"cookie\""));
-            Assert.That(prompt, Does.Contain("page-author-v34"));
+            Assert.That(prompt, Does.Contain("page-author-v35"));
         });
     }
 
@@ -222,7 +222,7 @@ public sealed class PageAuthorPromptTests {
     [Test]
     public void ThePromptIsVersionedForNullablePages() {
         Assert.Multiple(() => {
-            Assert.That(PageAuthorPrompt.Version, Is.EqualTo("page-author-v34"));
+            Assert.That(PageAuthorPrompt.Version, Is.EqualTo("page-author-v35"));
             Assert.That(PageAuthorPrompt.Build(), Does.Contain("## Nullable page code"));
         });
     }
@@ -263,7 +263,8 @@ public sealed class PageAuthorPromptTests {
             Assert.That(prompt, Does.Contain("not permitted"));
             Assert.That(prompt, Does.Contain("`/site.css`"),
                 "the seeded assets are ordinary pages, not shell files");
-            Assert.That(prompt, Does.Contain("Pages:ReservedPaths"));
+            Assert.That(prompt, Does.Contain("`/admin/copyright`").And.Contain("`/status.css`"),
+                "the list is the shell's route table, so every route is named");
         });
     }
 
@@ -392,7 +393,7 @@ public sealed class PageAuthorPromptTests {
             Assert.That(prompt, Does.Contain("check_script` with the page's path"));
             Assert.That(prompt, Does.Contain("valid: false"));
             Assert.That(prompt, Does.Contain("SCRIPT002"));
-            Assert.That(PageAuthorPrompt.Version, Is.EqualTo("page-author-v34"));
+            Assert.That(PageAuthorPrompt.Version, Is.EqualTo("page-author-v35"));
         });
     }
 

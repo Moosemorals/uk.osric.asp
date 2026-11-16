@@ -6,6 +6,7 @@ namespace uk.osric.asp.Web.Assistant;
 using uk.osric.asp.Core.Pages;
 using uk.osric.asp.Web.Editor;
 using uk.osric.asp.Web.Pages;
+using uk.osric.asp.Web.Shell;
 
 /// <summary>One node of the page store as a reader sees it: a key, a folder above one, or a route.</summary>
 /// <param name="Path">The canonical key.</param>
@@ -194,7 +195,9 @@ internal sealed class PageStoreReader(PageEditor pages, PagePathPolicy paths) : 
     // A shell file is a route the site answers itself: it is readable as a record of what the route
     // does, it is never a stored page, and no save would be accepted at its key.
     private static PageRead ShellFile(PagePath path) =>
-        new(path, IsShellFile: true, CanWrite: false, State: null, ShellRoutes.Text(path), Page: null);
+        new(path, IsShellFile: true, CanWrite: false, State: null,
+            ShellCatalogue.Text(path) ?? $"{path.Key}\nshell file: a route the site answers with its own code, never a stored page",
+            Page: null);
 
     private async Task<PageRead?> ReadPageAsync(PagePath path, CancellationToken cancellationToken) {
         PageTemplate? page = await pages.GetAsync(path, cancellationToken);

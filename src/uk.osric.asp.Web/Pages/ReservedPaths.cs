@@ -4,6 +4,7 @@
 namespace uk.osric.asp.Web.Pages;
 
 using uk.osric.asp.Core.Pages;
+using uk.osric.asp.Web.Shell;
 
 /// <summary>The page keys the site's own routes already own.</summary>
 /// <remarks>
@@ -13,16 +14,15 @@ using uk.osric.asp.Core.Pages;
 /// <c>/admin/scrub</c>.
 /// </para>
 /// <para>
-/// The list lives in configuration (<c>Pages:ReservedPaths</c>) because the routes belong to the
-/// shell, and the section is required: a mistake stops the site rather than silently switching the
-/// check off.
+/// The list is the shell's own route table, not configuration: a route exists because the site's code
+/// answers it, and a shorter list could only let a stored page shadow a route such as
+/// <c>/login</c> (<c>shell-reserved-keys-are-an-invariant</c>).
 /// </para>
 /// </remarks>
 internal sealed class ReservedPaths {
 
-    /// <summary>The keys the shipped <c>appsettings.json</c> carries; a test holds the two together.</summary>
-    public static IReadOnlyList<string> Default { get; } =
-        ["/admin", "/admin.css", "/admin.js", "/admin/changes", "/admin/copyright", "/admin/export", "/admin/import", "/admin/reference", "/admin/restore", "/admin/scrub", "/admin/seed-apply", "/assistant", "/favicon.ico", "/health", "/login", "/logout", "/metrics", "/reference.css", "/rocket.svg", "/status", "/status.css"];
+    /// <summary>The keys the shell's route table names.</summary>
+    public static IReadOnlyList<string> Default { get; } = ShellCatalogue.Reserved;
 
     private readonly IReadOnlyList<PagePath> _keys;
 
@@ -46,7 +46,7 @@ internal sealed class ReservedPaths {
         _keys = keys;
     }
 
-    /// <summary>The reserved keys themselves, in configuration order, as canonical paths.</summary>
+    /// <summary>The reserved keys themselves, in the route table's order, as canonical paths.</summary>
     public IReadOnlyList<PagePath> Keys => _keys;
 
     /// <summary>Whether the site's routes already answer for this key.</summary>

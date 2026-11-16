@@ -5,10 +5,11 @@ namespace uk.osric.asp.Web.Assistant;
 
 using System.Reflection;
 using uk.osric.asp.Sdk;
+using uk.osric.asp.Web.Shell;
 
 /// <summary>The system prompt and worked examples that teach the model to write a page.</summary>
 internal static class PageAuthorPrompt {
-    public const string Version = "page-author-v34";
+    public const string Version = "page-author-v35";
 
     public static IReadOnlyList<(string Name, string Source)> Examples { get; } = [
         ("query-driven", """
@@ -470,13 +471,10 @@ internal static class PageAuthorPrompt {
         documentation for the host's own assemblies to a reader.
 
         ## Shell files
-        The site's shell files are its own routes: `/admin/changes`,
-        `/admin/export`, `/admin/import`, `/admin/reference`, `/admin/restore`, `/admin/seed-apply`,
-        `/admin/scrub`, `/assistant`, `/favicon.ico`, `/health`, `/login`,
-        `/logout`, `/metrics` and `/status`, plus whatever the host adds to
-        `Pages:ReservedPaths`. The editor is not one of them: it is a stored
+        The site's shell files are its own routes:
+        {{string.Join(", ", ShellCatalogue.Reserved.Select(key => "`" + key + "`"))}}. The editor is not one of them: it is a stored
         page at `Pages:Editor:Key` — `/pages` as shipped — whose own code
-        guards it. They are listed and they can be read: `cat` and
+        guards it, even though a menu links to it beside them. They are listed and they can be read: `cat` and
         `read_page` return a record of what the route does — its methods, who
         may reach it and a one-line description — never source, because the
         running image has no source tree. `ls` and `list_pages` print their

@@ -5,6 +5,7 @@ namespace uk.osric.asp.Web.Admin;
 
 using uk.osric.asp.Sdk;
 using uk.osric.asp.Web.Html;
+using uk.osric.asp.Web.Shell;
 
 /// <summary>The navigation landmark the administration views share.</summary>
 internal static class AdminNavigation {
@@ -23,7 +24,7 @@ internal static class AdminNavigation {
             : "/admin/" + current;
 
         List<NavLink> links = [];
-        foreach (ShellLink link in ShellLinks.All("/", string.Empty, editorPath)) {
+        foreach (ShellLink link in ShellCatalogue.Links("/", string.Empty, editorPath)) {
             // The administration views are where the owner arrived, so the whole section is drawn;
             // the index is the one reader that hides what this visitor cannot reach.
             if (link.Section == ShellSection.Administration) {

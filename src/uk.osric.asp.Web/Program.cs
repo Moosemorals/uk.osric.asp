@@ -114,9 +114,14 @@ internal class Program {
         SiteOptions site = SiteOptions.FromConfiguration(settings.At("Site"));
         StreamOptions stream = StreamOptions.FromConfiguration(settings.At("Pages:Stream"));
 
-        string[] reservedKeys = [.. settings.At("Pages").List("ReservedPaths", "page keys", minimum: 1)];
+        // The reserved keys are the shell's route table, not a setting. A leftover section from the
+        // release before this one is refused rather than ignored: an operator who kept it believes
+        // it still narrows or widens something, and it does neither.
+        ConfigurationReader pageSettings = settings.At("Pages");
+        pageSettings.FailIf(pageSettings.Has("ReservedPaths"), "ReservedPaths",
+            "is no longer read. The shell's own route table is the reserved list, so remove the key and restart");
         settings.Complete();
-        ReservedPaths reserved = new(reservedKeys);
+        ReservedPaths reserved = new(ReservedPaths.Default);
 
         // Configuration: the database, its options, and the proxy trust the host depends on.
         // The scoped context is what the stores on the request inject; the factory is what lets a

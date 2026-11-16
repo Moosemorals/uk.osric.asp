@@ -151,7 +151,7 @@ reference, and `/about` links to it rather than carrying a copy that has to be k
 `admin.css`, `admin.js`, `status.css`, `reference.css` and `rocket.svg` are in the project's
 `wwwroot` and served by the static file handler, which runs before routing so a file answers before
 the page catch-all can claim its key. They are not pages: they are not seeded, not listed by the
-editor and not versioned by `/?v=`. The five keys are in `Pages:ReservedPaths`, so the editor refuses
+editor and not versioned by `/?v=`. The five keys are in the shell's route table, so the editor refuses
 a page that the file would shadow. `/site.css` and the editor's and assistant's sheets and scripts
 are still seeded, because a stored page links them and the owner may want to fix one without a
 release.
@@ -188,7 +188,7 @@ from `Accept` alone; a request that names neither is treated as a browser, becau
 document can still read it.
 
 The recovery nav gains an "Edit this page" link for a signed-in owner whenever the failing request
-named a page the site serves — the key is addressable and not one of `Pages:ReservedPaths` — and never
+named a page the site serves — the key is addressable and not reserved by the shell — and never
 for a shell route, so a failure on `/metrics` cannot offer to edit it. The link is derived from the
 request by the writer rather than passed in by each call site, which is why the layout errors from
 `PageChain` and the exception page agree. A remedy that already leads to that editor URL, such as

@@ -193,11 +193,11 @@ and applies them.
   lifetimes and live-session cap live under `Pages:Session` (`Pages__Session__Anonymous__MaxKeys`,
   `Pages__Session__MaxLiveSessions`, and so on), and the table is swept every five minutes. A
   session is a visitor's scratch space rather than content: an export archive never carries one.
-- **Reserved page keys:** `Pages:ReservedPaths` (environment form
-  `Pages__ReservedPaths__0`, `__1`, ...) lists the keys the site's own routes answer for. The default
-  covers `/admin/changes`, `/admin/export`, `/admin/import`, `/admin/restore`, `/assistant`, `/edit`,
-  `/favicon.ico`, `/health`, `/login`, `/logout`, `/metrics` and `/status`. `/admin` itself is a seeded page, so only
-  the tools beneath it are reserved. Change the list only when the route table changes.
+- **Reserved page keys are not configuration.** The keys the site's own routes answer for are the
+  shell's route table in code (`Web/Shell/ShellCatalogue.cs`), so a route and its reserved key cannot
+  disagree. The release that removed `Pages:ReservedPaths` refuses to start while the section is
+  still present, so delete it from any override rather than leaving it to look as though it does
+  something.
 - **Layout:** `Pages:Layout` (environment form `Pages__Layout`) names the page every HTML page is
   wrapped in; it is seeded as `/_layout` and is edited and restored from the page list like any other
   page. An empty value turns wrapping off. `Pages__Render__MaxLayoutDepth` bounds how deep a chain of

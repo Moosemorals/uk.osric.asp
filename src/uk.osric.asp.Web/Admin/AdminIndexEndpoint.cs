@@ -6,6 +6,7 @@ namespace uk.osric.asp.Web.Admin;
 using System.Net;
 using uk.osric.asp.Web.Html;
 using uk.osric.asp.Web.Pages;
+using uk.osric.asp.Web.Shell;
 
 /// <summary>The public index of the tools the shell offers.</summary>
 /// <remarks>
@@ -24,9 +25,12 @@ internal static class AdminIndexEndpoint {
         bool authenticated = context.User.Identity?.IsAuthenticated == true;
         string editorPath = EditorPaths.Of(context.RequestServices);
         IReadOnlyList<ShellLink> links = [
-            .. ShellLinks.All(context.Request.Path, context.Request.QueryString.Value ?? string.Empty, editorPath)
+            .. ShellCatalogue.Links(
+                    context.Request.Path,
+                    context.Request.QueryString.Value ?? string.Empty,
+                    editorPath)
                 .Where(link => link.Section == ShellSection.Administration
-                    && ShellLinks.IsFor(link, authenticated)
+                    && ShellCatalogue.IsFor(link, authenticated)
                     // The index is this page; a list of one is not an index.
                     && !string.Equals(link.Href, "/admin", StringComparison.Ordinal)),
         ];

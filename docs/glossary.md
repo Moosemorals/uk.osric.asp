@@ -155,7 +155,7 @@ trailing slash except at the root.
 a key containing `?` or `#` is not addressable at all.
 
 **Owner:** pages — `PagePath.Key` and `PagePath.Normalize`; the `Path` and `PagePath` columns in
-`PageHeads`, `PageRevisions` and `PageState`; `Pages:ReservedPaths`.
+`PageHeads`, `PageRevisions` and `PageState`; the shell's route table (`ShellCatalogue`).
 
 ## Library page
 A stored page whose only blocks are declarations: it has nothing to render, so it is never served and
@@ -405,7 +405,7 @@ it is not ASP.NET Core's session, has no in-process cache and survives a restart
 
 ## Shell file
 A key the site's own routes answer — `/login`, `/assistant`, `/admin/scrub`, `/metrics` and the rest of
-`Pages:ReservedPaths` — which the assistant may list and read but never save over.
+the shell's route table — which the assistant may list and read but never save over.
 
 **Not** a page or a seed. A shell file has no stored source, revision or compile state: the assistant
 reads a host-written record of what the route does, because the running image has no source tree.

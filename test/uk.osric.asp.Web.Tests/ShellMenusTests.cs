@@ -7,16 +7,18 @@ using uk.osric.asp.Core.Pages;
 using uk.osric.asp.Sdk;
 using uk.osric.asp.Web.Html;
 using uk.osric.asp.Web.Pages;
+using uk.osric.asp.Web.Shell;
 
+/// <summary>The menus the table draws: one per section, in table order, filtered by audience.</summary>
 [TestFixture]
-public sealed class ShellLinksTests {
+public sealed class ShellMenusTests {
 
     private const string EditorPath = "/pages";
 
-    private static IReadOnlyList<ShellLink> All => ShellLinks.All("/", string.Empty, EditorPath);
+    private static IReadOnlyList<ShellLink> All => ShellCatalogue.Links("/", string.Empty, EditorPath);
 
-    // The one list is only worth having if a link leads somewhere the site answers: a shell route,
-    // the editor's configured key, or a page the release ships.
+    // The table is only worth having if a link leads somewhere the site answers: a shell route, the
+    // editor's configured key, or a page the release ships.
     [Test]
     public void EveryAdministrationLinkLeadsSomewhereTheSiteAnswers() {
         ReservedPaths reserved = new(ReservedPaths.Default);
@@ -44,15 +46,31 @@ public sealed class ShellLinksTests {
         }
     }
 
+    // Two menus, two orders: /admin is first in the administration menu and fifth in the site menu,
+    // and the editor stands beside the admin tools and beside the assistant.
+    [Test]
+    public void BothMenusReadInTheirOwnOrder() {
+        string[] site = [.. All.Where(link => link.Section == ShellSection.Site).Select(link => link.Text)];
+        string[] administration = [.. All.Where(link => link.Section == ShellSection.Administration).Select(link => link.Text)];
+
+        Assert.Multiple(() => {
+            Assert.That(site, Is.EqualTo(["Home", "Sign in", "Assistant", "Pages", "Admin", "Sign out"]));
+            Assert.That(administration, Is.EqualTo([
+                "Administration", "Import pages", "Export pages", "Changelist", "Restore seeds",
+                "Apply seed updates", "Reference", "Copyright and licences", "Status", "Page list", "Help",
+            ]));
+        });
+    }
+
     [Test]
     public void AnOwnerIsNotOfferedTheSignInLinkAndAVisitorIsOfferedNothingElse() {
         Assert.Multiple(() => {
-            Assert.That(ShellLinks.IsFor(Link("Sign in", ShellAudience.Anonymous), authenticated: false), Is.True);
-            Assert.That(ShellLinks.IsFor(Link("Sign in", ShellAudience.Anonymous), authenticated: true), Is.False);
-            Assert.That(ShellLinks.IsFor(Link("Admin", ShellAudience.Owner), authenticated: true), Is.True);
-            Assert.That(ShellLinks.IsFor(Link("Admin", ShellAudience.Owner), authenticated: false), Is.False);
-            Assert.That(ShellLinks.IsFor(Link("Help", ShellAudience.Everyone), authenticated: false), Is.True);
-            Assert.That(ShellLinks.IsFor(Link("Help", ShellAudience.Everyone), authenticated: true), Is.True);
+            Assert.That(ShellCatalogue.IsFor(Link("Sign in", ShellAudience.Anonymous), authenticated: false), Is.True);
+            Assert.That(ShellCatalogue.IsFor(Link("Sign in", ShellAudience.Anonymous), authenticated: true), Is.False);
+            Assert.That(ShellCatalogue.IsFor(Link("Admin", ShellAudience.Owner), authenticated: true), Is.True);
+            Assert.That(ShellCatalogue.IsFor(Link("Admin", ShellAudience.Owner), authenticated: false), Is.False);
+            Assert.That(ShellCatalogue.IsFor(Link("Help", ShellAudience.Everyone), authenticated: false), Is.True);
+            Assert.That(ShellCatalogue.IsFor(Link("Help", ShellAudience.Everyone), authenticated: true), Is.True);
         });
     }
 
