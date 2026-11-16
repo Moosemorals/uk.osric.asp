@@ -4,19 +4,19 @@
 namespace uk.osric.asp.Web.Html;
 
 using uk.osric.asp.Sdk;
+using uk.osric.asp.Web.Pages;
+using uk.osric.asp.Web.Shell;
 
-/// <summary>The one way home a shell document carries.</summary>
+/// <summary>The site menu the shell's own views carry.</summary>
 /// <remarks>
 /// <para>
-/// The shell's own documents are bootstrap and recovery surfaces, not the site's views: the error,
-/// sign-in, status and admin routes have to answer when the page pipeline is broken, so they cannot
-/// depend on a stored page. They carry one way home — <c>/</c>, plus <c>/admin</c> at or under that
-/// prefix — and nothing else. The site menu a visitor sees day to day is written by the stored
-/// <c>/_layout</c>, which is why the two are no longer copies of each other.
+/// The seeded <c>/_layout</c> writes the same menu for stored pages, from the same list of tools, so
+/// the two copies are deliberate: the shell's document must not depend on a stored page, because the
+/// error, health, sign-in and editor routes have to answer when the page pipeline is broken.
 /// </para>
 /// <para>
-/// The footer's two links stay: a footer is where the links every page carries belong, and they are
-/// not the menu.
+/// The layout links the assistant unconditionally; only the shell knows the raw query a sign-in must
+/// return to, and both land somewhere that carries this menu.
 /// </para>
 /// </remarks>
 internal static class SiteNavigation {
@@ -28,41 +28,65 @@ internal static class SiteNavigation {
     public const string Class = "site-nav";
 
     /// <summary>The menu for the request being answered.</summary>
-    /// <param name="context">The request whose path decides the items.</param>
+    /// <param name="context">The request whose principal and path decide the items.</param>
     public static string For(HttpContext context) {
         ArgumentNullException.ThrowIfNull(context);
 
-        return Nav(context.Request.Path.Value ?? "/");
+        bool authenticated = context.User.Identity?.IsAuthenticated == true;
+
+        return Nav(
+            authenticated,
+            context.Request.Path.Value ?? "/",
+            context.Request.QueryString.Value ?? string.Empty,
+            EditorPaths.Of(context.RequestServices));
     }
 
-    /// <summary>The rendered menu for a request path.</summary>
+    /// <summary>The rendered menu, from the facts <see cref="For"/> would have read.</summary>
+    /// <param name="authenticated">Whether the visitor has signed in.</param>
     /// <param name="path">The canonical request path.</param>
-    public static string Nav(string path) => ShellDocument.Nav(Label, Links(path), Class);
+    /// <param name="query">The raw query, carried into the sign-in link.</param>
+    /// <param name="editorPath">The editor's own key, which is configuration.</param>
+    public static string Nav(bool authenticated, string path, string query, string editorPath) =>
+        ShellDocument.Nav(Label, Links(authenticated, path, query, editorPath), Class);
 
     /// <summary>The items, in reading order, with the one being shown marked as text.</summary>
+    /// <param name="authenticated">Whether the visitor has signed in.</param>
     /// <param name="path">The canonical request path.</param>
-    public static IReadOnlyList<NavLink> Links(string path) {
+    /// <param name="query">The raw query, carried into the sign-in link.</param>
+    /// <param name="editorPath">The editor's own key, which is configuration.</param>
+    public static IReadOnlyList<NavLink> Links(bool authenticated, string path, string query, string editorPath) {
         ArgumentNullException.ThrowIfNull(path);
+        ArgumentNullException.ThrowIfNull(query);
+        ArgumentException.ThrowIfNullOrWhiteSpace(editorPath);
 
-        List<NavLink> links = [
-            new("/", "Home", At(path, "/")),
-        ];
-
-        if (Under(path, "/admin")) {
-            links.Add(new("/admin", "Admin", Under(path, "/admin")));
+        List<NavLink> links = [];
+        foreach (ShellLink link in ShellCatalogue.Links(path, query, editorPath)) {
+            if (link.Section == ShellSection.Site && ShellCatalogue.IsFor(link, authenticated)) {
+                links.Add(new(link.Href, link.Text, IsCurrent(link, path)));
+            }
         }
 
         return links;
     }
 
     /// <summary>The items the document's footer carries, which are the same on every page.</summary>
+    /// <remarks>
+    /// The layout the stored pages are served in writes these in a footer, and the shell writes the
+    /// same document for its own views: a footer is where the two links every page carries belong, and
+    /// the header is for where the visitor can go from here.
+    /// </remarks>
     public static IReadOnlyList<NavLink> FooterLinks() => [
         new("/about", "About", false),
         new("/privacy", "Privacy policy", false),
     ];
 
-    private static bool At(string path, string href) => string.Equals(path, href, StringComparison.Ordinal);
+    // The sign-in link carries the way back as a query, so its current check is the path it leads to
+    // rather than the href it was given.
+    private static bool IsCurrent(ShellLink link, string path) {
+        int query = link.Href.IndexOf('?', StringComparison.Ordinal);
+        string target = query >= 0 ? link.Href[..query] : link.Href;
 
-    private static bool Under(string path, string href) =>
-        At(path, href) || path.StartsWith(href + "/", StringComparison.Ordinal);
+        return string.Equals(path, target, StringComparison.Ordinal)
+            || (link.Match == ShellMatch.Subtree && path.StartsWith(target + "/", StringComparison.Ordinal));
+    }
 }

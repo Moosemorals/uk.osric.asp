@@ -90,13 +90,13 @@ public sealed class PageArchiveReaderTests {
     }
 
     [Test]
-    public void TheAdminIndexIsNotReservedSoAnArchiveMayCarryIt() {
-        byte[] bytes = TestArchive.Build([("/admin", "Admin")]);
+    public void AnUnreservedPageKeyIsCarriedByAnArchive() {
+        byte[] bytes = TestArchive.Build([("/notes", "Notes")]);
 
         PageArchiveReadResult result = Reader().Read(bytes);
 
         Assert.That(result.Problems, Is.Empty);
-        Assert.That(result.Pages.Single().Path.Key, Is.EqualTo("/admin"));
+        Assert.That(result.Pages.Single().Path.Key, Is.EqualTo("/notes"));
     }
 
     [Test]

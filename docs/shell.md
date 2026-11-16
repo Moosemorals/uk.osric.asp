@@ -25,12 +25,11 @@ content and nothing else, so the title, the landmark and the sheet order cannot 
 view to the next.
 
 - The body opens with the skip link, then the banner, then the one `main`. `BeginAsync` requires a
-  navigation argument, so no view can be written without one: the shell composes its own with
-  `SiteNavigation`, which is one way home — `/`, plus `/admin` at or under that prefix
-  (`shell-documents-are-bootstrap`, `shell-a-shell-document-carries-one-way-home`). The stored
-  `/_layout` writes the menu a visitor sees day to day; the two are no longer copies of each other.
-  The header carries where the visitor can go from here; the footer carries About and the privacy
-  policy on every page, and the shell writes the same footer from `SiteNavigation.FooterLinks()`.
+  navigation argument, so no view can be written without a menu: the shell composes its own with
+  `SiteNavigation`, and the seeded layout writes the same items for stored pages
+  (`shell-the-menu-is-written-twice`, `pages-the-document-is-the-shells`). The header carries where
+  the visitor can go from here; the footer carries About and the privacy policy on every page, and
+  the shell writes the same footer from `SiteNavigation.FooterLinks()`.
 - `/site.css` is a seeded page and the only base sheet (`pages-one-base-sheet`). It holds the document's shape —
   the visually hidden utility, the listing and the form grid — and the site's look, with the shape
   rules first. The view's own sheet is linked last, so it can override a structural rule without a
@@ -167,13 +166,16 @@ write buffer 2
 - **Failure is not symmetric.** A *default* wrapper that is missing or does not compile serves the
   page unwrapped, logs a warning and counts `page.layout.fallback`; a wrapper the page *named* that
   cannot be served is an error naming the key.
-- **The shell documents carry one way home.** `SiteNavigation` composes `/`, plus `/admin` at or
-  under that prefix, for the shell's own views; the seeded `/_layout` writes the menu a visitor sees
-  day to day from `ctx.User`. The shell's document must not depend on a stored page, because the
-  error, health and sign-in routes have to answer when the page pipeline is broken
-  (`shell-documents-are-bootstrap`, `shell-a-shell-document-carries-one-way-home`). The footer and
-  the document shape are still compared; the item lists are not, because they are no longer supposed
-  to agree.
+- **The menu is written twice, on purpose.** `SiteNavigation` composes it from the principal for the
+  shell's own views, and the seeded `/_layout` writes it from `ctx.User` for stored pages — the header
+  items and the constant footer alike. The shell's copy is one table of shell routes
+  (`Shell/ShellCatalogue.cs`) filtered by section and audience, and `AdminNavigation` filters the same
+  table for the administration views, so a route cannot appear in one menu and not the other. The
+  shell's document must not depend on a stored page, because the error, health and sign-in routes have
+  to answer when the page pipeline is broken (`shell-the-menu-is-written-twice`). The shell's copy
+  comes from `ShellDocument.Nav`, the layout's from the seeded library, and an integration test
+  compares the document shape the two write as well as the items in it. The editor is a stored page,
+  so its menu is written by the page rather than by `SiteNavigation`.
 
 The layout is not a guard: the content has already run. It is not a data boundary: it reads its own
 storage and nothing of the page's.
@@ -181,6 +183,30 @@ storage and nothing of the page's.
 The author-facing version of this section is the seeded `/help` page, which is itself a page the
 owner can edit and restore. It is linked from the editor page; a change to what a page author can
 do updates it in the same change.
+
+## The administration index
+
+`/admin` is a route, not a page: it answers anyone, and it draws the administration section of the
+same link list the menus use, minus the tools this visitor may not reach. An anonymous visitor sees
+the public tools and a line saying the rest needs a sign-in; there is no redirect. The key is
+reserved, so the editor refuses to store a page there.
+
+## The copyright page
+
+`/admin/copyright` renders the licence and notice files the image carries — `LICENSE`,
+`THIRD-PARTY-NOTICES.md`, the `LICENSES` texts and `REUSE.toml`. They are packed beside the assembly
+for the same reason the changelist is: the container has no checkout. The route is public like the
+reference, and `/about` links to it rather than carrying a copy that has to be kept in step.
+
+## The shell's own files
+
+`admin.css`, `admin.js`, `status.css`, `reference.css` and `rocket.svg` are in the project's
+`wwwroot` and served by the static file handler, which runs before routing so a file answers before
+the page catch-all can claim its key. They are not pages: they are not seeded, not listed by the
+editor and not versioned by `/?v=`. The five keys are in the shell's route table, so the editor refuses
+a page that the file would shadow. `/site.css` and the editor's and assistant's sheets and scripts
+are still seeded, because a stored page links them and the owner may want to fix one without a
+release.
 
 ## The reference
 
@@ -199,8 +225,8 @@ resolved across the corpus or to Microsoft Learn), and `ReferenceRenderer` trans
 once with the embedded `reference.xslt`; the fragment is held for the process. A missing file is an
 assembly the index does not list, and a build with none says so rather than failing. An
 `<inheritdoc/>` entry is copied down from its base or interface member when that source is one of
-ours, and names the source when it is not. The seeded `/reference.css` styles the document and marks a
-link that leaves the site with an arrow.
+ours, and names the source when it is not. The `/reference.css` file in the web root styles the
+document and marks a link that leaves the site with an arrow.
 
 ## Error responses
 
@@ -214,7 +240,7 @@ from `Accept` alone; a request that names neither is treated as a browser, becau
 document can still read it.
 
 The recovery nav gains an "Edit this page" link for a signed-in owner whenever the failing request
-named a page the site serves — the key is addressable and not one of `Pages:ReservedPaths` — and never
+named a page the site serves — the key is addressable and not reserved by the shell — and never
 for a shell route, so a failure on `/metrics` cannot offer to edit it. The link is derived from the
 request by the writer rather than passed in by each call site, which is why the layout errors from
 `PageChain` and the exception page agree. A remedy that already leads to that editor URL, such as

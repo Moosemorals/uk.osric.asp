@@ -17,8 +17,9 @@ public sealed class StatusPageTests : IntegrationTest {
     public async Task DashboardStylesAreServedSeparatelyFromSharedStyles() {
         using HttpClient client = await CreateSignedInClientAsync();
 
-        // Read the assets once so their verdict is stored; the next page render can then link the
-        // revision it was actually served, rather than a bare URL that has never been judged.
+        // The base sheet is a stored asset, so its verdict is read once and the page links the
+        // revision it was served. The dashboard's own sheet is the web root's, so it carries no
+        // revision and no no-store.
         using HttpResponseMessage stylesheet = await client.GetAsync("/status.css");
         string statusStyles = await stylesheet.Content.ReadAsStringAsync();
         string sharedStyles = await client.GetStringAsync("/site.css");
@@ -26,17 +27,16 @@ public sealed class StatusPageTests : IntegrationTest {
         string status = await client.GetStringAsync("/status");
         using HttpClient anonymous = CreateClient();
         string login = await anonymous.GetStringAsync("/login");
-        // An unversioned asset, like a page with code, is no-store whoever asks.
         using HttpResponseMessage anonymousStylesheet = await anonymous.GetAsync("/status.css");
 
-        Assert.That(status, Does.Contain("<link rel=\"stylesheet\" href=\"/status.css?v="));
+        Assert.That(status, Does.Contain("<link rel=\"stylesheet\" href=\"/status.css\">"));
         Assert.That(status.IndexOf("/site.css", StringComparison.Ordinal),
             Is.LessThan(status.IndexOf("/status.css", StringComparison.Ordinal)), "the view's sheet follows the shared one");
         Assert.That(stylesheet.StatusCode, Is.EqualTo(HttpStatusCode.OK));
-        Assert.That(stylesheet.Content.Headers.ContentType?.ToString(), Is.EqualTo("text/css; charset=utf-8"));
-        Assert.That(stylesheet.Headers.CacheControl?.NoStore, Is.True);
-        Assert.That(anonymousStylesheet.Headers.CacheControl?.NoStore, Is.True);
-        Assert.That(anonymousStylesheet.Headers.ETag, Is.Null);
+        Assert.That(stylesheet.Content.Headers.ContentType?.ToString(), Is.EqualTo("text/css"));
+        Assert.That(stylesheet.Headers.CacheControl?.NoStore, Is.Not.True);
+        Assert.That(stylesheet.Headers.ETag, Is.Not.Null, "a file carries a validator");
+        Assert.That(anonymousStylesheet.StatusCode, Is.EqualTo(HttpStatusCode.OK));
         Assert.That(statusStyles, Does.Contain(".status-nav").And.Contain(".chart").And.Contain(".heatmap"));
         Assert.That(sharedStyles, Does.Contain("body {").And.Contain(".diagnostics"));
         Assert.That(sharedStyles, Does.Not.Contain(".status-nav").And.Not.Contain(".chart").And.Not.Contain(".heatmap"));

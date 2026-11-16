@@ -12,7 +12,7 @@ SPDX-License-Identifier: MIT
 | Area | Sdk, Web (html, admin, assistant, metrics, pages, seeds), docs |
 | Spike | None. Every claim below was read off the working tree on 2026-11-16: the two menu lists, the admin index, the shell routes, the reserved paths and the tests that pin them |
 | Backlog | [IDEA-030](../jobs/IDEA-030.md) |
-| Decisions | Keeps and edits the "menu is written twice" rule and `shell-admin-is-a-page`; new names proposed below: **pages-the-catalog-knows-the-shell**, **shell-the-shell-is-marked**, **shell-the-tools-live-under-admin**. Existing names it relies on: `pages-capabilities-are-one-seam`, `pages-a-layout-is-a-capability`, `pages-the-document-is-the-shells`, `pages-page-first`, `code-policy-values-are-configuration` |
+| Decisions | Keeps and edits `shell-the-menu-is-written-twice` and `shell-admin-is-a-shell-route`; new names proposed below: **pages-the-catalog-knows-the-shell**, **shell-the-shell-is-marked**, **shell-the-tools-live-under-admin**. Existing names it relies on: `pages-capabilities-are-one-seam`, `pages-a-layout-is-a-capability`, `pages-the-document-is-the-shells`, `pages-page-first`, `code-policy-values-are-configuration` |
 
 ## The short version
 
@@ -118,7 +118,7 @@ the same list against the owner's three questions:
 | Route | Why it is where it is | Under the root? |
 | --- | --- | --- |
 | `/` and every stored page | The product | No — the page store |
-| `/admin` | A seeded page that indexes the tools (`shell-admin-is-a-page`) | It is the root's index, and a page |
+| `/admin` | The shell route that indexes the tools (`shell-admin-is-a-shell-route`) | It is the root's index |
 | `/admin/import`, `/admin/export`, `/admin/changes`, `/admin/reference`, `/admin/restore`, `/admin/scrub`, `/admin/seed-apply` | Shell tools; bootstrap or the build's own facts | Yes |
 | `/status`, `/status/chart` | Bootstrap: what the owner reads when a page did not load | **Move to `/admin/status` and `/admin/status/chart`** |
 | `/assistant`, its events, approvals, options, stop, delete and memory view | A page in waiting; the account-scoped store and the tools' authority are the blockers | No — IDEA-025 moves it to a page key |
@@ -266,7 +266,11 @@ trade the owner asked for: pages get the facts and the control.
 
 ### D4 — The seeded admin index reads the same list
 
-`/admin` is a page (`shell-admin-is-a-page`), and it stays one. Its hand-written `<ul>` becomes a
+> **Superseded 2026-11-16** by [the seed-trimming plan](seed-trimming.md): `/admin` is a shell
+> route that renders the same list (`shell-admin-is-a-shell-route`). The list, its sections and its
+> audiences are unchanged; only the renderer moved from a seed to the shell.
+
+`/admin` was a page, and the step below is what it became. Its hand-written `<ul>` becomes a
 filter over the catalog:
 
 ```html
@@ -340,7 +344,7 @@ page pipeline is broken, so none of them can be served by a stored page, and the
 cannot call the seeded document library.
 
 What changes is the *list*: both documents read the same `ShellLink` values and render their own
-markup. the "menu is written twice" rule is edited rather than retired — the menu is still written
+markup. `shell-the-menu-is-written-twice` is edited rather than retired — the menu is still written
 twice, but the links are one list and each renderer decides what to do with them. The comparison
 test becomes stronger: it compares `(href, text, current)` rather than the words, and it compares a
 shell route with a page route rather than two page routes.
@@ -436,10 +440,10 @@ the administration views and the status dashboard. The routes outside it are not
 root as `/admin/status`. *Recorded in [the shell](../shell.md), [architecture](../architecture.md#where-a-view-lives)
 and this plan.*
 
-the "menu is written twice" rule is edited: the menu is still written in two documents, but both
+`shell-the-menu-is-written-twice` is edited: the menu is still written in two documents, but both
 render one list and the shell's document still does not depend on the page pipeline.
-`shell-admin-is-a-page` is edited: the index stays a page, and the tools it indexes now include
-Status under the same root.
+`shell-admin-is-a-shell-route` carries the index, and the tools it indexes now include Status under
+the same root.
 
 ## What it touches
 

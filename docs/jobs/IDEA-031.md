@@ -26,6 +26,7 @@ exception does not become silent.
 | The 1 MiB form body, and the parser's count and header limits | `PageEndpoint`, `Program` | `pages-the-response-is-buffered-until-a-flush`. The upload cap that is policy is already `Pages:Archive:MaxUploadBytes` |
 | Compile attempts, SQLite retries | `PageRenderer`, `SqliteErrors` | Internal recovery behaviour: a different number is a different algorithm, not an operator preference |
 | Cleanup and sample periods | the background services | Implementation detail with no observable policy behind it |
+| The reserved keys | `Shell/ShellCatalogue.cs` | A shorter list lets a stored page shadow a route such as `/login`, so configuration could only weaken it. The route table that answers a key is the list, which is also why there is nothing left to disagree |
 
 ## Sketch
 

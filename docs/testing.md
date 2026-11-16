@@ -74,11 +74,11 @@ and what depends on it is asserted by the suites that use it (`SimpleContextTest
   ended render, one save per render, the diagnostics it reports and the revision it answers with —
   `PageSaverTests` the saver the editor and a page share, and `SqlitePageRevisionStoreTests` the
   insert behind it, including the retry and the fact that a save lands after the request's context is
-  gone. `Web.IntegrationTests/PageSelfSaveTests` drives the seeded `/scratch` through the real host:
-  an anonymous visit, a save and the request after it, a stale form, and a `POST` with no
-  antiforgery field.
-  `Web.IntegrationTests/PageCatalogTests` drives the two seeded demo pages through the real host,
-  one public and one guarded, and reads their markup with `MarkupReader`.
+  gone. `Web.IntegrationTests/PageSelfSaveTests` writes a page that saves itself and drives it through
+  the real host: an anonymous visit, a save and the request after it, a stale form, and a `POST` with
+  no antiforgery field.
+  `Web.IntegrationTests/PageCatalogTests` writes a public listing and drives it and the guarded
+  `/pages` through the real host, reading their markup with `MarkupReader`.
   The page-cache tests swap in a counting compiler wrapped around the real one, so "a second request
   does not compile" is asserted rather than inferred.
   `PageScopeTests` lives here because it names the shell's own types — and `Core`'s — to prove the
@@ -183,7 +183,8 @@ and what depends on it is asserted by the suites that use it (`SimpleContextTest
   the stack of calls, a page that declares none, the nesting, the depth limit, the cycle, the one
   slot and deadline, the shared budgets, the fallbacks, the wrapper's `Content` and the response the
   content owns; `PageLayerRoleTests` pins what each of the three roles may ask of the response, and
-  `SiteNavigationTests` covers the one way home a shell document carries. The integration suite's
+  `ShellMenusTests` and `SiteNavigationTests` cover the menu the shell draws from its route table. The
+  integration suite's
   `SiteChromeTests` proves the shipped `Pages:Layout` through the real host: a shell document carries
   home and, under `/admin`, admin, and the stored layout keeps the full menu. `MarkupReader` is a hand-written reader rather than a parser dependency,
   which is sound only because this repository encodes every value at the boundary — and is why it has

@@ -222,18 +222,12 @@ down the tree.
 That is the part worth doing now rather than later: an embed added beside the chain would be a second
 way to render a page inside a page, which is the duplication this idea exists to remove.
 
-The shell policy it lets us state: **the shell's own documents are bootstrap and recovery surfaces,
-not the site's views.** They may be plain HTML without the site menu. The menu belongs to the stored
-`/_layout`, which is then the only place it is written; the shell's copy exists only because the
-error, health and login routes must answer when the page pipeline itself is broken. This job trims
-the menu from those emergency documents and leaves **one way home**: a link to `/`, plus a link to
-`/admin` when the document is at or under `/admin`. The admin link is the one piece of the old menu
-that still earns its place, because the pages under that prefix are the ones an owner moves between.
-
-One piece of coverage goes with the duplication: the integration test that compares the shell's
-document with the page's stops comparing two menus, because there is one. What replaces it is the
-assertion that a shell document carries the home link, and the admin link exactly when its route is
-under `/admin`. That is a smaller assertion and belongs in the plan, not in a footnote.
+The shell policy it proposed was that **the shell's own documents are bootstrap and recovery
+surfaces** that carry one way home. That proposal is dropped: trunk unified the shell's routes into one
+table (`Shell/ShellCatalogue.cs`), which draws the site menu and the administration menu from the same
+values, so the duplication the trim targeted is gone and a visitor on an error page or `/status` keeps
+the menu. `shell-the-menu-is-written-twice` stands as trunk edits it, and this job changes nothing in
+the shell.
 
 `/status` and `/assistant` are settled as shell documents for now. The objection is worth keeping
 alive beside that: `/status` is the page you look at when the site is unwell, so making it a stored
@@ -410,9 +404,8 @@ counter.
 - `docs/pages.md` adds the capability to the list, the `PageRequest` extension methods
   (`WithQuery`, `WithAnotherQuery`, `WithoutQuery`), the frame/capture split, and says `IPageLayout.Layout`
   and `Body` are gone, `Content` is the inner capture and `Title` is nullable;
-  `docs/shell.md` says the chain is policy over the layer render, entered by the page, that the shell's
-  documents are bootstrap surfaces with one way home — `/`, plus `/admin` at or under that prefix —
-  and that the stored layout is the site's menu. `docs/metrics.md` names `page.composition.recursive`, so an
+  `docs/shell.md` says the chain is policy over the layer render, entered by the page, and that the
+  stored layout is the site's menu. `docs/metrics.md` names `page.composition.recursive`, so an
   operator can see the one page that re-enters itself.
 - The glossary gains **embed**, **capture** and **wrap**, distinct from asset, library and layout.
 - `PublicAPI.Unshipped.txt` in `Sdk` gains the capability, `PageFrame`, `PageCapture` and
@@ -428,10 +421,8 @@ null meaning the caller's, and the request's copy-and-change helpers are extensi
 an embed returns the frame alone (pages-a-capture-returns-the-body); a page declares the page or
 pages that wrap it, innermost first (pages-a-page-chooses-its-layout); the chain and the embed are one
 layer render with a role (pages-one-render-three-roles); a page inside a page is a
-capture the outer page folds (pages-a-page-inside-a-page-is-a-capture); the wrapper owns the title
-check (pages-the-wrapper-owns-the-title);
-the shell's documents are bootstrap and recovery surfaces, and the stored layout is the site's menu
-(shell-documents-are-bootstrap); a shell document carries one way home (shell-a-shell-document-carries-one-way-home).
+capture the outer page folds (pages-a-page-inside-a-page-is-a-capture); and the wrapper owns the title
+check (pages-the-wrapper-owns-the-title).
 
 ## Not in scope
 

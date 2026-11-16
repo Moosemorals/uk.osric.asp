@@ -5,18 +5,19 @@ SPDX-FileCopyrightText: Copyright (c) 2016-2026, Alexandre Mutel
 SPDX-License-Identifier: MIT AND BSD-3-Clause AND BSD-2-Clause
 -->
 
-# Third-party notices
+## Third-party notices
 
-This site ships the following third-party software. The licence texts are in [LICENSES/](LICENSES/).
+This site ships the following third-party software. The licence texts are in
+[LICENSES/](https://github.com/Moosemorals/uk.osric.asp/tree/trunk/LICENSES).
 
-## Acornima 1.9.1
+### Acornima 1.9.1
 
 A standard-compliant ECMAScript parser, used by `uk.osric.asp.Runtime` to check the JavaScript a
 stored page serves. It parses and does not execute.
 
 - Project: <https://github.com/adams85/acornima>
 - Copyright (c) Adam Simon. All rights reserved.
-- Licence: BSD 3-Clause — also in [LICENSES/BSD-3-Clause.txt](LICENSES/BSD-3-Clause.txt).
+- Licence: BSD 3-Clause — also in [LICENSES/BSD-3-Clause.txt](https://github.com/Moosemorals/uk.osric.asp/blob/trunk/LICENSES/BSD-3-Clause.txt).
 
 Redistribution and use in source and binary forms, with or without modification, are permitted
 provided that the following conditions are met:
@@ -43,14 +44,14 @@ copyright (c) Sebastien Ros, distributed under the same BSD 3-Clause licence. It
 from [acorn](https://github.com/acornjs/acorn) and
 [AcornSharp](https://github.com/MatthewSmit/AcornSharp), both distributed under the MIT licence.
 
-## Markdig 1.6.0
+### Markdig 1.6.0
 
 A CommonMark implementation, used by `uk.osric.asp.Runtime` to render Markdown for stored pages and
 for the assistant transcript. It parses and renders; it does not execute anything.
 
 - Project: <https://github.com/xoofx/markdig>
 - Copyright (c) 2016-2026, Alexandre Mutel. All rights reserved.
-- Licence: BSD 2-Clause — also in [LICENSES/BSD-2-Clause.txt](LICENSES/BSD-2-Clause.txt).
+- Licence: BSD 2-Clause — also in [LICENSES/BSD-2-Clause.txt](https://github.com/Moosemorals/uk.osric.asp/blob/trunk/LICENSES/BSD-2-Clause.txt).
 
 Redistribution and use in source and binary forms, with or without modification, are permitted
 provided that the following conditions are met:

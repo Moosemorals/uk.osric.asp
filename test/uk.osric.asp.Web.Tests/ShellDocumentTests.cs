@@ -9,7 +9,8 @@ using uk.osric.asp.Web.Html;
 [TestFixture]
 public sealed class ShellDocumentTests {
 
-    private static readonly string Navigation = SiteNavigation.Nav("/edit");
+    private static readonly string Navigation = SiteNavigation.Nav(
+        authenticated: true, path: "/edit", query: string.Empty, editorPath: "/pages");
 
     [Test]
     public async Task HeadStatesTheLanguageAndTheTitleAsync() {

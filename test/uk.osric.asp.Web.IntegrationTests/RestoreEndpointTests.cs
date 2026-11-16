@@ -45,7 +45,7 @@ public sealed partial class RestoreEndpointTests : IntegrationTest {
         using HttpClient client = await CreateSignedInClientAsync();
 
         await PostEditorAsync(client, "site.css", "* { display: none; }");
-        await PostEditorAsync(client, "admin.css", "* { display: none; }");
+        await PostEditorAsync(client, "editor.css", "* { display: none; }");
         await SavePageAsync("/pages", Broken);
         await SavePageAsync("/_layout", Broken);
 

@@ -14,9 +14,9 @@ internal sealed record PathValidationResult(PagePath? Path, string? Error) {
 
 /// <summary>Which pages the assistant may read, and which it may write.</summary>
 /// <remarks>
-/// One kind of key is read-only: a <em>shell file</em>, a key the site's own routes answer
-/// (<c>Pages:ReservedPaths</c>). It is readable, because the tools describe what the route does, and
-/// it is never a stored page. Everything else is a page the assistant may list, read and write,
+/// One kind of key is read-only: a <em>shell file</em>, a key the site's own routes answer — the
+/// shell's route table, which is also the reserved list. It is readable, because the tools describe
+/// what the route does, and it is never a stored page. Everything else is a page the assistant may list, read and write,
 /// subject to <c>Assistant:WritablePathPrefix</c>.
 /// </remarks>
 internal sealed class PagePathPolicy {

@@ -31,7 +31,7 @@ public sealed class ExportEndpointTests {
 
         Assert.That(Checkboxes(body), Is.EqualTo(new List<string> { "/", "/blog", "/gone" }));
         Assert.That(body, Does.Contain("checked"));
-        Assert.That(body, Does.Contain("Page administration"));
+        Assert.That(body, Does.Contain("Site administration"));
     }
 
     [Test]

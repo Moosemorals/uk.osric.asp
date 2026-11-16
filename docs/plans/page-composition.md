@@ -8,11 +8,11 @@ SPDX-License-Identifier: MIT
 | | |
 | --- | --- |
 | Status | Built on `idea-049` 2026-11-16 — waits for the owner's merge. `make check` is green, the decision entries are written, and the job stays open until the merge closes it |
-| Size | Large — one new `Sdk` capability with four calls and two values, `IPageLayout` loses `Layout` and gains a nullable `Title`, one layer renderer with three roles, the layout chain rebuilt on it and entered by the page, the shell's documents trimmed to one way home, ten seeded pages and the editor's starter, the manual, the assistant's prompt and its version, two configuration values, one instrument, and the tests that pin the recursion, the response gates and the chrome |
+| Size | Large — one new `Sdk` capability with four calls and two values, `IPageLayout` loses `Layout` and gains a nullable `Title`, one layer renderer with three roles, the layout chain rebuilt on it and entered by the page, ten seeded pages and the editor's starter, the manual, the assistant's prompt and its version, two configuration values, one instrument, and the tests that pin the recursion, the response gates and the chrome |
 | Area | Sdk, Web (pages, shell, seeds, assistant, metrics), docs |
 | Spike | None. Every count below was taken off `trunk` at `6004526` on 2026-11-16, after `pages-the-response-is-one-object` merged |
 | Backlog | [IDEA-049](../jobs/IDEA-049.md) is this step. [IDEA-047](../jobs/IDEA-047.md) is the answer if a real page needs more than one write in one render, which composition makes likelier |
-| Decisions | New names proposed: **pages-an-embed-is-a-render**, **pages-a-composed-page-gets-a-request**, **pages-a-capture-returns-the-body**, **pages-a-page-inside-a-page-is-a-capture**, **pages-a-page-chooses-its-layout**, **pages-one-render-three-roles**, **pages-the-wrapper-owns-the-title**, **shell-documents-are-bootstrap**, **shell-a-shell-document-carries-one-way-home**. Edits `pages-one-request-one-chain`, `pages-a-layout-is-a-capability`, `pages-layouts-are-markup`, `pages-one-base-sheet` and `pages-capabilities-are-one-seam`; retires the "menu is written twice" rule (the Retired list names it). Relies on `pages-the-response-is-one-object`, `pages-the-contract-is-the-seam`, `pages-public-by-default`, `pages-a-warning-never-stops-a-page`, `pages-page-io-is-async`, `pages-any-page-may-write-the-store`, `pages-a-page-may-save-itself`, `metrics-one-panel-per-instrument` and `code-policy-values-are-configuration` |
+| Decisions | New names proposed: **pages-an-embed-is-a-render**, **pages-a-composed-page-gets-a-request**, **pages-a-capture-returns-the-body**, **pages-a-page-inside-a-page-is-a-capture**, **pages-a-page-chooses-its-layout**, **pages-one-render-three-roles**, **pages-the-wrapper-owns-the-title**. Edits `pages-one-request-one-chain`, `pages-a-layout-is-a-capability`, `pages-layouts-are-markup`, `pages-one-base-sheet` and `pages-capabilities-are-one-seam`. The shell trim D14 proposed is dropped: trunk unified the menus into one route table first, so `shell-the-menu-is-written-twice` stands as trunk edits it. Relies on `pages-the-response-is-one-object`, `pages-the-contract-is-the-seam`, `pages-public-by-default`, `pages-a-warning-never-stops-a-page`, `pages-page-io-is-async`, `pages-any-page-may-write-the-store`, `pages-a-page-may-save-itself`, `metrics-one-panel-per-instrument` and `code-policy-values-are-configuration` |
 
 ## The short version
 
@@ -58,11 +58,11 @@ embedded withhold it; embedded keeps the capabilities a content page has, includ
 jobs, because the authority is the caller's identity, and the embedded page's own wraps run like any
 other page's.
 
-**The shell stops pretending to be a view.** Its own documents (error, sign-in, `/status`, `/assistant`
-and the admin routes) are bootstrap and recovery surfaces. They carry one way home — `/`, plus
-`/admin` at or under that prefix — and the site menu is written only by the stored `/_layout`. That
-removes the duplicate menu and the test that compared the two copies without making the error and
-health routes depend on a stored page.
+**The shell's documents keep their menu.** D14 was written when the shell's menu and the stored
+layout's were two hand-written lists. Trunk has since unified the shell's routes into one table
+(`Shell/ShellCatalogue.cs`) that draws the site menu and the administration menu from the same
+values, which is a better answer to the same duplication, so this step leaves the shell's documents
+alone and `shell-the-menu-is-written-twice` stands as trunk edits it.
 
 **Nothing wraps automatically.** A page that does not call `Wrap` is served exactly as it wrote
 itself. That is the point and the migration: the seeds and the editor's starter carry the line,
@@ -82,7 +82,7 @@ itself. That is the point and the migration: the seeds and the editor's starter 
    counted; fan-out is capped.
 5. A no-code page embeds as the fragment it is, with its comments removed, because the projection
    moves from the shell's serving path into the renderer.
-6. The shell's own documents carry one way home and no site menu; the stored layout carries the menu.
+6. Nothing in the shell changes: the shell's documents keep the menu trunk draws from its one route table.
 7. `/a EmbedAsync(/b)` and `/b Wrap(/a)` are the same relation from opposite ends: both hand the
    outer page a `PageCapture` and let it choose what to fold.
 8. The manual, the prompt, the docs and every seeded page say the new thing in the same change.
@@ -499,22 +499,16 @@ still one place where a stored source becomes a body.
   ("Recursive composition", a line chart by `page_path`), one row in the metrics table, and one call
   in `MetricNamesTests`. Both `EmbedAsync` and `CaptureAsync` count. The Pages panel count in `docs/metrics.md` moves from nineteen to twenty.
 
-### D14 — The shell's documents are bootstrap surfaces
+### D14 — The shell is left alone
 
-`SiteNavigation.Links` becomes the one way home: `/` always, and `/admin` when the request path is at
-or under `/admin`. The assistant, editor, sign-in and sign-out items leave the **shell's** menu; the
-stored `/_layout` keeps them, because it is the menu a visitor sees day to day. The footer's two
-static links (`/about`, `/privacy`) stay — they are not the menu and carry no policy — unless the
-owner wants them gone.
+This was to trim the shell's documents to one way home. Trunk got there first with a better answer:
+`ShellCatalogue` is one table of the site's routes, and the shell's site menu and the administration
+menu are both filtered from it, so the duplication D14 was aimed at is gone without taking the menu
+away from a visitor who lands on `/status` or an error page. The owner chose the trunk design at the
+merge; `SiteNavigation`, `ShellDocument`, their tests and `shell-the-menu-is-written-twice` are
+trunk's, and this step adds no shell rule.
 
-`SiteNavigation.For(context)` keeps its signature and reads only the path. `ShellDocument`'s required
-navigation parameter stays, so a view still cannot be written without one.
-
-The integration test that compares the shell's menu with the stored layout's is replaced by two:
-a shell document carries Home, plus Admin exactly when it is under `/admin`; and the stored layout
-keeps the full menu. `AnAnonymousVisitorSeesSignInAndNoTools` and
-`ASignedInVisitorSeesTheToolsAndSignOut` stay, because they assert the stored layout through a wrapped
-page.
+`TheShellAndTheLayoutOfferTheSameItems` stays, because the two menus are still expected to agree.
 
 ### D15 — The record
 
@@ -545,19 +539,13 @@ page.
 >
 > **pages-the-wrapper-owns-the-title** — `IPageLayout.Title` is nullable and the wrapper decides what a
 > missing title means; the host no longer refuses the chain.
->
-> **shell-documents-are-bootstrap** — the shell's own documents are emergency and recovery surfaces,
-> not the site's views; the stored layout is the menu.
->
-> **shell-a-shell-document-carries-one-way-home** — a shell document links `/`, and `/admin` when it is
-> at or under that prefix.
 
 Edits: `pages-one-request-one-chain` (the chain is entered by the page and still one render),
 `pages-a-layout-is-a-capability` (the slots remain; `Layout` leaves), `pages-layouts-are-markup` (the
 wrapper is the layout role), `pages-one-base-sheet` (an embed's sheets are the caller's to fold, and the document library keeps
 the cascade order and the dedupe), and
-`pages-capabilities-are-one-seam` (the twelfth capability). The "menu is written twice" rule is
-retired: the menu is written once.
+`pages-capabilities-are-one-seam` (the twelfth capability). `shell-the-menu-is-written-twice` is left
+as trunk edits it, because the shell's menu did not change.
 
 ## What it touches
 
@@ -572,22 +560,22 @@ retired: the menu is written once.
 session order, the wrap), `PageRenderer.cs` (the comment projection), `PageLayoutState.cs`,
 `PageLayoutConfiguration.cs` (documentation only), `SimpleContext.cs`, `SimpleResponse.cs`,
 `PageWritesScope.cs`, `BodyBudget.cs`, `RenderOptions.cs`, `PageMetrics.cs`, `StatusCatalogue.cs`,
-`appsettings.json`, `SiteNavigation.cs`, `ShellDocument.cs`, and the seeds (`_layout`, `_lib/document`,
-`about`, `admin`, `editor-mode`, `help`, `pages`, `privacy`, `recent`, `scratch`, `vim-help`). The
-document library gains the overload that folds a `PageCapture` and the layer's own slots into one
-head, so the seeded `_layout` stays a short page; the editor's empty page starts from a one-line
-fragment that calls `Wrap()`, so a page created in the editor is wrapped without the author knowing
-the rule.
+`appsettings.json`, and the seeds (`_layout`, `_lib/document`, `about`, `editor-mode`, `help`, `pages`,
+`privacy`, `vim-help`). The document library gains the overload that folds a `PageCapture` and the
+layer's own slots into one head, so the seeded `_layout` stays a short page; the editor's empty page
+starts from a one-line fragment that calls `Wrap()`, so a page created in the editor is wrapped
+without the author knowing the rule. `/admin`, `/recent` and `/scratch` left the seeds in trunk's own
+work before this landed, and the pages this step wraps are the ones still shipped.
 
 `Assistant`: `PageAuthorPrompt.cs` — the capability section, examples, the composition rules, and the
 version (`page-author-v35` → `v36`).
 
-Tests: `PageLayoutChainTests` (36, retitled where the wrap changed), new `PageCompositionTests`,
-`PageCaptureTests`, `PageRequestQueryTests` and `PageLayerRoleTests` in `Web.Tests`;
-`SimpleResponseTests`, `PageEndpointTests`, `PageWritesScopeTests` and `PageStreamingTests` gain the
-role and the one-write sharing; `PageAuthorPromptTests`; `SiteChromeTests` and `SiteLayoutEditingTests`
-in the integration suite; `MetricNamesTests`; `TemplateCommentsTests` and `PageCompilerTests` where the
-projection moved.
+Tests: `PageLayoutChainTests` (retitled and extended where the wrap changed), new
+`PageCompositionTests`, `PageCaptureTests`, `PageRequestQueryTests` and `PageLayerRoleTests` in
+`Web.Tests`; `SimpleResponseTests`, `PageEndpointTests`, `PageWritesScopeTests` and
+`PageStreamingTests` gain the role and the one-write sharing; `PageAuthorPromptTests`; `SiteChromeTests`,
+`SiteLayoutEditingTests` and the pages the integration suite saves gain the `Wrap()` they now need;
+`MetricNamesTests`; `TemplateCommentsTests` and `PageCompilerTests` where the projection moved.
 
 Docs: `pages.md` (an embed renders the page's whole chain, `Wrap` calls stack, and a fragment is a
 page with no `Wrap`), `shell.md`, `metrics.md`, `glossary.md`, `testing.md`, `architecture.md` where
@@ -608,8 +596,8 @@ through, and the first two were committed together because the role and the chai
    configuration values and the instrument. The chain tests move to the new shape here.
 3. **The pages we ship.** Ten seeds with `Wrap()` and the nullable title, the document library's merge
    overload and the `/_layout` that uses it, the editor's starter, `/help`, the prompt and its version. `make check-pages` and the prompt test prove it.
-4. **The shell and the docs.** `SiteNavigation`, `ShellDocument`, the chrome tests, `/help`'s shell
-   paragraph, the four docs, the plan link; the decision entries at the merge only.
+4. **The docs.** `pages.md`, `shell.md`, `metrics.md`, `glossary.md`, `testing.md`, the plan link and
+   the decision entries at the merge; the shell itself is trunk's.
 
 ## Verification
 
@@ -644,8 +632,7 @@ through, and the first two were committed together because the role and the chai
 - **The embed runs the chain:** an embed of a page that declares a wrapper returns the outermost
   body and frame; an embed of a page that declares the site layout includes it; `CaptureAsync` of
   the same page returns the outermost body. A fragment is a page that declares no wrapper.
-- **The shell:** every shell document carries Home, and Admin exactly under `/admin`; a stored page
-  still carries the full menu; the shell and the stored layout no longer have to agree.
+- **The shell:** `TheShellAndTheLayoutOfferTheSameItems` still passes, because neither menu moved.
 - **The metrics:** `MetricNamesTests` records the new counter and reads it back from `/metrics`; the
   status page renders its panel.
 - **The prompt:** every member of `IPageComposition`, `PageFrame` and `PageCapture`, and every
@@ -681,8 +668,6 @@ through, and the first two were committed together because the role and the chai
   behaviour.
 - **The title is a public-API change.** The seeds are updated; `RuntimeId` moves; a stored page that
   hands `layout.Title` to a `string` parameter reports a diagnostic.
-- **The shell menu test is a real loss of coverage.** It is replaced by the shell's own rule and the
-  stored layout's own rule; the two documents are no longer supposed to be equal.
 - **The default fallback is narrower.** Only `Wrap()` can fall back; a named wrapper that cannot be
   served is an error, which is the rule a named layout already has.
 - **The prompt's contract section is generated.** A test that nothing documents is the guard; the new
@@ -703,8 +688,8 @@ through, and the first two were committed together because the role and the chai
    `Stylesheets` and `Content`; `Body` and `Layout` are gone.
 6. **`Wrap()` with no key.** Yes: the configured default, so a page does not hard-code a key the owner
    can move, and the default fallback has a home.
-7. **The shell documents.** `/status` and `/assistant` stay shell documents; every shell document
-   carries `/`, plus `/admin` at or under that prefix.
+7. **The shell documents.** `/status` and `/assistant` stay shell documents. The proposed trim to one
+   way home was dropped at the merge, because trunk unified the menus into one route table first.
 8. **The input.** No request forwards the caller's; a request is used as given with `Path` pinned.
    `WithQuery`, `WithAnotherQuery` and `WithoutQuery` are extension methods on `PageRequest`, so a
    copy-and-change is cheap without adding members to the record. No options type.
@@ -729,8 +714,7 @@ through, and the first two were committed together because the role and the chai
 ## Considered and rejected
 
 - **A host-driven wrap (`IPageLayout.Layout` and the default applied to every page).** The default is
-  what made a page unwrapped only if it opted out; the owner wants the page to own the decision, and
-  the shell policy removes the duplication that made the automatic wrap feel necessary.
+  what made a page unwrapped only if it opted out; the owner wants the page to own the decision.
 - **`WrapAsync` as a handover at the call.** It reads as the sentence it is, but every exit path must
   reach it, and a guard's early `return` would silently serve a bare fragment. A declaration at the
   top covers every path and lets the page set its status after writing.

@@ -1129,11 +1129,13 @@ names its own policy is [IDEA-047](../docs/jobs/IDEA-047.md)'s work.
 
 ### pages-scratch-saves-itself
 
-The write is demonstrated by one seeded page, `/scratch`: it guards its own view, reads its own source,
-saves it, answers the save in the response it is already writing, and refuses a form whose revision hash
-has been overtaken. The manual gains a section for the capability and the page list points at the draft.
+A page that saves itself guards its own view, reads its own source, saves it, answers the save in the
+response it is already writing, and refuses a form whose revision hash has been overtaken. The manual's
+**Writing the page store** section is the worked example; the seeded `/scratch` that demonstrated it
+was retired on 2026-11-16, because the editor is the same save, and the integration suite writes the
+page it drives rather than the site shipping one.
 
-*Recorded in [scratch](../src/uk.osric.asp.Web/Pages/Seeds/scratch), [page self-save](plans/archive/page-self-save.md#d8--the-seeded-scratch-a-page-that-edits-itself).*
+*Recorded in [the manual](../src/uk.osric.asp.Web/Pages/Seeds/help), [page self-save](plans/archive/page-self-save.md#d8--the-seeded-scratch-a-page-that-edits-itself).*
 
 ### pages-the-editor-is-a-page
 
@@ -1566,31 +1568,77 @@ pass whose findings are recorded with the plan.
 
 *Recorded in [semantic-html-and-accessibility](plans/archive/semantic-html-and-accessibility.md#verification), [testing](testing.md#the-five-suites).*
 
-### shell-documents-are-bootstrap
+### shell-the-menu-is-written-twice
 
-The shell's own documents — the error, sign-in, status, assistant and admin routes — are bootstrap and
-recovery surfaces, not the site's views. They carry one way home and no site menu; the menu a visitor
-sees day to day is written by the stored `/_layout`. The shell's document is still deliberately not the
-stored layout, because those routes must answer when the page pipeline is broken, and the two are
-compared on their shape, not on their items.
+The site menu is written twice on purpose: composed by `SiteNavigation` for the shell's own views, and
+written in the seeded `/_layout` for stored pages. The shell's copy and the administration menu both
+filter one list of `ShellLink` values, so a route cannot appear in one and not the other. Both render
+through one nav builder, and an integration test compares the two item lists. The shell's document is
+deliberately not the stored layout, because the error, health, sign-in and editor routes must answer
+when the page pipeline is broken.
 
-*Recorded in [page composition](plans/page-composition.md#d14--the-shells-documents-are-bootstrap-surfaces), [the shell](shell.md#the-document-shell).*
+*Recorded in [site navigation](plans/archive/site-navigation.md#d5--the-menu-lives-in-the-layout-and-in-the-shell-through-the-same-builder).*
 
-### shell-a-shell-document-carries-one-way-home
+### shell-admin-is-a-shell-route
 
-A shell document links `/`, and `/admin` when the request path is at or under that prefix. The footer's
-About and privacy links stay: they are not the menu and carry no policy. `SiteNavigation.For` keeps its
-signature and reads only the path.
+`/admin` is the shell's own route, and it answers anyone: it draws the administration section of the
+shell's route table, minus the tools this visitor may not reach, so an anonymous visitor sees the
+public tools and a line saying a sign-in reaches the rest. It is a route because it must answer when
+the page pipeline is broken — the same reason every other administration view is one — and because a
+page cannot draw the shell's own link list. The key is reserved, so a stored page cannot take it. The
+administrative index is the one view the earlier seeded page was right about in spirit: one list of
+tools rather than a second one.
 
-*Recorded in [page composition](plans/page-composition.md#d14--the-shells-documents-are-bootstrap-surfaces), [the shell](shell.md#the-document-shell).*
+*Recorded in [the seed trim](plans/seed-trimming.md#d3---admin-is-a-shell-route), [the shell](shell.md#the-administration-index), [AdminIndexEndpoint](../src/uk.osric.asp.Web/Admin/AdminIndexEndpoint.cs).*
 
-### shell-admin-is-a-page
+### shell-admin-assets-are-static-files
 
-`/admin` is a seeded fragment page linking import, export and `/status`; `/_layout` is an ordinary page
-the owner can edit and restore, and only the import and export routes stay reserved beneath `/admin`.
-This retired a duplicate page list, not an index of tools.
+The files only the shell's own views load — `admin.css`, `admin.js`, `status.css`, `reference.css` and
+the icon at `/rocket.svg` — are in the project's `wwwroot`, served by the static file handler before
+routing, and are not pages at all. A file that was a seeded page needed a restore after every release
+that moved it, and a `?v=` link that named a revision of a file nobody could edit; the five keys are
+reserved so a page cannot be shadowed silently. `/site.css` stays seeded because a stored page links
+it and the owner may edit it (`pages-one-base-sheet`), and so do the sheets and scripts a stored page
+loads.
 
-*Recorded in [site navigation](plans/archive/site-navigation.md#d6--admin-is-a-fragment-page-now).*
+*Recorded in [the seed trim](plans/seed-trimming.md#d1---the-shells-own-files-are-files), [the shell](shell.md#the-shells-own-files), [operations](../deploy/operations.md).*
+
+### shell-the-licences-are-read-not-restated
+
+The copyright and licence page is `/admin/copyright`, a public shell route that renders the files the
+image carries: `LICENSE`, `THIRD-PARTY-NOTICES.md`, every text in `LICENSES/` and `REUSE.toml`. A copy
+of those texts on `/about` was a second home for a file that changes without the page noticing, and
+the notice the image ships for its packages is the one a reader is entitled to see. A missing file is
+named and the rest of the page still answers, so a build that did not come through the Makefile says
+what it lacks instead of failing.
+
+*Recorded in [the seed trim](plans/seed-trimming.md#d4---about-keeps-the-credits-admincopyright-keeps-the-licences), [the shell](shell.md#the-copyright-page), [CopyrightEndpoint](../src/uk.osric.asp.Web/Admin/CopyrightEndpoint.cs).*
+
+### shell-one-table-of-routes
+
+The shell describes each of its own routes once, in `Web/Shell/ShellCatalogue.cs`: the key, the
+methods, who may reach it, a one-line description and the menus it appears in. The reserved key set,
+the record the assistant reads and both menus are derived from that table, so a route cannot be
+described by one of them and forgotten by another — they were three hand-kept copies and the
+assistant's prompt a fourth, and they had drifted. Two things do not collapse: a *page* link (Home,
+the editor, the manual) is in the table but answers with no methods or description, and a *route* may
+appear in no menu. A menu entry carries its own audience and order, because who may reach a route and
+who a link is for are different facts — `/admin` answers anyone, the site menu offers it to the owner,
+the administration menu to everyone — and the two menus do not agree on position.
+
+*Recorded in [the route catalogue](plans/shell-route-catalogue.md), [the shell](shell.md#the-administration-index), [ShellCatalogue](../src/uk.osric.asp.Web/Shell/ShellCatalogue.cs).*
+
+### shell-reserved-keys-are-an-invariant
+
+The keys a stored page may not claim are the shell's route paths, taken from the table, and are not
+configuration: `Pages:ReservedPaths` is gone and a deployment that still sets it is refused at startup
+with the reason. A route exists because the site's code answers it, so an operator who shortened the
+list could only let a stored page shadow a route such as `/login`, and no legitimate deployment needs
+that; a longer list would have to invent a route that does not exist. This is the exception
+`code-policy-values-are-configuration` names — a security policy configuration may only keep or tighten
+— and [IDEA-031](../docs/jobs/IDEA-031.md) lists it with the other invariants.
+
+*Recorded in [the route catalogue](plans/shell-route-catalogue.md#d4--reservedpaths-derives-its-keys), [ReservedPaths](../src/uk.osric.asp.Web/Pages/ReservedPaths.cs), [the shell](shell.md).*
 
 ### shell-the-admin-tools
 
@@ -2409,10 +2457,9 @@ someone who cannot see that it was once used.
 - `pages-the-editor-capability` — replaced by **pages-any-page-may-write-the-store**. It made the
   editor's registration the authority: one content key, `Pages:Editor:Key`, and the store's write offered
   to no other page. The owner removed that narrowing on 2026-11-15.
-- `shell-the-menu-is-written-twice` — replaced by **shell-documents-are-bootstrap** and
-  **shell-a-shell-document-carries-one-way-home**. It wrote the site menu twice, once in the shell and
-  once in the stored layout, and compared the two; the shell's documents became bootstrap surfaces with
-  one way home, so there is nothing to compare.
+- `shell-admin-is-a-page` — replaced by **shell-admin-is-a-shell-route**. It kept `/admin` as a seeded
+  fragment index so the owner could edit it; the index is the shell's now, because it draws the shell's
+  own route table and must answer when the page store is broken. The owner retired it on 2026-11-16.
 
 The numbering scheme this file replaces was a way of writing decisions down rather than a decision with a
 name, and the entries that were already superseded when this file was written are in the

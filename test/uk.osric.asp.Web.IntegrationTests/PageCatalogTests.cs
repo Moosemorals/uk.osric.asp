@@ -8,19 +8,47 @@ using uk.osric.asp.Core.Pages;
 using uk.osric.asp.Web.Pages;
 using uk.osric.asp.Web.Tests;
 
-/// <summary>The two seeded pages that demonstrate a page reading the page store.</summary>
+/// <summary>A page reading the page store: one that lists it publicly, and the editor that guards it.</summary>
 [TestFixture]
 public sealed class PageCatalogTests : IntegrationTest {
 
     // The demo pages are fragments, so the fixture runs the host with the stored layout switched on.
     internal override AspApplication CreateApplication() => new(pageLayout: "/_layout");
 
+    // The public listing the tests read. It is the whole of `ListAsync`: keys and save times, never a
+    // template, and no guard, which is the capability's rule whether or not the site ships such a page.
+    private const string Listing = """
+<% ctx.Capabilities.GetRequired<IPageLayout>().Title = "Listing";
+   ctx.Capabilities.GetRequired<IPageComposition>().Wrap(); %>
+<h1>Listing</h1>
+<table>
+    <caption>Stored pages</caption>
+    <thead>
+        <tr>
+            <th scope="col">Page</th>
+            <th scope="col">Last saved</th>
+        </tr>
+    </thead>
+    <tbody>
+<% foreach (PageEntry entry in await ctx.Capabilities.GetRequired<IPageCatalog>().ListAsync("")) { %>
+        <tr>
+            <th scope="row"><%= entry.Key %></th>
+            <td><%= entry.SavedAt.ToUniversalTime().ToString("yyyy-MM-dd HH:mm 'UTC'", System.Globalization.CultureInfo.InvariantCulture) %></td>
+        </tr>
+<% } %>
+    </tbody>
+</table>
+""";
+
+    private async Task SeedListingAsync() => await SavePageAsync("/catalog-listing", Listing);
+
     [Test]
     public async Task ThePublicListingNamesEveryPageAndWhenItChangedAsync() {
+        await SeedListingAsync();
         await SavePageAsync("/catalog-listed", "<h1>Listed</h1>");
         using HttpClient client = CreateClient();
 
-        using HttpResponseMessage response = await client.GetAsync("/recent");
+        using HttpResponseMessage response = await client.GetAsync("/catalog-listing");
         string body = await response.Content.ReadAsStringAsync();
 
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
@@ -32,22 +60,24 @@ public sealed class PageCatalogTests : IntegrationTest {
 
     [Test]
     public async Task ThePublicListingIsServedToAnAnonymousVisitorAsync() {
+        await SeedListingAsync();
         using HttpClient client = CreateClient();
 
-        using HttpResponseMessage response = await client.GetAsync("/recent");
+        using HttpResponseMessage response = await client.GetAsync("/catalog-listing");
 
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
         Assert.That(response.Content.Headers.ContentType?.ToString(), Is.EqualTo("text/html; charset=utf-8"));
-        Assert.That(await response.Content.ReadAsStringAsync(), Does.Contain("<h1>Recent changes</h1>"));
+        Assert.That(await response.Content.ReadAsStringAsync(), Does.Contain("<h1>Listing</h1>"));
     }
 
     [Test]
     public async Task ThePublicListingNeverShowsSourceAsync() {
         const string marker = "CATALOG-UNIQUE-SOURCE-MARKER";
+        await SeedListingAsync();
         await SavePageAsync("/catalog-secret", marker);
         using HttpClient client = CreateClient();
 
-        using HttpResponseMessage response = await client.GetAsync("/recent");
+        using HttpResponseMessage response = await client.GetAsync("/catalog-listing");
         string body = await response.Content.ReadAsStringAsync();
 
         Assert.That(body, Does.Contain("/catalog-secret"));
@@ -120,8 +150,9 @@ public sealed class PageCatalogTests : IntegrationTest {
 
     [Test]
     public async Task BothDemoPagesAreWrappedInTheStoredLayoutAsync() {
+        await SeedListingAsync();
         using HttpClient anonymous = CreateClient();
-        using HttpResponseMessage recent = await anonymous.GetAsync("/recent");
+        using HttpResponseMessage recent = await anonymous.GetAsync("/catalog-listing");
         string recentBody = await recent.Content.ReadAsStringAsync();
 
         using HttpClient owner = await CreateSignedInClientAsync();
@@ -136,11 +167,12 @@ public sealed class PageCatalogTests : IntegrationTest {
 
     [Test]
     public async Task SavingAPageChangesWhatTheDemoPagesShowAsync() {
+        await SeedListingAsync();
         await SavePageAsync("/catalog-fresh", "fresh source");
         using HttpClient anonymous = CreateClient();
         using HttpClient owner = await CreateSignedInClientAsync();
 
-        using HttpResponseMessage recent = await anonymous.GetAsync("/recent");
+        using HttpResponseMessage recent = await anonymous.GetAsync("/catalog-listing");
         using HttpResponseMessage pages = await owner.GetAsync("/pages");
 
         Assert.That(await recent.Content.ReadAsStringAsync(), Does.Contain("/catalog-fresh"));
@@ -149,8 +181,9 @@ public sealed class PageCatalogTests : IntegrationTest {
 
     [Test]
     public async Task TheDemoPagesMeetTheAccessibilityRulesAsync() {
+        await SeedListingAsync();
         using HttpClient anonymous = CreateClient();
-        using HttpResponseMessage recent = await anonymous.GetAsync("/recent");
+        using HttpResponseMessage recent = await anonymous.GetAsync("/catalog-listing");
         AssertTableDocument(await recent.Content.ReadAsStringAsync(), withSource: false);
 
         using HttpClient owner = await CreateSignedInClientAsync();

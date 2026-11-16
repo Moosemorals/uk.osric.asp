@@ -140,8 +140,8 @@ only by the `users` command.
 
 Every save creates a retained revision, deleting a page only tombstones its head, and scrub removes
 one path's head and revisions: [storage](../docs/storage.md#source-storage) has the rules. Startup
-seeding will not restore a tombstoned `/site.css` or `/rocket.svg`, so saving at that path recreates
-it in the same history. Runtime-change cleanup of obsolete images and symbols is deferred. The
+seeding will not restore a tombstoned `/site.css`, so saving at that path recreates it in the same
+history. Runtime-change cleanup of obsolete images and symbols is deferred. The
 editor's history view shows a retained revision and restores it as a new save, after a confirmation
 that shows the change; a seeded row installs its bundled source the same way
 ([the plan](../docs/plans/archive/revision-restore.md)).
@@ -347,12 +347,18 @@ reachable from the internet.
   not a public embed. `duration` is a window token (`1h`, `3h`, `8h`, `1d`, `7d`, `30d`) or a whole
   number of minutes. A malformed window is a `400`, an unknown panel a `404`, and a Prometheus that
   does not answer a `503` with the reason.
-- **Restore `/status.css` after deploying this page.** The sheet is a seeded page (`pages-delete-install-and-restore`), so an
-  installation that already has one keeps the old rules until the owner restores it from `/edit`.
-  Until then the charts render full width, one per row: usable, but not the intended grid. The
-  assistant's own seeded `/assistant.css` and `/assistant.js` are the same: a deployment adds the
-  continuation card and its script to the image, and an installation keeps the old sheet and script
-  until the owner restores them, so a paused run would show no card until then.
+- **`Pages:ReservedPaths` is gone.** The reserved keys are the shell's route table now. A deployment
+  whose override still carries the section stops at startup and names it: remove the key, restart,
+  and the routes reserve themselves.
+- **The shell's own files come with the image.** `/admin.css`, `/admin.js`, `/status.css`,
+  `/reference.css` and `/rocket.svg` are served from the web root, not the page store, so a deploy
+  replaces them and no restore is needed. An installation that predates the move still has a seeded
+  row at each of those keys; the file shadows it, `seeds list` reports it as a seed the release no
+  longer ships, and the owner deletes or scrubs it in the editor. The five keys are reserved, so the
+  editor refuses to save a new page there.
+- **Restore `/assistant.css` and `/assistant.js` after deploying a change to them.** They are still
+  seeded pages (`pages-delete-install-and-restore`), so an installation keeps the old sheet and
+  script until the owner restores them, and a paused run shows no continuation card until then.
 - **Retention is a guess.** 30 days and 4 GB are easy to change in `prometheus.container`; check
   `df -h /` before raising them, because images, page assemblies, the database and the swap file
   share the disk.

@@ -20,6 +20,11 @@ public sealed class ReservedPathsTests {
     [TestCase("/logout")]
     [TestCase("/metrics")]
     [TestCase("/status")]
+    [TestCase("/admin.css")]
+    [TestCase("/admin.js")]
+    [TestCase("/reference.css")]
+    [TestCase("/rocket.svg")]
+    [TestCase("/status.css")]
     [TestCase("/assistant")]
     [TestCase("/assistant/1")]
     [TestCase("/admin/import")]
@@ -33,7 +38,6 @@ public sealed class ReservedPathsTests {
     [TestCase("/edits")]
     [TestCase("/editing")]
     [TestCase("/site.css")]
-    [TestCase("/rocket.svg")]
     [TestCase("/site.css.bak")]
     [TestCase("/hello")]
     [TestCase("/administrator")]
@@ -50,11 +54,12 @@ public sealed class ReservedPathsTests {
     }
 
     [Test]
-    public void TheAdminIndexIsNotReservedButItsToolsAre() {
-        Assert.That(Defaults.IsReserved(PagePath.Normalize("/admin")), Is.False);
+    public void TheAdminIndexIsReservedWithItsTools() {
+        Assert.That(Defaults.IsReserved(PagePath.Normalize("/admin")), Is.True);
         Assert.That(Defaults.IsReserved(PagePath.Normalize("/admin/import")), Is.True);
         Assert.That(Defaults.IsReserved(PagePath.Normalize("/admin/export")), Is.True);
         Assert.That(Defaults.IsReserved(PagePath.Normalize("/admin/scrub")), Is.True);
+        Assert.That(Defaults.IsReserved(PagePath.Normalize("/administrator")), Is.False);
     }
 
     [Test]

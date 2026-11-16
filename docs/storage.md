@@ -187,12 +187,13 @@ or does not, and the way back is another import.
 
 Built-in page templates live in `src/uk.osric.asp.Web/Pages/Seeds`, included as content in build and
 publish output. Each file is a complete page template and its filename becomes the page path. The
-response type follows that name's extension through `Pages:ContentTypes`, so the scripts,
-stylesheets and SVG are pure source with no directive of their own. The seeded `/rocket.svg` and
-`/site.css` have no code, so they are stored as source and never compiled. `/site.css` holds the
-site's look and the rules the document shell's markup needs (see [the document
-shell](shell.md#the-document-shell)), while `/status.css` holds dashboard styles and is linked only
-by `/status`. Editing a seed file changes the initial content for
+response type follows that name's extension through `Pages:ContentTypes`, so the scripts and
+stylesheets are pure source with no directive of their own. The seeded `/site.css` has no code, so it
+is stored as source and never compiled, and it holds the site's look and the rules the document
+shell's markup needs (see [the document shell](shell.md#the-document-shell)). The files only the
+shell's own views load — `/admin.css`, `/admin.js`, `/status.css`, `/reference.css` — and the icon
+at `/rocket.svg` are in the project's `wwwroot` instead: they are served by the static file handler
+and are not pages at all. Editing a seed file changes the initial content for
 a never-created page, not an existing database page. The authenticated install action applies the
 bundled source to an existing or tombstoned page as a new revision, and its confirmation refuses the
 install when the live template already matches the seed. The editor page lists every page, with the

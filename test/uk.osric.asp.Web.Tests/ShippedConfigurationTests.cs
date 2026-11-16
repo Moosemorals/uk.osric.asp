@@ -38,11 +38,6 @@ public sealed class ShippedConfigurationTests {
     }
 
     [Test]
-    public void TheShippedReservedKeysAreTheOnesTheShellRouteTableDescribes() {
-        Assert.That(TestOptions.ReservedKeys(), Is.EquivalentTo(ReservedPaths.Default));
-    }
-
-    [Test]
     public void TheShippedEveryExtensionIsMapped() {
         Assert.That(TestOptions.ContentTypes.ExtensionCount, Is.EqualTo(7));
     }
