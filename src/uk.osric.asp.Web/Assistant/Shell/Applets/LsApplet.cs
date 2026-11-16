@@ -43,8 +43,8 @@ internal sealed class LsApplet : ShellApplet {
         List<PageNode> entries = [];
         foreach (PageNode scope in scopes) {
             List<PageNode> found = [.. nodes.Where(node =>
-                PageTree.IsDirectlyBelow(node.Path, scope.Path)
-                || (recursive && PageTree.IsBelow(node.Path, scope.Path)))];
+                node.Path.IsDirectlyBelow(scope.Path)
+                || (recursive && node.Path.IsBelow(scope.Path)))];
             // ls on a page names the page, the way ls on a file names the file; a folder lists what is
             // in it and nothing else, even when that is nothing.
             if (found.Count == 0 && !scope.IsFolder) {

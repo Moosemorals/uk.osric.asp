@@ -12,11 +12,11 @@ internal sealed class PageScriptTests : BrowserTest {
         string script = UniquePath("script") + ".js";
         string page = UniquePath("scripted");
         await SavePageAsync(script, """
-            <% ctx.SetContentType("text/javascript; charset=utf-8"); %>
+            <% ctx.Response.SetContentType("text/javascript; charset=utf-8"); %>
             window.__pageScriptRan = true;
             export {};
             """);
-        await SavePageAsync(page, "<% ctx.AllowScripts(); %>" + PageTemplate("Scripted page",
+        await SavePageAsync(page, "<% ctx.Response.AllowScripts(); %>" + PageTemplate("Scripted page",
             $"<script type=\"module\" src=\"{script}\"></script>"));
 
         await Page.GotoAsync(page);

@@ -14,7 +14,7 @@ namespace uk.osric.asp.Sdk;
 /// The read is as public as the page that calls it. There is no gate in the host, so an anonymous
 /// visitor gets the same answers a signed-in one does, and a page that wants its listing or its
 /// source private writes the ordinary guard:
-/// <c>if (ctx.User is not { } user) { ctx.RedirectToLogin(); return; }</c>. Because the read is not
+/// <c>if (ctx.User is not { } user) { ctx.Response.RedirectToLogin(); return; }</c>. Because the read is not
 /// gated, a page that calls <see cref="ReadAsync"/> or <see cref="ReadRevisionAsync"/> publishes the
 /// source it reads to whoever can reach that page.
 /// </para>

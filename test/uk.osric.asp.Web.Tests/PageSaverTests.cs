@@ -37,7 +37,7 @@ public sealed class PageSaverTests {
         using PageHarness pages = new(storage);
 
         SavedRevision saved = await pages.Saver.SaveAsync(
-            PageHarness.Key("/hello"), "<% ctx.Write(\"Hello.\"); %>", CancellationToken.None);
+            PageHarness.Key("/hello"), "<% ctx.Response.Write(\"Hello.\"); %>", CancellationToken.None);
 
         Assert.That(saved.Diagnostics, Is.Empty);
         Assert.That(saved.Revision.Hash, Is.EqualTo(PageHarness.Stored(storage, "/hello").Hash));
@@ -249,10 +249,10 @@ public sealed class PageSaverTests {
 
         await Assert.ThrowsAsync<InvalidOperationException>(
             () => pages.Saver.SaveAsync(
-                PageHarness.Key("/fault"), "<% ctx.Write(\"Hello.\"); %>", CancellationToken.None));
+                PageHarness.Key("/fault"), "<% ctx.Response.Write(\"Hello.\"); %>", CancellationToken.None));
 
         PageTemplate stored = PageHarness.Stored(storage, "/fault");
-        Assert.That(stored.Template, Is.EqualTo("<% ctx.Write(\"Hello.\"); %>"));
+        Assert.That(stored.Template, Is.EqualTo("<% ctx.Response.Write(\"Hello.\"); %>"));
         Assert.That(stored.Image, Is.Null);
         Assert.That(stored.Kind, Is.Null, "a compiler fault never judged the source");
         Assert.That(stored.CreationRuntimeId, Is.EqualTo(pages.Compiler.RuntimeId));
@@ -264,7 +264,7 @@ public sealed class PageSaverTests {
         using PageHarness pages = new(storage);
 
         SavedRevision saved = await pages.Saver.SaveAsync(
-            PageHarness.Key("/hello"), "<% ctx.Write(\"Hello.\"); %>", CancellationToken.None);
+            PageHarness.Key("/hello"), "<% ctx.Response.Write(\"Hello.\"); %>", CancellationToken.None);
 
         Assert.That(pages.Revisions.Last?.Hash, Is.EqualTo(saved.Revision.Hash));
         Assert.That(storage.LastWritePath, Is.EqualTo(PageHarness.Key("/hello")));
@@ -293,7 +293,7 @@ public sealed class PageSaverTests {
 
         await Assert.ThrowsAsync<OperationCanceledException>(
             () => pages.Saver.SaveAsync(
-                PageHarness.Key("/hello"), "<% ctx.Write(\"Hello.\"); %>", CancellationToken.None, expired.Token));
+                PageHarness.Key("/hello"), "<% ctx.Response.Write(\"Hello.\"); %>", CancellationToken.None, expired.Token));
 
         Assert.That(storage.WriteCount, Is.Zero, "nothing is compiled, so nothing is stored");
     }
@@ -307,11 +307,11 @@ public sealed class PageSaverTests {
         // The render gives up while the page is compiling. The compile keeps its own bound and the
         // revision is stored, because losing the author's edit is the worse failure (`pages-a-page-may-save-itself`).
         SavedRevision saved = await pages.Saver.SaveAsync(
-            PageHarness.Key("/hello"), "<% ctx.Write(\"Hello.\"); %>", CancellationToken.None, deadline.Token);
+            PageHarness.Key("/hello"), "<% ctx.Response.Write(\"Hello.\"); %>", CancellationToken.None, deadline.Token);
 
         Assert.That(deadline.IsCancellationRequested, Is.True);
         Assert.That(saved.Diagnostics, Is.Empty);
-        Assert.That(PageHarness.Stored(storage, "/hello").Template, Is.EqualTo("<% ctx.Write(\"Hello.\"); %>"));
+        Assert.That(PageHarness.Stored(storage, "/hello").Template, Is.EqualTo("<% ctx.Response.Write(\"Hello.\"); %>"));
         Assert.That(storage.WriteCount, Is.EqualTo(1));
     }
 

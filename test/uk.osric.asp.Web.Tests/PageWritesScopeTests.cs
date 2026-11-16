@@ -343,13 +343,13 @@ public sealed class PageWritesScopeTests {
         FakePageStore storage = new();
         using PageHarness pages = new(storage);
 
-        PageSaveResult result = await Scope(pages, path: "/self").SaveAsync("<% ctx.Write(\"Hello.\"); %>");
+        PageSaveResult result = await Scope(pages, path: "/self").SaveAsync("<% ctx.Response.Write(\"Hello.\"); %>");
 
         Assert.That(result.Diagnostics, Is.Empty);
         Assert.That(result.HasErrors, Is.False);
         Assert.That(result.HasWarnings, Is.False);
         Assert.That(result.Hash, Is.EqualTo(PageHarness.Stored(storage, "/self").Hash));
-        Assert.That(PageHarness.Stored(storage, "/self").Template, Is.EqualTo("<% ctx.Write(\"Hello.\"); %>"));
+        Assert.That(PageHarness.Stored(storage, "/self").Template, Is.EqualTo("<% ctx.Response.Write(\"Hello.\"); %>"));
         Assert.That(PageHarness.Stored(storage, "/self").Image?.Bytes, Is.Not.Null.And.Not.Empty);
     }
 
@@ -481,7 +481,7 @@ public sealed class PageWritesScopeTests {
     public async Task ADiagnosticWithNoPositionHasNoLineOrColumnAsync() {
         using PageHarness pages = new(new FakePageStore(), new PositionlessCompiler());
 
-        PageSaveResult result = await Scope(pages, path: "/self").SaveAsync("<% ctx.Write(\"Hello.\"); %>");
+        PageSaveResult result = await Scope(pages, path: "/self").SaveAsync("<% ctx.Response.Write(\"Hello.\"); %>");
 
         PageDiagnostic error = result.Diagnostics.Single();
         Assert.That(error.Line, Is.Null);
@@ -504,9 +504,9 @@ public sealed class PageWritesScopeTests {
         using PageHarness pages = new(storage, new FaultingCompiler());
 
         await Assert.ThrowsAsync<InvalidOperationException>(
-            () => Scope(pages, path: "/self").SaveAsync("<% ctx.Write(\"Hello.\"); %>"));
+            () => Scope(pages, path: "/self").SaveAsync("<% ctx.Response.Write(\"Hello.\"); %>"));
 
-        Assert.That(PageHarness.Stored(storage, "/self").Template, Is.EqualTo("<% ctx.Write(\"Hello.\"); %>"));
+        Assert.That(PageHarness.Stored(storage, "/self").Template, Is.EqualTo("<% ctx.Response.Write(\"Hello.\"); %>"));
         Assert.That(PageHarness.Stored(storage, "/self").Image, Is.Null);
     }
 

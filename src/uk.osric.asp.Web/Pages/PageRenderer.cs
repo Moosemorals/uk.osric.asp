@@ -190,7 +190,7 @@ internal sealed class PageRenderer(
             if (loaded.Source is { } source) {
                 // The page has no code, so there is nothing to load or invoke: the stored source is
                 // the body, byte for byte, and the render's body budget still applies.
-                context.WriteRaw(source);
+                context.Response.WriteRaw(source);
                 outcome = PageMetrics.RenderOk;
 
                 return RenderResult.FromSource;
@@ -304,7 +304,7 @@ internal sealed class PageRenderer(
         // A library or a worker is not a representation: nothing renders it, and its own URL answers
         // 404 before this runs. A layout that named one is not found rather than compiled as if it
         // were a page.
-        if (!PageAssetPolicy.IsServed(page.Kind)) {
+        if (!page.Kind.IsServed()) {
             metrics.RecordCacheLookup(PageMetrics.LookupHit);
 
             return new CachedPage(null, null, PageMetrics.CacheHit, NotServed: true);
@@ -333,7 +333,7 @@ internal sealed class PageRenderer(
 
     private static CachedPage FromBuilt(PageTemplate page, PageImage image) => image.Kind switch {
         PageKind.Text => new CachedPage(null, page.Template, PageMetrics.CacheMiss),
-        _ when !PageAssetPolicy.IsServed(image.Kind) => new CachedPage(null, null, PageMetrics.CacheMiss, NotServed: true),
+        _ when !image.Kind.IsServed() => new CachedPage(null, null, PageMetrics.CacheMiss, NotServed: true),
         _ => new CachedPage(image, null, PageMetrics.CacheMiss),
     };
 

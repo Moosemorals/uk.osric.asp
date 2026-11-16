@@ -16,7 +16,7 @@ public sealed class ShellTests : IntegrationTest {
 
     [Test]
     public async Task StoredPageIsRendered() {
-        await SavePageAsync("/hello", "Hello, <% ctx.Write(\"world\"); %>!");
+        await SavePageAsync("/hello", "Hello, <% ctx.Response.Write(\"world\"); %>!");
         using HttpClient client = CreateClient();
 
         HttpResponseMessage response = await client.GetAsync("/hello");
@@ -30,7 +30,7 @@ public sealed class ShellTests : IntegrationTest {
     public async Task StoredNonHtmlPageKeepsItsContentTypeAndLiteralBody() {
         const string body = "<svg title=\"A & B > C\"></svg>";
         await SavePageAsync("/asset.svg",
-            "<% ctx.SetContentType(\"image/svg+xml\"); %>" + body);
+            "<% ctx.Response.SetContentType(\"image/svg+xml\"); %>" + body);
         using HttpClient client = CreateClient();
 
         HttpResponseMessage response = await client.GetAsync("/asset.svg");
@@ -91,7 +91,7 @@ public sealed class ShellTests : IntegrationTest {
 
     [Test]
     public async Task PostPageReceivesTheForm() {
-        await SavePageAsync("/echo", "<% ctx.Write(ctx.Request.Form[\"name\"]); %>");
+        await SavePageAsync("/echo", "<% ctx.Response.Write(ctx.Request.Form[\"name\"]); %>");
         using HttpClient client = CreateClient();
 
         HttpResponseMessage response = await client.PostAsync(
@@ -104,7 +104,7 @@ public sealed class ShellTests : IntegrationTest {
     [TestCase("/hello", "/hello")]
     [TestCase("/hello?q=metrics", "/hello?q=metrics")]
     public async Task PageRedirectIsSentAsFound(string location, string expectedLocation) {
-        await SavePageAsync("/moved", $"<% ctx.Redirect(\"{location}\"); %>");
+        await SavePageAsync("/moved", $"<% ctx.Response.Redirect(\"{location}\"); %>");
         using HttpClient client = CreateClient();
 
         HttpResponseMessage response = await client.GetAsync("/moved");

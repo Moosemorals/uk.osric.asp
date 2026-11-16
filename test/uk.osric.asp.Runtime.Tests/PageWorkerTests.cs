@@ -175,7 +175,7 @@ public sealed class PageWorkerTests {
 
     [Test]
     public void AnImageWithNoEntryPointCannotBeLoadedAsAWorker() {
-        TemplateGenerationResult page = TemplateSourceGenerator.Generate("<% ctx.Write(\"hi\"); %>");
+        TemplateGenerationResult page = TemplateSourceGenerator.Generate("<% ctx.Response.Write(\"hi\"); %>");
         CompileResult result = Compiler.Compile(page.Source!, []);
 
         Assert.Throws<InvalidOperationException>(() => Compiler.LoadWorker(result.Image!, result.Symbols));

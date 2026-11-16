@@ -44,9 +44,9 @@ internal sealed class DiffApplet : ShellApplet {
             if (unified) {
                 context.Output.Line($"--- {files[0].Path.Key}");
                 context.Output.Line($"+++ {files[1].Path.Key}");
-                context.Output.Raw(UnifiedDiff.Format(diff));
+                context.Output.Raw(diff.ToUnified());
             } else {
-                context.Output.Raw(NormalDiff.Format(diff));
+                context.Output.Raw(diff.ToNormal());
             }
         }
         if (diff.IsCoarse) {

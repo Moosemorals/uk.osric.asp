@@ -22,7 +22,7 @@ public sealed class ShellCatalogueTests {
 
     [Test]
     public void ARecordIsOneFactPerLine() {
-        string[] lines = (ShellCatalogue.Text(PagePath.Normalize("/login")) ?? "").Split('\n');
+        string[] lines = ShellCatalogue.Text(PagePath.Normalize("/login")).Split('\n');
 
         Assert.Multiple(() => {
             Assert.That(lines, Has.Length.EqualTo(5), "so a line number from grep or read_page is stable");
@@ -49,7 +49,7 @@ public sealed class ShellCatalogueTests {
     [Test]
     public void EveryRecordReadsAsARecord() {
         foreach (ShellRoute route in ShellCatalogue.Routes) {
-            string text = (ShellCatalogue.Text(PagePath.Normalize(route.Key)))!;
+            string text = ShellCatalogue.Text(PagePath.Normalize(route.Key));
 
             Assert.That(text, Does.StartWith(route.Key + "\n"));
             Assert.That(text, Does.Contain("methods: " + route.Methods));
@@ -71,8 +71,14 @@ public sealed class ShellCatalogueTests {
         Assert.That(ShellCatalogue.Routes.Single(route => route.Key == "/metrics").Access, Does.Contain("internal network"));
     }
 
+    // The reserved set is the routes, so this cannot happen from the panel side; it is still the
+    // shape the assistant gets rather than an exception if a key ever arrives without a record.
     [Test]
-    public void AKeyTheShellDoesNotAnswerHasNoRecord() {
-        Assert.That(ShellCatalogue.Text(PagePath.Normalize("/extra")), Is.Null);
+    public void AKeyTheTableDoesNotDescribeSaysSo() {
+        string text = ShellCatalogue.Text(PagePath.Normalize("/extra"));
+
+        Assert.That(text.Split('\n'), Has.Length.EqualTo(3));
+        Assert.That(text, Does.StartWith("/extra\nshell file:"));
+        Assert.That(text, Does.Contain("does not describe"));
     }
 }

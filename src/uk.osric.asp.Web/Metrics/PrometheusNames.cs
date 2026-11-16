@@ -16,7 +16,7 @@ internal static class PrometheusNames {
 
     /// <summary>The family prefix an instrument is exported under, without a type suffix.</summary>
     /// <param name="instrument">The instrument.</param>
-    internal static string Family(MetricInstrument instrument) {
+    internal static string Family(this MetricInstrument instrument) {
         ArgumentNullException.ThrowIfNull(instrument);
 
         string unit = instrument.Unit switch {
@@ -30,13 +30,13 @@ internal static class PrometheusNames {
 
     /// <summary>The family a histogram's buckets are exported under.</summary>
     /// <param name="instrument">The instrument.</param>
-    internal static string Buckets(MetricInstrument instrument) => Family(instrument) + "_bucket";
+    internal static string Buckets(this MetricInstrument instrument) => instrument.Family() + "_bucket";
 
     /// <summary>The family a histogram's observations sum to.</summary>
     /// <param name="instrument">The instrument.</param>
-    internal static string Sum(MetricInstrument instrument) => Family(instrument) + "_sum";
+    internal static string Sum(this MetricInstrument instrument) => instrument.Family() + "_sum";
 
     /// <summary>The family a counter's total is exported under.</summary>
     /// <param name="instrument">The instrument.</param>
-    internal static string Total(MetricInstrument instrument) => Family(instrument) + "_total";
+    internal static string Total(this MetricInstrument instrument) => instrument.Family() + "_total";
 }

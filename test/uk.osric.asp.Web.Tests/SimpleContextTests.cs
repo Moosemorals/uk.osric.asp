@@ -4,46 +4,12 @@
 namespace uk.osric.asp.Web.Tests;
 
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Logging.Abstractions;
 using uk.osric.asp.Core.Pages;
 using uk.osric.asp.Sdk;
 using uk.osric.asp.Web.Pages;
 
 [TestFixture]
 public sealed class SimpleContextTests {
-
-    [Test]
-    public void WritingNullIsRefused() {
-        SimpleContext context = CreateContext(out _);
-
-        Assert.Multiple(() => {
-            Assert.Throws<ArgumentNullException>(() => context.Write(null!));
-            Assert.Throws<ArgumentNullException>(() => context.WriteRaw(null!));
-        });
-    }
-
-    [Test]
-    public void AStatusOutsideTheHttpRangeIsRefused() {
-        SimpleContext context = CreateContext(out _);
-
-        Assert.Multiple(() => {
-            Assert.Throws<ArgumentOutOfRangeException>(() => context.SetStatus(99));
-            Assert.Throws<ArgumentOutOfRangeException>(() => context.SetStatus(600));
-        });
-    }
-
-    [Test]
-    public void ResponseDefaultsToOkHtml() {
-        SimpleContext context = CreateContext(out _);
-
-        PageResponse response = context.ToResponse();
-
-        Assert.That(response.Status, Is.EqualTo(200));
-        Assert.That(response.ContentType, Is.EqualTo("text/html; charset=utf-8"));
-        Assert.That(response.Headers["Cache-Control"], Is.EqualTo("no-store"));
-        Assert.That(response.Location, Is.Null);
-        Assert.That(response.AllowsScripts, Is.False);
-    }
 
     [TestCase("/app.js", "text/javascript; charset=utf-8")]
     [TestCase("/app.mjs", "text/javascript; charset=utf-8")]
@@ -52,269 +18,50 @@ public sealed class SimpleContextTests {
     [TestCase("/app.txt", "text/plain; charset=utf-8")]
     [TestCase("/notes", "text/html; charset=utf-8")]
     public void TheKeyDecidesTheInitialContentType(string path, string contentType) {
-        SimpleContext context = CreateContext(out _, path: path);
+        SimpleContext context = CreateContext("/page", out _, path);
 
-        Assert.That(context.ToResponse().ContentType, Is.EqualTo(contentType));
+        Assert.That(context.Response.ToResponse().ContentType, Is.EqualTo(contentType));
     }
 
     [Test]
     public void SetContentTypeOverridesAMappedType() {
-        SimpleContext context = CreateContext(out _, path: "/app.js");
+        SimpleContext context = CreateContext("/page", out _, "/app.js");
 
-        context.SetContentType("text/html; charset=utf-8");
+        context.Response.SetContentType("text/html; charset=utf-8");
 
-        Assert.That(context.ToResponse().ContentType, Is.EqualTo("text/html; charset=utf-8"));
+        Assert.That(context.Response.ToResponse().ContentType, Is.EqualTo("text/html; charset=utf-8"));
     }
 
     [Test]
     public void SetContentTypeOverridesTheFallback() {
-        SimpleContext context = CreateContext(out _, path: "/notes");
+        SimpleContext context = CreateContext("/page", out _, "/notes");
 
-        context.SetContentType("text/javascript; charset=utf-8");
+        context.Response.SetContentType("text/javascript; charset=utf-8");
 
-        Assert.That(context.ToResponse().ContentType, Is.EqualTo("text/javascript; charset=utf-8"));
-    }
-
-    [TestCase("/app.js")]
-    [TestCase("/app.css")]
-    [TestCase("/notes")]
-    public void EveryPageDefaultsToNoStore(string path) {
-        SimpleContext context = CreateContext(out _, path: path);
-
-        Assert.That(context.ToResponse().Headers["Cache-Control"], Is.EqualTo("no-store"));
+        Assert.That(context.Response.ToResponse().ContentType, Is.EqualTo("text/javascript; charset=utf-8"));
     }
 
     [Test]
     public void AnUnmappedPageTakesTheConfiguredFallback() {
         PageContentTypes plain = PageContentTypes.Create("text/plain; charset=utf-8", []);
-        SimpleContext context = CreateContext(out _, path: "/notes", contentTypes: plain);
+        SimpleContext context = CreateContext("/page", out _, "/notes", plain);
 
-        Assert.That(context.ToResponse().ContentType, Is.EqualTo("text/plain; charset=utf-8"));
-    }
-
-    [Test]
-    public void AllowScriptsIsRecordedInTheResponse() {
-        SimpleContext context = CreateContext(out _);
-
-        context.AllowScripts();
-
-        Assert.That(context.ToResponse().AllowsScripts, Is.True);
-    }
-
-    [Test]
-    public void AllowScriptsIsIdempotent() {
-        SimpleContext context = CreateContext(out _);
-
-        context.AllowScripts();
-        context.AllowScripts();
-
-        Assert.That(context.ToResponse().AllowsScripts, Is.True);
-    }
-
-    [TestCase("Content-Language")]
-    [TestCase("content-language")]
-    [TestCase("X-Robots-Tag")]
-    public void AllowedHeadersAreRecorded(string name) {
-        SimpleContext context = CreateContext(out _);
-
-        context.SetHeader(name, "value");
-
-        Assert.That(context.ToResponse().Headers[name], Is.EqualTo("value"));
-    }
-
-    [TestCase("Set-Cookie")]
-    [TestCase("Content-Length")]
-    [TestCase("Content-Type")]
-    [TestCase("Location")]
-    [TestCase("Transfer-Encoding")]
-    [TestCase("Connection")]
-    [TestCase("ETag")]
-    [TestCase("Expires")]
-    [TestCase("Vary")]
-    public void ReservedHeadersAreRefused(string name) {
-        SimpleContext context = CreateContext(out _);
-
-        Assert.That(() => context.SetHeader(name, "value"), Throws.ArgumentException);
-        Assert.That(context.ToResponse().Headers.ContainsKey(name), Is.False);
-    }
-
-    // A stored page is per-visitor, so caching policy is the host's and a page cannot claim one.
-    [TestCase("Cache-Control")]
-    [TestCase("cache-control")]
-    public void ACachePolicyThePageSetsIsRefused(string name) {
-        SimpleContext context = CreateContext(out _);
-
-        Assert.That(() => context.SetHeader(name, "max-age=3600"), Throws.ArgumentException);
-        Assert.That(context.ToResponse().Headers["Cache-Control"], Is.EqualTo("no-store"));
-    }
-
-    [TestCase("X-Content-Type-Options")]
-    [TestCase("x-content-type-options")]
-    [TestCase("X-Frame-Options")]
-    [TestCase("X-XSS-Protection")]
-    public void TheShellsOwnXHeadersAreRefusedThroughTheWildcard(string name) {
-        SimpleContext context = CreateContext(out _);
-
-        Assert.That(() => context.SetHeader(name, ""), Throws.ArgumentException);
-        Assert.That(() => context.SetHeader(name, "value"), Throws.ArgumentException);
-        Assert.That(context.ToResponse().Headers.ContainsKey(name), Is.False);
-    }
-
-    [TestCase("")]
-    [TestCase("   ")]
-    public void EmptyHeaderValuesAreRefused(string value) {
-        SimpleContext context = CreateContext(out _);
-
-        Assert.That(() => context.SetHeader("X-Page", value), Throws.ArgumentException);
-        Assert.That(context.ToResponse().Headers.ContainsKey("X-Page"), Is.False);
-    }
-
-    [TestCase("value\r\nSet-Cookie: stolen=yes")]
-    [TestCase("value\n")]
-    public void HeaderValuesWithLineBreaksAreRefused(string value) {
-        SimpleContext context = CreateContext(out _);
-
-        Assert.That(() => context.SetHeader("X-Page", value), Throws.ArgumentException);
-    }
-
-    [TestCase(99)]
-    [TestCase(600)]
-    public void StatusOutsideTheRangeIsRefused(int status) {
-        SimpleContext context = CreateContext(out _);
-
-        Assert.That(() => context.SetStatus(status), Throws.InstanceOf<ArgumentOutOfRangeException>());
-        Assert.That(context.ToResponse().Status, Is.EqualTo(200));
-    }
-
-    [Test]
-    public void RedirectRecordsTheLocationAndTheStatus() {
-        SimpleContext context = CreateContext(out _);
-
-        context.Redirect("/elsewhere");
-
-        Assert.That(context.ToResponse().Location, Is.EqualTo("/elsewhere"));
-        Assert.That(context.ToResponse().Status, Is.EqualTo(302));
-    }
-
-    [Test]
-    public void RedirectKeepsAnExplicitStatus() {
-        SimpleContext context = CreateContext(out _);
-
-        context.Redirect("/moved", 301);
-
-        Assert.That(context.ToResponse().Status, Is.EqualTo(301));
-    }
-
-    [TestCase("value\r\nSet-Cookie: stolen=yes")]
-    [TestCase("value\n")]
-    public void RedirectTargetsWithLineBreaksAreRefused(string location) {
-        SimpleContext context = CreateContext(out _);
-
-        Assert.That(() => context.Redirect(location), Throws.ArgumentException);
-        Assert.That(context.ToResponse().Location, Is.Null);
+        Assert.That(context.Response.ToResponse().ContentType, Is.EqualTo("text/plain; charset=utf-8"));
     }
 
     [Test]
     public void UserIsNullByDefault() {
-        SimpleContext context = CreateContext(out _);
+        SimpleContext context = CreateContext("/page", out _);
 
         Assert.That(context.User, Is.Null);
     }
 
     [Test]
     public void ASuppliedUserIsReturnedWithItsName() {
-        SimpleContext context = CreateContext(out _, user: new PageUser("owner"));
+        SimpleContext context = CreateContext("/page", out _, user: new PageUser("owner"));
 
         Assert.That(context.User, Is.EqualTo(new PageUser("owner")));
         Assert.That(context.User?.Name, Is.EqualTo("owner"));
-    }
-
-    [TestCase("GET", 302)]
-    [TestCase("HEAD", 302)]
-    [TestCase("POST", 303)]
-    public void RedirectToLoginUsesTheStatusTheMethodNeeds(string method, int status) {
-        SimpleContext context = CreateContext(out _, method: method);
-
-        context.RedirectToLogin();
-
-        Assert.That(context.ToResponse().Status, Is.EqualTo(status));
-        Assert.That(context.ToResponse().Location, Is.EqualTo("/login"));
-    }
-
-    [Test]
-    public void RedirectToLoginUsesTheTargetTheShellBuilt() {
-        SimpleContext context = CreateContext(out _, loginRedirect: "/login?returnUrl=%2Fpage");
-
-        context.RedirectToLogin();
-
-        Assert.That(context.ToResponse().Location, Is.EqualTo("/login?returnUrl=%2Fpage"));
-    }
-
-    [Test]
-    public void AntiforgeryFieldIsEmptyWithoutAFactory() {
-        SimpleContext context = CreateContext(out _);
-
-        Assert.That(context.AntiforgeryField, Is.Empty);
-    }
-
-    [Test]
-    public void AntiforgeryFieldIsGeneratedOncePerRender() {
-        int calls = 0;
-        SimpleContext context = CreateContext(out _, antiforgeryField: () => {
-            calls++;
-            return "<input>";
-        });
-
-        Assert.That(context.AntiforgeryField, Is.EqualTo("<input>"));
-        Assert.That(context.AntiforgeryField, Is.EqualTo("<input>"));
-        Assert.That(calls, Is.EqualTo(1));
-    }
-
-    [Test]
-    public void AntiforgeryFieldIsEmptyAfterAbandonment() {
-        int calls = 0;
-        SimpleContext context = CreateContext(out _, antiforgeryField: () => {
-            calls++;
-            return "<input>";
-        });
-
-        context.Abandon();
-
-        Assert.That(context.AntiforgeryField, Is.Empty);
-        Assert.That(calls, Is.Zero);
-    }
-
-    [Test]
-    public void AnAbandonedRenderNeverMintsASecondToken() {
-        int calls = 0;
-        SimpleContext context = CreateContext(out _, antiforgeryField: () => {
-            calls++;
-            return "<input>";
-        });
-
-        _ = context.AntiforgeryField;
-        context.Abandon();
-
-        Assert.That(context.AntiforgeryField, Is.Empty);
-        Assert.That(calls, Is.EqualTo(1));
-    }
-
-    [Test]
-    public void WriteEscapesHtml() {
-        SimpleContext context = CreateContext(out StringWriter output);
-
-        context.Write("<b>&");
-
-        Assert.That(output.ToString(), Is.EqualTo("&lt;b&gt;&amp;"));
-    }
-
-    [Test]
-    public void WriteRawDoesNotEscapeHtml() {
-        SimpleContext context = CreateContext(out StringWriter output);
-
-        context.WriteRaw("<b>&");
-
-        Assert.That(output.ToString(), Is.EqualTo("<b>&"));
     }
 
     [Test]
@@ -399,159 +146,6 @@ public sealed class SimpleContextTests {
         Assert.That(logs.Entries[0].Message, Is.EqualTo("broken"));
     }
 
-    [Test]
-    public async Task TheFirstFlushStartsTheResponseOnceAndWritesTheBuffer() {
-        SimpleContext context = CreateStreamingContext(out _, out FakePageBodySink sink);
-
-        context.Write("first");
-        await context.FlushAsync();
-
-        Assert.Multiple(() => {
-            Assert.That(context.IsCommitted, Is.True);
-            Assert.That(sink.Started, Has.Count.EqualTo(1));
-            Assert.That(sink.Started[0].Status, Is.EqualTo(200));
-            Assert.That(sink.Chunks, Is.EqualTo(["first"]));
-        });
-    }
-
-    [Test]
-    public async Task TheSecondFlushWritesOnlyWhatCameAfter() {
-        SimpleContext context = CreateStreamingContext(out _, out FakePageBodySink sink);
-
-        context.Write("one");
-        await context.FlushAsync();
-        context.Write("two");
-        await context.FlushAsync();
-
-        Assert.Multiple(() => {
-            Assert.That(sink.Started, Has.Count.EqualTo(1), "the response is committed once");
-            Assert.That(sink.Chunks, Is.EqualTo(["one", "two"]));
-        });
-    }
-
-    [Test]
-    public async Task TheTailAfterTheLastFlushIsSentAtCompletion() {
-        SimpleContext context = CreateStreamingContext(out _, out FakePageBodySink sink);
-
-        context.Write("one");
-        await context.FlushAsync();
-        context.Write("two");
-        await context.CompleteAsync();
-
-        Assert.Multiple(() => {
-            Assert.That(sink.Started, Has.Count.EqualTo(1));
-            Assert.That(sink.Chunks, Is.EqualTo(["one", "two"]));
-        });
-    }
-
-    [Test]
-    public async Task AnEmptyFirstFlushStartsTheResponseWithoutWritingABody() {
-        SimpleContext context = CreateStreamingContext(out _, out FakePageBodySink sink);
-
-        await context.FlushAsync();
-
-        Assert.Multiple(() => {
-            Assert.That(context.IsCommitted, Is.True);
-            Assert.That(sink.Started, Has.Count.EqualTo(1));
-            Assert.That(sink.Chunks, Is.Empty);
-        });
-    }
-
-    [Test]
-    public void AContextWithNoSinkCannotStream() {
-        SimpleContext context = CreateContext(out _);
-
-        Assert.That(() => context.FlushAsync(), Throws.InvalidOperationException.With.Message.Contains("cannot stream"));
-    }
-
-    [Test]
-    public void ALayoutCannotStream() {
-        SimpleContext context = CreateStreamingContext(out _, out _, isLayout: true);
-
-        Assert.That(() => context.FlushAsync(), Throws.InvalidOperationException.With.Message.Contains("layout"));
-    }
-
-    [Test]
-    public void ARedirectCannotStream() {
-        SimpleContext context = CreateStreamingContext(out _, out _);
-
-        context.Redirect("/elsewhere");
-
-        Assert.That(() => context.FlushAsync(), Throws.InvalidOperationException.With.Message.Contains("redirect"));
-    }
-
-    [Test]
-    public void AWrappedPageCannotStream() {
-        SimpleContext context = CreateStreamingContext(out _, out _, wouldWrap: _ => true);
-
-        Assert.That(() => context.FlushAsync(),
-            Throws.InvalidOperationException.With.Message.Contains("Set IPageLayout.Layout to null"));
-        Assert.That(context.IsCommitted, Is.False);
-    }
-
-    [Test]
-    public async Task AFlushAfterAbandonWritesNothing() {
-        SimpleContext context = CreateStreamingContext(out _, out FakePageBodySink sink);
-
-        context.Write("buffered");
-        context.Abandon();
-        await context.FlushAsync();
-
-        Assert.Multiple(() => {
-            Assert.That(context.IsCommitted, Is.False);
-            Assert.That(sink.Started, Is.Empty);
-            Assert.That(sink.Chunks, Is.Empty);
-        });
-    }
-
-    [Test]
-    public async Task ResponseSettingsAfterTheFlushThrow() {
-        SimpleContext context = CreateStreamingContext(out _, out _);
-        await context.FlushAsync();
-
-        Assert.Multiple(() => {
-            Assert.That(() => context.SetStatus(201), Throws.InvalidOperationException);
-            Assert.That(() => context.SetContentType("text/plain"), Throws.InvalidOperationException);
-            Assert.That(() => context.SetHeader("X-Late", "1"), Throws.InvalidOperationException);
-            Assert.That(() => context.AllowScripts(), Throws.InvalidOperationException);
-            Assert.That(() => context.Redirect("/elsewhere"), Throws.InvalidOperationException);
-            Assert.That(() => context.RedirectToLogin(), Throws.InvalidOperationException);
-            Assert.That(() => _ = context.AntiforgeryField, Throws.InvalidOperationException);
-        });
-    }
-
-    [Test]
-    public async Task StreamingKeepsWriteEscapedAndWriteRawRaw() {
-        SimpleContext context = CreateStreamingContext(out _, out FakePageBodySink sink);
-
-        context.Write("<b>");
-        context.WriteRaw("<i>");
-        await context.FlushAsync();
-
-        Assert.That(sink.Chunks, Is.EqualTo(["&lt;b&gt;<i>"]));
-    }
-
-    [Test]
-    public async Task TheBodyCapStopsAtTheFirstFlush() {
-        SimpleContext context = CreateStreamingContext(out _, out _, maxBodyChars: 10);
-
-        context.Write("0123456789");
-        await context.FlushAsync();
-        context.Write("0123456789");
-        await context.FlushAsync();
-        context.Write("0123456789");
-
-        Assert.That(context.IsCommitted, Is.True);
-    }
-
-    [Test]
-    public void TheBodyCapStillRefusesAnOversizedBufferBeforeTheFlush() {
-        SimpleContext context = CreateStreamingContext(out _, out _, maxBodyChars: 10);
-
-        Assert.That(() => context.Write("01234567890"), Throws.InvalidOperationException.With.Message.Contains("10"));
-        Assert.That(context.IsCommitted, Is.False);
-    }
-
     // A page-level store over an empty one, registered as the capability the endpoint offers.
     private static PageCapabilities CapabilitiesFor(string path) {
         PageStorageScope storage = new(
@@ -561,61 +155,22 @@ public sealed class SimpleContextTests {
     }
 
     private static SimpleContext CreateContext(
-        out StringWriter output,
-        PageUser? user = null,
-        string loginRedirect = "/login",
-        Func<string>? antiforgeryField = null,
-        string method = "GET",
-        string path = "/page",
-        PageContentTypes? contentTypes = null) {
-        output = new StringWriter();
+        string path,
+        out RecordingLoggerFactory logs,
+        string? requestPath = null,
+        PageContentTypes? contentTypes = null,
+        PageUser? user = null) {
+        logs = new RecordingLoggerFactory();
+
         return new SimpleContext(
-            NullLoggerFactory.Instance,
-            TestHttp.Request(path, method),
+            logs,
+            TestHttp.Request(requestPath ?? path),
             CancellationToken.None,
-            output,
+            new StringWriter(),
             CapabilitiesFor(path),
             contentTypes ?? TestContentTypes.Shipped,
             TestOptions.Render.MaxBodyChars,
             TestOptions.Editor.Key,
-            user,
-            loginRedirect,
-            antiforgeryField);
-    }
-
-    private static SimpleContext CreateStreamingContext(
-        out StringWriter output,
-        out FakePageBodySink sink,
-        bool isLayout = false,
-        Func<string, bool>? wouldWrap = null,
-        int maxBodyChars = 4 * 1024 * 1024) {
-        output = new StringWriter();
-        sink = new FakePageBodySink();
-
-        return new SimpleContext(
-            NullLoggerFactory.Instance,
-            TestHttp.Request("/page"),
-            CancellationToken.None,
-            output,
-            CapabilitiesFor("/page"),
-            TestContentTypes.Shipped,
-            maxBodyChars,
-            TestOptions.Editor.Key,
-            isLayout: isLayout,
-            bodySink: sink,
-            wouldWrap: wouldWrap);
-    }
-
-    private static SimpleContext CreateContext(string path, out RecordingLoggerFactory logs) {
-        logs = new RecordingLoggerFactory();
-        return new SimpleContext(
-            logs,
-            TestHttp.Request(path),
-            CancellationToken.None,
-            new StringWriter(),
-            CapabilitiesFor("/page"),
-            TestContentTypes.Shipped,
-            TestOptions.Render.MaxBodyChars,
-            TestOptions.Editor.Key);
+            user);
     }
 }

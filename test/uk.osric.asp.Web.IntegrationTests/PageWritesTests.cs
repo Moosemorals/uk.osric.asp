@@ -13,18 +13,18 @@ public sealed class PageWritesTests : IntegrationTest {
     public async Task APageThatIsNotTheEditorSavesAnotherPageAsync() {
         await SavePageAsync("/target", "<h1>before</h1>");
         await SavePageAsync("/writer", """
-            <% if (ctx.User is null) { ctx.RedirectToLogin(); return; } %>
+            <% if (ctx.User is null) { ctx.Response.RedirectToLogin(); return; } %>
             <% ctx.Capabilities.GetRequired<IPageLayout>().Title = "Writer"; %>
             <% IPageCatalog catalog = ctx.Capabilities.GetRequired<IPageCatalog>();
                if (ctx.Request.Method == "POST" && ctx.Request.Form.TryGetValue("template", out string? template) && template is not null) {
                    PageSource? target = await catalog.ReadAsync("/target");
                    PageEditResult saved = await ctx.Capabilities.GetRequired<IPageWrites>()
                        .SaveAsync("/target", template, target?.Hash);
-                   ctx.Write("outcome: ");
-                   ctx.Write(saved.Outcome.ToString());
+                   ctx.Response.Write("outcome: ");
+                   ctx.Response.Write(saved.Outcome.ToString());
                    return;
                } %>
-            <form method="post" class="form"><%== ctx.AntiforgeryField %>
+            <form method="post" class="form"><%== ctx.Response.AntiforgeryField %>
                 <input name="template" value="&lt;h1&gt;after&lt;/h1&gt;">
                 <button>Save</button></form>
             """);

@@ -140,7 +140,7 @@ internal static class RestoreEndpoint {
         foreach (SeedPlan seed in plan) {
             string key = WebUtility.HtmlEncode(seed.Path.Key);
             await context.Response.WriteAsync(
-                $"<tr><th scope=\"row\"><a href=\"{WebUtility.HtmlEncode(PageUrls.Editor(seed.Path, EditorPaths.Of(context.RequestServices)))}\">{key}</a></th><td>{WebUtility.HtmlEncode(seed.Summary.Verdict)}</td><td>{WebUtility.HtmlEncode(seed.Summary.Sentence)}</td></tr>");
+                $"<tr><th scope=\"row\"><a href=\"{WebUtility.HtmlEncode(seed.Path.Editor(EditorPaths.Of(context.RequestServices)))}\">{key}</a></th><td>{WebUtility.HtmlEncode(seed.Summary.Verdict)}</td><td>{WebUtility.HtmlEncode(seed.Summary.Sentence)}</td></tr>");
         }
 
         await context.Response.WriteAsync("</tbody></table>");
@@ -173,7 +173,7 @@ internal static class RestoreEndpoint {
         foreach (SeedResult result in results) {
             string key = WebUtility.HtmlEncode(result.Path.Key);
             await context.Response.WriteAsync(
-                $"<tr><th scope=\"row\"><a href=\"{WebUtility.HtmlEncode(PageUrls.Editor(result.Path, EditorPaths.Of(context.RequestServices)))}\">{key}</a></th><td>{WebUtility.HtmlEncode(result.Was.Verdict)}</td><td>{Describe(result.Outcome)}</td></tr>");
+                $"<tr><th scope=\"row\"><a href=\"{WebUtility.HtmlEncode(result.Path.Editor(EditorPaths.Of(context.RequestServices)))}\">{key}</a></th><td>{WebUtility.HtmlEncode(result.Was.Verdict)}</td><td>{Describe(result.Outcome)}</td></tr>");
         }
 
         await context.Response.WriteAsync("</tbody></table>");

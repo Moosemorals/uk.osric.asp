@@ -22,7 +22,7 @@ public sealed partial class PageSelfSaveTests : IntegrationTest {
     private const string Draft = """
 <% ctx.Capabilities.GetRequired<IPageLayout>().Title = "Self-save"; %>
 <h1>Self-save</h1>
-<% if (ctx.User is not { } user) { ctx.RedirectToLogin(); return; } %>
+<% if (ctx.User is not { } user) { ctx.Response.RedirectToLogin(); return; } %>
 <%
     IPageCatalog catalog = ctx.Capabilities.GetRequired<IPageCatalog>();
     PageSource? current = await catalog.ReadAsync(ctx.Path);
@@ -74,7 +74,7 @@ public sealed partial class PageSelfSaveTests : IntegrationTest {
 <% } %>
 <% } %>
 <form method="post" class="form">
-    <%== ctx.AntiforgeryField %>
+    <%== ctx.Response.AntiforgeryField %>
     <input type="hidden" name="hash" value="<%= headHash %>">
     <fieldset>
         <legend>This page's own source</legend>

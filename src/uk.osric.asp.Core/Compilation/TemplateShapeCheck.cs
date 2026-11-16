@@ -40,7 +40,7 @@ public static class TemplateShapeCheck {
         while ((index = token.Value.IndexOf("%>", index, StringComparison.Ordinal)) >= 0) {
             diagnostics.Add(new PageDiagnostic(
                 PageDiagnosticSeverity.Warning,
-                TemplateLines.Advance(token.Position, token.Value[..index]),
+                token.Position.Advance(token.Value[..index]),
                 "TEMPLATE003: '%>' has no matching '<%'; it is written as literal text."));
             index += 2;
         }
@@ -88,14 +88,14 @@ public static class TemplateShapeCheck {
                 continue;
             }
             if (character == '{') {
-                openings.Push(TemplateLines.Advance(token.Position, value[..index]));
+                openings.Push(token.Position.Advance(value[..index]));
             } else if (character == '}') {
                 if (openings.Count > 0) {
                     _ = openings.Pop();
                 } else {
                     diagnostics.Add(new PageDiagnostic(
                         PageDiagnosticSeverity.Warning,
-                        TemplateLines.Advance(token.Position, value[..index]),
+                        token.Position.Advance(value[..index]),
                         "TEMPLATE005: '}' has no matching '{'."));
                 }
             }

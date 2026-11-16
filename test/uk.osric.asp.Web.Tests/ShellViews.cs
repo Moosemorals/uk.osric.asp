@@ -31,7 +31,7 @@ using uk.osric.asp.Web.Pages;
 /// </remarks>
 internal static class ShellViews {
 
-    private const string Source = "<% ctx.Write(\"hello\"); %>";
+    private const string Source = "<% ctx.Response.Write(\"hello\"); %>";
 
     private static readonly ReservedPaths Reserved = new(ReservedPaths.Default);
 

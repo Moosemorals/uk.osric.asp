@@ -172,13 +172,13 @@ public sealed partial class ImportEndpointTests {
     [Test]
     public async Task ACompilerFaultCommitsTheSourceWithoutAnImage() {
         using ImportHarness harness = new(compiler: new ThrowingCompiler());
-        ImportStage stage = harness.Stage(("/about", "<% ctx.Write(\"About\"); %>", []));
+        ImportStage stage = harness.Stage(("/about", "<% ctx.Response.Write(\"About\"); %>", []));
 
         await ApproveAsync(harness, stage.Id, ["/about"]);
         await harness.Processor.ProcessAsync(stage, CancellationToken.None);
 
         PageTemplate saved = harness.Batches.Saved.Single().Template;
-        Assert.That(saved.Template, Is.EqualTo("<% ctx.Write(\"About\"); %>"));
+        Assert.That(saved.Template, Is.EqualTo("<% ctx.Response.Write(\"About\"); %>"));
         Assert.That(saved.Image, Is.Null);
         Assert.That(stage.Snapshot().Results.Single().Status, Is.EqualTo(ImportPageStatus.CompilerFault));
     }
@@ -215,7 +215,7 @@ public sealed partial class ImportEndpointTests {
     [Test]
     public async Task AnImportOverTheCompiledCapWritesNothing() {
         using ImportHarness harness = new(options: TestOptions.Archive with { MaxCompiledBytes = 1 });
-        ImportStage stage = harness.Stage(("/about", "About <% ctx.Write(\"hello\"); %>", []));
+        ImportStage stage = harness.Stage(("/about", "About <% ctx.Response.Write(\"hello\"); %>", []));
 
         await ApproveAsync(harness, stage.Id, ["/about"]);
         await harness.Processor.ProcessAsync(stage, CancellationToken.None);

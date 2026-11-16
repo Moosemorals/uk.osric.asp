@@ -5,7 +5,7 @@ using System.Threading.Tasks;
 using Site.Document;
 using Site.Editor;
 %><%
-    if (ctx.User is not { } user) { ctx.RedirectToLogin(); return; }
+    if (ctx.User is not { } user) { ctx.Response.RedirectToLogin(); return; }
 
     IPageLayout layout = ctx.Capabilities.GetRequired<IPageLayout>();
     IPageWrites writes = ctx.Capabilities.GetRequired<IPageWrites>();
@@ -129,7 +129,7 @@ using Site.Editor;
             Problem(400, "That page name cannot be used",
                 created.Error ?? created.Key + " is answered by the site itself, so no page is stored there. Nothing was created.");
         } else {
-            ctx.Redirect(EditUrl(created.Key!), 303);
+            ctx.Response.Redirect(EditUrl(created.Key!), 303);
         }
     }
 
@@ -423,7 +423,7 @@ using Site.Editor;
     }
 
     if (status != 200) {
-        ctx.SetStatus(status);
+        ctx.Response.SetStatus(status);
     }
 
     // The listing shares the sheet too, so its kind and status columns are marked the same way
@@ -439,11 +439,11 @@ using Site.Editor;
         if (vim) {
             layout.AddStylesheet("/vim.css");
         }
-        ctx.AllowScripts();
+        ctx.Response.AllowScripts();
     }
 
     if (viewAfterSave && status == 200) {
-        ctx.Redirect(key, 303);
+        ctx.Response.Redirect(key, 303);
         return;
     }
 
@@ -465,10 +465,10 @@ using Site.Editor;
             %><p><%= notice %></p><%
         }
         %><p>Signed in as <%= user.Name %>. This page reads and writes the page store. Every value below is
-written with <code>ctx.Write</code>, because page source is exactly what a view like this must not
+written with <code>ctx.Response.Write</code>, because page source is exactly what a view like this must not
 run.</p>
 <form method="post" action="<%= self %>?cmd=new" class="form">
-    <%== ctx.AntiforgeryField %>
+    <%== ctx.Response.AntiforgeryField %>
     <dl>
         <dt><label for="new-page-path">New page path</label></dt>
         <dd><input id="new-page-path" name="path" required></dd>
@@ -520,7 +520,7 @@ run.</p>
                             %><a href="<%= InstallUrl(entry.Key) %>" aria-label="Install <%= entry.Key %> from its seed">Install from seed</a><%
                         }
                         if (entry.Seed?.CanAdopt == true) {
-                            %><form method="post" action="<%= AdoptAction(entry.Key) %>" class="inline"><%== ctx.AntiforgeryField %><button type="submit" aria-label="Record <%= entry.Key %> as installed from its seed">Record as installed</button></form><%
+                            %><form method="post" action="<%= AdoptAction(entry.Key) %>" class="inline"><%== ctx.Response.AntiforgeryField %><button type="submit" aria-label="Record <%= entry.Key %> as installed from its seed">Record as installed</button></form><%
                         }
                     }
                     %></td>
@@ -586,7 +586,7 @@ back and continues that history. Until you save, links to <%= key %> answer &quo
 is on its own page.</p>
 <div data-vim>
     <form method="post" action="<%= EditUrl(key) %>" class="editor-form">
-        <%== ctx.AntiforgeryField %>
+        <%== ctx.Response.AntiforgeryField %>
         <input type="hidden" name="expected" value="<%= expected ?? "" %>">
         <label for="template">Template for <%= key %></label>
         <div class="editor">
@@ -687,7 +687,7 @@ is on its own page.</p>
         Menu("Editor navigation", [new(ReadUrl(key), "Back to history"), new(EditUrl(key), "Back to editor")]);
         %><h1>Changes to <%= key %></h1>
 <p>From revision <%= fromHash! %> to revision <%= toHash! %>.</p><%
-        ctx.WriteRaw(renderedDiff!);
+        ctx.Response.WriteRaw(renderedDiff!);
     } else if (stage == "delete") {
         layout.Title = "Delete " + key;
         %><h1>Delete <%= key %>?</h1><%
@@ -696,7 +696,7 @@ is on its own page.</p>
         }
         %><p>This hides the page but retains its template and revision history.</p>
 <form method="post" action="<%= DeleteUrl(key) %>">
-    <%== ctx.AntiforgeryField %>
+    <%== ctx.Response.AntiforgeryField %>
     <button type="submit">Delete page</button>
 </form><%
         Menu("Confirmation navigation", [new(EditUrl(key), "Cancel")]);
@@ -711,13 +711,13 @@ is on its own page.</p>
             %><p>This page is deleted. Installing brings it back and clears the tombstone.</p><%
         }
         if (renderedDiff is not null) {
-            ctx.WriteRaw(renderedDiff);
+            ctx.Response.WriteRaw(renderedDiff);
         }
         if (seedSource is not null && live is not null && string.Equals(live.Source, seedSource, System.StringComparison.Ordinal)) {
             %><p>This page already holds its seed, so there is nothing to install.</p><%
         } else if (status == 200) {
             %><form method="post" action="<%= InstallUrl(key) %>" class="form">
-    <%== ctx.AntiforgeryField %>
+    <%== ctx.Response.AntiforgeryField %>
     <input type="hidden" name="expected" value="<%= expected ?? "" %>">
     <button type="submit">Install the seed</button>
 </form><%
@@ -736,13 +736,13 @@ is on its own page.</p>
             %><p>This page is deleted. Restoring brings it back and clears the tombstone.</p><%
         }
         if (renderedDiff is not null) {
-            ctx.WriteRaw(renderedDiff);
+            ctx.Response.WriteRaw(renderedDiff);
         }
         if (revision is not null && live is not null && string.Equals(live.Source, revision.Source, System.StringComparison.Ordinal)) {
             %><p>This revision has the source the page already holds, so there is nothing to restore.</p><%
         } else if (status == 200 && revision is not null) {
             %><form method="post" action="<%= RestoreUrl(key, revision.Hash) %>" class="form">
-    <%== ctx.AntiforgeryField %>
+    <%== ctx.Response.AntiforgeryField %>
     <input type="hidden" name="expected" value="<%= expected ?? "" %>">
     <button type="submit">Restore this revision</button>
 </form><%
@@ -758,7 +758,7 @@ is on its own page.</p>
     bool sortable = stage is "listing" or "read";
     if (sortable) {
         layout.AddStylesheet("/sortable.css");
-        ctx.AllowScripts();
+        ctx.Response.AllowScripts();
     }
 %>
 <% if (sortable) { %>

@@ -37,7 +37,7 @@ internal sealed class CheckScriptTool : AssistantTool {
 
         PageRead? page = await services.Store.ReadAsync(path, cancellationToken);
         if (page is null) {
-            return services.Results.Failure($"Page {ToolPaths.Describe(path)} was not found.", $"{Spec.Verb} {ToolPaths.Describe(path)}: not found");
+            return services.Results.Failure($"Page {path.Describe()} was not found.", $"{Spec.Verb} {path.Describe()}: not found");
         }
 
         return CheckTemplate(services, page.Text, path);
@@ -50,7 +50,7 @@ internal sealed class CheckScriptTool : AssistantTool {
             : skeleton.Diagnostics;
         bool valid = diagnostics.All(diagnostic => diagnostic.Severity != PageDiagnosticSeverity.Error);
 
-        string where = path is null ? "supplied text" : ToolPaths.Describe(path);
+        string where = path is null ? "supplied text" : path.Describe();
         string summary = diagnostics.Count == 0
             ? $"Checked {where}: valid"
             : $"Checked {where}: {diagnostics.Count} problem{(diagnostics.Count == 1 ? string.Empty : "s")}";

@@ -39,9 +39,9 @@ public sealed class PageStreamingTests {
     [Test]
     public async Task AFlushingPageWritesBeforeTheHandlerReturnsAsync() {
         Store("/stream", """
-            <% ctx.Write("first"); await ctx.FlushAsync();
+            <% ctx.Response.Write("first"); await ctx.Response.FlushAsync();
                await ctx.Capabilities.GetRequired<IPageStorage>().TryGetValueAsync<string>("gate");
-               ctx.Write("second"); %>
+               ctx.Response.Write("second"); %>
             """);
         _state.ReadGate = new(TaskCreationOptions.RunContinuationsAsynchronously);
 
@@ -66,13 +66,13 @@ public sealed class PageStreamingTests {
         GatedHttpFetchStream upstream = new();
         _fetcher.StreamAnswer = _ => upstream;
         Store("/relay", """
-            <% ctx.Write("ready"); await ctx.FlushAsync();
+            <% ctx.Response.Write("ready"); await ctx.Response.FlushAsync();
                IHttpFetch fetch = ctx.Capabilities.GetRequired<IHttpFetch>();
                HttpFetchStream upstream = await fetch.StreamAsync(new HttpFetchRequest("https://api.example.com/events"));
                string? line;
                while ((line = await upstream.ReadLineAsync()) is not null) {
-                   ctx.Write(line);
-                   await ctx.FlushAsync();
+                   ctx.Response.Write(line);
+                   await ctx.Response.FlushAsync();
                } %>
             """);
 
@@ -97,13 +97,13 @@ public sealed class PageStreamingTests {
         GatedHttpFetchStream upstream = new();
         _fetcher.StreamAnswer = _ => upstream;
         Store("/relay", """
-            <% ctx.Write("ready"); await ctx.FlushAsync();
+            <% ctx.Response.Write("ready"); await ctx.Response.FlushAsync();
                IHttpFetch fetch = ctx.Capabilities.GetRequired<IHttpFetch>();
                HttpFetchStream upstream = await fetch.StreamAsync(new HttpFetchRequest("https://api.example.com/events"));
                string? line;
                while ((line = await upstream.ReadLineAsync()) is not null) {
-                   ctx.Write(line);
-                   await ctx.FlushAsync();
+                   ctx.Response.Write(line);
+                   await ctx.Response.FlushAsync();
                } %>
             """);
 
@@ -124,7 +124,7 @@ public sealed class PageStreamingTests {
 
     [Test]
     public async Task TheFirstFlushAppliesTheDefaultResponseAsync() {
-        Store("/stream", """<% ctx.Write("hi"); await ctx.FlushAsync(); %>""");
+        Store("/stream", """<% ctx.Response.Write("hi"); await ctx.Response.FlushAsync(); %>""");
 
         (DefaultHttpContext context, string body) = await RenderAsync("/stream");
 
@@ -139,9 +139,9 @@ public sealed class PageStreamingTests {
     [Test]
     public async Task TheFirstFlushAppliesWhatThePageSetAsync() {
         Store("/stream", """
-            <% ctx.SetStatus(201); ctx.SetContentType("text/plain; charset=utf-8");
-               ctx.SetHeader("X-Stream", "1"); ctx.AllowScripts();
-               ctx.Write("hi"); await ctx.FlushAsync(); %>
+            <% ctx.Response.SetStatus(201); ctx.Response.SetContentType("text/plain; charset=utf-8");
+               ctx.Response.SetHeader("X-Stream", "1"); ctx.Response.AllowScripts();
+               ctx.Response.Write("hi"); await ctx.Response.FlushAsync(); %>
             """);
 
         (DefaultHttpContext context, string body) = await RenderAsync("/stream");
@@ -158,7 +158,7 @@ public sealed class PageStreamingTests {
     [Test]
     public async Task AFlushingPageIsRefusedWhileItIsWrappedAsync() {
         StoreLayout();
-        Store("/stream", """<% ctx.Write("hi"); await ctx.FlushAsync(); %>""");
+        Store("/stream", """<% ctx.Response.Write("hi"); await ctx.Response.FlushAsync(); %>""");
 
         InvalidOperationException? refused = await Assert.ThrowsAsync<InvalidOperationException>(
             () => RenderAsync("/stream", layout: DefaultLayout));
@@ -172,7 +172,7 @@ public sealed class PageStreamingTests {
     [Test]
     public async Task ANonHtmlPageMayStreamWithALayoutNameUntouchedAsync() {
         StoreLayout();
-        Store("/stream.txt", """<% ctx.Write("first"); await ctx.FlushAsync(); ctx.Write("second"); %>""");
+        Store("/stream.txt", """<% ctx.Response.Write("first"); await ctx.Response.FlushAsync(); ctx.Response.Write("second"); %>""");
 
         (DefaultHttpContext context, string body) = await RenderAsync("/stream.txt", layout: DefaultLayout);
 
@@ -187,7 +187,7 @@ public sealed class PageStreamingTests {
         StoreLayout();
         Store("/stream", """
             <% ctx.Capabilities.GetRequired<IPageLayout>().Layout = null;
-               ctx.WriteRaw("<!DOCTYPE html><p>hi</p>"); await ctx.FlushAsync(); %>
+               ctx.Response.WriteRaw("<!DOCTYPE html><p>hi</p>"); await ctx.Response.FlushAsync(); %>
             """);
 
         (_, string body) = await RenderAsync("/stream", layout: DefaultLayout);
@@ -200,7 +200,7 @@ public sealed class PageStreamingTests {
 
     [Test]
     public async Task ALayoutCannotFlushAsync() {
-        Store(DefaultLayout, """<% await ctx.FlushAsync(); %>""");
+        Store(DefaultLayout, """<% await ctx.Response.FlushAsync(); %>""");
         Store("/page", """<% ctx.Capabilities.GetRequired<IPageLayout>().Title = "Page"; %>hi""");
 
         InvalidOperationException? refused = await Assert.ThrowsAsync<InvalidOperationException>(
@@ -215,8 +215,8 @@ public sealed class PageStreamingTests {
         Store("/stream", """
             <% var layout = ctx.Capabilities.GetRequired<IPageLayout>();
                layout.Layout = null;
-               ctx.Write("body");
-               await ctx.FlushAsync();
+               ctx.Response.Write("body");
+               await ctx.Response.FlushAsync();
                layout.Layout = "/_layout"; %>
             """);
 
@@ -233,7 +233,7 @@ public sealed class PageStreamingTests {
     [Test]
     public async Task AnExceptionAfterTheFlushTruncatesAndLogsAsync() {
         Store("/stream", """
-            <% ctx.Write("prefix"); await ctx.FlushAsync();
+            <% ctx.Response.Write("prefix"); await ctx.Response.FlushAsync();
                throw new System.InvalidOperationException("boom"); %>
             """);
 
@@ -254,10 +254,10 @@ public sealed class PageStreamingTests {
     [NonParallelizable]
     public async Task AStreamOutlivesTheRenderBudgetAsync() {
         Store("/stream", """
-            <% ctx.Write("prefix"); await ctx.FlushAsync();
+            <% ctx.Response.Write("prefix"); await ctx.Response.FlushAsync();
                System.DateTime until = System.DateTime.UtcNow.AddMilliseconds(600);
                while (System.DateTime.UtcNow < until) { }
-               ctx.Write("done"); await ctx.FlushAsync(); %>
+               ctx.Response.Write("done"); await ctx.Response.FlushAsync(); %>
             """);
         RenderOptions options = TestOptions.Render with { TimeoutSeconds = 0.25 };
         StreamOptions stream = TestOptions.Stream with { SilenceSeconds = 10, MaxSeconds = 30 };
@@ -275,10 +275,10 @@ public sealed class PageStreamingTests {
     [NonParallelizable]
     public async Task AStreamThatGoesQuietIsTruncatedAsync() {
         Store("/stream", """
-            <% ctx.Write("prefix"); await ctx.FlushAsync();
+            <% ctx.Response.Write("prefix"); await ctx.Response.FlushAsync();
                System.DateTime until = System.DateTime.UtcNow.AddMilliseconds(600);
                while (System.DateTime.UtcNow < until) { }
-               ctx.Write("done"); await ctx.FlushAsync(); %>
+               ctx.Response.Write("done"); await ctx.Response.FlushAsync(); %>
             """);
         RenderOptions options = TestOptions.Render with { TimeoutSeconds = 5 };
         StreamOptions stream = TestOptions.Stream with { SilenceSeconds = 0.1, MaxSeconds = 30 };
@@ -299,10 +299,10 @@ public sealed class PageStreamingTests {
     [NonParallelizable]
     public async Task AStreamAtItsCeilingIsTruncatedAsync() {
         Store("/stream", """
-            <% ctx.Write("prefix"); await ctx.FlushAsync();
+            <% ctx.Response.Write("prefix"); await ctx.Response.FlushAsync();
                System.DateTime until = System.DateTime.UtcNow.AddMilliseconds(600);
                while (System.DateTime.UtcNow < until) { }
-               ctx.Write("done"); await ctx.FlushAsync(); %>
+               ctx.Response.Write("done"); await ctx.Response.FlushAsync(); %>
             """);
         RenderOptions options = TestOptions.Render with { TimeoutSeconds = 5 };
         StreamOptions stream = TestOptions.Stream with { SilenceSeconds = 10, MaxSeconds = 0.1 };
@@ -321,7 +321,7 @@ public sealed class PageStreamingTests {
 
     [Test]
     public async Task AFullStreamPoolRefusesTheFirstFlushWith503Async() {
-        Store("/stream", """<% ctx.Write("hi"); await ctx.FlushAsync(); %>""");
+        Store("/stream", """<% ctx.Response.Write("hi"); await ctx.Response.FlushAsync(); %>""");
         RenderOptions options = TestOptions.Render with { TimeoutSeconds = 5 };
         StreamOptions stream = TestOptions.Stream with { Slots = 1, SilenceSeconds = 10, MaxSeconds = 30 };
         PageBudget budget = new(options, TestOptions.Compile, stream);
@@ -343,7 +343,7 @@ public sealed class PageStreamingTests {
     [Test]
     public async Task AnExceptionBeforeTheFlushLeavesTheBufferedBodyUnsentAsync() {
         Store("/stream", """
-            <% ctx.Write("buffered"); throw new System.InvalidOperationException("boom"); %>
+            <% ctx.Response.Write("buffered"); throw new System.InvalidOperationException("boom"); %>
             """);
 
         await Assert.ThrowsAsync<InvalidOperationException>(() => RenderAsync("/stream"));
@@ -363,7 +363,7 @@ public sealed class PageStreamingTests {
 
     [Test]
     public async Task AStreamedPageHasNoContentLengthAsync() {
-        Store("/stream", """<% await ctx.FlushAsync(); ctx.Write("hello"); %>""");
+        Store("/stream", """<% await ctx.Response.FlushAsync(); ctx.Response.Write("hello"); %>""");
 
         (DefaultHttpContext context, string body) = await RenderAsync("/stream");
 
@@ -375,7 +375,7 @@ public sealed class PageStreamingTests {
 
     [Test]
     public async Task AStreamedHeadWritesNoBodyAndNoLengthAsync() {
-        Store("/stream", """<% await ctx.FlushAsync(); ctx.Write("hello"); %>""");
+        Store("/stream", """<% await ctx.Response.FlushAsync(); ctx.Response.Write("hello"); %>""");
 
         (DefaultHttpContext context, string body) = await RenderAsync("/stream", method: "HEAD");
 
@@ -388,8 +388,8 @@ public sealed class PageStreamingTests {
     [Test]
     public async Task TheBodyCapStopsAtTheFirstFlushAsync() {
         Store("/stream", """
-            <% ctx.Write("0123456789"); await ctx.FlushAsync();
-               ctx.Write("0123456789"); await ctx.FlushAsync(); %>
+            <% ctx.Response.Write("0123456789"); await ctx.Response.FlushAsync();
+               ctx.Response.Write("0123456789"); await ctx.Response.FlushAsync(); %>
             """);
         RenderOptions options = TestOptions.Render with { MaxBodyChars = 10 };
 

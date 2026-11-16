@@ -22,6 +22,12 @@ using uk.osric.asp.Core.Pages;
 /// </remarks>
 internal static class ShellCatalogue {
 
+    private const string ShellFileLine =
+        "shell file: a route the site answers with its own code, never a stored page";
+
+    private const string Undescribed =
+        "A route this build does not describe. The site answers this key, so no page is stored there and none can be saved.";
+
     /// <summary>Every entry, in the order a menu reads them when its numbers tie.</summary>
     public static IReadOnlyList<ShellEntry> Entries { get; } = [
         PageLink(ShellPage.Home, ShellAudience.Everyone, ShellSection.Site, 10, "Home", ShellMatch.Leaf),
@@ -131,15 +137,22 @@ internal static class ShellCatalogue {
         _ => authenticated,
     };
 
-    /// <summary>The record a read of this key returns, or null when the shell does not answer the key.</summary>
+    /// <summary>The record a read of this key returns.</summary>
     /// <param name="path">A canonical key.</param>
-    /// <remarks>No trailing line break: the description is the last line, so five lines really are five.</remarks>
-    public static string? Text(PagePath path) {
+    /// <remarks>
+    /// No trailing line break: the description is the last line, so five lines really are five. A key
+    /// the table does not describe still answers, with the one sentence that says so, because the
+    /// assistant reads a key it was told is a shell file and a shape it did not expect is worse than
+    /// a record that admits it knows nothing.
+    /// </remarks>
+    public static string Text(PagePath path) {
         ArgumentNullException.ThrowIfNull(path);
 
         ShellRoute? route = Routes.FirstOrDefault(item => string.Equals(item.Key, path.Key, StringComparison.Ordinal));
 
-        return route is null ? null : Record(route);
+        return route is null
+            ? $"{path.Key}\n{ShellFileLine}\ndescription: {Undescribed}"
+            : Record(route);
     }
 
     private static IReadOnlyList<ShellLink> Section(ShellSection section, string path, string query, string editorPath) => [
@@ -175,7 +188,7 @@ internal static class ShellCatalogue {
         ShellMatch match) => new(page, new ShellMenu(section, audience, order, text, match));
 
     private static string Record(ShellRoute route) =>
-        $"{route.Key}\nshell file: a route the site answers with its own code, never a stored page"
+        $"{route.Key}\n{ShellFileLine}"
         + $"\nmethods: {route.Methods}"
         + $"\naccess: {route.Access}"
         + $"\ndescription: {route.Description}";

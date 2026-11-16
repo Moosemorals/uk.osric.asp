@@ -34,8 +34,8 @@ internal static class ToolPaths {
         if (services.Paths.ShadowedBy(path) is { } owner
             && !string.Equals(owner.Key, path.Key, StringComparison.Ordinal)) {
             return (null, services.Results.Failure(
-                $"The key {Describe(path)} is beneath the shell file {Describe(owner)}. Read {Describe(owner)} instead.",
-                $"Read {Describe(path)}: beneath {Describe(owner)}"));
+                $"The key {path.Describe()} is beneath the shell file {owner.Describe()}. Read {owner.Describe()} instead.",
+                $"Read {path.Describe()}: beneath {owner.Describe()}"));
         }
 
         return (path, null);
@@ -69,11 +69,11 @@ internal static class ToolPaths {
         ToolServices services) =>
         services.Paths.IsReserved(path)
             ? services.Results.Failure(
-                $"{spec.Name} {reads}, and {Describe(path)} is a shell file with no page source. read_page describes it instead.",
+                $"{spec.Name} {reads}, and {path.Describe()} is a shell file with no page source. read_page describes it instead.",
                 $"{spec.Verb} refused")
             : null;
 
     /// <summary>A path as a refusal may repeat it.</summary>
     /// <param name="path">The path to describe.</param>
-    public static string Describe(PagePath path) => MessageText.Sanitize(path.Key);
+    public static string Describe(this PagePath path) => MessageText.Sanitize(path.Key);
 }

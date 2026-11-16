@@ -38,7 +38,7 @@ internal sealed class ShellExpansion(PagePathPolicy paths) {
             // before the command runs; a word without one names the key it spells.
             if (argument.Word.HasWildcard) {
                 List<PageNode> matched = [.. (await store.TreeAsync(includeDeleted: false, cancellationToken))
-                    .Where(node => PageGlob.IsMatch(argument.Word, node.Path.Key))];
+                    .Where(node => argument.Word.IsMatch(node.Path.Key))];
                 if (matched.Count == 0) {
                     return ([], ShellResult.Refused(
                         $"No key matches {MessageText.Sanitize(argument.Word.Text)}. ls {Folder(PagePath.Normalize(argument.Word.Text))} lists what is there.",

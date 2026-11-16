@@ -54,6 +54,19 @@ read a file beside the assembly.
 **Not** a page, a seed or an asset. **Owner:** shell — `ChangesEndpoint` and `ReferenceEndpoint`; the
 audit is in [architecture](architecture.md#where-a-view-lives).
 
+## Response
+What a page writes into, reached as `ctx.Response` and typed `IPageResponse`: the body (`Write`,
+`WriteRaw`, `FlushAsync`), the settings applied to it (`SetStatus`, `SetContentType`, `SetHeader`,
+`AllowScripts`), the two shapes that replace a body (`Redirect`, `RedirectToLogin`) and the token a
+form carries (`AntiforgeryField`).
+
+**Not** a capability: every page always has one, so it stays on the contract. **Not** the value the
+host applies — that is `PageResponse`, which the response produces when the handler returns. A helper
+may take an `IPageResponse` parameter to get the output and nothing else.
+
+**Owner:** pages — `IPageResponse`, `SimpleResponse` and the two collaborators behind it
+(`pages-the-response-is-one-object`).
+
 ## Capability
 An ability the host grants one render and withholds from the next: storage, the visitor's session,
 outbound fetch, the page store read, the page's own save, the layout's slots, the Markdown and diff

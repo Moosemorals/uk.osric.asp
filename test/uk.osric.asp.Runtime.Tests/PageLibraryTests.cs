@@ -115,7 +115,7 @@ public sealed class PageLibraryTests {
     [Test]
     public void APageCallsTheLibraryItsUsingNames() {
         CompileResult result = CompilePage(
-            "<%! using Site; %><% ctx.Write(Document.Head()); %>",
+            "<%! using Site; %><% ctx.Response.Write(Document.Head()); %>",
             ("/_lib/document",
                 "<%! namespace Site { public static class Document { public static string Head() => \"hi\"; } } %>"));
 
@@ -127,7 +127,7 @@ public sealed class PageLibraryTests {
     [Test]
     public void ALibrarysOwnUsingPullsInAnother() {
         CompileResult result = CompilePage(
-            "<%! using Site.More; %><% ctx.Write(More.Text()); %>",
+            "<%! using Site.More; %><% ctx.Response.Write(More.Text()); %>",
             ("/_lib/base",
                 "<%! namespace Site.Base { public static class Base { public static string Text() => \"b\"; } } %>"),
             ("/_lib/more",
@@ -141,7 +141,7 @@ public sealed class PageLibraryTests {
     [Test]
     public void ALibraryThePageDoesNotNameIsNeverCompiled() {
         CompileResult result = CompilePage(
-            "<% ctx.Write(\"ok\"); %>",
+            "<% ctx.Response.Write(\"ok\"); %>",
             ("/_lib/broken",
                 "<%! namespace Site { class Broken { public static string Read() => System.IO.File.ReadAllText(\"x\"); } } %>"));
 
@@ -153,7 +153,7 @@ public sealed class PageLibraryTests {
     [Test]
     public void ALibrarysErrorIsReportedUnderItsOwnKey() {
         CompileResult result = CompilePage(
-            "<%! using Site; %><% ctx.Write(Document.Read()); %>",
+            "<%! using Site; %><% ctx.Response.Write(Document.Read()); %>",
             ("/_lib/document",
                 "<%! namespace Site { public static class Document { public static string Read() => System.IO.File.ReadAllText(\"x\"); } } %>"));
 
@@ -167,7 +167,7 @@ public sealed class PageLibraryTests {
     [Test]
     public void AMissingNamespaceIsRoslynsOwnError() {
         CompileResult result = CompilePage(
-            "<%! using Site.Missing; %><% ctx.Write(\"x\"); %>",
+            "<%! using Site.Missing; %><% ctx.Response.Write(\"x\"); %>",
             ("/_lib/document",
                 "<%! namespace Site { public static class Document { } } %>"));
 

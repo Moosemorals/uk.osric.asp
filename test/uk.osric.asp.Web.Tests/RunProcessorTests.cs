@@ -581,7 +581,7 @@ public sealed class RunProcessorTests {
             messages.Add(new("tool", content, ToolCallId: id, ToolName: "read_page"));
         }
         int oldest = messages.FindIndex(message => message.Role == "tool");
-        messages[oldest] = ObservationMasker.MaskMessage(messages[oldest]).Message;
+        messages[oldest] = messages[oldest].Mask().Message;
         ChatRequest request = new(
             "test-model",
             messages,

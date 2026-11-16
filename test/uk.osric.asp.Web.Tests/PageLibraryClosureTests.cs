@@ -14,7 +14,7 @@ public sealed class PageLibraryClosureTests {
     private const string Document =
         "<%! namespace Site { public static class Document { public static string Head() => \"one\"; } } %>";
 
-    private const string Uses = "<%! using Site; %><% ctx.Write(Document.Head()); %>";
+    private const string Uses = "<%! using Site; %><% ctx.Response.Write(Document.Head()); %>";
 
     [Test]
     public async Task APageRendersWhatTheLibraryItsUsingNamesReturnsAsync() {
@@ -33,7 +33,7 @@ public sealed class PageLibraryClosureTests {
         using PageHarness pages = new(new FakePageStore());
         pages.ReadStore.Save("/_lib/document", Document, templateKind: PageKind.Library);
         await pages.StoreCompiledAsync("/uses", Uses);
-        await pages.StoreCompiledAsync("/plain", "<% ctx.Write(\"plain\"); %>");
+        await pages.StoreCompiledAsync("/plain", "<% ctx.Response.Write(\"plain\"); %>");
         int compiles = pages.Compiler.CompileCount;
 
         // The library moves: its revision hash and its answer both change.

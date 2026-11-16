@@ -22,7 +22,7 @@ public sealed class ScaffoldTests {
     // The shapes a template can have: only text, only a write, only code, and a declaration.
     [TestCase("literal text only")]
     [TestCase("<%= ctx.Path %>")]
-    [TestCase("<% int value = 1; ctx.Write(value.ToString()); %>")]
+    [TestCase("<% int value = 1; ctx.Response.Write(value.ToString()); %>")]
     [TestCase("<%! sealed class Amount { public static int Value => 1; } %>")]
     [TestCase("<%! using System.Globalization; %><%= 1.5m.ToString(\"N2\", CultureInfo.InvariantCulture) %>")]
     public void TheScaffoldCompilesWithoutWarningsUnderNullableEnable(string template) {

@@ -7,11 +7,11 @@ SPDX-License-Identifier: MIT
 
 | | |
 | --- | --- |
-| Status | Proposed 2026-11-16 — waits for the owner. Nothing below is built |
+| Status | Merged 2026-11-16. The decisions below are in [the record](../decisions.md); the steps landed in five commits |
 | Size | Large as a programme, Medium as each step — three seeds retired, five files moved from the pack to `wwwroot`, one shell route added and one rebuilt from the shell's link list, one route that reads the licence files, and the tests, manual, prompt and deployment notes for each. No migration, no new configuration key and no `Sdk` change |
 | Area | Web (html, admin, documentation, pages, seeds, wwwroot), deploy, docs |
 | Spike | None. Every count was read off the working tree on 2026-11-16: 26 files in `Pages/Seeds`, the consumers of each seed, the route table, `ReservedPaths`, `ShellRoutes`, `SecurityHeaders`, `ShellDocument` and the tests that name a retired key |
-| Decisions | At the merge: **shell-admin-is-a-shell-route** is new and retires `shell-admin-is-a-page`; **shell-admin-assets-are-static-files** and **shell-the-licences-are-read-not-restated** are new; `pages-scratch-saves-itself` and `shell-the-menu-is-written-twice` are edited in place |
+| Decisions | Recorded at the merge: `shell-admin-is-a-shell-route`, `shell-admin-assets-are-static-files` and `shell-the-licences-are-read-not-restated` are new, and the first supersedes the retired admin-seed entry; `pages-scratch-saves-itself` and `shell-the-menu-is-written-twice` are edited in place |
 | Backlog | [IDEA-030](../jobs/IDEA-030.md) takes the link list this plan builds; [the shell navigation plan](shell-navigation.md) is the wider programme, and its D4 is superseded here |
 
 ## The short version
@@ -77,6 +77,8 @@ pinned to `ReservedPaths.Default` in both directions, so a new route without a r
 
 ### D1 — The shell's own files are files
 
+> Recorded as `shell-admin-assets-are-static-files`.
+
 `wwwroot/admin.css`, `admin.js`, `status.css`, `reference.css` and `rocket.svg` are the same bytes
 under a different home, and `app.UseStaticFiles()` is added to the pipeline. It sits after the
 request log scope and `SecurityHeaders`, and **before `UseRouting`**, so a physical file answers
@@ -133,6 +135,8 @@ mechanical move, and the seeded layout keeps its hand-written menu until then.
 
 ### D3 — `/admin` is a shell route
 
+> Recorded as `shell-admin-is-a-shell-route`; it retires the entry that kept the index a seeded page.
+
 `Admin/AdminIndexEndpoint.cs` answers `GET /admin` without `EditorPolicy`:
 
 ```
@@ -150,10 +154,12 @@ mechanical move, and the seeded layout keeps its hand-written menu until then.
 - **The route is reserved.** `/admin` joins `Pages:ReservedPaths`; the prefix rule means every
   `/admin/…` key stays reserved as it is today, and the existing error remedies that offer "edit
   this page" already refuse a reserved key.
-- **The seeded page is deleted**, and `shell-admin-is-a-page` is retired. An existing installation's
+- **The seeded page is deleted**, and the decision that kept it is retired (`shell-admin-is-a-shell-route`). An existing installation's
   stored `/admin` row becomes an unreachable owner page; the operations note says to scrub it.
 
 ### D4 — `/about` keeps the credits; `/admin/copyright` keeps the licences
+
+> Recorded as `shell-the-licences-are-read-not-restated`.
 
 `Admin/CopyrightEndpoint.cs` answers `GET /admin/copyright` publicly, in the shell document with the
 admin menu, and renders what the build carries:

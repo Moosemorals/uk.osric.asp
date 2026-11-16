@@ -7,11 +7,11 @@ SPDX-License-Identifier: MIT
 
 | | |
 | --- | --- |
-| Status | Built 2026-11-16 — the design below is what landed, amended where the build found better |
+| Status | Merged 2026-11-16. The design below is what landed, amended where the build found better |
 | Size | M — one catalogue replaces two files, `ReservedPaths` derives its list from it, one configuration section is removed, and the tests, prompt, manual and docs follow. No migration, no new route, no `Sdk` change |
 | Area | Web (shell, html, assistant, pages), docs |
 | Spike | None. The three lists were read off the working tree on 2026-11-16: `ShellRoutes.All` (21 records), `ShellLinks.All` (17 links) and `ReservedPaths.Default` (21 keys); plus the prompt's own copy of the shell files |
-| Decisions | At the merge: **shell-one-table-of-routes** and **shell-reserved-keys-are-an-invariant** are new; `code-policy-values-are-configuration` already carries the exception both rely on, and [IDEA-031](../jobs/IDEA-031.md) gains a row |
+| Decisions | `shell-one-table-of-routes` and `shell-reserved-keys-are-an-invariant` are recorded; `code-policy-values-are-configuration` already carries the exception both rely on, and [IDEA-031](../jobs/IDEA-031.md) gained a row |
 
 ## The short version
 
@@ -57,6 +57,8 @@ already argues why each is its own list.
 ## The design
 
 ### D1 — One entry per route
+
+> Recorded as `shell-one-table-of-routes`.
 
 ```csharp
 internal sealed record ShellMenu(
@@ -123,6 +125,8 @@ internal static class ShellCatalogue {
 fourteen of them. The prompt's version goes to `page-author-v35`, because its text changes.
 
 ### D4 — `ReservedPaths` derives its keys
+
+> Recorded as `shell-reserved-keys-are-an-invariant`.
 
 ```csharp
 public static IReadOnlyList<string> Default { get; } = ShellCatalogue.Reserved;

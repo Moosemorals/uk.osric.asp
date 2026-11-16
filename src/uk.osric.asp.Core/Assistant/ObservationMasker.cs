@@ -60,7 +60,7 @@ internal static class ObservationMasker {
 
         List<int> indices = [];
         for (int index = 0; index < messages.Count; index++) {
-            if (!kept[index] && MaskMessage(messages[index]).Changed) {
+            if (!kept[index] && messages[index].Mask().Changed) {
                 indices.Add(index);
             }
         }
@@ -70,7 +70,7 @@ internal static class ObservationMasker {
     /// <summary>Masks one message's payloads.</summary>
     /// <param name="message">The message to offer to the masker.</param>
     /// <returns>The message to send and what was elided.</returns>
-    public static MaskOutcome MaskMessage(ChatMessage message) {
+    public static MaskOutcome Mask(this ChatMessage message) {
         ArgumentNullException.ThrowIfNull(message);
 
         if (message.Role == "tool") {

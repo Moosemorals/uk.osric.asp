@@ -202,6 +202,19 @@ allocation or identity is measured to matter.
 
 *Recorded in [architecture](architecture.md#shapes).*
 
+### code-one-concern-one-collaborator
+
+A type that implements a wide contract composes one collaborator per concern rather than collecting
+members, and it is split by composition rather than by `partial`. `SimpleContext` is the case that
+settled it: it keeps `IContext`, the commit gate, the layout rule and the page's logging, and hands
+the body to `PageBody` and the response being assembled to `PageResponseState`. A partial would move
+the members and leave one type, one constructor and one set of fields, which is a layout of a file
+rather than a seam. The test is the point of it: a collaborator can be built and asserted without the
+whole contract's dependencies, so a test that still needs the whole context is testing the context
+and not the part.
+
+*Recorded in [architecture](architecture.md#shapes).*
+
 ### code-n-is-small
 
 `n` is small: prefer the obvious loop, the linear scan and the in-memory dictionary over clever
@@ -592,6 +605,22 @@ added.
 
 *Recorded in [async page contract](plans/archive/async-page-contract.md), [IContext](../src/uk.osric.asp.Sdk/IContext.cs).*
 
+### pages-the-response-is-one-object
+
+What a page writes into is one object on the context: `IContext.Response`, of type `IPageResponse`.
+It holds the body (`Write`, `WriteRaw`, `FlushAsync`), the settings applied to it (`SetStatus`,
+`SetContentType`, `SetHeader`, `AllowScripts`), the two shapes that replace a body (`Redirect`,
+`RedirectToLogin`) and the token a form carries (`AntiforgeryField`). It is contract rather than a
+capability, because every page always has one; it is one member rather than ten so the buffering and
+commit rule has a home, and so a helper can take an `IPageResponse` to get the output and nothing else.
+The ten old members stay on `IContext` for one release as `[Obsolete]` warnings under `PAGE009` —
+stored pages are compiled source and a change to `Sdk` invalidates every image — and go with that
+alias (`pages-a-warning-never-stops-a-page`, `pages-what-a-diagnostic-is`). `Web`'s implementation is
+`SimpleResponse`, which composes the response state and the body the [context
+split](plans/simple-context.md) made.
+
+*Recorded in [pages](pages.md#page-contract), [glossary](glossary.md#response), [the plan](plans/page-response.md).*
+
 ### pages-the-response-is-buffered-until-a-flush
 
 The response body is buffered by default: status, content type and headers are applied after
@@ -639,7 +668,8 @@ called a **capability**: `IPageCapabilities`, reached through `IContext.Capabili
 abstract member — `TryGet<T>(out T?)` — with `Get<T>` and `GetRequired<T>` as default interface members
 over it. The host owns registration, which is out of the SDK entirely, and a capability is either
 registered or absent, never `null`. Everything a page always has — the request, the response, logging
-and identity — stays on `IContext`; something a render offers is asked for by name, so a page says
+and identity — stays on `IContext`; the response stays there as `IContext.Response`, one member rather
+than ten (`pages-the-response-is-one-object`). Something a render offers is asked for by name, so a page says
 which capability it wants instead of finding it on the context.
 
 A capability is not a *feature* — something the product has, or ASP.NET Core's request features — and
@@ -1472,13 +1502,66 @@ when the page pipeline is broken.
 
 *Recorded in [site navigation](plans/archive/site-navigation.md#d5--the-menu-lives-in-the-layout-and-in-the-shell-through-the-same-builder).*
 
-### shell-admin-is-a-page
+### shell-admin-is-a-shell-route
 
-`/admin` is a seeded fragment page linking import, export and `/status`; `/_layout` is an ordinary page
-the owner can edit and restore, and only the import and export routes stay reserved beneath `/admin`.
-This retired a duplicate page list, not an index of tools.
+`/admin` is the shell's own route, and it answers anyone: it draws the administration section of the
+shell's route table, minus the tools this visitor may not reach, so an anonymous visitor sees the
+public tools and a line saying a sign-in reaches the rest. It is a route because it must answer when
+the page pipeline is broken — the same reason every other administration view is one — and because a
+page cannot draw the shell's own link list. The key is reserved, so a stored page cannot take it. The
+administrative index is the one view the earlier seeded page was right about in spirit: one list of
+tools rather than a second one.
 
-*Recorded in [site navigation](plans/archive/site-navigation.md#d6--admin-is-a-fragment-page-now).*
+*Recorded in [the seed trim](plans/seed-trimming.md#d3---admin-is-a-shell-route), [the shell](shell.md#the-administration-index), [AdminIndexEndpoint](../src/uk.osric.asp.Web/Admin/AdminIndexEndpoint.cs).*
+
+### shell-admin-assets-are-static-files
+
+The files only the shell's own views load — `admin.css`, `admin.js`, `status.css`, `reference.css` and
+the icon at `/rocket.svg` — are in the project's `wwwroot`, served by the static file handler before
+routing, and are not pages at all. A file that was a seeded page needed a restore after every release
+that moved it, and a `?v=` link that named a revision of a file nobody could edit; the five keys are
+reserved so a page cannot be shadowed silently. `/site.css` stays seeded because a stored page links
+it and the owner may edit it (`pages-one-base-sheet`), and so do the sheets and scripts a stored page
+loads.
+
+*Recorded in [the seed trim](plans/seed-trimming.md#d1---the-shells-own-files-are-files), [the shell](shell.md#the-shells-own-files), [operations](../deploy/operations.md).*
+
+### shell-the-licences-are-read-not-restated
+
+The copyright and licence page is `/admin/copyright`, a public shell route that renders the files the
+image carries: `LICENSE`, `THIRD-PARTY-NOTICES.md`, every text in `LICENSES/` and `REUSE.toml`. A copy
+of those texts on `/about` was a second home for a file that changes without the page noticing, and
+the notice the image ships for its packages is the one a reader is entitled to see. A missing file is
+named and the rest of the page still answers, so a build that did not come through the Makefile says
+what it lacks instead of failing.
+
+*Recorded in [the seed trim](plans/seed-trimming.md#d4---about-keeps-the-credits-admincopyright-keeps-the-licences), [the shell](shell.md#the-copyright-page), [CopyrightEndpoint](../src/uk.osric.asp.Web/Admin/CopyrightEndpoint.cs).*
+
+### shell-one-table-of-routes
+
+The shell describes each of its own routes once, in `Web/Shell/ShellCatalogue.cs`: the key, the
+methods, who may reach it, a one-line description and the menus it appears in. The reserved key set,
+the record the assistant reads and both menus are derived from that table, so a route cannot be
+described by one of them and forgotten by another — they were three hand-kept copies and the
+assistant's prompt a fourth, and they had drifted. Two things do not collapse: a *page* link (Home,
+the editor, the manual) is in the table but answers with no methods or description, and a *route* may
+appear in no menu. A menu entry carries its own audience and order, because who may reach a route and
+who a link is for are different facts — `/admin` answers anyone, the site menu offers it to the owner,
+the administration menu to everyone — and the two menus do not agree on position.
+
+*Recorded in [the route catalogue](plans/shell-route-catalogue.md), [the shell](shell.md#the-administration-index), [ShellCatalogue](../src/uk.osric.asp.Web/Shell/ShellCatalogue.cs).*
+
+### shell-reserved-keys-are-an-invariant
+
+The keys a stored page may not claim are the shell's route paths, taken from the table, and are not
+configuration: `Pages:ReservedPaths` is gone and a deployment that still sets it is refused at startup
+with the reason. A route exists because the site's code answers it, so an operator who shortened the
+list could only let a stored page shadow a route such as `/login`, and no legitimate deployment needs
+that; a longer list would have to invent a route that does not exist. This is the exception
+`code-policy-values-are-configuration` names — a security policy configuration may only keep or tighten
+— and [IDEA-031](../docs/jobs/IDEA-031.md) lists it with the other invariants.
+
+*Recorded in [the route catalogue](plans/shell-route-catalogue.md#d4--reservedpaths-derives-its-keys), [ReservedPaths](../src/uk.osric.asp.Web/Pages/ReservedPaths.cs), [the shell](shell.md).*
 
 ### shell-the-admin-tools
 
@@ -2297,6 +2380,9 @@ someone who cannot see that it was once used.
 - `pages-the-editor-capability` — replaced by **pages-any-page-may-write-the-store**. It made the
   editor's registration the authority: one content key, `Pages:Editor:Key`, and the store's write offered
   to no other page. The owner removed that narrowing on 2026-11-15.
+- `shell-admin-is-a-page` — replaced by **shell-admin-is-a-shell-route**. It kept `/admin` as a seeded
+  fragment index so the owner could edit it; the index is the shell's now, because it draws the shell's
+  own route table and must answer when the page store is broken. The owner retired it on 2026-11-16.
 
 The numbering scheme this file replaces was a way of writing decisions down rather than a decision with a
 name, and the entries that were already superseded when this file was written are in the

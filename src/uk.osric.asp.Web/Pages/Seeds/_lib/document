@@ -38,10 +38,10 @@ namespace Site.Document {
             ArgumentNullException.ThrowIfNull(resolveHref);
             ArgumentException.ThrowIfNullOrWhiteSpace(title);
 
-            ctx.WriteRaw("<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n<meta charset=\"UTF-8\">\n"
+            ctx.Response.WriteRaw("<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n<meta charset=\"UTF-8\">\n"
                 + "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n<title>");
-            ctx.Write(title);
-            ctx.WriteRaw("</title>\n");
+            ctx.Response.Write(title);
+            ctx.Response.WriteRaw("</title>\n");
 
             List<string> sheets = [BaseStylesheet, .. stylesheets];
             HashSet<string> seen = [];
@@ -50,21 +50,21 @@ namespace Site.Document {
                     continue;
                 }
 
-                ctx.WriteRaw("<link rel=\"stylesheet\" href=\"");
-                ctx.Write(resolveHref(href));
-                ctx.WriteRaw("\">\n");
+                ctx.Response.WriteRaw("<link rel=\"stylesheet\" href=\"");
+                ctx.Response.Write(resolveHref(href));
+                ctx.Response.WriteRaw("\">\n");
             }
 
-            ctx.WriteRaw("<link rel=\"icon\" href=\"");
-            ctx.Write(resolveHref(Icon));
-            ctx.WriteRaw("\" type=\"image/svg+xml\">\n");
+            ctx.Response.WriteRaw("<link rel=\"icon\" href=\"");
+            ctx.Response.Write(resolveHref(Icon));
+            ctx.Response.WriteRaw("\" type=\"image/svg+xml\">\n");
 
             if (!string.IsNullOrEmpty(head)) {
-                ctx.WriteRaw(head);
-                ctx.WriteRaw("\n");
+                ctx.Response.WriteRaw(head);
+                ctx.Response.WriteRaw("\n");
             }
 
-            ctx.WriteRaw("</head>\n<body>\n");
+            ctx.Response.WriteRaw("</head>\n<body>\n");
         }
 
         /// <summary>Writes the skip link, the banner and the navigation landmark.</summary>
@@ -75,11 +75,11 @@ namespace Site.Document {
         public static void Banner(IContext ctx, string label, IReadOnlyList<NavLink> links, string className) {
             ArgumentNullException.ThrowIfNull(ctx);
 
-            ctx.WriteRaw("<a class=\"skip-link\" href=\"#main\">");
-            ctx.Write(SkipLinkText);
-            ctx.WriteRaw("</a>\n<header class=\"site-header\">\n");
+            ctx.Response.WriteRaw("<a class=\"skip-link\" href=\"#main\">");
+            ctx.Response.Write(SkipLinkText);
+            ctx.Response.WriteRaw("</a>\n<header class=\"site-header\">\n");
             Nav(ctx, label, links, className);
-            ctx.WriteRaw("\n</header>\n");
+            ctx.Response.WriteRaw("\n</header>\n");
         }
 
         /// <summary>Writes a navigation landmark from its label and links.</summary>
@@ -92,53 +92,53 @@ namespace Site.Document {
             ArgumentNullException.ThrowIfNull(links);
             ArgumentException.ThrowIfNullOrWhiteSpace(label);
 
-            ctx.WriteRaw("<nav class=\"");
-            ctx.Write(className);
-            ctx.WriteRaw("\" aria-label=\"");
-            ctx.Write(label);
-            ctx.WriteRaw("\">");
+            ctx.Response.WriteRaw("<nav class=\"");
+            ctx.Response.Write(className);
+            ctx.Response.WriteRaw("\" aria-label=\"");
+            ctx.Response.Write(label);
+            ctx.Response.WriteRaw("\">");
 
             for (int index = 0; index < links.Count; index++) {
                 NavLink link = links[index];
                 if (index > 0) {
-                    ctx.WriteRaw(" ");
+                    ctx.Response.WriteRaw(" ");
                 }
 
                 if (link.IsCurrent) {
-                    ctx.WriteRaw("<span class=\"current\" aria-current=\"true\">");
-                    ctx.Write(link.Text);
-                    ctx.WriteRaw("</span>");
+                    ctx.Response.WriteRaw("<span class=\"current\" aria-current=\"true\">");
+                    ctx.Response.Write(link.Text);
+                    ctx.Response.WriteRaw("</span>");
                 } else {
-                    ctx.WriteRaw("<a href=\"");
-                    ctx.Write(link.Href);
-                    ctx.WriteRaw("\">");
-                    ctx.Write(link.Text);
-                    ctx.WriteRaw("</a>");
+                    ctx.Response.WriteRaw("<a href=\"");
+                    ctx.Response.Write(link.Href);
+                    ctx.Response.WriteRaw("\">");
+                    ctx.Response.Write(link.Text);
+                    ctx.Response.WriteRaw("</a>");
                 }
             }
 
-            ctx.WriteRaw("</nav>");
+            ctx.Response.WriteRaw("</nav>");
         }
 
         /// <summary>Opens the one main landmark the skip link targets.</summary>
         /// <param name="ctx">The page's context.</param>
         public static void OpenMain(IContext ctx) {
             ArgumentNullException.ThrowIfNull(ctx);
-            ctx.WriteRaw("<main id=\"main\">");
+            ctx.Response.WriteRaw("<main id=\"main\">");
         }
 
         /// <summary>Closes the landmark <see cref="OpenMain"/> opened.</summary>
         /// <param name="ctx">The page's context.</param>
         public static void CloseMain(IContext ctx) {
             ArgumentNullException.ThrowIfNull(ctx);
-            ctx.WriteRaw("</main>");
+            ctx.Response.WriteRaw("</main>");
         }
 
         /// <summary>Closes the document.</summary>
         /// <param name="ctx">The page's context.</param>
         public static void End(IContext ctx) {
             ArgumentNullException.ThrowIfNull(ctx);
-            ctx.WriteRaw("</body>\n</html>");
+            ctx.Response.WriteRaw("</body>\n</html>");
         }
     }
 }

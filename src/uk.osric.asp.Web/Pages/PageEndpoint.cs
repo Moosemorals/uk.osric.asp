@@ -97,7 +97,7 @@ internal sealed class PageEndpoint() {
                 return;
             }
 
-            if (PageAssetPolicy.IsAsset(selected.Kind)) {
+            if (selected.Kind.IsAsset()) {
                 await WriteSourceAsync(context, path, selected.Template, versionHash, environment);
 
                 return;
@@ -105,7 +105,7 @@ internal sealed class PageEndpoint() {
 
             // A library or a worker is not a representation, so a URL naming one is answered like an
             // unknown key: there is nothing to send and nothing to promise.
-            if (!PageAssetPolicy.IsServed(selected.Kind)) {
+            if (!selected.Kind.IsServed()) {
                 environment.Metrics.RecordAsset(PageMetrics.AssetUnknown);
                 await NotFound.WriteAsync(context, path);
                 return;
@@ -160,7 +160,7 @@ internal sealed class PageEndpoint() {
         if (selection is null) {
             PageTemplate? head = await pages.GetPageAsync(path, context.RequestAborted);
             if (head is not null) {
-                if (PageAssetPolicy.IsAsset(head.Kind)) {
+                if (head.Kind.IsAsset()) {
                     // Nothing is compiled or executed for this revision, and no render slot is taken:
                     // the stored source is the body, on this path, and a bare URL is not cacheable.
                     await WriteSourceAsync(context, path, head.Template, versionHash: null, environment);
@@ -168,7 +168,7 @@ internal sealed class PageEndpoint() {
                     return;
                 }
 
-                if (!PageAssetPolicy.IsServed(head.Kind)) {
+                if (!head.Kind.IsServed()) {
                     // A library or a worker has no representation: the editor opens it, a visitor
                     // cannot.
                     await NotFound.WriteAsync(context, path);
@@ -212,7 +212,7 @@ internal sealed class PageEndpoint() {
             new RenderFetchBudget(environment.Fetch.MaxRequestsPerRender),
             new ReadBudget(environment.Read.MaxSourceCharsPerRender),
             assets,
-            LoginRedirect.For(path, context.Request.QueryString),
+            path.LoginUrl(context.Request.QueryString),
             () => antiforgeryField ??= AntiforgeryField.Hidden(environment.Antiforgery.GetAndStoreTokens(context)),
             context.RequestAborted);
 
@@ -229,14 +229,14 @@ internal sealed class PageEndpoint() {
             result = selection is null
                 ? await render.RenderAsync(path, page)
                 : await render.RenderAsync(path, page, selection);
-        } catch (PageStreamRefusedException) when (!page.IsCommitted) {
+        } catch (PageStreamRefusedException) when (!page.Response.IsCommitted) {
             // Capacity, not a page bug: nothing has been committed, so the ordinary problem document
             // can still answer. A page that wanted to explain the wait catches this itself.
             EndpointLogger().LogWarning("Page {Path} could not start a live stream: every stream slot is taken", path.Key);
 
             await WriteStreamFullAsync(context, path);
             return;
-        } catch (Exception exception) when (page.IsCommitted) {
+        } catch (Exception exception) when (page.Response.IsCommitted) {
             // The response is already on the wire, so there is no error page to write and no status to
             // change. A client that left is not a page fault; anything else is.
             render.Fail();
@@ -258,7 +258,7 @@ internal sealed class PageEndpoint() {
                 await WriteCompileErrorAsync(context, result.Diagnostics);
                 return;
             case RenderStatus.Timeout:
-                if (page.IsCommitted) {
+                if (page.Response.IsCommitted) {
                     // A 504 cannot replace headers that are already sent. The renderer has already
                     // logged and counted the abandonment; this is the truncation.
                     EndpointLogger().LogWarning(
@@ -272,19 +272,19 @@ internal sealed class PageEndpoint() {
                 return;
         }
 
-        if (page.IsCommitted) {
+        if (page.Response.IsCommitted) {
             if (versionHash is not null) {
                 environment.Metrics.RecordAsset(PageMetrics.AssetNonAsset);
             }
 
-            if (contentLayout.Layout is not null && PageChain.IsHtml(page.ToResponse().ContentType)) {
+            if (contentLayout.Layout is not null && PageChain.IsHtml(page.Response.ToResponse().ContentType)) {
                 EndpointLogger().LogWarning(
                     "Page {Path} flushed its response and then named layout {Layout}; the page was served alone",
                     path.Key, contentLayout.Layout);
             }
 
             try {
-                await page.CompleteAsync();
+                await page.Response.CompleteAsync();
                 if (render.TokenCancelled) {
                     render.Truncated();
                 } else if (context.RequestAborted.IsCancellationRequested) {
@@ -309,7 +309,7 @@ internal sealed class PageEndpoint() {
             // The first render of a seed may have learned the revision has no code. That answer is
             // now stored, so the next request takes the fast path above. Nothing wraps a no-code
             // page: its source is the complete representation.
-            await WriteSourceAsync(context, path, page.GetBody(), versionHash, environment);
+            await WriteSourceAsync(context, path, page.Response.GetBody(), versionHash, environment);
 
             return;
         }
@@ -318,7 +318,7 @@ internal sealed class PageEndpoint() {
             environment.Metrics.RecordAsset(PageMetrics.AssetNonAsset);
         }
 
-        Task write = (await chain.WrapAsync(render, path, contentLayout, page.ToResponse(), page.GetBody())) switch {
+        Task write = (await chain.WrapAsync(render, path, contentLayout, page.Response.ToResponse(), page.Response.GetBody())) switch {
             PageChainResult.Failed failure => ErrorResponses.WriteAsync(context, failure.StatusCode, failure.Error),
             PageChainResult.Served served => WritePageAsync(context, served.Response, served.Body, environment, session),
         };
@@ -434,7 +434,7 @@ internal sealed class PageEndpoint() {
 
         byte[] bodyBytes = Encoding.UTF8.GetBytes(body);
 
-        if (PageResponseWriter.AllowsBody(response)) {
+        if (response.AllowsBody()) {
             context.Response.ContentLength = bodyBytes.LongLength;
         }
 

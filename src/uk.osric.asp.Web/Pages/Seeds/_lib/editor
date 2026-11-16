@@ -83,9 +83,9 @@ namespace Site.Editor {
         public static void Script(IContext ctx) {
             ArgumentNullException.ThrowIfNull(ctx);
 
-            ctx.WriteRaw("<script type=\"module\" src=\"");
-            ctx.Write(ctx.AssetUrl("/vim.js"));
-            ctx.WriteRaw("\"></script>\n");
+            ctx.Response.WriteRaw("<script type=\"module\" src=\"");
+            ctx.Response.Write(ctx.AssetUrl("/vim.js"));
+            ctx.Response.WriteRaw("\"></script>\n");
         }
 
         /// <summary>Writes the link that offers the other editor, worded for the mode in force.</summary>
@@ -99,11 +99,11 @@ namespace Site.Editor {
         public static void Toggle(IContext ctx, bool vim) {
             ArgumentNullException.ThrowIfNull(ctx);
 
-            ctx.WriteRaw("<a class=\"editor-toggle\" href=\"");
-            ctx.Write(ToggleHref(ctx));
-            ctx.WriteRaw("\">");
-            ctx.Write(vim ? "Plain textarea" : "Vim editing");
-            ctx.WriteRaw("</a>\n");
+            ctx.Response.WriteRaw("<a class=\"editor-toggle\" href=\"");
+            ctx.Response.Write(ToggleHref(ctx));
+            ctx.Response.WriteRaw("\">");
+            ctx.Response.Write(vim ? "Plain textarea" : "Vim editing");
+            ctx.Response.WriteRaw("</a>\n");
         }
     }
 }

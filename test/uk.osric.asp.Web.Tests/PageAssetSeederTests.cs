@@ -165,12 +165,11 @@ public sealed class PageAssetSeederTests {
         Assert.That(template, Is.Not.Null);
         Assert.That(template, Does.Not.Contain("<!DOCTYPE"));
         Assert.That(template, Does.Contain("<h1>Pages</h1>"));
-        Assert.That(template, Does.Contain("if (ctx.User is not { } user) { ctx.RedirectToLogin(); return; }"));
+        Assert.That(template, Does.Contain("if (ctx.User is not { } user) { ctx.Response.RedirectToLogin(); return; }"));
         Assert.That(template, Does.Contain("IPageWrites").And.Contain("IPageCatalog").And.Contain("IDiffRenderer"));
-        Assert.That(template, Does.Contain("ctx.AllowScripts()"));
-        Assert.That(template, Does.Contain("ctx.AntiforgeryField"), "every form is checked by the host");
+        Assert.That(template, Does.Contain("ctx.Response.AllowScripts()"));
+        Assert.That(template, Does.Contain("ctx.Response.AntiforgeryField"), "every form is checked by the host");
     }
-
 
     [Test]
     public async Task TheLayoutSeedIsAPageTheOwnerCanEdit() {

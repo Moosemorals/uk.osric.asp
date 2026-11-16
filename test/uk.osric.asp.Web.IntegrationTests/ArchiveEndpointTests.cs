@@ -14,7 +14,7 @@ using uk.osric.asp.Web.Pages;
 [TestFixture]
 public sealed partial class ArchiveEndpointTests : IntegrationTest {
 
-    private const string Source = "<% ctx.Write(\"round trip\"); %>";
+    private const string Source = "<% ctx.Response.Write(\"round trip\"); %>";
 
     [Test]
     public async Task ImportAndExportRequireSignIn() {

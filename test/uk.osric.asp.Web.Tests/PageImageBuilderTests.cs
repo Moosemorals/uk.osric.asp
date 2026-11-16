@@ -19,12 +19,12 @@ public sealed class PageImageBuilderTests {
     public void BuildReturnsAnImageWithNoDiagnostics() {
         using PageHarness pages = new(new FakePageStore());
 
-        PageImage compilation = Build(pages, "/hello", "<% ctx.Write(\"Hello.\"); %>");
+        PageImage compilation = Build(pages, "/hello", "<% ctx.Response.Write(\"Hello.\"); %>");
 
         Assert.That(compilation.Diagnostics, Is.Empty);
         Assert.That(compilation.Bytes, Is.Not.Null.And.Not.Empty);
         Assert.That(compilation.Kind, Is.EqualTo(PageKind.Page));
-        Assert.That(compilation.TemplateHash, Is.EqualTo(TemplateFingerprint.Of("<% ctx.Write(\"Hello.\"); %>")));
+        Assert.That(compilation.TemplateHash, Is.EqualTo(TemplateFingerprint.Of("<% ctx.Response.Write(\"Hello.\"); %>")));
         Assert.That(compilation.RuntimeId, Is.EqualTo(pages.Compiler.RuntimeId));
     }
 
@@ -60,7 +60,7 @@ public sealed class PageImageBuilderTests {
         using PageHarness pages = new(new FakePageStore(), new FaultingCompiler());
 
         Assert.That(
-            () => Build(pages, "/fault", "<% ctx.Write(\"Hello.\"); %>"),
+            () => Build(pages, "/fault", "<% ctx.Response.Write(\"Hello.\"); %>"),
             Throws.InvalidOperationException);
     }
 
@@ -69,7 +69,7 @@ public sealed class PageImageBuilderTests {
         PageBudget budget = new(TestOptions.Render, TestOptions.Compile with { TimeoutSeconds = 0.25 }, TestOptions.Stream);
         using PageHarness pages = new(new FakePageStore(), new StallingCompiler(), budget: budget);
 
-        PageImage compilation = Build(pages, "/stalled", "<% ctx.Write(\"Hello.\"); %>");
+        PageImage compilation = Build(pages, "/stalled", "<% ctx.Response.Write(\"Hello.\"); %>");
 
         Assert.That(compilation.Diagnostics, Is.EqualTo(new PageDiagnostic[] {
             new(PageDiagnosticSeverity.Error, null, "PAGE004: the page took longer than 0.25 s to compile."),
@@ -85,7 +85,7 @@ public sealed class PageImageBuilderTests {
         await budget.CompileSlots.WaitAsync();
         try {
             long start = Stopwatch.GetTimestamp();
-            PageImage compilation = Build(pages, "/queued", "<% ctx.Write(\"Hello.\"); %>");
+            PageImage compilation = Build(pages, "/queued", "<% ctx.Response.Write(\"Hello.\"); %>");
 
             Assert.That(Stopwatch.GetElapsedTime(start), Is.LessThan(TimeSpan.FromSeconds(1)),
                 "the wait for a slot is bounded by the compile budget");
@@ -129,7 +129,7 @@ public sealed class PageImageBuilderTests {
     public void APageWithACommentCompilesClean() {
         using PageHarness pages = new(new FakePageStore());
 
-        PageImage compilation = Build(pages, "/hello", "<%# greeting %><% ctx.Write(\"Hello.\"); %>");
+        PageImage compilation = Build(pages, "/hello", "<%# greeting %><% ctx.Response.Write(\"Hello.\"); %>");
 
         Assert.That(compilation.Diagnostics, Is.Empty);
         Assert.That(compilation.Kind, Is.EqualTo(PageKind.Page));
@@ -159,7 +159,7 @@ public sealed class PageImageBuilderTests {
             "<%! namespace Site { public static class Document { public static string Head() => \"hi\"; } } %>");
 
         PageImage compilation = pages.Images.Build(
-            PageHarness.Key("/uses"), "<%! using Site; %><% ctx.Write(Document.Head()); %>",
+            PageHarness.Key("/uses"), "<%! using Site; %><% ctx.Response.Write(Document.Head()); %>",
             PageMetrics.ReasonSave, [library], CancellationToken.None);
 
         Assert.Multiple(() => {
@@ -189,7 +189,7 @@ public sealed class PageImageBuilderTests {
     public void ATemplateShapeWarningIsStoredEvenWhenThePageCompiles() {
         using PageHarness pages = new(new FakePageStore());
 
-        PageImage compilation = Build(pages, "/shape", "<% ctx.Write(\"one\"); %>\n100%> done");
+        PageImage compilation = Build(pages, "/shape", "<% ctx.Response.Write(\"one\"); %>\n100%> done");
 
         Assert.Multiple(() => {
             Assert.That(compilation.Bytes, Is.Not.Null.And.Not.Empty);

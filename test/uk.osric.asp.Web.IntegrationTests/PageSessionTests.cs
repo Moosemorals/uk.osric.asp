@@ -33,16 +33,16 @@ public sealed partial class PageSessionTests : IntegrationTest {
         <% IPageSession session = ctx.Capabilities.GetRequired<IPageSession>();
            if (ctx.Request.Method == "POST") {
                await session.SetAsync("notice", "Your note was saved.");
-               ctx.Redirect(ctx.Path, 303);
+               ctx.Response.Redirect(ctx.Path, 303);
                return;
            }
            PageValue<string> notice = await session.TryGetValueAsync<string>("notice");
            if (notice.Found) {
                await session.DeleteAsync("notice");
-               ctx.Write("<p>" + notice.Value! + "</p>");
+               ctx.Response.Write("<p>" + notice.Value! + "</p>");
            } %>
         <form method="post" class="form">
-            <%== ctx.AntiforgeryField %>
+            <%== ctx.Response.AntiforgeryField %>
             <button type="submit">Save</button>
         </form>
         """;

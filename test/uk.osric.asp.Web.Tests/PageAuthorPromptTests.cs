@@ -16,15 +16,28 @@ using PageDiagnosticSeverity = uk.osric.asp.Core.Compilation.PageDiagnosticSever
 public sealed class PageAuthorPromptTests {
 
     [Test]
-    public void ContractSectionContainsEveryIContextMember() {
+    public void ContractSectionContainsEveryMemberOfBothHalves() {
         string prompt = PageAuthorPrompt.Build();
-        // The deprecated alias is not something a prompt should teach, so it is not expected there.
-        IEnumerable<string> members = typeof(IContext).GetMembers(BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly)
+        // Deprecated members are not something a prompt should teach, so they are not expected there.
+        IEnumerable<string> members = new[] { typeof(IContext), typeof(IPageResponse) }
+            .SelectMany(contract => contract.GetMembers(BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly))
             .Where(member => member is PropertyInfo || member is MethodInfo { IsSpecialName: false })
             .Where(member => !member.IsDefined(typeof(ObsoleteAttribute)))
             .Select(member => member.Name);
 
         Assert.That(members.All(prompt.Contains), Is.True);
+    }
+
+    [Test]
+    public void ThePromptTeachesTheResponseAndNeverTheOldSpelling() {
+        string prompt = PageAuthorPrompt.Build();
+
+        Assert.Multiple(() => {
+            Assert.That(prompt, Does.Contain("ctx.Response.Write"));
+            Assert.That(prompt, Does.Not.Contain("ctx.Write("));
+            Assert.That(prompt, Does.Not.Contain("ctx.SetStatus("));
+            Assert.That(prompt, Does.Not.Contain("ctx.FlushAsync("));
+        });
     }
 
     [Test]
@@ -131,8 +144,8 @@ public sealed class PageAuthorPromptTests {
         Assert.Multiple(() => {
             Assert.That(prompt, Does.Contain("## Page authentication"));
             Assert.That(prompt, Does.Contain("ctx.User is not { } user"));
-            Assert.That(prompt, Does.Contain("ctx.RedirectToLogin()"));
-            Assert.That(prompt, Does.Contain("ctx.AntiforgeryField"));
+            Assert.That(prompt, Does.Contain("ctx.Response.RedirectToLogin()"));
+            Assert.That(prompt, Does.Contain("ctx.Response.AntiforgeryField"));
             Assert.That(prompt, Does.Contain("public unless the page's own code checks"));
             Assert.That(prompt, Does.Contain("write a sign-in form"));
         });

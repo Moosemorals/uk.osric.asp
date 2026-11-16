@@ -43,7 +43,7 @@ public sealed class ContextPlannerTests {
         ChatRequest request = Request(messages);
         List<ChatMessage> expected = [.. messages];
         int firstResult = expected.FindIndex(message => message.Role == "tool");
-        expected[firstResult] = ObservationMasker.MaskMessage(expected[firstResult]).Message;
+        expected[firstResult] = expected[firstResult].Mask().Message;
 
         ContextPlan plan = ContextPlanner.Build(request, Bytes(Request(expected)), Exact);
 
@@ -61,7 +61,7 @@ public sealed class ContextPlannerTests {
         ChatMessage[] messages = [.. Enumerable.Range(0, 10).Select(index => Result(1_000, $"call-{index}"))];
         ChatRequest request = Request(messages);
         List<ChatMessage> expected = [.. messages];
-        expected[0] = ObservationMasker.MaskMessage(messages[0]).Message;
+        expected[0] = messages[0].Mask().Message;
 
         ContextPlan plan = ContextPlanner.Build(request, Bytes(Request(expected)), Exact);
 

@@ -125,7 +125,7 @@ internal sealed class PageStoreReader(PageEditor pages, PagePathPolicy paths) : 
         List<PageNode> tree = [];
         foreach (string node in nodes) {
             PagePath path = PagePath.Normalize(node);
-            bool isFolder = nodes.Any(other => PageTree.IsBelow(PagePath.Normalize(other), path));
+            bool isFolder = nodes.Any(other => PagePath.Normalize(other).IsBelow(path));
             bool isShellFile = reserved.Contains(path.Key);
             bool isStored = stored.TryGetValue(path.Key, out (bool IsDeleted, PageImageState State) row);
 
@@ -195,9 +195,7 @@ internal sealed class PageStoreReader(PageEditor pages, PagePathPolicy paths) : 
     // A shell file is a route the site answers itself: it is readable as a record of what the route
     // does, it is never a stored page, and no save would be accepted at its key.
     private static PageRead ShellFile(PagePath path) =>
-        new(path, IsShellFile: true, CanWrite: false, State: null,
-            ShellCatalogue.Text(path) ?? $"{path.Key}\nshell file: a route the site answers with its own code, never a stored page",
-            Page: null);
+        new(path, IsShellFile: true, CanWrite: false, State: null, ShellCatalogue.Text(path), Page: null);
 
     private async Task<PageRead?> ReadPageAsync(PagePath path, CancellationToken cancellationToken) {
         PageTemplate? page = await pages.GetAsync(path, cancellationToken);

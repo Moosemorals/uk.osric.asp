@@ -71,7 +71,7 @@ internal static class PageResponseWriter {
 
     /// <summary>Whether a response with this status may carry a body.</summary>
     /// <param name="response">What the page asked the response to be.</param>
-    public static bool AllowsBody(PageResponse response) {
+    public static bool AllowsBody(this PageResponse response) {
         ArgumentNullException.ThrowIfNull(response);
 
         return response.Status is >= StatusCodes.Status200OK

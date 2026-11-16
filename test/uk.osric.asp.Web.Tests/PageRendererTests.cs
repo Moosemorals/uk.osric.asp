@@ -36,7 +36,7 @@ public sealed class PageRendererTests {
     [Test]
     public async Task RenderPropagatesACompilerFaultAsync() {
         FakePageStore storage = new();
-        storage["/fault"] = new PageTemplate(PageHarness.Key("/fault"), "<% ctx.Write(\"Hello.\"); %>");
+        storage["/fault"] = new PageTemplate(PageHarness.Key("/fault"), "<% ctx.Response.Write(\"Hello.\"); %>");
         using PageHarness pages = new(storage, new FaultingCompiler());
 
         await Assert.ThrowsAsync<InvalidOperationException>(() => pages.RenderAsync("/fault"));
@@ -46,7 +46,7 @@ public sealed class PageRendererTests {
     public async Task RenderOfACompiledPageDoesNotCompileAsync() {
         FakePageStore storage = new();
         using PageHarness pages = new(storage);
-        await pages.StoreCompiledAsync("/hello", "<% ctx.Write(\"Hello.\"); %>");
+        await pages.StoreCompiledAsync("/hello", "<% ctx.Response.Write(\"Hello.\"); %>");
         int compiles = pages.Compiler.CompileCount;
 
         (RenderResult result, string output) = await pages.RenderAsync("/hello");
@@ -60,7 +60,7 @@ public sealed class PageRendererTests {
     [Test]
     public async Task RenderCompilesAPageThatWasStoredWithoutOneAsync() {
         FakePageStore storage = new();
-        storage["/seeded"] = new PageTemplate(PageHarness.Key("/seeded"), "<% ctx.Write(\"Seeded.\"); %>");
+        storage["/seeded"] = new PageTemplate(PageHarness.Key("/seeded"), "<% ctx.Response.Write(\"Seeded.\"); %>");
         using PageHarness pages = new(storage);
 
         (RenderResult result, string output) = await pages.RenderAsync("/seeded");
@@ -76,22 +76,22 @@ public sealed class PageRendererTests {
     public async Task RenderRecompilesWhenTheContentChangedBehindTheCacheAsync() {
         FakePageStore storage = new();
         using PageHarness pages = new(storage);
-        PageImage stale = new(TemplateFingerprint.Of("<% ctx.Write(\"Old.\"); %>"), pages.Compiler.RuntimeId, [1, 2, 3], null, []);
-        storage["/edited"] = new PageTemplate(PageHarness.Key("/edited"), "<% ctx.Write(\"New.\"); %>", stale);
+        PageImage stale = new(TemplateFingerprint.Of("<% ctx.Response.Write(\"Old.\"); %>"), pages.Compiler.RuntimeId, [1, 2, 3], null, []);
+        storage["/edited"] = new PageTemplate(PageHarness.Key("/edited"), "<% ctx.Response.Write(\"New.\"); %>", stale);
 
         (RenderResult result, string output) = await pages.RenderAsync("/edited");
 
         Assert.That(result.Status, Is.EqualTo(RenderStatus.Rendered));
         Assert.That(output, Is.EqualTo("New."));
         Assert.That(pages.Compiler.CompileCount, Is.EqualTo(1));
-        Assert.That(PageHarness.Stored(storage, "/edited").Image?.TemplateHash, Is.EqualTo(TemplateFingerprint.Of("<% ctx.Write(\"New.\"); %>")));
+        Assert.That(PageHarness.Stored(storage, "/edited").Image?.TemplateHash, Is.EqualTo(TemplateFingerprint.Of("<% ctx.Response.Write(\"New.\"); %>")));
     }
 
     [Test]
     public async Task RenderRecompilesWhenTheBuildChangedAsync() {
         FakePageStore storage = new();
-        PageImage previousBuild = new(TemplateFingerprint.Of("<% ctx.Write(\"Hello.\"); %>"), "0:an-old-build", [1, 2, 3], null, []);
-        storage["/hello"] = new PageTemplate(PageHarness.Key("/hello"), "<% ctx.Write(\"Hello.\"); %>", previousBuild);
+        PageImage previousBuild = new(TemplateFingerprint.Of("<% ctx.Response.Write(\"Hello.\"); %>"), "0:an-old-build", [1, 2, 3], null, []);
+        storage["/hello"] = new PageTemplate(PageHarness.Key("/hello"), "<% ctx.Response.Write(\"Hello.\"); %>", previousBuild);
         using PageHarness pages = new(storage);
 
         (RenderResult result, string output) = await pages.RenderAsync("/hello");
@@ -130,8 +130,8 @@ public sealed class PageRendererTests {
     [Test]
     public async Task RenderKeepsTheNewerPageWhenItChangesWhileCompilingAsync() {
         FakePageStore storage = new();
-        storage["/race"] = new PageTemplate(PageHarness.Key("/race"), "<% ctx.Write(\"first\"); %>");
-        storage.ReplaceOnImageWrite = (path, _) => new PageTemplate(path, "<% ctx.Write(\"second\"); %>");
+        storage["/race"] = new PageTemplate(PageHarness.Key("/race"), "<% ctx.Response.Write(\"first\"); %>");
+        storage.ReplaceOnImageWrite = (path, _) => new PageTemplate(path, "<% ctx.Response.Write(\"second\"); %>");
         using PageHarness pages = new(storage);
 
         (RenderResult result, string output) = await pages.RenderAsync("/race");
@@ -139,14 +139,14 @@ public sealed class PageRendererTests {
         Assert.That(result.Status, Is.EqualTo(RenderStatus.Rendered));
         Assert.That(output, Is.EqualTo("second"));
         Assert.That(pages.Compiler.CompileCount, Is.EqualTo(2));
-        Assert.That(PageHarness.Stored(storage, "/race").Template, Is.EqualTo("<% ctx.Write(\"second\"); %>"));
+        Assert.That(PageHarness.Stored(storage, "/race").Template, Is.EqualTo("<% ctx.Response.Write(\"second\"); %>"));
     }
 
     [Test]
     public async Task RenderDoesNotAttachACompileToANewRevisionWithTheSameSourceAsync() {
         FakePageStore storage = new();
-        storage["/same"] = new PageTemplate(PageHarness.Key("/same"), "<% ctx.Write(\"same source\"); %>");
-        storage.ReplaceOnImageWrite = (path, _) => new PageTemplate(path, "<% ctx.Write(\"same source\"); %>");
+        storage["/same"] = new PageTemplate(PageHarness.Key("/same"), "<% ctx.Response.Write(\"same source\"); %>");
+        storage.ReplaceOnImageWrite = (path, _) => new PageTemplate(path, "<% ctx.Response.Write(\"same source\"); %>");
         using PageHarness pages = new(storage);
 
         (RenderResult result, string output) = await pages.RenderAsync("/same");
@@ -160,7 +160,7 @@ public sealed class PageRendererTests {
     [Test]
     public async Task RenderDoesNotExecuteARevisionDeletedWhileItWasCompilingAsync() {
         FakePageStore storage = new();
-        storage["/deleted-during-compile"] = new PageTemplate(PageHarness.Key("/deleted-during-compile"), "<% ctx.Write(\"deleted source\"); %>");
+        storage["/deleted-during-compile"] = new PageTemplate(PageHarness.Key("/deleted-during-compile"), "<% ctx.Response.Write(\"deleted source\"); %>");
         storage.DeleteOnImageWrite = true;
         using PageHarness pages = new(storage);
 
@@ -251,7 +251,7 @@ public sealed class PageRendererTests {
             state: state,
             rendererLogger: logs.CreateLogger<PageRenderer>());
         await pages.StoreCompiledAsync("/waiting",
-            "<% ctx.Write((await ctx.Capabilities.GetRequired<IPageStorage>().TryGetValueAsync<int>(\"visits\")).Found.ToString()); %>");
+            "<% ctx.Response.Write((await ctx.Capabilities.GetRequired<IPageStorage>().TryGetValueAsync<int>(\"visits\")).Found.ToString()); %>");
 
         long start = Stopwatch.GetTimestamp();
         (RenderResult result, string _) = await pages.RenderAsync("/waiting");
@@ -297,7 +297,7 @@ public sealed class PageRendererTests {
     [Test]
     public async Task APageWhoseCompileOutlivesTheBudgetIsServedByTheNextRequestAsync() {
         FakePageStore storage = new();
-        storage["/cold"] = new PageTemplate(PageHarness.Key("/cold"), "<% ctx.Write(\"Hello.\"); %>");
+        storage["/cold"] = new PageTemplate(PageHarness.Key("/cold"), "<% ctx.Response.Write(\"Hello.\"); %>");
         RenderOptions options = TestOptions.Render with { TimeoutSeconds = BudgetSeconds };
         PageHealth health = new(options.AbandonedLimit);
         using PageHarness pages = new(storage, new SlowCompiler(new PageCompiler()), options,
@@ -320,7 +320,7 @@ public sealed class PageRendererTests {
     [Test]
     public async Task ARenderThatWaitsPastTheBudgetForASlotIsDroppedAsync() {
         FakePageStore storage = new();
-        storage["/hello"] = new PageTemplate(PageHarness.Key("/hello"), "<% ctx.Write(\"Hello.\"); %>");
+        storage["/hello"] = new PageTemplate(PageHarness.Key("/hello"), "<% ctx.Response.Write(\"Hello.\"); %>");
         RenderOptions options = TestOptions.Render with { TimeoutSeconds = BudgetSeconds, Slots = 1 };
         PageBudget budget = new(options, TestOptions.Compile, TestOptions.Stream);
         using PageHarness pages = new(storage, options: options, budget: budget, health: new PageHealth(options.AbandonedLimit));
@@ -339,7 +339,7 @@ public sealed class PageRendererTests {
     [Test]
     public async Task ARenderThatSpendsItsBudgetWaitingForACompileSlotTimesOutAsync() {
         FakePageStore storage = new();
-        storage["/hello"] = new PageTemplate(PageHarness.Key("/hello"), "<% ctx.Write(\"Hello.\"); %>");
+        storage["/hello"] = new PageTemplate(PageHarness.Key("/hello"), "<% ctx.Response.Write(\"Hello.\"); %>");
         RenderOptions options = TestOptions.Render with { TimeoutSeconds = BudgetSeconds };
         PageBudget budget = new(options, TestOptions.Compile, TestOptions.Stream);
         PageHealth health = new(options.AbandonedLimit);
@@ -364,7 +364,7 @@ public sealed class PageRendererTests {
     [Test]
     public async Task ARenderThatSpendsItsBudgetOnTheReadTimesOutWithoutRunningThePageAsync() {
         FakePageStore storage = new() { ReadDelay = TimeSpan.FromMilliseconds(600) };
-        storage["/hello"] = new PageTemplate(PageHarness.Key("/hello"), "<% ctx.Write(\"Hello.\"); %>");
+        storage["/hello"] = new PageTemplate(PageHarness.Key("/hello"), "<% ctx.Response.Write(\"Hello.\"); %>");
         RenderOptions options = TestOptions.Render with { TimeoutSeconds = BudgetSeconds };
         PageHealth health = new(options.AbandonedLimit);
         using PageHarness pages = new(storage, options: options,

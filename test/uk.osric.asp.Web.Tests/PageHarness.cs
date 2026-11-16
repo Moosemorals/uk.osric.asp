@@ -225,7 +225,7 @@ internal sealed class PageHarness : IDisposable {
 
         RenderResult result = await Renderer.RenderAsync(key, context, CancellationToken.None);
 
-        return (result, context.GetBody());
+        return (result, context.Response.GetBody());
     }
 
     /// <summary>Builds one layer's context, with or without the capabilities the host normally adds.</summary>

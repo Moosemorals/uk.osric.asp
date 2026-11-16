@@ -53,7 +53,7 @@ internal static class ChartChrome {
     /// <param name="cssClass">The drawing's class: <c>chart</c>, <c>heatmap</c> or <c>stacked</c>.</param>
     /// <param name="frame">The chart's own words.</param>
     /// <param name="description">The longer description an assistive technology reads.</param>
-    internal static double Begin(StringBuilder svg, ChartSize size, string cssClass, ChartFrame frame, string description) {
+    internal static double Begin(this StringBuilder svg, ChartSize size, string cssClass, ChartFrame frame, string description) {
         ArgumentNullException.ThrowIfNull(svg);
         ArgumentNullException.ThrowIfNull(frame);
         frame.Validate();
@@ -67,12 +67,12 @@ internal static class ChartChrome {
         svg.Append("<svg xmlns=\"http://www.w3.org/2000/svg\" class=\"").Append(cssClass).Append("\" viewBox=\"0 0 ")
             .Append(SvgText.Number(size.Width)).Append(' ').Append(SvgText.Number(size.Height))
             .Append("\" role=\"img\">\n");
-        svg.Append("<title>").Append(SvgText.Escape(frame.Title)).Append("</title>\n");
-        svg.Append("<desc>").Append(SvgText.Escape(explained)).Append("</desc>\n");
+        svg.Append("<title>").Append(frame.Title.Escape()).Append("</title>\n");
+        svg.Append("<desc>").Append(explained.Escape()).Append("</desc>\n");
 
         // The title is what a reader reaches for, so it is the link that opens the chart on its own.
         if (frame.TitleHref is { Length: > 0 } href) {
-            svg.Append("<a class=\"chart-title-link\" href=\"").Append(SvgText.Escape(href)).Append("\">");
+            svg.Append("<a class=\"chart-title-link\" href=\"").Append(href.Escape()).Append("\">");
         }
 
         svg.Append("<text class=\"chart-title\" x=\"").Append(SvgText.Number(LeftMargin))
@@ -83,10 +83,10 @@ internal static class ChartChrome {
         // A title element inside the text is what a browser shows as a tooltip when the title is
         // hovered; it also gives the link a name that says what the chart is for.
         if (frame.Description is { Length: > 0 } hover) {
-            svg.Append("<title>").Append(SvgText.Escape(hover)).Append("</title>");
+            svg.Append("<title>").Append(hover.Escape()).Append("</title>");
         }
 
-        svg.Append(SvgText.Escape(frame.Title)).Append("</text>");
+        svg.Append(frame.Title.Escape()).Append("</text>");
 
         if (frame.TitleHref is { Length: > 0 }) {
             svg.Append("</a>");
@@ -115,7 +115,7 @@ internal static class ChartChrome {
         double y = top;
 
         for (int index = 0; index < labels.Count; index++) {
-            double width = KeyWidth + KeyGap + SvgText.EstimateWidth(labels[index]) + ItemGap;
+            double width = KeyWidth + KeyGap + labels[index].EstimateWidth() + ItemGap;
             if (x > LeftMargin && x + width > size.Width - RightMargin) {
                 x = LeftMargin;
                 y += LegendRowHeight;
@@ -140,7 +140,7 @@ internal static class ChartChrome {
     /// <param name="legend">Where each legend entry sits.</param>
     /// <returns>Where the plot goes.</returns>
     internal static ChartPlot BeginPlot(
-        StringBuilder svg,
+        this StringBuilder svg,
         ChartSize size,
         string cssClass,
         ChartFrame frame,
@@ -148,10 +148,10 @@ internal static class ChartChrome {
         IReadOnlyList<string> labels,
         out IReadOnlyList<LegendEntry> legend) {
 
-        double top = Begin(svg, size, cssClass, frame, description);
+        double top = svg.Begin(size, cssClass, frame, description);
         legend = LayoutLegend(size, top, labels, out double plotTop);
 
-        return Plot(size, plotTop);
+        return size.Plot(plotTop);
     }
 
     /// <summary>Works out where a plot goes below a band.</summary>
@@ -159,7 +159,7 @@ internal static class ChartChrome {
     /// <param name="top">Where the band ends and the plot may start.</param>
     /// <returns>The plot's rectangle.</returns>
     /// <exception cref="ArgumentOutOfRangeException">The size leaves no room to plot in.</exception>
-    internal static ChartPlot Plot(ChartSize size, double top) {
+    internal static ChartPlot Plot(this ChartSize size, double top) {
         double width = size.Width - LeftMargin - RightMargin;
         double height = size.Height - top - BottomMargin;
 
@@ -178,7 +178,7 @@ internal static class ChartChrome {
     /// The caller writes this inside the series' own anchor, so hovering or clicking the legend entry
     /// has the same effect as hovering or clicking the line it names.
     /// </remarks>
-    internal static void WriteLegendItem(StringBuilder svg, LegendEntry entry, string label) {
+    internal static void WriteLegendItem(this StringBuilder svg, LegendEntry entry, string label) {
         ArgumentNullException.ThrowIfNull(svg);
 
         string dash = SvgText.SeriesDash(entry.Index) is { } pattern
@@ -195,7 +195,7 @@ internal static class ChartChrome {
         svg.Append("<text class=\"chart-legend-label\" x=\"").Append(SvgText.Number(entry.X + KeyWidth + KeyGap))
             .Append("\" y=\"").Append(SvgText.Number(entry.Y + (8 * SvgText.TypeScale)))
             .Append("\" font-size=\"").Append(SvgText.Number(FontSize))
-            .Append("\" fill=\"#444444\" text-anchor=\"start\">").Append(SvgText.Escape(label))
+            .Append("\" fill=\"#444444\" text-anchor=\"start\">").Append(label.Escape())
             .Append("</text>\n");
     }
 
@@ -203,7 +203,7 @@ internal static class ChartChrome {
     /// <param name="svg">The drawing being written.</param>
     /// <param name="title">What the axis measures.</param>
     /// <param name="plot">The plot it names.</param>
-    internal static void WriteAxisTitle(StringBuilder svg, string title, ChartPlot plot) {
+    internal static void WriteAxisTitle(this StringBuilder svg, string title, ChartPlot plot) {
         ArgumentNullException.ThrowIfNull(svg);
 
         double middle = plot.Top + (plot.Height / 2);
@@ -216,7 +216,7 @@ internal static class ChartChrome {
             .Append(")\" x=\"").Append(SvgText.Number(x))
             .Append("\" y=\"").Append(SvgText.Number(middle))
             .Append("\" font-size=\"").Append(SvgText.Number(FontSize))
-            .Append("\" fill=\"#666666\" text-anchor=\"middle\">").Append(SvgText.Escape(title))
+            .Append("\" fill=\"#666666\" text-anchor=\"middle\">").Append(title.Escape())
             .Append("</text>\n");
     }
 
@@ -225,7 +225,7 @@ internal static class ChartChrome {
     /// <param name="ticks">The value ticks, in any order.</param>
     /// <param name="plot">The plot they cross.</param>
     /// <param name="at">Where a tick's value sits vertically.</param>
-    internal static void WriteValueGrid(StringBuilder svg, IEnumerable<ChartTick> ticks, ChartPlot plot, Func<double, double> at) {
+    internal static void WriteValueGrid(this StringBuilder svg, IEnumerable<ChartTick> ticks, ChartPlot plot, Func<double, double> at) {
         ArgumentNullException.ThrowIfNull(svg);
         ArgumentNullException.ThrowIfNull(ticks);
         ArgumentNullException.ThrowIfNull(at);
@@ -241,7 +241,7 @@ internal static class ChartChrome {
             svg.Append("<text class=\"chart-label\" x=\"").Append(SvgText.Number(plot.Left - 4))
                 .Append("\" y=\"").Append(SvgText.Number(y + (4 * SvgText.TypeScale)))
                 .Append("\" font-size=\"").Append(SvgText.Number(FontSize))
-                .Append("\" fill=\"#444444\" text-anchor=\"end\">").Append(SvgText.Escape(BudgetAmount.Format(tick.Position)))
+                .Append("\" fill=\"#444444\" text-anchor=\"end\">").Append(BudgetAmount.Format(tick.Position).Escape())
                 .Append("</text>\n");
         }
     }
@@ -251,7 +251,7 @@ internal static class ChartChrome {
     /// <param name="axis">The time axis, whose ticks the grid is drawn at.</param>
     /// <param name="plot">The plot they cross.</param>
     /// <param name="size">The full drawing area, whose floor the labels sit above.</param>
-    internal static void WriteTimeGrid(StringBuilder svg, ChartTimeAxis axis, ChartPlot plot, ChartSize size) {
+    internal static void WriteTimeGrid(this StringBuilder svg, ChartTimeAxis axis, ChartPlot plot, ChartSize size) {
         ArgumentNullException.ThrowIfNull(svg);
         ArgumentNullException.ThrowIfNull(axis);
 
@@ -265,7 +265,7 @@ internal static class ChartChrome {
                 .Append("\" stroke=\"#e3e3e3\" stroke-width=\"1\"/>\n");
         }
 
-        WriteTimeLabels(svg, axis, plot, size);
+        svg.WriteTimeLabels(axis, plot, size);
     }
 
     /// <summary>Writes the time labels without the lines, for a plot whose cells are the grid.</summary>
@@ -273,7 +273,7 @@ internal static class ChartChrome {
     /// <param name="axis">The time axis, whose ticks the labels name.</param>
     /// <param name="plot">The plot the labels sit under.</param>
     /// <param name="size">The full drawing area, whose floor the labels sit above.</param>
-    internal static void WriteTimeLabels(StringBuilder svg, ChartTimeAxis axis, ChartPlot plot, ChartSize size) {
+    internal static void WriteTimeLabels(this StringBuilder svg, ChartTimeAxis axis, ChartPlot plot, ChartSize size) {
         ArgumentNullException.ThrowIfNull(svg);
         ArgumentNullException.ThrowIfNull(axis);
 
@@ -281,7 +281,7 @@ internal static class ChartChrome {
             svg.Append("<text class=\"chart-label\" x=\"").Append(SvgText.Number(plot.Time(axis, tick.Position)))
                 .Append("\" y=\"").Append(SvgText.Number(size.Height - (8 * SvgText.TypeScale)))
                 .Append("\" font-size=\"").Append(SvgText.Number(FontSize))
-                .Append("\" fill=\"#444444\" text-anchor=\"middle\">").Append(SvgText.Escape(tick.Label))
+                .Append("\" fill=\"#444444\" text-anchor=\"middle\">").Append(tick.Label.Escape())
                 .Append("</text>\n");
         }
     }
@@ -297,22 +297,22 @@ internal static class ChartChrome {
     /// <see cref="EndSeries"/>, so hovering or clicking the legend entry does what hovering or clicking
     /// the mark does.
     /// </remarks>
-    internal static void BeginSeries(StringBuilder svg, ChartFrame frame, int index, string label, LegendEntry legend) {
+    internal static void BeginSeries(this StringBuilder svg, ChartFrame frame, int index, string label, LegendEntry legend) {
         ArgumentNullException.ThrowIfNull(svg);
         ArgumentNullException.ThrowIfNull(frame);
 
         string id = frame.Id + "-s" + (index + 1).ToString(CultureInfo.InvariantCulture);
 
         svg.Append("<a class=\"series-link ").Append(SvgText.SeriesColour(index))
-            .Append("\" id=\"").Append(SvgText.Escape(id))
-            .Append("\" href=\"#").Append(SvgText.Escape(id)).Append("\" tabindex=\"-1\">\n");
-        svg.Append("<title>").Append(SvgText.Escape(label)).Append("</title>\n");
-        WriteLegendItem(svg, legend, label);
+            .Append("\" id=\"").Append(id.Escape())
+            .Append("\" href=\"#").Append(id.Escape()).Append("\" tabindex=\"-1\">\n");
+        svg.Append("<title>").Append(label.Escape()).Append("</title>\n");
+        svg.WriteLegendItem(legend, label);
     }
 
     /// <summary>Closes the anchor <see cref="BeginSeries"/> opened.</summary>
     /// <param name="svg">The drawing being written.</param>
-    internal static void EndSeries(StringBuilder svg) {
+    internal static void EndSeries(this StringBuilder svg) {
         ArgumentNullException.ThrowIfNull(svg);
 
         svg.Append("</a>\n");
@@ -322,13 +322,13 @@ internal static class ChartChrome {
     /// <param name="svg">The drawing being written.</param>
     /// <param name="plot">The plot that has no data.</param>
     /// <param name="message">What to say.</param>
-    internal static void Empty(StringBuilder svg, ChartPlot plot, string message) {
+    internal static void Empty(this StringBuilder svg, ChartPlot plot, string message) {
         ArgumentNullException.ThrowIfNull(svg);
 
         svg.Append("<text class=\"chart-empty\" x=\"").Append(SvgText.Number(plot.Left + (plot.Width / 2)))
             .Append("\" y=\"").Append(SvgText.Number(plot.Top + (plot.Height / 2)))
             .Append("\" font-size=\"").Append(SvgText.Number(FontSize))
-            .Append("\" fill=\"#666666\" text-anchor=\"middle\">").Append(SvgText.Escape(message))
+            .Append("\" fill=\"#666666\" text-anchor=\"middle\">").Append(message.Escape())
             .Append("</text>\n");
     }
 
@@ -338,7 +338,7 @@ internal static class ChartChrome {
     /// <remarks>
     /// Drawn after the grid and before the series, so it is a frame rather than a line across the data.
     /// </remarks>
-    internal static void Border(StringBuilder svg, ChartPlot plot) {
+    internal static void Border(this StringBuilder svg, ChartPlot plot) {
         ArgumentNullException.ThrowIfNull(svg);
 
         svg.Append("<rect class=\"chart-frame\" x=\"").Append(SvgText.Number(plot.Left))
@@ -351,7 +351,7 @@ internal static class ChartChrome {
     /// <summary>Describes a time series for the drawing's <c>desc</c>.</summary>
     /// <param name="x">The time axis.</param>
     /// <param name="y">The value axis.</param>
-    internal static string Describe(ChartTimeAxis x, ChartAxis y) => $"{y.Title} over {x.Title}";
+    internal static string Describe(this ChartTimeAxis x, ChartAxis y) => $"{y.Title} over {x.Title}";
 
     /// <summary>Formats an instant for the hover text, in the frame's zone.</summary>
     /// <param name="at">The instant.</param>

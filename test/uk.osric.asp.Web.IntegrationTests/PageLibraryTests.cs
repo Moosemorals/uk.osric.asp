@@ -38,7 +38,7 @@ public sealed class PageLibraryTests : IntegrationTest {
         Assert.That(library.StatusCode, Is.EqualTo(HttpStatusCode.OK));
 
         HttpResponseMessage page = await PostEditorAsync(client, "uses-library",
-            "<%! using Site; %><h1><% ctx.Write(Greeting.Text()); %></h1>");
+            "<%! using Site; %><h1><% ctx.Response.Write(Greeting.Text()); %></h1>");
         Assert.That(page.StatusCode, Is.EqualTo(HttpStatusCode.OK));
 
         string body = await (await client.GetAsync("/uses-library")).Content.ReadAsStringAsync();
