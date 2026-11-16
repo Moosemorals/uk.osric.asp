@@ -9,7 +9,7 @@ SPDX-License-Identifier: MIT
 | --- | --- |
 | Status | Implemented 2026-11-12 |
 | Size | Large — an SDK capability, two tables and a store, the shell's cookie and rotation, the loss of `context.Session`, a caching change with a known regression, a cookie rename, and a seeded page |
-| Job | IDEA-014 — a page cannot keep per-visitor state, so a form cannot redirect and say why; closed, see [jobs](../../jobs/README.md#closed) |
+| Job | IDEA-014 — a page cannot keep per-visitor state, so a form cannot redirect and say why; closed, see [jobs](../../jobs/closed.md) |
 | Spike | None. The shape is settled; the uncertain part is cost, not behaviour |
 | Decisions | `pages-the-session`, `pages-a-stored-page-is-never-cached`, `shell-the-cookie-names`, recorded with this plan: the identity, the ownership model, the caps, pages become uncacheable, and the cookie names |
 

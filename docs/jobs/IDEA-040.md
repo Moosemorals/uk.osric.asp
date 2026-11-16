@@ -26,7 +26,7 @@ What that costs:
   them. The IDE plan lists this as a wish with the workaround "none".
 - **The assistant cannot check before it edits.** It knows a library is shared only by having read it;
   nothing answers "what breaks if I change this".
-- **A bulk operation cannot order itself.** A batch save ([IDEA-043](README.md#closed)) that touches a
+- **A bulk operation cannot order itself.** A batch save ([IDEA-043](closed.md)) that touches a
   library and its dependents must write the library first, and today it has no way to know which are
   the dependents.
 - **Seed provenance cannot tell a moved library from an edited one**, because the fingerprint is

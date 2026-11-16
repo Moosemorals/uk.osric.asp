@@ -17,7 +17,7 @@ antiforgery field, one URL builder.
 **Implemented, and archived on 2026-11-06.** Written on 2026-11-04 against `trunk` at `d3d602b`;
 steps 1–6 are `7d69d1e` and `33f640e`, step 7's walk is recorded under
 [Verification](#verification), and step 8 closed BUG-16 in
-[the jobs list](../../jobs/README.md#closed). `make test` is green at 263 core, 68 runtime, 561 web
+[the jobs list](../../jobs/closed.md). `make test` is green at 263 core, 68 runtime, 561 web
 and 106 integration tests, `make format-check` and `make license-check` are clean, and `make audit`
 reports "no vulnerable or deprecated packages".
 

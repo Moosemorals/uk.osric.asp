@@ -11,7 +11,7 @@ SPDX-License-Identifier: MIT
 | Size | Large — a migration with two columns and a one-off repair, one write-path fact, one pure comparison and its words, one field on the page contract and one member removed, one shell route, an archive format version, a `seeds` command with four make targets, two seeded pages, and the prose and tests for each. Slices 0 and 1 are small and independent; 2–4 are the bulk |
 | Spike | None. Every number and claim below was measured on `trunk` at `f369bcc`; the first version of this plan was measured at `1badddd`, and the pack has grown by 7,972 bytes since. The two places the design could fail are the revision hash (settled: it is an identity, D1) and the archive reader (settled by the format's own version column, D9) |
 | Decisions | `pages-a-seed-write-records-its-hash`, `pages-a-seed-verdict-is-the-hosts`, `shell-the-pack-comes-home`, `shell-the-seed-apply-is-a-route`, `pages-an-archive-carries-provenance` |
-| Backlog | [IDEA-036](../../jobs/README.md#closed) — closed by this plan. Relates to [IDEA-024](../../jobs/IDEA-024.md) (an archive is not a form), [IDEA-030](../../jobs/IDEA-030.md) (every view writes its own navigation), and [IDEA-043](../../jobs/README.md#closed) (the widened write authority; the batch is split out of it, unnumbered for now — see *Risks*) |
+| Backlog | [IDEA-036](../../jobs/closed.md) — closed by this plan. Relates to [IDEA-024](../../jobs/IDEA-024.md) (an archive is not a form), [IDEA-030](../../jobs/IDEA-030.md) (every view writes its own navigation), and [IDEA-043](../../jobs/closed.md) (the widened write authority; the batch is split out of it, unnumbered for now — see *Risks*) |
 
 ## The short version
 
@@ -623,7 +623,7 @@ same change, as the author-manual rule asks.
   verdict whenever the pack is big enough to need it, and it is not that big.
 
 **Origin:** the owner's note at `/seed-plan`, a stored page that is not part of this repository,
-reviewed against `trunk` on 2026-11-15 and recorded as [IDEA-036](../../jobs/README.md#closed). The review
+reviewed against `trunk` on 2026-11-15 and recorded as [IDEA-036](../../jobs/closed.md). The review
 changed three things: the revision hash is an identity, so the content hash has to be a second column
 (D1); the verdict is the host's answer rather than three hashes handed to the page (D3); and a
 harvested pack makes `store newer` an ordinary row rather than an optional repair (D4, D11). The owner

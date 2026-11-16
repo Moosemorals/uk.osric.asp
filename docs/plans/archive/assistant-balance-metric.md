@@ -11,7 +11,7 @@ SPDX-License-Identifier: MIT
 | Size | Small — one pure parse, one value on the client's answer, one sampler, one gauge, one panel and one key, with the tests for each |
 | Area | Core (assistant), Web (assistant, metrics, configuration) |
 | Spike | None. `/user/balance` is already read on every conversation page view, its JSON is already parsed, and the observability shape is the one `PageStorageSampler` already uses |
-| Backlog | IDEA-032, closed by this change ([the job index](../../jobs/README.md#closed)) |
+| Backlog | IDEA-032, closed by this change ([the job index](../../jobs/closed.md)) |
 | Decisions | Six, taken at the merge and listed at the bottom of this file; no existing entry is revised |
 
 ## The short version

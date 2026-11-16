@@ -11,7 +11,7 @@ SPDX-License-Identifier: MIT
 | Size | Medium — one contract member, one response sink, a commit rule, a disconnect guard and their tests |
 | Spike | None. `SimpleContext` already buffers through one writer, the endpoint already shapes the whole response in one place, and the render already owns a deadline and an abandonment switch |
 | Decisions | `pages-page-io-is-async` to `pages-a-stream-reports-its-own-end`, in [the record](../../decisions.md) |
-| Backlog | ARCH-13 — a page cannot stream (now [closed](../../jobs/README.md#closed)) — and BUG-17's one loose end, the failed-request line a mid-run reload leaves behind |
+| Backlog | ARCH-13 — a page cannot stream (now [closed](../../jobs/closed.md)) — and BUG-17's one loose end, the failed-request line a mid-run reload leaves behind |
 
 ## The short version
 
