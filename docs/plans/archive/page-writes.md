@@ -236,7 +236,7 @@ and the prompt reuse those sentences.
 | `docs/decisions.md` | At the merge only (below) |
 | `docs/plans/ide-host.md` | This branch: slice 4 splits, and the names it intends are stated |
 | `docs/jobs/IDEA-043.md`, `IDEA-047.md`, `README.md` | This branch: the job split |
-| `docs/jobs/IDEA-025.md`, `IDEA-033.md`, `IDEA-036.md`, `IDEA-037.md`, `IDEA-042.md`, `docs/plans/page-apps.md` | Location lines and live specs name `IPageWrites`. IDEA-025's analysis of today's authority is rewritten, because "the writer is bound and the editor is offered to one key" is the rule this step removes; closed rows in the jobs index keep their history |
+| `docs/jobs/IDEA-025.md`, `IDEA-033.md`, `IDEA-036.md`, `IDEA-037.md`, `IDEA-042.md`, `docs/plans/archive/page-apps.md` | Location lines and live specs name `IPageWrites`. IDEA-025's analysis of today's authority is rewritten, because "the writer is bound and the editor is offered to one key" is the rule this step removes; closed rows in the jobs index keep their history |
 
 ## Tests
 

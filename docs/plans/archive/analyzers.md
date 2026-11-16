@@ -108,7 +108,7 @@ public surface of `Core` is documented" into something the build holds.
 | `src/**` | Around sixty fixes: disposables, static members, guards, parameter order, culture, nested visibility, exception and array shapes |
 | `test/**` | The warnings the scoped exceptions do not cover |
 | [`Directory.Packages.props`](../../Directory.Packages.props) | `Microsoft.NET.Test.Sdk` to 18.12.0, `Microsoft.Playwright.NUnit` to 1.64.1 |
-| [`docs/testing.md`](../testing.md) | What the gate now proves about analysis |
+| [`docs/testing.md`](../../testing.md) | What the gate now proves about analysis |
 
 ## What landed
 

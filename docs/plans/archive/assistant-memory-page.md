@@ -12,7 +12,7 @@ SPDX-License-Identifier: MIT
 | Spike | None. [The memory spike](../../spikes/assistant-memory.md) already settled the store; this plan only reads and writes it |
 | Decisions | `assistant-memory-page`, recorded when this lands |
 | Backlog | [IDEA-023](../../jobs/README.md#closed), which this plan closed |
-| Superseded | D2–D6, the shell view, by the assistant page ([IDEA-025](../../jobs/IDEA-025.md)): the memory view becomes one of its routes and no page capability is added for it — [page first](../page-first.md) first proposed one and withdrew it (`assistant-memory-belongs-to-the-assistant`). D1's store work stands |
+| Superseded | D2–D6, the shell view, by the assistant page ([IDEA-025](../../jobs/IDEA-025.md)): the memory view becomes one of its routes and no page capability is added for it — [page first](page-first.md) first proposed one and withdrew it (`assistant-memory-belongs-to-the-assistant`). D1's store work stands |
 
 ## The short version
 

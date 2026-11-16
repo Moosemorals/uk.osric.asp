@@ -13,7 +13,7 @@ SPDX-License-Identifier: MIT
 | Location | `src/uk.osric.asp.Core/`, `src/uk.osric.asp.Sdk/`, `src/uk.osric.asp.Runtime/`, `src/uk.osric.asp.Web/Pages/`, `src/uk.osric.asp.Web/Work/`, `deploy/Caddyfile`, `src/uk.osric.asp.Web/Pages/Seeds/help` |
 | Spike | None. The assistant proves the long response, the upstream stream and work that outlives a request; the worker kind is the compiler's existing page/library split with an entry point instead of a handler |
 | Decisions | Named in prose; the names are taken when the work merges (`product-plan-before-building`, `product-decisions-have-names`, `product-steps-wait-for-the-owner`) |
-| Backlog | [IDEA-025](../jobs/IDEA-025.md) (the assistant as a page, re-scoped by this plan), [IDEA-033](../jobs/IDEA-033.md) (a page has no per-account store), [the streaming plan](page-streaming.md) (ARCH-13, where a page learned to stream but not to keep the stream) |
+| Backlog | [IDEA-025](../../jobs/IDEA-025.md) (the assistant as a page, re-scoped by this plan), [IDEA-033](../../jobs/IDEA-033.md) (a page has no per-account store), [the streaming plan](../page-streaming.md) (ARCH-13, where a page learned to stream but not to keep the stream) |
 
 ## The short version
 
@@ -56,7 +56,7 @@ view outlived the view and had to be withdrawn (`assistant-memory-belongs-to-the
 
 | The assistant does | What it needs | Where that belongs |
 | --- | --- | --- |
-| Lists conversations, reads a transcript, edits options, deletes, shows memory rows | Durable rows owned by one account | Page code over storage — but `IPageStorage` is shared by every visitor and capped at 256 KiB per page in the shipped configuration. The owner's store is [IDEA-033](../jobs/IDEA-033.md) |
+| Lists conversations, reads a transcript, edits options, deletes, shows memory rows | Durable rows owned by one account | Page code over storage — but `IPageStorage` is shared by every visitor and capped at 256 KiB per page in the shipped configuration. The owner's store is [IDEA-033](../../jobs/IDEA-033.md) |
 | Starts a run from a message, bounds the queue and the concurrency | Work after the response has gone | **Workers and jobs** (this plan): a worker entry point, invoked by the job runner |
 | Streams deltas, replays them after a reconnect, stops a run | A sequenced journal with live subscribers and a bounded replay | **Workers and jobs** — the journal belongs to the job, not to a standalone event bus |
 | Asks for approval, asks to continue | A decision sent as a message to the running job, or a stored row that starts the next job | **Workers and jobs** — the message channel; the page chooses whether to wait or to end |
@@ -77,7 +77,7 @@ save, page libraries.
 
 ### 1. A stream dies with the render budget
 
-A page can commit its response with `ctx.FlushAsync()` ([the streaming plan](page-streaming.md)), but
+A page can commit its response with `ctx.FlushAsync()` ([the streaming plan](../page-streaming.md)), but
 the render deadline still measures the whole request: five seconds by default, sixty at most. A stream
 also holds one of the two render slots for its entire life, so two live viewers stop the site serving
 pages.
@@ -128,8 +128,8 @@ a response-shaped context it can never use.
    its egress is the worker's, and it reports progress through its own published events.
 9. A worker is a fourth kind: compiled to an entry-point assembly when it is saved, never served,
    never wrapped, never an asset, and never a library another page or library may `using`.
-10. `/help`, the page contract, configuration, [pages](../pages.md), [architecture](../architecture.md)
-    and [the jobs](../jobs/README.md) say what a page author may rely on, in the same change.
+10. `/help`, the page contract, configuration, [pages](../../pages.md), [architecture](../../architecture.md)
+    and [the jobs](../../jobs/README.md) say what a page author may rely on, in the same change.
 11. The page side of a worker is a capability, not a new `IContext` member; a layout is not offered it
     and a `HEAD` is offered the reads and never the writes.
 12. The assistant is never named in `Sdk`, and no new type exists only for it.
@@ -138,7 +138,7 @@ a response-shaped context it can never use.
 
 - **Porting the assistant in this plan.** The plan ends with what a port still lacks. The port is its
   own step, with its own plan, after the authority question in phase 5 is answered.
-- **A per-account store.** [IDEA-033](../jobs/IDEA-033.md) is the owner's rows, with SQL, quotas, a
+- **A per-account store.** [IDEA-033](../../jobs/IDEA-033.md) is the owner's rows, with SQL, quotas, a
   schema lifecycle and a privacy sentence. The job registry and journal are in memory and are not a
   store a page can put its data in.
 - **A general page-store writer.** A page still writes only its own key and a worker writes no
@@ -152,7 +152,7 @@ a response-shaped context it can never use.
 - **A standalone event bus or pub/sub capability.** Events belong to the job whose viewers read them;
   there is no free-floating channel between pages.
 - **`Task.Delay` in page code.** A viewer waits for a job through the job capability, not by sleeping.
-  The denial stays ([the API policy](../pages.md#page-api-policy)).
+  The denial stays ([the API policy](../../pages.md#page-api-policy)).
 - **`IAsyncEnumerable` in page code.** `ValueTask` is denied and an enumerator is easy to leak. The
   outbound stream is a line at a time.
 - **Streaming through a layout, or WebSockets.** A streaming page writes its own document, as it does
@@ -372,9 +372,9 @@ port.
   "not this content type", so the alternative was an explicit list of compressible types to maintain,
   for no gain. `deploy/README.md` records the measurement and why the assistant's path exclusion is
   that route's rather than streaming's.
-- `/help`, [pages](../pages.md#streaming), [pages](../pages.md#page-execution-budget), the
-  [glossary](../glossary.md) entries the budget and the slot already had, [metrics](../metrics.md),
-  [testing](../testing.md) and [logging](../logging.md). [configuration](../architecture.md#configuration)
+- `/help`, [pages](../../pages.md#streaming), [pages](../../pages.md#page-execution-budget), the
+  [glossary](../../glossary.md) entries the budget and the slot already had, [metrics](../../metrics.md),
+  [testing](../../testing.md) and [logging](../../logging.md). [configuration](../../architecture.md#configuration)
   needs no edit: it names the pattern and sends a reader to the subsystem, and the keys are documented
   where the budget is.
 
@@ -392,7 +392,7 @@ in the log and the metric.
 - Tests: line splitting across chunk boundaries and multi-byte characters; a mid-stream failure; the
   silence and ceiling rules; the byte cap; a redirect that drops a credential; a page that relays a
   stream and flushes each line; a page that names the new types compiles under the API policy.
-- `/help` and [pages](../pages.md#page-api-policy).
+- `/help` and [pages](../../pages.md#page-api-policy).
 
 **Done when** a page can relay an upstream line stream to a visitor that outlives the render budget,
 with every failure a value and the socket closed on every path.
@@ -429,8 +429,8 @@ with every failure a value and the socket closed on every path.
   `404`; a worker is never an asset and a `?v=` naming one is `404`; a page or library naming a worker
   is a compile error; a worker whose library moved is rebuilt; the editor and the assistant see the
   kind.
-- `/help`, [pages](../pages.md) and its kinds table, the [glossary](../glossary.md), the assistant's
-  prompt vocabulary, [architecture](../architecture.md), and [storage](../storage.md) for the column.
+- `/help`, [pages](../../pages.md) and its kinds table, the [glossary](../../glossary.md), the assistant's
+  prompt vocabulary, [architecture](../../architecture.md), and [storage](../../storage.md) for the column.
 
 **Done when** a stored declaration-only source with one entry point is a worker: compiled and checked
 when it is saved, stored with its image, never served, and invisible as a library to pages.
@@ -481,8 +481,8 @@ when it is saved, stored with its image, never served, and invisible as a librar
   - a job's context has no response members; storage is the page's and the credential is the worker's;
   - another account cannot read, send to or cancel it, and the render slot count is unchanged while a
     job runs.
-- `/help` (with `ctx.Capabilities.GetRequired<IPageJobs>()` beside the other capabilities), [pages](../pages.md),
-  the assistant prompt's capability section with its `Version` bumped, and [logging](../logging.md) for
+- `/help` (with `ctx.Capabilities.GetRequired<IPageJobs>()` beside the other capabilities), [pages](../../pages.md),
+  the assistant prompt's capability section with its `Version` bumped, and [logging](../../logging.md) for
   the job's lines.
 
 **Done when** a stored worker can be started as a job by a page, sent a message, found again by a
@@ -490,16 +490,16 @@ second request, streamed, stopped and read, with no assistant type in `Sdk`.
 
 ### Phase 5 — what a port still lacks (documents only)
 
-- Re-scope [IDEA-025](../jobs/IDEA-025.md): the conversation view, the run as a worker and a job, the
+- Re-scope [IDEA-025](../../jobs/IDEA-025.md): the conversation view, the run as a worker and a job, the
   memory view, the approval as a stored decision and a new job, and the transcript on the owner's
   store.
-- Name the remaining gaps honestly: [IDEA-033](../jobs/IDEA-033.md) for the transcript and memory, the
+- Name the remaining gaps honestly: [IDEA-033](../../jobs/IDEA-033.md) for the transcript and memory, the
   page-store write authority for the tools, and the restricted Markdown profile.
 - The authority question, written as a decision for the owner: does a worker get a page writer for the
   keys the assistant's tools may edit, so one configured worker (or one page) has the authority and
   nothing else does? A page writer is the largest authority in the port and is not a connection
   primitive; phase 5 records the choice, it does not make it.
-- The audit in [architecture](../architecture.md#where-a-view-lives) and the programme.
+- The audit in [architecture](../../architecture.md#where-a-view-lives) and the programme.
 
 **Done when** the port is either a step with a plan and every capability it needs, or the audit says
 why the assistant stays shell and the capabilities stand on their own.
@@ -660,11 +660,11 @@ client.
    job can only keep data. The port cannot happen without an answer. Does a worker get a page writer
    for another key, bound to one configured worker, or does the page's write grow a key for any caller?
    Phase 5 records the choice, and it is written out with its three shapes and their costs in
-   [IDEA-025](../jobs/IDEA-025.md#the-authority-question-for-the-owner). It is still open: it is the
-   owner's to make, and it is also listed in [the open questions](../decisions.md#open-questions).
+   [IDEA-025](../../jobs/IDEA-025.md#the-authority-question-for-the-owner). It is still open: it is the
+   owner's to make, and it is also listed in [the open questions](../../decisions.md#open-questions).
 2. **The names.** Settled. `Worker` and `Job` are the kind and one run of it; `IPageJobs`, `IWorker`,
    `IWorkerContext`, `StreamAsync`, `HttpFetchStream` and `PageStreamRefusedException` are the
-   surfaces, and [the glossary](../glossary.md#worker) says why a worker is not a
+   surfaces, and [the glossary](../../glossary.md#worker) says why a worker is not a
    `System.Threading.Thread` nor a page with a hidden response.
 3. **How long a viewer may replay.** The ring's `RetentionMinutes` is a policy value; the first
    customer should say what "long enough to reconnect" means.

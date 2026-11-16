@@ -11,7 +11,7 @@ SPDX-License-Identifier: MIT
 | Area | Sdk, Web, assistant |
 | Location | `src/uk.osric.asp.Web/Assistant/AssistantEndpoint.cs`, `src/uk.osric.asp.Web/Assistant/RunQueue.cs`, `src/uk.osric.asp.Sdk/IContext.cs` |
 
-> **Re-scoped 2026-11-14** by [the page-apps plan](../plans/page-apps.md). The sketch below first
+> **Re-scoped 2026-11-14** by [the page-apps plan](../plans/archive/page-apps.md). The sketch below first
 > proposed an `IAssistantConversations` capability; that is exactly the specialist capability the site
 > must not build (`assistant-memory-belongs-to-the-assistant`). What a page actually lacks is three connection-shaped things — a stream
 > that outlives the render budget, an outbound body read as it arrives, and work that outlives the
@@ -69,7 +69,7 @@ movable **yet**. This job is what would move it.
    the transcript growing without a stream. It is worse than a stream (a whole document every two
    seconds, and the textarea's draft would need care), and it is the fallback a page keeps when its
    script is not running, as the same site's "no JavaScript where markup will do" rule argues
-   (`metrics-prometheus-only`). The long stream in [the page-apps plan](../plans/page-apps.md) makes the live version
+   (`metrics-prometheus-only`). The long stream in [the page-apps plan](../plans/archive/page-apps.md) makes the live version
    possible; this job no longer has to choose.
 4. **The chat input and the seed.** The input posts and the page reloads on the run, so
    `/assistant.js` stops being necessary; the seeded page could carry a tiny module later, for
@@ -80,7 +80,7 @@ movable **yet**. This job is what would move it.
    row that the next job reads. The page chooses; the assistant's port records which.
 6. **What stays shell whatever happens.** `/metrics` and `/health` because they are the runtime, and
    `/status` because it is bootstrap (`pages-page-first`). The run loop is a worker under
-   [the page-apps plan](../plans/page-apps.md), so it is page code too; the question is only which
+   [the page-apps plan](../plans/archive/page-apps.md), so it is page code too; the question is only which
    route serves the view.
 
 ## What the port still lacks
@@ -162,6 +162,6 @@ If the transcript were readable only as a document — no live updates at all �
 would be an ordinary page today. The live stream is the feature, so this job is about keeping it,
 not about dropping it.
 
-**Origin:** [the page-first plan](../plans/page-first.md) and `pages-page-first`, which named this route as one of
+**Origin:** [the page-first plan](../plans/archive/page-first.md) and `pages-page-first`, which named this route as one of
 the shell's three exceptions with a job behind it. The streaming plan closed ARCH-13; what is left is
 this job's.

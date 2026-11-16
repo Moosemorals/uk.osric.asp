@@ -7,11 +7,11 @@ SPDX-License-Identifier: MIT
 
 | | |
 | --- | --- |
-| Status | Proposed, built and merged 2026-11-16. The six names it proposed are in [the record](../decisions.md) |
+| Status | Proposed, built and merged 2026-11-16. The six names it proposed are in [the record](../../decisions.md) |
 | Size | Small — one pure parse, one value on the client's answer, one sampler, one gauge, one panel and one key, with the tests for each |
 | Area | Core (assistant), Web (assistant, metrics, configuration) |
 | Spike | None. `/user/balance` is already read on every conversation page view, its JSON is already parsed, and the observability shape is the one `PageStorageSampler` already uses |
-| Backlog | IDEA-032, closed by this change ([the job index](../jobs/README.md#closed)) |
+| Backlog | IDEA-032, closed by this change ([the job index](../../jobs/README.md#closed)) |
 | Decisions | Six, taken at the merge and listed at the bottom of this file; no existing entry is revised |
 
 ## The short version
@@ -52,7 +52,7 @@ down*, *what did this week cost*, and *did the price move*, because credit per s
   the balance is the provider's own figure.
 - **The granted and topped-up split as series.** The page shows it; the chart shows the total, which
   is the one that runs out.
-- **Alerting.** A low balance is [OPS-05](../jobs/OPS-05.md)'s question and needs a notification
+- **Alerting.** A low balance is [OPS-05](../../jobs/OPS-05.md)'s question and needs a notification
   channel, not a chart.
 - **Per-run cost attribution.** The balance is an account's, not a run's; `assistant.tokens` already
   attributes text to a run, and dividing the two is a reader's arithmetic.
@@ -259,9 +259,9 @@ tests are green.
 
 ### Phase 2 — documents (an hour)
 
-- [metrics](../metrics.md): the instrument row, the panel count sentence, and what the level answers.
-- [assistant](../assistant.md): the balance paragraph gains the sample.
-- [jobs](../jobs/README.md): IDEA-032 moved to Closed and its file removed; the open table and "not
+- [metrics](../../metrics.md): the instrument row, the panel count sentence, and what the level answers.
+- [assistant](../../assistant.md): the balance paragraph gains the sample.
+- [jobs](../../jobs/README.md): IDEA-032 moved to Closed and its file removed; the open table and "not
   in this programme" lose their rows.
 - `/help` is unchanged: this adds no page-authoring capability.
 
@@ -296,23 +296,23 @@ catalogue's drift tests hold the new instrument to its panel.
 
 ## The names this plan proposed
 
-These are in [the record](../decisions.md), taken at the merge on 2026-11-16. They are D1–D6 above:
+These are in [the record](../../decisions.md), taken at the merge on 2026-11-16. They are D1–D6 above:
 
-- [metrics-a-balance-is-a-level](../decisions.md#metrics-a-balance-is-a-level) (D1) — a provider
+- [metrics-a-balance-is-a-level](../../decisions.md#metrics-a-balance-is-a-level) (D1) — a provider
   balance is a gauge, drawn as a line, one series per currency, and the query splits by the label
   rather than merging the currencies.
-- [assistant-the-balance-is-sampled-on-a-clock](../decisions.md#assistant-the-balance-is-sampled-on-a-clock)
+- [assistant-the-balance-is-sampled-on-a-clock](../../decisions.md#assistant-the-balance-is-sampled-on-a-clock)
   (D2) — the sample is the clock's and not a page view's, so the history is the spend.
-- [assistant-a-balance-read-carries-its-reason](../decisions.md#assistant-a-balance-read-carries-its-reason)
+- [assistant-a-balance-read-carries-its-reason](../../decisions.md#assistant-a-balance-read-carries-its-reason)
   (D3) — the client answers a closed reason and logs nothing; the caller decides what that reason is
   worth.
-- [metrics-a-failed-sample-keeps-the-last-level](../decisions.md#metrics-a-failed-sample-keeps-the-last-level)
+- [metrics-a-failed-sample-keeps-the-last-level](../../decisions.md#metrics-a-failed-sample-keeps-the-last-level)
   (D4) — a failed sample leaves the previous value alone, and the sampler's log line is where a stuck
   sample is diagnosed.
-- [assistant-a-balance-is-read-as-a-number](../decisions.md#assistant-a-balance-is-read-as-a-number)
+- [assistant-a-balance-is-read-as-a-number](../../decisions.md#assistant-a-balance-is-read-as-a-number)
   (D5) — the provider's money text is parsed once in `Core`; an unreadable figure is skipped and a
   negative one is recorded as it came.
-- [assistant-the-balance-cadence-is-configuration](../decisions.md#assistant-the-balance-cadence-is-configuration)
+- [assistant-the-balance-cadence-is-configuration](../../decisions.md#assistant-the-balance-cadence-is-configuration)
   (D6) — the cadence is a policy value with no fallback, and the shipped minute is the recommended
   one.
 
