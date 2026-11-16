@@ -109,7 +109,7 @@ checkout. It takes the source and destination as arguments so it can be run agai
 when it is changed, and it uses one key.
 
 ```text
-pull-backups.sh [deploy@moosemorals.com:backups] [$HOME/backups/uk.osric.asp]
+pull-backups.sh [deploy@moosemorals.com:] [$HOME/backups/uk.osric.asp]
 ```
 
 1. `rsync -a` the `storage.db.gz` hard link and `conf/` into a staging directory `.YYYY-MM-DD.partial`.
@@ -123,7 +123,7 @@ pull-backups.sh [deploy@moosemorals.com:backups] [$HOME/backups/uk.osric.asp]
 
 Everything it writes stays under `~/backups/<site>/`, with the script itself at `~/bin/pull-backups.sh`
 — the home directory rather than a project folder, because a checkout is disposable (`make clean`, a
-re-clone, a removed worktree) and this copy is not, and rather than `/srv`, so the cron run needs no
+re-clone, a removed worktree) and this copy is not, and rather than `/srv`, so the timer needs no
 `sudo` and owns the key and the directory it writes. The directory is the project's name, `uk.osric.asp`,
 the same one the image, the volumes and the units use; another site gets a sibling. Each site's prune
 only walks its own directory.
@@ -131,17 +131,22 @@ only walks its own directory.
 The key is `~/.ssh/id_backup_uk_osric_asp` on the backup host, and its public half goes in
 `deploy@…:~/.ssh/authorized_keys` with `restrict,command="/usr/bin/rrsync -ro /home/deploy/backups"`. That
 key can read that directory and do nothing else. There is no `from=` clause: a domestic connection's
-address changes, and the forced command is the control that matters.
+address changes, and the forced command is the control that matters. Because that directory is the
+transfer root, the remote spec is the host alone — `deploy@moosemorals.com:` — and the paths inside are
+`storage.db.gz` and `conf/`; naming `backups` in the spec asks for `~/backups/backups/…`.
 
 It carries no passphrase, because it is used by an unattended run and an agent loaded at boot would be
 one more thing to keep working. What replaces the passphrase is where the file lives and what it can
 do: `0600` on the machine that is not the public one, a forced command that only reads one directory,
-and `BatchMode=yes` with `IdentitiesOnly=yes` so a cron run fails rather than waits on a prompt. The
+and `BatchMode=yes` with `IdentitiesOnly=yes` so an unattended run fails rather than waits on a prompt. The
 key is not backed up — regenerating it costs one `authorized_keys` line.
 
-The schedule is the backup host's own — cron there is fine, because it is not this host and does not
-need the user namespace — one run a day, after 03:15. It needs `rsync`, `sqlite3` and `gzip`; the
-site's host needs `rsync` as the far half of the transfer, and `cloud-init.yaml` now installs it.
+The schedule is the backup host's own: a user timer, `deploy/uk.osric.asp-pull.timer`, at 04:20 an hour
+after the site's snapshot, `Persistent=true` and a few minutes of jitter. `make pull-install
+HOST=osric@<backuphost>` copies the script and both units into `~/bin` and
+`~/.config/systemd/user`, enables the timer and warns when lingering is off, so the schedule survives a
+reboot without a login. It needs `rsync`, `sqlite3` and `gzip`; the site's host needs `rsync` as the
+far half of the transfer, and `cloud-init.yaml` now installs it.
 
 ### Why pull rather than push
 
@@ -204,8 +209,10 @@ from a newer release is not one an older image can open.
 | `deploy/backup-snapshot.sh` | New: the online copy, its check and its names |
 | `deploy/uk.osric.asp-backup.service`, `.timer` | New: the oneshot and its daily clock |
 | `deploy/pull-backups.sh` | New: the backup host's pull, verification and prune |
+| `deploy/uk.osric.asp-pull.service`, `.timer` | New: the pull's oneshot and its daily clock, on the backup host |
 | `deploy/cloud-init.yaml` | `rsync`, because the pull runs `rsync --server` on this host |
-| `Makefile` | `deploy` installs the script and the two units, enables the timer, and refuses a host without `rsync` as it already does without `aardvark-dns` |
+| `Makefile` | `deploy` installs the script and the two units, enables the timer, and refuses a host without `rsync` as it already does without `aardvark-dns`; `pull-install` puts the pull and its timer on the backup host |
+| `deploy/README.md` | The day-to-day backup habit points at the nightly snapshot and its on-demand run; `pull-install` is in the task list |
 | `deploy/operations.md` | `#backups` becomes the whole story: what, when, where, how it is verified, how to restore, what is not covered |
 | `deploy/README.md` | The first-deploy step and the day-to-day backup habit point at the nightly snapshot and its on-demand run |
 
@@ -254,6 +261,10 @@ on demand; the file passes `integrity_check` and carries `0600`; a pull from the
   against a local directory.
 - The pull checks `PageHeads`, `Users` and `__EFMigrationsHistory`, not a `Pages` table: `Pages` belongs
   to the export archive, and the store has no table by that name.
+- The key's forced command is the transfer root: `rrsync -ro /home/deploy/backups` means the remote
+  spec is `deploy@moosemorals.com:` and never `…:backups`, which asks for `~/backups/backups/…` and
+  fails with `post-realpath open failed (race detected)`. The first pull on the backup host found this,
+  and the local harness had been built with the same mistake, so it had passed.
 - Validation on 2026-11-16: both scripts pass `bash -n`; a snapshot against a throwaway volume wrote a
   `0600` archive whose copy answered `PRAGMA integrity_check` and held the expected rows, and a second
   run replaced it and relinked `storage.db.gz`; a 27-hour-old file, a corrupt gzip and a valid database
@@ -261,6 +272,12 @@ on demand; the file passes `integrity_check` and carries `0600`; a pull from the
   dated directories, the 100-day one was pruned and the 5-day one kept; and the restore below was run
   against that volume, putting the snapshot back with `1654:1654` inside the namespace and losing the
   row that had been added after the snapshot.
+- Installed and run on the backup host the same day: `make pull-install HOST=osric@hathor` copied the
+  script and both units, enabled the timer for 04:20, and warned nothing because lingering was already
+  on (`loginctl enable-linger` no longer needs root for one's own account where polkit allows it). The
+  first real pull wrote `~/backups/uk.osric.asp/2026-11-16/storage.db.gz` at `0600` in a `0700`
+  directory, 15 MB, and `PRAGMA integrity_check` on the pulled file answered `ok` with 69 page heads,
+  one account and the migration history.
 
 ## The names this plan intends
 

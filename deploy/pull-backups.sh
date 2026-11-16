@@ -6,14 +6,18 @@
 # here rather than on the site because the site is the machine that might be wrong: the copy is
 # verified somewhere the failing host does not control.
 #
-#   pull-backups.sh [deploy@moosemorals.com:backups] [$HOME/backups/uk.osric.asp]
+#   pull-backups.sh [deploy@moosemorals.com:] [$HOME/backups/uk.osric.asp]
+#
+# The remote spec is the host and no path: the key's forced command is `rrsync -ro
+# /home/deploy/backups`, which makes that directory the root of the transfer, so `backups/...` here
+# would resolve to ~/backups/backups/... and fail.
 #
 # The key named by SSH_KEY is the one in the site's authorized_keys, restricted with `rrsync -ro`.
 # KEEP_DAYS is how many days of dated directories are kept. The destination is deliberately not a
 # project folder: a checkout is disposable and this is not.
 set -euo pipefail
 
-remote=${1:-deploy@moosemorals.com:backups}
+remote=${1:-deploy@moosemorals.com:}
 destination=${2:-$HOME/backups/uk.osric.asp}
 keepDays=${KEEP_DAYS:-90}
 key=${SSH_KEY:-$HOME/.ssh/id_backup_uk_osric_asp}
@@ -29,7 +33,7 @@ rm -rf "$staging"
 mkdir -p "$staging"
 trap 'rm -rf "$staging"' EXIT
 
-# The key has no passphrase because it runs unattended; BatchMode keeps a cron run from waiting on a
+# The key has no passphrase because it runs unattended; BatchMode keeps a timer run from waiting on a
 # prompt it can never answer, and IdentitiesOnly stops it offering every key the agent happens to hold.
 rsh="ssh -i $key -o BatchMode=yes -o IdentitiesOnly=yes"
 rsync --archive --rsh="$rsh" "$remote/storage.db.gz" "$staging/"

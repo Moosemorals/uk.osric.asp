@@ -223,7 +223,9 @@ copy on the backup host is the backup.
 
 **The backup host pulls.** `deploy/pull-backups.sh` runs there, on its own schedule, with a key that can
 read `~/backups` on this host and nothing else: the key's `authorized_keys` entry is
-`restrict,command="/usr/bin/rrsync -ro /home/deploy/backups"`. Each run copies `storage.db.gz` and
+`restrict,command="/usr/bin/rrsync -ro /home/deploy/backups"`. That directory is the root of the
+transfer, so the script's remote spec is the host alone — `deploy@moosemorals.com:` — and `backups/…`
+in a spec is a request for `~/backups/backups/…`, which fails. Each run copies `storage.db.gz` and
 `conf/` into `YYYY-MM-DD/` on the backup host, then:
 
 - refuses a snapshot whose mtime is 26 hours old, because a failed snapshot leaves yesterday's file in
@@ -243,12 +245,18 @@ ssh-keygen -t ed25519 -N '' -C backup@hathor -f ~/.ssh/id_backup_uk_osric_asp
 
 Keep it `0600` there and never copy it to the site; losing it costs one regenerated key and one line in
 `authorized_keys`, so it does not need its own backup either. Append its public half to `deploy`'s
-`authorized_keys` with the prefix above, install the script as `~/bin/pull-backups.sh` there, and
-schedule it after 03:15:
+`authorized_keys` with the prefix above, then install the pull and its timer from the repository:
 
-```cron
-20 4 * * * /home/osric/bin/pull-backups.sh
+```bash
+make pull-install HOST=osric@<backuphost>
 ```
+
+That copies `deploy/pull-backups.sh` to `~/bin/` and `deploy/uk.osric.asp-pull.{service,timer}` to
+`~/.config/systemd/user/`, enables the timer, and prints when it next runs. It is a *user* timer on the
+machine that keeps the copies, at 04:20 with `Persistent=true` and a few minutes of jitter: an hour
+after the site's snapshot, and a host that was down pulls when it comes back. User lingering has to be
+on for that to survive a reboot without a login — `make pull-install` warns when it is not, and
+`sudo loginctl enable-linger osric` fixes it.
 
 Everything lands under `~/backups/`, one directory per site, with the device's own user and `0700`
 directories:
@@ -261,16 +269,24 @@ directories:
 
 The home directory, not a project folder and not `/srv`: a checkout is disposable — `make clean`, a
 re-clone or a removed worktree takes anything inside it — while this is the only copy of the site's
-history other than the month on the site itself. `~/backups` also means the cron job runs as the user
+history other than the month on the site itself. `~/backups` also means the timer runs as the user
 who owns the key and the directory, so nothing on this host needs `sudo`. The name is the project's,
 `uk.osric.asp`, matching the repository, the image, the volumes and the units; `osricuk` names the
 deploy user on the other site's host, which is a different thing. Another site gets its own directory
 beside it, and each one is pruned by its own run. If the home directory is itself backed up somewhere,
 exclude `~/backups`, or that copy is of the copy.
 
-Run the script by hand once so `known_hosts` learns the host: it sets `BatchMode=yes`, so an unknown
-host or a missing key fails the run rather than hanging in cron. The script is the source of truth in
-this repository, not a file to edit on the backup host.
+Run it once by hand so `known_hosts` learns the host and the setup is proven, rather than waiting for
+04:20 to discover it:
+
+```bash
+ssh osric@<backuphost> systemctl --user start uk.osric.asp-pull.service
+ssh osric@<backuphost> journalctl --user -u uk.osric.asp-pull.service -n 20
+```
+
+It sets `BatchMode=yes`, so an unknown host or a missing key fails the run rather than waiting on a
+prompt nobody is there to answer. The script and the units are the source of truth in this repository;
+do not edit the copies on the backup host, and re-run `make pull-install` after changing either.
 
 The direction is deliberate. The public host never holds a credential to the machine that keeps its
 history; a `--delete` mirror cannot erase good copies because the site had a bad day; and verification

@@ -1,0 +1,16 @@
+# SPDX-FileCopyrightText: Copyright 2026 Osric Wilkinson <osric@fluffypeople.com>
+# SPDX-License-Identifier: MIT
+
+# Runs on the backup host, not the site: the pull is theirs to make so the public box holds no
+# credential to the machine that keeps its history. `pull-backups.sh` is installed beside this file
+# from deploy/, and takes its defaults from the script.
+
+[Unit]
+Description=Pull uk.osric.asp backups from the site
+
+[Service]
+Type=oneshot
+ExecStart=%h/bin/pull-backups.sh
+# A failed pull leaves the journal and no dated directory; nothing retries, because a second attempt a
+# minute later meets the same host or the same stale snapshot.
+TimeoutStartSec=15min
