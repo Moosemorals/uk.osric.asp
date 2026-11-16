@@ -114,9 +114,14 @@ internal class Program {
         SiteOptions site = SiteOptions.FromConfiguration(settings.At("Site"));
         StreamOptions stream = StreamOptions.FromConfiguration(settings.At("Pages:Stream"));
 
-        string[] reservedKeys = [.. settings.At("Pages").List("ReservedPaths", "page keys", minimum: 1)];
+        // The reserved keys are the shell's route table, not a setting. A leftover section from the
+        // release before this one is refused rather than ignored: an operator who kept it believes
+        // it still narrows or widens something, and it does neither.
+        ConfigurationReader pageSettings = settings.At("Pages");
+        pageSettings.FailIf(pageSettings.Has("ReservedPaths"), "ReservedPaths",
+            "is no longer read. The shell's own route table is the reserved list, so remove the key and restart");
         settings.Complete();
-        ReservedPaths reserved = new(reservedKeys);
+        ReservedPaths reserved = new(ReservedPaths.Default);
 
         // Configuration: the database, its options, and the proxy trust the host depends on.
         // The scoped context is what the stores on the request inject; the factory is what lets a
@@ -246,6 +251,8 @@ internal class Program {
         builder.Services.AddSingleton<ImportQueue>();
         builder.Services.AddSingleton<ImportStageStore>();
         builder.Services.AddSingleton<MarkdownRenderer>();
+        // Reads the licence and notice files the image carries, once, when the page first asks.
+        builder.Services.AddSingleton(new LicenceLibrary(AppContext.BaseDirectory));
         builder.Services.AddSingleton<OutboundFetcher>();
         builder.Services.AddSingleton<PageBudget>();
         builder.Services.AddSingleton<PageImageBuilder>();
@@ -440,6 +447,12 @@ internal class Program {
             await ErrorResponses.WriteAsync(failed, failed.Response.StatusCode, message);
         });
 
+        // The shell's own files - the administration sheets and script, the status sheet, the
+        // reference sheet and the icon - are the web root's, not the page store's. Ahead of routing,
+        // so a physical file answers before the page catch-all can claim its key; the security
+        // headers above still run, and a stored asset keeps its own versioned link.
+        app.UseStaticFiles();
+
         // Order matters: routing first, so the limiter and identity read endpoint metadata, then
         // authorization, then the antiforgery check that guards the unsafe ones.
         app.UseRouting();
@@ -458,6 +471,8 @@ internal class Program {
         app.MapGet("/status/chart", ChartEndpoint.HandleAsync)
             .RequireAuthorization(EditorPolicy.Name);
 
+        app.MapGet("/admin", AdminIndexEndpoint.HandleAsync);
+
         app.MapGet("/admin/scrub/{**path}", ScrubEndpoint.ConfirmAsync)
             .RequireAuthorization(EditorPolicy.Name);
         app.MapPost("/admin/scrub/{**path}", ScrubEndpoint.ScrubAsync)
@@ -470,6 +485,9 @@ internal class Program {
         // does, and the repository is published to be read.
         app.MapGet("/admin/reference", ReferenceEndpoint.IndexAsync);
         app.MapGet("/admin/reference/{slug}", ReferenceEndpoint.AssemblyAsync);
+        // Public for the same reason as the reference: the licence of published source is for
+        // whoever asks, and the notices are what the image ships.
+        app.MapGet("/admin/copyright", CopyrightEndpoint.HandleAsync);
         app.MapGet("/admin/restore", RestoreEndpoint.PreviewAsync)
             .RequireAuthorization(EditorPolicy.Name);
         app.MapPost("/admin/restore", RestoreEndpoint.RestoreAsync)

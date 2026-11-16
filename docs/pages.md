@@ -380,7 +380,7 @@ over 1 MiB is refused with 413 before it is read. A buffered page that outruns i
 answered `504` with the same document every other failure uses; a page that has already committed is
 truncated instead. See [error responses](shell.md#error-responses) and
 [the execution budget](#page-execution-budget) for the deadline itself. Keys the site's own routes
-answer for are listed in `Pages:ReservedPaths`, refused by the editor and never served.
+answer for are the shell's route table, refused by the editor and never served.
 
 ## Compiled pages
 

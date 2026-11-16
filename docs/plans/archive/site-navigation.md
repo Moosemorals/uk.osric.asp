@@ -520,7 +520,8 @@ landing on its own.
 - **`shell-the-menu-is-written-twice`**: the site menu is written twice on purpose — composed by the host for shell views,
   written in the seeded `/_layout` for pages — and rendered by one `PageDocument.Nav`. The shell's
   document is not the stored layout, because the recovery routes must not depend on page code.
-- **`shell-admin-is-a-page`**: `/admin` is a seeded fragment page linking import, export and `/status`; `/_layout` is
+- **The admin index was a seeded fragment page** (a decision since retired in favour of
+  `shell-admin-is-a-shell-route`): `/admin` linked import, export and `/status`; `/_layout` is
   an ordinary page (editable, restorable, not reserved), and only `/admin/import` and `/admin/export`
   stay reserved beneath `/admin`. This is a partial reversal of `pages-delete-install-and-restore`, which retired a *duplicate
   page list*, not an index of tools.

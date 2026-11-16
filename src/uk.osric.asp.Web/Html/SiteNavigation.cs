@@ -3,10 +3,9 @@
 
 namespace uk.osric.asp.Web.Html;
 
-using Microsoft.AspNetCore.WebUtilities;
 using uk.osric.asp.Sdk;
-using uk.osric.asp.Web.Html;
 using uk.osric.asp.Web.Pages;
+using uk.osric.asp.Web.Shell;
 
 /// <summary>The site menu the shell's own views carry.</summary>
 /// <remarks>
@@ -60,19 +59,12 @@ internal static class SiteNavigation {
         ArgumentNullException.ThrowIfNull(query);
         ArgumentException.ThrowIfNullOrWhiteSpace(editorPath);
 
-        List<NavLink> links = [
-            new("/", "Home", At(path, "/")),
-        ];
-
-        if (!authenticated) {
-            links.Add(new(SignIn(path, query), "Sign in", At(path, "/login")));
-            return links;
+        List<NavLink> links = [];
+        foreach (ShellLink link in ShellCatalogue.Links(path, query, editorPath)) {
+            if (link.Section == ShellSection.Site && ShellCatalogue.IsFor(link, authenticated)) {
+                links.Add(new(link.Href, link.Text, IsCurrent(link, path)));
+            }
         }
-
-        links.Add(new("/assistant", "Assistant", Under(path, "/assistant")));
-        links.Add(new(editorPath, "Pages", Under(path, editorPath)));
-        links.Add(new("/admin", "Admin", Under(path, "/admin")));
-        links.Add(new("/logout", "Sign out", At(path, "/logout")));
 
         return links;
     }
@@ -88,13 +80,13 @@ internal static class SiteNavigation {
         new("/privacy", "Privacy policy", false),
     ];
 
-    // The editor the visitor lands on after signing in carries the menu, so a page's own return path
-    // only has to survive as a query parameter, not as an absolute URL.
-    private static string SignIn(string path, string query) =>
-        "/login" + QueryString.Create("returnUrl", path + query).ToUriComponent();
+    // The sign-in link carries the way back as a query, so its current check is the path it leads to
+    // rather than the href it was given.
+    private static bool IsCurrent(ShellLink link, string path) {
+        int query = link.Href.IndexOf('?', StringComparison.Ordinal);
+        string target = query >= 0 ? link.Href[..query] : link.Href;
 
-    private static bool At(string path, string href) => string.Equals(path, href, StringComparison.Ordinal);
-
-    private static bool Under(string path, string href) =>
-        At(path, href) || path.StartsWith(href + "/", StringComparison.Ordinal);
+        return string.Equals(path, target, StringComparison.Ordinal)
+            || (link.Match == ShellMatch.Subtree && path.StartsWith(target + "/", StringComparison.Ordinal));
+    }
 }

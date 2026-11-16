@@ -153,9 +153,10 @@ is the worked example: it is the seeded `/pages`, which is offered `IPageWrites`
 | --- | --- | --- |
 | `/login`, `/logout` | **Bootstrap.** You cannot reach a page you must sign in for if signing in is a page you must sign in for | `pages-page-first` |
 | `/status`, `/status/chart` | **Bootstrap.** Diagnosing why a page did not load starts here | `pages-page-first` |
-| `/admin/changes`, `/admin/reference` | **The build's own facts.** Both read a file the image carries — the changelist and the XML documentation — which a page cannot read | `shell-the-admin-tools`, `shell-the-reference` |
+| `/admin/changes`, `/admin/reference`, `/admin/copyright` | **The build's own facts.** Each reads a file the image carries — the changelist, the XML documentation and the licence and notice files — which a page cannot read | `shell-the-admin-tools`, `shell-the-reference` |
 | `/admin/restore`, `/admin/scrub` | **Bootstrap.** The restore is the way back for a page that no longer compiles, so it cannot itself be a page that might not compile; the scrub is the one irreversible delete and stays an explicit owner action | `pages-page-first`, `shell-the-admin-tools` |
-| `{**path}`, `/favicon.ico`, `/health`, `/metrics` | **The runtime.** The page catch-all, the reserved key that stops a page claiming the icon, the probe and the scrape target are the thing pages run on | `pages-page-first` |
+| `{**path}`, `/favicon.ico`, `/health`, `/metrics`, `wwwroot` | **The runtime.** The page catch-all, the reserved key that stops a page claiming the icon, the probe, the scrape target and the static files the shell's own views load are the thing pages run on | `pages-page-first` |
+| `/admin` | **The index of the shell's tools.** It draws the same list the administration menus draw, filtered to what the visitor may reach, and it must answer when the page pipeline is broken | [the seed-trimming plan](plans/seed-trimming.md) |
 | `/assistant`, `/assistant/{id}`, its events, approvals, options, stop, delete and the memory view | **A page cannot, yet.** The stream, the worker kind and jobs now exist, so the view and the run are page code; what blocks the port is an account-scoped store for the transcript and memory ([IDEA-033](jobs/IDEA-033.md)), the page-store write authority the tools need, and a restricted Markdown profile a page can reach | [IDEA-025](jobs/IDEA-025.md) |
 | `/admin/import`, `/admin/export` | **A page cannot, yet.** A page can neither take an upload nor serve a file | [IDEA-024](jobs/IDEA-024.md) |
 

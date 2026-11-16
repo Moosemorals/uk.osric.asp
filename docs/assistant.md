@@ -104,12 +104,11 @@ There is no process, filesystem, git, package, or other outbound-network tool. T
 approval mode defaults to `AlwaysApprove`; `RequireApproval` waits for an individual owner decision on
 each flagged call. Unresolved, stale, stopped, or restarted approvals never execute.
 
-The tools also see the shell's own files, which are the site's routes (`assistant-reads-the-shell-files`). Every key in
-`Pages:ReservedPaths` — `/admin/changes`, `/admin/export`, `/admin/import`, `/admin/reference`,
-`/admin/restore`, `/admin/scrub`, `/assistant`, `/favicon.ico`, `/health`, `/login`, `/logout`,
-`/metrics` and `/status` — is listed, searched and readable: `cat` and `read_page` return a host-written record of the route's methods, access and
-purpose rather than source, because the running image carries the assembly and not the source
-tree, and `ShellRoutesTests` pins the records to `ReservedPaths.Default` in both directions.
+The tools also see the shell's own files, which are the site's routes (`assistant-reads-the-shell-files`).
+Every route in the shell's table — `/login`, `/assistant`, `/admin/scrub`, `/metrics` and the rest,
+including the files served from the web root — is listed, searched and readable: `cat` and
+`read_page` return the record the table carries of the route's methods, access and purpose rather than
+source, because the running image carries the assembly and not the source tree.
 Every `list_pages` row and `ls -l` line carries the assistant's own permission in a long
 listing's first column — `-rw-r--r--` where a save would be accepted, `-r--r--r--` where it
 would not — and `list_pages` also marks the row `kind: shell` or `kind: page`. The shell

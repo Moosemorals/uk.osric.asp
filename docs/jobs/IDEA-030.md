@@ -9,8 +9,13 @@ SPDX-License-Identifier: MIT
 | --- | --- |
 | Size | M |
 | Area | Sdk, Web (shell, admin, assistant, metrics, pages), seeds |
-| Location | `src/uk.osric.asp.Sdk/IPageCatalog.cs`, `src/uk.osric.asp.Web/Pages/PageCatalogScope.cs`, `src/uk.osric.asp.Web/Html/ShellLinks.cs`, `src/uk.osric.asp.Web/Html/SiteNavigation.cs`, `src/uk.osric.asp.Web/Admin/AdminNavigation.cs`, `src/uk.osric.asp.Web/Pages/Seeds/_layout`, `src/uk.osric.asp.Web/Pages/Seeds/admin`, `src/uk.osric.asp.Web/Pages/Seeds/help` |
+| Location | `src/uk.osric.asp.Sdk/IPageCatalog.cs`, `src/uk.osric.asp.Web/Pages/PageCatalogScope.cs`, `src/uk.osric.asp.Web/Html/ShellLinks.cs`, `src/uk.osric.asp.Web/Html/SiteNavigation.cs`, `src/uk.osric.asp.Web/Admin/AdminNavigation.cs`, `src/uk.osric.asp.Web/Admin/AdminIndexEndpoint.cs`, `src/uk.osric.asp.Web/Pages/Seeds/_layout`, `src/uk.osric.asp.Web/Pages/Seeds/help` |
 
+> **Part-built 2026-11-16.** The one list exists in `Web` (`Html/ShellLinks.cs`), and the site menu,
+> the administration menu and `/admin` all filter it; what is left is the `Sdk` half — the values and
+> `IPageCatalog.ShellLinks()` — so that the seeded layout and the editor can read the list too. See
+> [the seed-trimming plan](../plans/seed-trimming.md).
+>
 > **Planned 2026-11-16.** [The shell navigation and shell root plan](../plans/shell-navigation.md) is
 > written and waits for the owner. It takes the idea's one-list shape, extends `IPageCatalog` with
 > `ShellLinks()` so a page can render the shell's links itself, marks shell documents as shell, and

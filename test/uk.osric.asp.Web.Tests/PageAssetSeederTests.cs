@@ -9,7 +9,7 @@ using uk.osric.asp.Web.Pages;
 [TestFixture]
 public sealed class PageAssetSeederTests {
 
-    private static readonly string[] SeedPaths = ["/_layout", "/_lib/document", "/_lib/editor", "/about", "/admin", "/admin.css", "/admin.js", "/assistant.css", "/assistant.js", "/editor-mode", "/editor.css", "/editor.js", "/help", "/pages", "/privacy", "/recent", "/reference.css", "/rocket.svg", "/scratch", "/site.css", "/sortable.css", "/sortable.js", "/status.css", "/vim-help", "/vim.css", "/vim.js"];
+    private static readonly string[] SeedPaths = ["/_layout", "/_lib/document", "/_lib/editor", "/about", "/assistant.css", "/assistant.js", "/editor-mode", "/editor.css", "/editor.js", "/help", "/pages", "/privacy", "/site.css", "/sortable.css", "/sortable.js", "/vim-help", "/vim.css", "/vim.js"];
 
     private static readonly PageSeeds Pack = new(Path.Combine(AppContext.BaseDirectory, "Pages", "Seeds"));
 
@@ -62,6 +62,17 @@ public sealed class PageAssetSeederTests {
         Assert.That(storage.WriteCount, Is.EqualTo(SeedPaths.Length));
     }
 
+    // The administration views' sheets and script, the status and reference sheets and the icon are
+    // the web root's: a release that put one back in the pack would have two homes for the same file.
+    [TestCase("/admin.css")]
+    [TestCase("/admin.js")]
+    [TestCase("/reference.css")]
+    [TestCase("/rocket.svg")]
+    [TestCase("/status.css")]
+    public void AShellFileIsNotASeed(string path) {
+        Assert.That(TestOptions.Seeds.Find(PagePath.Normalize(path)), Is.Null);
+    }
+
     [TestCaseSource(nameof(SeedPaths))]
     public async Task ShippedSeedCanBeReadByItsPagePathAsync(string path) {
         string? template = TestOptions.SeedSource(PagePath.Normalize(path));
@@ -69,7 +80,6 @@ public sealed class PageAssetSeederTests {
         Assert.That(template, Is.EqualTo(ShippedSeed(path)));
     }
 
-    [TestCase("/admin.js")]
     [TestCase("/assistant.js")]
     [TestCase("/editor.js")]
     public async Task ShippedScriptsAreNativeModulesAsync(string path) {
@@ -78,14 +88,11 @@ public sealed class PageAssetSeederTests {
         Assert.That(template, Does.Match(@"(?m)^(?:export|import)\b"));
     }
 
-    [TestCase("/admin.css")]
-    [TestCase("/admin.js")]
     [TestCase("/assistant.css")]
     [TestCase("/assistant.js")]
     [TestCase("/editor.css")]
     [TestCase("/editor.js")]
     [TestCase("/site.css")]
-    [TestCase("/status.css")]
     public async Task StylesheetsAndScriptsCarryNoTemplateDirectiveAsync(string path) {
         string? template = TestOptions.SeedSource(PagePath.Normalize(path));
 
@@ -109,15 +116,6 @@ public sealed class PageAssetSeederTests {
         Assert.That(image.Bytes, image.Kind is PageKind.Page ? Is.Not.Null : Is.Null, path);
     }
 
-    [Test]
-    public async Task TheAdminIndexIsAReachableFragment() {
-        string? template = TestOptions.SeedSource(PagePath.Normalize("/admin"));
-
-        Assert.That(template, Is.Not.Null);
-        Assert.That(template, Does.Not.Contain("<!DOCTYPE"));
-        Assert.That(template, Does.Contain("<h1>Administration</h1>"));
-        Assert.That(template, Does.Contain("/admin/import").And.Contain("/admin/export").And.Contain("/status"));
-    }
 
     [Test]
     public async Task TheHelpPageIsAReachableFragment() {
@@ -142,8 +140,8 @@ public sealed class PageAssetSeederTests {
         Assert.That(template, Does.Contain("Osric Wilkinson").And.Contain("DeepSeek"));
         Assert.That(template, Does.Contain("IBuildInfo"));
         Assert.That(template, Does.Contain("https://github.com/Moosemorals/uk.osric.asp/commit/"));
-        Assert.That(template, Does.Contain("The MIT licence").And.Contain("The ISC licence"));
-        Assert.That(template, Does.Contain("Acornima 1.9.1").And.Contain("Markdig 1.6.0"));
+        Assert.That(template, Does.Contain("href=\"/admin/copyright\""),
+            "the licence texts are the shell's, read from the files the build carries");
         Assert.That(template, Does.Not.Contain("RedirectToLogin"), "the about page is public");
     }
 
@@ -159,17 +157,6 @@ public sealed class PageAssetSeederTests {
         Assert.That(template, Does.Not.Contain("ctx.User"), "the privacy page is public");
     }
 
-    [Test]
-    public async Task ThePublicListingIsAReachableFragment() {
-        string? template = TestOptions.SeedSource(PagePath.Normalize("/recent"));
-
-        Assert.That(template, Is.Not.Null);
-        Assert.That(template, Does.Not.Contain("<!DOCTYPE"));
-        Assert.That(template, Does.Contain("<h1>Recent changes</h1>"));
-        Assert.That(template, Does.Contain("IPageCatalog"));
-        Assert.That(template, Does.Contain("href=\"<%= ctx.EditorPath %>"), "the editor link follows the configured key");
-        Assert.That(template, Does.Not.Contain("RedirectToLogin"), "a public listing must not guard itself");
-    }
 
     [Test]
     public async Task TheGuardedPageGuardsItself() {
@@ -185,36 +172,12 @@ public sealed class PageAssetSeederTests {
     }
 
     [Test]
-    public async Task TheDraftShowsItsOwnSourceAndSavesItself() {
-        string? template = TestOptions.SeedSource(PagePath.Normalize("/scratch"));
-
-        Assert.That(template, Is.Not.Null);
-        Assert.That(template, Does.Not.Contain("<!DOCTYPE"));
-        Assert.That(template, Does.Contain("<h1>Scratch</h1>"));
-        Assert.That(template, Does.Contain("if (ctx.User is not { } user) { ctx.Response.RedirectToLogin(); return; }"),
-            "the draft guards its own view, so an anonymous visitor is sent to sign in");
-        Assert.That(template, Does.Contain("IPageCatalog").And.Contain("IPageWrites"));
-        Assert.That(template, Does.Contain("name=\"template\""));
-        Assert.That(template, Does.Contain("ctx.Response.AntiforgeryField"));
-        Assert.That(template, Does.Contain("href=\"/help#writing\""));
-    }
-
-    [Test]
     public async Task TheLayoutSeedIsAPageTheOwnerCanEdit() {
         string? template = TestOptions.SeedSource(PagePath.Normalize("/_layout"));
 
         Assert.That(template, Does.Contain("Document.Head"));
         Assert.That(template, Does.Contain("layout.Body"));
         Assert.That(new ReservedPaths(ReservedPaths.Default).IsReserved(PagePath.Normalize("/_layout")), Is.False);
-    }
-
-    [Test]
-    public async Task TheSvgSeedReliesOnItsExtensionForItsContentTypeAsync() {
-        string? template = TestOptions.SeedSource(PagePath.Normalize("/rocket.svg"));
-
-        Assert.That(template, Does.Not.Contain("ctx.Response.SetContentType"));
-        Assert.That(template, Does.Not.Contain("<%"), "the icon has no code, so it is an asset");
-        Assert.That(TestContentTypes.Shipped.ForPath("/rocket.svg"), Is.EqualTo("image/svg+xml; charset=utf-8"));
     }
 
     [TestCase("/not-a-seed")]

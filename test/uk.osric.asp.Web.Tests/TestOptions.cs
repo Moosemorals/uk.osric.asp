@@ -83,7 +83,7 @@ internal static class TestOptions {
         PageContentTypesConfiguration.FromConfiguration(Configuration, NullLogger.Instance);
 
     /// <summary>The keys the site's own routes answer.</summary>
-    public static ReservedPaths Reserved { get; } = new(ReservedKeys());
+    public static ReservedPaths Reserved { get; } = new(ReservedPaths.Default);
 
     /// <summary>The pack this release ships, read from beside the test assembly.</summary>
     public static PageSeeds Seeds { get; } = new(Path.Combine(AppContext.BaseDirectory, "Pages", "Seeds"));
@@ -105,7 +105,4 @@ internal static class TestOptions {
     /// <summary>The metrics settings.</summary>
     public static MetricsOptions Metrics { get; } = MetricsOptions.FromConfiguration(Configuration);
 
-    /// <summary>The reserved keys exactly as the shipped file lists them.</summary>
-    public static string[] ReservedKeys() =>
-        Configuration.GetSection("Pages:ReservedPaths").Get<string[]>() ?? [];
 }

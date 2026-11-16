@@ -65,6 +65,7 @@ internal static class ShellViews {
         "admin",
         "reference",
         "reference-assembly",
+        "copyright",
         "help",
     ];
 
@@ -99,6 +100,7 @@ internal static class ShellViews {
         "admin" => RenderAsync(name, AdminAsync),
         "reference" => RenderAsync(name, ReferenceAsync),
         "reference-assembly" => RenderAsync(name, ReferenceAssemblyAsync),
+        "copyright" => RenderAsync(name, CopyrightAsync),
         "help" => RenderAsync(name, HelpAsync),
         _ => throw new ArgumentOutOfRangeException(nameof(name), name, "No such shell view."),
     };
@@ -139,9 +141,15 @@ internal static class ShellViews {
         return await TestHttp.ReadBodyAsync(context);
     }
 
-    // The administration index and the help page are stored pages, so they are rendered the way the
-    // host renders one: the seeded fragment wrapped in the seeded layout.
-    private static Task<string> AdminAsync() => StoredPageAsync("/admin");
+    // The administration index is the shell's route; the help page is a stored page, rendered the way
+    // the host renders one: the seeded fragment wrapped in the seeded layout.
+    private static async Task<string> AdminAsync() {
+        DefaultHttpContext context = AuthenticatedContext("/admin");
+
+        await AdminIndexEndpoint.HandleAsync(context, CancellationToken.None);
+
+        return await TestHttp.ReadBodyAsync(context);
+    }
 
     private static Task<string> HelpAsync() => StoredPageAsync("/help");
 
@@ -151,6 +159,16 @@ internal static class ShellViews {
     private static async Task<string> ReferenceAsync() {
         DefaultHttpContext context = AuthenticatedContext("/admin/reference");
         await ReferenceEndpoint.IndexAsync(context, s_reference, CancellationToken.None);
+        return await TestHttp.ReadBodyAsync(context);
+    }
+
+    private static async Task<string> CopyrightAsync() {
+        DefaultHttpContext context = AuthenticatedContext("/admin/copyright");
+        await CopyrightEndpoint.HandleAsync(
+            context,
+            new LicenceLibrary(AppContext.BaseDirectory),
+            new MarkdownRenderer(),
+            CancellationToken.None);
         return await TestHttp.ReadBodyAsync(context);
     }
 

@@ -118,7 +118,7 @@ public sealed partial class SiteChromeTests : IntegrationTest {
     }
 
     [Test]
-    public async Task TheAboutPageIsPublicAndNamesItsCreditsAndLicences() {
+    public async Task TheAboutPageIsPublicAndNamesItsCredits() {
         using HttpClient client = CreateClient();
 
         HttpResponseMessage response = await client.GetAsync("/about");
@@ -129,10 +129,7 @@ public sealed partial class SiteChromeTests : IntegrationTest {
         Assert.That(body, Does.Contain("<title>About</title>"));
         Assert.That(body, Does.Contain("Osric Wilkinson"));
         Assert.That(body, Does.Contain("DeepSeek"));
-        Assert.That(body, Does.Contain("The MIT licence"));
-        Assert.That(body, Does.Contain("The ISC licence"));
-        Assert.That(body, Does.Contain("Acornima 1.9.1"));
-        Assert.That(body, Does.Contain("Markdig 1.6.0"));
+        Assert.That(body, Does.Contain("href=\"/admin/copyright\""), "the licence texts are the shell's");
 
         if (BuildInfo.Current.Commit is { } commit) {
             Assert.That(body, Does.Contain($"https://github.com/Moosemorals/uk.osric.asp/commit/{commit}"));
@@ -152,14 +149,39 @@ public sealed partial class SiteChromeTests : IntegrationTest {
         Assert.That(body, Does.Contain("<a href=\"/help\">Help</a>"));
     }
 
+    // The index is public: a visitor sees the tools that answer anyone and a line saying the rest
+    // needs a sign-in, rather than being sent to the form to find out what is there.
+    // The licence files are packed beside the assemblies, and the page reads them: a copy on /about
+    // was a second home for a file that changes without the page noticing.
     [Test]
-    public async Task TheAdminIndexRequiresSignIn() {
+    public async Task TheCopyrightPageReadsTheFilesTheBuildCarries() {
+        using HttpClient client = CreateClient();
+
+        HttpResponseMessage response = await client.GetAsync("/admin/copyright");
+        string body = await response.Content.ReadAsStringAsync();
+
+        Assert.Multiple(() => {
+            Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+            Assert.That(body, Does.Contain("Copyright 2026 Osric Wilkinson"), "the site's LICENSE");
+            Assert.That(body, Does.Contain("Acornima 1.9.1"), "the third-party notices");
+            Assert.That(body, Does.Contain("id=\"licence-site\""), "the licence texts");
+            Assert.That(body, Does.Contain("id=\"reuse-file\""), "the REUSE annotations");
+        });
+    }
+
+    [Test]
+    public async Task TheAdminIndexAnswersAVisitorAndHidesTheOwnersTools() {
         using HttpClient client = CreateClient();
 
         HttpResponseMessage response = await client.GetAsync("/admin");
+        string body = await response.Content.ReadAsStringAsync();
 
-        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.Redirect));
-        Assert.That(response.Headers.Location?.ToString(), Does.StartWith("/login?returnUrl="));
+        Assert.Multiple(() => {
+            Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+            Assert.That(body, Does.Contain(">Reference</a>"));
+            Assert.That(body, Does.Not.Contain(">Import pages</a>"));
+            Assert.That(body, Does.Contain("The rest of the administration is for the owner"));
+        });
     }
 
     [Test]

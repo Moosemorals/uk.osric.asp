@@ -264,8 +264,7 @@ already there (`Microsoft.AspNetCore.Hosting`, `Microsoft.AspNetCore.Server.Kest
   UTC. The base is `aspnet:11.0-alpine-extra` (`deploy-the-image`) because plain alpine has no
   `/usr/share/zoneinfo` and resolving `Europe/London` inside it throws.
 
-`/status.css` is a seeded page like every other sheet, so an installation that already has it keeps
-the old rules until the owner restores it from the page list. `make test-web` runs the Web storage
+`/status.css` is a file in the web root, so a deploy replaces it and no restore is needed. `make test-web` runs the Web storage
 tests, and `make test-integration` runs the same storage through the real host; both are included in
 `make test`. Schema changes are scaffolded with `make migration NAME=...` using the pinned local EF
 tool into the Web project's `Storage/Migrations` directory. Back up the database before deploying

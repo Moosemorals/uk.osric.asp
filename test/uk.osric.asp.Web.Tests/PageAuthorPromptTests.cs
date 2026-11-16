@@ -276,7 +276,8 @@ public sealed class PageAuthorPromptTests {
             Assert.That(prompt, Does.Contain("not permitted"));
             Assert.That(prompt, Does.Contain("`/site.css`"),
                 "the seeded assets are ordinary pages, not shell files");
-            Assert.That(prompt, Does.Contain("Pages:ReservedPaths"));
+            Assert.That(prompt, Does.Contain("`/admin/copyright`").And.Contain("`/status.css`"),
+                "the list is the shell's route table, so every route is named");
         });
     }
 

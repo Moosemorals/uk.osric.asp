@@ -521,10 +521,8 @@ does:</p>
 <p>The trade is worth stating plainly: a page that calls <code>ReadAsync</code> or
 <code>ReadRevisionAsync</code> publishes the source it reads to whoever can reach that page, including
 a template whose own guard hides its output, and including the history of a deleted page until it is
-scrubbed. The seeded <a href="/recent">/recent</a> is a public listing and the seeded
-<a href="<%= ctx.EditorPath %>"><%= ctx.EditorPath %></a> is a guarded source and history view: the same capability, with and
-without that one line. Both are demonstrations of this capability and of the editor's cheap half
-(IDEA-017), not the editor itself.</p>
+scrubbed. The seeded <a href="<%= ctx.EditorPath %>"><%= ctx.EditorPath %></a> is a guarded listing, source view and
+history: the same capability with that one line at the top of its source.</p>
 <p>The read is bounded. One listing returns at most the configured row cap (500 as shipped) and
 refuses rather than truncating, and one render may pull in at most the configured source budget
 (512 KiB as shipped) across the page and its layouts, which is also a refusal rather than half a
@@ -578,9 +576,8 @@ the page once per validator, and one render writes once: a save, a delete, a res
 spends the one action. A write that has started is never abandoned: if the page runs out of time the
 revision is still stored, and the next request serves it.</p>
 <p>A layout is offered the read and not the write, because it is markup: one that saved itself would
-add a revision to every page it wraps. The seeded <a href="/scratch">/scratch</a> is the worked example
-of the bound save — a page that shows its own source, saves it, reports the diagnostics and refuses a
-form whose revision hash has been overtaken.</p>
+add a revision to every page it wraps. The sample above is the whole of a bound save: show the source,
+save it, report the diagnostics and compare the form's hash before you overwrite a newer revision.</p>
 <p>The rest of the capability is the editor's toolbox: <code>Resolve</code> says whether a key is
 usable, <code>DeleteAsync</code> tombstones a page, <code>RestoreRevisionAsync</code> saves a retained
 revision as a new one, <code>InstallSeedAsync</code> stores the source a release ships,
