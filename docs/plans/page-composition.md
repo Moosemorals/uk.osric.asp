@@ -12,7 +12,7 @@ SPDX-License-Identifier: MIT
 | Area | Sdk, Web (pages, shell, seeds, assistant, metrics), docs |
 | Spike | None. Every count below was taken off `trunk` at `6004526` on 2026-11-16, after `pages-the-response-is-one-object` merged |
 | Backlog | [IDEA-049](../jobs/IDEA-049.md) is this step. [IDEA-047](../jobs/IDEA-047.md) is the answer if a real page needs more than one write in one render, which composition makes likelier |
-| Decisions | New names proposed: **pages-an-embed-is-a-content-render**, **pages-an-embeds-options-are-its-query**, **pages-a-capture-is-an-embed-returned**, **pages-a-page-chooses-its-layout**, **pages-one-render-three-roles**, **pages-the-wrapper-owns-the-title**, **shell-documents-are-bootstrap**, **shell-a-shell-document-carries-one-way-home**. Edits `pages-one-request-one-chain`, `pages-a-layout-is-a-capability`, `pages-layouts-are-markup`, `pages-one-base-sheet` and `pages-capabilities-are-one-seam`; retires `shell-the-menu-is-written-twice`. Relies on `pages-the-response-is-one-object`, `pages-the-contract-is-the-seam`, `pages-public-by-default`, `pages-a-warning-never-stops-a-page`, `pages-page-io-is-async`, `pages-any-page-may-write-the-store`, `pages-a-page-may-save-itself`, `metrics-one-panel-per-instrument` and `code-policy-values-are-configuration` |
+| Decisions | New names proposed: **pages-an-embed-is-a-content-render**, **pages-an-embeds-options-are-its-query**, **pages-a-capture-is-an-embed-returned**, **pages-a-page-inside-a-page-is-a-capture**, **pages-a-page-chooses-its-layout**, **pages-one-render-three-roles**, **pages-the-wrapper-owns-the-title**, **shell-documents-are-bootstrap**, **shell-a-shell-document-carries-one-way-home**. Edits `pages-one-request-one-chain`, `pages-a-layout-is-a-capability`, `pages-layouts-are-markup`, `pages-one-base-sheet` and `pages-capabilities-are-one-seam`; retires `shell-the-menu-is-written-twice`. Relies on `pages-the-response-is-one-object`, `pages-the-contract-is-the-seam`, `pages-public-by-default`, `pages-a-warning-never-stops-a-page`, `pages-page-io-is-async`, `pages-any-page-may-write-the-store`, `pages-a-page-may-save-itself`, `metrics-one-panel-per-instrument` and `code-policy-values-are-configuration` |
 
 ## The short version
 
@@ -24,18 +24,25 @@ host does to every page and becomes a thing a page asks for.
 **Four calls, one capability.** `IPageComposition` is offered to every layer a render has:
 
 ```csharp
-Task EmbedAsync(string key, PageEmbedOptions? options = null);   // include another page here
+Task<PageCapture> EmbedAsync(string key, PageEmbedOptions? options = null); // include another page here
 Task<PageCapture> CaptureAsync(string key, PageEmbedOptions? options = null); // …or return it
 void Wrap(string key);                                           // hand this page to another
 void Wrap();                                                     // …the site's layout, Pages:Layout
 ```
 
 `EmbedAsync` renders another stored page with the caller's request — same method, form, headers and
-cookies, with the options as its query — and writes its body where the call is. `CaptureAsync` is the
-same render returned as a string instead of written, for the page that wants to transform it. `Wrap` records the
-page that will wrap this one; the host runs the chain after `HandleAsync` returns, exactly where it
-runs today, so a wrap declared near the top covers every exit path including a guard's early return.
-`Wrap` is not `WrapAsync`: it does not await the wrapper, the host does.
+cookies, with the options as its query — writes its body where the call is and returns the
+`PageCapture`. `CaptureAsync` is the same render with the write left to the caller, for the page that
+wants to transform it. `Wrap` records the page that will wrap this one; the host runs the chain after
+`HandleAsync` returns, exactly where it runs today, so a wrap declared near the top covers every exit
+path including a guard's early return. `Wrap` is not `WrapAsync`: it does not await the wrapper, the
+host does.
+
+**The outer page chooses.** Every inner render yields a `PageCapture` — body, title, head, sheets and
+script permission. `/a` calling `EmbedAsync("/b")` gets one; `/b` calling `Wrap("/a")` hands the same
+value to `/a` as `IPageLayout.Content`. Neither direction merges anything behind the outer page's
+back: the page that owns the document decides what to fold, and that is the whole symmetry between
+the two calls.
 
 **The role replaces the flag.** The response rule is currently `isLayout` on `SimpleResponse`, and that
 one flag decides two different things: who owns the response and what capabilities the layer gets.
@@ -67,7 +74,9 @@ itself. That is the point and the migration: the seeds and the editor's starter 
 5. A no-code page embeds as the fragment it is, with its comments removed, because the projection
    moves from the shell's serving path into the renderer.
 6. The shell's own documents carry one way home and no site menu; the stored layout carries the menu.
-7. The manual, the prompt, the docs and every seeded page say the new thing in the same change.
+7. `/a EmbedAsync(/b)` and `/b Wrap(/a)` are the same relation from opposite ends: both hand the
+   outer page a `PageCapture` and let it choose what to fold.
+8. The manual, the prompt, the docs and every seeded page say the new thing in the same change.
 
 ## Non-goals
 
@@ -106,7 +115,7 @@ itself. That is the point and the migration: the seeds and the editor's starter 
 ```csharp
 // Sdk/IPageComposition.cs
 public interface IPageComposition {
-    Task EmbedAsync(string key, PageEmbedOptions? options = null);
+    Task<PageCapture> EmbedAsync(string key, PageEmbedOptions? options = null);
     Task<PageCapture> CaptureAsync(string key, PageEmbedOptions? options = null);
     void Wrap(string key);
     void Wrap();
@@ -118,11 +127,11 @@ and footer partial is the use that argues for this most, and because a page must
 `Wrap` without knowing it is embedded. It is a capability rather than context members for the reason
 `pages-capabilities-are-one-seam` gives: a page that never composes never meets it.
 
-`EmbedAsync` includes another page **now**. It renders into a bounded capture and then writes the
-result through the calling layer's `IPageResponse`, so the body allowance is charged once and a failure
-leaves nothing half-written in the caller. `CaptureAsync` is the same render with the fold and the
-write replaced by a `PageCapture` return (D8): the caller gets the body and the document facts and
-decides what to do with them.
+`EmbedAsync` includes another page **now**. It renders into a bounded capture, writes the body
+through the calling layer's `IPageResponse` and returns the `PageCapture` — the body beside the
+content's title, head, sheets and script permission — so the caller folds what it wants. The body
+allowance is charged once and a failure leaves nothing half-written in the caller. `CaptureAsync` is
+the same render with the write left out (D8).
 
 `Wrap` is a **declaration**: it records the key, and the host runs the chain after `HandleAsync`
 returns. That is what keeps a guard's early `return` wrapped and lets the page set its status after it
@@ -182,7 +191,7 @@ internal enum PageLayerRole { Content, Layout, Embedded }
 | Offered `IPageWrites` and `IPageJobs` | yes | no | yes |
 | Session may write | yes, unless `HEAD` | no | yes, unless `HEAD` |
 | `Wrap` | runs | runs (the parent) | ignored |
-| `IPageLayout` | slots, `Body` empty | slots, `Body` is the wrapped output | its own slots; `Body` empty |
+| `IPageLayout` | own slots; `Content` null | own slots; `Content` is the content's capture | own slots; `Content` null |
 | `AntiforgeryField` | the request's pair | the request's pair | the request's pair |
 
 The redirect exception is deliberate: ignoring it would make the ordinary "if no user, redirect to
@@ -201,7 +210,8 @@ session's writability.
 change makes every layer use them:
 
 - **Content**: the endpoint renders the requested key with the caller's request.
-- **Layout**: `PageChain` renders the declared wrapper with the content's body in `IPageLayout.Body`.
+- **Layout**: `PageChain` renders the declared wrapper with the content's `PageCapture` as
+  `IPageLayout.Content`.
 - **Embedded**: `PageCompositionScope` renders the named key with the derived request.
 
 `PageChain` grows the layer loop the endpoint's `WrapAsync` call makes today, but starts from the
@@ -210,13 +220,17 @@ content's declared wrapper instead of `contentLayout.Layout`:
 ```
 request /about
   → /about renders into buffer A, sets Title/head/sheets, calls Wrap()
-  → /_layout renders into buffer B with IPageLayout.Body = A
-  → /_layout may call Wrap("/_outer") → buffer C with Body = B
+  → /_layout renders into buffer B with IPageLayout.Content = the capture of A
+  → /_layout may call Wrap("/_outer") → buffer C with Content = the capture of B
   → write the outermost buffer
 ```
 
-`PageChain` owns the ancestor stack, the depth and count counters, the default fallback and the
-`AllowScripts` union; the layers own their own body and slots.
+`PageChain` owns the ancestor stack, the depth and count counters and the default fallback; each layer
+owns its own slots and each render produces a `PageCapture` — body, title, head, sheets and script
+permission — that the layer outside it consumes. The one thing the host still composes is the script
+permission: a layer's capture carries its own `AllowScripts` or the content's, so a document that
+carries a body cannot lose the permission its script needs, and the outermost capture's value is the
+response's.
 
 `PageChain.CreateLayer` returns the layer it built — the context, the composition state the page
 writes its `Wrap` into, and the slots — so the endpoint can hand the content's declaration to the
@@ -226,46 +240,55 @@ The endpoint's order changes by one step: it opens the render session **before**
 layer, so the composition scope holds the session every embedded render runs under. One slot and one
 deadline still cover the whole request.
 
-### D5 — The wrapper gets the body; it does not get the response
+### D5 — The wrapper folds the content's capture; it does not get the response
 
-The wrapper is a page with code. It reads `IPageLayout.Body`, `Head`, `Stylesheets` and `Title` as a
-layout does today; it may compose the title and may embed partials of its own around `Body`. Its own
-`SetStatus`, `SetHeader`, `SetContentType` and `Redirect` are ignored and logged, because the content
-owns the response. Its `AllowScripts` is unioned into the content's.
+The wrapper is a page with code. `IPageLayout.Content` is the content's `PageCapture` — `Body`,
+`Title`, `Head`, `Stylesheets` and `AllowsScripts` — and the wrapper decides what to fold into its own
+`Title`, `AddHead` and `AddStylesheet`. It may embed partials of its own around `Content.Body`. Its own
+contributions become its capture for its parent, so the rule is the same one `EmbedAsync` gives an
+embedding page: **the page that owns the document chooses**.
 
-A wrapper must have code: a no-code page has no way to read `Body`, so its stored source would replace
-the page instead of wrapping it. `Wrap` naming a library, a worker, a no-code page, a missing page or
-a deleted one fails when the chain tries to render it, with a message naming the key.
+Nothing is merged behind its back. The seeded `/_layout` folds `Content.Title ?? "Site"`, the content's
+sheets and head beside its own; the `Site.Document` library gets the merge helper so that stays one
+call. Its own `SetStatus`, `SetHeader`, `SetContentType` and `Redirect` are ignored and logged,
+because the content owns the response. The content's `AllowsScripts` is unioned automatically, because
+the wrapper may carry its body, and the wrapper's own `AllowScripts` is unioned outward.
+
+A wrapper must have code: a no-code page has no way to read `Content`, so its stored source would
+replace the page instead of wrapping it. `Wrap` naming a library, a worker, a no-code page, a missing
+page or a deleted one fails when the chain tries to render it, with a message naming the key.
 
 The default wrapper keeps the fallback: `Wrap()` records the configured default, so a default that
 cannot be served serves the page unwrapped with a warning and `page.layout.fallback`, as today.
 `Wrap(key)` is a named wrapper, so a failure is an error naming the key.
 
-### D6 — `IPageLayout` loses `Layout`, and `Title` becomes nullable
+### D6 — `IPageLayout` loses `Layout` and `Body`, gains `Content`
 
 ```csharp
 public interface IPageLayout {
-    string? Title { get; set; }          // was string, throwing until set
-    string Head { get; }
+    PageCapture? Content { get; }        // the layer inside; null on the content and embedded layers
+    string? Title { get; set; }          // this layer's own title; null until set
+    string Head { get; }                 // this layer's own head markup
     IReadOnlyList<string> Stylesheets { get; }
     void AddHead(string markup);
     void AddStylesheet(string href);
-    string Body { get; }
 }
 ```
 
-`Layout` is gone: the page declares its wrapper through `IPageComposition.Wrap`, and a wrapper declares
-its parent the same way. `PageLayoutState` loses its `defaultLayout` constructor argument, its
-`Layout` property and its `TitleOrNull` member; it keeps the inner-layer composition and the sheet
-deduplication. The setter still refuses blank, so the only way to have no title is to leave it unset.
+`Layout` goes: the page declares its wrapper through `IPageComposition.Wrap`. `Body` goes: the wrapper
+reads `Content.Body`. The remaining slots are the layer's **own**, and the host no longer composes them
+with the inner layer's. `PageLayoutState` loses its `defaultLayout` constructor argument, its `Layout`,
+its inner-layer composition and `TitleOrNull`; it is a plain holder of the layer's own slots and the
+`Content` the host sets. The setter still refuses blank, so the only way to have no title is to leave
+it unset.
 
 **The title check is the wrapper's.** The host's pre-chain refusal and its "a wrapped page must set a
-title" error go. The seeded `/_layout` resolves `layout.Title ?? "Site"`; a wrapper that wants to refuse
-instead can throw, naming `ctx.Request.Path`.
+title" error go. The wrapper reads `Content.Title` and decides; the seeded `/_layout` uses
+`Content.Title ?? "Site"`; a wrapper that wants to refuse instead can throw, naming `ctx.Request.Path`.
 
-This is a public-API change: `Title` is `string?` and a page that hands it to a `string` parameter no
-longer compiles. The seeds are updated; `RuntimeId` moves, so every stored page recompiles and a page
-that used the old members reports diagnostics rather than serving stale markup.
+This is a public-API change: `Title` is `string?`, `Body` is gone and `Content` is new. The seeds are
+updated; `RuntimeId` moves, so every stored page recompiles and a page that used the old members
+reports diagnostics rather than serving stale markup.
 
 ### D7 — The embedded layer: request, slots, capabilities, output
 
@@ -276,19 +299,20 @@ that used the old members reports diagnostics rather than serving stale markup.
 2. **Check recursion** (D9) before anything is rendered.
 3. **Derive the request**: the caller's request with `Query`/`QueryValues` replaced by the options.
    The method, form, headers, cookies and `Path` stay the caller's.
-4. **Create the layer**: a fresh `PageLayoutState` (no inner), a `StringWriter`, a fresh commit state,
+4. **Create the layer**: a fresh `PageLayoutState` (no content), a `StringWriter`, a fresh commit state,
    `role: Embedded`, the embedded key as the context's `Path`, the caller's user, login redirect,
    antiforgery factory, asset map and abort token, and a **bounded body capture** (D10). The body sink is
    `null`, so the embedded layer cannot stream.
 5. **Render** it through the session: `session.RenderAsync(key, context)`.
-6. **Fold outward**: `AddHead(embedded.Head)` when it is non-empty, each `Stylesheet` through the
-   caller's `AddStylesheet`, and `AllowScripts()` when the embedded response allows scripts.
-7. **Write** the body through the caller's `IPageResponse.WriteRaw`, which charges the shared body
-   allowance once.
+6. **Build the capture**: the body, `Title`, `Head`, `Stylesheets` and `AllowsScripts` of the embedded
+   layer, as a `PageCapture`.
+7. **Write and return**: `EmbedAsync` writes `capture.Body` through the caller's
+   `IPageResponse.WriteRaw` — charging the shared body allowance once — unions the content's script
+   permission, and returns the capture. `CaptureAsync` returns it without the write or the union (D8).
 
-`CaptureAsync` does the same through step 5 and then returns a `PageCapture` instead of folding and
-writing (D8). `EmbedAsync` is literally that value plus steps 6 and 7, which is why the two cannot
-drift.
+Neither call touches the caller's `IPageLayout`: a caller that wants the embedded page's title, head
+or sheets folds them itself, with `AddHead` and `AddStylesheet` on its own slots. That is the same
+choice a wrapper makes with `IPageLayout.Content`, which is the symmetry the two directions share.
 
 The embedded page keeps the capabilities a content page has: `IPageStorage` and `IPageSession` bound to
 its own key, `IHttpFetch`, `IPageCatalog`, `IPageLayout`, the two renderers, `IPageJobs`,
@@ -302,9 +326,9 @@ in D12. A library or a worker is not a page: it is refused with a `UserFacingExc
 
 `CaptureAsync` takes the same key and options as `EmbedAsync` and shares its whole codepath: the
 resolution, the recursion check, the derived request, the content capabilities, the withheld
-response, the one write and the failure table. The difference is the last step. `EmbedAsync` folds the
-captured page's head and sheets into the caller, writes its body and opts into its scripts;
-`CaptureAsync` returns a value and touches nothing:
+response, the one write and the failure table. The difference is the last step. `EmbedAsync` writes
+the body, unions the captured page's script permission, and returns the capture;
+`CaptureAsync` returns the capture and touches nothing:
 
 ```csharp
 // Sdk/PageCapture.cs
@@ -316,22 +340,22 @@ public sealed record PageCapture(
     bool AllowsScripts);
 ```
 
-`EmbedAsync` is then literally `CaptureAsync` plus the fold and the write, so the two calls have one
-render and one set of rules. The captured page gets a **clean response** of its own — a fresh
+`EmbedAsync` is then literally `CaptureAsync` plus the write and the script union; the head and sheet
+fold is the caller's choice, made with the value it receives. The two calls have one render and one
+set of rules. The captured page gets a **clean response** of its own — a fresh
 `SimpleResponse` over the capture — so its `Write` and `WriteRaw` land in the body and its status,
 content type, headers and `AllowScripts` never reach the caller except as the record's
 `AllowsScripts`. A redirect still refuses, because a captured page has no response to redirect.
 
-The result is deliberately a **value, not the live `IPageLayout`**. The interface is the capability a
-page runs with: it is mutable, `AddHead` and `AddStylesheet` are how a page contributes rather than
-what a caller reads, and — decisively — its `Body` is empty on an embedded layer, because `Body` is the
-slot a wrapper receives, not the output a page wrote. The capture's output is the response body, and
-`PageCapture` carries it beside the three document facts a caller may want to fold: the title, the
-head and sheets, and whether the captured page asked for scripts.
+The result is deliberately a **value, not the live `IPageLayout`**. `IPageLayout` is the capability a
+layer runs with: its `Content` is the layer *inside* it, and its own `Title`, `Head` and `Stylesheets`
+are what this layer contributes outward. A capture is neither — it is the finished material of one
+layer, which is why it can be carried, transformed or discarded. It carries the body beside the title,
+head, sheets and script permission a caller may fold; the response itself stays withheld.
 
-This is the page-level twin of the wrapper's `IPageLayout.Body`: the prod site's `/_md` layout already
-receives its content as `Body`, and a page that wants the same view without being wrapped — or wants to
-transform it first — is what capture is for:
+This is the page-level twin of the wrapper's `IPageLayout.Content`: the prod site's `/_md` layout
+already receives its content as a capture, and a page that wants the same view without being wrapped —
+or wants to transform it first — is what capture is for:
 
 ```html
 <% var captured = await ctx.Capabilities.GetRequired<IPageComposition>().CaptureAsync("/draft");
@@ -453,6 +477,10 @@ page.
 > body beside the title, head, sheets and script permission, with the captured page's settings kept
 > out of it, and a capture that would redirect refuses.
 >
+> **pages-a-page-inside-a-page-is-a-capture** — a page rendered inside another yields a `PageCapture`
+> — body, title, head, sheets and script permission — and the outer page folds what it wants, whether
+> it asked for the inner with `EmbedAsync` or received it with `Wrap`.
+>
 > **pages-a-page-chooses-its-layout** — a page declares the page that wraps it; the host does not wrap
 > by default, and `IPageLayout.Layout` is gone.
 >
@@ -470,7 +498,8 @@ page.
 
 Edits: `pages-one-request-one-chain` (the chain is entered by the page and still one render),
 `pages-a-layout-is-a-capability` (the slots remain; `Layout` leaves), `pages-layouts-are-markup` (the
-wrapper is the layout role), `pages-one-base-sheet` (an embed's sheets fold into the page's), and
+wrapper is the layout role), `pages-one-base-sheet` (an embed's sheets are the caller's to fold, and the document library keeps
+the cascade order and the dedupe), and
 `pages-capabilities-are-one-seam` (the twelfth capability). `shell-the-menu-is-written-twice` is
 retired: the menu is written once.
 
@@ -486,10 +515,12 @@ retired: the menu is written once.
 session order, the wrap), `PageRenderer.cs` (the comment projection), `PageLayoutState.cs`,
 `PageLayoutConfiguration.cs` (documentation only), `SimpleContext.cs`, `SimpleResponse.cs`,
 `PageWritesScope.cs`, `BodyBudget.cs`, `RenderOptions.cs`, `PageMetrics.cs`, `StatusCatalogue.cs`,
-`appsettings.json`, `SiteNavigation.cs`, `ShellDocument.cs`, and the seeds (`_layout`, `about`,
-`admin`, `editor-mode`, `help`, `pages`, `privacy`, `recent`, `scratch`, `vim-help`). The editor's
-empty page starts from a one-line fragment that calls `Wrap()`, so a page created in the editor is
-wrapped without the author knowing the rule.
+`appsettings.json`, `SiteNavigation.cs`, `ShellDocument.cs`, and the seeds (`_layout`, `_lib/document`,
+`about`, `admin`, `editor-mode`, `help`, `pages`, `privacy`, `recent`, `scratch`, `vim-help`). The
+document library gains the overload that folds a `PageCapture` and the layer's own slots into one
+head, so the seeded `_layout` stays a short page; the editor's empty page starts from a one-line
+fragment that calls `Wrap()`, so a page created in the editor is wrapped without the author knowing
+the rule.
 
 `Assistant`: `PageAuthorPrompt.cs` — the capability section, examples, the composition rules, and the
 version (`page-author-v35` → `v36`).
@@ -509,15 +540,15 @@ merge only.
 
 One branch, four commits, so each can be read alone:
 
-1. **The contract, the values and the role.** `IPageComposition`, `PageEmbedOptions`, the
-   `IPageLayout` change, `PageLayerRole`, `SimpleResponse`/`SimpleContext`, `PageLayoutState`, the
-   `PageWriteAction`, and the tests that pin the role matrix, the options helpers and the nullable
-   title.
+1. **The contract, the values and the role.** `IPageComposition`, `PageEmbedOptions`, `PageCapture`,
+   the `IPageLayout` change (`Layout` and `Body` out, `Content` in, nullable `Title`), `PageLayerRole`,
+   `SimpleResponse`/`SimpleContext`, `PageLayoutState`, the `PageWriteAction`, and the tests that pin
+   the role matrix, the options helpers, the capture value and the nullable title.
 2. **The renderer and the four calls.** The layer loop, the session order, the embed and capture
    paths, the ancestor stack, the bounded capture, the head/sheet fold, the projection move, the two
    configuration values and the instrument. The chain tests move to the new shape here.
-3. **The pages we ship.** Ten seeds with `Wrap()` and the nullable title, the editor's starter,
-   `/help`, the prompt and its version. `make check-pages` and the prompt test prove it.
+3. **The pages we ship.** Ten seeds with `Wrap()` and the nullable title, the document library's merge
+   overload and the `/_layout` that uses it, the editor's starter, `/help`, the prompt and its version. `make check-pages` and the prompt test prove it.
 4. **The shell and the docs.** `SiteNavigation`, `ShellDocument`, the chrome tests, `/help`'s shell
    paragraph, the four docs, the plan link; the decision entries at the merge only.
 
@@ -538,13 +569,17 @@ One branch, four commits, so each can be read alone:
   untouched; the successful embed is charged once; a capture is charged only when its string is written.
 - **The capture:** `CaptureAsync` returns a `PageCapture` and leaves the caller's body untouched; the
   captured page's `SetStatus` does not leak and its head, sheets and script permission arrive only in
-  the value; `EmbedAsync` is the same value folded and written; a redirect refuses; a capture of an
-  ancestor with the same options is a cycle; the Markdown use in D8 renders.
+  the value; `EmbedAsync` returns the same value and writes the body; a redirect refuses; a capture of
+  an ancestor with the same options is a cycle; the Markdown use in D8 renders.
+- **The symmetry:** `EmbedAsync` returns the capture and the caller folds what it wants into its own
+  slots; a wrapper receives `IPageLayout.Content` and folds what it wants; the host merges neither
+  behind the outer page's back; `/a Embed(/b)` and `/b Wrap(/a)` reach the same `PageCapture` shape.
 - **The no-code page:** an embedded text page's `<%# … %>` does not reach the body, and a served one
   still loses it.
 - **The wrap:** a page with no `Wrap` is a fragment; `Wrap()` uses the configured key; `Wrap(key)` names
-  another; a default that cannot be served falls back, a named one fails; a missing title reaches the
-  wrapper as `null`; a wrapper may embed a partial around `Body`.
+  another; a default that cannot be served falls back, a named one fails; a page that set no title
+  arrives at the wrapper as `Content.Title == null`; a wrapper may embed a partial around
+  `Content.Body`.
 - **The shell:** every shell document carries Home, and Admin exactly under `/admin`; a stored page
   still carries the full menu; the shell and the stored layout no longer have to agree.
 - **The metrics:** `MetricNamesTests` records the new counter and reads it back from `/metrics`; the
@@ -560,6 +595,9 @@ One branch, four commits, so each can be read alone:
   A page that used `Layout` or a non-null `Title` fails to compile instead, which is loud.
 - **The one-write rule is only true if the counter is shared.** Today each layer owns one; the change
   must move it to the chain or a listing of writers quietly writes several times.
+- **The wrapper now merges explicitly.** A wrapper that ignores `IPageLayout.Content` serves its own
+  document only; the library's merge overload and the seeded `_layout` are what keep that from being a
+  surprise, and `/help` shows the call.
 - **The body budget view is the subtle arithmetic.** Charging the embed's capture and the caller's copy
   both would shrink the allowance; charging neither would let a page exceed it. The test that renders a
   near-limit embed, and the capture that is charged only when written, are the proof.
@@ -602,9 +640,12 @@ One branch, four commits, so each can be read alone:
     error boundary.
 11. **Capture.** Asked for after the plan was first written: the same codepath as an embed, returned as
     a `PageCapture` — the body beside the title, head, sheets and script permission — with the captured
-    page's response kept out of the caller. Not the live `IPageLayout`, because its `Body` is the
-    wrapper's slot and is empty here. It is how a page does what a wrapper does with `Body` without
-    being wrapped.
+    page's response kept out of the caller. Not the live `IPageLayout`, because its `Content` is the
+    layer inside it and its own slots are contributions, not a result. It is how a page does what a
+    wrapper does with `Content` without being wrapped.
+12. **The symmetry.** `EmbedAsync` returns the capture; the wrapper receives it as `IPageLayout.Content`.
+    The host stops merging the inner layer's title, head and sheets, so the page that owns the document
+    chooses in both directions.
 
 ## Considered and rejected
 
@@ -617,8 +658,11 @@ One branch, four commits, so each can be read alone:
 - **Two capabilities (`IPageEmbed` + `IPageWrap`).** They share the render, the budgets, the stack and
   the guards; one seam is the repository's rule.
 - **Returning the captured page's `IPageLayout`.** It is the live capability, it is mutable, and its
-  `Body` is the wrapper's slot rather than the output the page wrote — on an embedded layer it is
-  empty. A value carries the output and the facts a caller can fold without handing back a capability.
+  `Content` is the layer inside it, not the layer's own output. A value carries the output and the
+  facts a caller can fold without handing back a capability.
+- **Keeping the automatic inner merge.** The wrapper would keep composing the content's head, sheets
+  and title into its own, and an embedder would keep receiving them folded. It is one less line for a
+  wrapper and it makes the two directions different; the owner's rule is that the outer page chooses.
 - **Returning the captured response's status and content type.** The body is the artifact; a capture
   has no document to answer with, which is why a redirect refuses.
 - **A slot API beyond `Body`.** A wrapper can embed partials around its slot; named regions are a
