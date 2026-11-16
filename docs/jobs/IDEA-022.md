@@ -11,6 +11,12 @@ SPDX-License-Identifier: MIT
 | Area | Web |
 | Location | `src/uk.osric.asp.Web/Pages/SimpleContext.cs` |
 
+> **Planned 2026-11-16.** [The `SimpleContext` plan](../plans/simple-context.md) is written and waits
+> for the owner. The re-measure the idea asked for first says the file grew to 551 lines when
+> streaming landed, so the split stands — but by composition: `PageResponseState` for what the page
+> asked the response to be and `PageBody` for the body being written, leaving the context the request,
+> the identity, the logging and the delegation. The plan sizes it Small, in two commits.
+
 ## Idea
 
 `SimpleContext` is 364 lines implementing the whole page contract: response buffering and the body

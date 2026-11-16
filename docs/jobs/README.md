@@ -19,7 +19,7 @@ and shares one file, [WHIMS.md](WHIMS.md); a resolved job moves to [closed.md](c
 | [OPS-05](OPS-05.md) | M | Medium | — | No outbound notifications when the site breaks |
 | [IDEA-001](IDEA-001.md) | L | — | — | The editor is a plain textarea |
 | [IDEA-020](IDEA-020.md) | M | — | — | Import only adds and overwrites, so an archive cannot reset a site |
-| [IDEA-022](IDEA-022.md) | S | — | — | `SimpleContext` is one class doing five jobs |
+| [IDEA-022](IDEA-022.md) | S | — | [simple-context](../plans/simple-context.md) | `SimpleContext` is one class doing five jobs |
 | [IDEA-024](IDEA-024.md) | L | — | — | `/admin/import` and `/admin/export` are shell code because an archive is not a form |
 | [IDEA-025](IDEA-025.md) | L | — | [page-apps](../plans/archive/page-apps.md) | The assistant's conversation is a stream and a set of host actions, not a page |
 | [IDEA-027](IDEA-027.md) | S | — | — | A page cannot leave a message for a page it sends a visitor to |
