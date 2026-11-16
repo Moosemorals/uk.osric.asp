@@ -7,12 +7,12 @@ SPDX-License-Identifier: MIT
 
 | | |
 | --- | --- |
-| Status | Built on `idea-032`, green gate; waiting on the owner's yes to merge (`product-steps-wait-for-the-owner`). The intended decision names are at the end of this file |
+| Status | Proposed, built and merged 2026-11-16. The six names it proposed are in [the record](../decisions.md) |
 | Size | Small — one pure parse, one value on the client's answer, one sampler, one gauge, one panel and one key, with the tests for each |
 | Area | Core (assistant), Web (assistant, metrics, configuration) |
 | Spike | None. `/user/balance` is already read on every conversation page view, its JSON is already parsed, and the observability shape is the one `PageStorageSampler` already uses |
 | Backlog | IDEA-032, closed by this change ([the job index](../jobs/README.md#closed)) |
-| Decisions | D1–D6 below; the names they intend are at the end, taken when the work merges |
+| Decisions | Six, taken at the merge and listed at the bottom of this file; no existing entry is revised |
 
 ## The short version
 
@@ -294,23 +294,27 @@ startup and on the configured clock; the conversation page's figure, wording and
 a provider with no balance route logs once and draws "No data"; `make check` is green; and the
 catalogue's drift tests hold the new instrument to its panel.
 
-## The names this plan intends
+## The names this plan proposed
 
-Taken at the merge — bold rather than in backticks, because `make decisions` fails on a cited name the
-record does not have yet. D1–D6 above are these six:
+These are in [the record](../decisions.md), taken at the merge on 2026-11-16. They are D1–D6 above:
 
-- **metrics-a-balance-is-a-level** (D1) — a provider balance is a gauge, drawn as a line, one series
-  per currency, and the query splits by the label rather than merging the currencies.
-- **assistant-the-balance-is-sampled-on-a-clock** (D2) — the sample is the clock's and not a page
-  view's, so the history is the spend.
-- **assistant-a-balance-read-carries-its-reason** (D3) — the client answers a closed reason and logs
-  nothing; the caller decides what that reason is worth.
-- **metrics-a-failed-sample-keeps-the-last-level** (D4) — a failed sample leaves the previous value
-  alone, and the sampler's log line is where a stuck sample is diagnosed.
-- **assistant-a-balance-is-read-as-a-number** (D5) — the provider's money text is parsed once in
-  `Core`; an unreadable figure is skipped and a negative one is recorded as it came.
-- **assistant-the-balance-cadence-is-configuration** (D6) — the cadence is a policy value with no
-  fallback, and the shipped minute is the recommended one.
+- [metrics-a-balance-is-a-level](../decisions.md#metrics-a-balance-is-a-level) (D1) — a provider
+  balance is a gauge, drawn as a line, one series per currency, and the query splits by the label
+  rather than merging the currencies.
+- [assistant-the-balance-is-sampled-on-a-clock](../decisions.md#assistant-the-balance-is-sampled-on-a-clock)
+  (D2) — the sample is the clock's and not a page view's, so the history is the spend.
+- [assistant-a-balance-read-carries-its-reason](../decisions.md#assistant-a-balance-read-carries-its-reason)
+  (D3) — the client answers a closed reason and logs nothing; the caller decides what that reason is
+  worth.
+- [metrics-a-failed-sample-keeps-the-last-level](../decisions.md#metrics-a-failed-sample-keeps-the-last-level)
+  (D4) — a failed sample leaves the previous value alone, and the sampler's log line is where a stuck
+  sample is diagnosed.
+- [assistant-a-balance-is-read-as-a-number](../decisions.md#assistant-a-balance-is-read-as-a-number)
+  (D5) — the provider's money text is parsed once in `Core`; an unreadable figure is skipped and a
+  negative one is recorded as it came.
+- [assistant-the-balance-cadence-is-configuration](../decisions.md#assistant-the-balance-cadence-is-configuration)
+  (D6) — the cadence is a policy value with no fallback, and the shipped minute is the recommended
+  one.
 
 ## What changed while building
 
