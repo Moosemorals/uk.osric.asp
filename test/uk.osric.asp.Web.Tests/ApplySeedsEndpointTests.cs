@@ -18,22 +18,22 @@ public sealed class ApplySeedsEndpointTests {
         FakePageStore storage = new();
         using PageHarness pages = new(storage);
         SeedFile about = TestOptions.Seeds.Find(Key("/about"))!;
-        SeedFile admin = TestOptions.Seeds.Find(Key("/admin.css"))!;
+        SeedFile editor = TestOptions.Seeds.Find(Key("/editor.css"))!;
         SeedFile help = TestOptions.Seeds.Find(Key("/help"))!;
         SeedFile privacy = TestOptions.Seeds.Find(Key("/privacy"))!;
 
         storage["/about"] = new PageTemplate(Key("/about"), "old") { SeedHash = TemplateFingerprint.Of("old") };
-        storage["/admin.css"] = new PageTemplate(Key("/admin.css"), admin.Source) { SeedHash = TemplateFingerprint.Of("other") };
+        storage["/editor.css"] = new PageTemplate(Key("/editor.css"), editor.Source) { SeedHash = TemplateFingerprint.Of("other") };
         storage["/help"] = new PageTemplate(Key("/help"), "mine") { SeedHash = help.Hash };
         storage["/privacy"] = new PageTemplate(Key("/privacy"), "old") { SeedHash = TemplateFingerprint.Of("old") };
 
         string body = await ApplyAsync(pages);
-        PageHeadSummary? recorded = await storage.GetHeadAsync(Key("/admin.css"));
+        PageHeadSummary? recorded = await storage.GetHeadAsync(Key("/editor.css"));
 
         Assert.Multiple(() => {
             Assert.That(storage["/about"]?.Template, Is.EqualTo(about.Source), "a release-newer row is written");
             Assert.That(storage["/about"]?.SeedHash, Is.EqualTo(about.Hash));
-            Assert.That(recorded?.SeedHash, Is.EqualTo(admin.Hash), "a store-newer row is recorded");
+            Assert.That(recorded?.SeedHash, Is.EqualTo(editor.Hash), "a store-newer row is recorded");
             Assert.That(storage["/help"]?.Template, Is.EqualTo("mine"), "a drifted row is not written");
             Assert.That(storage["/privacy"]?.Template, Is.EqualTo("old"), "nothing after the drift is written");
             Assert.That(body, Does.Contain("stopped"));

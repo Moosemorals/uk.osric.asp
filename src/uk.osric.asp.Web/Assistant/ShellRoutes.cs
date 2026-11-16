@@ -26,6 +26,8 @@ internal static class ShellRoutes {
 
     /// <summary>The shipped records, in <see cref="ReservedPaths.Default"/> order.</summary>
     public static IReadOnlyList<ShellRoute> All { get; } = [
+        new("/admin", "GET", "anyone",
+            "The administration index: every tool the shell offers that this visitor may reach, drawn from one list of shell links."),
         new("/admin.css", "GET", "anyone",
             "The administration views' sheet, served from the web root: the selection list and its tags."),
         new("/admin.js", "GET", "anyone",

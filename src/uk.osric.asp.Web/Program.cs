@@ -464,6 +464,8 @@ internal class Program {
         app.MapGet("/status/chart", ChartEndpoint.HandleAsync)
             .RequireAuthorization(EditorPolicy.Name);
 
+        app.MapGet("/admin", AdminIndexEndpoint.HandleAsync);
+
         app.MapGet("/admin/scrub/{**path}", ScrubEndpoint.ConfirmAsync)
             .RequireAuthorization(EditorPolicy.Name);
         app.MapPost("/admin/scrub/{**path}", ScrubEndpoint.ScrubAsync)

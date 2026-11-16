@@ -54,11 +54,12 @@ public sealed class ReservedPathsTests {
     }
 
     [Test]
-    public void TheAdminIndexIsNotReservedButItsToolsAre() {
-        Assert.That(Defaults.IsReserved(PagePath.Normalize("/admin")), Is.False);
+    public void TheAdminIndexIsReservedWithItsTools() {
+        Assert.That(Defaults.IsReserved(PagePath.Normalize("/admin")), Is.True);
         Assert.That(Defaults.IsReserved(PagePath.Normalize("/admin/import")), Is.True);
         Assert.That(Defaults.IsReserved(PagePath.Normalize("/admin/export")), Is.True);
         Assert.That(Defaults.IsReserved(PagePath.Normalize("/admin/scrub")), Is.True);
+        Assert.That(Defaults.IsReserved(PagePath.Normalize("/administrator")), Is.False);
     }
 
     [Test]

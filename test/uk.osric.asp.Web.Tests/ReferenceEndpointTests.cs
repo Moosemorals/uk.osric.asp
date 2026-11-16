@@ -62,7 +62,7 @@ public sealed class ReferenceEndpointTests {
             Assert.That(body, Does.Contain("The page contract"));
             Assert.That(body, Does.Contain("id=\"t-IContext\""));
             Assert.That(body, Does.Contain("id=\"m-IContext.Request\""));
-            Assert.That(body, Does.Contain("Page administration"), "the admin menu");
+            Assert.That(body, Does.Contain("Site administration"), "the admin menu");
             Assert.That(body, Does.Contain("<span class=\"current\" aria-current=\"true\">Reference</span>"));
         });
     }

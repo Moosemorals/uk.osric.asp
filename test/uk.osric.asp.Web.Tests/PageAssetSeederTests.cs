@@ -9,7 +9,7 @@ using uk.osric.asp.Web.Pages;
 [TestFixture]
 public sealed class PageAssetSeederTests {
 
-    private static readonly string[] SeedPaths = ["/_layout", "/_lib/document", "/_lib/editor", "/about", "/admin", "/assistant.css", "/assistant.js", "/editor-mode", "/editor.css", "/editor.js", "/help", "/pages", "/privacy", "/recent", "/scratch", "/site.css", "/sortable.css", "/sortable.js", "/vim-help", "/vim.css", "/vim.js"];
+    private static readonly string[] SeedPaths = ["/_layout", "/_lib/document", "/_lib/editor", "/about", "/assistant.css", "/assistant.js", "/editor-mode", "/editor.css", "/editor.js", "/help", "/pages", "/privacy", "/recent", "/scratch", "/site.css", "/sortable.css", "/sortable.js", "/vim-help", "/vim.css", "/vim.js"];
 
     private static readonly PageSeeds Pack = new(Path.Combine(AppContext.BaseDirectory, "Pages", "Seeds"));
 
@@ -116,15 +116,6 @@ public sealed class PageAssetSeederTests {
         Assert.That(image.Bytes, image.Kind is PageKind.Page ? Is.Not.Null : Is.Null, path);
     }
 
-    [Test]
-    public async Task TheAdminIndexIsAReachableFragment() {
-        string? template = TestOptions.SeedSource(PagePath.Normalize("/admin"));
-
-        Assert.That(template, Is.Not.Null);
-        Assert.That(template, Does.Not.Contain("<!DOCTYPE"));
-        Assert.That(template, Does.Contain("<h1>Administration</h1>"));
-        Assert.That(template, Does.Contain("/admin/import").And.Contain("/admin/export").And.Contain("/status"));
-    }
 
     [Test]
     public async Task TheHelpPageIsAReachableFragment() {

@@ -22,7 +22,7 @@ internal sealed class ReservedPaths {
 
     /// <summary>The keys the shipped <c>appsettings.json</c> carries; a test holds the two together.</summary>
     public static IReadOnlyList<string> Default { get; } =
-        ["/admin.css", "/admin.js", "/admin/changes", "/admin/export", "/admin/import", "/admin/reference", "/admin/restore", "/admin/scrub", "/admin/seed-apply", "/assistant", "/favicon.ico", "/health", "/login", "/logout", "/metrics", "/reference.css", "/rocket.svg", "/status", "/status.css"];
+        ["/admin", "/admin.css", "/admin.js", "/admin/changes", "/admin/export", "/admin/import", "/admin/reference", "/admin/restore", "/admin/scrub", "/admin/seed-apply", "/assistant", "/favicon.ico", "/health", "/login", "/logout", "/metrics", "/reference.css", "/rocket.svg", "/status", "/status.css"];
 
     private readonly IReadOnlyList<PagePath> _keys;
 
@@ -55,16 +55,22 @@ internal sealed class ReservedPaths {
 
     /// <summary>The reserved key that owns this one, so a key beneath a route can name the route.</summary>
     /// <param name="path">The canonical key to test.</param>
+    /// <remarks>
+    /// The most specific key wins, so a read beneath <c>/admin/scrub</c> names that route rather than
+    /// the <c>/admin</c> root above it.
+    /// </remarks>
     public PagePath? MatchingPrefix(PagePath path) {
         ArgumentNullException.ThrowIfNull(path);
 
+        PagePath? match = null;
         foreach (PagePath prefix in _keys) {
-            if (string.Equals(path.Key, prefix.Key, StringComparison.Ordinal)
-                || path.Key.StartsWith(prefix.Key + "/", StringComparison.Ordinal)) {
-                return prefix;
+            bool matches = string.Equals(path.Key, prefix.Key, StringComparison.Ordinal)
+                || path.Key.StartsWith(prefix.Key + "/", StringComparison.Ordinal);
+            if (matches && (match is null || prefix.Key.Length > match.Key.Length)) {
+                match = prefix;
             }
         }
 
-        return null;
+        return match;
     }
 }

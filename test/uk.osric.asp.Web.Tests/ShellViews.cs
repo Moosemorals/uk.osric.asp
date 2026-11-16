@@ -139,9 +139,15 @@ internal static class ShellViews {
         return await TestHttp.ReadBodyAsync(context);
     }
 
-    // The administration index and the help page are stored pages, so they are rendered the way the
-    // host renders one: the seeded fragment wrapped in the seeded layout.
-    private static Task<string> AdminAsync() => StoredPageAsync("/admin");
+    // The administration index is the shell's route; the help page is a stored page, rendered the way
+    // the host renders one: the seeded fragment wrapped in the seeded layout.
+    private static async Task<string> AdminAsync() {
+        DefaultHttpContext context = AuthenticatedContext("/admin");
+
+        await AdminIndexEndpoint.HandleAsync(context, CancellationToken.None);
+
+        return await TestHttp.ReadBodyAsync(context);
+    }
 
     private static Task<string> HelpAsync() => StoredPageAsync("/help");
 

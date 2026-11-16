@@ -152,14 +152,21 @@ public sealed partial class SiteChromeTests : IntegrationTest {
         Assert.That(body, Does.Contain("<a href=\"/help\">Help</a>"));
     }
 
+    // The index is public: a visitor sees the tools that answer anyone and a line saying the rest
+    // needs a sign-in, rather than being sent to the form to find out what is there.
     [Test]
-    public async Task TheAdminIndexRequiresSignIn() {
+    public async Task TheAdminIndexAnswersAVisitorAndHidesTheOwnersTools() {
         using HttpClient client = CreateClient();
 
         HttpResponseMessage response = await client.GetAsync("/admin");
+        string body = await response.Content.ReadAsStringAsync();
 
-        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.Redirect));
-        Assert.That(response.Headers.Location?.ToString(), Does.StartWith("/login?returnUrl="));
+        Assert.Multiple(() => {
+            Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+            Assert.That(body, Does.Contain(">Reference</a>"));
+            Assert.That(body, Does.Not.Contain(">Import pages</a>"));
+            Assert.That(body, Does.Contain("The rest of the administration is for the owner"));
+        });
     }
 
     [Test]

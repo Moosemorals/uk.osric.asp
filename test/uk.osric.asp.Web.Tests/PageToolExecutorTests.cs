@@ -764,7 +764,7 @@ public sealed class PageToolExecutorTests {
         ToolExecutionResult route = await tools.ExecuteAsync("shell", "{\"command\":\"ls -l /admin/scrub\"}", Context, CancellationToken.None);
 
         Assert.Multiple(() => {
-            Assert.That(Output(root).Split('\n'), Does.Contain("drwxr-xr-x /admin"));
+            Assert.That(Output(root).Split('\n'), Does.Contain("dr-xr-xr-x /admin"));
             Assert.That(Output(root).Split('\n'), Does.Contain("-r--r--r-- /login"));
             Assert.That(Output(root).Split('\n'), Does.Contain("-rw-r--r-- /blog"));
             Assert.That(Output(route), Is.EqualTo("-r--r--r-- /admin/scrub"), "a route owns the subtree, not a page");
