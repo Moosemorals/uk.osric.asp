@@ -266,6 +266,10 @@ trade the owner asked for: pages get the facts and the control.
 
 ### D4 — The seeded admin index reads the same list
 
+> **Superseded 2026-11-16** by [the seed-trimming plan](seed-trimming.md): `/admin` becomes a shell
+> route that renders the same list, and `shell-admin-is-a-page` is retired. The list, its sections
+> and its audiences are unchanged; only the renderer moves from a seed to the shell.
+
 `/admin` is a page (`shell-admin-is-a-page`), and it stays one. Its hand-written `<ul>` becomes a
 filter over the catalog:
 
