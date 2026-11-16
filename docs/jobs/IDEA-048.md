@@ -93,6 +93,12 @@ surface shrinks on paper only, and two names for one thing become permanent.
 
 - **Logging.** Three members, and the capability decision put them on the context on purpose; a
   `Log(LogLevel, …)` would need a Microsoft type in the page API, which the policy refuses.
-- **A narrower interface for layouts.** The layout rule stays "ignore the setting and warn"; a second
-  interface would be a different decision about what a layout *is*.
+- **A narrower response for a layout.** A layout is itself a stored page — the seeded `/_layout` — that
+  the host renders *around* another page once that page's code has run, with the result in
+  `IPageLayout.Body` ([shell](../shell.md#layouts)). Because the content owns the response, a layout's
+  `SetStatus`, `SetContentType`, `SetHeader` and `Redirect` are ignored and logged today, and only
+  `AllowScripts` is shared with it. This idea keeps that rule: it does not hand a layout a smaller
+  `IPageResponse` — write and scripts, no status or redirect — which would make the no-op something
+  the compiler enforces. The generated handler takes `IContext` for every page kind, so narrowing it
+  changes what a layout *is* and wants its own decision.
 - **Turning the response into a capability.** It is contract, not something a render offers.
