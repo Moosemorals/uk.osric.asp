@@ -73,7 +73,7 @@ movable **yet**. This job is what would move it.
    possible; this job no longer has to choose.
 4. **The chat input and the seed.** The input posts and the page reloads on the run, so
    `/assistant.js` stops being necessary; the seeded page could carry a tiny module later, for
-   progressive rendering only, and that is the one place a page is allowed `ctx.AllowScripts()`.
+   progressive rendering only, and that is the one place a page is allowed `ctx.Response.AllowScripts()`.
 5. **Approvals.** The approval card is a form posting a decision; it is the same shape as the page's
    own saves, so once the job exists the card is markup. The decision is either a message to the
    running job — which pauses its silence clock while it waits, up to the job's ceiling — or a stored
@@ -93,7 +93,7 @@ the last three are what is still missing, and the fourth is the one that blocks 
 
 The conversation list is a list and a form; the conversation page is a transcript, a textarea and a
 button; the approval card is a form. A page can already write all of it, and the two things it could
-not are now capabilities: `ctx.FlushAsync()` holds a response open past the render budget
+not are now capabilities: `ctx.Response.FlushAsync()` holds a response open past the render budget
 (`Pages:Stream` bounds it), and `IPageJobs` starts a worker, sends it a message, reads its events by
 sequence and cancels it. A run's progress is published events, which the view streams; a visitor who
 reloads finds the job again with `ListAsync`.

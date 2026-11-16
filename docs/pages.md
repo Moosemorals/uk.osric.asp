@@ -15,10 +15,14 @@ where this code lives and why; [the shell](shell.md) is what wraps a page's answ
 A page is a runtime, not a renderer: it reads the request and shapes the response, but every value it
 touches is a plain record in `Sdk`. `Request` carries the method, path, query, form, headers and the
 visitor's own cookies; the shell's three cookies (`a`, `f`, `s`) are filtered out, because they are
-the shell's identity and one visitor's state rather than anything a page owns. `IContext` is the
-surface every page has — `Request`, `Path`, `EditorPath`, `User`, `Aborted`,
-`Log`/`LogWarning`/`LogError`, `Write`/`WriteRaw`, `SetStatus`, `SetContentType`, `SetHeader`,
-`AllowScripts`, `AssetUrl`, `Redirect`, `RedirectToLogin`, `AntiforgeryField` and `Capabilities`.
+the shell's identity and one visitor's state rather than anything a page owns. `IContext` is what a
+page reads and asks for — `Request`, `Path`, `EditorPath`, `User`, `Aborted`,
+`Log`/`LogWarning`/`LogError`, `AssetUrl`, `Capabilities` and `Response`. Everything a page writes
+goes through `ctx.Response`, an `IPageResponse`: `Write`/`WriteRaw`, `FlushAsync`, `SetStatus`,
+`SetContentType`, `SetHeader`, `AllowScripts`, `Redirect`, `RedirectToLogin` and `AntiforgeryField`
+(`pages-the-response-is-one-object`). It is contract rather than a capability, because every page has
+one, and a helper can take an `IPageResponse` parameter when all it needs is the output. The old
+spelling — `ctx.Write` and the rest — still compiles for one release and reports a `PAGE009` warning.
 `EditorPath` is the editor page's key, which `Pages:Editor:Key` decides, so a page that links to the
 editor uses it rather than naming the key.
 
@@ -144,7 +148,7 @@ Two rules keep the response safe:
 
 - The body is buffered by default. Status, content type and headers are applied after `HandleAsync`
   completes, so a page that throws sends the error page rather than half a document. A page can opt
-  into sending its body while it runs with `ctx.FlushAsync()`; the first flush is the commit point
+  into sending its body while it runs with `ctx.Response.FlushAsync()`; the first flush is the commit point
   (see [Streaming](#streaming)).
 - Headers are bounded by an allow-list in `PageResponseState`: `Content-Language` and any `X-` name.
   `Set-Cookie`, `Location`, `Content-Type`, the framing headers and the caching headers
@@ -168,7 +172,7 @@ carry one, and a buffered `HEAD` retains the representation length; a streamed o
 
 ### Streaming
 
-A page can send its body while it runs by calling `await ctx.FlushAsync()`. The first flush is the
+A page can send its body while it runs by calling `await ctx.Response.FlushAsync()`. The first flush is the
 commit point and the whole of the opt-in:
 
 - The status, content type, headers and script policy are applied, `no-store` and any session or
@@ -212,26 +216,26 @@ instead:
 <%
 IHttpFetch fetch = ctx.Capabilities.GetRequired<IHttpFetch>();
 ctx.Capabilities.GetRequired<IPageLayout>().Layout = null;
-ctx.SetContentType("text/event-stream; charset=utf-8");
-ctx.SetHeader("X-Accel-Buffering", "no");
-ctx.WriteRaw(": connected\n\n");
-await ctx.FlushAsync();
+ctx.Response.SetContentType("text/event-stream; charset=utf-8");
+ctx.Response.SetHeader("X-Accel-Buffering", "no");
+ctx.Response.WriteRaw(": connected\n\n");
+await ctx.Response.FlushAsync();
 
 HttpFetchStream upstream = await fetch.StreamAsync(
     new HttpFetchRequest("https://api.example.com/events"));
 try {
     string? line;
     while ((line = await upstream.ReadLineAsync()) is not null) {
-        ctx.WriteRaw($"data: {line}\n\n");
-        await ctx.FlushAsync();
+        ctx.Response.WriteRaw($"data: {line}\n\n");
+        await ctx.Response.FlushAsync();
     }
 
     string? failure = upstream.Truncated
         ? "truncated"
         : upstream.Failure == HttpFetchFailure.None ? null : upstream.Failure.ToString();
     if (failure is not null) {
-        ctx.WriteRaw($"event: error\ndata: {failure}\n\n");
-        await ctx.FlushAsync();
+        ctx.Response.WriteRaw($"event: error\ndata: {failure}\n\n");
+        await ctx.Response.FlushAsync();
     }
 } finally {
     await upstream.CloseAsync();
@@ -255,7 +259,7 @@ of one, started by a page:
 <%
 IPageJobs jobs = ctx.Capabilities.GetRequired<IPageJobs>();
 PageJobStart start = await jobs.StartAsync("/_work/answer", "the question");
-if (!start.Started) { ctx.Write("Could not start: " + start.Refusal); return; }
+if (!start.Started) { ctx.Response.Write("Could not start: " + start.Refusal); return; }
 %>
 <p>Started <%= start.Id %>.</p>
 ```

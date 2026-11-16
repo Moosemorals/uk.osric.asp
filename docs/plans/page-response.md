@@ -53,8 +53,8 @@ is exactly what `PAGE005` did for `ctx.Features`, and `PAGE009` is the next free
 
 1. `IContext` declares ten members and one of them is `Response`; `IPageResponse` declares the ten
    that shape the response, and `SimpleResponse` is the object behind it.
-2. A page's helper can take `IPageResponse`; the generated handler, the API policy and
-   `IHandler.HandleAsync` do not change.
+2. A page's helper can take `IPageResponse`; `IHandler.HandleAsync`, its `IContext` parameter, the
+   API policy and `PAGE002` do not change.
 3. A stored page that still says `ctx.Write` compiles, is served, and shows one `PAGE009` warning at the
    line that says it — so the owner's unedited pages keep working and the editor shows what to change.
 4. Every seeded page, `/help`, the assistant's prompt and every test template say `ctx.Response`, so
@@ -240,7 +240,10 @@ One branch, three commits, so each can be read alone:
   a declaration-block helper taking `IPageResponse` compiles; every seeded page compiles with no
   `PAGE009`; the prompt lists every member of both interfaces and never teaches the old spelling.
 - The proof that behaviour did not move is that no existing test changes what it asserts — the wire is
-  the same value, and the integration suites exercise it through the real host. The gate tests that
+  the same value, and the integration suites exercise it through the real host. One assertion does
+  move: a call-level diagnostic inside a write now reports nine columns further right, because the
+  emitted call is `ctx.Response.Write(` and the compiler names the member (`Write`). Expression errors
+  keep their exact position, and the test says why. The gate tests that
   move to `SimpleResponseTests` (the three layout, the four refusals, settings-after-the-flush) keep
   their names and their assertions.
 
@@ -291,3 +294,32 @@ One branch, three commits, so each can be read alone:
 - Making the response a capability.
 - Anything a page can do that it could not do yesterday: the same ten operations, reached one step
   further away.
+
+## Status
+
+Built 2026-11-16 on `idea-048`, in two commits, and waiting for the merge. The contract, the object, the generator, the seeds, the manual, the prompt and the test templates are one commit, because the generator writes the page source and the seeds are the examples: splitting them would land a revision where every page warns.
+
+**What landed.** `IPageResponse` declares the ten response members and `IContext` declares
+`Response`; the ten old members stay as `[Obsolete]` default interface members under `PAGE009`, one
+implementation that delegates to `Response`. `SimpleResponse` is the object behind it, over
+`PageResponseState` and `PageBody`, and owns the commit gate, the layout no-op, the four stream
+refusals, the antiforgery mint and the sign-in redirect. `SimpleContext` is 215 lines and holds the
+request, the identity, the logging, `AssetUrl`, the capability registry, `Response`, and the two
+members that make the response and the capabilities agree.
+
+**The migration.** Seven seeded pages and `/help` (108 uses), the assistant's prompt (prose, examples,
+a contract section that now lists both interfaces, and `page-author-v35`), 48 test files, and every
+live doc. The generated source changed with them: `TemplateSourceGenerator` emits
+`ctx.Response.Write(` and `ctx.Response.WriteRaw(`, which is why every page — not just the pages that
+wrote the old spelling — would otherwise have warned.
+
+**What proved it.** 845 + 180 + 1931 + 241 green, `make format-check`, `make decisions` and
+`make license-check` clean. New tests pin the three things the change is: a page that writes through
+`ctx.Response` compiles with no diagnostics, a page that writes through `ctx` compiles with exactly one
+`PAGE009` at `Warning`, and a declaration-block helper can take an `IPageResponse`. The eight gate
+tests moved to `SimpleResponseTests` with their names and assertions; `SimpleContextTests` keeps the
+content-type mapping, the identity and the logging.
+
+**What is unsure.** The shims are the point and the risk: they are visible nowhere except the store's
+warnings, and IDEA-049 is what removes them. `PAGE009`'s column shift (above) is the one observable
+behaviour change. `page-move`'s plan claimed `page-author-v35` first and now says v36.

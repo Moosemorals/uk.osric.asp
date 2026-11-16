@@ -265,7 +265,7 @@ Task<PageMoveResult> MoveAsync(string from, string to, string expectedHash);
 | `src/uk.osric.asp.Web/Pages/PageWritesScope.cs` | `MoveAsync`: the checks and the mapping of the store's answer to `PageMoveResult`, then `Acted()` |
 | `src/uk.osric.asp.Web/Pages/Seeds/pages` | The Move action, its confirmation, and the own-row hiding |
 | `src/uk.osric.asp.Web/Pages/Seeds/help` | The write section, and one sentence in the editor section |
-| `src/uk.osric.asp.Web/Assistant/PageAuthorPrompt.cs` | The move paragraph, and `Version` → `page-author-v35` |
+| `src/uk.osric.asp.Web/Assistant/PageAuthorPrompt.cs` | The move paragraph, and `Version` → `page-author-v36` |
 | `docs/pages.md`, `docs/storage.md` | The capability; the move's transaction and what it leaves behind |
 | `docs/jobs/IDEA-042.md`, `docs/plans/ide-host.md` | The plan pointer and the intended name |
 | `docs/decisions.md` | At the merge only (below) |
@@ -317,7 +317,7 @@ transaction is proved):
 `TheConfirmationSaysTheOldKeyStopsAnsweringAsync`.
 
 **The prompt and the manual** (`PageAuthorPromptTests`, `HelpReferenceLinksTests`): the version
-assertion moves to `page-author-v35`, the prompt contains `MoveAsync`, and every `/help` link still
+assertion moves to `page-author-v36`, the prompt contains `MoveAsync`, and every `/help` link still
 names a documented member — the new anchor is `#m-IPageWrites.MoveAsync`.
 
 **Over the real host** (`Web.IntegrationTests`, a new `PageMoveTests` beside `PageWritesTests`): a
@@ -370,7 +370,7 @@ One branch, one gate, five commits, each readable on its own.
 2. **The capability.** `PageMoveOutcome`, `PageMoveResult`, `IPageWrites.MoveAsync`, the public API,
    `PageEditor`, `PageWritesScope`, `FakePageStore`, and the scope's tests.
 3. **The editor.** The Move action, its confirmation, and the editor and integration tests.
-4. **The manual and the prompt.** `/help`'s two sections, `PageAuthorPrompt` and `page-author-v35`, and
+4. **The manual and the prompt.** `/help`'s two sections, `PageAuthorPrompt` and `page-author-v36`, and
    their tests.
 5. **The docs.** [pages](../pages.md), [storage](../storage.md), [IDEA-042](../jobs/IDEA-042.md), and
    the slice-6 pointer in [the IDE plan](ide-host.md).
