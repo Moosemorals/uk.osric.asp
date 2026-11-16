@@ -288,8 +288,8 @@ internal static class PageAuthorPrompt {
         that page. A listing is bounded by the site's configured row cap and one
         render may read a bounded amount of template across the page and its
         layouts; both are refusals, not truncations, and the refusal names the
-        limit. The seeded `/recent` is a public listing and the seeded `/pages`
-        guards the same read.
+        limit. The seeded `/pages` is a guarded listing, a source view and a
+        history: the read with the one guard a private page writes.
 
         ## Writing the page store
         `ctx.Capabilities.GetRequired<IPageWrites>()` is the store's write
@@ -330,9 +330,8 @@ internal static class PageAuthorPrompt {
         install spends the one action. A page that shows its own source reads
         it with `IPageCatalog.ReadAsync(ctx.Path)`, and compares that hash with
         the one the form carried when it wants to refuse a stale form. The
-        seeded `/scratch` is the worked example of the bound save and the
-        seeded `/pages` of the rest. A layout is offered the read and not the
-        write.
+        seeded `/pages` is the worked example of every write. A layout is
+        offered the read and not the write.
 
         ## Markdown
         A page renders Markdown through `ctx.Capabilities.GetRequired<IMarkdownRenderer>()`

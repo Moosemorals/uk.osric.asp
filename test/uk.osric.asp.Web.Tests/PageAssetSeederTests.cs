@@ -9,7 +9,7 @@ using uk.osric.asp.Web.Pages;
 [TestFixture]
 public sealed class PageAssetSeederTests {
 
-    private static readonly string[] SeedPaths = ["/_layout", "/_lib/document", "/_lib/editor", "/about", "/assistant.css", "/assistant.js", "/editor-mode", "/editor.css", "/editor.js", "/help", "/pages", "/privacy", "/recent", "/scratch", "/site.css", "/sortable.css", "/sortable.js", "/vim-help", "/vim.css", "/vim.js"];
+    private static readonly string[] SeedPaths = ["/_layout", "/_lib/document", "/_lib/editor", "/about", "/assistant.css", "/assistant.js", "/editor-mode", "/editor.css", "/editor.js", "/help", "/pages", "/privacy", "/site.css", "/sortable.css", "/sortable.js", "/vim-help", "/vim.css", "/vim.js"];
 
     private static readonly PageSeeds Pack = new(Path.Combine(AppContext.BaseDirectory, "Pages", "Seeds"));
 
@@ -157,17 +157,6 @@ public sealed class PageAssetSeederTests {
         Assert.That(template, Does.Not.Contain("ctx.User"), "the privacy page is public");
     }
 
-    [Test]
-    public async Task ThePublicListingIsAReachableFragment() {
-        string? template = TestOptions.SeedSource(PagePath.Normalize("/recent"));
-
-        Assert.That(template, Is.Not.Null);
-        Assert.That(template, Does.Not.Contain("<!DOCTYPE"));
-        Assert.That(template, Does.Contain("<h1>Recent changes</h1>"));
-        Assert.That(template, Does.Contain("IPageCatalog"));
-        Assert.That(template, Does.Contain("href=\"<%= ctx.EditorPath %>"), "the editor link follows the configured key");
-        Assert.That(template, Does.Not.Contain("RedirectToLogin"), "a public listing must not guard itself");
-    }
 
     [Test]
     public async Task TheGuardedPageGuardsItself() {
@@ -182,20 +171,6 @@ public sealed class PageAssetSeederTests {
         Assert.That(template, Does.Contain("ctx.AntiforgeryField"), "every form is checked by the host");
     }
 
-    [Test]
-    public async Task TheDraftShowsItsOwnSourceAndSavesItself() {
-        string? template = TestOptions.SeedSource(PagePath.Normalize("/scratch"));
-
-        Assert.That(template, Is.Not.Null);
-        Assert.That(template, Does.Not.Contain("<!DOCTYPE"));
-        Assert.That(template, Does.Contain("<h1>Scratch</h1>"));
-        Assert.That(template, Does.Contain("if (ctx.User is not { } user) { ctx.RedirectToLogin(); return; }"),
-            "the draft guards its own view, so an anonymous visitor is sent to sign in");
-        Assert.That(template, Does.Contain("IPageCatalog").And.Contain("IPageWrites"));
-        Assert.That(template, Does.Contain("name=\"template\""));
-        Assert.That(template, Does.Contain("ctx.AntiforgeryField"));
-        Assert.That(template, Does.Contain("href=\"/help#writing\""));
-    }
 
     [Test]
     public async Task TheLayoutSeedIsAPageTheOwnerCanEdit() {
