@@ -13,7 +13,7 @@ SPDX-License-Identifier: MIT
 | Location | `src/uk.osric.asp.Core/`, `src/uk.osric.asp.Sdk/`, `src/uk.osric.asp.Runtime/`, `src/uk.osric.asp.Web/Pages/`, `src/uk.osric.asp.Web/Work/`, `deploy/Caddyfile`, `src/uk.osric.asp.Web/Pages/Seeds/help` |
 | Spike | None. The assistant proves the long response, the upstream stream and work that outlives a request; the worker kind is the compiler's existing page/library split with an entry point instead of a handler |
 | Decisions | Named in prose; the names are taken when the work merges (`product-plan-before-building`, `product-decisions-have-names`, `product-steps-wait-for-the-owner`) |
-| Backlog | [IDEA-025](../../jobs/IDEA-025.md) (the assistant as a page, re-scoped by this plan), [IDEA-033](../../jobs/IDEA-033.md) (a page has no per-account store), [the streaming plan](../page-streaming.md) (ARCH-13, where a page learned to stream but not to keep the stream) |
+| Backlog | [IDEA-025](../../jobs/IDEA-025.md) (the assistant as a page, re-scoped by this plan), [IDEA-033](../../jobs/IDEA-033.md) (a page has no per-account store), [the streaming plan](page-streaming.md) (ARCH-13, where a page learned to stream but not to keep the stream) |
 
 ## The short version
 
@@ -77,7 +77,7 @@ save, page libraries.
 
 ### 1. A stream dies with the render budget
 
-A page can commit its response with `ctx.FlushAsync()` ([the streaming plan](../page-streaming.md)), but
+A page can commit its response with `ctx.FlushAsync()` ([the streaming plan](page-streaming.md)), but
 the render deadline still measures the whole request: five seconds by default, sixty at most. A stream
 also holds one of the two render slots for its entire life, so two live viewers stop the site serving
 pages.

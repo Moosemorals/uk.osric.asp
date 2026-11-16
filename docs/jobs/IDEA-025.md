@@ -34,7 +34,7 @@ that is page-shaped. Two things are not:
 
 1. **A live run is a stream.** The page subscribes to `GET /assistant/{id}/events` and renders deltas
    as they arrive, so a long answer appears while it is being written. A page can now stream its own
-   response ([the streaming plan](../plans/page-streaming.md)), so the response shape is no longer the
+   response ([the streaming plan](../plans/archive/page-streaming.md)), so the response shape is no longer the
    blocker; the run's journal, its live subscribers and its lifetime are.
 2. **Starting, stopping and approving are host actions.** A message queues a run (`RunQueue`), a stop
    signals the registry (`RunRegistry`), and an approval resolves a waiter in
