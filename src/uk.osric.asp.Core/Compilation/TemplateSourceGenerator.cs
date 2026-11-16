@@ -235,9 +235,7 @@ public static class TemplateSourceGenerator {
             ?? throw new InvalidOperationException("A write token has no opener position.");
         string expression = NormalizeWriteExpression(token);
         int leadingWhitespaceLength = token.Value.Length - token.Value.TrimStart().Length;
-        TemplatePosition expressionPosition = TemplateLines.Advance(
-            token.Position,
-            token.Value[..leadingWhitespaceLength]);
+        TemplatePosition expressionPosition = token.Position.Advance(token.Value[..leadingWhitespaceLength]);
 
         // Both mapped regions in a write - the opener's `ctx.Response.Write(` and the expression - belong to
         // the page, so one enable covers them and one disable closes them.

@@ -65,7 +65,7 @@ internal static class ShellRoutes {
     /// <summary>The record a read of this key returns.</summary>
     /// <param name="path">A canonical, reserved key.</param>
     /// <remarks>No trailing line break: the description is the last line, so five lines really are five.</remarks>
-    public static string Text(PagePath path) {
+    public static string ShellText(this PagePath path) {
         ArgumentNullException.ThrowIfNull(path);
 
         ShellRoute? route = All.FirstOrDefault(item => string.Equals(item.Path, path.Key, StringComparison.Ordinal));

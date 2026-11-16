@@ -23,6 +23,6 @@ public readonly record struct PageScope(PagePath Path, bool IncludeSelf, bool Re
             return true;
         }
 
-        return Recursive ? PageTree.IsBelow(key, Path) : PageTree.IsDirectlyBelow(key, Path);
+        return Recursive ? key.IsBelow(Path) : key.IsDirectlyBelow(Path);
     }
 }

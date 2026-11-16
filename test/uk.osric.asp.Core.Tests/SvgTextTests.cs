@@ -15,6 +15,6 @@ public sealed class SvgTextTests {
     [TestCase("a & b", "a &amp; b")]
     [TestCase("\"quoted\"", "&quot;quoted&quot;")]
     public void TextIsEncodedForMarkup(string? value, string expected) {
-        Assert.That(SvgText.Escape(value), Is.EqualTo(expected));
+        Assert.That(value.Escape(), Is.EqualTo(expected));
     }
 }

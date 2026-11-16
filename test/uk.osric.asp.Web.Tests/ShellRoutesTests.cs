@@ -21,7 +21,7 @@ public sealed class ShellRoutesTests {
 
     [Test]
     public void ARecordIsOneFactPerLine() {
-        string[] lines = ShellRoutes.Text(PagePath.Normalize("/login")).Split('\n');
+        string[] lines = PagePath.Normalize("/login").ShellText().Split('\n');
 
         Assert.Multiple(() => {
             Assert.That(lines, Has.Length.EqualTo(5), "so a line number from grep or read_page is stable");
@@ -48,7 +48,7 @@ public sealed class ShellRoutesTests {
     [Test]
     public void EveryRecordReadsAsARecord() {
         foreach (ShellRoute route in ShellRoutes.All) {
-            string text = ShellRoutes.Text(PagePath.Normalize(route.Path));
+            string text = PagePath.Normalize(route.Path).ShellText();
 
             Assert.That(text, Does.StartWith(route.Path + "\n"));
             Assert.That(text, Does.Contain("methods: " + route.Methods));
@@ -58,7 +58,7 @@ public sealed class ShellRoutesTests {
 
     [Test]
     public void AnUndescribedReservedKeyGetsTheFallbackRecord() {
-        string text = ShellRoutes.Text(PagePath.Normalize("/extra"));
+        string text = PagePath.Normalize("/extra").ShellText();
 
         Assert.Multiple(() => {
             Assert.That(text.Split('\n'), Has.Length.EqualTo(3));

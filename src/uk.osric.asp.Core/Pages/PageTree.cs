@@ -19,7 +19,7 @@ public static class PageTree {
     /// not a whole segment (<c>/ab</c> for <c>/a</c>) is another key. Every key but the root is below
     /// the root.
     /// </returns>
-    public static bool IsBelow(PagePath key, PagePath folder) {
+    public static bool IsBelow(this PagePath key, PagePath folder) {
         ArgumentNullException.ThrowIfNull(key);
         ArgumentNullException.ThrowIfNull(folder);
 
@@ -31,8 +31,8 @@ public static class PageTree {
     /// <summary>Whether a key is an entry of a path: below it, and no deeper than one segment.</summary>
     /// <param name="key">The key to test.</param>
     /// <param name="folder">The path to test it against.</param>
-    public static bool IsDirectlyBelow(PagePath key, PagePath folder) {
-        if (!IsBelow(key, folder)) {
+    public static bool IsDirectlyBelow(this PagePath key, PagePath folder) {
+        if (!key.IsBelow(folder)) {
             return false;
         }
 

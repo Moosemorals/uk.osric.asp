@@ -32,9 +32,9 @@ public sealed class MetricNamesTests : IntegrationTest {
         foreach (Panel panel in StatusCatalogue.Panels.Where(panel => panel.InstrumentName is not null)) {
             MetricInstrument instrument = instruments.Single(candidate => candidate.Name == panel.InstrumentName);
             string family = instrument.Kind switch {
-                InstrumentKind.Histogram => PrometheusNames.Buckets(instrument),
-                InstrumentKind.Counter => PrometheusNames.Total(instrument),
-                _ => PrometheusNames.Family(instrument),
+                InstrumentKind.Histogram => instrument.Buckets(),
+                InstrumentKind.Counter => instrument.Total(),
+                _ => instrument.Family(),
             };
 
             Assert.That(body, Does.Contain(family),
@@ -45,7 +45,7 @@ public sealed class MetricNamesTests : IntegrationTest {
             foreach (string source in panel.SourceInstruments) {
                 MetricInstrument instrument = instruments.Single(candidate => candidate.Name == source);
 
-                Assert.That(body, Does.Contain(PrometheusNames.Sum(instrument)),
+                Assert.That(body, Does.Contain(instrument.Sum()),
                     $"{panel.Id} composes {source}, whose observations sum the exporter does not write");
             }
         }

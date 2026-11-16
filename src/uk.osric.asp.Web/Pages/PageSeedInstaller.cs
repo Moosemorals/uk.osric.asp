@@ -72,7 +72,7 @@ internal static class PageSeedInstaller {
                 seed.Path,
                 seed.Source,
                 seed.Hash,
-                SeedVerdictWords.Describe(comparison, seed.Hash),
+                comparison.Describe(seed.Hash),
                 HoldsSeed: string.Equals(head.ContentHash, seed.Hash, StringComparison.Ordinal)));
         }
 

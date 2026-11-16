@@ -36,7 +36,7 @@ public static class StackedAreaChart {
     /// <exception cref="ArgumentOutOfRangeException">The size leaves no room to plot in.</exception>
     /// <exception cref="ArgumentException">A value is negative, which a stack cannot draw.</exception>
     public static string Render(
-        IReadOnlyList<ChartSeries> series,
+        this IReadOnlyList<ChartSeries> series,
         ChartTimeAxis x,
         ChartAxis y,
         ChartSize size,
@@ -50,7 +50,7 @@ public static class StackedAreaChart {
         IReadOnlyList<ChartSeries> ordered = [.. series.OrderBy(line => line.Label, StringComparer.Ordinal)];
 
         StringBuilder svg = new();
-        ChartPlot plot = ChartChrome.BeginPlot(svg, size, "stacked", frame, ChartChrome.Describe(x, y),
+        ChartPlot plot = svg.BeginPlot(size, "stacked", frame, x.Describe(y),
             [.. ordered.Select(line => line.Label)], out IReadOnlyList<LegendEntry> legend);
 
         IReadOnlyList<ChartPoint> timeline = Timeline(ordered);
@@ -62,13 +62,13 @@ public static class StackedAreaChart {
         IReadOnlyList<ChartTick> ticks = NiceTicks.ForValue(0, max > 0 ? max : 1);
         double axisMax = Math.Max(max > 0 ? max : 1, ticks.Count == 0 ? 1 : ticks.Max(tick => tick.Position));
 
-        ChartChrome.WriteAxisTitle(svg, y.Title, plot);
-        ChartChrome.WriteValueGrid(svg, ticks, plot, tick => plot.Value(tick, 0, axisMax));
-        ChartChrome.WriteTimeGrid(svg, x, plot, size);
-        ChartChrome.Border(svg, plot);
+        svg.WriteAxisTitle(y.Title, plot);
+        svg.WriteValueGrid(ticks, plot, tick => plot.Value(tick, 0, axisMax));
+        svg.WriteTimeGrid(x, plot, size);
+        svg.Border(plot);
 
         if (max <= 0) {
-            ChartChrome.Empty(svg, plot, frame.EmptyText);
+            svg.Empty(plot, frame.EmptyText);
             svg.Append("</svg>\n");
 
             return svg.ToString();
@@ -90,7 +90,7 @@ public static class StackedAreaChart {
 
             List<(double X, double Below, double Top)> band = Visible(timeline, below, tops, x, plot, axisMax);
 
-            ChartChrome.BeginSeries(svg, frame, index, line.Label, legend[index]);
+            svg.BeginSeries(frame, index, line.Label, legend[index]);
             if (band.Count > 0) {
                 svg.Append("<path class=\"series area ").Append(SvgText.SeriesColour(index))
                     .Append("\" d=\"").Append(Area(band))
@@ -102,7 +102,7 @@ public static class StackedAreaChart {
                     .Append("\" stroke-width=\"2\"").Append(dash).Append("/>\n");
             }
 
-            ChartChrome.EndSeries(svg);
+            svg.EndSeries();
 
             WriteEndLabel(svg, line.Label, colour, band);
             below = tops;
@@ -133,7 +133,7 @@ public static class StackedAreaChart {
             .Append("\" y=\"").Append(SvgText.Number(y + (4 * SvgText.TypeScale)))
             .Append("\" font-size=\"").Append(SvgText.Number(ChartChrome.SeriesFontSize))
             .Append("\" fill=\"").Append(colour).Append("\" text-anchor=\"end\">")
-            .Append(SvgText.Escape(label)).Append("</text>\n");
+            .Append(label.Escape()).Append("</text>\n");
     }
 
     // Where each column of the band sits in the plot, cut to the window so an overshoot ends at the

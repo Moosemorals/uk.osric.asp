@@ -34,7 +34,7 @@ public static class MemoryKinds {
     /// <summary>The stored and provider-visible name of a kind: its lower-case name.</summary>
     /// <param name="kind">The kind to name.</param>
     /// <returns>The name the database column and the tool schema use.</returns>
-    public static string Name(MemoryKind kind) => kind switch {
+    public static string Name(this MemoryKind kind) => kind switch {
         MemoryKind.Preference => "preference",
         MemoryKind.Fact => "fact",
         MemoryKind.Feedback => "feedback",
@@ -48,7 +48,7 @@ public static class MemoryKinds {
     /// <returns>Whether the name was a kind.</returns>
     public static bool TryParse(string? text, out MemoryKind kind) {
         foreach (MemoryKind candidate in s_all) {
-            if (string.Equals(Name(candidate), text?.Trim(), StringComparison.OrdinalIgnoreCase)
+            if (string.Equals(candidate.Name(), text?.Trim(), StringComparison.OrdinalIgnoreCase)
                 || string.Equals(candidate.ToString(), text?.Trim(), StringComparison.OrdinalIgnoreCase)) {
                 kind = candidate;
                 return true;

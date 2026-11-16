@@ -18,7 +18,7 @@ public sealed class LoginRedirectTests {
     [TestCase("/search", "?q=a%20b", "/search?q=a%20b")]
     [TestCase("/caf\u00e9", "", "/caf\u00e9")]
     public void TheReturnTargetKeepsTheCanonicalPathAndTheRawQuery(string path, string query, string expected) {
-        string target = LoginRedirect.For(PagePath.Normalize(path), new QueryString(query));
+        string target = PagePath.Normalize(path).LoginUrl(new QueryString(query));
 
         Assert.That(target, Does.StartWith("/login?returnUrl="));
         Assert.That(ReturnUrl(target), Is.EqualTo(expected));
@@ -26,7 +26,7 @@ public sealed class LoginRedirectTests {
 
     [Test]
     public void TheReturnTargetIsLocalSoTheLoginFormAcceptsIt() {
-        string target = LoginRedirect.For(PagePath.Normalize("/private"), new QueryString("?q=1"));
+        string target = PagePath.Normalize("/private").LoginUrl(new QueryString("?q=1"));
 
         Assert.That(LocalRedirect.IsSafe(ReturnUrl(target)), Is.True);
     }

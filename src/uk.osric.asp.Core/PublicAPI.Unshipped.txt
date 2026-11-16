@@ -81,7 +81,7 @@ static uk.osric.asp.Core.Assistant.MemoryContentResult.Refused(string! error) ->
 static uk.osric.asp.Core.Assistant.MemoryGroup.operator !=(uk.osric.asp.Core.Assistant.MemoryGroup? left, uk.osric.asp.Core.Assistant.MemoryGroup? right) -> bool
 static uk.osric.asp.Core.Assistant.MemoryGroup.operator ==(uk.osric.asp.Core.Assistant.MemoryGroup? left, uk.osric.asp.Core.Assistant.MemoryGroup? right) -> bool
 static uk.osric.asp.Core.Assistant.MemoryKinds.All.get -> System.Collections.Generic.IReadOnlyList<uk.osric.asp.Core.Assistant.MemoryKind>!
-static uk.osric.asp.Core.Assistant.MemoryKinds.Name(uk.osric.asp.Core.Assistant.MemoryKind kind) -> string!
+static uk.osric.asp.Core.Assistant.MemoryKinds.Name(this uk.osric.asp.Core.Assistant.MemoryKind kind) -> string!
 static uk.osric.asp.Core.Assistant.MemoryKinds.Parse(string? text) -> uk.osric.asp.Core.Assistant.MemoryKind
 static uk.osric.asp.Core.Assistant.MemoryKinds.TryParse(string? text, out uk.osric.asp.Core.Assistant.MemoryKind kind) -> bool
 static uk.osric.asp.Core.Assistant.MemoryListing.Group(System.Collections.Generic.IReadOnlyList<uk.osric.asp.Core.Assistant.MemoryCandidate!>! memories) -> System.Collections.Generic.IReadOnlyList<uk.osric.asp.Core.Assistant.MemoryGroup!>!
@@ -97,12 +97,14 @@ static uk.osric.asp.Core.Charting.ChartTimeAxis.operator !=(uk.osric.asp.Core.Ch
 static uk.osric.asp.Core.Charting.ChartTimeAxis.operator ==(uk.osric.asp.Core.Charting.ChartTimeAxis? left, uk.osric.asp.Core.Charting.ChartTimeAxis? right) -> bool
 *REMOVED*static uk.osric.asp.Core.Charting.Heatmap.Render(System.Collections.Generic.IReadOnlyList<uk.osric.asp.Core.Charting.HeatmapRow!>! rows, uk.osric.asp.Core.Charting.ChartAxis! x, uk.osric.asp.Core.Charting.ChartSize size, string! title, string! yTitle, string! valueUnit) -> string!
 *REMOVED*static uk.osric.asp.Core.Charting.Heatmap.Render(System.Collections.Generic.IReadOnlyList<uk.osric.asp.Core.Charting.HeatmapRow!>! rows, uk.osric.asp.Core.Charting.ChartAxis! x, uk.osric.asp.Core.Charting.ChartSize size, uk.osric.asp.Core.Charting.ChartFrame! frame, string! valueUnit) -> string!
-static uk.osric.asp.Core.Charting.Heatmap.Render(System.Collections.Generic.IReadOnlyList<uk.osric.asp.Core.Charting.HeatmapRow!>! rows, uk.osric.asp.Core.Charting.ChartTimeAxis! x, uk.osric.asp.Core.Charting.ChartSize size, uk.osric.asp.Core.Charting.ChartFrame! frame, string! valueUnit) -> string!
+*REMOVED*static uk.osric.asp.Core.Charting.Heatmap.FromCumulative(System.Collections.Generic.IReadOnlyList<uk.osric.asp.Core.Charting.HeatmapRow!>! cumulative) -> System.Collections.Generic.IReadOnlyList<uk.osric.asp.Core.Charting.HeatmapRow!>!
+static uk.osric.asp.Core.Charting.Heatmap.FromCumulative(this System.Collections.Generic.IReadOnlyList<uk.osric.asp.Core.Charting.HeatmapRow!>! cumulative) -> System.Collections.Generic.IReadOnlyList<uk.osric.asp.Core.Charting.HeatmapRow!>!
+static uk.osric.asp.Core.Charting.Heatmap.Render(this System.Collections.Generic.IReadOnlyList<uk.osric.asp.Core.Charting.HeatmapRow!>! rows, uk.osric.asp.Core.Charting.ChartTimeAxis! x, uk.osric.asp.Core.Charting.ChartSize size, uk.osric.asp.Core.Charting.ChartFrame! frame, string! valueUnit) -> string!
 *REMOVED*static uk.osric.asp.Core.Charting.LineChart.Render(System.Collections.Generic.IReadOnlyList<uk.osric.asp.Core.Charting.ChartSeries!>! series, uk.osric.asp.Core.Charting.ChartAxis! x, uk.osric.asp.Core.Charting.ChartAxis! y, uk.osric.asp.Core.Charting.ChartSize size) -> string!
 *REMOVED*static uk.osric.asp.Core.Charting.LineChart.Render(System.Collections.Generic.IReadOnlyList<uk.osric.asp.Core.Charting.ChartSeries!>! series, uk.osric.asp.Core.Charting.ChartAxis! x, uk.osric.asp.Core.Charting.ChartAxis! y, uk.osric.asp.Core.Charting.ChartSize size, uk.osric.asp.Core.Charting.ChartFrame! frame) -> string!
-static uk.osric.asp.Core.Charting.LineChart.Render(System.Collections.Generic.IReadOnlyList<uk.osric.asp.Core.Charting.ChartSeries!>! series, uk.osric.asp.Core.Charting.ChartTimeAxis! x, uk.osric.asp.Core.Charting.ChartAxis! y, uk.osric.asp.Core.Charting.ChartSize size, uk.osric.asp.Core.Charting.ChartFrame! frame) -> string!
+static uk.osric.asp.Core.Charting.LineChart.Render(this System.Collections.Generic.IReadOnlyList<uk.osric.asp.Core.Charting.ChartSeries!>! series, uk.osric.asp.Core.Charting.ChartTimeAxis! x, uk.osric.asp.Core.Charting.ChartAxis! y, uk.osric.asp.Core.Charting.ChartSize size, uk.osric.asp.Core.Charting.ChartFrame! frame) -> string!
 *REMOVED*static uk.osric.asp.Core.Charting.StackedAreaChart.Render(System.Collections.Generic.IReadOnlyList<uk.osric.asp.Core.Charting.ChartSeries!>! series, uk.osric.asp.Core.Charting.ChartAxis! x, uk.osric.asp.Core.Charting.ChartAxis! y, uk.osric.asp.Core.Charting.ChartSize size, uk.osric.asp.Core.Charting.ChartFrame! frame) -> string!
-static uk.osric.asp.Core.Charting.StackedAreaChart.Render(System.Collections.Generic.IReadOnlyList<uk.osric.asp.Core.Charting.ChartSeries!>! series, uk.osric.asp.Core.Charting.ChartTimeAxis! x, uk.osric.asp.Core.Charting.ChartAxis! y, uk.osric.asp.Core.Charting.ChartSize size, uk.osric.asp.Core.Charting.ChartFrame! frame) -> string!
+static uk.osric.asp.Core.Charting.StackedAreaChart.Render(this System.Collections.Generic.IReadOnlyList<uk.osric.asp.Core.Charting.ChartSeries!>! series, uk.osric.asp.Core.Charting.ChartTimeAxis! x, uk.osric.asp.Core.Charting.ChartAxis! y, uk.osric.asp.Core.Charting.ChartSize size, uk.osric.asp.Core.Charting.ChartFrame! frame) -> string!
 static uk.osric.asp.Core.Diff.DiffDocument.operator !=(uk.osric.asp.Core.Diff.DiffDocument? left, uk.osric.asp.Core.Diff.DiffDocument? right) -> bool
 static uk.osric.asp.Core.Diff.DiffDocument.operator ==(uk.osric.asp.Core.Diff.DiffDocument? left, uk.osric.asp.Core.Diff.DiffDocument? right) -> bool
 static uk.osric.asp.Core.Diff.DiffHunk.operator !=(uk.osric.asp.Core.Diff.DiffHunk left, uk.osric.asp.Core.Diff.DiffHunk right) -> bool
@@ -113,13 +115,13 @@ static uk.osric.asp.Core.Diff.DiffLine.operator ==(uk.osric.asp.Core.Diff.DiffLi
 static uk.osric.asp.Core.Assistant.PageWrites.Written(bool changesPages, string? resultJson) -> uk.osric.asp.Core.Pages.PagePath?
 static uk.osric.asp.Core.Diff.LineDiff.Compare(string! before, string! after) -> uk.osric.asp.Core.Diff.DiffDocument!
 static uk.osric.asp.Core.Diff.LineDiff.Compare(string! before, string! after, int contextLines, bool ignoreSpaceChange) -> uk.osric.asp.Core.Diff.DiffDocument!
-static uk.osric.asp.Core.Diff.NormalDiff.Format(uk.osric.asp.Core.Diff.DiffDocument! diff) -> string!
-static uk.osric.asp.Core.Diff.UnifiedDiff.Format(uk.osric.asp.Core.Diff.DiffDocument! diff) -> string!
+static uk.osric.asp.Core.Diff.NormalDiff.ToNormal(this uk.osric.asp.Core.Diff.DiffDocument! diff) -> string!
+static uk.osric.asp.Core.Diff.UnifiedDiff.ToUnified(this uk.osric.asp.Core.Diff.DiffDocument! diff) -> string!
 static uk.osric.asp.Core.Markdown.LinkPolicy.IsAllowed(string? url) -> bool
 static uk.osric.asp.Core.Pages.PageMode.Describe(bool canWrite) -> string!
 static uk.osric.asp.Core.Pages.PageMode.DescribeFolder(bool canWrite) -> string!
 static uk.osric.asp.Core.Pages.PageGlob.IsMatch(string! pattern, string! key) -> bool
-static uk.osric.asp.Core.Pages.PageGlob.IsMatch(uk.osric.asp.Core.Shell.ShellWord! pattern, string! key) -> bool
+static uk.osric.asp.Core.Pages.PageGlob.IsMatch(this uk.osric.asp.Core.Shell.ShellWord! pattern, string! key) -> bool
 static uk.osric.asp.Core.Shell.ShellArgument.operator !=(uk.osric.asp.Core.Shell.ShellArgument? left, uk.osric.asp.Core.Shell.ShellArgument? right) -> bool
 static uk.osric.asp.Core.Shell.ShellArgument.operator ==(uk.osric.asp.Core.Shell.ShellArgument? left, uk.osric.asp.Core.Shell.ShellArgument? right) -> bool
 static uk.osric.asp.Core.Shell.ShellCommandLine.operator !=(uk.osric.asp.Core.Shell.ShellCommandLine? left, uk.osric.asp.Core.Shell.ShellCommandLine? right) -> bool
@@ -709,8 +711,8 @@ override uk.osric.asp.Core.Pages.PageScope.GetHashCode() -> int
 static uk.osric.asp.Core.Pages.PageScope.operator !=(uk.osric.asp.Core.Pages.PageScope left, uk.osric.asp.Core.Pages.PageScope right) -> bool
 static uk.osric.asp.Core.Pages.PageScope.operator ==(uk.osric.asp.Core.Pages.PageScope left, uk.osric.asp.Core.Pages.PageScope right) -> bool
 uk.osric.asp.Core.Pages.PageTree
-static uk.osric.asp.Core.Pages.PageTree.IsBelow(uk.osric.asp.Core.Pages.PagePath! key, uk.osric.asp.Core.Pages.PagePath! folder) -> bool
-static uk.osric.asp.Core.Pages.PageTree.IsDirectlyBelow(uk.osric.asp.Core.Pages.PagePath! key, uk.osric.asp.Core.Pages.PagePath! folder) -> bool
+static uk.osric.asp.Core.Pages.PageTree.IsBelow(this uk.osric.asp.Core.Pages.PagePath! key, uk.osric.asp.Core.Pages.PagePath! folder) -> bool
+static uk.osric.asp.Core.Pages.PageTree.IsDirectlyBelow(this uk.osric.asp.Core.Pages.PagePath! key, uk.osric.asp.Core.Pages.PagePath! folder) -> bool
 static uk.osric.asp.Core.Pages.PageTree.FolderOf(string! key) -> string?
 static uk.osric.asp.Core.Pages.PageTree.FoldersAbove(string! key) -> System.Collections.Generic.IReadOnlyList<string!>!
 uk.osric.asp.Core.Compilation.PageDiagnostic.Source.get -> string?

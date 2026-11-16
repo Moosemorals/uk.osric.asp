@@ -57,9 +57,9 @@ internal sealed class PageCatalogScope(
                 row.IsDeleted,
                 reserved.IsReserved(PagePath.Normalize(row.Key)),
                 IsHtml(row.Key)) {
-                IsAsset = PageAssetPolicy.IsAsset(row.TemplateKind),
-                IsLibrary = PageAssetPolicy.IsLibrary(row.TemplateKind),
-                IsWorker = PageAssetPolicy.IsWorker(row.TemplateKind),
+                IsAsset = row.TemplateKind.IsAsset(),
+                IsLibrary = row.TemplateKind.IsLibrary(),
+                IsWorker = row.TemplateKind.IsWorker(),
                 State = state.Describe(),
                 Seed = Describe(row),
             });
@@ -123,11 +123,10 @@ internal sealed class PageCatalogScope(
         if (seed is null) {
             return row.SeedHash is null
                 ? null
-                : SeedVerdictWords.Describe(SeedComparison.Of(row.SeedHash, null, row.ContentHash), null);
+                : SeedComparison.Of(row.SeedHash, null, row.ContentHash).Describe(null);
         }
 
-        return SeedVerdictWords.Describe(
-            SeedComparison.Of(row.SeedHash, seed.Hash, row.ContentHash), seed.Hash);
+        return SeedComparison.Of(row.SeedHash, seed.Hash, row.ContentHash).Describe(seed.Hash);
     }
 
     // "" and "/" is the whole store; anything else is a key, so case, a trailing slash and a dot

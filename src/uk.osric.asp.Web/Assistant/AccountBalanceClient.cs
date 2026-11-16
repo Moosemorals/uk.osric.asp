@@ -31,7 +31,7 @@ internal sealed class AccountBalanceClient(
         Uri endpoint = new(options.BaseUrl.TrimEnd('/') + BalancePath);
         using HttpRequestMessage message = new(HttpMethod.Get, endpoint);
         message.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
-        message.Headers.TryAddWithoutValidation("User-Agent", OutboundUserAgent.For(OutboundOrigin.Assistant));
+        message.Headers.TryAddWithoutValidation("User-Agent", OutboundOrigin.Assistant.UserAgent());
         if (options.RequireApiKey && !string.IsNullOrWhiteSpace(options.ApiKey)) {
             message.Headers.Authorization = new AuthenticationHeaderValue("Bearer", options.ApiKey);
         }

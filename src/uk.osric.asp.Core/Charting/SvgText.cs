@@ -54,7 +54,7 @@ public static class SvgText {
 
     /// <summary>Encodes text for an element body or an attribute value.</summary>
     /// <param name="value">The text, which may be null.</param>
-    internal static string Escape(string? value) => System.Net.WebUtility.HtmlEncode(value ?? string.Empty);
+    internal static string Escape(this string? value) => System.Net.WebUtility.HtmlEncode(value ?? string.Empty);
 
     /// <summary>Formats a coordinate or a value for an attribute, in the invariant culture.</summary>
     /// <param name="value">The number to write.</param>
@@ -78,7 +78,7 @@ public static class SvgText {
 
     /// <summary>Estimates the width of a label, for wrapping a legend without measuring text.</summary>
     /// <param name="text">The label.</param>
-    internal static double EstimateWidth(string text) => text.Length * CharacterWidth;
+    internal static double EstimateWidth(this string text) => text.Length * CharacterWidth;
 
     private static int Modulo(int value, int modulus) => ((value % modulus) + modulus) % modulus;
 }

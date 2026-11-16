@@ -57,7 +57,7 @@ internal static class ScrubEndpoint {
             <p>Scrubbing does not revoke already-running page code or remove browser/CDN copies, exported archives, database backups, or filesystem snapshots. Rotate exposed secrets and clean those copies separately. It cannot promise forensic erasure from SSDs or external copies.</p>
             """);
         await context.Response.WriteAsync($"""
-            <form method="post" action="{WebUtility.HtmlEncode(PageUrls.Scrub(path))}" class="form">
+            <form method="post" action="{WebUtility.HtmlEncode(path.Scrub())}" class="form">
                 {AntiforgeryField.Hidden(tokens)}
                 <dl>
                     <dt><label for="confirmation">Type {WebUtility.HtmlEncode(path.Key)} to confirm</label></dt>
@@ -65,7 +65,7 @@ internal static class ScrubEndpoint {
                 </dl>
                 <button type="submit">Permanently scrub</button>
             </form>
-            {ShellDocument.Nav("Confirmation navigation", [new(PageUrls.Editor(path, EditorPaths.Of(context.RequestServices)), "Cancel")], "editor-menu")}
+            {ShellDocument.Nav("Confirmation navigation", [new(path.Editor(EditorPaths.Of(context.RequestServices)), "Cancel")], "editor-menu")}
             """);
         await ShellDocument.EndAsync(context);
     }
@@ -88,7 +88,7 @@ internal static class ScrubEndpoint {
                 "editor.scrub_confirmation",
                 "Scrub was not confirmed",
                 $"The confirmation did not match {path.Key}, so nothing was removed. Type the page's key exactly to confirm.",
-                [new(PageUrls.Scrub(path), "Back to confirmation")]));
+                [new(path.Scrub(), "Back to confirmation")]));
             return;
         }
 
@@ -130,5 +130,5 @@ internal static class ScrubEndpoint {
             "editor.scrub_live_page",
             "Delete the page before scrubbing its history",
             $"Scrubbing removes the retained history of a deleted page, so {path.Key} has to be deleted first. Nothing was removed.",
-            [new(PageUrls.EditorCommand(path, "delete", EditorPaths.Of(context.RequestServices)), "Delete the page"), new(EditorPaths.Of(context.RequestServices), "Page list")]));
+            [new(path.EditorCommand("delete", EditorPaths.Of(context.RequestServices)), "Delete the page"), new(EditorPaths.Of(context.RequestServices), "Page list")]));
 }

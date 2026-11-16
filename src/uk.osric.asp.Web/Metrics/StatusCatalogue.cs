@@ -200,7 +200,7 @@ internal static class StatusCatalogue {
         Description = description,
         YTitle = yTitle,
         Chart = PanelChart.Heatmap,
-        Queries = [new PanelQuery($"sum by (le) (rate({PrometheusNames.Buckets(instrument)}[5m]))", string.Empty)],
+        Queries = [new PanelQuery($"sum by (le) (rate({instrument.Buckets()}[5m]))", string.Empty)],
         InstrumentName = instrument.Name,
         CellUnit = cellUnit,
     };
@@ -211,11 +211,11 @@ internal static class StatusCatalogue {
         // writes, which empties the panel rather than drawing it.
         string query = instrument.Kind == InstrumentKind.Gauge
             ? by is null
-                ? $"max({PrometheusNames.Family(instrument)})"
-                : $"max by ({by}) ({PrometheusNames.Family(instrument)})"
+                ? $"max({instrument.Family()})"
+                : $"max by ({by}) ({instrument.Family()})"
             : topk is null
-                ? $"sum(rate({PrometheusNames.Total(instrument)}[5m]))"
-                : $"topk(8, sum by ({topk}) (rate({PrometheusNames.Total(instrument)}[5m])))";
+                ? $"sum(rate({instrument.Total()}[5m]))"
+                : $"topk(8, sum by ({topk}) (rate({instrument.Total()}[5m])))";
 
         return new Panel {
             Id = instrument.Name,
@@ -236,7 +236,7 @@ internal static class StatusCatalogue {
         Description = description,
         YTitle = yTitle,
         Chart = PanelChart.StackedArea,
-        Queries = [new PanelQuery($"sum by ({split}) (rate({PrometheusNames.Total(instrument)}[5m]))", string.Empty)],
+        Queries = [new PanelQuery($"sum by ({split}) (rate({instrument.Total()}[5m]))", string.Empty)],
         InstrumentName = instrument.Name,
         PartsOfAWhole = split,
     };
@@ -255,10 +255,10 @@ internal static class StatusCatalogue {
 
         string query =
             "sum by (stage) (" +
-            $"label_replace(rate({PrometheusNames.Sum(wait)}[5m]), \"stage\", \"wait\", \"__name__\", \".*\")" +
-            $" or label_replace(rate({PrometheusNames.Sum(compile)}{{reason=\"lazy\"}}[5m]), \"stage\", \"load/compile\", \"__name__\", \".*\")" +
-            $" or label_replace(rate({PrometheusNames.Sum(load)}[5m]), \"stage\", \"load/compile\", \"__name__\", \".*\")" +
-            $" or label_replace(rate({PrometheusNames.Sum(invoke)}[5m]), \"stage\", \"render\", \"__name__\", \".*\")" +
+            $"label_replace(rate({wait.Sum()}[5m]), \"stage\", \"wait\", \"__name__\", \".*\")" +
+            $" or label_replace(rate({compile.Sum()}{{reason=\"lazy\"}}[5m]), \"stage\", \"load/compile\", \"__name__\", \".*\")" +
+            $" or label_replace(rate({load.Sum()}[5m]), \"stage\", \"load/compile\", \"__name__\", \".*\")" +
+            $" or label_replace(rate({invoke.Sum()}[5m]), \"stage\", \"render\", \"__name__\", \".*\")" +
             ")";
 
         return new Panel {
