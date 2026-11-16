@@ -18,7 +18,8 @@ internal sealed class PageEditorBrowserTests : BrowserTest {
         await Page.ClickAsync("button[type=submit]");
         await Page.WaitForURLAsync("**/pages?edit=**");
 
-        Assert.That(await Page.InputValueAsync("#template"), Is.Empty, "a new page starts empty");
+        Assert.That(await Page.InputValueAsync("#template"), Does.Contain("Wrap()"),
+            "a new page starts on the starter that declares the site layout, so it is a document from the first save");
     }
 
     [Test]

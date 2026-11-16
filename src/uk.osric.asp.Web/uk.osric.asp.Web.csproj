@@ -46,6 +46,11 @@ SPDX-License-Identifier: MIT
     <Content Remove="Pages/Seeds/**" />
     <None Remove="Pages/Seeds/**" />
     <Content Include="Pages/Seeds/**" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <!-- The web root is part of what the app serves. `dotnet publish` already carries it, and
+         `dotnet run` finds it through the static web assets manifest; a host started from the build
+         output, which is what the browser suite does, has neither, so the files are copied beside
+         the assembly. -->
+    <Content Update="wwwroot/**" CopyToOutputDirectory="PreserveNewest" />
     <!-- The image carries the licence and notice files, not just the repository: /admin/copyright
          reads them, and a container has no checkout. -->
     <None Include="../../THIRD-PARTY-NOTICES.md" Link="THIRD-PARTY-NOTICES.md" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />

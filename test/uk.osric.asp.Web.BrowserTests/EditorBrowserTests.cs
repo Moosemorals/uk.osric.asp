@@ -15,7 +15,10 @@ internal sealed class EditorBrowserTests : BrowserTest {
     [Test]
     public async Task ATypedLineAddsItsNumberAndADeletedOneTakesItAwayAsync() {
         await Page.GotoAsync($"pages?edit={Uri.EscapeDataString(UniquePath("gutter"))}");
-        await Assertions.Expect(Page.Locator("#gutter > span")).ToHaveCountAsync(1);
+        // A new page carries the editor's starter, so the first gutter the server renders has one
+        // number for each of its lines.
+        string starter = await Page.InputValueAsync("#template");
+        await Assertions.Expect(Page.Locator("#gutter > span")).ToHaveCountAsync(starter.Split('\n').Length);
 
         await Page.Locator("#template").FillAsync("one\ntwo\nthree");
         await Assertions.Expect(Page.Locator("#gutter > span")).ToHaveCountAsync(3);
@@ -203,8 +206,9 @@ internal sealed class EditorBrowserTests : BrowserTest {
         IPage page = await withoutScripts.NewPageAsync();
 
         await page.GotoAsync($"pages?edit={Uri.EscapeDataString(path)}");
-        // No module runs, so the gutter is the one the server rendered for the empty template.
-        await Assertions.Expect(page.Locator("#gutter > span")).ToHaveCountAsync(1);
+        // No module runs, so the gutter is the one the server rendered for the new page's starter.
+        string starter = await page.InputValueAsync("#template");
+        await Assertions.Expect(page.Locator("#gutter > span")).ToHaveCountAsync(starter.Split('\n').Length);
         await page.FillAsync("#template", "first\nsecond\nthird");
         await page.ClickAsync("button[name=cmd][value=save]");
 
