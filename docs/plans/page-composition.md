@@ -7,7 +7,7 @@ SPDX-License-Identifier: MIT
 
 | | |
 | --- | --- |
-| Status | Built on `idea-049` 2026-11-16 — waits for the owner's merge. The decision entries are written at the merge |
+| Status | Built on `idea-049` 2026-11-16 — waits for the owner's merge. `make check` is green, the decision entries are written, and the job stays open until the merge closes it |
 | Size | Large — one new `Sdk` capability with four calls and two values, `IPageLayout` loses `Layout` and gains a nullable `Title`, one layer renderer with three roles, the layout chain rebuilt on it and entered by the page, the shell's documents trimmed to one way home, ten seeded pages and the editor's starter, the manual, the assistant's prompt and its version, two configuration values, one instrument, and the tests that pin the recursion, the response gates and the chrome |
 | Area | Sdk, Web (pages, shell, seeds, assistant, metrics), docs |
 | Spike | None. Every count below was taken off `trunk` at `6004526` on 2026-11-16, after `pages-the-response-is-one-object` merged |
@@ -596,7 +596,8 @@ the merge only.
 
 ## Phases
 
-One branch, four commits, so each can be read alone:
+One branch, three commits, so each can be read alone — the steps below are the phases the work went
+through, and the first two were committed together because the role and the chain do not compile apart:
 
 1. **The contract, the values and the role.** `IPageComposition`, `PageFrame`, `PageCapture`,
    the `PageRequest` extension methods, the `IPageLayout` change (`Layout` and `Body` out, `Content` in, nullable
