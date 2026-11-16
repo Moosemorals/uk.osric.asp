@@ -198,7 +198,7 @@ write.
 - [assistant](../../assistant.md): the tools and the applets read through one seam, and what it answers.
 - [architecture](../../architecture.md): the seam in `Web`, the tree and the scope in `Core`.
 - [testing](../../testing.md): `PageStoreReaderTests` proves the seam's rules once.
-- ARCH-16 is in the [programme's closed table](../../jobs/README.md#closed) and step 6 reads done.
+- ARCH-16 is in the [programme's closed table](../../jobs/closed.md) and step 6 reads done.
 - `/help` is unchanged: none of this is a page-authoring capability.
 
 ## Risks

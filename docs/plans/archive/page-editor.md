@@ -10,9 +10,9 @@ SPDX-License-Identifier: MIT
 | Status | Landed 2026-11-13: phases 0–5 |
 | Size | Large — a new Sdk capability and its values, a read-contract extension, a scoped authority, the seeded `/pages` editor and its module, retiring `/edit`, a shell scrub route, and the tests and documents for each |
 | Area | Sdk, Web (pages, editor, admin, routing, navigation), seeds, docs |
-| Backlog | IDEA-017 — closed by this plan. [IDEA-028](../../jobs/README.md#closed) — the prerequisite recovery path, landed |
+| Backlog | IDEA-017 — closed by this plan. [IDEA-028](../../jobs/closed.md) — the prerequisite recovery path, landed |
 | Decisions | `pages-the-editor-is-a-page`, its write-capability entry (retired 2026-11-15), `pages-delete-install-and-restore`, `pages-scrubbing-is-not-editing`, with `pages-a-page-has-a-state` (the read state) and `shell-the-admin-tools` (the recovery route) from the phases that landed earlier |
-| Prerequisite | [IDEA-028](../../jobs/README.md#closed) landed 2026-11-13: `/admin/restore` is the way back from a broken editor (`shell-the-admin-tools`) |
+| Prerequisite | [IDEA-028](../../jobs/closed.md) landed 2026-11-13: `/admin/restore` is the way back from a broken editor (`shell-the-admin-tools`) |
 
 ## The short version
 
@@ -462,7 +462,7 @@ reserved, and keeps `/pages` unreserved, because it is a stored page.
 
 ## The emergency restore, as this plan's prerequisite
 
-[IDEA-028](../../jobs/README.md#closed) landed on 2026-11-13 with its own tests. This plan depends on its
+[IDEA-028](../../jobs/closed.md) landed on 2026-11-13 with its own tests. This plan depends on its
 behaviour, and on one piece of its code:
 
 - `GET /admin/restore` lists every seed with current/changed/missing/deleted and one POST button.

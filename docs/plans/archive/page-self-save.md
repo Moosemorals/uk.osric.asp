@@ -10,7 +10,7 @@ that IDEA-015 has landed: review chose a capability reached through `ctx.Feature
 to `IContext` for the read ([page store read](page-store-read.md), `pages-the-store-is-read-through-one-seam`, `pages-reading-the-store-is-public`, `pages-a-listing-carries-facts`, `product-manual-is-a-page`, `pages-delete-install-and-restore`, `pages-page-first`), and the same
 shape is used here. The authority is deliberately **not** symmetric with the read: the read is as
 public as the page that calls it (`pages-reading-the-store-is-public`), and this write requires a signed-in visitor (`pages-a-page-may-save-itself`). The
-job was [IDEA-016](../../jobs/README.md#closed).
+job was [IDEA-016](../../jobs/closed.md).
 
 ## The short version
 
@@ -142,7 +142,7 @@ Checked against the code on 2026-11-09.
 
 | Job or decision | What it already says | What this plan does |
 | --- | --- | --- |
-| [IDEA-016](../../jobs/README.md#closed) | A page cannot save its own source; no write member and no `Sdk` diagnostic; a save bound to `ctx.Path`, compiled before it is stored, answering with diagnostics and the hash; authority stays with the shell | **Implements it**, as a capability rather than an `IContext` member, with the check in the capability rather than in `SimpleContext` (`pages-a-page-may-save-itself`) |
+| [IDEA-016](../../jobs/closed.md) | A page cannot save its own source; no write member and no `Sdk` diagnostic; a save bound to `ctx.Path`, compiled before it is stored, answering with diagnostics and the hash; authority stays with the shell | **Implements it**, as a capability rather than an `IContext` member, with the check in the capability rather than in `SimpleContext` (`pages-a-page-may-save-itself`) |
 | [IDEA-015](../../jobs/README.md) (closed) | The read is a capability, public by default, and the shell keeps every write (`pages-the-store-is-read-through-one-seam`, `pages-reading-the-store-is-public`, `pages-a-listing-carries-facts`, `product-manual-is-a-page`, `pages-delete-install-and-restore`, `pages-page-first`) | Follows the shape and reverses the authority for the write, on purpose: a disclosure and a change are not the same act (`pages-a-page-may-save-itself`) |
 | [IDEA-017](../../jobs/IDEA-017.md) | A page cannot edit another page; the full editor is the last of the capability jobs | Hands it the saver and the capability; what it adds is a key (`pages-a-page-may-save-itself`) |
 | [IDEA-014](../../jobs/README.md) | A page cannot keep per-visitor state, so a form cannot redirect and say why | Untouched, and the reason the demo page answers the save in the response it is already writing (`pages-a-page-may-save-itself`) |

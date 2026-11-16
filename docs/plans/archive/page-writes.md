@@ -11,7 +11,7 @@ SPDX-License-Identifier: MIT
 | Size | M — one capability replaces two, one registration gate and one delete protection removed, a public type renamed, and the tests, the manual, the prompt and the jobs for each |
 | Spike | None. Every claim about what exists was read off `trunk` on 2026-11-15 and re-checked after merging `1aade5d`, which landed seed provenance and the editor rewrite |
 | Decisions | At the merge: **pages-any-page-may-write-the-store** is new; the entry that made the editor's registration the authority is retired and replaced by it; `pages-a-page-may-save-itself` is edited in place |
-| Backlog | [IDEA-043](../../jobs/README.md#closed) is this step; [IDEA-047](../../jobs/IDEA-047.md) is the batch, split out of it |
+| Backlog | [IDEA-043](../../jobs/closed.md) is this step; [IDEA-047](../../jobs/IDEA-047.md) is the batch, split out of it |
 
 ## The short version
 
@@ -26,7 +26,7 @@ transaction boundary and a report value; this half only removes a gate and merge
 existed apart because of that gate.
 
 The IDE's Save all and the assistant's multi-file edit found the one-save rule, and an editor sub-route
-found the one-key rule ([IDEA-043](../../jobs/README.md#closed)'s origin). Both narrowings were deliberate: a
+found the one-key rule ([IDEA-043](../../jobs/closed.md)'s origin). Both narrowings were deliberate: a
 handle with a key parameter was kept from every page because every stored page would then have been a
 writer of the whole store, and a render was kept to one save because a render that wrote twice could
 leave the site half-changed. The owner has decided the first trade is worth making — nothing about
@@ -302,7 +302,7 @@ name, which is still true.
 
 This branch is documentation only, and it does three things:
 
-- **[IDEA-043](../../jobs/README.md#closed)** shrinks to this step: the widened authority, the merged
+- **[IDEA-043](../../jobs/closed.md)** shrinks to this step: the widened authority, the merged
   capability, the rename, the lost delete protection, and the tests, manual and prompt for them.
 - **[IDEA-047](../../jobs/IDEA-047.md)** is new: `SaveManyAsync(edits, policy)` with All, FirstRefusal and
   Continue; compile-before-transaction; the per-edit report; one save as a batch of one; the removal of

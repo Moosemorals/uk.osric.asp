@@ -19,7 +19,7 @@ no way to know that from the fourth. It is also what makes a multi-file edit by 
 requests with N chances to leave the site half-changed. The owner has decided on 2026-11-15 that the
 rule goes, and the capability asks the caller which behaviour it wants instead.
 
-This job was split out of [IDEA-043](README.md#closed) on the same day. 043 widens the authority and merges
+This job was split out of [IDEA-043](closed.md) on the same day. 043 widens the authority and merges
 the two write handles; this is the half that needs a vocabulary — three policies, a transaction
 boundary and a report — and it is "a bit further down the backlog".
 
@@ -90,7 +90,7 @@ writes, chosen policy, one report. Building it for Save all alone would be build
 
 ## Not in scope
 
-- **The widened authority and the merged capability.** [IDEA-043](README.md#closed), which lands first.
+- **The widened authority and the merged capability.** [IDEA-043](closed.md), which lands first.
 - **Renaming, searching and checking.** [IDEA-042](IDEA-042.md), [IDEA-038](IDEA-038.md),
   [IDEA-037](IDEA-037.md).
 - **Bulk delete, install and restore.** Single-action members, and their own policies when they need
@@ -99,7 +99,7 @@ writes, chosen policy, one report. Building it for Save all alone would be build
   queue. `n` is small (`code-n-is-small`).
 - **Undo.** A batch that wrote is a batch of revisions, and the history is where a mistake is answered.
 
-**Origin:** split out of [IDEA-043](README.md#closed) by the owner on 2026-11-15 ("yes to splitting out batch
+**Origin:** split out of [IDEA-043](closed.md) by the owner on 2026-11-15 ("yes to splitting out batch
 save to a separate problem, that's a bit further down the backlog"). The shape of the three policies is
 the owner's, from the same note, and the IDE plan's Save all
 ([the programme](../plans/ide-host.md)) is the caller that found the rule.
