@@ -20,5 +20,5 @@ internal readonly record struct PageRenderIdentity(string Key, string Query) {
     /// <param name="key">The page's canonical key.</param>
     /// <param name="request">The request it runs against.</param>
     public static PageRenderIdentity Of(PagePath key, PageRequest request) =>
-        new(key.Key, PageQueryFingerprint.Of(request.QueryValues));
+        new(key.Key, request.QueryValues.Fingerprint());
 }

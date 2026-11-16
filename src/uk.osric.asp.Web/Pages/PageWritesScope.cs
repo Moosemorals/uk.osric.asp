@@ -246,7 +246,7 @@ internal sealed class PageWritesScope(
     }
 
     private static string Words(SeedComparison comparison, string shipped) =>
-        SeedVerdictWords.Describe(comparison, shipped).Verdict;
+        comparison.Describe(shipped).Verdict;
 
     private static PageEditResult Unchanged(string? hash) => new(PageEditOutcome.Unchanged, hash, []);
 

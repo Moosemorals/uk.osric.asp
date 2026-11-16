@@ -19,7 +19,7 @@ public sealed class PageQueryFingerprintTests {
 
     [Test]
     public void AnEmptyQueryHasAnEmptyFingerprint() {
-        Assert.That(PageQueryFingerprint.Of([]), Is.Empty);
+        Assert.That(Array.Empty<KeyValuePair<string, IReadOnlyList<string>>>().Fingerprint(), Is.Empty);
     }
 
     [Test]
@@ -41,7 +41,7 @@ public sealed class PageQueryFingerprintTests {
 
     [Test]
     public void ANullQueryIsRefused() {
-        Assert.Throws<ArgumentNullException>(() => PageQueryFingerprint.Of(null!));
+        Assert.Throws<ArgumentNullException>(() => PageQueryFingerprint.Fingerprint(null!));
     }
 
     private static string Of(params (string Name, string Value)[] query) {
@@ -58,6 +58,6 @@ public sealed class PageQueryFingerprintTests {
             values.Add(value);
         }
 
-        return PageQueryFingerprint.Of(ordered);
+        return ordered.Fingerprint();
     }
 }

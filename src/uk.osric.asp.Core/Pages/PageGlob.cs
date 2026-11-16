@@ -35,7 +35,7 @@ public static class PageGlob {
     /// <summary>Whether a key matches a word, which knows which of its characters were quoted.</summary>
     /// <param name="pattern">The word, as the caller wrote it.</param>
     /// <param name="key">A canonical page key.</param>
-    public static bool IsMatch(ShellWord pattern, string key) {
+    public static bool IsMatch(this ShellWord pattern, string key) {
         ArgumentNullException.ThrowIfNull(pattern);
 
         // A key is lowercase, so a word is read that way too; the rest of it is used as written,

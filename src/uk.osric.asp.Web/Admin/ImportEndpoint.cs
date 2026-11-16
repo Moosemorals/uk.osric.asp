@@ -327,7 +327,7 @@ internal sealed class ImportEndpoint {
             await context.Response.WriteAsync("<ul class=\"admin-pages\" role=\"list\">");
             foreach (ImportPageResult result in snapshot.Results) {
                 string key = WebUtility.HtmlEncode(result.Path.Key);
-                string editor = WebUtility.HtmlEncode(PageUrls.Editor(result.Path, EditorPaths.Of(context.RequestServices)));
+                string editor = WebUtility.HtmlEncode(result.Path.Editor(EditorPaths.Of(context.RequestServices)));
                 await context.Response.WriteAsync($"""
                     <li><a href="{editor}">{key}</a> <span class="tag">{WebUtility.HtmlEncode(Describe(result.Status))}</span></li>
                     """);

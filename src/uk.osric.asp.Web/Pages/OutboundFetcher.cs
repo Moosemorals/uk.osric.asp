@@ -322,7 +322,7 @@ internal sealed class OutboundFetcher(
             message.Headers.TryAddWithoutValidation(credential.Header, credential.HeaderValue);
         }
 
-        message.Headers.TryAddWithoutValidation("User-Agent", OutboundUserAgent.For(origin));
+        message.Headers.TryAddWithoutValidation("User-Agent", origin.UserAgent());
 
         return message;
     }

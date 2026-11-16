@@ -171,7 +171,7 @@ internal sealed class AssistantMetrics : IDisposable {
     public void RecordMemoryWrite(string operation, MemoryKind? kind, bool success) =>
         _memoryWrites.Add(1, new TagList {
             { "op", operation },
-            { "kind", kind is { } value ? MemoryKinds.Name(value) : NoKind },
+            { "kind", kind is { } value ? value.Name() : NoKind },
             { "outcome", success ? "ok" : "refused" },
         });
 

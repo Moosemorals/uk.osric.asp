@@ -304,7 +304,7 @@ internal static class AssistantMemoryEndpoint {
     }
 
     private static string Kinds(MemoryKind current) => string.Concat(MemoryKinds.All.Select(kind =>
-        $"<option value=\"{Encode(MemoryKinds.Name(kind))}\"{(kind == current ? " selected" : "")}>{Encode(KindName(kind))}</option>"));
+        $"<option value=\"{Encode(kind.Name())}\"{(kind == current ? " selected" : "")}>{Encode(KindName(kind))}</option>"));
 
     private static string KindName(MemoryKind kind) => kind switch {
         MemoryKind.Preference => "preference",

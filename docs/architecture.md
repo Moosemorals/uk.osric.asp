@@ -297,6 +297,10 @@ for reading the journal.
 - `struct` for small immutable values where allocation or identity genuinely matters; measure before
   reaching for one.
 - `static` classes of pure functions when there is no state to carry.
+- A static class whose functions all take the same value as their first parameter declares them as
+  extension methods on that type, so the subject reads as the receiver: `PageImageState.Describe`,
+  `PagePath.IsBelow`, `DiffDocument.ToUnified`. The class keeps the name of the concept and the
+  factory or parser members that have no receiver; a value's own operation is written on the value.
 - `class` only when the framework demands it (controllers) or the type has identity.
 - Prefer composition over inheritance; there is no inheritance in the core today and little need for it.
 - A type that implements a wide contract composes one collaborator per concern rather than collecting

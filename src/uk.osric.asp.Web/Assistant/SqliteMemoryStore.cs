@@ -158,7 +158,7 @@ internal sealed class SqliteMemoryStore(
 
         MemoryEntry entry = new() {
             Owner = owner,
-            Kind = MemoryKinds.Name(kind),
+            Kind = kind.Name(),
             Content = normalised.Content,
             Version = 1,
             Pinned = false,
@@ -275,7 +275,7 @@ internal sealed class SqliteMemoryStore(
             SourceConversationId = entry.SourceConversationId,
         });
         entry.Content = normalised.Content;
-        entry.Kind = MemoryKinds.Name(kind);
+        entry.Kind = kind.Name();
         entry.Pinned = pinned;
         entry.Version++;
         entry.UpdatedAt = now;

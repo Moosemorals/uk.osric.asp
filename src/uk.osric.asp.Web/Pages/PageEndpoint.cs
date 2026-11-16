@@ -97,7 +97,7 @@ internal sealed class PageEndpoint() {
                 return;
             }
 
-            if (PageAssetPolicy.IsAsset(selected.Kind)) {
+            if (selected.Kind.IsAsset()) {
                 await WriteSourceAsync(context, path, TemplateComments.Remove(selected.Template), versionHash, environment);
 
                 return;
@@ -105,7 +105,7 @@ internal sealed class PageEndpoint() {
 
             // A library or a worker is not a representation, so a URL naming one is answered like an
             // unknown key: there is nothing to send and nothing to promise.
-            if (!PageAssetPolicy.IsServed(selected.Kind)) {
+            if (!selected.Kind.IsServed()) {
                 environment.Metrics.RecordAsset(PageMetrics.AssetUnknown);
                 await NotFound.WriteAsync(context, path);
                 return;
@@ -160,7 +160,7 @@ internal sealed class PageEndpoint() {
         if (selection is null) {
             PageTemplate? head = await pages.GetPageAsync(path, context.RequestAborted);
             if (head is not null) {
-                if (PageAssetPolicy.IsAsset(head.Kind)) {
+                if (head.Kind.IsAsset()) {
                     // Nothing is compiled or executed for this revision, and no render slot is taken:
                     // the stored source is the body, on this path, and a bare URL is not cacheable.
                     await WriteSourceAsync(context, path, TemplateComments.Remove(head.Template), versionHash: null, environment);
@@ -168,7 +168,7 @@ internal sealed class PageEndpoint() {
                     return;
                 }
 
-                if (!PageAssetPolicy.IsServed(head.Kind)) {
+                if (!head.Kind.IsServed()) {
                     // A library or a worker has no representation: the editor opens it, a visitor
                     // cannot.
                     await NotFound.WriteAsync(context, path);
@@ -217,7 +217,7 @@ internal sealed class PageEndpoint() {
             new RenderFetchBudget(environment.Fetch.MaxRequestsPerRender),
             new ReadBudget(environment.Read.MaxSourceCharsPerRender),
             assets,
-            LoginRedirect.For(path, context.Request.QueryString),
+            path.LoginUrl(context.Request.QueryString),
             () => antiforgeryField ??= AntiforgeryField.Hidden(environment.Antiforgery.GetAndStoreTokens(context)),
             render,
             context.RequestAborted);
@@ -435,7 +435,7 @@ internal sealed class PageEndpoint() {
 
         byte[] bodyBytes = Encoding.UTF8.GetBytes(body);
 
-        if (PageResponseWriter.AllowsBody(response)) {
+        if (response.AllowsBody()) {
             context.Response.ContentLength = bodyBytes.LongLength;
         }
 

@@ -86,7 +86,7 @@ public static class MemoryRecall {
 
         foreach (MemoryCandidate memory in selection.Memories) {
             block.Append('\n');
-            block.Append(CultureInfo.InvariantCulture, $"<memory id=\"{memory.Id}\" kind=\"{MemoryKinds.Name(memory.Kind)}\"");
+            block.Append(CultureInfo.InvariantCulture, $"<memory id=\"{memory.Id}\" kind=\"{memory.Kind.Name()}\"");
             block.Append(CultureInfo.InvariantCulture, $" written=\"{memory.Written.UtcDateTime.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture)}\"");
             block.Append(CultureInfo.InvariantCulture, $" used=\"{memory.RecallCount}\">\n");
             block.Append(Escape(memory.Content));

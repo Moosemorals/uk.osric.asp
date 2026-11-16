@@ -17,15 +17,15 @@ internal static class PageAssetPolicy {
 
     /// <summary>Whether a revision is an asset: it has no code.</summary>
     /// <param name="kind">The revision's kind; null means never judged.</param>
-    public static bool IsAsset(PageKind? kind) => kind is PageKind.Text;
+    public static bool IsAsset(this PageKind? kind) => kind is PageKind.Text;
 
     /// <summary>Whether a revision is a library: it is compiled into other pages and never served.</summary>
     /// <param name="kind">The revision's kind; null means never judged.</param>
-    public static bool IsLibrary(PageKind? kind) => kind is PageKind.Library;
+    public static bool IsLibrary(this PageKind? kind) => kind is PageKind.Library;
 
     /// <summary>Whether a revision is a worker: a page starts it and no URL answers for it.</summary>
     /// <param name="kind">The revision's kind; null means never judged.</param>
-    public static bool IsWorker(PageKind? kind) => kind is PageKind.Worker;
+    public static bool IsWorker(this PageKind? kind) => kind is PageKind.Worker;
 
     /// <summary>Whether a URL may answer with this revision at all.</summary>
     /// <remarks>
@@ -34,5 +34,5 @@ internal static class PageAssetPolicy {
     /// be served by forgetting one of them.
     /// </remarks>
     /// <param name="kind">The revision's kind; null means never judged.</param>
-    public static bool IsServed(PageKind? kind) => !IsLibrary(kind) && !IsWorker(kind);
+    public static bool IsServed(this PageKind? kind) => !kind.IsLibrary() && !kind.IsWorker();
 }

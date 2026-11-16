@@ -37,7 +37,7 @@ public static class LineChart {
     /// <exception cref="ArgumentNullException">A required argument is null.</exception>
     /// <exception cref="ArgumentOutOfRangeException">The size leaves no room to plot in.</exception>
     public static string Render(
-        IReadOnlyList<ChartSeries> series,
+        this IReadOnlyList<ChartSeries> series,
         ChartTimeAxis x,
         ChartAxis y,
         ChartSize size,
@@ -49,18 +49,18 @@ public static class LineChart {
         ArgumentNullException.ThrowIfNull(frame);
 
         StringBuilder svg = new();
-        ChartPlot plot = ChartChrome.BeginPlot(svg, size, "chart", frame, ChartChrome.Describe(x, y),
+        ChartPlot plot = svg.BeginPlot(size, "chart", frame, x.Describe(y),
             [.. series.Select(line => line.Label)], out IReadOnlyList<LegendEntry> legend);
 
         (double min, double max) = ValueRange(series, y);
 
-        ChartChrome.WriteAxisTitle(svg, y.Title, plot);
-        ChartChrome.WriteValueGrid(svg, y.Ticks, plot, tick => plot.Value(tick, min, max));
-        ChartChrome.WriteTimeGrid(svg, x, plot, size);
-        ChartChrome.Border(svg, plot);
+        svg.WriteAxisTitle(y.Title, plot);
+        svg.WriteValueGrid(y.Ticks, plot, tick => plot.Value(tick, min, max));
+        svg.WriteTimeGrid(x, plot, size);
+        svg.Border(plot);
 
         if (!HasSamples(series, y)) {
-            ChartChrome.Empty(svg, plot, frame.EmptyText);
+            svg.Empty(plot, frame.EmptyText);
             svg.Append("</svg>\n");
 
             return svg.ToString();
@@ -75,9 +75,9 @@ public static class LineChart {
                 ? " stroke-dasharray=\"" + pattern + "\""
                 : string.Empty;
 
-            ChartChrome.BeginSeries(svg, frame, index, line.Label, legend[index]);
+            svg.BeginSeries(frame, index, line.Label, legend[index]);
             List<(double X, double Y)> drawn = WriteLine(svg, line, index, x, y, colour, dash, series.Count > 1, min, max, plot);
-            ChartChrome.EndSeries(svg);
+            svg.EndSeries();
 
             WriteEndLabel(svg, line.Label, colour, drawn, plot, labels);
         }
@@ -174,7 +174,7 @@ public static class LineChart {
             return;
         }
 
-        double width = SvgText.EstimateWidth(label);
+        double width = label.EstimateWidth();
         double left = Math.Min(x + (4 * SvgText.TypeScale), plot.Right - width);
 
         placed.Add((left, y));
@@ -183,7 +183,7 @@ public static class LineChart {
             .Append("\" y=\"").Append(SvgText.Number(y + (3 * SvgText.TypeScale)))
             .Append("\" font-size=\"").Append(SvgText.Number(ChartChrome.SeriesFontSize))
             .Append("\" fill=\"").Append(colour).Append("\" text-anchor=\"start\">")
-            .Append(SvgText.Escape(label)).Append("</text>\n");
+            .Append(label.Escape()).Append("</text>\n");
     }
 
     private static (double Min, double Max) ValueRange(IReadOnlyList<ChartSeries> series, ChartAxis y) {

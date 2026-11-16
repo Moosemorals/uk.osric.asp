@@ -35,7 +35,7 @@ public sealed class ObservationMaskerTests {
 
     [Test]
     public void AnOlderResultIsReplacedWithAPlaceholderThatKeepsItsIdAndName() {
-        MaskOutcome outcome = ObservationMasker.MaskMessage(Result(120, "call-1"));
+        MaskOutcome outcome = Result(120, "call-1").Mask();
 
         Assert.Multiple(() => {
             Assert.That(outcome.Changed, Is.True);
@@ -55,7 +55,7 @@ public sealed class ObservationMaskerTests {
             Call("call-3", LongArguments(1200)),
         ];
 
-        MaskOutcome outcome = ObservationMasker.MaskMessage(messages[ObservationMasker.MaskableMessages(messages)[0]]);
+        MaskOutcome outcome = messages[ObservationMasker.MaskableMessages(messages)[0]].Mask();
 
         using JsonDocument calls = JsonDocument.Parse(outcome.Message.ToolCallsJson!);
         JsonElement call = calls.RootElement[0];
@@ -73,7 +73,7 @@ public sealed class ObservationMaskerTests {
 
     [Test]
     public void AResultWhosePlaceholderWouldNotBeSmallerIsKept() {
-        MaskOutcome outcome = ObservationMasker.MaskMessage(Result(3, "call-1"));
+        MaskOutcome outcome = Result(3, "call-1").Mask();
 
         Assert.Multiple(() => {
             Assert.That(outcome.Changed, Is.False);
@@ -83,8 +83,8 @@ public sealed class ObservationMaskerTests {
 
     [Test]
     public void ALongArgumentStringIsElidedAndItsKeysAndShortValuesSurvive() {
-        MaskOutcome outcome = ObservationMasker.MaskMessage(Call("call-1",
-            """{"path":"/blog","draft":true,"count":3,"content":"CONTENT"}""".Replace("CONTENT", new string('x', 1200), StringComparison.Ordinal)));
+        MaskOutcome outcome = Call("call-1",
+            """{"path":"/blog","draft":true,"count":3,"content":"CONTENT"}""".Replace("CONTENT", new string('x', 1200), StringComparison.Ordinal)).Mask();
 
         using JsonDocument arguments = JsonDocument.Parse(ArgumentsOf(outcome.Message));
 
@@ -99,8 +99,8 @@ public sealed class ObservationMaskerTests {
 
     [Test]
     public void ANestedArgumentStringIsElided() {
-        MaskOutcome outcome = ObservationMasker.MaskMessage(Call("call-1",
-            $$"""{"outer":{"content":"{{new string('x', 1200)}}"},"list":["{{new string('y', 1200)}}"]}"""));
+        MaskOutcome outcome = Call("call-1",
+            $$"""{"outer":{"content":"{{new string('x', 1200)}}"},"list":["{{new string('y', 1200)}}"]}""").Mask();
 
         using JsonDocument arguments = JsonDocument.Parse(ArgumentsOf(outcome.Message));
 
@@ -116,7 +116,7 @@ public sealed class ObservationMaskerTests {
     public void AnArgumentAtTheLimitIsKept() {
         string content = new('x', ObservationMasker.MaximumArgumentLength);
 
-        MaskOutcome outcome = ObservationMasker.MaskMessage(Call("call-1", $$"""{"content":"{{content}}"}"""));
+        MaskOutcome outcome = Call("call-1", $$"""{"content":"{{content}}"}""").Mask();
 
         Assert.That(outcome.Changed, Is.False);
     }
@@ -125,7 +125,7 @@ public sealed class ObservationMaskerTests {
     public void InvalidArgumentJsonIsLeftAlone() {
         ChatMessage message = Call("call-1", "{not json");
 
-        MaskOutcome outcome = ObservationMasker.MaskMessage(message);
+        MaskOutcome outcome = message.Mask();
 
         Assert.Multiple(() => {
             Assert.That(outcome.Changed, Is.False);
@@ -137,7 +137,7 @@ public sealed class ObservationMaskerTests {
     public void TheNewestUserMessageIsNeverMasked() {
         ChatMessage[] messages = [new("user", new string('x', 5_000))];
 
-        MaskOutcome outcome = ObservationMasker.MaskMessage(messages[0]);
+        MaskOutcome outcome = messages[0].Mask();
 
         Assert.Multiple(() => {
             Assert.That(outcome.Changed, Is.False);
@@ -147,8 +147,8 @@ public sealed class ObservationMaskerTests {
 
     [Test]
     public void MaskingTheSameMessageTwiceGivesTheSameBytes() {
-        MaskOutcome once = ObservationMasker.MaskMessage(Result(120, "call-1"));
-        MaskOutcome twice = ObservationMasker.MaskMessage(once.Message);
+        MaskOutcome once = Result(120, "call-1").Mask();
+        MaskOutcome twice = once.Message.Mask();
 
         Assert.Multiple(() => {
             Assert.That(twice.Changed, Is.False);

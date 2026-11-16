@@ -5,7 +5,7 @@ namespace uk.osric.asp.Core.Pages;
 
 using System.Text;
 
-/// <summary>A stable fingerprint of a request's query, for telling one render of a page from another.</summary>
+/// <summary>A stable fingerprint of a query, for telling one render of a page from another.</summary>
 /// <remarks>
 /// <para>
 /// A page that embeds itself with a different query is a recursive component, not a cycle, so the
@@ -20,11 +20,11 @@ using System.Text;
 /// </remarks>
 public static class PageQueryFingerprint {
 
-    /// <summary>Fingerprints the query, in the order its names and values arrived.</summary>
+    /// <summary>Fingerprints a query, in the order its names and values arrived.</summary>
     /// <param name="query">Every query value, per name, in order.</param>
     /// <returns>A string that is equal for the same query and different for a different one.</returns>
     /// <exception cref="ArgumentNullException"><paramref name="query"/> is null.</exception>
-    public static string Of(IEnumerable<KeyValuePair<string, IReadOnlyList<string>>> query) {
+    public static string Fingerprint(this IEnumerable<KeyValuePair<string, IReadOnlyList<string>>> query) {
         ArgumentNullException.ThrowIfNull(query);
 
         StringBuilder text = new();
