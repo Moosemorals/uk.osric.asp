@@ -1,0 +1,110 @@
+<%!
+using System;
+using System.Threading.Tasks;
+
+namespace Site.Editor {
+
+    /// <summary>Is this visitor getting the vim keys, and what the markup for asking looks like.</summary>
+    /// <remarks>
+    /// <para>
+    /// The decision is the server's, so it is made here and read by the pages that render a
+    /// textarea. A page that has the answer writes <c>/vim.js</c> when it is yes and does not
+    /// when it is no, and that is the whole mechanism: <c>/vim.js</c> attaches to every
+    /// <c>[data-vim]</c> textarea it finds, so a page that ships the file wants the keys, and a
+    /// page that wants a plain textarea ships nothing. No page reads this to decide what a
+    /// visitor is allowed to have - only what to send them.
+    /// </para>
+    /// <para>
+    /// The answer lives in the session of <see cref="TogglePath"/>, because a page may write
+    /// only its own session keys: the page that owns the key is the page that changes it, and
+    /// this class only reads. Absent means <see cref="Vim"/>, so a first visit is a vim editor
+    /// and nothing is written until the visitor says otherwise.
+    /// </para>
+    /// <para>
+    /// A session is not a cookie that outlives a sign-out: it lasts 30 minutes without a visit,
+    /// or 8 hours signed in, and is cleared when the visitor signs out. That is a place to keep
+    /// the answer until the host offers one that belongs to the browser, and the only thing that
+    /// has to change then is <see cref="EnabledAsync"/> and the page that writes the key.
+    /// </para>
+    /// </remarks>
+    public static class Editor {
+
+        /// <summary>The page that owns the stored answer and the form that changes it.</summary>
+        public const string TogglePath = "/editor-mode";
+
+        /// <summary>The key <see cref="TogglePath"/> writes, in its own session.</summary>
+        public const string Key = "vim";
+
+        /// <summary>The stored value that means a plain textarea.</summary>
+        public const string Plain = "plain";
+
+        /// <summary>The stored value that means the keys. Also what absent means.</summary>
+        public const string Vim = "vim";
+
+        /// <summary>The URL of the toggle page, carrying the way back to this one.</summary>
+        /// <param name="ctx">The page's context.</param>
+        /// <returns>A site-local href: the toggle page, and this page's path to return to.</returns>
+        /// <remarks>
+        /// The path and not the query, so a link from the editor's <c>?edit=</c> view returns to
+        /// the page list rather than the page it came from. That is the one thing a visitor has
+        /// to know about the hop.
+        /// </remarks>
+        public static string ToggleHref(IContext ctx) {
+            ArgumentNullException.ThrowIfNull(ctx);
+            return TogglePath + "?to=" + Uri.EscapeDataString(ctx.Path);
+        }
+
+        /// <summary>Does this visitor want the vim keys?</summary>
+        /// <param name="ctx">The page's context.</param>
+        /// <returns>
+        /// True unless <see cref="TogglePath"/> has stored <see cref="Plain"/> for this visitor.
+        /// </returns>
+        public static async Task<bool> EnabledAsync(IContext ctx) {
+            ArgumentNullException.ThrowIfNull(ctx);
+
+            IPageSession session = ctx.Capabilities.GetRequired<IPageSession>();
+            // Read across pages: this page may only write its own keys, and the key is the
+            // toggle page's. A read mints no session, so a visitor who has never chosen costs
+            // one lookup and no cookie.
+            PageValue<string> stored = await session.TryGetValueAsync<string>(TogglePath, Key);
+
+            // A missing key and a stored null both mean "has not chosen", which is the default
+            // rather than plain: the site's answer is a vim editor.
+            return !string.Equals(stored.Found ? stored.Value : null, Plain, StringComparison.Ordinal);
+        }
+
+        /// <summary>Writes the editor's script tag, for a page that has settled on the keys.</summary>
+        /// <param name="ctx">The page's context.</param>
+        /// <remarks>
+        /// One line, so the condition stays visible at the point of use rather than inside here:
+        /// a page reads <see cref="EnabledAsync"/> once and guards every use of it, and a reader
+        /// of that page can see that the markup and the script agree.
+        /// </remarks>
+        public static void Script(IContext ctx) {
+            ArgumentNullException.ThrowIfNull(ctx);
+
+            ctx.WriteRaw("<script type=\"module\" src=\"");
+            ctx.Write(ctx.AssetUrl("/vim.js"));
+            ctx.WriteRaw("\"></script>\n");
+        }
+
+        /// <summary>Writes the link that offers the other editor, worded for the mode in force.</summary>
+        /// <param name="ctx">The page's context.</param>
+        /// <param name="vim">Is this render a vim editor?</param>
+        /// <remarks>
+        /// A link and not a form, because the write belongs to <see cref="TogglePath"/> and a page
+        /// cannot post to another page's session. So it is a hop: this link opens the toggle page,
+        /// which asks once and sends the visitor back to <see cref="ToggleHref"/>'s path.
+        /// </remarks>
+        public static void Toggle(IContext ctx, bool vim) {
+            ArgumentNullException.ThrowIfNull(ctx);
+
+            ctx.WriteRaw("<a class=\"editor-toggle\" href=\"");
+            ctx.Write(ToggleHref(ctx));
+            ctx.WriteRaw("\">");
+            ctx.Write(vim ? "Plain textarea" : "Vim editing");
+            ctx.WriteRaw("</a>\n");
+        }
+    }
+}
+%>

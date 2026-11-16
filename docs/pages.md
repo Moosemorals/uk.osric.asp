@@ -97,34 +97,37 @@ the build:
   as public as the page that calls it — there is no gate, and a page that wants privacy writes the
   ordinary `ctx.User` guard — and the render's deadline, abandonment and the shared chain budgets
   bound it (`pages-the-store-is-read-through-one-seam`, `pages-reading-the-store-is-public`, `pages-a-listing-carries-facts`, `product-manual-is-a-page`, `pages-delete-install-and-restore`, `pages-page-first`). See [source storage](storage.md#source-storage).
-- `IPageWriter` saves the calling page's own source: `SaveAsync(template)` answers with a
-  `PageSaveResult` — the new revision's hash and the compiler's diagnostics as `PageDiagnostic`
-  values — and the handle is bound to `ctx.Path`, so a page writes itself and nothing else. It
-  compiles before it stores, so an error is stored and reported and a warning still serves. **The
-  write requires a signed-in visitor**: unlike the read, it refuses an anonymous render before it
-  stores anything, and a `HEAD`, an ended render or a second save in one render is a page bug. A
-  save belongs to the next request, and a save that has started finishes even if the render times
-  out. A layout is offered the read and not the write (`pages-a-page-may-save-itself`, `pages-layouts-are-markup`, `pages-scratch-saves-itself`). See
-  [source storage](storage.md#source-storage).
-- `IPageEditor` is the editor's authority, and it is offered to one render only: the page stored at
-  `Pages:Editor:Key` (`/pages` as shipped). No other key gets it and a layout never does, so the
-  registration is the authority rather than a check inside the handle (`pages-the-editor-capability`). It answers with
-  values the compiler produced — `PageEditResult` carries the outcome, the new hash and
-  `PageDiagnostic`s — and it refuses an anonymous render, a `HEAD` write and a second action in one
-  render. `Resolve` says whether a key is usable, `SaveAsync(key, template, expectedHash)` is the
-  conditional save whose `null` expectation creates a page, `DeleteAsync` tombstones,
-  `RestoreRevisionAsync` and `InstallSeedAsync` answer with the revision they stored, and
-  `SeedSourceAsync` reads the bundled source so the install confirmation can show a diff. Like the
-  page's own write, a save belongs to the next request and a started save finishes (`pages-the-editor-capability`, `pages-delete-install-and-restore`).
+- `IPageWrites` is the store's write capability, and every page that is not a layout is offered it:
+  the authority is the signed-in visitor's, not the page's (`pages-any-page-may-write-the-store`).
+  It has two saves. `SaveAsync(template)` saves the calling page's own source, bound to `ctx.Path`, and
+  answers a `PageSaveResult` — the new revision's hash and the compiler's diagnostics as
+  `PageDiagnostic` values. `SaveAsync(key, template, expectedHash)` saves any key the shell does not
+  route, only while the head still has the hash the form was drawn from, and answers a `PageEditResult`
+  whose outcome is Saved, Stale or Unchanged; a `null` expectation means the form was drawn from a
+  page with no live source, so a create cannot overwrite one. Both compile before they store, so an
+  error is stored and reported and a warning still serves. **The write requires a signed-in visitor**:
+  it refuses an anonymous render before it stores anything, and a `HEAD`, an ended render, a reserved
+  key or a second write in one render is a page bug. A write belongs to the next request, and a write
+  that has started finishes even if the render times out. A layout is offered the read and not the
+  write. `Pages:Editor:Key` says only where the editor is served — it is not an authority — and the
+  editor's own key is an ordinary key, so `/admin/restore` is the way back from a deleted editor. The
+  rest is the editor's toolbox: `Resolve`, `DeleteAsync`, `RestoreRevisionAsync`, `AdoptSeedAsync`,
+  `InstallSeedAsync` — which refuses a row the seed gate does not allow — and `SeedSourceAsync`
+  (`pages-a-page-may-save-itself`, `pages-layouts-are-markup`, `pages-scratch-saves-itself`,
+  `pages-delete-install-and-restore`). See [source storage](storage.md#source-storage).
 - `IPageLayout` is the page's slots in the document it is served in — `Layout`, `Title`, `Head`,
   `Stylesheets`, `AddHead`, `AddStylesheet` and `Body`. It is a capability rather than more
   `IContext` because it is a set of slots a render offers, and because a page that never wants a
   layout never meets one (`pages-a-layout-is-a-capability`). See [layouts](shell.md#layouts).
 - `IMarkdownRenderer` renders Markdown to HTML with `ToHtml`. It is pure and needs no `await`; its
-  result is HTML, so the page writes it with `<%== %>`. The page profile is CommonMark plus pipe
-  tables and auto-links, and raw HTML passes through: this is the author's renderer, not a
-  sanitiser, and the same warning is in `IMarkdownRenderer` and `/help` (`pages-markdown`). A table's header
-  cells carry `scope="col"` and no inline style.
+  result is HTML, so the page writes it with `<%== %>`. The page profile is CommonMark plus heading
+  anchors, pipe tables and auto-links, and raw HTML passes through: this is the author's renderer, not a
+  sanitiser, and the same warning is in `IMarkdownRenderer` and `/help` (`pages-markdown`). A heading
+  carries an `id` derived from its text, with a numbered suffix when two headings share one, so a page
+  can link to a section. `MarkdownOptions` switches the three features per call — an option belongs to
+  the render, not to the shared capability — and `MarkdownOptions.Default` is the page profile
+  (`pages-markdown-options-are-per-call`). A table's header cells carry `scope="col"` and no inline
+  style.
 - `IDiffRenderer` renders the line changes between two documents with `ToHtml(before, after)`. It
   is pure and needs no `await`, and its result is written with `<%== %>`. Every source line is
   escaped, so unlike Markdown it is safe for a visitor's text, a fetched body or page state: the
@@ -269,7 +272,7 @@ The running worker gets an `IWorkerContext`, which is deliberately not an `ICont
 `LogError`, `ReceiveAsync` and `Publish(type, dataJson)`. Its `Capabilities` offer `IPageStorage`
 bound to the **starting page** — the data, so the job and the view that shows it share one store —
 and `IHttpFetch`, `IPageCatalog` and `IPageJobs` bound to the **worker** — the code, so a credential
-bound to the worker stays the worker's. A worker is offered no `IMarkdownRenderer`, no `IPageWriter`
+bound to the worker stays the worker's. A worker is offered no `IMarkdownRenderer`, no `IPageWrites`
 and no `IPageLayout`: it publishes text or JSON, and the page renders it.
 
 `ReceiveAsync(waitSeconds)` pauses the silence clock while it waits, so a worker waiting for its
@@ -299,15 +302,23 @@ no image.
 
 A page with no code is never compiled. Generation reads the tokens it already produced, and a
 template made only of text has nothing to compile: the revision is stored with no image, its kind is
-text, and every request writes the stored source out byte for byte.
+text, and every request writes the stored source out byte for byte, less any comment it holds.
 Such a page has only the template-shape warnings `TemplateShapeCheck` can find without compiling
 (`pages-the-shape-check`); a clean text page has none.
+
+A **comment**, `<%# … %>`, counts as neither code nor text (`pages-a-comment-is-not-code`): it
+writes no output, it is emitted into no generated source, it makes no page a page and no library a
+page, and it never reaches a visitor — a text page's body is its source with every comment construct
+removed (`TemplateComments`), and a page's body never contained it. Its braces are not the page's
+braces, so a note that mentions `{` is not an unbalanced one, and `<%#if DEBUG %>` is a note rather
+than a directive.
 
 A no-code page is a complete representation: it is never wrapped, so its stored source is the
 response even for an HTML key. It gets no banner, no skip link, no base sheet and no title
 requirement; if it wants chrome, it adds a code block and becomes a fragment.
 
-A **library** is a template whose only tokens are declaration blocks. It has nothing to render, so it
+A **library** is a template whose only tokens are declaration blocks, plus any comment and any
+whitespace between them. It has nothing to render, so it
 is never served: its key answers `404` and it is never an asset, never pinned with `?v=` and never
 wrapped. It is checked when it is saved — Roslyn analyses it and the diagnostics are stored beside the
 source, with no assembly — and a page API violation inside it is reported at the library's own line
@@ -434,16 +445,31 @@ Stored pages are C#, so the surface they may touch is constrained twice.
   should not need an entry of its own. Each entry is checked against the symbol the page actually
   resolved. It is data plus a pure function, so the list is readable and the diagnostic names the
   API to add. `System.Object` is deliberately absent: allowing it would allow `GetType()`.
+- Membership is decided by capability, not by which feature last needed an entry. A type is admitted
+  when its only effect is to compute over a value the page already holds or to shape a value the page
+  already returns; it is refused when it adds a way to reach a resource — a file, the network, a
+  process, the environment, an assembly, reflection or process-wide state. A type that bundles a way
+  to reach with a useful helper is admitted with the reaching members denied by name, which is how
+  `Task` is admitted and `Task.Run` is not (`pages-admit-what-adds-no-capability`). That rule admits
+  `StringComparer`, `HashCode` and `Random`, and refuses `System.Environment`, whose `NewLine` would
+  arrive attached to `Exit` and `GetEnvironmentVariable`.
+- A refusal is one diagnostic per type. The checker reports the symbol a node resolves to and the
+  type it resolves to, so a member of a refused type would otherwise arrive twice; the member is the
+  one reported, because it is what the author wrote. A refusal of a member also names its type —
+  `PAGE001: pages may not use System.IO.File.ReadAllText. The type System.IO.File is not part of the
+  page API.` — because the type is what an entry would change
+  (`pages-admit-what-adds-no-capability`).
 - `System.Threading.Tasks.Task` is admitted by *type*, and ten of its members are denied by name —
   `Run`, `Factory`, `ContinueWith`, `Wait`, `WaitAll`, `WaitAny`, `Result`, `GetAwaiter`, `Delay`
   and `Yield` — because each starts work the render deadline cannot stop or turns an `await` back
   into a blocked thread. The namespace stays denied, so `TaskCompletionSource`, `TaskScheduler`,
   `Parallel` and `ValueTask` are `PAGE001` without being named (`pages-the-api-policy`).
-- A narrow set of `System.Text.Json` types is allowed, so a fetched JSON body can be parsed:
-  `JsonDocument`, `JsonElement`, `JsonSerializer`, `JsonSerializerOptions`,
-  `JsonSerializerDefaults`, `JsonValueKind` and `JsonException`. The
-  `System.Text.Json.Serialization` attributes are not, and `System.Net` stays denied — `IHttpFetch`
-  is the page's only egress (`pages-the-api-policy`).
+- A narrow set of `System.Text.Json` types is allowed, so a fetched JSON body can be read, built and
+  shaped: `JsonDocument`, `JsonDocumentOptions`, `JsonElement`, `JsonSerializer`,
+  `JsonSerializerOptions`, `JsonSerializerDefaults`, `JsonValueKind`, `JsonException`,
+  `JsonNamingPolicy`, and the `System.Text.Json.Nodes` namespace, which holds `JsonNode`,
+  `JsonObject`, `JsonArray` and `JsonValue`. The `System.Text.Json.Serialization` attributes are not,
+  and `System.Net` stays denied — `IHttpFetch` is the page's only egress (`pages-the-api-policy`).
 - Cryptography is admitted by type: `System.Text.Encoding` to turn text into bytes, `SHA256`,
   `SHA384` and `SHA512` to hash, `HMACSHA256`, `HMACSHA384` and `HMACSHA512` to sign,
   `RandomNumberGenerator` for a nonce and `CryptographicOperations.FixedTimeEquals` to compare a
@@ -509,10 +535,12 @@ waits for it against one deadline that covers both queueing and running:
   render that never returns cannot be reclaimed: it is counted, logged with the page's path and the
   elapsed time, and recorded on `page.render.abandoned`. A page that is *waiting* on an `await`
   returns its thread to the pool while it waits, so abandonment costs a task rather than a thread;
-  when the deadline fires its next `await` throws and it unwinds. A page that blocks synchronously is
-  unchanged, and is escaped only by abandonment and the container's restart. A request that spends the budget before the page
-  starts — waiting on storage, or waiting for a compile slot — answers `504` the same way, but
-  nothing is abandoned because nothing ran.
+  when the deadline fires its next `await` throws and it unwinds, in the same instant the deadline
+  itself does — so which of the two the renderer sees first is a race, and the answer is `504`
+  either way. A page that blocks synchronously is unchanged, and is escaped only by abandonment and
+  the container's restart. A request that spends the budget before the page starts — waiting on
+  storage, or waiting for a compile slot — answers `504` the same way, but nothing is abandoned
+  because nothing ran.
 - Compiling has its own slot and deadline (`Pages:Compile:Slots`, `Pages:Compile:TimeoutSeconds`).
   Waiting for a slot is bounded by that deadline, because an unbounded wait would park a request
   thread — and the render slot it already holds — behind the compiler. In a render the wait also ends

@@ -6,13 +6,13 @@ namespace uk.osric.asp.Web.Editor;
 using uk.osric.asp.Core.Pages;
 using uk.osric.asp.Web.Pages;
 
-/// <summary>Reads and saves pages for the editor.</summary>
+/// <summary>Reads and saves pages for the store's write capability.</summary>
 /// <remarks>
 /// <para>
 /// A save compiles before it stores, so the page never sits in the database without the result of
 /// compiling it. That is <see cref="PageSaver"/>'s job, and it is shared with a page that saves its
-/// own source; this class is the editor's view of it, plus the conditional save the editor alone
-/// needs (`pages-a-page-may-save-itself`).
+/// own source; this class is the capability's view of it, for both the bound save and the conditional
+/// one every page may now make (`pages-a-page-may-save-itself`).
 /// </para>
 /// <para>
 /// The unconditional save records <c>page.save.duration</c> through the saver; the conditional one
@@ -70,6 +70,16 @@ internal sealed class PageEditor(
         return revision is not null && revision.Path == path ? revision : null;
     }
 
+    /// <summary>Records a seed as installed when the page already holds exactly its bytes.</summary>
+    /// <param name="path">The canonical key.</param>
+    /// <param name="seedHash">The hash of the seed the page's content equals.</param>
+    /// <param name="cancellationToken">Cancels the write.</param>
+    public Task<bool> AdoptAsync(PagePath path, string seedHash, CancellationToken cancellationToken = default) {
+        ArgumentException.ThrowIfNullOrWhiteSpace(seedHash);
+
+        return storage.AdoptSeedAsync(path, seedHash, cancellationToken);
+    }
+
     public Task<bool> DeleteAsync(PagePath path, CancellationToken cancellationToken = default) {
         return storage.DeletePageAsync(path, cancellationToken);
     }
@@ -96,6 +106,23 @@ internal sealed class PageEditor(
         CancellationToken cancellationToken = default,
         CancellationToken renderDeadline = default) => saver.SaveAsync(path, template, cancellationToken, renderDeadline);
 
+    /// <summary>Compiles and saves a seed's bundled source, recording it as the page's anchor.</summary>
+    /// <param name="path">The canonical key to save.</param>
+    /// <param name="template">The bundled source.</param>
+    /// <param name="seedHash">The hash of the seed being installed.</param>
+    /// <param name="cancellationToken">Cancels the write.</param>
+    /// <param name="renderDeadline">The render's deadline, when the save was made from inside a render.</param>
+    public Task<SavedRevision> SaveSeedAsync(
+        PagePath path,
+        string template,
+        string seedHash,
+        CancellationToken cancellationToken = default,
+        CancellationToken renderDeadline = default) {
+        ArgumentException.ThrowIfNullOrWhiteSpace(seedHash);
+
+        return saver.SaveSeedAsync(path, template, seedHash, cancellationToken, renderDeadline);
+    }
+
     /// <summary>Compiles and saves a page only while its current revision hash still matches.</summary>
     public Task<ConditionalPageSaveResult> SaveIfRevisionAsync(
         PagePath path,
@@ -108,5 +135,27 @@ internal sealed class PageEditor(
         ArgumentException.ThrowIfNullOrWhiteSpace(expectedRevisionHash);
 
         return saver.SaveIfRevisionAsync(path, template, expectedRevisionHash, cancellationToken, renderDeadline);
+    }
+
+    /// <summary>Compiles and saves a seed only while the head still has the expected revision.</summary>
+    /// <param name="path">The canonical key to save.</param>
+    /// <param name="template">The bundled source.</param>
+    /// <param name="expectedRevisionHash">The hash the caller saw as the head.</param>
+    /// <param name="seedHash">The hash of the seed being installed.</param>
+    /// <param name="cancellationToken">Cancels the write.</param>
+    /// <param name="renderDeadline">The render's deadline, when the save was made from inside a render.</param>
+    public Task<ConditionalPageSaveResult> SaveSeedIfRevisionAsync(
+        PagePath path,
+        string template,
+        string expectedRevisionHash,
+        string seedHash,
+        CancellationToken cancellationToken = default,
+        CancellationToken renderDeadline = default) {
+        ArgumentNullException.ThrowIfNull(path);
+        ArgumentNullException.ThrowIfNull(template);
+        ArgumentException.ThrowIfNullOrWhiteSpace(expectedRevisionHash);
+        ArgumentException.ThrowIfNullOrWhiteSpace(seedHash);
+
+        return saver.SaveSeedIfRevisionAsync(path, template, expectedRevisionHash, seedHash, cancellationToken, renderDeadline);
     }
 }

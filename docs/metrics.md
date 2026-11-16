@@ -138,6 +138,16 @@ the unit the instrument records — `bytes`, `seconds`, a rate — and only the 
 the volume-capacity axis is titled `bytes` and reads `70G` to `90G`, because a title that says
 `megabytes` misdescribes samples that are in bytes.
 
+**A chart counts from its window, not from its first sample.** The time axis carries the window the
+query ran over, and every sample, grid line and label is placed at its fraction of that window: a
+metric that started late is drawn where it started rather than along the left edge, a quiet panel is
+not stretched to fill the plot, and an empty answer keeps the axis the window asked for instead of one
+inferred from nothing. A sample outside the window is cut at the edge rather than pinned to it, so an
+overshoot stops where it leaves the picture instead of drawing a flat line down the border the value
+never had. A heatmap cell is placed at its bucket's instant and is as wide as the step between
+buckets, which is how its columns and the time labels under it are measured the same way
+(`metrics-a-chart-counts-from-its-window`).
+
 **The inventory is the catalogue.** Each meter publishes its instruments, every instrument has
 exactly one owning panel, and tests fail when either side gains an entry the other lacks, when a type
 disagrees with the chart, or when a query names a family that is neither an instrument nor a known

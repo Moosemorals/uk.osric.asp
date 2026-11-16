@@ -13,8 +13,8 @@ using System.Globalization;
 /// <c>0.4737</c>.
 /// </para>
 /// <para>
-/// Time positions are seconds after <c>from</c>, which is how <see cref="LineChart"/> maps them. The
-/// zone only decides the label text: the ticks themselves are instants.
+/// Time positions are seconds after <c>from</c>, which is how the charts place their samples. The zone
+/// only decides the label text: the ticks themselves are instants.
 /// </para>
 /// </remarks>
 public static class NiceTicks {

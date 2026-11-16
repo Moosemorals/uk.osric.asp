@@ -1,0 +1,201 @@
+<%
+// The key reference, on a page of its own so that the pages which use the editor
+// can point at it instead of carrying it. Nothing here needs a script: this is what
+// a visitor reads about the keys, not the keys themselves, and a reference that
+// depended on the editor working would be the one page unable to explain why it did
+// not.
+IPageLayout layout = ctx.Capabilities.GetRequired<IPageLayout>();
+layout.Title = "Vim keys";
+layout.AddStylesheet("/vim.css");
+%>
+<h1>Vim keys</h1>
+<p>What a textarea answers to once <code>/vim.js</code> has attached to it. Every page
+here that uses the module takes the same keys - <a href="/notes">notes</a> is the one with
+something to store, and <a href="/vim">the demo</a> is the one that can be switched off -
+so this reference belongs to neither and both. It loads no script of its own, and
+nothing below is a fallback for a page whose editor failed: it is prose about an
+editor, which is why it reads the same either way.</p>
+
+<h2 id="vim-commands">Commands</h2>
+<div class="vim-docs">
+
+<p>Normal mode unless it says insert. A count before a command repeats
+it, so <kbd>3</kbd><kbd>d</kbd><kbd>w</kbd> deletes three words and <kbd>4</kbd><kbd>j</kbd>
+moves four lines down. The statusline under the textarea echoes whatever you have typed
+so far, and <kbd>:</kbd> turns that echo into a command line for one ex command,
+while <kbd>/</kbd> or <kbd>?</kbd> turns it into a search.</p>
+
+<h3>Getting in and out</h3>
+<dl class="vim-keys">
+    <dt><kbd>i</kbd></dt><dd>Insert before the cursor.</dd>
+    <dt><kbd>a</kbd></dt><dd>Insert after the cursor.</dd>
+    <dt><kbd>I</kbd></dt><dd>Insert at the first non-blank character of the line.</dd>
+    <dt><kbd>A</kbd></dt><dd>Insert at the end of the line.</dd>
+    <dt><kbd>o</kbd></dt><dd>Open a line below and insert there.</dd>
+    <dt><kbd>O</kbd></dt><dd>Open a line above and insert there.</dd>
+    <dt><kbd>Esc</kbd> <kbd>Ctrl</kbd>+<kbd>[</kbd></dt><dd>Back to normal mode.</dd>
+</dl>
+
+<h3>Moving</h3>
+<dl class="vim-keys">
+    <dt><kbd>h</kbd> <kbd>j</kbd> <kbd>k</kbd> <kbd>l</kbd> <kbd>&larr;</kbd> <kbd>&darr;</kbd>
+    <kbd>&uarr;</kbd> <kbd>&rarr;</kbd></dt><dd>Left, down, up, right - and the four arrow
+    keys are these four in normal mode, so an arrow moves by the line the buffer stores
+    rather than by the row the textarea draws a wrapped one over.</dd>
+    <dt><kbd>0</kbd></dt><dd>Start of the line.</dd>
+    <dt><kbd>^</kbd></dt><dd>First non-blank character of the line.</dd>
+    <dt><kbd>$</kbd></dt><dd>End of the line. The caret stops on the last
+    character, so <kbd>$</kbd> then <kbd>x</kbd> deletes it; an operator
+    takes the exclusive range instead, so <kbd>d</kbd><kbd>$</kbd> leaves the
+    line break alone.</dd>
+    <dt><kbd>w</kbd> <kbd>b</kbd> <kbd>e</kbd></dt><dd>Start of the next word, start of the previous word, end of the word.</dd>
+    <dt><kbd>W</kbd> <kbd>B</kbd> <kbd>E</kbd></dt><dd>The same three, but punctuation counts as part of a word.</dd>
+    <dt><kbd>g</kbd><kbd>g</kbd> <kbd>G</kbd></dt><dd>Top of the buffer, bottom of the buffer. With a count, go to that line: <kbd>3</kbd><kbd>G</kbd> is line 3.</dd>
+    <dt><kbd>Enter</kbd> <kbd>Backspace</kbd> <kbd>Delete</kbd></dt><dd>These keep their vim meanings, so they are not left to the
+    browser either: <kbd>Enter</kbd> goes to the first non-blank of the next line,
+    <kbd>Backspace</kbd> is <kbd>h</kbd>, <kbd>Delete</kbd> is <kbd>x</kbd>, and a
+    count repeats any of them. None of the three serves a pending operator, so
+    <kbd>d</kbd> then <kbd>Enter</kbd> cancels the <kbd>d</kbd> rather than
+    deleting a line.</dd>
+</dl>
+
+<p>Two things about moving that a row in that table cannot say. <kbd>h</kbd> and
+<kbd>l</kbd> wrap: on the last character of a line <kbd>l</kbd> lands on the first character
+of the next, and on the first character <kbd>h</kbd> lands on the last character of the one
+above. That is vim's <code>whichwrap</code>, except that there are no options here, so it is
+always on - and it is the caret that wraps, so <kbd>d</kbd><kbd>l</kbd> at the end of a
+line still takes one character and leaves the line break alone. Then <kbd>j</kbd> and
+<kbd>k</kbd> remember the column they are aiming for: step down over a short line and back
+up and the caret returns to the column the run started at rather than to the end of the
+long line, which is vim's <code>curswant</code>. Anything else that moves the caret -
+<kbd>h</kbd>, a word motion, a click, an edit - ends the run, and the next
+<kbd>j</kbd> takes its column from wherever the caret then is.</p>
+
+<h3>Changing text</h3>
+<dl class="vim-keys">
+    <dt><kbd>d</kbd> <kbd>c</kbd> <kbd>y</kbd></dt><dd>Delete, change, yank. Each waits for a motion: <kbd>d</kbd><kbd>w</kbd>, <kbd>c</kbd><kbd>$</kbd>, <kbd>y</kbd><kbd>b</kbd>. <kbd>c</kbd> drops into insert mode.</dd>
+    <dt><kbd>d</kbd><kbd>d</kbd> <kbd>c</kbd><kbd>c</kbd> <kbd>y</kbd><kbd>y</kbd></dt><dd>The same over whole lines. Doubling the operator aims it at the line itself.</dd>
+    <dt><kbd>x</kbd> <kbd>X</kbd></dt><dd>Delete the character under the cursor, or before it.</dd>
+    <dt><kbd>D</kbd> <kbd>C</kbd></dt><dd>Delete or change from the cursor to the end of the line.</dd>
+    <dt><kbd>p</kbd> <kbd>P</kbd></dt><dd>Paste after, or before, the cursor. Linewise text lands on its own line. The register is whatever you last yanked, deleted or changed.</dd>
+    <dt><kbd>J</kbd></dt><dd>Join the next line onto this one, collapsing its indent.</dd>
+    <dt><kbd>u</kbd></dt><dd>Undo, via the browser's own undo stack. An edit
+    that had to fall back to <code>setRangeText</code>, because
+    <code>insertText</code> or <code>delete</code> was refused, never reached
+    that stack: <kbd>u</kbd> then says so on the statusline rather than
+    looking like a dead key.</dd>
+    <dt><kbd>Enter</kbd></dt><dd>Insert mode only: break the line and start the new one at the
+    indentation of the line you left, so a nested line stays nested. It copies the
+    whitespace that is there rather than adding a level of its own, so tabs stay tabs and
+    spaces stay spaces. Normal mode's <kbd>Enter</kbd> is the motion in the table above,
+    and <kbd>o</kbd> and <kbd>O</kbd> open a line already indented to match.</dd>
+    <dt><kbd>Tab</kbd></dt><dd>Insert mode only: indent. <kbd>Shift</kbd>+<kbd>Tab</kbd> removes a tab, or up to four spaces.</dd>
+</dl>
+
+<p>The mode is not only a word on the statusline, though the word is where you learn the
+colour: <em>-- NORMAL --</em> and <em>-- INSERT --</em> are tinted Blue and Vermilion
+too. The textarea's caret and its focus ring carry the same two colours, so <kbd>Esc</kbd>
+and <kbd>i</kbd> can be seen without reading the line below. They are from the
+Okabe-Ito palette, which stays apart for colour-blind readers, and the edges are
+strong enough on this background to serve as a focus indicator rather than as
+decoration. The mode word, being small text, uses a slightly darker shade of the
+Vermilion than the ring does - the same hue, dark enough to stay readable.</p>
+
+<p>The ring is only there while the field has focus, which is the whole time you are
+typing in it; the word is there either way, so the colour never carries the mode
+alone. Only the colour can change: a textarea's caret shape belongs to the browser,
+so it stays a bar rather than becoming vim's block. A textarea the editor has never
+touched, or has just let go, keeps the ring, the caret and the plain mode word the
+page gave it.</p>
+
+<h3 id="vim-search">Searching</h3>
+<p><kbd>/</kbd> and <kbd>?</kbd> open the same one-line prompt as <kbd>:</kbd>, and take
+it the same way: <kbd>Enter</kbd> runs the search, <kbd>Esc</kbd> throws it away,
+<kbd>Backspace</kbd> edits it and <kbd>Ctrl</kbd>+<kbd>U</kbd> empties it. What differs
+is where the text goes - to a search rather than to a command - and what the
+statusline puts in front of it.</p>
+
+<dl class="vim-keys">
+    <dt><kbd>/</kbd><var>pattern</var> <kbd>?</kbd><var>pattern</var></dt><dd>Search
+    forward, or backward, from the cursor, and stop on the first match. The caret
+    lands on the match's first character.</dd>
+    <dt><kbd>n</kbd> <kbd>N</kbd></dt><dd>The next match, or the previous one.
+    <kbd>n</kbd> looks the way the last search looked and <kbd>N</kbd> the other way,
+    and a count steps over that many matches, so <kbd>3</kbd><kbd>n</kbd> is the third
+    one on.</dd>
+    <dt><kbd>*</kbd> <kbd>#</kbd></dt><dd>Take the word under the cursor as the pattern
+    and search forward (<kbd>*</kbd>) or backward (<kbd>#</kbd>) for the next one. A
+    word here is a run of letters, digits and underscores, or a run of punctuation,
+    exactly as <kbd>w</kbd> counts them.</dd>
+    <dt><kbd>/</kbd> or <kbd>?</kbd> alone</dt><dd>Repeat the last pattern, in the
+    direction the prompt was opened with.</dd>
+</dl>
+
+<p>A pattern is a JavaScript regular expression: <code>^</code> and <code>$</code> are
+an end of a line, <code>\b</code>, <code>[abc]</code> and <code>foo|bar</code> all work,
+and a stray bracket is refused with <code>E54</code> rather than searched for. Case
+matters - there is no <code>ignorecase</code> here to turn off - and a pattern that
+matches nowhere answers with vim's <code>E486</code> in the echo.</p>
+
+<p>Nothing is highlighted, because a textarea cannot paint over its own text, so the
+caret is the whole of the answer: it lands on the match, and the statusline says
+<em>search hit BOTTOM</em> or <em>search hit TOP</em> when reaching it had to wrap round
+an end of the buffer. Searching is not a motion an operator can take - a pending
+<kbd>d</kbd> is cancelled by <kbd>n</kbd> rather than fed to it - and the last pattern
+survives everything else, so <kbd>n</kbd> still knows what to repeat after an edit.</p>
+
+<h3 id="vim-command-line">Command line</h3>
+<p><kbd>:</kbd> puts a one-line prompt on the statusline in place of the mode
+word, and takes the keyboard until <kbd>Enter</kbd> runs what you typed or
+<kbd>Esc</kbd> throws it away. <kbd>Backspace</kbd> edits the line,
+<kbd>Ctrl</kbd>+<kbd>U</kbd> empties it, and a command it does not know answers
+with vim's <code>E492</code> in the echo, where the next keystroke clears it.</p>
+
+<dl class="vim-keys">
+    <dt><kbd>:</kbd><var>n</var></dt><dd>Go to line <var>n</var>, onto its first
+    non-blank character, exactly where <kbd>3</kbd><kbd>G</kbd> would land.</dd>
+    <dt><kbd>:</kbd><kbd>$</kbd> <kbd>:</kbd><kbd>.</kbd></dt><dd>The last line of
+    the buffer, and the line the caret is on.</dd>
+    <dt><kbd>:</kbd><kbd>+</kbd><var>n</var>
+    <kbd>:</kbd><kbd>-</kbd><var>n</var></dt><dd>Relative addresses, so
+    <kbd>:</kbd><kbd>+</kbd><kbd>2</kbd> is two lines down, and a bare
+    <kbd>:</kbd><kbd>+</kbd> is one.</dd>
+    <dt><kbd>:</kbd><kbd>w</kbd></dt><dd>Write. Submit the form that is already on
+    the page, exactly as the Save button submits it: same action, same method, same
+    <code>.value</code>. Where that text ends up is the server's concern - on
+    <a href="/notes">notes</a> it is the note being saved.</dd>
+</dl>
+
+<p>It is a prompt, not a shell: one command, no word splitting, and every command
+reads the rest of the line as its argument. That is what the substitution and
+<kbd>:r</kbd> entries on <a href="/vim#vim-todo">the backlog</a> were waiting for.</p>
+
+<h3>Left to the browser</h3>
+<p><kbd>Tab</kbd> in normal mode, <kbd>Home</kbd> and <kbd>End</kbd>,
+<kbd>PageUp</kbd> and <kbd>PageDown</kbd>, anything with <kbd>Ctrl</kbd> except
+<kbd>[</kbd>, and anything with <kbd>Cmd</kbd> or <kbd>Alt</kbd> behave exactly as
+they always did. The arrow keys do not: in normal mode they are <kbd>h</kbd>,
+<kbd>j</kbd>, <kbd>k</kbd> and <kbd>l</kbd>, with the same wrap and the same memory
+of the column, and it is insert mode that keeps the browser's own caret movement.
+An open prompt - a command line or a search - is the one place that differs: it
+keeps the arrows and <kbd>Delete</kbd> for itself, so they cannot move the caret under
+the prompt, while <kbd>Tab</kbd> still moves focus - the way out of the field - and
+<kbd>Cmd</kbd> and <kbd>Alt</kbd> shortcuts still belong to the browser. Anything
+that touches the unnamed register, whether a yank, a delete or a change, also
+mirrors to the system clipboard, and a native paste fills the register.</p>
+
+<h3>When the keys are off</h3>
+<p>A page is free not to have an editor at all, and free to take it away again: the
+demo's <em>Modal editing</em> box does exactly that, and a phone with no hardware
+keyboard anywhere starts with the keys off. What is left is the textarea the server
+sent - every key the browser owns, behaving as it always did - so the field is never
+an editor with its keys removed, only an editor that was never attached. Nothing
+above is lost by that: the keys are simply not there to press.</p>
+
+</div>
+
+<p>Where the keys come from, and how to put them on another form, is on
+<a href="/vim">the modal editing page</a>; the code is
+<a href="/vim.js"><code>/vim.js</code></a> - one file, read from the geometry up to the
+entry point. Whether a page should load it at all is
+<a href="/editor-mode">a server-side answer</a>, kept in the visitor's session.</p>

@@ -4,6 +4,7 @@
 namespace uk.osric.asp.Runtime.Tests;
 
 using uk.osric.asp.Runtime;
+using uk.osric.asp.Sdk;
 
 [TestFixture]
 public sealed class MarkdownRendererTests {
@@ -30,12 +31,61 @@ public sealed class MarkdownRendererTests {
             """);
 
         Assert.Multiple(() => {
-            Assert.That(html, Does.Contain("<h2>Heading</h2>"));
+            Assert.That(html, Does.Contain("<h2 id=\"heading\">Heading</h2>"));
             Assert.That(html, Does.Contain("<strong>bold</strong>"));
             Assert.That(html, Does.Contain("<em>italic</em>"));
             Assert.That(html, Does.Contain("<code>code</code>"));
             Assert.That(html, Does.Contain("<li>one</li>"));
             Assert.That(html, Does.Contain("<span>raw</span>"), "page Markdown passes raw HTML through");
+        });
+    }
+
+    [Test]
+    public void ThePageProfileGivesAHeadingAnAnchor() {
+        string html = _renderer.ToHtml("# One\n\n## One");
+
+        Assert.Multiple(() => {
+            Assert.That(html, Does.Contain("<h1 id=\"one\">One</h1>"));
+            Assert.That(html, Does.Contain("<h2 id=\"one-1\">One</h2>"), "a repeat gets its own anchor");
+        });
+    }
+
+    [Test]
+    public void AHeadingAnchorCanBeTurnedOff() {
+        string html = _renderer.ToHtml("## Heading", new MarkdownOptions { HeadingAnchors = false });
+
+        Assert.Multiple(() => {
+            Assert.That(html, Does.Contain("<h2>Heading</h2>"));
+            Assert.That(html, Does.Not.Contain("id="));
+        });
+    }
+
+    [Test]
+    public void AutoLinksCanBeTurnedOff() {
+        string html = _renderer.ToHtml("https://example.com", new MarkdownOptions { AutoLinks = false });
+
+        Assert.Multiple(() => {
+            Assert.That(html, Does.Not.Contain("<a "));
+            Assert.That(html, Does.Contain("https://example.com"));
+        });
+    }
+
+    [Test]
+    public void PipeTablesCanBeTurnedOff() {
+        string html = _renderer.ToHtml(Table, new MarkdownOptions { PipeTables = false });
+
+        Assert.That(html, Does.Not.Contain("<table>"));
+    }
+
+    [Test]
+    public void TheDefaultOptionsAreThePageProfile() {
+        string html = _renderer.ToHtml("## Heading\n\n| Name | Value |\n| --- | --- |\n| one | 1 |\n\nhttps://example.com",
+            MarkdownOptions.Default);
+
+        Assert.Multiple(() => {
+            Assert.That(html, Does.Contain("<h2 id=\"heading\">Heading</h2>"));
+            Assert.That(html, Does.Contain("<table>"));
+            Assert.That(html, Does.Contain("<a href=\"https://example.com\">https://example.com</a>"));
         });
     }
 
@@ -145,5 +195,10 @@ public sealed class MarkdownRendererTests {
             Assert.That(() => _renderer.ToHtml(null!), Throws.ArgumentNullException);
             Assert.That(() => MarkdownRenderer.ToRestrictedHtml(null!), Throws.ArgumentNullException);
         });
+    }
+
+    [Test]
+    public void NullOptionsAreRefused() {
+        Assert.That(() => _renderer.ToHtml("text", null!), Throws.ArgumentNullException);
     }
 }

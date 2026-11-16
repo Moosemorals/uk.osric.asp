@@ -47,4 +47,10 @@ public readonly record struct PageEntry(
 
     /// <summary>What the head's image compiled to, in the host's words.</summary>
     public string State { get; init; } = string.Empty;
+
+    /// <summary>
+    /// What this page is relative to the seed the release ships, or <see langword="null"/> when the
+    /// key has no seed either side of the store.
+    /// </summary>
+    public PageSeedSummary? Seed { get; init; }
 }

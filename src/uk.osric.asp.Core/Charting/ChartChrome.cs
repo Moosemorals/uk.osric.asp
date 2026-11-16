@@ -248,15 +248,15 @@ internal static class ChartChrome {
 
     /// <summary>Writes the vertical grid: one line and one time label per tick.</summary>
     /// <param name="svg">The drawing being written.</param>
-    /// <param name="ticks">The time ticks.</param>
+    /// <param name="axis">The time axis, whose ticks the grid is drawn at.</param>
     /// <param name="plot">The plot they cross.</param>
     /// <param name="size">The full drawing area, whose floor the labels sit above.</param>
-    /// <param name="at">Where a tick's position sits horizontally.</param>
-    internal static void WriteTimeGrid(StringBuilder svg, IReadOnlyList<ChartTick> ticks, ChartPlot plot, ChartSize size, Func<double, double> at) {
+    internal static void WriteTimeGrid(StringBuilder svg, ChartTimeAxis axis, ChartPlot plot, ChartSize size) {
         ArgumentNullException.ThrowIfNull(svg);
+        ArgumentNullException.ThrowIfNull(axis);
 
-        foreach (ChartTick tick in ticks.OrderBy(tick => tick.Position)) {
-            double x = at(tick.Position);
+        foreach (ChartTick tick in axis.Ticks.OrderBy(tick => tick.Position)) {
+            double x = plot.Time(axis, tick.Position);
 
             svg.Append("<line class=\"chart-grid\" x1=\"").Append(SvgText.Number(x))
                 .Append("\" y1=\"").Append(SvgText.Number(plot.Top))
@@ -265,19 +265,20 @@ internal static class ChartChrome {
                 .Append("\" stroke=\"#e3e3e3\" stroke-width=\"1\"/>\n");
         }
 
-        WriteTimeLabels(svg, ticks, size, at);
+        WriteTimeLabels(svg, axis, plot, size);
     }
 
     /// <summary>Writes the time labels without the lines, for a plot whose cells are the grid.</summary>
     /// <param name="svg">The drawing being written.</param>
-    /// <param name="ticks">The time ticks.</param>
+    /// <param name="axis">The time axis, whose ticks the labels name.</param>
+    /// <param name="plot">The plot the labels sit under.</param>
     /// <param name="size">The full drawing area, whose floor the labels sit above.</param>
-    /// <param name="at">Where a tick's position sits horizontally.</param>
-    internal static void WriteTimeLabels(StringBuilder svg, IReadOnlyList<ChartTick> ticks, ChartSize size, Func<double, double> at) {
+    internal static void WriteTimeLabels(StringBuilder svg, ChartTimeAxis axis, ChartPlot plot, ChartSize size) {
         ArgumentNullException.ThrowIfNull(svg);
+        ArgumentNullException.ThrowIfNull(axis);
 
-        foreach (ChartTick tick in ticks.OrderBy(tick => tick.Position)) {
-            svg.Append("<text class=\"chart-label\" x=\"").Append(SvgText.Number(at(tick.Position)))
+        foreach (ChartTick tick in axis.Ticks.OrderBy(tick => tick.Position)) {
+            svg.Append("<text class=\"chart-label\" x=\"").Append(SvgText.Number(plot.Time(axis, tick.Position)))
                 .Append("\" y=\"").Append(SvgText.Number(size.Height - (8 * SvgText.TypeScale)))
                 .Append("\" font-size=\"").Append(SvgText.Number(FontSize))
                 .Append("\" fill=\"#444444\" text-anchor=\"middle\">").Append(SvgText.Escape(tick.Label))
@@ -350,7 +351,7 @@ internal static class ChartChrome {
     /// <summary>Describes a time series for the drawing's <c>desc</c>.</summary>
     /// <param name="x">The time axis.</param>
     /// <param name="y">The value axis.</param>
-    internal static string Describe(ChartAxis x, ChartAxis y) => $"{y.Title} over {x.Title}";
+    internal static string Describe(ChartTimeAxis x, ChartAxis y) => $"{y.Title} over {x.Title}";
 
     /// <summary>Formats an instant for the hover text, in the frame's zone.</summary>
     /// <param name="at">The instant.</param>
@@ -384,11 +385,11 @@ internal readonly record struct ChartPlot(double Left, double Top, double Width,
     /// <summary>The plot's lower edge.</summary>
     internal double Bottom => Top + Height;
 
-    /// <summary>Where a time sits horizontally, as seconds after the plot's first sample.</summary>
-    /// <param name="seconds">The offset into the window.</param>
-    /// <param name="span">The width of the window, in seconds.</param>
-    internal double Time(double seconds, double span) =>
-        Math.Min(Right, Left + ((seconds / span) * Width));
+    /// <summary>Where a time sits horizontally: its fraction of the window the axis covers.</summary>
+    /// <param name="axis">The time axis, which owns the window.</param>
+    /// <param name="seconds">The offset into the window, in seconds after its start.</param>
+    internal double Time(ChartTimeAxis axis, double seconds) =>
+        Left + ((seconds / axis.Span) * Width);
 
     /// <summary>Where a value sits vertically: the higher the value, the higher the point.</summary>
     /// <param name="value">The value, in the axis' own unit.</param>

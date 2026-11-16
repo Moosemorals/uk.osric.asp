@@ -20,8 +20,12 @@ public sealed class ChartConsistencyTests {
 
     private static readonly ChartSize Size = new(400, 320);
 
-    private static readonly ChartAxis TimeAxis =
-        new("time", [new ChartTick(0, "05:00"), new ChartTick(60, "05:01")]);
+    private static readonly ChartTimeAxis TimeAxis =
+        new(
+            "time",
+            Start,
+            Start.AddSeconds(120),
+            [new ChartTick(0, "05:00"), new ChartTick(60, "05:01"), new ChartTick(120, "05:02")]);
 
     private static readonly ChartFrame Frame =
         new("test", "Render duration", "seconds", "No data", TimeZoneInfo.Utc);
@@ -62,7 +66,7 @@ public sealed class ChartConsistencyTests {
             double right = left + ElementAttribute(svg, "chart-frame", "width");
 
             Assert.That(
-                TextX(svg, "05:01"),
+                TextX(svg, "05:02"),
                 Is.EqualTo(right).Within(0.01),
                 $"{name} draws its last tick at the plot's right edge");
         }
@@ -77,6 +81,52 @@ public sealed class ChartConsistencyTests {
         Assert.That(svg, Does.Contain("class=\"chart-empty\""));
         Assert.That(svg, Does.Contain(">0.5</text>"), "the bucket is still named");
         Assert.That(svg, Does.Contain("class=\"chart-grid\""), "and its row still has an edge");
+    }
+
+    [Test]
+    public void ABucketIsDrawnAtItsInstantAndAsWideAsItsGap() {
+        // A cell starts where its bucket was read and lasts until the next one, measured on the same
+        // axis as the time labels above it.
+        string svg = Heatmap.Render(
+            [new HeatmapRow("0.5", [new ChartPoint(Start.AddSeconds(30), 1), new ChartPoint(Start.AddSeconds(60), 2)])],
+            TimeAxis, Size, Frame, "renders/s");
+
+        double left = ElementAttribute(svg, "chart-frame", "x");
+        double width = ElementAttribute(svg, "chart-frame", "width");
+        double[] cells = [.. CellLefts(svg)];
+
+        Assert.That(cells[0], Is.EqualTo(left + (width / 4)).Within(0.01), "a quarter of the window in");
+        Assert.That(cells[1], Is.EqualTo(left + (width / 2)).Within(0.01), "half way across");
+        Assert.That(TextX(svg, "05:01"), Is.EqualTo(cells[1]).Within(0.01), "and the label names the same instant");
+    }
+
+    [Test]
+    public void ABucketPastTheEndOfTheWindowIsCutRatherThanStretchedAcrossThePlot() {
+        string svg = Heatmap.Render(
+            [
+                new HeatmapRow("0.5", [
+                    new ChartPoint(Start, 1),
+                    new ChartPoint(Start.AddSeconds(60), 2),
+                    new ChartPoint(Start.AddSeconds(120), 3),
+                ]),
+            ],
+            TimeAxis, Size, Frame, "renders/s");
+
+        double right = ElementAttribute(svg, "chart-frame", "x") + ElementAttribute(svg, "chart-frame", "width");
+        double[] cells = [.. CellLefts(svg)];
+
+        Assert.That(cells, Has.Length.EqualTo(2), "a bucket entirely past the end is not drawn");
+        Assert.That(CellWidth(svg, 1), Is.EqualTo(right - cells[1]).Within(0.01), "the last bucket stops at the edge");
+    }
+
+    private static IEnumerable<double> CellLefts(string svg) =>
+        svg.Split("<rect x=\"").Skip(1).Select(cell => double.Parse(cell[..cell.IndexOf('"')], CultureInfo.InvariantCulture));
+
+    private static double CellWidth(string svg, int index) {
+        string cell = svg.Split("<rect x=\"").Skip(1).ElementAt(index);
+        string tag = "<rect x=\"" + cell[..cell.IndexOf('>', StringComparison.Ordinal)];
+
+        return Attribute(tag, "width");
     }
 
     private static IEnumerable<(string Name, string Svg)> DrawingsWithData() => [

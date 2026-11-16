@@ -14,8 +14,8 @@ public sealed class LineChartTests {
 
     private static readonly ChartSize Size = new(400, 200);
 
-    private static readonly ChartAxis TimeAxis =
-        new("time", [new ChartTick(0, "12:00"), new ChartTick(600, "12:10")]);
+    private static readonly ChartTimeAxis TimeAxis =
+        new("time", Start, Start.AddSeconds(600), [new ChartTick(0, "12:00"), new ChartTick(600, "12:10")]);
 
     private static readonly ChartAxis CountAxis =
         new("requests/s", [new ChartTick(0, "0"), new ChartTick(1, "1")]);
@@ -98,6 +98,37 @@ public sealed class LineChartTests {
 
         Assert.That(svg, Does.Not.Contain("<polyline class=\"series"), "the gap is not bridged");
         Assert.That(svg.Split("<circle").Length - 1, Is.EqualTo(2), "each side of the gap is its own run");
+    }
+
+    [Test]
+    public void ASampleSitsAtItsFractionOfTheWindowNotAtTheLeftEdge() {
+        // Two samples an hour apart in a four-hour window: the first belongs a quarter of the way
+        // across the plot, not at its left edge.
+        ChartTimeAxis window = new(
+            "time", Start, Start.AddHours(4), [new ChartTick(0, "12:00"), new ChartTick(14400, "16:00")]);
+
+        string svg = LineChart.Render([Series("ok", (3600, 1), (7200, 2))], window, CountAxis, Size, Frame);
+
+        (double X, double Y)[] points = [.. PolylinePoints(svg)];
+
+        Assert.That(points, Has.Length.EqualTo(2));
+        Assert.That(points[0].X, Is.EqualTo(146.5).Within(0.01), "a quarter of the 322-wide plot after its 66 left edge");
+        Assert.That(points[1].X, Is.EqualTo(227).Within(0.01), "and half way across");
+    }
+
+    [Test]
+    public void ASamplePastTheEndOfTheWindowIsCutAtTheEdgeRatherThanDrawnAlongIt() {
+        ChartTimeAxis window = new(
+            "time", Start, Start.AddSeconds(300), [new ChartTick(0, "12:00"), new ChartTick(300, "12:05")]);
+        ChartAxis count = new("count", [new ChartTick(0, "0"), new ChartTick(4, "4")]);
+
+        string svg = LineChart.Render(
+            [Series("ok", (0, 1), (150, 2), (600, 3), (900, 4))], window, count, Size, Frame);
+
+        (double X, double Y)[] points = [.. PolylinePoints(svg)];
+
+        Assert.That(points, Has.Length.EqualTo(3), "the samples past the end are not drawn along the edge");
+        Assert.That(points[^1].X, Is.EqualTo(388).Within(0.01), "the line is cut where the window ends");
     }
 
     [Test]

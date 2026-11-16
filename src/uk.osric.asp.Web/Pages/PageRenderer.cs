@@ -397,8 +397,24 @@ internal sealed class PageRenderer(
         // a task rather than a thread.
         Task page = Task.Run(() => template.InvokeAsync(context), CancellationToken.None);
         Task expiry = Task.Delay(Timeout.InfiniteTimeSpan, lifetime.Token);
+        Task finished = await Task.WhenAny(page, expiry);
 
-        if (await Task.WhenAny(page, expiry) == page) {
+        if (page.IsCanceled
+            && (lifetime.Token.IsCancellationRequested || cancellationToken.IsCancellationRequested)) {
+            // The page stopped because we asked it to: the answer was already given, or the
+            // visitor left. That is not a page fault, so it is not counted as one.
+            //
+            // It is checked before the race is read, not after, because the deadline that ends the
+            // wait is the same one that cancels the page's own awaits: the page can reach the
+            // cancelled state in the same instant and finish first, and `await page` would then
+            // throw the cancellation at whoever asked for the render.
+            template.Dispose();
+            metrics.RecordInvoke(path, false, Stopwatch.GetElapsedTime(invokeStart));
+
+            return RenderResult.TimedOut;
+        }
+
+        if (finished == page) {
             try {
                 await page;
                 metrics.RecordInvoke(path, true, Stopwatch.GetElapsedTime(invokeStart));
@@ -410,16 +426,6 @@ internal sealed class PageRenderer(
             } finally {
                 template.Dispose();
             }
-        }
-
-        if (page.IsCanceled
-            && (lifetime.Token.IsCancellationRequested || cancellationToken.IsCancellationRequested)) {
-            // The page stopped because we asked it to: the answer was already given, or the
-            // visitor left. That is not a page fault, so it is not counted as one.
-            template.Dispose();
-            metrics.RecordInvoke(path, false, Stopwatch.GetElapsedTime(invokeStart));
-
-            return RenderResult.TimedOut;
         }
 
         Abandon(path, context, template, page, lifetime, invokeStart, cancellationToken.IsCancellationRequested);

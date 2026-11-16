@@ -26,7 +26,7 @@ view to the next.
 
 - The body opens with the skip link, then the banner, then the one `main`. `BeginAsync` requires a
   navigation argument, so no view can be written without a menu: the shell composes its own with
-  `SiteNavigation`, and the seeded layout writes the same items for stored pages (`shell-the-menu-is-written-twice`, `pages-the-document-is-the-shells`).
+  `SiteNavigation`, and the seeded layout writes the same items for stored pages (`shell-the-menu-is-written-twice`, `pages-the-document-is-the-shells`). The header carries where the visitor can go from here; the footer carries About and the privacy policy on every page, and the shell writes the same footer from `SiteNavigation.FooterLinks()`.
 - `/site.css` is a seeded page and the only base sheet (`pages-one-base-sheet`). It holds the document's shape —
   the visually hidden utility, the listing and the form grid — and the site's look, with the shape
   rules first. The view's own sheet is linked last, so it can override a structural rule without a
@@ -115,7 +115,8 @@ write buffer 2
   page unwrapped, logs a warning and counts `page.layout.fallback`; a layout the page *named* that
   cannot be served is an error naming the key.
 - **The menu is written twice, on purpose.** `SiteNavigation` composes it from the principal for the
-  shell's own views; the seeded `/_layout` writes it from `ctx.User` for stored pages. The shell's
+  shell's own views, and the seeded `/_layout` writes it from `ctx.User` for stored pages — the header
+  items and the constant footer alike. The shell's
   document must not depend on a stored page, because the error, health and sign-in routes have to
   answer when the page pipeline is broken (`shell-the-menu-is-written-twice`). The shell's copy comes from
   `ShellDocument.Nav`, the layout's from the seeded library, and an integration test compares the
@@ -187,21 +188,33 @@ signed-in owner, and a problem document when the request wanted JSON.
 
 There is no editor in the shell. The editor is a seeded page at `Pages:Editor:Key` — `/pages` as
 shipped — so it is served by the page pipeline and guards itself with the ordinary `ctx.User` check.
-What keeps it trustworthy is not a route but the capability: `IPageEditor` is registered for that
-key alone, so a page stored anywhere else cannot read, write, delete or restore another page, and
-the shell still owns the things a page must not: routing, the session, the recovery routes and the
-typed confirmation a scrub needs. Pages stay public unless their own code checks `ctx.User` (see
+What keeps it trustworthy is not a route but the page's own guard: `IPageWrites` is offered to
+every page now, so the editor's key decides where the editor is served and nothing else, and the
+authority to write is the signed-in visitor's (`pages-any-page-may-write-the-store`). The shell still
+owns the things a page must not: routing, the session, the recovery routes and the typed confirmation
+a scrub needs. Pages stay public unless their own code checks `ctx.User` (see
 "Page authentication" below).
 
-A seeded page is installed from its row in the editor's listing: the action opens a confirmation
-that shows the diff against the seed, and its button saves the bundled source through the ordinary
-revision path, so a page comes back without discarding its earlier revisions. A seed is *installed* and a saved revision is *restored*:
-`?edit=<key>&cmd=install` on the seed, `?rev=<hash>&cmd=restore` from the page's history, both confirmed the same way
-and both refusing the change that would leave the live source as it is. The page's history offers a
-restore link on every revision except the current one; the editor says when a key was deleted and
-that saving brings it back. A deleted page's history is scrubbed from `/admin/scrub/<key>`, which is
-the shell's route because it is irreversible: the owner types the page's key to confirm, and a live
-page has to be deleted before it can be scrubbed.
+A seeded page is installed from its row only when the release moved the seed and the page still holds
+the seed it was installed from — the row says *release newer*. The action opens a confirmation that
+shows the diff against the seed, and its button saves the bundled source through the ordinary
+revision path, so a page comes back without discarding its earlier revisions. A row whose content
+already is the shipped seed but whose record says otherwise offers *Record as installed*, a POST that
+writes the anchor and nothing else. A page that drifted is shown with the diff and no action: the
+capability refuses an install on it, so a hand-made form cannot do what the page will not offer. A
+seed is *installed* and a saved revision is *restored*: `?edit=<key>&cmd=install` on the seed,
+`?rev=<hash>&cmd=restore` from the page's history, both confirmed the same way and both refusing the
+change that would leave the live source as it is. The page's history offers a restore link on every
+revision except the current one; the editor says when a key was deleted and that saving brings it
+back. A deleted page's history is scrubbed from `/admin/scrub/<key>`, which is the shell's route
+because it is irreversible: the owner types the page's key to confirm, and a live page has to be
+deleted before it can be scrubbed.
+
+The routine apply is `/admin/seed-apply`: it walks the pack in key order, writes every *release newer*
+and *new* row, records every row whose content already is the shipped seed, skips the rows that are
+not its business and stops at the first row that drifted, naming it. `/admin/restore` remains the
+emergency path — every seed, every outcome, past a failure — because it is what the owner reaches for
+when the editor or its sheet will not load.
 
 - Accounts live in the `Users` table in the same SQLite database. There is no registration endpoint
   and no account UI: the `users` command in the Web app creates, lists, resets and removes accounts
@@ -290,7 +303,7 @@ A page keeps per-visitor state through `ctx.Capabilities.GetRequired<IPageSessio
 
 The shell keeps no flash message of its own. The editor page's notices are written into the render
 that produced them: it answers a save in place, so a message that a redirect would have to carry is
-not needed. `/admin/restore` and `/admin/scrub` answer with their own documents for the same reason.
+not needed. `/admin/restore`, `/admin/seed-apply` and `/admin/scrub` answer with their own documents for the same reason.
 - Every response carries one set of security headers, written by `SecurityHeaders` when the response
   starts (`shell-security-headers-are-one-set`). The assistant and admin views widen the policy to `script-src 'self'` for their
   own modules, and a stored page asks for the same policy with `ctx.AllowScripts()` — which is how
@@ -301,6 +314,38 @@ not needed. `/admin/restore` and `/admin/scrub` answer with their own documents 
   `Content-Security-Policy` with `SetHeader`, and inline scripts stay blocked on every path.
   `/admin.js`, `/editor.js` and `/assistant.js` are seeded pages like `/site.css`, so they stay
   editable; each is a native ES module loaded with `<script type="module">`.
+
+### A run's view
+
+The assistant's `view` tool is the one caller that reads the site over HTTP as somebody. The shell
+gives it a second authentication scheme, `View`, and a token that is not a sign-in:
+
+- **Minted per run, in memory.** `ViewTokenStore` holds one 256-bit secret per executing run, at most
+  `Assistant:MaxActiveRuns` of them, and nothing else anywhere: no table, no file, no key ring, no
+  configuration. `RunProcessor` mints it when the run starts and forgets it in the run's `finally`, so
+  a finish, a failure, a cancel and an unexpected exception all revoke it. A restart ends every run
+  and therefore every token.
+- **Presented as `Authorization: Bearer`.** The default scheme is a policy scheme that forwards a
+  request carrying that header to `View` and everything else to the cookie, and the cookie stays the
+  challenge scheme, so a browser's sign-in redirect is unchanged. The handler compares the secret in
+  fixed time, then validates the account the way the cookie does on every request — it exists, and its
+  `SecurityStamp` has not moved (`auth-sign-in-is-long-lived-and-revocable`). The principal is the
+  run's owner, with `uk.osric.asp.view` set to the run id.
+- **Two refusals, in one middleware.** `ViewGuard` runs after the identity is known and before
+  anything is authorised: a bearer header that did not authenticate is a `401` with
+  `WWW-Authenticate: Bearer`, never a silent anonymous view; and a view may use `GET` and `HEAD` only,
+  refused `405` with `Allow: GET, HEAD` before authorisation and long before the antiforgery check.
+  It sits in one place because the page endpoint covers pages only — the editor, the admin tools, the
+  assistant and the memory page are all shell routes with their own `POST`s.
+- **Only one origin.** `Site:Origin` is where the host reaches the site it serves;
+  `ViewCredential` offers the token to that scheme, host and port and to nothing else, hop by hop, so
+  a redirect off the origin drops it (`pages-outbound-fetch`). A page cannot name the token: it is not
+  in `Pages:Fetch:Credentials` and has no configuration key.
+- **The origin has to be the visitor's.** A view of a page that mints an antiforgery token — the
+  editor is the one that does — needs an HTTPS request, because the antiforgery cookie is
+  `Secure`-always in production. The shipped `Site:Origin` is the container's own loopback, which a
+  development host can use; the deployment names the public origin, and a production host left on
+  plaintext logs one warning at startup rather than failing a run later.
 
 ### Page authentication
 

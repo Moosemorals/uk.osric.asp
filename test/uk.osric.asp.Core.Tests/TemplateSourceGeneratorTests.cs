@@ -72,6 +72,21 @@ public sealed class TemplateSourceGeneratorTests {
         Assert.That(source, Does.Contain($"ctx.Path; {Environment.NewLine}#line default{Environment.NewLine}#nullable disable{Environment.NewLine});"));
     }
 
+    [TestCase("text<%# a note %>more")]
+    [TestCase("<% int value = 1; %><%# a note %><%= ctx.Path %>")]
+    [TestCase("<% if (true) { %><%# a note %><% } %>")]
+    public void ACommentIsEmittedNowhere(string template) {
+        Assert.That(Generate(template), Does.Not.Contain("a note"));
+    }
+
+    [Test]
+    public void ACommentWritesNothingAndAddsNoCallOfItsOwn() {
+        string source = Generate("<p>One</p><%# a note %><p>Two</p>");
+
+        Assert.That(source, Does.Contain(
+            $"ctx.WriteRaw(@\"<p>One</p>\");{Environment.NewLine}ctx.WriteRaw(@\"<p>Two</p>\");"));
+    }
+
     [Test]
     public void AWriteExpressionAfterLeadingNewlinesMapsToItsTemplateColumn() {
         string source = Generate("<%=\r\n  ctx.Path\r\n%>");
@@ -392,6 +407,34 @@ public sealed class TemplateSourceGeneratorKindTests {
 
         Assert.That(result.Errors, Is.Not.Empty);
         Assert.That(result.Kind, Is.EqualTo(PageKind.Page));
+    }
+
+    [TestCase("<%# a note %>")]
+    [TestCase("<p>Text</p><%# a note %>")]
+    [TestCase("<%# a note %>\n<%# another %>")]
+    public void ACommentCountsAsNeitherCodeNorTextSoTheTemplateIsText(string template) {
+        TemplateGenerationResult result = TemplateSourceGenerator.Generate(template);
+
+        Assert.Multiple(() => {
+            Assert.That(result.Kind, Is.EqualTo(PageKind.Text));
+            Assert.That(result.Source, Is.Not.Null);
+            Assert.That(result.Errors, Is.Empty);
+        });
+    }
+
+    [TestCase("<%# a note %>\n<%! class Amount { } %>")]
+    [TestCase("<%! class Amount { } %>\n<%# a note %>")]
+    [TestCase("<%! class Amount { } %>\r\n<%# a note %>\r\n")]
+    public void ACommentBesideDeclarationsKeepsTheTemplateALibrary(string template) {
+        Assert.That(TemplateSourceGenerator.Generate(template).Kind, Is.EqualTo(PageKind.Library));
+    }
+
+    [Test]
+    public void GenerateLibraryAcceptsALibraryWithAComment() {
+        GeneratedSource? source = TemplateSourceGenerator
+            .GenerateLibrary("<%! class Amount { } %>\n<%# a note %>").Source;
+
+        Assert.That(source, Is.Not.Null);
     }
 }
 

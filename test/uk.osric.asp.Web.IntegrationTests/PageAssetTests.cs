@@ -85,30 +85,18 @@ public sealed class PageAssetTests : IntegrationTest {
     }
 
     [Test]
-    public async Task ThePageListInstallsASeedOverAnEditedPageAndKeepsItsHistory() {
+    public async Task ThePageListOffersNoInstallOnAnEditedSeed() {
         using HttpClient client = await CreateSignedInClientAsync();
         await SavePageAsync("/editor.css", "/* local edit */");
-        PageTemplate edited = (await ReadPageAsync("/editor.css"))!;
 
         using HttpResponseMessage listing = await client.GetAsync("/pages");
         string listingBody = await listing.Content.ReadAsStringAsync();
-        Assert.That(listingBody, Does.Contain("<a href=\"/pages?edit=%2Feditor.css&amp;cmd=install\" aria-label=\"Install /editor.css from its seed\">Install from seed</a>"));
-
-        (string token, string revision) = await GetEditorFormAsync(client, "/pages?edit=/editor.css&cmd=install");
-        using HttpResponseMessage restore = await client.PostAsync("/pages?edit=/editor.css&cmd=install", Form(
-            ("__RequestVerificationToken", token),
-            ("expected", revision)));
-        PageTemplate restored = (await ReadPageAsync("/editor.css"))!;
 
         Assert.Multiple(() => {
-            Assert.That(restore.StatusCode, Is.EqualTo(HttpStatusCode.OK), "the editor page answers the install in place");
-            Assert.That(restore.Headers.CacheControl?.NoStore, Is.True);
-            Assert.That(restored.Template, Is.EqualTo(ReadSeed("editor.css")));
-            Assert.That(restored.Hash, Is.Not.EqualTo(edited.Hash));
+            Assert.That(listingBody, Does.Contain("edited"), "the row says why it will not be overwritten");
+            Assert.That(listingBody, Does.Not.Contain("aria-label=\"Install /editor.css from its seed\""),
+                "the gate refuses an edit, so the row offers no install");
         });
-
-        using HttpResponseMessage history = await client.GetAsync("/pages?page=/editor.css");
-        Assert.That(await history.Content.ReadAsStringAsync(), Does.Contain(edited.Hash));
     }
 
     [Test]

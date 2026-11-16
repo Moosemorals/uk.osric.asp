@@ -123,7 +123,7 @@ BUILD_INPUTS := $(shell find src test tools -type f 2>/dev/null) \
 	Directory.Build.props Directory.Build.targets Directory.Packages.props $(SOLUTION) \
 	$(wildcard $(ARTIFACTS)/bin $(ARTIFACTS)/obj)
 
-.PHONY: help build restore check ci drift-check audit check-pages decisions test test-core test-runtime test-web test-integration test-browser test-browser-live browsers vscode-extension migration user-add user-passwd user-list user-remove remote-user-add remote-user-passwd remote-user-list remote-user-remove run publish image image-check deploy deploy-guard format format-check license-check mutation-core mutation-runtime mutation-sdk mutation-web worktree worktrees worktree-remove changelist clean
+.PHONY: help build restore check ci drift-check audit check-pages decisions test test-core test-runtime test-web test-integration test-browser test-browser-live browsers vscode-extension migration user-add user-passwd user-list user-remove remote-user-add remote-user-passwd remote-user-list remote-user-remove seeds-list seeds-pull remote-seeds-list remote-seeds-pull run publish image image-check deploy deploy-guard format format-check license-check mutation-core mutation-runtime mutation-sdk mutation-web worktree worktrees worktree-remove changelist clean
 .DELETE_ON_ERROR:
 
 # ssh will not create the directory its control socket lives in.
@@ -157,7 +157,7 @@ help:
 		'remote-user-passwd Same as user-passwd, in the container on HOST=...' \
 		'remote-user-list   Same as user-list, in the container on HOST=...' \
 		'remote-user-remove Same as user-remove, in the container on HOST=...' \
-		'run                Run the web app on the default URLs.' \
+		'run                Run the web app on the site origin, http://127.0.0.1:8080.' \
 		'publish            Publish the app to artifacts/publish.' \
 		'image              Build the container image with the SDK; the base is pinned in the Makefile.' \
 		'image-check        Build it twice and fail if the two builds are not the same image.' \
@@ -204,11 +204,15 @@ test: test-core test-runtime test-web test-integration
 # sequence file, which is the good outcome — and a warning nobody can act on is one everybody learns
 # to skip.
 #
-# The three unit suites are supposed to be fast — core under a second, runtime a couple, web about
-# fifteen — so a minute is several times a full run and a suite that reaches it is wedged, not slow.
-# Waiting a minute for a suite that should answer in seconds is cheaper than waiting ten for one that
-# will never answer. The integration and browser suites drive a real host and a browser, so their
-# ceiling stays generous; both can be overridden, as can the fast one on a machine slower than this.
+# The three unit suites are supposed to be fast — core under a second, runtime a couple of seconds,
+# web half a minute — but "fast" is not a fixed number and web grew past the minute: with the machine
+# to itself it takes thirty-five seconds, and beside a `dotnet format` and its own eight parallel
+# fixtures it takes fifty-five to seventy-five. A minute therefore aborted healthy runs, and did it
+# by reporting the tests it had run as "Passed!" and then "Test Run Aborted" — a suite that failed for
+# being slow looked, in the log, like a suite that passed. Three minutes is two and a half times the
+# worst measured run and still fails a wedged suite long before anyone would give up on it. The
+# integration and browser suites drive a real host and a browser, so their ceiling stays generous;
+# both can be overridden, as can the fast one on a machine slower than this.
 #
 # The browser suite has a ceiling of its own because it is the slowest thing here and the least
 # predictable: fifty tests that each open a page in Firefox and wait on a streamed answer take a
@@ -217,7 +221,7 @@ test: test-core test-runtime test-web test-integration
 # half times that, so a healthy run under a deploy's load reached the ceiling and was aborted for
 # being slow rather than for being wedged. Ten is five times the measured run, which still fails a
 # wedged suite long before anyone would give up on it.
-TEST_FAST_TIMEOUT ?= 60000
+TEST_FAST_TIMEOUT ?= 180000
 TEST_HANG_TIMEOUT ?= 300000
 TEST_BROWSER_TIMEOUT ?= 600000
 # Test results belong with everything else the build produces. Left to itself the runner creates a
@@ -366,8 +370,40 @@ remote-user-remove: | $(SSH_CONTROL_DIR)
 	@test -n "$(strip $(ACCOUNT))" || { echo "usage: make remote-user-remove HOST=deploy@server ACCOUNT=name"; exit 1; }
 	$(SSH) $(HOST) podman exec -w /app $(CONTAINER_NAME) dotnet $(APP_ASSEMBLY) users remove '$(ACCOUNT)'
 
+# ---- Seeds ----------------------------------------------------------------------------------------
+#
+# The pack is edited in production and the repository falls behind it. `seeds` prints what the store
+# holds for each seed and pulls the store's bytes back into the working tree; git is the merge tool and
+# `git diff` is the review. Pull refuses a dirty seed folder unless FORCE=1, because extracting over an
+# uncommitted edit is the one thing it can destroy.
+
+seeds-list: build
+	ASPNETCORE_ENVIRONMENT=$(ASPNETCORE_ENVIRONMENT) \
+		$(DOTNET) run --project $(WEB_PROJECT) --no-build -- seeds list
+
+seeds-pull: build
+	@test -z "$$(git status --porcelain -- $(SEED_DIRECTORY))" || test -n "$(strip $(FORCE))" || { echo "Pages/Seeds has uncommitted changes; commit them, or pass FORCE=1 to overwrite"; exit 1; }
+	@archive=$$(mktemp); trap 'rm -f "$$archive"' EXIT; \
+		ASPNETCORE_ENVIRONMENT=$(ASPNETCORE_ENVIRONMENT) $(DOTNET) run --project $(WEB_PROJECT) --no-build -- seeds pull $(if $(strip $(ALL)),--all) $(if $(strip $(MISSING)),--missing) > "$$archive" && \
+		tar -x -C $(SEED_DIRECTORY) -f "$$archive"
+
+remote-seeds-list: | $(SSH_CONTROL_DIR)
+	@test -n "$(strip $(HOST))" || { echo "usage: make remote-seeds-list HOST=deploy@server"; exit 1; }
+	$(SSH) $(HOST) podman exec -w /app $(CONTAINER_NAME) dotnet $(APP_ASSEMBLY) seeds list
+
+remote-seeds-pull: | $(SSH_CONTROL_DIR)
+	@test -n "$(strip $(HOST))" || { echo "usage: make remote-seeds-pull HOST=deploy@server"; exit 1; }
+	@test -z "$$(git status --porcelain -- $(SEED_DIRECTORY))" || test -n "$(strip $(FORCE))" || { echo "Pages/Seeds has uncommitted changes; commit them, or pass FORCE=1 to overwrite"; exit 1; }
+	@archive=$$(mktemp); trap 'rm -f "$$archive"' EXIT; \
+		$(SSH) $(HOST) podman exec -w /app $(CONTAINER_NAME) dotnet $(APP_ASSEMBLY) seeds pull $(if $(strip $(ALL)),--all) $(if $(strip $(MISSING)),--missing) > "$$archive" && \
+		tar -x -C $(SEED_DIRECTORY) -f "$$archive"
+
+# The port is not a preference: Site:Origin in appsettings.json names it, and the assistant's view
+# fetches that origin, so a developer host on any other port is a host whose own view cannot connect.
+# Override ASPNETCORE_URLS and Site__Origin together, or not at all.
 run:
-	ASPNETCORE_ENVIRONMENT=$(ASPNETCORE_ENVIRONMENT) $(DOTNET) run --project $(WEB_PROJECT)
+	ASPNETCORE_ENVIRONMENT=$(ASPNETCORE_ENVIRONMENT) ASPNETCORE_URLS=$(or $(ASPNETCORE_URLS),http://127.0.0.1:8080) \
+		$(DOTNET) run --project $(WEB_PROJECT)
 
 publish: changelist
 	$(DOTNET) publish $(WEB_PROJECT) -c Release -p:ChangelistFile=$(abspath $(CHANGELIST))
@@ -539,8 +575,21 @@ audit:
 format:
 	$(DOTNET) format $(SOLUTION)
 
+# What the build cannot see is layout, so layout is what this asks for: every whitespace rule, and
+# the `IMPORTS` fixer that orders using directives, which raises no diagnostic the compiler owns.
+# Everything else `dotnet format` would check is already an error in the build — `AnalysisMode=All`
+# turns the CA rules on and `EnforceCodeStyleInBuild` turns the IDE ones on, and a warning is an
+# error (Directory.Build.props) — so asking for it here would run the whole analysis a second time
+# for no answer the build has not already given.
+#
+# It is not a small second time. Measured on this tree, the analyzer phase is 419 of the 503
+# CPU-seconds the whole of `dotnet format` spends — seven minutes of cores for a minute and a half of
+# wall clock, the busiest thing the gate does — and the style phase is another 70 for the one
+# diagnostic the build does not raise. Narrowed to layout and using order the check spends about 25
+# CPU-seconds instead, and the cores go to the suites.
 format-check:
-	$(DOTNET) format $(SOLUTION) --verify-no-changes
+	$(DOTNET) format whitespace $(SOLUTION) --verify-no-changes
+	$(DOTNET) format style $(SOLUTION) --verify-no-changes --diagnostics IMPORTS
 
 # Needs the `reuse` tool (apt install reuse, or pipx install reuse).
 license-check:

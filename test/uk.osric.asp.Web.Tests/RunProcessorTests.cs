@@ -11,8 +11,10 @@ using System.Runtime.CompilerServices;
 using System.Text.Json;
 using uk.osric.asp.Core.Assistant;
 using uk.osric.asp.Web.Assistant;
+using uk.osric.asp.Web.Authentication;
 using uk.osric.asp.Web.Pages;
 using uk.osric.asp.Web.Storage;
+using uk.osric.asp.Web.Users;
 
 [TestFixture]
 [FixtureLifeCycle(LifeCycle.InstancePerTestCase)]
@@ -32,6 +34,18 @@ public sealed class RunProcessorTests {
     private readonly RunContinuationCoordinator _continuation = new();
 
     private readonly RecordingLoggerFactory _logs = new();
+
+    // The owner every run in this fixture belongs to, with a stamp the minted token records.
+    private readonly FakeUserStore _users = new();
+
+    public RunProcessorTests() {
+        _users.Users["owner"] = new LocalUser {
+            UserName = "owner",
+            PasswordHash = "hash",
+            SecurityStamp = "stamp",
+            CreatedAt = DateTimeOffset.UnixEpoch,
+        };
+    }
 
     private string _databasePath = string.Empty;
     private ServiceProvider? _services;
@@ -75,6 +89,8 @@ public sealed class RunProcessorTests {
         } else {
             services.AddSingleton(memories);
         }
+        // The run mints its view token for its owner's stamp, so the account has to be readable here.
+        services.AddSingleton<IUserStore>(_users);
         services.AddScoped(_ => _pages!.Editor);
         return services.BuildServiceProvider();
     }
@@ -653,6 +669,8 @@ public sealed class RunProcessorTests {
             _continuation,
             new AssistantMetrics(),
             options,
+            services.GetRequiredService<IUserStore>(),
+            new ViewTokenStore(options),
             _logs.CreateLogger<RunProcessor>());
         return (conversation, started, stream!, processor);
     }

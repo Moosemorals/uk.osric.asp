@@ -261,7 +261,9 @@ public sealed class PageRendererTests {
             "the answer must not wait for the page to stop waiting");
 
         // A page suspended in an await unwinds as soon as the deadline fires, so its render is
-        // released almost immediately rather than when a network call gives up.
+        // released almost immediately rather than when a network call gives up. That unwind and the
+        // deadline are the same cancellation, so the page can reach the renderer first — which is why
+        // the renderer reads the cancellation before it reads the race.
         Stopwatch wait = Stopwatch.StartNew();
         while (health.Abandoned > 0 && wait.Elapsed < TimeSpan.FromSeconds(2)) {
             await Task.Delay(20);

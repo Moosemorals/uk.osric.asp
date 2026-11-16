@@ -135,9 +135,10 @@ Core host dies at startup.
 
 ## C# style
 
-`.editorconfig` is authoritative and `dotnet format` (or `make format-check` in CI) enforces it —
-layout, naming, SPDX headers and framework conventions are deliberately not restated here. The
-judgement calls it cannot express:
+`.editorconfig` is authoritative, the build enforces it (warnings are errors, and
+`EnforceCodeStyleInBuild` is on) and `make format-check` asks `dotnet format` only for the layout the
+build cannot see — the whitespace rules and using-directive order. Layout, naming, SPDX headers and
+framework conventions are deliberately not restated here. The judgement calls it cannot express:
 
 - Declare only the usings a file adds beyond the SDK's: `ImplicitUsings` supplies the built-in
   namespaces everywhere and test projects take `NUnit.Framework` project-wide, so a file never

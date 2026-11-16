@@ -14,8 +14,8 @@ public sealed class StackedAreaChartTests {
 
     private static readonly ChartSize Size = new(400, 260);
 
-    private static readonly ChartAxis TimeAxis =
-        new("time", [new ChartTick(0, "05:00"), new ChartTick(60, "05:01")]);
+    private static readonly ChartTimeAxis TimeAxis =
+        new("time", Start, Start.AddSeconds(60), [new ChartTick(0, "05:00"), new ChartTick(60, "05:01")]);
 
     private static readonly ChartAxis CountAxis = new("per second", []);
 
@@ -27,6 +27,20 @@ public sealed class StackedAreaChartTests {
 
     private static string Render(params ChartSeries[] series) =>
         StackedAreaChart.Render(series, TimeAxis, CountAxis, Size, Frame);
+
+    private static IEnumerable<(double X, double Y)> TopPoints(string svg) {
+        const string marker = "<polyline class=\"series series-1\" points=\"";
+        int start = svg.IndexOf(marker, StringComparison.Ordinal) + marker.Length;
+        Assert.That(start, Is.GreaterThanOrEqualTo(marker.Length), "the first band is not drawn");
+        string points = svg[start..svg.IndexOf('"', start)];
+
+        return points.Split(' ', StringSplitOptions.RemoveEmptyEntries).Select(pair => {
+            string[] parts = pair.Split(',');
+            return (
+                double.Parse(parts[0], CultureInfo.InvariantCulture),
+                double.Parse(parts[1], CultureInfo.InvariantCulture));
+        });
+    }
 
     [Test]
     public void TheBandsAreStackedInLabelOrder() {
@@ -70,6 +84,36 @@ public sealed class StackedAreaChartTests {
         string svg = Render(Series("hit", (0, 1), (60, 1)), Series("miss", (0, 2), (60, 2)), Series("stale", (0, 3), (60, 3)));
 
         Assert.That(svg, Does.Contain(">6</text>"), "1 + 2 + 3 is the top of the stack");
+    }
+
+    [Test]
+    public void AColumnSitsAtItsFractionOfTheWindowNotAtTheLeftEdge() {
+        // Two columns a minute apart in a four-minute window: the first belongs a quarter of the way
+        // across the plot, not at its left edge.
+        ChartTimeAxis window = new(
+            "time", Start, Start.AddSeconds(240), [new ChartTick(0, "05:00"), new ChartTick(240, "05:04")]);
+
+        string svg = StackedAreaChart.Render([Series("hit", (60, 1), (120, 2))], window, CountAxis, Size, Frame);
+
+        (double X, double Y)[] points = [.. TopPoints(svg)];
+
+        Assert.That(points, Has.Length.EqualTo(2));
+        Assert.That(points[0].X, Is.EqualTo(146.5).Within(0.01), "a quarter of the 322-wide plot after its 66 left edge");
+        Assert.That(points[1].X, Is.EqualTo(227).Within(0.01), "and half way across");
+    }
+
+    [Test]
+    public void AColumnPastTheEndOfTheWindowIsCutAtTheEdgeRatherThanDrawnAlongIt() {
+        ChartTimeAxis window = new(
+            "time", Start, Start.AddSeconds(240), [new ChartTick(0, "05:00"), new ChartTick(240, "05:04")]);
+
+        string svg = StackedAreaChart.Render(
+            [Series("hit", (0, 1), (120, 2), (480, 3))], window, CountAxis, Size, Frame);
+
+        (double X, double Y)[] points = [.. TopPoints(svg)];
+
+        Assert.That(points, Has.Length.EqualTo(3), "the column past the end is not drawn along the edge");
+        Assert.That(points[^1].X, Is.EqualTo(388).Within(0.01), "the band is cut where the window ends");
     }
 
     [Test]

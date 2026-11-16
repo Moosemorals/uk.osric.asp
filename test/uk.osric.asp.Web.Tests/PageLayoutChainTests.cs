@@ -529,22 +529,22 @@ public sealed class PageLayoutChainTests {
     }
 
     [Test]
-    public async Task EveryContentLayerIsOfferedTheWriterAsync() {
+    public async Task EveryContentLayerIsOfferedTheWriteAsync() {
         Store("/page", """
             <% ctx.Capabilities.GetRequired<IPageLayout>().Title = "Page"; %>
-            <span id="page-writer"><%= (ctx.Capabilities.Get<IPageWriter>() is null ? "no" : "yes") %></span>
+            <span id="page-writes"><%= (ctx.Capabilities.Get<IPageWrites>() is null ? "no" : "yes") %></span>
             """);
 
         Rendered rendered = await RenderAsync("/page");
 
-        Assert.That(rendered.Body, Does.Contain("<span id=\"page-writer\">yes</span>"));
+        Assert.That(rendered.Body, Does.Contain("<span id=\"page-writes\">yes</span>"));
     }
 
     [Test]
-    public async Task ALayoutIsNotOfferedTheWriterAsync() {
+    public async Task ALayoutIsNotOfferedTheWriteAsync() {
         Store("/_layout", """
             <% var layout = ctx.Capabilities.GetRequired<IPageLayout>(); %>
-            <title><%= layout.Title %></title><span id="layout-writer"><%= (ctx.Capabilities.Get<IPageWriter>() is null ? "no" : "yes") %></span><%== layout.Body %>
+            <title><%= layout.Title %></title><span id="layout-writes"><%= (ctx.Capabilities.Get<IPageWrites>() is null ? "no" : "yes") %></span><%== layout.Body %>
             """);
         Store("/page", """
             <% ctx.Capabilities.GetRequired<IPageLayout>().Title = "Page"; %><h1>Page</h1>
@@ -552,14 +552,14 @@ public sealed class PageLayoutChainTests {
 
         Rendered rendered = await RenderAsync("/page");
 
-        Assert.That(rendered.Body, Does.Contain("<span id=\"layout-writer\">no</span>"), "a layout is markup, not a writer");
+        Assert.That(rendered.Body, Does.Contain("<span id=\"layout-writes\">no</span>"), "a layout is markup and gets neither write");
     }
 
     [Test]
-    public async Task ALayoutThatAsksForTheWriterIsRefusedAsync() {
+    public async Task ALayoutThatAsksForTheWriteIsRefusedAsync() {
         Store("/_layout", """
             <% var layout = ctx.Capabilities.GetRequired<IPageLayout>();
-               _ = ctx.Capabilities.GetRequired<IPageWriter>(); %>
+               _ = ctx.Capabilities.GetRequired<IPageWrites>(); %>
             <title><%= layout.Title %></title><%== layout.Body %>
             """);
         Store("/page", """
@@ -569,7 +569,7 @@ public sealed class PageLayoutChainTests {
         InvalidOperationException? refused = await Assert.ThrowsAsync<InvalidOperationException>(
             () => RenderAsync("/page"));
 
-        Assert.That(refused?.Message, Does.Contain(nameof(IPageWriter)));
+        Assert.That(refused?.Message, Does.Contain(nameof(IPageWrites)));
     }
 
     [Test]
@@ -609,33 +609,33 @@ public sealed class PageLayoutChainTests {
     }
 
     [Test]
-    public async Task TheEditorCapabilityIsOfferedOnlyToTheEditorPageAsync() {
-        const string Probe = """<% ctx.Capabilities.GetRequired<IPageLayout>().Title = "Probe"; %><% ctx.Write(ctx.Capabilities.Get<IPageEditor>() is null ? "absent" : "present"); %>""";
+    public async Task TheWriteCapabilityIsOfferedToEveryPageAsync() {
+        const string Probe = """<% ctx.Capabilities.GetRequired<IPageLayout>().Title = "Probe"; %><% ctx.Write(ctx.Capabilities.Get<IPageWrites>() is null ? "absent" : "present"); %>""";
         Store("/pages", Probe);
         Store("/other", Probe);
 
-        Rendered editor = await RenderAsync("/pages", withEditor: true);
-        Rendered other = await RenderAsync("/other", withEditor: true);
-        Rendered without = await RenderAsync("/pages");
+        Rendered editor = await RenderAsync("/pages", withWrites: true);
+        Rendered other = await RenderAsync("/other", withWrites: true);
+        Rendered without = await RenderAsync("/other", withWrites: false);
 
         Assert.Multiple(() => {
             Assert.That(editor.Body, Does.Contain("present"));
-            Assert.That(other.Body, Does.Contain("absent"), "another stored page is never offered it");
-            Assert.That(without.Body, Does.Contain("absent"), "a host with no editor supplies none");
+            Assert.That(other.Body, Does.Contain("present"), "the editor's key is not what decides who may write");
+            Assert.That(without.Body, Does.Contain("absent"), "a host with no page store supplies none");
         });
     }
 
     [Test]
-    public async Task ALayoutIsNeverOfferedTheEditorCapabilityAsync() {
+    public async Task ALayoutIsNeverOfferedTheWriteCapabilityAsync() {
         Store("/pages", """<% ctx.Capabilities.GetRequired<IPageLayout>().Title = "Editor"; %>page""");
         Store(DefaultLayout, """
             <% var layout = ctx.Capabilities.GetRequired<IPageLayout>();
-               ctx.Write(ctx.Capabilities.Get<IPageEditor>() is null ? "absent" : "present"); %>
+               ctx.Write(ctx.Capabilities.Get<IPageWrites>() is null ? "absent" : "present"); %>
             <title><%= layout.Title %></title><link rel="stylesheet" href="/site.css"><% foreach (string href in layout.Stylesheets) { %><link rel="stylesheet" href="<%= href %>"><% } %>
             <main id="main"><%== layout.Body %></main></body></html>
             """);
 
-        Rendered rendered = await RenderAsync("/pages", withEditor: true);
+        Rendered rendered = await RenderAsync("/pages", withWrites: true);
 
         Assert.That(rendered.Body, Does.Contain("absent"));
     }
@@ -662,7 +662,7 @@ public sealed class PageLayoutChainTests {
         bool signedIn = false,
         string query = "",
         PageReadOptions? read = null,
-        bool withEditor = false) {
+        bool withWrites = true) {
 
         RenderOptions options = render ?? TestOptions.Render;
         PageSaver saver = CreateSaver(options);
@@ -684,6 +684,7 @@ public sealed class PageLayoutChainTests {
             read ?? TestOptions.Read,
             _state,
             _readStore,
+            TestOptions.Seeds,
             saver,
             _fetcher,
             _metrics,
@@ -694,7 +695,7 @@ public sealed class PageLayoutChainTests {
             new FakePageSessionStore(),
             TestSessions.Cookie);
 
-        PageEditor? editor = withEditor ? new PageEditor(_storage, saver) : null;
+        PageEditor? editor = withWrites ? new PageEditor(_storage, saver) : null;
         await PageEndpoint.HandleAsync(context, CreateRenderer(options), NullLoggerFactory.Instance, environment, editor);
 
         return new Rendered(context, await TestHttp.ReadBodyAsync(context));

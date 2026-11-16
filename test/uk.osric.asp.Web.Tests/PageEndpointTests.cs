@@ -49,6 +49,7 @@ public sealed class PageEndpointTests {
             TestOptions.Read,
             new FakePageStateStore(),
             new FakePageReadStore(),
+            TestOptions.Seeds,
             Saver(render ?? Options),
             new FakePageFetcher(),
             _metrics,
@@ -962,6 +963,18 @@ public sealed class PageEndpointTests {
         Assert.That(body, Is.EqualTo(Source));
         Assert.That(body, Does.Not.Contain("site-header"));
         Assert.That(body, Does.Not.Contain("/site.css"));
+    }
+
+    [Test]
+    public async Task ANoCodePageIsServedWithoutItsCommentsAsync() {
+        DefaultHttpContext context = TestHttp.CreateContext("mine.html", "GET", "/mine.html");
+        FakePageStore storage = StoreAsset("/mine.html", "<p>One</p><%# a note %><p>Two</p>");
+
+        await PageEndpoint.HandleAsync(context, CreatePages(storage), NullLoggerFactory.Instance, EndpointEnvironment());
+
+        Assert.That(context.Response.StatusCode, Is.EqualTo(StatusCodes.Status200OK));
+        Assert.That(await TestHttp.ReadBodyAsync(context), Is.EqualTo("<p>One</p><p>Two</p>"),
+            "a comment is neither code nor text, so it reaches the visitor no more than it changes the page");
     }
 
     [Test]

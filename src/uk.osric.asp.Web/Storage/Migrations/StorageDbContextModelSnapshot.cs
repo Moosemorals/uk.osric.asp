@@ -15,7 +15,7 @@ partial class StorageDbContextModelSnapshot : ModelSnapshot
     // If you encounter a merge conflict in the line below, it means you need to
     // discard one of the migration branches and recreate its migrations on top of
     // the other branch. See https://aka.ms/efcore-docs-migrations-conflicts for more info.
-    public override string LastMigrationId => "20261114085056_AddPageRevisionTemplateLibraries";
+    public override string LastMigrationId => "20261115155944_AddPageHeadSeedProvenance";
 
     protected override void BuildModel(ModelBuilder modelBuilder)
     {
@@ -372,11 +372,19 @@ partial class StorageDbContextModelSnapshot : ModelSnapshot
                     .HasColumnType("TEXT")
                     .UseCollation("BINARY");
 
+                b.Property<string>("ContentHash")
+                    .HasColumnType("TEXT")
+                    .UseCollation("BINARY");
+
                 b.Property<bool>("IsDeleted")
                     .HasColumnType("INTEGER");
 
                 b.Property<string>("RevisionId")
                     .IsRequired()
+                    .HasColumnType("TEXT")
+                    .UseCollation("BINARY");
+
+                b.Property<string>("SeedHash")
                     .HasColumnType("TEXT")
                     .UseCollation("BINARY");
 

@@ -125,7 +125,9 @@ public sealed class ShellDocumentFragmentTests {
         MarkupElement main = document.Elements("main").Single();
         Assert.That(main.Attribute("id"), Is.EqualTo("main"));
         Assert.That(main.Children.Single().Name, Is.EqualTo("h1"));
-        Assert.That(document.Elements("body").Single().Children.Single().Name, Is.EqualTo("main"));
+        IReadOnlyList<MarkupElement> body = document.Elements("body").Single().Children;
+        Assert.That(body[0].Name, Is.EqualTo("main"));
+        Assert.That(body[^1].Name, Is.EqualTo("footer"));
     }
 
     [Test]

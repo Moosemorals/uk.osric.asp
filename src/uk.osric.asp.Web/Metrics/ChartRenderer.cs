@@ -56,7 +56,11 @@ internal sealed class ChartRenderer(IMetricsSource source, MetricsOptions option
         ChartFrame frame = new(panel.Id, panel.Title, panel.YTitle, EmptyText, options.TimeZone, titleHref) {
             Description = panel.Description,
         };
-        ChartAxis time = new("time", NiceTicks.ForTime(window.Start, window.End, options.TimeZone));
+        ChartTimeAxis time = new(
+            "time",
+            window.Start,
+            window.End,
+            NiceTicks.ForTime(window.Start, window.End, options.TimeZone));
 
         return panel.Chart switch {
             PanelChart.Heatmap => new ChartResult(

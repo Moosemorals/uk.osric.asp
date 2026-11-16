@@ -58,11 +58,72 @@ internal sealed class PageSaver(
     /// losing the author's edit is the one loss this site refuses (`pages-a-page-may-save-itself`).
     /// </param>
     /// <returns>The revision the save stored and the compiler's author-facing diagnostics.</returns>
-    public async Task<SavedRevision> SaveAsync(
+    public Task<SavedRevision> SaveAsync(
         PagePath path,
         string template,
         CancellationToken cancellationToken,
+        CancellationToken renderDeadline = default) =>
+        SaveCoreAsync(path, template, null, cancellationToken, renderDeadline);
+
+    /// <summary>Compiles and stores a seed's bundled source, recording it as the page's anchor.</summary>
+    /// <param name="path">The canonical key to save.</param>
+    /// <param name="template">The bundled source.</param>
+    /// <param name="seedHash">The hash of the seed being installed.</param>
+    /// <param name="cancellationToken">Cancels the write.</param>
+    /// <param name="renderDeadline">The render's deadline, when the save was made from inside a render.</param>
+    /// <returns>The revision the save stored and the compiler's author-facing diagnostics.</returns>
+    public Task<SavedRevision> SaveSeedAsync(
+        PagePath path,
+        string template,
+        string seedHash,
+        CancellationToken cancellationToken,
         CancellationToken renderDeadline = default) {
+        ArgumentException.ThrowIfNullOrWhiteSpace(seedHash);
+
+        return SaveCoreAsync(path, template, seedHash, cancellationToken, renderDeadline);
+    }
+
+    /// <summary>Compiles and stores a page only while its current revision hash still matches.</summary>
+    /// <param name="path">The canonical key to save.</param>
+    /// <param name="template">The template text.</param>
+    /// <param name="expectedRevisionHash">The hash the caller saw as the head.</param>
+    /// <param name="cancellationToken">Cancels the write.</param>
+    /// <param name="renderDeadline">The render's deadline, when the save was made from inside a render.</param>
+    /// <returns>The stored revision and diagnostics, or <see cref="ConditionalPageSaveResult.Saved"/> false when the head moved.</returns>
+    public Task<ConditionalPageSaveResult> SaveIfRevisionAsync(
+        PagePath path,
+        string template,
+        string expectedRevisionHash,
+        CancellationToken cancellationToken,
+        CancellationToken renderDeadline = default) =>
+        SaveIfRevisionCoreAsync(path, template, expectedRevisionHash, null, cancellationToken, renderDeadline);
+
+    /// <summary>A conditional seed write: stores the seed only while the head still has the expected hash.</summary>
+    /// <param name="path">The canonical key to save.</param>
+    /// <param name="template">The bundled source.</param>
+    /// <param name="expectedRevisionHash">The hash the caller saw as the head.</param>
+    /// <param name="seedHash">The hash of the seed being installed.</param>
+    /// <param name="cancellationToken">Cancels the write.</param>
+    /// <param name="renderDeadline">The render's deadline, when the save was made from inside a render.</param>
+    /// <returns>The stored revision and diagnostics, or <see cref="ConditionalPageSaveResult.Saved"/> false when the head moved.</returns>
+    public Task<ConditionalPageSaveResult> SaveSeedIfRevisionAsync(
+        PagePath path,
+        string template,
+        string expectedRevisionHash,
+        string seedHash,
+        CancellationToken cancellationToken,
+        CancellationToken renderDeadline = default) {
+        ArgumentException.ThrowIfNullOrWhiteSpace(seedHash);
+
+        return SaveIfRevisionCoreAsync(path, template, expectedRevisionHash, seedHash, cancellationToken, renderDeadline);
+    }
+
+    private async Task<SavedRevision> SaveCoreAsync(
+        PagePath path,
+        string template,
+        string? seedHash,
+        CancellationToken cancellationToken,
+        CancellationToken renderDeadline) {
         long start = Stopwatch.GetTimestamp();
         // A save compiles, so it reads the libraries the page may name. A compile is rare and a
         // library is small; a source read here is cheaper than a page that cannot find its helpers.
@@ -74,13 +135,13 @@ internal sealed class PageSaver(
         } catch (InvalidOperationException) {
             // A compiler fault is our bug, but the author's edit must survive it. Store the template
             // without an image; the next request retries, and the failure still answers 500.
-            PageTemplate faulted = PageTemplate.NewRevision(path, template, null, images.RuntimeId);
+            PageTemplate faulted = PageTemplate.NewRevision(path, template, null, images.RuntimeId, seedHash);
             await store.SaveAsync(faulted, cancellationToken);
             RecordSaveFailed(path, start);
             throw;
         }
 
-        PageTemplate revision = PageTemplate.NewRevision(path, template, image, images.RuntimeId);
+        PageTemplate revision = PageTemplate.NewRevision(path, template, image, images.RuntimeId, seedHash);
         PageTemplate stored = await store.SaveAsync(revision, cancellationToken);
 
         RecordSaved(path, image, start);
@@ -88,19 +149,13 @@ internal sealed class PageSaver(
         return new SavedRevision(stored, image.Diagnostics);
     }
 
-    /// <summary>Compiles and stores a page only while its current revision hash still matches.</summary>
-    /// <param name="path">The canonical key to save.</param>
-    /// <param name="template">The template text.</param>
-    /// <param name="expectedRevisionHash">The hash the caller saw as the head.</param>
-    /// <param name="cancellationToken">Cancels the write.</param>
-    /// <param name="renderDeadline">The render's deadline, when the save was made from inside a render.</param>
-    /// <returns>The stored revision and diagnostics, or <see cref="ConditionalPageSaveResult.Saved"/> false when the head moved.</returns>
-    public async Task<ConditionalPageSaveResult> SaveIfRevisionAsync(
+    private async Task<ConditionalPageSaveResult> SaveIfRevisionCoreAsync(
         PagePath path,
         string template,
         string expectedRevisionHash,
+        string? seedHash,
         CancellationToken cancellationToken,
-        CancellationToken renderDeadline = default) {
+        CancellationToken renderDeadline) {
         long start = Stopwatch.GetTimestamp();
         IReadOnlyList<PageLibrary> available = await libraries.LiveAsync(cancellationToken);
 
@@ -111,12 +166,12 @@ internal sealed class PageSaver(
             // A compiler fault still stores the source: losing the author's edit to report our bug
             // is the worse failure (`pages-a-compiler-fault-is-ours`, `pages-a-warning-never-stops-a-page`).
             _ = await store.TrySaveAsync(
-                PageTemplate.NewRevision(path, template, null, images.RuntimeId), expectedRevisionHash, cancellationToken);
+                PageTemplate.NewRevision(path, template, null, images.RuntimeId, seedHash), expectedRevisionHash, cancellationToken);
             RecordSaveFailed(path, start);
             throw;
         }
 
-        PageTemplate revision = PageTemplate.NewRevision(path, template, image, images.RuntimeId);
+        PageTemplate revision = PageTemplate.NewRevision(path, template, image, images.RuntimeId, seedHash);
         bool saved = await store.TrySaveAsync(revision, expectedRevisionHash, cancellationToken);
         if (!saved) {
             return new ConditionalPageSaveResult(false, null, []);

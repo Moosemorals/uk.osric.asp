@@ -40,13 +40,15 @@ internal static class PageArchiveWriter {
 
         using (SqliteTransaction transaction = connection.BeginTransaction()) {
             using (SqliteCommand insertPage = connection.CreateCommand()) {
-                insertPage.CommandText = """INSERT INTO "Pages" ("Path", "Source") VALUES ($path, $source)""";
+                insertPage.CommandText = """INSERT INTO "Pages" ("Path", "Source", "SeedHash") VALUES ($path, $source, $seed)""";
                 SqliteParameter path = insertPage.Parameters.Add("$path", SqliteType.Text);
                 SqliteParameter source = insertPage.Parameters.Add("$source", SqliteType.Text);
+                SqliteParameter seed = insertPage.Parameters.Add("$seed", SqliteType.Text);
 
                 foreach (PageArchiveEntry page in pages.OrderBy(page => page.Path.Key, StringComparer.Ordinal)) {
                     path.Value = page.Path.Key;
                     source.Value = page.Source;
+                    seed.Value = page.SeedHash is null ? DBNull.Value : page.SeedHash;
                     insertPage.ExecuteNonQuery();
                 }
             }

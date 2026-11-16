@@ -25,7 +25,8 @@ public static class LineChart {
 
     /// <summary>Renders one chart.</summary>
     /// <param name="series">The lines to draw; a null value is a gap rather than a zero.</param>
-    /// <param name="x">The time axis; tick positions are seconds after the first sample.</param>
+    /// <param name="x">The time axis: the window the plot covers and its ticks, positioned in seconds
+    /// after the window's start.</param>
     /// <param name="y">
     /// The value axis; tick positions are the values themselves, and its divisor rescales the samples
     /// into the unit the ticks are labelled in.
@@ -37,7 +38,7 @@ public static class LineChart {
     /// <exception cref="ArgumentOutOfRangeException">The size leaves no room to plot in.</exception>
     public static string Render(
         IReadOnlyList<ChartSeries> series,
-        ChartAxis x,
+        ChartTimeAxis x,
         ChartAxis y,
         ChartSize size,
         ChartFrame frame) {
@@ -51,12 +52,11 @@ public static class LineChart {
         ChartPlot plot = ChartChrome.BeginPlot(svg, size, "chart", frame, ChartChrome.Describe(x, y),
             [.. series.Select(line => line.Label)], out IReadOnlyList<LegendEntry> legend);
 
-        (DateTimeOffset start, double span) = TimeRange(series, x);
         (double min, double max) = ValueRange(series, y);
 
         ChartChrome.WriteAxisTitle(svg, y.Title, plot);
         ChartChrome.WriteValueGrid(svg, y.Ticks, plot, tick => plot.Value(tick, min, max));
-        ChartChrome.WriteTimeGrid(svg, x.Ticks, plot, size, tick => plot.Time(tick, span));
+        ChartChrome.WriteTimeGrid(svg, x, plot, size);
         ChartChrome.Border(svg, plot);
 
         if (!HasSamples(series, y)) {
@@ -76,48 +76,50 @@ public static class LineChart {
                 : string.Empty;
 
             ChartChrome.BeginSeries(svg, frame, index, line.Label, legend[index]);
-            WriteLine(svg, line, index, y, colour, dash, series.Count > 1, start, span, min, max, plot);
+            List<(double X, double Y)> drawn = WriteLine(svg, line, index, x, y, colour, dash, series.Count > 1, min, max, plot);
             ChartChrome.EndSeries(svg);
 
-            WriteEndLabel(svg, line, y, colour, start, span, min, max, plot, labels);
+            WriteEndLabel(svg, line.Label, colour, drawn, plot, labels);
         }
 
         svg.Append("</svg>\n");
         return svg.ToString();
     }
 
-    private static void WriteLine(
+    // Returns the last run drawn, which is where the series' label goes: a line cut at the window's
+    // edge ends at the cut, not at the last sample it was given.
+    private static List<(double X, double Y)> WriteLine(
         StringBuilder svg,
         ChartSeries line,
         int index,
+        ChartTimeAxis x,
         ChartAxis y,
         string colour,
         string dash,
         bool hitStroke,
-        DateTimeOffset start,
-        double span,
         double min,
         double max,
         ChartPlot plot) {
 
         List<(double X, double Y)> run = [];
+        List<(double X, double Y)> drawn = [];
 
         foreach (ChartPoint point in line.Points) {
             if (y.Scale(point.Value) is not double value || !double.IsFinite(value)) {
-                WriteRun(svg, run, index, colour, dash, hitStroke);
+                drawn = WriteRun(svg, ChartClip.Line(run, plot), index, colour, dash, hitStroke) ?? drawn;
                 run = [];
                 continue;
             }
 
-            run.Add((plot.Time((point.At - start).TotalSeconds, span), plot.Value(value, min, max)));
+            run.Add((plot.Time(x, x.Offset(point.At)), plot.Value(value, min, max)));
         }
 
-        WriteRun(svg, run, index, colour, dash, hitStroke);
+        return WriteRun(svg, ChartClip.Line(run, plot), index, colour, dash, hitStroke) ?? drawn;
     }
 
     // The hit stroke is what makes a 2px line clickable: a second, transparent copy of the same path,
     // drawn only where a click has to choose between lines.
-    private static void WriteRun(
+    private static List<(double X, double Y)>? WriteRun(
         StringBuilder svg,
         List<(double X, double Y)> run,
         int index,
@@ -126,7 +128,7 @@ public static class LineChart {
         bool hitStroke) {
 
         if (run.Count == 0) {
-            return;
+            return null;
         }
 
         string points = string.Join(' ', run.Select(point => SvgText.Number(point.X) + "," + SvgText.Number(point.Y)));
@@ -140,7 +142,7 @@ public static class LineChart {
                 .Append("\" r=\"").Append(SvgText.Number(PointRadius))
                 .Append("\" fill=\"").Append(colour).Append("\"/>\n");
 
-            return;
+            return run;
         }
 
         svg.Append("<polyline ").Append(shape).Append(" points=\"").Append(points)
@@ -151,42 +153,28 @@ public static class LineChart {
             svg.Append("<polyline class=\"series-hit\" points=\"").Append(points)
                 .Append("\" fill=\"none\" stroke=\"transparent\" stroke-width=\"12\"/>\n");
         }
+
+        return run;
     }
 
     private static void WriteEndLabel(
         StringBuilder svg,
-        ChartSeries line,
-        ChartAxis axis,
+        string label,
         string colour,
-        DateTimeOffset start,
-        double span,
-        double min,
-        double max,
+        List<(double X, double Y)> drawn,
         ChartPlot plot,
         List<(double X, double Y)> placed) {
 
-        if (string.IsNullOrWhiteSpace(line.Label)) {
+        if (string.IsNullOrWhiteSpace(label) || drawn.Count == 0) {
             return;
         }
 
-        ChartPoint? last = null;
-        foreach (ChartPoint point in line.Points) {
-            if (axis.Scale(point.Value) is double value && double.IsFinite(value)) {
-                last = point;
-            }
-        }
-
-        if (last is not ChartPoint sample || axis.Scale(sample.Value) is not double lastValue) {
-            return;
-        }
-
-        double x = plot.Time((sample.At - start).TotalSeconds, span);
-        double y = plot.Value(lastValue, min, max);
+        (double x, double y) = drawn[^1];
         if (placed.Any(other => Math.Abs(other.Y - y) < LabelHeight)) {
             return;
         }
 
-        double width = SvgText.EstimateWidth(line.Label);
+        double width = SvgText.EstimateWidth(label);
         double left = Math.Min(x + (4 * SvgText.TypeScale), plot.Right - width);
 
         placed.Add((left, y));
@@ -195,14 +183,7 @@ public static class LineChart {
             .Append("\" y=\"").Append(SvgText.Number(y + (3 * SvgText.TypeScale)))
             .Append("\" font-size=\"").Append(SvgText.Number(ChartChrome.SeriesFontSize))
             .Append("\" fill=\"").Append(colour).Append("\" text-anchor=\"start\">")
-            .Append(SvgText.Escape(line.Label)).Append("</text>\n");
-    }
-
-    private static (DateTimeOffset Start, double Span) TimeRange(IReadOnlyList<ChartSeries> series, ChartAxis x) {
-        (DateTimeOffset earliest, DateTimeOffset latest) =
-            ChartSamples.Instants(series.SelectMany(line => line.Points));
-
-        return (earliest, ChartSamples.TimeSpan((latest - earliest).TotalSeconds, x.Ticks));
+            .Append(SvgText.Escape(label)).Append("</text>\n");
     }
 
     private static (double Min, double Max) ValueRange(IReadOnlyList<ChartSeries> series, ChartAxis y) {

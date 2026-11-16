@@ -16,6 +16,9 @@ using uk.osric.asp.Web.Users;
 /// <summary>Registers the editor's local-account authentication and its protections.</summary>
 internal static class AuthenticationExtensions {
 
+    /// <summary>The name of the scheme that forwards by header, which is the default one.</summary>
+    private const string ViewSchemeSelector = "Site";
+
     /// <summary>Adds cookie authentication, authorisation, antiforgery and login throttling.</summary>
     /// <param name="services">The service collection.</param>
     /// <param name="environment">The host environment, which decides the cookie secure policy.</param>
@@ -36,7 +39,22 @@ internal static class AuthenticationExtensions {
         services.AddSingleton<AuthTicketStore>();
         services.AddHostedService<AuthTicketCleanupService>();
 
-        services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
+        // The default scheme answers "who is this" and forwards by header: a request that presents a
+        // bearer token is a view, and everything else is the cookie. The cookie stays the challenge
+        // scheme, so a sign-in redirect is what an anonymous browser still gets.
+        services.AddAuthentication(options => {
+            options.DefaultScheme = ViewSchemeSelector;
+            options.DefaultChallengeScheme = CookieAuthenticationDefaults.AuthenticationScheme;
+            options.DefaultSignInScheme = CookieAuthenticationDefaults.AuthenticationScheme;
+            options.DefaultForbidScheme = CookieAuthenticationDefaults.AuthenticationScheme;
+        })
+            .AddPolicyScheme(ViewSchemeSelector, null, options => {
+                options.ForwardDefaultSelector = context =>
+                    context.Request.Headers.Authorization.ToString().StartsWith(ViewToken.HeaderScheme + " ", StringComparison.OrdinalIgnoreCase)
+                        ? ViewToken.AuthenticationScheme
+                        : CookieAuthenticationDefaults.AuthenticationScheme;
+            })
+            .AddScheme<AuthenticationSchemeOptions, ViewAuthenticationHandler>(ViewToken.AuthenticationScheme, null)
             .AddCookie(options => {
                 options.Cookie.Name = ShellCookies.Authentication;
                 options.Cookie.HttpOnly = true;

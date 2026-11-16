@@ -7,34 +7,34 @@ using uk.osric.asp.Core.Pages;
 using uk.osric.asp.Sdk;
 using uk.osric.asp.Web.Editor;
 
-/// <summary>The editor page's <see cref="IPageEditor"/>, bound to one render.</summary>
+/// <summary>The store's write capability, bound to one render.</summary>
 /// <remarks>
 /// <para>
-/// The host offers this to the content layer whose key is the configured editor key and to nothing
-/// else: not to a layout, not to another page, and not while the editor is served at any other key.
-/// The handle names a key on every call because it must — an editor edits whatever the owner opens —
-/// so the isolation is the registration, not the handle.
+/// The host offers this to every content layer and never to a layout. Which page asked is not part of
+/// the check: the authority is the signed-in visitor, and the reserved keys are the only pages the
+/// shell keeps out of reach.
 /// </para>
 /// <para>
 /// Authority is asymmetric with the catalog. An anonymous render is refused with a
 /// <see cref="UserFacingException"/> before anything is compiled or stored; a <c>HEAD</c>, an ended
-/// render, a second action and a reserved key are page bugs and throw
+/// render, a second write and a reserved key are page bugs and throw
 /// <see cref="InvalidOperationException"/>. The key itself is the page's answer through
 /// <see cref="Resolve"/>, so a typo in a query value is a message the page renders.
 /// </para>
 /// <para>
-/// A save is conditional on the head hash the form carried, and a save that has begun is not
-/// abandoned: the render's deadline bounds the wait for a compile slot, not the author's edit
-/// (`pages-a-page-may-save-itself`).
+/// The two saves share one action: a page that saved itself cannot then edit another page in the same
+/// render. A save is conditional on the head hash the form carried when it names a key, and a save that
+/// has begun is not abandoned: the render's deadline bounds the wait for a compile slot, not the
+/// author's edit (`pages-a-page-may-save-itself`).
 /// </para>
 /// </remarks>
-internal sealed class PageEditorScope(
+internal sealed class PageWritesScope(
     PagePath path,
     PageEditor pages,
-    string editorKey,
     PageUser? user,
     bool writable,
-    ReservedPaths reserved) : RenderBoundCapability, IPageEditor {
+    ReservedPaths reserved,
+    PageSeeds seeds) : RenderBoundCapability, IPageWrites {
 
     private int _acted;
 
@@ -51,9 +51,6 @@ internal sealed class PageEditorScope(
     }
 
     /// <inheritdoc/>
-    public IReadOnlyList<string> SeedPaths() => [.. PageSeedInstaller.SeedPaths().Select(seed => seed.Key)];
-
-    /// <inheritdoc/>
     public Task<string?> SeedSourceAsync(string key) {
         if (string.IsNullOrWhiteSpace(key)) {
             throw new ArgumentException("A page key is required.", nameof(key));
@@ -64,7 +61,20 @@ internal sealed class PageEditorScope(
             throw new ArgumentException("The page key is not addressable.", nameof(key));
         }
 
-        return PageAssetSeeder.ReadSeedTemplateAsync(target, Deadline);
+        return Task.FromResult(seeds.Source(target));
+    }
+
+    /// <inheritdoc/>
+    public async Task<PageSaveResult> SaveAsync(string template) {
+        ArgumentNullException.ThrowIfNull(template);
+        ThrowIfCannotWrite();
+
+        // The render's token is deliberately not passed as the save's token: the deadline bounds the
+        // queue for a compile slot, not the author's edit (`pages-a-page-may-save-itself`).
+        SavedRevision saved = await pages.SaveAsync(path, template, CancellationToken.None, Deadline);
+        Acted();
+
+        return new PageSaveResult(saved.Revision.Hash, PageDiagnostics.ToSdk(saved.Diagnostics));
     }
 
     /// <inheritdoc/>
@@ -83,9 +93,6 @@ internal sealed class PageEditorScope(
     /// <inheritdoc/>
     public async Task<PageDeleteResult> DeleteAsync(string key) {
         PagePath target = ResolveForWrite(key);
-        if (string.Equals(target.Key, editorKey, StringComparison.Ordinal)) {
-            throw new InvalidOperationException("The editor page cannot delete itself.");
-        }
 
         PageHeadSummary? head = await pages.GetHeadAsync(target, Deadline);
         bool wasLive = head is { IsDeleted: false };
@@ -120,27 +127,70 @@ internal sealed class PageEditorScope(
     }
 
     /// <inheritdoc/>
-    public async Task<PageEditResult?> InstallSeedAsync(string key, string? expectedHash) {
+    public async Task<PageEditResult?> AdoptSeedAsync(string key) {
         PagePath target = ResolveForWrite(key);
-        string? source = await PageAssetSeeder.ReadSeedTemplateAsync(target, Deadline);
-        if (source is null) {
+        SeedFile? seed = seeds.Find(target);
+        if (seed is null) {
             return null;
         }
 
         PageHeadSummary? head = await pages.GetHeadAsync(target, Deadline);
-        if (head is not { IsDeleted: false }) {
-            PageEditResult created = await SaveUnconditionalAsync(target, source);
+        SeedComparison comparison = SeedComparison.Of(head?.SeedHash, seed.Hash, head?.ContentHash);
+
+        if (head is null || head.IsDeleted) {
+            throw new InvalidOperationException(
+                $"{target.Key} is {Words(SeedComparison.Of(head?.SeedHash, seed.Hash, head?.ContentHash), seed.Hash)}; only a live page that already holds the seed can be recorded as installed.");
+        }
+
+        if (string.Equals(head.SeedHash, seed.Hash, StringComparison.Ordinal)) {
+            PageTemplate? already = await pages.GetAsync(target, Deadline);
+            Acted();
+            return Unchanged(already?.Hash);
+        }
+
+        if (!comparison.CanAdopt) {
+            throw new InvalidOperationException(
+                $"{target.Key} is {Words(comparison, seed.Hash)}; only a page that already holds the shipped seed can be recorded as installed.");
+        }
+
+        bool adopted = await pages.AdoptAsync(target, seed.Hash, Deadline);
+        PageTemplate? live = await pages.GetAsync(target, Deadline);
+        Acted();
+
+        return adopted
+            ? new PageEditResult(PageEditOutcome.Saved, live?.Hash, [])
+            : new PageEditResult(PageEditOutcome.Stale, null, []);
+    }
+
+    /// <inheritdoc/>
+    public async Task<PageEditResult?> InstallSeedAsync(string key, string? expectedHash) {
+        PagePath target = ResolveForWrite(key);
+        SeedFile? seed = seeds.Find(target);
+        if (seed is null) {
+            return null;
+        }
+
+        PageHeadSummary? head = await pages.GetHeadAsync(target, Deadline);
+        if (head is null) {
+            PageEditResult created = await SaveSeedUnconditionalAsync(target, seed);
             Acted();
             return created;
         }
 
-        PageTemplate? live = await pages.GetAsync(target, Deadline);
-        if (PageSourceChange.IsNoOp(live?.Template, source)) {
+        SeedComparison comparison = SeedComparison.Of(head.SeedHash, seed.Hash, head.ContentHash);
+
+        if (comparison.Verdict == SeedVerdict.InSync) {
+            PageTemplate? already = await pages.GetAsync(target, Deadline);
             Acted();
-            return Unchanged(live?.Hash);
+            return Unchanged(already?.Hash);
         }
 
-        PageEditResult result = await SaveConditionalAsync(target, source, expectedHash);
+        if (!comparison.CanApply) {
+            throw new InvalidOperationException(
+                $"{target.Key} is {Words(comparison, seed.Hash)}; the release does not overwrite it automatically.");
+        }
+
+        PageEditResult result = await SaveSeedConditionalAsync(target, seed, expectedHash);
         Acted();
 
         return result;
@@ -177,13 +227,32 @@ internal sealed class PageEditorScope(
         return new PageEditResult(PageEditOutcome.Saved, saved.Revision.Hash, PageDiagnostics.ToSdk(saved.Diagnostics));
     }
 
+    private async Task<PageEditResult> SaveSeedUnconditionalAsync(PagePath target, SeedFile seed) {
+        SavedRevision saved = await pages.SaveSeedAsync(target, seed.Source, seed.Hash, CancellationToken.None, Deadline);
+
+        return new PageEditResult(PageEditOutcome.Saved, saved.Revision.Hash, PageDiagnostics.ToSdk(saved.Diagnostics));
+    }
+
+    private async Task<PageEditResult> SaveSeedConditionalAsync(PagePath target, SeedFile seed, string? expectedHash) {
+        if (string.IsNullOrWhiteSpace(expectedHash)) {
+            return new PageEditResult(PageEditOutcome.Stale, null, []);
+        }
+
+        ConditionalPageSaveResult saved = await pages.SaveSeedIfRevisionAsync(
+            target, seed.Source, expectedHash, seed.Hash, CancellationToken.None, Deadline);
+
+        return saved.Saved
+            ? new PageEditResult(PageEditOutcome.Saved, saved.RevisionHash, PageDiagnostics.ToSdk(saved.Diagnostics))
+            : new PageEditResult(PageEditOutcome.Stale, null, []);
+    }
+
+    private static string Words(SeedComparison comparison, string shipped) =>
+        SeedVerdictWords.Describe(comparison, shipped).Verdict;
+
     private static PageEditResult Unchanged(string? hash) => new(PageEditOutcome.Unchanged, hash, []);
 
     private PagePath ResolveForWrite(string key) {
-        ThrowIfAnonymous();
-        ThrowIfReadOnly();
-        ThrowIfEnded();
-        ThrowIfActed();
+        ThrowIfCannotWrite();
 
         if (string.IsNullOrWhiteSpace(key)) {
             throw new ArgumentException("A page key is required.", nameof(key));
@@ -199,6 +268,15 @@ internal sealed class PageEditorScope(
         }
 
         return target;
+    }
+
+    // The bound save names no key, so it skips the key checks and keeps the four that every write
+    // makes. The order is the writer's: a visitor state, then the two render bugs, then the action.
+    private void ThrowIfCannotWrite() {
+        ThrowIfAnonymous();
+        ThrowIfReadOnly();
+        ThrowIfEnded();
+        ThrowIfActed();
     }
 
     private void ThrowIfAnonymous() {

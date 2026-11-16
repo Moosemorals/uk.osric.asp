@@ -42,7 +42,10 @@ internal sealed class PageChain {
 
     /// <summary>Creates the chain for one request.</summary>
     /// <param name="environment">What the endpoint needs beyond the renderer.</param>
-    /// <param name="editor">The editor, when the request may save; unused layers never ask.</param>
+    /// <param name="editor">
+    /// The page store's writer, when the host has one; every content layer is offered it, and a host
+    /// without one offers no write at all.
+    /// </param>
     /// <param name="loggerFactory">Creates the logger every layer writes through.</param>
     /// <param name="request">The request snapshot, shared by every layer.</param>
     /// <param name="user">The signed-in account, or <see langword="null"/>.</param>
@@ -140,6 +143,7 @@ internal sealed class PageChain {
             _readBudget,
             _environment.Reserved,
             _environment.ContentTypes,
+            _environment.Seeds,
             _environment.Saver.RuntimeId);
 
         PageCapabilities capabilities = new PageCapabilities()
@@ -162,13 +166,11 @@ internal sealed class PageChain {
                     key, _isHead, _user, jobs, jobs.Options));
             }
 
-            capabilities.Add<IPageWriter>(new PageWriterScope(key, _environment.Saver, _user, writable: !_isHead));
-
-            // The editor's authority is the registration, not the handle: no other key is offered it,
-            // and a layout never is.
-            if (_editor is { } editor && string.Equals(key.Key, _environment.Editor.Key, StringComparison.Ordinal)) {
-                capabilities.Add<IPageEditor>(new PageEditorScope(
-                    key, editor, _environment.Editor.Key, _user, writable: !_isHead, _environment.Reserved));
+            // Every content layer, whatever its key: the visitor is the authority, not the page. A
+            // layout is markup and is offered neither write (`pages-layouts-are-markup`).
+            if (_editor is { } editor) {
+                capabilities.Add<IPageWrites>(new PageWritesScope(
+                    key, editor, _user, writable: !_isHead, _environment.Reserved, _environment.Seeds));
             }
         }
 

@@ -155,6 +155,7 @@ internal sealed class PageJobRunner(
             new ReadBudget(environment.Read.MaxSourceCharsPerRender),
             environment.Reserved,
             environment.ContentTypes,
+            environment.Seeds,
             environment.Compiler.RuntimeId);
         PageJobsScope jobScope = new(job.Page, isHead: false, job.Owner, jobs, environment.Jobs);
 

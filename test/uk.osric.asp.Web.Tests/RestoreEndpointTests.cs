@@ -23,9 +23,9 @@ public sealed class RestoreEndpointTests {
 
         Assert.Multiple(() => {
             Assert.That(body, Does.Contain("/about"));
-            Assert.That(body, Does.Contain("changed"));
+            Assert.That(body, Does.Contain("edited"));
             Assert.That(body, Does.Contain("/editor.css"));
-            Assert.That(body, Does.Contain("current"));
+            Assert.That(body, Does.Contain("in sync"));
             Assert.That(body, Does.Contain("Restore the seed"), "one seed needs restoring, so the button says so");
         });
     }
@@ -72,7 +72,7 @@ public sealed class RestoreEndpointTests {
         await SeedAllAsync(storage);
         storage["/about"] = new PageTemplate(Key("/about"), "changed by the owner");
         storage["/mine"] = new PageTemplate(Key("/mine"), "the owner's own page");
-        int total = PageAssetSeeder.SeedPaths().Count;
+        int total = TestOptions.Seeds.Paths.Count;
         string about = await SeedOfAsync("/about");
 
         using PageHarness pages = new(storage);
@@ -98,7 +98,7 @@ public sealed class RestoreEndpointTests {
 
         Assert.Multiple(() => {
             Assert.That(storage["/about"]?.Template, Is.EqualTo(about));
-            Assert.That(body, Does.Contain("missing"));
+            Assert.That(body, Does.Contain("new"));
         });
     }
 
@@ -150,27 +150,29 @@ public sealed class RestoreEndpointTests {
     }
 
     private static async Task SeedAllAsync(FakePageStore storage, string? except = null) {
-        foreach (PagePath path in PageAssetSeeder.SeedPaths()) {
+        foreach (PagePath path in TestOptions.Seeds.Paths) {
             if (string.Equals(path.Key, except, StringComparison.Ordinal)) {
                 continue;
             }
 
-            storage[path.Key] = new PageTemplate(path, await SeedOfAsync(path.Key));
+            storage[path.Key] = new PageTemplate(path, await SeedOfAsync(path.Key)) {
+                SeedHash = TestOptions.Seeds.Find(path)?.Hash,
+            };
         }
     }
 
     private static async Task<string> SeedOfAsync(string path) =>
-        (await PageAssetSeeder.ReadSeedTemplateAsync(Key(path)))!;
+        (TestOptions.SeedSource(Key(path)))!;
 
     private static async Task<string> PreviewAsync(PageHarness pages) {
         DefaultHttpContext context = TestHttp.CreateContext(null, "GET", "/admin/restore");
-        await RestoreEndpoint.PreviewAsync(context, pages.Editor, new TestAntiforgery());
+        await RestoreEndpoint.PreviewAsync(context, pages.Editor, TestOptions.Seeds, new TestAntiforgery());
         return await TestHttp.ReadBodyAsync(context);
     }
 
     private static async Task<string> RestoreAsync(PageHarness pages) {
         DefaultHttpContext context = TestHttp.CreateContext(null, "POST", "/admin/restore");
-        await RestoreEndpoint.RestoreAsync(context, pages.Editor, NullLoggerFactory.Instance);
+        await RestoreEndpoint.RestoreAsync(context, pages.Editor, TestOptions.Seeds, NullLoggerFactory.Instance);
         return await TestHttp.ReadBodyAsync(context);
     }
 

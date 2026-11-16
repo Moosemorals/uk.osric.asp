@@ -47,7 +47,7 @@ movable **yet**. This job is what would move it.
 ## Sketch
 
 1. **The capability first, the stream second.** ~~A page needs
-   `ctx.Capabilities.GetRequired<IAssistantConversations>()`, bound to `ctx.User` as `IPageWriter` is
+   `ctx.Capabilities.GetRequired<IAssistantConversations>()`, bound to `ctx.User` as `IPageWrites` is
    (`pages-a-page-may-save-itself`): list conversations, read a transcript, start a run with a message, stop one, and
    resolve a pending approval.~~ **Withdrawn.** A conversation capability encodes one app's shape.
    The generic pieces are the stream's lifetime, the outbound stream and a background job; the page
@@ -125,10 +125,10 @@ the account store, and that is IDEA-033 again.
 
 ### 4. A worker cannot save a page, and the tools do
 
-`IPageWriter` saves the calling page and nothing else, and `IPageEditor` is offered to one key. A
-worker is offered neither (`pages-a-worker-gets-no-response`), so the assistant's page tools — which save, delete, restore and
-import pages the shell does not route — have no equivalent in page or job code. This is the authority
-question below.
+`IPageWrites` is offered to every page and names a key on every named call, so a page can already
+save, delete and restore any page the shell does not route. A worker is offered none of it
+(`pages-a-worker-gets-no-response`). What the assistant's page tools do beyond that — the diff, the
+search, the batch — is the rest of this job.
 
 ### 5. The restricted Markdown profile is shell-only
 
@@ -140,34 +140,21 @@ into the document. That is the one piece of the port that is a renderer decision
 connection one, and it needs a decision of its own: a second capability, a profile argument on the
 existing one, or a seeded library the page opts into.
 
-## The authority question, for the owner
+## The authority question, answered
 
-**Not decided here.** This is the choice a port cannot be planned around until the owner makes it, and
-it is the largest authority in the port: a page writer at another key can rewrite any page the site
-serves, including the pages that describe the site.
+**Decided 2026-11-15.** The owner's answer is that any page may write any key the shell does not
+route, and that the authority is the signed-in visitor's rather than the page's
+(`pages-any-page-may-write-the-store`). So the port needs no worker writer, and the assistant page
+would make its edits through `IPageWrites` the way its tools make them today — with a batch
+([IDEA-047](IDEA-047.md)) making a multi-file edit one request rather than a sequence.
 
-Today's authority is structural, not checked: `IPageWriter` is bound to `ctx.Path` and `IPageEditor` is
-registered for one key, so a page cannot name another page because the handle it is given is the only
-one it can use. The assistant's tools reach further because they are shell code holding a scoped
-`IPageStore`; `assistant-reads-the-shell-files` removed the last allow-list and let them write every page the shell does not
-route.
+The shapes that were weighed, with what each cost:
 
-Three shapes, with what each costs:
-
-| Shape | What it means | What it costs |
+| Shape | What it means | What it cost |
 | --- | --- | --- |
-| **A worker writer, bound to one worker** | The capability is granted to the worker key named in configuration, and it may write the keys the assistant's tools may write. One configured worker has the authority and nothing else does. | The authority becomes a configuration value, so an operator can grant it — which is also its risk. The capability is a second writer shape beside `IPageWriter`, and its key set has to be decided (`Pages:Reserved` is the list it would subtract from). |
-| **`IPageWriter` grows a key** | Any page or worker may save any key the shell does not route. | Every page has the authority the assistant has, so the assistant page is no longer special and a mistake in any page is a site-wide rewrite. This is the shape the structural rule exists to prevent. |
-| **Keep the tools in the shell** | The port stops at the view and the run: the assistant keeps its endpoint for the edits, or the tools stay shell-only and a page calls a route. | The port is partial, and the page contract keeps a hole that is now visible — the run is page code and the edits are not. |
-
-The recommendation, if the owner wants one: **the first**. It is the only shape that keeps the
-authority structural — a handle that can only be obtained for the configured key — and it mirrors
-`pages-a-page-may-save-itself`'s "no owner argument" rule rather than inventing a checked permission. It also means a worker
-that streams a reply and a worker that edits a page are different workers, which is a fair thing to
-make an operator say out loud.
-
-Whichever shape is chosen, the decision is written down before the port is planned, because the port's
-plan cannot be phased without knowing whether a job may write.
+| **A worker writer, bound to one worker** | The capability is granted to the worker key named in configuration, and it may write the keys the assistant's tools may write. One configured worker has the authority and nothing else does. | Rejected: the authority becomes a configuration value, and it is a second writer shape beside the page's own. |
+| **The write capability is offered to every page** (chosen) | Any page may save any key the shell does not route. | Taken: the assistant page is no longer special and a mistake in any page is a site-wide rewrite. The signed-in visitor, the reserved keys and `/admin/restore` are what is left of the guard. |
+| **Keep the tools in the shell** | The port stops at the view and the run: the assistant keeps its endpoint for the edits, or the tools stay shell-only and a page calls a route. | Rejected once the first question was answered: the page contract would keep a hole that is now visible. |
 
 ## What would make it unnecessary
 

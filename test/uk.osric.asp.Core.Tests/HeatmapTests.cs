@@ -14,8 +14,12 @@ public sealed class HeatmapTests {
 
     private static readonly ChartSize Size = new(400, 320);
 
-    private static readonly ChartAxis TimeAxis =
-        new("time", [new ChartTick(0, "05:00"), new ChartTick(60, "05:01")]);
+    private static readonly ChartTimeAxis TimeAxis =
+        new(
+            "time",
+            Start,
+            Start.AddMinutes(6),
+            [new ChartTick(0, "05:00"), new ChartTick(60, "05:01"), new ChartTick(360, "05:06")]);
 
     private static readonly ChartFrame Frame =
         new("test", "Render duration", "seconds", "No data in this window.", TimeZoneInfo.Utc);
@@ -111,8 +115,13 @@ public sealed class HeatmapTests {
     public void TheBlocksTouch() {
         string svg = Render(Row("0.5", 1, 100));
 
-        // Two differently shaded columns fill the plot width exactly: no gap between neighbours.
-        Assert.That(svg, Does.Contain("width=\"161\""), "half of a 322-wide plot");
+        // Two differently shaded columns sit side by side: the second starts where the first ends.
+        double[] lefts = [.. Rects(svg).Select(rect => rect.X)];
+        double[] widths = [.. Rects(svg).Select(rect => rect.Width)];
+
+        Assert.That(lefts, Has.Length.EqualTo(2));
+        Assert.That(widths[0], Is.EqualTo(widths[1]), "both columns are a minute wide");
+        Assert.That(lefts[1], Is.EqualTo(lefts[0] + widths[0]).Within(0.01), "no gap between neighbours");
     }
 
     [Test]
@@ -175,12 +184,21 @@ public sealed class HeatmapTests {
     }
 
     [Test]
-    public void TicksArePlacedByTheirSecondsFromTheFirstSample() {
+    public void TicksArePlacedAtTheirFractionOfTheWindow() {
         string svg = Render(Row("0.5", 1, 2));
 
         Assert.That(AttributeOf(svg, "05:00", "x"), Is.EqualTo(66), "the left margin");
-        Assert.That(AttributeOf(svg, "05:01", "x"), Is.EqualTo(388), "the whole plot width later");
+        Assert.That(AttributeOf(svg, "05:01", "x"), Is.EqualTo(119.67).Within(0.01), "a sixth of the 322-wide plot later");
+        Assert.That(AttributeOf(svg, "05:06", "x"), Is.EqualTo(388), "and the window's end at the plot's right edge");
     }
+
+    private static IEnumerable<(double X, double Width)> Rects(string svg) =>
+        svg.Split("<rect x=\"").Skip(1).Select(cell => {
+            int end = cell.IndexOf('>', StringComparison.Ordinal);
+            string tag = "<rect x=\"" + cell[..end];
+
+            return (Attribute(tag, "x"), Attribute(tag, "width"));
+        });
 
     private static double AttributeOf(string svg, string text, string attribute) {
         string marker = ">" + text + "</text>";
