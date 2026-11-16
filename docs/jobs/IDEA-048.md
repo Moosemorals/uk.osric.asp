@@ -17,6 +17,12 @@ SPDX-License-Identifier: MIT
 > would expose; it is not a prerequisite for the shape, but doing this first would mean moving the
 > members twice.
 
+> **Planned 2026-11-16.** [The page response plan](../plans/page-response.md) is written and waits for
+> the owner. It moves the ten response members to `IPageResponse` at `IContext.Response`, keeps the old
+> names for one release as `PAGE009` warnings because `RuntimeId` invalidates every stored image, and
+> migrates the seeds, `/help`, the prompt and the test templates in the same change. The shims' removal
+> is a second job, written by that one.
+
 ## Idea
 
 `IContext` is 20 members, and exactly half of them are the response:

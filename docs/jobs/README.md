@@ -34,7 +34,7 @@ and shares one file, [WHIMS.md](WHIMS.md); a resolved job moves to [closed.md](c
 | [IDEA-042](IDEA-042.md) | M | — | [page-move](../plans/page-move.md) | A page cannot move a page |
 | [IDEA-044](IDEA-044.md) | L | — | — | A page cannot render a page in a browser |
 | [IDEA-047](IDEA-047.md) | L | — | [ide-host](../plans/ide-host.md) | A render may write a batch of pages, and the caller names the policy |
-| [IDEA-048](IDEA-048.md) | M | — | — | A page writes into a response object, not twelve members on the context |
+| [IDEA-048](IDEA-048.md) | M | — | [page-response](../plans/page-response.md) | A page writes into a response object, not twelve members on the context |
 
 ## The order
 
