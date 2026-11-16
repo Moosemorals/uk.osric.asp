@@ -8,7 +8,7 @@ SPDX-License-Identifier: MIT
 | | |
 | --- | --- |
 | Status | Proposed 2026-11-16 — waits for the owner. Nothing below is built |
-| Size | Medium — one `Sdk` interface with ten moved members and ten obsolete shims for one release, the seven seeded pages and `/help`, the assistant's prompt and its version, the test templates that write pages as strings, and the docs. No store change, no migration, no configuration key, no new capability |
+| Size | Medium — one `Sdk` interface with ten moved members and ten obsolete shims for one release, one new `Web` object over the two collaborators the split just made, the seven seeded pages and `/help`, the assistant's prompt and its version, the test templates that write pages as strings, and the docs. No store change, no migration, no configuration key, no new capability |
 | Area | Sdk, Web (pages, seeds, assistant), docs |
 | Spike | None. Every count below was taken off `trunk` on 2026-11-16, after the `SimpleContext` split merged |
 | Backlog | [IDEA-048](../jobs/IDEA-048.md) is this step; the shims' removal is a separate job (IDEA-049) written by this one |
@@ -36,6 +36,14 @@ Three things make doing it worth the churn, and one of them is not "a smaller su
 It is *not* fewer things to learn: it is ten and ten, and `ctx.Response.Write` is longer than
 `ctx.Write`. The gain is where the members sit.
 
+**The object is real, not the context in a different hat.** The contract names a response, so `Web`
+gets one: `SimpleResponse` implements `IPageResponse` over `PageResponseState` (the settings being
+assembled) and `PageBody` (the bytes and the commit), and owns the gates that decide who may set what:
+the commit, the layout no-op, the stream refusals, the antiforgery mint and the login redirect. What is
+left of `SimpleContext` is the request side — request, identity, the logging category, `AssetUrl`, the
+capability registry — plus `Response` and the two members that make the response and the capabilities
+agree. It lands at roughly half the size it is today.
+
 **The old spelling has to keep working for a release.** `RuntimeId` includes the `Sdk` module's version
 id, so the commit that adds the interface invalidates every stored image. The ten old members stay as
 `[Obsolete]` default interface members that delegate to `Response`, as warnings and never errors, which
@@ -44,7 +52,7 @@ is exactly what `PAGE005` did for `ctx.Features`, and `PAGE009` is the next free
 ## Goals
 
 1. `IContext` declares ten members and one of them is `Response`; `IPageResponse` declares the ten
-   that shape the response.
+   that shape the response, and `SimpleResponse` is the object behind it.
 2. A page's helper can take `IPageResponse`; the generated handler, the API policy and
    `IHandler.HandleAsync` do not change.
 3. A stored page that still says `ctx.Write` compiles, is served, and shows one `PAGE009` warning at the
@@ -103,26 +111,40 @@ response; a fact about the site stays on the context**:
 
 `IsCommitted` stays off the contract: a page knows whether it flushed.
 
-### D2 — `SimpleContext` implements both, and `Response` is the context
+### D2 — `SimpleResponse` is the response, and `SimpleContext` is what is left
 
 ```csharp
-internal sealed class SimpleContext : IContext, IPageResponse {
+internal sealed class SimpleResponse : IPageResponse { … }   // Web/Pages/SimpleResponse.cs
 
-    /// <inheritdoc/>
-    public IPageResponse Response => this;
+internal sealed class SimpleContext : IContext {
+    public SimpleResponse Response { get; }
+    IPageResponse IContext.Response => Response;
+}
 ```
 
-Nothing else in `Web` changes shape. Every one of the ten is already implemented here over `PageBody`
-and `PageResponseState`, and `PageChain`, `PageRenderer`, `PageEndpoint` and `PageHarness` keep taking
-`SimpleContext`, so the shell still calls `context.Write(...)` and `context.IsCommitted` as it does
-today.
+`SimpleResponse` composes the two collaborators and owns the rules about who may ask:
 
-**Rejected: a second `SimpleResponse` object.** A separate class means delegating the ten a second
-time — the wrappers the split has just removed — and it buys one thing: `ctx.Response` could not be
-cast back to its `IContext`. That is not a boundary the contract enforces anywhere else: a helper taking
-`IPageResponse` is the page's own code, and the narrowing is about intent. If that ever earns a
-boundary, `SimpleResponse` is a contained later change, because the two collaborators are already
-there.
+| It takes | It answers |
+| --- | --- |
+| `PageResponseState` | `ToResponse`, and the settings behind `SetStatus`, `SetContentType`, `SetHeader`, `AllowScripts`, `Redirect` |
+| `PageBody` | `Write`, `WriteRaw`, `FlushAsync`, `CompleteAsync`, `GetBody`, `IsCommitted`, the token mint |
+| its path and logger | the layout no-op and its warning |
+| the request method and the login path | `RedirectToLogin` |
+| `wouldWrap` and the layout flag | the four stream refusals |
+
+The commit gate, `IgnoreAsLayout` and `ThrowIfCannotStream` move with it, because all three answer "may
+this layer set that?" about the response. `SimpleContext` keeps `AttachLifetime` and `Abandon` because
+they are the one point where the response and the capability registry have to agree, and it keeps
+`GetBody`, `IsCommitted`, `ToResponse` and `CompleteAsync` off its own surface: the shell says
+`page.Response.…`, which is what those calls always meant.
+
+The shell change is nine call sites in `PageEndpoint` and `PageChain`; `PageRenderer`, `PageHarness` and
+`PageChain`'s construction still take `SimpleContext`.
+
+**Rejected: `Response => this`.** It is cheap — the context already implements all ten — but the
+contract would then be shaped by the class that also holds the request, the identity and the logging,
+which is the coupling the last split was for. It also leaves `ctx.Response` castable back to `IContext`.
+The object is worth a second move of members that have already been reviewed once.
 
 ### D3 — The old names survive one release as `PAGE009` warnings
 
@@ -187,8 +209,9 @@ on `IContext`", which is still true — it stays there as `IContext.Response`.
 `Sdk`: `IPageResponse.cs` new; `IContext.cs` keeps ten members, gains `Response`, and keeps the ten old
 ones as obsolete shims; `PageResponseDeprecation.cs` new.
 
-`Web`: `SimpleContext.cs` gains `, IPageResponse` and the `Response` property. Nothing else in the
-product moves. The seeds, `PageAuthorPrompt` and `/help` change their spelling.
+`Web`: `SimpleResponse.cs` new, holding the ten members and the gates; `SimpleContext.cs` keeps the
+request side and the wiring; nine call sites in `PageEndpoint` and `PageChain` say `page.Response.…`.
+The seeds, `PageAuthorPrompt` and `/help` change their spelling.
 
 Tests: 40 test files across `Core`, `Runtime`, `Web` and `IntegrationTests` for the templates; new
 tests for the two spellings, the helper seam and the prompt's two contract sections; `TestContext` in
@@ -200,9 +223,10 @@ Docs: `pages.md`, `architecture.md`, `testing.md`, `glossary.md`, `decisions.md`
 
 One branch, three commits, so each can be read alone:
 
-1. **The contract and the shims** — `IPageResponse`, `IContext.Response`, the obsolete members,
-   `SimpleContext`, `TestContext`, and the tests that pin the new spelling compiling clean, the old one
-   warning with `PAGE009`, and a helper taking `IPageResponse`.
+1. **The contract, the object and the shims** — `IPageResponse`, `IContext.Response`, the obsolete
+   members, `SimpleResponse`, the slimmed `SimpleContext`, the shell's call sites, `TestContext`, and
+   the tests that pin the new spelling compiling clean, the old one warning with `PAGE009`, a helper
+   taking `IPageResponse`, and the gates that moved to `SimpleResponse`.
 2. **The pages we ship** — the seven seeds, `/help`'s prose, the prompt and its version, and the test
    templates.
 3. **The docs and the record** — the four docs, the decision entry, the edit to
@@ -216,7 +240,9 @@ One branch, three commits, so each can be read alone:
   a declaration-block helper taking `IPageResponse` compiles; every seeded page compiles with no
   `PAGE009`; the prompt lists every member of both interfaces and never teaches the old spelling.
 - The proof that behaviour did not move is that no existing test changes what it asserts — the wire is
-  the same value, and the integration suites exercise it through the real host.
+  the same value, and the integration suites exercise it through the real host. The gate tests that
+  move to `SimpleResponseTests` (the three layout, the four refusals, settings-after-the-flush) keep
+  their names and their assertions.
 
 ## Risks
 
@@ -230,16 +256,19 @@ One branch, three commits, so each can be read alone:
 - **The prompt's contract section is generated**, so it changes without anyone editing prose: a test
   that nothing documents is the guard, and it must be widened to both interfaces in the same commit
   as the interface, or the assistant loses the member list.
+- **The gates move with the object**, and they are the part that is observable: a layout's setting
+  must still be a logged no-op, a flush after the commit must still refuse, and the antiforgery token
+  must still be minted once and never after abandonment. The eight tests that pin them move with the
+  members rather than being rewritten.
 
-## The questions this plan asks the owner
+## The questions this plan asked the owner
 
-1. **`Response` is the context itself**, or a separate `SimpleResponse` object? The plan takes the
-   first: it is the same ten delegations, one object, and the narrowing is about intent rather than
-   a boundary.
-2. **Shims for one release**, or the hard cut now? The plan keeps the shims, because a hard cut means
-   every stored page in the live database stops compiling until it is edited.
-3. **The prompt teaches only `ctx.Response`** during the shim release, or both spellings? The plan
-   teaches only the new one, so the assistant stops writing pages that warn.
+1. **The object behind `Response`.** The owner chose a real `SimpleResponse` over `Response => this`:
+   after the split the response is a thing in `Web`, so the contract should name that thing rather than
+   the context (see D2).
+2. **Shims for one release**, as planned — a hard cut would stop every stored page compiling.
+3. **The prompt teaches only `ctx.Response`** during the shim release, so the assistant stops writing
+   pages that warn.
 
 ## Considered and rejected
 
@@ -248,7 +277,8 @@ One branch, three commits, so each can be read alone:
 - **`IContext : IPageResponse` with `Response => this`.** Breaks nothing and gives the narrow type
    immediately, but the members stay *declared* on `IContext`, so the surface does not shrink and the
    old spelling never goes.
-- **A `SimpleResponse` object now.** See D2.
+- **`Response => this`.** See D2: it avoids a second move, and it leaves the contract shaped by the
+  context and the response castable back to it.
 - **Moving `AssetUrl` and the `Log` members too.** A link resolver is not a response, and logging has no
    other route to the operator.
 - **Leaving the seeds on the old spelling during the shim release.** The manual and the prompt are
