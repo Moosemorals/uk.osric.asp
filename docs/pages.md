@@ -146,7 +146,7 @@ Two rules keep the response safe:
   completes, so a page that throws sends the error page rather than half a document. A page can opt
   into sending its body while it runs with `ctx.FlushAsync()`; the first flush is the commit point
   (see [Streaming](#streaming)).
-- Headers are bounded by an allow-list in `SimpleContext`: `Content-Language` and any `X-` name.
+- Headers are bounded by an allow-list in `PageResponseState`: `Content-Language` and any `X-` name.
   `Set-Cookie`, `Location`, `Content-Type`, the framing headers and the caching headers
   (`Cache-Control`, `ETag`, `Expires`, `Vary`) are refused, so a page cannot clobber the editor's
   authentication, antiforgery or session cookie, or claim a cache policy the host overrides.

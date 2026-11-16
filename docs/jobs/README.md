@@ -19,7 +19,6 @@ and shares one file, [WHIMS.md](WHIMS.md); a resolved job moves to [closed.md](c
 | [OPS-05](OPS-05.md) | M | Medium | — | No outbound notifications when the site breaks |
 | [IDEA-001](IDEA-001.md) | L | — | — | The editor is a plain textarea |
 | [IDEA-020](IDEA-020.md) | M | — | — | Import only adds and overwrites, so an archive cannot reset a site |
-| [IDEA-022](IDEA-022.md) | S | — | — | `SimpleContext` is one class doing five jobs |
 | [IDEA-024](IDEA-024.md) | L | — | — | `/admin/import` and `/admin/export` are shell code because an archive is not a form |
 | [IDEA-025](IDEA-025.md) | L | — | [page-apps](../plans/archive/page-apps.md) | The assistant's conversation is a stream and a set of host actions, not a page |
 | [IDEA-027](IDEA-027.md) | S | — | — | A page cannot leave a message for a page it sends a visitor to |
@@ -35,6 +34,7 @@ and shares one file, [WHIMS.md](WHIMS.md); a resolved job moves to [closed.md](c
 | [IDEA-042](IDEA-042.md) | M | — | [page-move](../plans/page-move.md) | A page cannot move a page |
 | [IDEA-044](IDEA-044.md) | L | — | — | A page cannot render a page in a browser |
 | [IDEA-047](IDEA-047.md) | L | — | [ide-host](../plans/ide-host.md) | A render may write a batch of pages, and the caller names the policy |
+| [IDEA-048](IDEA-048.md) | M | — | — | A page writes into a response object, not twelve members on the context |
 
 ## The order
 
@@ -54,7 +54,7 @@ moves as it is worked — and each is one unit of work, on one branch in one wor
 | 7 | [IDEA-042](IDEA-042.md) | M | A rename is two histories and silent breakage today; medium work for a common act. |
 | 8 | [IDEA-037](IDEA-037.md) | M | Stops "check my work" storing a revision, so no history carries a test save. |
 | 9 | [IDEA-038](IDEA-038.md) | M | Lifts the assistant's own search into the contract rather than inventing anything. |
-| 10 | [IDEA-022](IDEA-022.md) | S | Easy, but it buys tidiness rather than a capability, so it sits below the small jobs that buy something. |
+| 10 | [IDEA-048](IDEA-048.md) | M | The public half of IDEA-022's split: the same ten members, moved to one type so a page helper can take the output and nothing else. A contract change with a migration, so it follows the work that buys a capability. |
 | 11 | [OPS-05](OPS-05.md) | M | Useful, but one owner and a unit that restarts already notice most outages. |
 | 12 | [IDEA-030](IDEA-030.md) | M | Removes duplication in views that several later jobs rewrite anyway. |
 | 13 | [IDEA-020](IDEA-020.md) | M | A destructive reset has to be designed carefully; the additive import is the safe default until it is. |

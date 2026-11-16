@@ -296,6 +296,10 @@ for reading the journal.
 - `static` classes of pure functions when there is no state to carry.
 - `class` only when the framework demands it (controllers) or the type has identity.
 - Prefer composition over inheritance; there is no inheritance in the core today and little need for it.
+- A type that implements a wide contract composes one collaborator per concern rather than collecting
+  members, and it is split by composition rather than by `partial`: `SimpleContext` keeps the contract
+  and the rules about who may ask, and hands the body to `PageBody` and the response being assembled
+  to `PageResponseState` (`code-one-concern-one-collaborator`).
 
 ## Simplicity first
 

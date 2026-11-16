@@ -42,7 +42,8 @@ reading **Developer: Inspect Editor Tokens and Scopes**, and by keeping every C#
 
 - **Core tests** cover one rule at a time and exercise `Core` directly. `Sdk` has no suite of its
 own: it is the page contract — interfaces and plain values with documentation and no host behaviour —
-and what depends on it is asserted by the suites that use it (`SimpleContextTests`, `ErrorEndpointTests`, `PageScopeTests`,
+and what depends on it is asserted by the suites that use it (`SimpleContextTests`, `PageResponseStateTests`,
+`PageBodyTests`, `ErrorEndpointTests`, `PageScopeTests`,
 `PageLoadContextTests`, `PageReferenceSetTests`).
 - **Runtime tests** cover what the core cannot: Roslyn emitting a handler, loading the assembly and
   invoking it, and `PageWorkerTests` the fourth kind — a declaration-only source that stays a library,
