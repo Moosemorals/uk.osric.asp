@@ -61,6 +61,27 @@ public sealed partial class SiteChromeTests : IntegrationTest {
     }
 
     [Test]
+    public async Task TheSeededLayoutFoldsThePagesTitleSheetAndHead() {
+        await SavePageAsync("/folded", """
+            <% var layout = ctx.Capabilities.GetRequired<IPageLayout>();
+               ctx.Capabilities.GetRequired<IPageComposition>().Wrap();
+               layout.Title = "Folded";
+               layout.AddStylesheet("/folded.css");
+               layout.AddHead("<meta name=\"folded\" content=\"1\">"); %><h1>Folded</h1>
+            """);
+        using HttpClient client = CreateClient();
+
+        string body = await BodyAsync(client, "/folded");
+
+        Assert.Multiple(() => {
+            Assert.That(body, Does.Contain("<title>Folded</title>"));
+            Assert.That(body, Does.Contain("/folded.css"), "the page's sheet reaches the document");
+            Assert.That(body, Does.Contain("<meta name=\"folded\" content=\"1\">"));
+            Assert.That(body, Does.Contain("<h1>Folded</h1>"));
+        });
+    }
+
+    [Test]
     public async Task AShellDocumentCarriesHomeAndNoTools() {
         using HttpClient anonymous = CreateClient();
         using HttpClient owner = await CreateSignedInClientAsync();
