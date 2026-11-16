@@ -123,7 +123,7 @@ BUILD_INPUTS := $(shell find src test tools -type f 2>/dev/null) \
 	Directory.Build.props Directory.Build.targets Directory.Packages.props $(SOLUTION) \
 	$(wildcard $(ARTIFACTS)/bin $(ARTIFACTS)/obj)
 
-.PHONY: help build restore check ci drift-check audit check-pages decisions test test-core test-runtime test-web test-integration test-browser test-browser-live browsers vscode-extension migration user-add user-passwd user-list user-remove remote-user-add remote-user-passwd remote-user-list remote-user-remove seeds-list seeds-pull remote-seeds-list remote-seeds-pull run publish image image-check deploy deploy-guard format format-check license-check mutation-core mutation-runtime mutation-sdk mutation-web worktree worktrees worktree-remove changelist clean
+.PHONY: help build restore check ci drift-check audit check-pages decisions test test-core test-runtime test-web test-integration test-browser test-browser-live browsers vscode-extension migration user-add user-passwd user-list user-remove remote-user-add remote-user-passwd remote-user-list remote-user-remove seeds-list seeds-pull remote-seeds-list remote-seeds-pull run publish image image-check deploy deploy-guard pull-install format format-check license-check mutation-core mutation-runtime mutation-sdk mutation-web worktree worktrees worktree-remove changelist clean
 .DELETE_ON_ERROR:
 
 # ssh will not create the directory its control socket lives in.
@@ -162,6 +162,7 @@ help:
 		'image              Build the container image with the SDK; the base is pinned in the Makefile.' \
 		'image-check        Build it twice and fail if the two builds are not the same image.' \
 		'deploy             Gate with the browser suite, build, push to $(REGISTRY) and restart on HOST=deploy@server.' \
+		'pull-install       Install the backup pull script and its timer on HOST=osric@backuphost.' \
 		'format             Apply formatting and style fixes.' \
 		'format-check       Fail if the tree is not formatted.' \
 		'license-check      Fail if the tree is not REUSE compliant (needs the reuse tool).' \
@@ -490,6 +491,11 @@ deploy: deploy-guard check test-browser image | $(SSH_CONTROL_DIR)
 		echo "the host is missing aardvark-dns: container names will not resolve"; \
 		echo "run: sudo apt-get install -y aardvark-dns"; \
 		exit 1; }'
+	@# The backup host pulls with rsync, which runs a copy on this host as the remote side.
+	@$(SSH) $(HOST) 'command -v rsync >/dev/null 2>&1 || { \
+		echo "the host is missing rsync: the backup host cannot copy its snapshots"; \
+		echo "run: sudo apt-get install -y rsync"; \
+		exit 1; }'
 	podman tag $(LOCAL_IMAGE) $(IMAGE_REF)
 	podman tag $(LOCAL_IMAGE) $(IMAGE_SHA_REF)
 	podman push --authfile $(AUTHFILE) $(IMAGE_REF)
@@ -509,9 +515,18 @@ deploy: deploy-guard check test-browser image | $(SSH_CONTROL_DIR)
 	sed 's|^Image=.*|Image=$(IMAGE_SHA_REF)|' deploy/uk.osric.asp.container | $(SSH) $(HOST) 'cat > .config/containers/systemd/uk.osric.asp.container'
 	$(SSH) $(HOST) 'cat > .config/prometheus/prometheus.yml' < deploy/prometheus.yml
 	$(SSH) $(HOST) 'cat > .config/containers/systemd/prometheus.container' < deploy/prometheus.container
+	@# The snapshot script and its clock live on the host like the quadlets do. The pull is the backup
+	@# host's job and runs from its own copy of deploy/pull-backups.sh, so nothing here reaches it.
+	$(SSH) $(HOST) install -d bin
+	$(SSH) $(HOST) 'cat > bin/backup-snapshot.sh' < deploy/backup-snapshot.sh
+	$(SSH) $(HOST) chmod 0755 bin/backup-snapshot.sh
+	$(SSH) $(HOST) install -d .config/systemd/user
+	$(SSH) $(HOST) 'cat > .config/systemd/user/uk.osric.asp-backup.service' < deploy/uk.osric.asp-backup.service
+	$(SSH) $(HOST) 'cat > .config/systemd/user/uk.osric.asp-backup.timer' < deploy/uk.osric.asp-backup.timer
 	$(SSH) $(HOST) systemctl --user daemon-reload
 	$(SSH) $(HOST) systemctl --user restart uk.osric.asp.service prometheus.service
-	@$(SSH) $(HOST) 'i=0; until podman exec prometheus wget -qO- -T 3 http://app:8080/heath >/dev/null 2>&1; do \
+	$(SSH) $(HOST) systemctl --user enable --now uk.osric.asp-backup.timer
+	@$(SSH) $(HOST) 'i=0; until podman exec prometheus wget -qO- -T 3 http://app:8080/health >/dev/null 2>&1; do \
 		i=$$((i+1)); \
 		if [ $$i -ge 10 ]; then \
 			echo "Prometheus cannot reach the app at app:8080: check podman network inspect uk.osric.asp"; \
@@ -524,8 +539,8 @@ deploy: deploy-guard check test-browser image | $(SSH_CONTROL_DIR)
 	$(SSH) $(HOST) 'sudo tee /etc/containers/systemd/caddy.container' < deploy/caddy.container > /dev/null
 	$(SSH) $(HOST) sudo systemctl daemon-reload
 	$(SSH) $(HOST) sudo systemctl restart caddy.service
-	@echo "waiting for /heath"
-	@$(SSH) $(HOST) 'i=0; until curl -fsS -o /dev/null http://127.0.0.1:8080/heath; do \
+	@echo "waiting for /health"
+	@$(SSH) $(HOST) 'i=0; until curl -fsS -o /dev/null http://127.0.0.1:8080/health; do \
 		i=$$((i+1)); \
 		if [ $$i -ge 30 ]; then \
 			echo "the site is not healthy 60s after the restart: journalctl --user -u uk.osric.asp.service"; \
@@ -547,6 +562,28 @@ deploy: deploy-guard check test-browser image | $(SSH_CONTROL_DIR)
 	else \
 		echo "but this checkout has no upstream to compare $(GIT_SHA) with: is the commit on the remote?"; \
 	fi
+
+# The other half of the backup, installed where it belongs: the host that keeps the copies, not the
+# site. It is HOST=osric@<backuphost> rather than the deploy user because that machine owns the key
+# the pull authenticates with and the directory it writes, so nothing here needs sudo there.
+# `deploy/` stays the source of truth; this copies what it holds.
+pull-install: | $(SSH_CONTROL_DIR)
+	@test -n "$(strip $(HOST))" || { echo "usage: make pull-install HOST=osric@backuphost"; exit 1; }
+	@$(SSH) $(HOST) 'command -v rsync >/dev/null 2>&1 && command -v sqlite3 >/dev/null 2>&1 || { \
+		echo "the backup host needs rsync and sqlite3 to pull and verify"; \
+		echo "run: sudo apt-get install -y rsync sqlite3"; \
+		exit 1; }'
+	@$(SSH) $(HOST) 'command -v systemctl >/dev/null 2>&1 || { \
+		echo "the backup host needs systemd to schedule the pull"; exit 1; }'
+	$(SSH) $(HOST) 'command -v loginctl >/dev/null 2>&1 && loginctl show-user $$USER --property=Linger | grep -qx "Linger=yes" || echo "warning: user lingering is off, so the timer stops at reboot until someone logs in; run: sudo loginctl enable-linger $$USER"'
+	$(SSH) $(HOST) install -d bin .config/systemd/user
+	$(SSH) $(HOST) 'cat > bin/pull-backups.sh' < deploy/pull-backups.sh
+	$(SSH) $(HOST) chmod 0755 bin/pull-backups.sh
+	$(SSH) $(HOST) 'cat > .config/systemd/user/uk.osric.asp-pull.service' < deploy/uk.osric.asp-pull.service
+	$(SSH) $(HOST) 'cat > .config/systemd/user/uk.osric.asp-pull.timer' < deploy/uk.osric.asp-pull.timer
+	$(SSH) $(HOST) systemctl --user daemon-reload
+	$(SSH) $(HOST) systemctl --user enable --now uk.osric.asp-pull.timer
+	@$(SSH) $(HOST) systemctl --user list-timers uk.osric.asp-pull.timer --no-pager
 
 # Everything the deploy destination insists on, checked before the gate rather than after it. An
 # image pushed from an uncommitted tree cannot be rebuilt from the commit its tag names, which is

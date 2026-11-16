@@ -239,7 +239,7 @@ when the editor or its sheet will not load.
 - `/admin/**` and `/status` require the `Editor` policy, which is just an authenticated account.
   `/admin/reference` is the one exception: it is public, because the reference describes the build
   serving the request as `/about` does.
-  `/login`, `/logout`, `/heath` and `/metrics` are the other routes outside the page catch-all, and
+  `/login`, `/logout`, `/health` and `/metrics` are the other routes outside the page catch-all, and
   every one of them is a reserved page key. The reserved keys are also what the assistant calls the
   shell files: it lists and reads a record of each one and can never write one, and `ShellRoutes`
   is pinned to `ReservedPaths.Default` by a test, so a new route adds its record in the same change

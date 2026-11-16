@@ -1,0 +1,17 @@
+# SPDX-FileCopyrightText: Copyright 2026 Osric Wilkinson <osric@fluffypeople.com>
+# SPDX-License-Identifier: MIT
+
+[Unit]
+Description=Daily pull of uk.osric.asp backups
+
+[Timer]
+# The site snapshots at 03:15 with up to ten minutes of jitter, so an hour later is a snapshot that has
+# already been written and checked.
+OnCalendar=*-*-* 04:20:00
+# A backup host that was down at 04:20 pulls when it comes back rather than skipping the day. The site
+# keeps a month, so a gap costs nothing that has not already been deleted.
+Persistent=true
+RandomizedDelaySec=300
+
+[Install]
+WantedBy=timers.target

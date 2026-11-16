@@ -106,7 +106,7 @@ each flagged call. Unresolved, stale, stopped, or restarted approvals never exec
 
 The tools also see the shell's own files, which are the site's routes (`assistant-reads-the-shell-files`). Every key in
 `Pages:ReservedPaths` — `/admin/changes`, `/admin/export`, `/admin/import`, `/admin/reference`,
-`/admin/restore`, `/admin/scrub`, `/assistant`, `/favicon.ico`, `/heath`, `/login`, `/logout`,
+`/admin/restore`, `/admin/scrub`, `/assistant`, `/favicon.ico`, `/health`, `/login`, `/logout`,
 `/metrics` and `/status` — is listed, searched and readable: `cat` and `read_page` return a host-written record of the route's methods, access and
 purpose rather than source, because the running image carries the assembly and not the source
 tree, and `ShellRoutesTests` pins the records to `ReservedPaths.Default` in both directions.
@@ -250,6 +250,12 @@ says so when the provider reports the balance is not available for API calls. Ev
 error status, a timeout, an unreachable host, or a body that is not the balance JSON — is "The
 provider did not report a balance.", and the provider's body is never logged. The page reloads when
 a run ends, so the figure a reader sees after a turn is the one that turn spent.
+
+The same route feeds the `assistant.balance` gauge on `/status`. `AccountBalanceSampler` reads it once
+at startup and then every `Assistant:BalanceSampleSeconds`, so the chart is a history of the spend
+rather than a diary of the owner's visits. The client returns the balance or a reason and logs nothing;
+the sampler logs when the reason changes, so a provider with no balance route costs one line and an
+empty panel rather than a warning a minute.
 
 The transcript reads newest first: the prompt fieldset sits above it, so the answer a reader is waiting
 for arrives directly under the box that asked for it, and the page's script inserts each new card at

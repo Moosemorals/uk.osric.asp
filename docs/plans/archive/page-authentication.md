@@ -29,7 +29,7 @@ Implemented 2026-11-07. Every phase shipped: `IContext` gained `User`, `Redirect
 `AntiforgeryField`; the shell supplies the identity, builds the login target, checks an authenticated
 `POST` and never caches an authenticated response; the assistant's prompt is `page-author-v4`. The
 decisions are `pages-public-by-default`, `pages-identity-is-a-plain-value`, `pages-redirect-to-login`, `auth-a-state-changing-form-carries-a-token` and `assistant-knows-the-guard`, and IDEA-011 is in the closed table in
-[the job index](../../jobs/README.md#closed).
+[the job index](../../jobs/closed.md).
 
 The sketch in [IDEA-011](../../jobs/README.md) recommended a template directive or a metadata
 column; this plan deliberately chose neither, for the reasons in
@@ -593,7 +593,7 @@ Add `test/uk.osric.asp.Web.IntegrationTests/PageAuthenticationTests.cs` using th
 On completion:
 
 1. Delete `docs/jobs/IDEA-011.md` into git history.
-2. Add a row to the closed table in [the job index](../../jobs/README.md#closed):
+2. Add a row to the closed table in [the job index](../../jobs/closed.md):
 
    > IDEA-011 — Pages opt into the existing sign-in with `ctx.User` and `ctx.RedirectToLogin()`.
    > A signed-out visitor returns to the canonical path and raw query; authenticated `POST`s carry

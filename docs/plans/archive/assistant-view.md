@@ -11,7 +11,7 @@ SPDX-License-Identifier: MIT
 | Size | M — four files in `Authentication`, one options record, one tool, a credential rule stated once, and the tests, the prompt and the docs for each. The idea's `L` was for an account of the assistant's own; this design needs no account, no secret and no schema, so it stays an `M` |
 | Spike | None. Every claim about what exists was read off `trunk` on 2026-11-15: `AuthenticationExtensions`, `PageCredential`, `PageFetchOptions`, `OutboundFetcher`, `AssistantFetcher`, `FetchTool`, `PageEndpoint`, `RunProcessor`, `PageAuthorPrompt` |
 | Decisions | Six, taken at the merge and listed at the bottom of this file; no existing entry is revised |
-| Backlog | IDEA-045, closed by this merge ([the job index](../../jobs/README.md#closed)) |
+| Backlog | IDEA-045, closed by this merge ([the job index](../../jobs/closed.md)) |
 
 ## The short version
 

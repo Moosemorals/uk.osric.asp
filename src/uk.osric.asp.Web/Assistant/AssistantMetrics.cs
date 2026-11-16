@@ -28,6 +28,7 @@ internal sealed class AssistantMetrics : IDisposable {
         new("assistant.memory.recalled", InstrumentKind.Histogram, "{memory}"),
         new("assistant.memory.chars", InstrumentKind.Histogram, "{char}"),
         new("assistant.memory.writes", InstrumentKind.Counter, "{write}"),
+        new("assistant.balance", InstrumentKind.Gauge, "{credit}"),
     ];
 
     /// <summary>Buckets for <c>assistant.run.steps</c>, in steps.</summary>
@@ -95,6 +96,7 @@ internal sealed class AssistantMetrics : IDisposable {
     private readonly Histogram<long> _memoryRecalled;
     private readonly Histogram<long> _memoryChars;
     private readonly Counter<long> _memoryWrites;
+    private IReadOnlyList<CurrencyCredit>? _balance;
 
     public AssistantMetrics() {
         _runDuration = _meter.CreateHistogram<double>("assistant.run.duration", "s");
@@ -107,6 +109,8 @@ internal sealed class AssistantMetrics : IDisposable {
         _memoryRecalled = _meter.CreateHistogram<long>("assistant.memory.recalled", "{memory}");
         _memoryChars = _meter.CreateHistogram<long>("assistant.memory.chars", "{char}");
         _memoryWrites = _meter.CreateCounter<long>("assistant.memory.writes", "{write}");
+        _meter.CreateObservableGauge("assistant.balance", ObserveBalance, "{credit}",
+            "The provider account's remaining credit, one measurement per currency.");
     }
 
     public void RecordRun(string outcome, string model, TimeSpan duration, int steps, int toolCalls) {
@@ -171,5 +175,29 @@ internal sealed class AssistantMetrics : IDisposable {
             { "outcome", success ? "ok" : "refused" },
         });
 
+    /// <summary>Records the provider's credit, one measurement per currency.</summary>
+    /// <param name="credits">The currencies the last sample could read.</param>
+    public void RecordBalance(IReadOnlyList<CurrencyCredit> credits) {
+        ArgumentNullException.ThrowIfNull(credits);
+
+        Volatile.Write(ref _balance, [.. credits]);
+    }
+
+    private IEnumerable<Measurement<double>> ObserveBalance() {
+        IReadOnlyList<CurrencyCredit>? credits = Volatile.Read(ref _balance);
+        if (credits is null) {
+            yield break;
+        }
+
+        foreach (CurrencyCredit credit in credits) {
+            yield return new Measurement<double>(credit.Amount, new TagList { { "currency", credit.Currency } });
+        }
+    }
+
     public void Dispose() => _meter.Dispose();
 }
+
+/// <summary>One currency's credit, as the balance gauge reports it.</summary>
+/// <param name="Currency">The currency code the provider reported.</param>
+/// <param name="Amount">The total available credit in that currency.</param>
+internal sealed record CurrencyCredit(string Currency, double Amount);

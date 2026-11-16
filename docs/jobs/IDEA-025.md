@@ -78,7 +78,7 @@ movable **yet**. This job is what would move it.
    own saves, so once the job exists the card is markup. The decision is either a message to the
    running job — which pauses its silence clock while it waits, up to the job's ceiling — or a stored
    row that the next job reads. The page chooses; the assistant's port records which.
-6. **What stays shell whatever happens.** `/metrics` and `/heath` because they are the runtime, and
+6. **What stays shell whatever happens.** `/metrics` and `/health` because they are the runtime, and
    `/status` because it is bootstrap (`pages-page-first`). The run loop is a worker under
    [the page-apps plan](../plans/archive/page-apps.md), so it is page code too; the question is only which
    route serves the view.

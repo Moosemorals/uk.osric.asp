@@ -45,6 +45,8 @@ packages:
   - ufw
   - unattended-upgrades
   - sqlite3
+  # The backup host pulls the nightly snapshot with rsync, which runs its remote half here.
+  - rsync
   - ca-certificates
   - curl
   - btop

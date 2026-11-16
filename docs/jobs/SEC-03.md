@@ -47,7 +47,7 @@ obvious ones. This issue exists so the residual risk is written down rather than
 Steps 1 and 2 are done by the [execution budget](../plans/archive/page-execution-budget.md): a render has a
 deadline, a slot count, a body cap and a compile budget, and the container carries `--memory`,
 `--pids-limit` and `--cpus`. What a budget cannot do is reclaim a thread, so the safety net is the
-supervisor: `/heath` reports abandoned renders, podman probes it, and `HealthOnFailure=restart` turns a
+supervisor: `/health` reports abandoned renders, podman probes it, and `HealthOnFailure=restart` turns a
 wedged process into a ~35 s restart instead of a permanent outage. That also bounds the
 `Environment.Exit` footgun, which used to need a human.
 

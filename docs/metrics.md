@@ -47,6 +47,7 @@ the other half of the same question and live in [logging](logging.md).
 | `assistant.memory.recalled` | histogram | {memory} | `outcome` (`hit`, `empty`) — how many memories one run was given |
 | `assistant.memory.chars` | histogram | {char} | `outcome` — what the memory block cost the run's context |
 | `assistant.memory.writes` | counter | {write} | `op` (`remember`, `update`, `forget`), `kind` (one of the four, or `(none)` for a refusal), `outcome` (`ok`, `refused`) |
+| `assistant.balance` | observable gauge | {credit} | `currency` — the provider account's remaining credit, one measurement per readable currency |
 
 A miss is tagged `page.path="(not-found)"`. The requested path is unauthenticated and unbounded, so
 tagging it verbatim would let a scan mint one time series per URL; the real path is in the access log.
@@ -89,9 +90,9 @@ instrument, and the instrument's type decides the chart (`metrics-one-panel-per-
 
 `StatusCatalogue` holds the list: nineteen Pages panels (ten heatmaps for the duration and size
 histograms, stacked areas for the render chain, cache lookups, staleness and asset requests, line
-charts for abandoned renders, layout fallbacks and the three storage gauges), ten Assistant panels
-(eight heatmaps, the token counter as a line chart and memory writes as a stacked area), and five Host
-panels from the framework's own meters
+charts for abandoned renders, layout fallbacks and the three storage gauges), eleven Assistant panels
+(eight heatmaps, the token counter as a line chart, memory writes as a stacked area and the account
+balance as a line chart split by currency), and five Host panels from the framework's own meters
 — process memory, process CPU, connections and active requests, request duration and the HTTP status
 mix. Combined panels are allowed where several series answer one question: the Host panels read
 meters this repository does not register, and the Pages render chain composes four that it does.
@@ -101,6 +102,15 @@ total: cached tokens are already inside prompt tokens and reasoning tokens insid
 The four lines answer "how many of each did the provider report" without drawing the same token
 twice. `assistant.memory.writes` is the other way round: every write carries one `op` and one
 `outcome`, so the stack's top edge is the writes the run made.
+
+The account balance is the one Assistant level. `assistant.balance` is an observable gauge tagged
+`currency`, and the panel reads it as `max by (currency)` so two currencies are two lines rather than
+one. A step up is a top-up and the slope is the spend; credit per second beside `assistant.tokens` per
+second is the effective price. `AccountBalanceSampler` reads the provider at startup and then every
+`Assistant:BalanceSampleSeconds`, records one measurement per currency it can read and reports the last
+sample, so a scrape never waits on the provider and a scrape before the first sample reports nothing
+rather than a zero. A failed sample keeps the previous level, and the sampler logs the reason when it
+changes rather than once per interval.
 
 `page.render.chain` is the Pages group's one composition: it owns no instrument, but reads the
 observations sum of four. `wait` is `page.render.wait`, `load/compile` adds the lazy compiles from

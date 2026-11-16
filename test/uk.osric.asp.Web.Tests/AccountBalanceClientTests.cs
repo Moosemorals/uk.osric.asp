@@ -3,7 +3,6 @@
 
 namespace uk.osric.asp.Web.Tests;
 
-using Microsoft.Extensions.Logging.Abstractions;
 using System.Net;
 using System.Net.Http.Headers;
 using System.Text;
@@ -29,19 +28,18 @@ public sealed class AccountBalanceClientTests {
             request = message;
             return Task.FromResult(Response(HttpStatusCode.OK, Body));
         });
-        AccountBalanceClient balance = new(client, TestOptions.Assistant with { ApiKey = "private-key" },
-            NullLogger<AccountBalanceClient>.Instance);
+        AccountBalanceClient balance = new(client, TestOptions.Assistant with { ApiKey = "private-key" });
 
-        AccountBalance? result = await balance.GetAsync(CancellationToken.None);
-        AccountBalance read = result!;
+        AccountBalanceRead result = await balance.GetAsync(CancellationToken.None);
+        AccountBalance read = result.Balance!;
 
-        Assert.That(result, Is.Not.Null);
         Assert.Multiple(() => {
             Assert.That(request!.Method, Is.EqualTo(HttpMethod.Get));
             Assert.That(request.RequestUri!.AbsoluteUri, Is.EqualTo("https://api.deepseek.com/user/balance"));
             Assert.That(request.Headers.Accept, Does.Contain(new MediaTypeWithQualityHeaderValue("application/json")));
             Assert.That(request.Headers.UserAgent.ToString(), Is.EqualTo("moosemorals.com (assistant)"));
             Assert.That(request.Headers.Authorization, Is.EqualTo(new AuthenticationHeaderValue("Bearer", "private-key")));
+            Assert.That(result.Reason, Is.EqualTo(AccountBalanceReason.Ok));
             Assert.That(read.IsAvailable, Is.True);
             Assert.That(read.Currencies[0], Is.EqualTo(new CurrencyBalance("CNY", "110.00", "10.00", "100.00")));
         });
@@ -54,8 +52,7 @@ public sealed class AccountBalanceClientTests {
             request = message;
             return Task.FromResult(Response(HttpStatusCode.OK, Body));
         });
-        AccountBalanceClient balance = new(client, TestOptions.Assistant with { RequireApiKey = false },
-            NullLogger<AccountBalanceClient>.Instance);
+        AccountBalanceClient balance = new(client, TestOptions.Assistant with { RequireApiKey = false });
 
         _ = await balance.GetAsync(CancellationToken.None);
 
@@ -63,52 +60,58 @@ public sealed class AccountBalanceClientTests {
     }
 
     [Test]
-    public async Task AnErrorStatusIsNoBalanceAsync() {
+    public async Task AProviderWithoutABalanceRouteIsUnsupportedAsync() {
+        using HttpClient client = Client((_, _) => Task.FromResult(Response(HttpStatusCode.NotFound, "no such route")));
+        AccountBalanceClient balance = new(client, TestOptions.Assistant with { RequireApiKey = false });
+
+        AccountBalanceRead result = await balance.GetAsync(CancellationToken.None);
+
+        Assert.That(result.Reason, Is.EqualTo(AccountBalanceReason.Unsupported));
+    }
+
+    [Test]
+    public async Task AnErrorStatusIsAnErrorAsync() {
         using HttpClient client = Client((_, _) => Task.FromResult(Response(HttpStatusCode.Unauthorized, "private provider text")));
-        AccountBalanceClient balance = new(client, TestOptions.Assistant with { ApiKey = "private-key" },
-            NullLogger<AccountBalanceClient>.Instance);
+        AccountBalanceClient balance = new(client, TestOptions.Assistant with { ApiKey = "private-key" });
 
-        AccountBalance? result = await balance.GetAsync(CancellationToken.None);
+        AccountBalanceRead result = await balance.GetAsync(CancellationToken.None);
 
-        Assert.That(result, Is.Null);
+        Assert.That(result.Reason, Is.EqualTo(AccountBalanceReason.Error));
     }
 
     [Test]
-    public async Task ABodyThatIsNotTheBalanceJsonIsNoBalanceAsync() {
+    public async Task ABodyThatIsNotTheBalanceJsonIsInvalidAsync() {
         using HttpClient client = Client((_, _) => Task.FromResult(Response(HttpStatusCode.OK, "not the balance")));
-        AccountBalanceClient balance = new(client, TestOptions.Assistant with { RequireApiKey = false },
-            NullLogger<AccountBalanceClient>.Instance);
+        AccountBalanceClient balance = new(client, TestOptions.Assistant with { RequireApiKey = false });
 
-        AccountBalance? result = await balance.GetAsync(CancellationToken.None);
+        AccountBalanceRead result = await balance.GetAsync(CancellationToken.None);
 
-        Assert.That(result, Is.Null);
+        Assert.That(result.Reason, Is.EqualTo(AccountBalanceReason.Invalid));
     }
 
     [Test]
-    public async Task AnUnreachableProviderIsNoBalanceAsync() {
+    public async Task AnUnreachableProviderIsUnreachableAsync() {
         using HttpClient client = Client((_, _) => throw new HttpRequestException("the socket is closed"));
-        AccountBalanceClient balance = new(client, TestOptions.Assistant with { RequireApiKey = false },
-            NullLogger<AccountBalanceClient>.Instance);
+        AccountBalanceClient balance = new(client, TestOptions.Assistant with { RequireApiKey = false });
 
-        AccountBalance? result = await balance.GetAsync(CancellationToken.None);
+        AccountBalanceRead result = await balance.GetAsync(CancellationToken.None);
 
-        Assert.That(result, Is.Null);
+        Assert.That(result.Reason, Is.EqualTo(AccountBalanceReason.Unreachable));
     }
 
     [Test]
-    public async Task AProviderThatDoesNotAnswerBeforeTheDeadlineIsNoBalanceAsync() {
+    public async Task AProviderThatDoesNotAnswerBeforeTheDeadlineTimesOutAsync() {
         using HttpClient client = Client(async (_, cancellationToken) => {
             await Task.Delay(TimeSpan.FromSeconds(30), cancellationToken);
             return Response(HttpStatusCode.OK, Body);
         });
         AccountBalanceClient balance = new(
             client,
-            TestOptions.Assistant with { RequireApiKey = false, BalanceTimeoutSeconds = 0.05 },
-            NullLogger<AccountBalanceClient>.Instance);
+            TestOptions.Assistant with { RequireApiKey = false, BalanceTimeoutSeconds = 0.05 });
 
-        AccountBalance? result = await balance.GetAsync(CancellationToken.None);
+        AccountBalanceRead result = await balance.GetAsync(CancellationToken.None);
 
-        Assert.That(result, Is.Null);
+        Assert.That(result.Reason, Is.EqualTo(AccountBalanceReason.Timeout));
     }
 
     private static HttpClient Client(Func<HttpRequestMessage, CancellationToken, Task<HttpResponseMessage>> send) =>

@@ -7,7 +7,7 @@ SPDX-License-Identifier: MIT
 
 Implementation plan for IDEA-002 — a page cannot call an outbound HTTP API — and IDEA-003 — a page
 has nowhere to keep state. Both are closed; their rows are in the closed table in
-[the job index](../../jobs/README.md#closed). The two jobs are one
+[the job index](../../jobs/closed.md). The two jobs are one
 change because they share the same seam: both are capabilities a page reaches through `IContext`,
 both need the render's deadline, and both must keep the page contract free of ASP.NET, database and
 `HttpClient` types.
@@ -842,7 +842,7 @@ port and a flaky dependency for no extra proof.
 ## Folding the jobs
 
 - IDEA-002 and IDEA-003 are closed: they moved to the closed table in
-  [the job index](../../jobs/README.md#closed) and their files were deleted into git history.
+  [the job index](../../jobs/closed.md) and their files were deleted into git history.
 - `docs/jobs/README.md` links both entries to this plan, and items 5 and 6 of the rough order become
   one item: fetch and storage are planned together, with storage first because it is the smaller
   independent slice and fetch's integration test depends on the same context plumbing.

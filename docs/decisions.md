@@ -573,10 +573,13 @@ without starting the page.
 
 ### pages-health-and-restarts
 
-The health endpoint is `/heath` — deliberately not `/healthz` — returning detailed JSON, pinging
-storage and reporting abandoned renders, not CPU or memory, which belong to the container. The
-supervisor is the kill switch: the budget cannot reclaim a thread, so podman restarts a wedged
-container and `StartLimitBurst` stops a crash loop. That is the whole "hard boundary" in this design.
+The health endpoint is `/health` — deliberately not `/healthz` — returning detailed JSON, pinging
+storage and reporting abandoned renders, not CPU or memory, which belong to the container. It was
+`/heath` until the misspelling was fixed, and the old path is not aliased: the probe, the deploy
+check and the documentation are all in this repository and move together, so nothing outside it
+calls the old one. The supervisor is the kill switch: the budget cannot reclaim a thread, so podman
+restarts a wedged container and `StartLimitBurst` stops a crash loop. That is the whole "hard
+boundary" in this design.
 
 *Recorded in [deploy](../deploy/operations.md#resource-limits-and-restarts), [pages](pages.md#health-and-restarts).*
 
@@ -1184,7 +1187,7 @@ build time.
 
 Anything a page can serve is a page. A route stays in the shell only because it bootstraps a broken site
 — `/login` and `/logout`, and the admin routes the owner reads or uses when a page did not load or no
-longer compiles — because it is the page runtime itself (`{**path}`, `/favicon.ico`, `/heath`,
+longer compiles — because it is the page runtime itself (`{**path}`, `/favicon.ico`, `/health`,
 `/metrics`), or because a page cannot do it yet, and each of those has a job. The page column is the
 default and the audit is expected to shrink.
 
@@ -2040,6 +2043,41 @@ the two answers are one transport with two projections rather than one shape wit
 
 *Recorded in [assistant](assistant.md#ai-page-assistant), [OutboundResponse](../src/uk.osric.asp.Web/Pages/OutboundResponse.cs).*
 
+### assistant-the-balance-is-sampled-on-a-clock
+
+The provider account's credit is sampled by a background service at startup and then every
+`Assistant:BalanceSampleSeconds`, not when the conversation page is opened. The page's fetch is free to
+reuse, but a history built from page views is a diary of the owner's visits, where a batch of runs
+between two visits draws as one step at the second.
+
+*Recorded in [assistant](assistant.md), [AccountBalanceSampler](../src/uk.osric.asp.Web/Assistant/AccountBalanceSampler.cs).*
+
+### assistant-a-balance-read-carries-its-reason
+
+Reading the balance answers a value — the figures, or one of a closed set of reasons (`unsupported`,
+`error`, `timeout`, `unreachable`, `invalid`) — and the client logs nothing. The page shows one sentence
+for any absence, and the sampler logs a reason when it changes. A client that logs its own failures
+cannot be used twice without one caller deciding the other's logging.
+
+*Recorded in [assistant](assistant.md), [AccountBalanceRead](../src/uk.osric.asp.Core/Assistant/AccountBalanceRead.cs).*
+
+### assistant-a-balance-is-read-as-a-number
+
+The provider's money text is parsed once in `Core` as an invariant-culture decimal. A figure that is not
+a number is skipped rather than recorded as zero, because a zero on the chart reads as credit gone; a
+negative figure is recorded as it came, because a provider that owes the account money is telling the
+truth. An unreadable figure logs its currency code and never the provider's text.
+
+*Recorded in [assistant](assistant.md), [AccountBalanceAmounts](../src/uk.osric.asp.Core/Assistant/AccountBalanceAmounts.cs).*
+
+### assistant-the-balance-cadence-is-configuration
+
+The cadence of the outbound balance read is `Assistant:BalanceSampleSeconds`, a policy value with no
+fallback: it decides how much history a day has and how much of the provider's time is spent, and its
+range (30 to 3600 seconds, 60 shipped) is a safety net rather than a ration.
+
+*Recorded in [assistant](assistant.md), [AssistantOptions](../src/uk.osric.asp.Web/Assistant/AssistantOptions.cs), [appsettings.json](../src/uk.osric.asp.Web/appsettings.json).*
+
 ## Deploy
 
 ### deploy-one-small-host
@@ -2109,12 +2147,28 @@ than a thrash that outlasts the probe.
 ### deploy-the-firewall-and-the-backups
 
 `ufw` denies inbound by default and allows SSH, HTTP and HTTPS; unattended upgrades are enabled on the
-host. **No cloud firewall and no automatic backups** are accepted policy choices, recorded rather than
-assumed, and revisited deliberately rather than by accident. Backups use SQLite's online backup or a copy
-of the stopped volume: copying live database files is refused because the write-ahead log can hold
-committed data, and a database backup is a credential store, because it holds password hashes and stamps.
+host, and **no cloud firewall** is an accepted policy choice, recorded rather than assumed and revisited
+deliberately rather than by accident. Backups use SQLite's online backup or a copy of the stopped volume:
+copying live database files is refused because the write-ahead log can hold committed data, and a
+database backup is a credential store, because it holds password hashes and stamps. Backups are no longer
+a habit: [deploy-backups-are-pulled](#deploy-backups-are-pulled) is what takes and keeps them.
 
 *Recorded in [cloud-init](../deploy/cloud-init.yaml), [operations](../deploy/operations.md#backups).*
+
+### deploy-backups-are-pulled
+
+The site snapshots `storage.db` nightly — SQLite's online backup through `podman unshare`, checked with
+`PRAGMA integrity_check`, kept as a 31-slot ring of daily archives beside the two host-only configuration
+files — and the backup host pulls the newest one on its own timer, with a key restricted to read-only
+`rrsync` of that one directory. The direction is the rule, not an artefact of wiring: the public host
+holds no credential to the machine that keeps its history, the copy is verified where the failing host
+does not control it, and retention belongs to the destination, which keeps dated directories rather than
+mirroring a source that can have a bad day. The site never deletes what the pull has taken, and the pull
+never deletes on the site.
+
+*Recorded in [operations](../deploy/operations.md#backups), [the snapshot script](../deploy/backup-snapshot.sh),
+[the pull script](../deploy/pull-backups.sh), [the snapshot timer](../deploy/uk.osric.asp-backup.timer),
+[the pull timer](../deploy/uk.osric.asp-pull.timer), [the plan](archive/offsite-backups.md).*
 
 ### deploy-no-outbound-alerting
 
@@ -2212,6 +2266,24 @@ columns and the time labels under it agree. The renderer supplies the window it 
 window from the samples.
 
 *Recorded in [metrics](metrics.md#the-panels), [ChartTimeAxis](../src/uk.osric.asp.Core/Charting/ChartTimeAxis.cs), [ChartClip](../src/uk.osric.asp.Core/Charting/ChartClip.cs).*
+
+### metrics-a-balance-is-a-level
+
+A provider account's balance is an observable gauge tagged `currency`, and its panel is a line chart
+queried as a level (`max by (currency)`), so each currency is its own series rather than two currencies
+merged into one line. It is read beside `assistant.tokens` as the effective price: a step up is a
+top-up, and the slope is the spend.
+
+*Recorded in [metrics](metrics.md#the-panels), [AssistantMetrics](../src/uk.osric.asp.Web/Assistant/AssistantMetrics.cs), [StatusCatalogue](../src/uk.osric.asp.Web/Metrics/StatusCatalogue.cs).*
+
+### metrics-a-failed-sample-keeps-the-last-level
+
+A failed sample leaves the last good level in place rather than reporting nothing or zero, as the
+storage gauges already do. A dead sampler therefore draws a flat line rather than a gap; its log line is
+where a stuck sample is diagnosed. An age-of-sample gauge is rejected until a second level needs the
+same guard, when it becomes one panel for all of them rather than one more for each.
+
+*Recorded in [metrics](metrics.md#the-panels), [AccountBalanceSampler](../src/uk.osric.asp.Web/Assistant/AccountBalanceSampler.cs).*
 
 ## Retired
 

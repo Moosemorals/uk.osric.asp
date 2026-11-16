@@ -8,8 +8,14 @@ SPDX-License-Identifier: MIT
 | | |
 | --- | --- |
 | Size | M |
-| Area | Web (shell, admin, assistant), seeds |
-| Location | `src/uk.osric.asp.Web/Html/SiteNavigation.cs`, `src/uk.osric.asp.Web/Admin/AdminNavigation.cs`, `src/uk.osric.asp.Web/Errors/ErrorMessage.cs`, `src/uk.osric.asp.Web/Pages/Seeds/_layout`, `src/uk.osric.asp.Web/Pages/Seeds/pages` |
+| Area | Sdk, Web (shell, admin, assistant, metrics, pages), seeds |
+| Location | `src/uk.osric.asp.Sdk/IPageCatalog.cs`, `src/uk.osric.asp.Web/Pages/PageCatalogScope.cs`, `src/uk.osric.asp.Web/Html/ShellLinks.cs`, `src/uk.osric.asp.Web/Html/SiteNavigation.cs`, `src/uk.osric.asp.Web/Admin/AdminNavigation.cs`, `src/uk.osric.asp.Web/Pages/Seeds/_layout`, `src/uk.osric.asp.Web/Pages/Seeds/admin`, `src/uk.osric.asp.Web/Pages/Seeds/help` |
+
+> **Planned 2026-11-16.** [The shell navigation and shell root plan](../plans/shell-navigation.md) is
+> written and waits for the owner. It takes the idea's one-list shape, extends `IPageCatalog` with
+> `ShellLinks()` so a page can render the shell's links itself, marks shell documents as shell, and
+> finishes the `/admin` root by moving `/status` to `/admin/status`. The plan sizes the whole as
+> Large, in five independently shippable steps.
 
 ## Idea
 

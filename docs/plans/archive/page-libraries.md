@@ -11,7 +11,7 @@ SPDX-License-Identifier: MIT
 | Size | Large — a kind in the compiler, a column and its migration, an index and a closure, a per-tree policy, a source on every diagnostic, and the end of `PageDocument` in `Sdk` |
 | Spike | None. The tokenizer already reports the declarations, `TemplateHasCode` already proves a verdict can come from generation, and Roslyn already compiles more than one tree |
 | Decisions | `pages-have-kinds`, `pages-a-library-is-named-by-a-using`, `pages-the-document-is-the-shells`: the kinds, the `using` closure, the per-tree policy, the fingerprint, a library's storage, the shell's document, and the shared assembly not built. `pages-an-asset-is-a-page-with-no-code`'s rule is kept and its column replaced, `shell-the-menu-is-written-twice`'s comparison test is extended to the document, and `pages-the-document-is-the-shells`'s `Sdk` half is superseded |
-| Backlog | [IDEA-005](../../jobs/README.md#closed) — the layout half landed; this is the shared-code half, and the job closes with it |
+| Backlog | [IDEA-005](../../jobs/closed.md) — the layout half landed; this is the shared-code half, and the job closes with it |
 
 ## The short version
 

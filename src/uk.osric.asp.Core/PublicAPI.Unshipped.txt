@@ -743,3 +743,24 @@ uk.osric.asp.Core.Pages.SeedVerdict.ReleaseNewer = 1 -> uk.osric.asp.Core.Pages.
 uk.osric.asp.Core.Pages.SeedVerdict.Retired = 6 -> uk.osric.asp.Core.Pages.SeedVerdict
 uk.osric.asp.Core.Pages.SeedVerdict.StoreNewer = 4 -> uk.osric.asp.Core.Pages.SeedVerdict
 uk.osric.asp.Core.Pages.SeedVerdict.Unknown = 5 -> uk.osric.asp.Core.Pages.SeedVerdict
+uk.osric.asp.Core.Assistant.AccountBalanceAmounts
+static uk.osric.asp.Core.Assistant.AccountBalanceAmounts.TryRead(string! total, out decimal amount) -> bool
+uk.osric.asp.Core.Assistant.AccountBalanceReason
+uk.osric.asp.Core.Assistant.AccountBalanceReason.Ok = 0 -> uk.osric.asp.Core.Assistant.AccountBalanceReason
+uk.osric.asp.Core.Assistant.AccountBalanceReason.Unsupported = 1 -> uk.osric.asp.Core.Assistant.AccountBalanceReason
+uk.osric.asp.Core.Assistant.AccountBalanceReason.Error = 2 -> uk.osric.asp.Core.Assistant.AccountBalanceReason
+uk.osric.asp.Core.Assistant.AccountBalanceReason.Timeout = 3 -> uk.osric.asp.Core.Assistant.AccountBalanceReason
+uk.osric.asp.Core.Assistant.AccountBalanceReason.Unreachable = 4 -> uk.osric.asp.Core.Assistant.AccountBalanceReason
+uk.osric.asp.Core.Assistant.AccountBalanceReason.Invalid = 5 -> uk.osric.asp.Core.Assistant.AccountBalanceReason
+uk.osric.asp.Core.Assistant.AccountBalanceRead
+uk.osric.asp.Core.Assistant.AccountBalanceRead.Balance.get -> uk.osric.asp.Core.Assistant.AccountBalance?
+uk.osric.asp.Core.Assistant.AccountBalanceRead.Reason.get -> uk.osric.asp.Core.Assistant.AccountBalanceReason
+static uk.osric.asp.Core.Assistant.AccountBalanceRead.Ok(uk.osric.asp.Core.Assistant.AccountBalance! balance) -> uk.osric.asp.Core.Assistant.AccountBalanceRead!
+static uk.osric.asp.Core.Assistant.AccountBalanceRead.Failed(uk.osric.asp.Core.Assistant.AccountBalanceReason reason) -> uk.osric.asp.Core.Assistant.AccountBalanceRead!
+override uk.osric.asp.Core.Assistant.AccountBalanceRead.Equals(object? obj) -> bool
+override uk.osric.asp.Core.Assistant.AccountBalanceRead.GetHashCode() -> int
+override uk.osric.asp.Core.Assistant.AccountBalanceRead.ToString() -> string!
+static uk.osric.asp.Core.Assistant.AccountBalanceRead.operator !=(uk.osric.asp.Core.Assistant.AccountBalanceRead? left, uk.osric.asp.Core.Assistant.AccountBalanceRead? right) -> bool
+static uk.osric.asp.Core.Assistant.AccountBalanceRead.operator ==(uk.osric.asp.Core.Assistant.AccountBalanceRead? left, uk.osric.asp.Core.Assistant.AccountBalanceRead? right) -> bool
+uk.osric.asp.Core.Assistant.AccountBalanceRead.<Clone>$() -> uk.osric.asp.Core.Assistant.AccountBalanceRead!
+uk.osric.asp.Core.Assistant.AccountBalanceRead.Equals(uk.osric.asp.Core.Assistant.AccountBalanceRead? other) -> bool

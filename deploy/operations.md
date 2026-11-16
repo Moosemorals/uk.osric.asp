@@ -75,10 +75,10 @@ this is what podman does about it.
   `StopTimeout=35` is longer than the host's 30 s graceful-shutdown budget, so a normal stop finishes
   cleanly and only a stuck page is `SIGKILL`ed.
 - **Probe.** `HealthCmd` runs
-  `wget -q -O /dev/null -T 3 http://127.0.0.1:8080/heath` every 10 s; three consecutive failures make
+  `wget -q -O /dev/null -T 3 http://127.0.0.1:8080/health` every 10 s; three consecutive failures make
   the container unhealthy, and `HealthOnFailure=restart` restarts it. Detection plus restart is about
   35 s, which is the cost of the design: nothing else can interrupt a page.
-- **`/heath` reports two things.** Storage reachability, and how many page renders have been
+- **`/health` reports two things.** Storage reachability, and how many page renders have been
   abandoned. Two abandoned renders at once is the limit; a page that hangs deterministically therefore
   costs one restart per attempt, not a permanently wedged site.
 - **The start limit still applies.** `StartLimitBurst=3` in 60 s means a page that wedges on every
@@ -176,7 +176,7 @@ podman volume rm uk.osric.asp-storage prometheus-data
 
 systemctl --user start uk.osric.asp.service prometheus.service
 # The app applies InitialCreate before it serves, so wait for health before creating the account.
-until curl -fsS -o /dev/null http://127.0.0.1:8080/heath; do sleep 2; done
+until curl -fsS -o /dev/null http://127.0.0.1:8080/health; do sleep 2; done
 make remote-user-add HOST=deploy@<server-ip> ACCOUNT=osric
 ```
 
@@ -194,19 +194,140 @@ count both. Nothing in either volume is worth keeping.
 
 ### Backups
 
-Run storage maintenance as `deploy`. Either stop `uk.osric.asp.service` with `systemctl --user stop`
-and back up the entire volume while no process has the database open, or use SQLite's online backup
-API against the database — `sqlite3` is installed on the host by `cloud-init.yaml`, so
-`sqlite3 storage.db '.backup /tmp/storage-backup.db'` works from inside `podman unshare`. Do not
-simply copy `storage.db` while the app is running: committed data may still be in the WAL, and
-copying database files individually can produce an inconsistent backup.
+The volume is the site: pages and their history, page state and sessions, the accounts, the assistant's
+memory and conversations. Nothing else holds a copy, so it is snapshotted nightly and pulled off the
+host.
 
-Use `podman volume inspect uk.osric.asp-storage` as `deploy` to locate the volume. Its files are
-owned by mapped subordinate IDs, so offline file access may require `podman unshare`. Keep backups
-outside the volume and off-host, and test restoration. Restore only with the app stopped, retain
-the correct mapped ownership, and start an image compatible with the restored schema. For the
-stop-and-copy approach, keep the app stopped until the backup finishes, then start it again with
-`systemctl --user start uk.osric.asp.service`.
+**The host takes the snapshot.** `~/bin/backup-snapshot.sh`, installed by `make deploy`, runs as
+`deploy` from `uk.osric.asp-backup.timer` at 03:15 — with `Persistent=true`, so a host that was down
+takes it on the way back up. It uses SQLite's online backup through `podman unshare`, so the site keeps
+serving, checks the copy with `PRAGMA integrity_check`, and leaves it gzipped as
+`~/backups/storage.<dd>.db.gz` and hard-links it to `~/backups/storage.db.gz`, which is the name the
+pull takes. The day of the month is the slot — a 31-entry ring, not a queue of the last 31 runs — so a
+month of daily copies is kept and the same day next month overwrites it. A day the host missed stays a
+hole until that date comes round again. The hard link, not a symlink, because the pull's restricted
+`rrsync` refuses to follow one. The two host files the repository does not carry —
+`~/.config/uk.osric.asp/assistant.env`, which holds the provider key, and
+`appsettings.Production.json` — are copied beside it in `conf/`.
+
+To take one before a release or a migration, run the oneshot by hand:
+
+```bash
+ssh deploy@<server-ip> systemctl --user start uk.osric.asp-backup.service
+ssh deploy@<server-ip> journalctl --user -u uk.osric.asp-backup.service --since -5m
+```
+
+Snapshots are mode `0600` and treated as credential stores: `storage.db` carries a PBKDF2 hash for
+every account. Keep them outside the volume, and remember that the local month is convenience — the
+copy on the backup host is the backup.
+
+**The backup host pulls.** `deploy/pull-backups.sh` runs there, on its own schedule, with a key that can
+read `~/backups` on this host and nothing else: the key's `authorized_keys` entry is
+`restrict,command="/usr/bin/rrsync -ro /home/deploy/backups"`. That directory is the root of the
+transfer, so the script's remote spec is the host alone — `deploy@moosemorals.com:` — and `backups/…`
+in a spec is a request for `~/backups/backups/…`, which fails. Each run copies `storage.db.gz` and
+`conf/` into `YYYY-MM-DD/` on the backup host, then:
+
+- refuses a snapshot whose mtime is 26 hours old, because a failed snapshot leaves yesterday's file in
+  place and filing it under today's date would turn a dead backup into a quiet one;
+- checks `gzip -t`, `PRAGMA integrity_check`, and that `PageHeads`, `Users` and
+  `__EFMigrationsHistory` are present, so a valid but foreign database is refused;
+- renames the staging directory into place only after those pass, so a bad pull leaves the previous day
+  alone;
+- prunes dated directories older than `KEEP_DAYS` (90 by default).
+
+Set it up on the backup host once. Generate a key with **no passphrase** — it runs unattended, and
+nothing on that host would unlock it:
+
+```bash
+ssh-keygen -t ed25519 -N '' -C backup@hathor -f ~/.ssh/id_backup_uk_osric_asp
+```
+
+Keep it `0600` there and never copy it to the site; losing it costs one regenerated key and one line in
+`authorized_keys`, so it does not need its own backup either. Append its public half to `deploy`'s
+`authorized_keys` with the prefix above, then install the pull and its timer from the repository:
+
+```bash
+make pull-install HOST=osric@<backuphost>
+```
+
+That copies `deploy/pull-backups.sh` to `~/bin/` and `deploy/uk.osric.asp-pull.{service,timer}` to
+`~/.config/systemd/user/`, enables the timer, and prints when it next runs. It is a *user* timer on the
+machine that keeps the copies, at 04:20 with `Persistent=true` and a few minutes of jitter: an hour
+after the site's snapshot, and a host that was down pulls when it comes back. User lingering has to be
+on for that to survive a reboot without a login — `make pull-install` warns when it is not, and
+`sudo loginctl enable-linger osric` fixes it.
+
+Everything lands under `~/backups/`, one directory per site, with the device's own user and `0700`
+directories:
+
+```text
+~/bin/pull-backups.sh
+~/backups/uk.osric.asp/2026-11-16/storage.db.gz
+~/backups/uk.osric.asp/2026-11-16/conf/assistant.env
+```
+
+The home directory, not a project folder and not `/srv`: a checkout is disposable — `make clean`, a
+re-clone or a removed worktree takes anything inside it — while this is the only copy of the site's
+history other than the month on the site itself. `~/backups` also means the timer runs as the user
+who owns the key and the directory, so nothing on this host needs `sudo`. The name is the project's,
+`uk.osric.asp`, matching the repository, the image, the volumes and the units; `osricuk` names the
+deploy user on the other site's host, which is a different thing. Another site gets its own directory
+beside it, and each one is pruned by its own run. If the home directory is itself backed up somewhere,
+exclude `~/backups`, or that copy is of the copy.
+
+Run it once by hand so `known_hosts` learns the host and the setup is proven, rather than waiting for
+04:20 to discover it:
+
+```bash
+ssh osric@<backuphost> systemctl --user start uk.osric.asp-pull.service
+ssh osric@<backuphost> journalctl --user -u uk.osric.asp-pull.service -n 20
+```
+
+It sets `BatchMode=yes`, so an unknown host or a missing key fails the run rather than waiting on a
+prompt nobody is there to answer. The script and the units are the source of truth in this repository;
+do not edit the copies on the backup host, and re-run `make pull-install` after changing either.
+
+The direction is deliberate — `deploy-backups-are-pulled`. The public host never holds a credential to
+the machine that keeps its history; a `--delete` mirror cannot erase good copies because the site had a
+bad day; and verification happens somewhere the site's host does not control. `rsync` is needed at both
+ends and `cloud-init.yaml` installs it here; the backup host also needs `sqlite3` and `gzip`, which the
+script uses to check what it pulled. A host that was built before this change has neither `rsync` nor the
+`cloud-init` entry, so it needs `sudo apt-get install -y rsync` once — `make deploy` refuses to run
+until it is there.
+
+**Restore.** Copy the newest good `storage.db.gz` from the backup host to the site, then, with the app
+stopped:
+
+```bash
+scp backuphost:backups/uk.osric.asp/2026-11-16/storage.db.gz /tmp/
+ssh deploy@<server-ip> systemctl --user stop uk.osric.asp.service
+gunzip -c /tmp/storage.db.gz > /tmp/storage-restore.db
+mountpoint=$(podman volume inspect --format '{{.Mountpoint}}' uk.osric.asp-storage)
+podman unshare rm -f "$mountpoint/storage.db-wal" "$mountpoint/storage.db-shm"
+podman unshare install -o 1654 -g 1654 -m 0640 /tmp/storage-restore.db "$mountpoint/storage.db"
+rm /tmp/storage-restore.db
+systemctl --user start uk.osric.asp.service
+until curl -fsS -o /dev/null http://127.0.0.1:8080/health; do sleep 2; done
+```
+
+`1654` is the container's uid and the volume is created with `:U`, so the file has to arrive with that
+ownership inside the user namespace; `podman unshare install` is what sets it. Remove the stale
+`-wal`/`-shm` first: replaying a newer log over an older database corrupts it. Restore onto an image
+whose schema the file matches — migrations run forward at startup, so a file written by a newer release
+is not one an older image can open. Test this drill; a backup nobody has restored is a hope.
+
+**Not covered.** The `uk.osric.asp-keys` volume — the key ring behind the auth, antiforgery and session
+cookies — is not in the snapshot: a restore without it signs everyone out and invalidates open forms,
+and nothing else. Prometheus's data is disposable, Caddy reissues certificates, and the image and
+quadlets come from the registry and this repository, so a rebuild is `make deploy`.
+
+The manual route still works when a copy has to be taken at a moment of the owner's choosing: stop the
+unit and copy the volume while no process has the database open, or use `sqlite3 storage.db
+'.backup /tmp/storage-backup.db'` from inside `podman unshare`. Do not simply copy `storage.db` while
+the site runs — committed data may still be in the write-ahead log, and copying the files one at a time
+can produce an inconsistent backup. `podman volume inspect uk.osric.asp-storage` locates the volume;
+its files are owned by mapped subordinate IDs, so offline access needs `podman unshare` too.
 
 ## Metrics and the status page
 

@@ -132,6 +132,31 @@ public sealed class AssistantOptionsTests {
         Assert.That(Validate(options).FailureMessage, Does.Contain("MaxMemoryCharsPerRun"));
     }
 
+    [Test]
+    public void TheBalanceSamplerShipsAtAMinute() {
+        Assert.That(TestOptions.Assistant.BalanceSampleSeconds, Is.EqualTo(60));
+    }
+
+    [Test]
+    public void TheBalanceSampleCadenceCanBeOverridden() {
+        AssistantOptions options = AssistantOptions.FromConfiguration(
+            ShippedConfiguration.Read(("Assistant:ApiKey", "test-key"), ("Assistant:BalanceSampleSeconds", "120")));
+
+        Assert.That(options.BalanceSampleSeconds, Is.EqualTo(120));
+    }
+
+    [Test]
+    public void ABalanceSampleCadenceOutsideTheRangeStopsTheSite() {
+        ConfigurationException error = Assert.Throws<ConfigurationException>(() => AssistantOptions.FromConfiguration(
+            ShippedConfiguration.Read(("Assistant:ApiKey", "test-key"), ("Assistant:BalanceSampleSeconds", "10"))))!;
+
+        Assert.Multiple(() => {
+            Assert.That(error.Message, Does.Contain("Assistant:BalanceSampleSeconds is 10"));
+            Assert.That(error.Message, Does.Contain("30 to 3600"));
+            Assert.That(error.Message, Does.Contain("60 is recommended"));
+        });
+    }
+
     private void AssertValid(AssistantOptions options) => Assert.That(Validate(options).Failed, Is.False);
 
     private ValidateOptionsResult Validate(AssistantOptions options) => _validator.Validate(name: null, options);

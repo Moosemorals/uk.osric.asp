@@ -574,12 +574,12 @@ can still mutate process-wide state; that is the residual SEC-03 records.
 
 The budget cannot reclaim a lost thread, so the supervisor is the kill switch.
 
-`/heath` reports two checks: `storage`, and `pages`, which is unhealthy once
+`/health` reports two checks: `storage`, and `pages`, which is unhealthy once
 `Pages:Render:AbandonedLimit` renders have been abandoned and are still running. A page that returns
 late decrements the count, so a one-off stall does not ask for a restart.
 
 The quadlet runs the same probe as podman's health check
-(`wget -q -O /dev/null -T 3 http://127.0.0.1:8080/heath`, every 10 s, three failures) with
+(`wget -q -O /dev/null -T 3 http://127.0.0.1:8080/health`, every 10 s, three failures) with
 `HealthOnFailure=restart`, so a wedged process is restarted within about 35 s. That turns the two
 worst outcomes into a short outage instead of a permanent one: a page that loops forever against a
 thread pool, and a page that calls `Environment.Exit`. The container is also capped

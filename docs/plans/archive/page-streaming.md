@@ -7,11 +7,11 @@ SPDX-License-Identifier: MIT
 
 | | |
 | --- | --- |
-| Status | Implemented 2026-11-14; `make check` is green. Awaiting the owner's merge |
+| Status | Done — `pages-page-io-is-async` to `pages-a-stream-reports-its-own-end`, merged 2026-11-14; see [Status](#status) |
 | Size | Medium — one contract member, one response sink, a commit rule, a disconnect guard and their tests |
 | Spike | None. `SimpleContext` already buffers through one writer, the endpoint already shapes the whole response in one place, and the render already owns a deadline and an abandonment switch |
-| Decisions | Named in prose below; the names are taken when the work merges (`product-plan-before-building`, `product-steps-wait-for-the-owner`) |
-| Backlog | ARCH-13 — a page cannot stream (now [closed](../../jobs/README.md#closed)) — and BUG-17's one loose end, the failed-request line a mid-run reload leaves behind |
+| Decisions | `pages-page-io-is-async` to `pages-a-stream-reports-its-own-end`, in [the record](../../decisions.md) |
+| Backlog | ARCH-13 — a page cannot stream (now [closed](../../jobs/closed.md)) — and BUG-17's one loose end, the failed-request line a mid-run reload leaves behind |
 
 ## The short version
 
@@ -271,7 +271,7 @@ the same bug in a second place.
 
 ## Decisions this plan proposes
 
-Numbered `pages-page-io-is-async` to `pages-a-stream-reports-its-own-end` when the work merged (`product-plan-before-building`, `product-steps-wait-for-the-owner`).
+Named `pages-page-io-is-async` to `pages-a-stream-reports-its-own-end` when the work merged (`product-plan-before-building`, `product-steps-wait-for-the-owner`); the names are in [the record](../../decisions.md).
 
 **D1 — `FlushAsync` takes no cancellation token.** The render owns the lifetime, as `pages-page-io-is-async` says.
 ARCH-13's sketch predates `pages-page-io-is-async` and is not followed. Rejected: a token parameter that no other

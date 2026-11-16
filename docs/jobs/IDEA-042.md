@@ -59,10 +59,10 @@ and every caller that needs it today does it badly:
    keep naming the old key and go stale, or the move recompiles them all, or the move is refused while
    dependents exist. That choice needs [IDEA-040](IDEA-040.md) to know who the dependents are, and the
    answer is probably "refuse, name them, and let the caller move them too" — with a batch
-   ([IDEA-043](README.md#closed)) making that one request.
+   ([IDEA-043](closed.md)) making that one request.
 
 5. **A move is not a rewrite.** Links inside other pages still point at the old key. Rewriting them is a
-   search plus a batch save ([IDEA-038](IDEA-038.md), [IDEA-043](README.md#closed)), and it edits pages the
+   search plus a batch save ([IDEA-038](IDEA-038.md), [IDEA-043](closed.md)), and it edits pages the
    caller may not have opened — a decision of its own, deliberately not bundled here.
 
 6. **The documentation** is a `/help` paragraph for the capability (`product-manual-is-a-page`), a
@@ -81,7 +81,7 @@ and every caller that needs it today does it badly:
    store's rule is that history survives a delete, so a move that empties the old key's history is a
    second kind of forgetting.
 3. **Whether `MoveAsync` is one member or `SaveManyAsync` with a rename row.** A batch of edits is
-   [IDEA-043](README.md#closed)'s value; a rename is not an edit and does not compile. Keeping them apart is
+   [IDEA-043](closed.md)'s value; a rename is not an edit and does not compile. Keeping them apart is
    probably right, and it means a batch cannot rename.
 4. **Case-only renames.** SQLite's default collation makes `/Blog` and `/blog` the same row to one query
    and different rows to another; the store already normalises keys, so a case-only rename may be a
@@ -105,4 +105,4 @@ assistant's tools and from a release that renames a seed.
 
 The plan that places it is [host support for the IDE](../plans/ide-host.md); this is slice 6 there, last because it
 needs the closure ([IDEA-040](IDEA-040.md)), the search ([IDEA-038](IDEA-038.md)) and the batch
-([IDEA-043](README.md#closed)) to be honest.
+([IDEA-043](closed.md)) to be honest.

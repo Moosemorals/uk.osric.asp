@@ -158,6 +158,7 @@ internal class Program {
         builder.Services.AddHostedService<PageJobRunner>();
         builder.Services.AddHostedService<RunJournalCleanupService>();
         builder.Services.AddHostedService<RunWorker>();
+        builder.Services.AddHostedService<AccountBalanceSampler>();
 
         // Stuff with their own registration extensions
         builder.Services.AddEditorAuthentication(builder.Environment, authentication);
@@ -177,7 +178,10 @@ internal class Program {
         }).ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler { AllowAutoRedirect = false });
         builder.Services.AddHttpClient<IAccountBalanceClient, AccountBalanceClient>(client => {
             client.Timeout = Timeout.InfiniteTimeSpan;
-        }).ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler { AllowAutoRedirect = false });
+        }).ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler { AllowAutoRedirect = false })
+            // The sampler logs the reason when it changes; the handler's own start and end lines for
+            // every sample would be a minute's worth of log from a provider that never answers.
+            .RemoveAllLoggers();
 
         // Options types, sort alphabetically so the list is easy to scan.
         builder.Services.AddSingleton(admin);
@@ -504,7 +508,7 @@ internal class Program {
         app.MapPost("/logout", LoginEndpoint.LogoutAsync)
             .WithMetadata(new RequireAntiforgeryTokenAttribute(true));
 
-        app.MapHealthChecks("/heath", new HealthCheckOptions {
+        app.MapHealthChecks("/health", new HealthCheckOptions {
             ResponseWriter = ReportWriter.WriteAsync,
         });
 

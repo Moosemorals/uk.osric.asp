@@ -12,7 +12,7 @@ public sealed class HealthEndpointTests : IntegrationTest {
     public async Task HealthReportsDetailedJsonWhenHealthy() {
         using HttpClient client = CreateClient();
 
-        HttpResponseMessage response = await client.GetAsync("https://localhost/heath");
+        HttpResponseMessage response = await client.GetAsync("https://localhost/health");
         string body = await response.Content.ReadAsStringAsync();
 
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
@@ -24,10 +24,10 @@ public sealed class HealthEndpointTests : IntegrationTest {
 
     [Test]
     public async Task HealthRouteShadowsAPageStoredAtTheSameKey() {
-        await SavePageAsync("/heath", "<p>not the health check</p>");
+        await SavePageAsync("/health", "<p>not the health check</p>");
         using HttpClient client = CreateClient();
 
-        HttpResponseMessage response = await client.GetAsync("https://localhost/heath");
+        HttpResponseMessage response = await client.GetAsync("https://localhost/health");
 
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
         Assert.That(response.Content.Headers.ContentType?.MediaType, Is.EqualTo("application/json"));
