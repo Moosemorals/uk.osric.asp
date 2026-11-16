@@ -45,7 +45,7 @@ internal sealed class FindApplet : ShellApplet {
 
         List<PageNode> found = [.. nodes.Where(node =>
             scopes.Any(scope => string.Equals(node.Path.Key, scope.Path.Key, StringComparison.Ordinal)
-                || PageTree.IsBelow(node.Path, scope.Path))
+                || node.Path.IsBelow(scope.Path))
             && expression.Matches(node))];
 
         foreach (PageNode node in found.Take(context.Output.ListingLimit)) {

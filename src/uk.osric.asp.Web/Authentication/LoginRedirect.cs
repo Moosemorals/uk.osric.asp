@@ -17,7 +17,7 @@ internal static class LoginRedirect {
     /// <summary>The <c>/login</c> URL that returns to <paramref name="path"/> with its query.</summary>
     /// <param name="path">The page's canonical key.</param>
     /// <param name="query">The request's query string, as it arrived.</param>
-    public static string For(PagePath path, QueryString query) {
+    public static string LoginUrl(this PagePath path, QueryString query) {
         ArgumentNullException.ThrowIfNull(path);
 
         string returnUrl = path.Key + query.ToUriComponent();

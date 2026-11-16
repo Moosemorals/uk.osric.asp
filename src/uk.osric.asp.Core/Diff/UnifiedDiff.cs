@@ -15,7 +15,7 @@ public static class UnifiedDiff {
     /// or <c>+</c>, or the empty string when nothing changed.
     /// </returns>
     /// <exception cref="ArgumentNullException"><paramref name="diff"/> is <see langword="null"/>.</exception>
-    public static string Format(DiffDocument diff) {
+    public static string ToUnified(this DiffDocument diff) {
         ArgumentNullException.ThrowIfNull(diff);
 
         if (diff.IsEmpty) {

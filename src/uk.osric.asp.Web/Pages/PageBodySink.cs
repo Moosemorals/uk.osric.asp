@@ -22,7 +22,7 @@ internal sealed class PageBodySink(
             throw new InvalidOperationException("A redirect has no body to stream.");
         }
 
-        _bodyAllowed = PageResponseWriter.AllowsBody(response);
+        _bodyAllowed = response.AllowsBody();
     }
 
     /// <inheritdoc/>

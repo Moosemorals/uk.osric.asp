@@ -48,7 +48,7 @@ internal sealed class DiffPageTool : AssistantTool {
 
         IReadOnlyList<PageRevisionSummary> revisions = (await services.Store.HistoryAsync(path, cancellationToken)).Revisions;
         if (revisions.Count == 0) {
-            return services.Results.Failure($"Page {ToolPaths.Describe(path)} has no saved revisions to compare.", $"{Spec.Verb} {ToolPaths.Describe(path)}: no revisions");
+            return services.Results.Failure($"Page {path.Describe()} has no saved revisions to compare.", $"{Spec.Verb} {path.Describe()}: no revisions");
         }
 
         PageRevisionSummary current = revisions.FirstOrDefault(revision => revision.IsCurrent) ?? revisions[0];
@@ -61,8 +61,8 @@ internal sealed class DiffPageTool : AssistantTool {
                 revision => !string.Equals(revision.Hash, resolvedTo, StringComparison.Ordinal));
             if (previous is null) {
                 return services.Results.Failure(
-                    $"Page {ToolPaths.Describe(path)} has one saved revision. Save it again, or pass two hashes, before comparing.",
-                    $"{Spec.Verb} {ToolPaths.Describe(path)}: one revision");
+                    $"Page {path.Describe()} has one saved revision. Save it again, or pass two hashes, before comparing.",
+                    $"{Spec.Verb} {path.Describe()}: one revision");
             }
             resolvedFrom = previous.Hash;
         }
@@ -70,11 +70,11 @@ internal sealed class DiffPageTool : AssistantTool {
         PageRevisionTemplate? before = await services.Store.RevisionAsync(path, resolvedFrom, cancellationToken);
         PageRevisionTemplate? after = await services.Store.RevisionAsync(path, resolvedTo, cancellationToken);
         if (before is null || after is null) {
-            return services.Results.Failure($"One of those revisions is not a revision of {ToolPaths.Describe(path)}.", "Revision not found");
+            return services.Results.Failure($"One of those revisions is not a revision of {path.Describe()}.", "Revision not found");
         }
 
         DiffDocument comparison = DiffRenderer.Compare(before.Template, after.Template);
-        string text = DiffRenderer.ToUnifiedDiff(comparison);
+        string text = comparison.ToUnified();
         int budget = services.Options.ToolResultBudget;
         bool truncated = text.Length > budget;
         if (truncated) {
@@ -91,9 +91,9 @@ internal sealed class DiffPageTool : AssistantTool {
             coarse = comparison.IsCoarse,
             truncated,
             diff = text,
-            editorUrl = PageUrls.EditorDiff(path, before.Hash, after.Hash, services.EditorPath),
+            editorUrl = path.EditorDiff(before.Hash, after.Hash, services.EditorPath),
         };
-        return services.Results.Success(data, $"Compared 2 revisions of {ToolPaths.Describe(path)}");
+        return services.Results.Success(data, $"Compared 2 revisions of {path.Describe()}");
     }
 
     private static bool IsRevisionHash(string? hash) => RevisionHash.IsCanonical(hash);

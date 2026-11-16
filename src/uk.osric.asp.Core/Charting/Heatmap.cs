@@ -41,7 +41,7 @@ public static class Heatmap {
     /// Rows sorted by boundary with <c>+Inf</c> last, each holding the count that fell in that bucket.
     /// A negative difference is clamped to zero, because a counter reset is not a negative count.
     /// </returns>
-    public static IReadOnlyList<HeatmapRow> FromCumulative(IReadOnlyList<HeatmapRow> cumulative) {
+    public static IReadOnlyList<HeatmapRow> FromCumulative(this IReadOnlyList<HeatmapRow> cumulative) {
         ArgumentNullException.ThrowIfNull(cumulative);
 
         List<HeatmapRow> rows = [];
@@ -80,7 +80,7 @@ public static class Heatmap {
     /// <exception cref="ArgumentNullException">A required argument is null.</exception>
     /// <exception cref="ArgumentOutOfRangeException">The size leaves no room to draw in.</exception>
     public static string Render(
-        IReadOnlyList<HeatmapRow> rows,
+        this IReadOnlyList<HeatmapRow> rows,
         ChartTimeAxis x,
         ChartSize size,
         ChartFrame frame,
@@ -92,19 +92,19 @@ public static class Heatmap {
         ArgumentNullException.ThrowIfNull(valueUnit);
 
         StringBuilder svg = new();
-        double band = ChartChrome.Begin(svg, size, "heatmap", frame, $"{frame.Title}: {frame.YTitle} buckets");
-        ChartPlot plot = ChartChrome.Plot(size, band + LegendHeight);
+        double band = svg.Begin(size, "heatmap", frame, $"{frame.Title}: {frame.YTitle} buckets");
+        ChartPlot plot = size.Plot(band + LegendHeight);
 
         IReadOnlyList<HeatmapRow> folded = Fold(rows, MaxColumns);
         double max = Maximum(folded);
 
-        ChartChrome.WriteAxisTitle(svg, frame.YTitle, plot);
+        svg.WriteAxisTitle(frame.YTitle, plot);
 
         // The shade legend sits under the title, where the line charts put theirs, so it never lands on
         // the time axis.
         WriteLegend(svg, band, max, valueUnit);
-        ChartChrome.WriteTimeLabels(svg, x, plot, size);
-        ChartChrome.Border(svg, plot);
+        svg.WriteTimeLabels(x, plot, size);
+        svg.Border(plot);
 
         double cellHeight = folded.Count == 0 ? plot.Height : plot.Height / folded.Count;
 
@@ -113,7 +113,7 @@ public static class Heatmap {
         WriteRows(svg, folded, frame, valueUnit, x, plot, cellHeight, max);
 
         if (max <= 0) {
-            ChartChrome.Empty(svg, plot, frame.EmptyText);
+            svg.Empty(plot, frame.EmptyText);
         }
 
         svg.Append("</svg>\n");
@@ -178,13 +178,13 @@ public static class Heatmap {
                     .Append("\" stroke=\"#e3e3e3\" stroke-width=\"1\"/>\n");
             }
 
-            svg.Append("<a class=\"heat-row\" id=\"").Append(SvgText.Escape(id))
-                .Append("\" href=\"#").Append(SvgText.Escape(id)).Append("\" tabindex=\"-1\">\n");
-            svg.Append("<title>").Append(SvgText.Escape($"{BucketLabel(line.Label)} {frame.YTitle}")).Append("</title>\n");
+            svg.Append("<a class=\"heat-row\" id=\"").Append(id.Escape())
+                .Append("\" href=\"#").Append(id.Escape()).Append("\" tabindex=\"-1\">\n");
+            svg.Append("<title>").Append($"{BucketLabel(line.Label)} {frame.YTitle}".Escape()).Append("</title>\n");
             svg.Append("<text class=\"chart-label\" x=\"").Append(SvgText.Number(plot.Left - 4))
                 .Append("\" y=\"").Append(SvgText.Number(y + (cellHeight / 2) + (4 * SvgText.TypeScale)))
                 .Append("\" font-size=\"").Append(SvgText.Number(ChartChrome.FontSize))
-                .Append("\" fill=\"#444444\" text-anchor=\"end\">").Append(SvgText.Escape(BucketLabel(line.Label)))
+                .Append("\" fill=\"#444444\" text-anchor=\"end\">").Append(BucketLabel(line.Label).Escape())
                 .Append("</text>\n");
 
             WriteRuns(svg, line, frame, valueUnit, x, plot, y, cellHeight, max);
@@ -277,7 +277,7 @@ public static class Heatmap {
             .Append("\" width=\"").Append(SvgText.Number(right - left))
             .Append("\" height=\"").Append(SvgText.Number(cellHeight))
             .Append("\" fill=\"").Append(SvgText.HeatFill(level))
-            .Append("\"><title>").Append(SvgText.Escape($"{BucketLabel(label)}: {Format(total)} {valueUnit} ({when})"))
+            .Append("\"><title>").Append($"{BucketLabel(label)}: {Format(total)} {valueUnit} ({when})".Escape())
             .Append("</title></rect>\n");
     }
 
@@ -306,7 +306,7 @@ public static class Heatmap {
             .Append("\" y=\"").Append(SvgText.Number(y + SwatchHeight))
             .Append("\" font-size=\"").Append(SvgText.Number(ChartChrome.FontSize))
             .Append("\" fill=\"#444444\" text-anchor=\"start\">").Append(Format(max)).Append(' ')
-            .Append(SvgText.Escape(valueUnit)).Append("</text>\n");
+            .Append(valueUnit.Escape()).Append("</text>\n");
     }
 
     private static string Format(double value) => BudgetAmount.Format(value);

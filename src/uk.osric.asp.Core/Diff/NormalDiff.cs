@@ -20,7 +20,7 @@ public static class NormalDiff {
     /// <param name="diff">The comparison to write.</param>
     /// <returns>The change blocks, or the empty string when nothing changed.</returns>
     /// <exception cref="ArgumentNullException"><paramref name="diff"/> is <see langword="null"/>.</exception>
-    public static string Format(DiffDocument diff) {
+    public static string ToNormal(this DiffDocument diff) {
         ArgumentNullException.ThrowIfNull(diff);
 
         if (diff.IsEmpty) {

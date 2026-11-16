@@ -691,7 +691,7 @@ internal static class AssistantEndpoint {
         foreach (PagePath path in changed) {
             string key = Encode(path.Key);
             await context.Response.WriteAsync(
-                $"<li><a href=\"{Encode(PageUrls.Page(path))}\">{key}</a> <a href=\"{Encode(PageUrls.Editor(path, EditorPaths.Of(context.RequestServices)))}\">Edit<span class=\"visually-hidden\"> {key}</span></a></li>");
+                $"<li><a href=\"{Encode(PageUrls.Page(path))}\">{key}</a> <a href=\"{Encode(path.Editor(EditorPaths.Of(context.RequestServices)))}\">Edit<span class=\"visually-hidden\"> {key}</span></a></li>");
         }
         await context.Response.WriteAsync("</ul></section>");
     }

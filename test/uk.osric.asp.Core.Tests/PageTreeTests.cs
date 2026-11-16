@@ -16,7 +16,7 @@ public sealed class PageTreeTests {
     [TestCase("/", "/", false)]
     [TestCase("/a/b", "/", true)]
     public void IsBelowAsksWhetherAKeyLivesAnywhereUnderAPath(string key, string folder, bool expected, string? why = null) {
-        Assert.That(PageTree.IsBelow(PagePath.Normalize(key), PagePath.Normalize(folder)), Is.EqualTo(expected), why);
+        Assert.That(PagePath.Normalize(key).IsBelow(PagePath.Normalize(folder)), Is.EqualTo(expected), why);
     }
 
     [TestCase("/a/b", "/a", true)]
@@ -26,7 +26,7 @@ public sealed class PageTreeTests {
     [TestCase("/a/b", "/", false)]
     [TestCase("/ab", "/a", false)]
     public void IsDirectlyBelowAsksWhetherAKeyIsAnEntryOfAPath(string key, string folder, bool expected, string? why = null) {
-        Assert.That(PageTree.IsDirectlyBelow(PagePath.Normalize(key), PagePath.Normalize(folder)), Is.EqualTo(expected), why);
+        Assert.That(PagePath.Normalize(key).IsDirectlyBelow(PagePath.Normalize(folder)), Is.EqualTo(expected), why);
     }
 
     [TestCase("/vim/vim.js", "/vim")]

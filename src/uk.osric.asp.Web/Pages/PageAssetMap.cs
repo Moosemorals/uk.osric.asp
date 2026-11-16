@@ -82,7 +82,7 @@ internal static class PageAssetMap {
                 continue;
             }
 
-            if (PageAssetPolicy.IsAsset(head.TemplateKind)) {
+            if (head.TemplateKind.IsAsset()) {
                 map[PagePath.Normalize(head.Key).Key] = head.Hash;
             }
         }

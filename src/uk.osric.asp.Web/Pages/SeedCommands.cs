@@ -111,8 +111,7 @@ internal static class SeedCommands {
                 ? "new"
                 : head.IsDeleted
                     ? "deleted"
-                    : SeedVerdictWords.Describe(
-                        SeedComparison.Of(head.SeedHash, seed.Hash, head.ContentHash), seed.Hash).Verdict;
+                    : SeedComparison.Of(head.SeedHash, seed.Hash, head.ContentHash).Describe(seed.Hash).Verdict;
         }
 
         // A page whose seed this release no longer ships still has an anchor, and saying so is how
@@ -120,8 +119,7 @@ internal static class SeedCommands {
         IReadOnlyList<PageReadHead> heads = await pages.ListAsync("/", int.MaxValue, cancellationToken);
         foreach (PageReadHead head in heads) {
             if (head.SeedHash is not null && !verdicts.ContainsKey(head.Key)) {
-                verdicts[head.Key] = SeedVerdictWords.Describe(
-                    SeedComparison.Of(head.SeedHash, null, head.ContentHash), null).Verdict;
+                verdicts[head.Key] = SeedComparison.Of(head.SeedHash, null, head.ContentHash).Describe(null).Verdict;
             }
         }
 

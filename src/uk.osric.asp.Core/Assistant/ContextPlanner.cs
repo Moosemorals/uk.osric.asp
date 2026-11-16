@@ -66,7 +66,7 @@ public static class ContextPlanner {
         int maskedResults = 0;
         int maskedArguments = 0;
         foreach (int index in maskable) {
-            MaskOutcome outcome = ObservationMasker.MaskMessage(messages[index]);
+            MaskOutcome outcome = messages[index].Mask();
             if (!outcome.Changed) {
                 continue;
             }

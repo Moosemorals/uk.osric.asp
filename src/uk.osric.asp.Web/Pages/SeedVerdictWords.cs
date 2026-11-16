@@ -17,7 +17,7 @@ internal static class SeedVerdictWords {
     /// <summary>A live page's summary, from its comparison.</summary>
     /// <param name="comparison">The comparison of R, S and H.</param>
     /// <param name="shipped">The hash this release ships, or null when it ships none.</param>
-    public static PageSeedSummary Describe(SeedComparison comparison, string? shipped) {
+    public static PageSeedSummary Describe(this SeedComparison comparison, string? shipped) {
         return new PageSeedSummary(Label(comparison.Verdict), Sentence(comparison, shipped), comparison.CanApply, comparison.CanAdopt);
     }
 

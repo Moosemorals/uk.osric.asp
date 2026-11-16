@@ -10,39 +10,39 @@ public sealed class UnifiedDiffTests {
 
     [Test]
     public void AReplacementIsAHeaderAndPrefixedLines() {
-        string text = UnifiedDiff.Format(LineDiff.Compare("one\ntwo\nthree", "one\nTWO\nthree"));
+        string text = LineDiff.Compare("one\ntwo\nthree", "one\nTWO\nthree").ToUnified();
 
         Assert.That(text, Is.EqualTo("@@ -1,3 +1,3 @@\n one\n-two\n+TWO\n three\n"));
     }
 
     [Test]
     public void AnInsertionAtTheStartHasTheRightHeader() {
-        string text = UnifiedDiff.Format(LineDiff.Compare("b", "a\nb"));
+        string text = LineDiff.Compare("b", "a\nb").ToUnified();
 
         Assert.That(text, Is.EqualTo("@@ -1,1 +1,2 @@\n+a\n b\n"));
     }
 
     [Test]
     public void ADocumentThatBecomesEmptyHasAZeroAfterRange() {
-        string text = UnifiedDiff.Format(LineDiff.Compare("a", ""));
+        string text = LineDiff.Compare("a", "").ToUnified();
 
         Assert.That(text, Is.EqualTo("@@ -1,1 +0,0 @@\n-a\n"));
     }
 
     [Test]
     public void AnEmptyDocumentThatGainsLinesHasAZeroBeforeRange() {
-        string text = UnifiedDiff.Format(LineDiff.Compare("", "a\nb"));
+        string text = LineDiff.Compare("", "a\nb").ToUnified();
 
         Assert.That(text, Is.EqualTo("@@ -0,0 +1,2 @@\n+a\n+b\n"));
     }
 
     [Test]
     public void NoChangesWriteNothing() {
-        Assert.That(UnifiedDiff.Format(LineDiff.Compare("one", "one")), Is.Empty);
+        Assert.That(LineDiff.Compare("one", "one").ToUnified(), Is.Empty);
     }
 
     [Test]
     public void ANullDocumentIsRefused() {
-        Assert.Throws<ArgumentNullException>(() => UnifiedDiff.Format(null!));
+        Assert.Throws<ArgumentNullException>(() => UnifiedDiff.ToUnified(null!));
     }
 }

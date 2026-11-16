@@ -106,12 +106,12 @@ public sealed class StatusCatalogueTests {
             string query = panel.Queries.Single().Query;
 
             if (instrument.Kind == InstrumentKind.Histogram) {
-                Assert.That(query, Does.Contain(PrometheusNames.Buckets(instrument)), panel.Id);
+                Assert.That(query, Does.Contain(instrument.Buckets()), panel.Id);
                 Assert.That(query, Does.Contain("by (le)"), panel.Id);
             } else if (instrument.Kind == InstrumentKind.Counter) {
-                Assert.That(query, Does.Contain(PrometheusNames.Total(instrument)), panel.Id);
+                Assert.That(query, Does.Contain(instrument.Total()), panel.Id);
             } else {
-                Assert.That(query, Does.Contain(PrometheusNames.Family(instrument)), panel.Id);
+                Assert.That(query, Does.Contain(instrument.Family()), panel.Id);
             }
         }
     }
@@ -129,7 +129,7 @@ public sealed class StatusCatalogueTests {
             Assert.That(query, Does.Not.Contain("_total"),
                 $"{panel.Id} asks for the counter family a gauge does not have");
             Assert.That(query, Does.Not.Contain("rate("), $"{panel.Id} rates a gauge");
-            Assert.That(query, Does.Contain(PrometheusNames.Family(instrument)), panel.Id);
+            Assert.That(query, Does.Contain(instrument.Family()), panel.Id);
         }
     }
 
@@ -178,10 +178,10 @@ public sealed class StatusCatalogueTests {
     }
 
     private static IEnumerable<string> Families(MetricInstrument instrument) => [
-        PrometheusNames.Family(instrument),
-        PrometheusNames.Buckets(instrument),
-        PrometheusNames.Total(instrument),
-        PrometheusNames.Sum(instrument),
+        instrument.Family(),
+        instrument.Buckets(),
+        instrument.Total(),
+        instrument.Sum(),
     ];
 
     // Function names and keywords are not families; a label inside by (…) or {…} is not one either.

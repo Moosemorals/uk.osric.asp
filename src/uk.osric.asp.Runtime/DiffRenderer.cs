@@ -17,7 +17,7 @@ using IDiffRenderer = uk.osric.asp.Sdk.IDiffRenderer;
 /// change markers and the sideways scroll container are all classes the site's sheets style.
 /// </para>
 /// <para>
-/// <see cref="ToUnifiedDiff(DiffDocument)"/> is the assistant's form, beside the table the way
+/// <see cref="ToUnifiedDiff(string, string)"/> is the assistant's form, beside the table the way
 /// <see cref="MarkdownRenderer.ToRestrictedHtml"/> sits beside the page profile. It is not on the
 /// Sdk capability, because a page does not need text; a page that does can render the changes itself.
 /// </para>
@@ -62,7 +62,7 @@ public sealed class DiffRenderer : IDiffRenderer {
     /// <summary>Compares two documents with the renderer's own engine.</summary>
     /// <param name="before">The earlier document.</param>
     /// <param name="after">The later document.</param>
-    /// <returns>The line changes, which <see cref="ToHtml"/> and <see cref="ToUnifiedDiff(DiffDocument)"/> consume.</returns>
+    /// <returns>The line changes, which <see cref="ToHtml"/> and <see cref="ToUnifiedDiff(string, string)"/> consume.</returns>
     /// <exception cref="ArgumentNullException">Either document is <see langword="null"/>.</exception>
     public static DiffDocument Compare(string before, string after) {
         ArgumentNullException.ThrowIfNull(before);
@@ -74,20 +74,10 @@ public sealed class DiffRenderer : IDiffRenderer {
     /// <summary>Writes the comparison as unified diff text, for a tool result.</summary>
     /// <param name="before">The earlier document.</param>
     /// <param name="after">The later document.</param>
-    /// <returns>The text <see cref="UnifiedDiff.Format"/> writes; empty when nothing changed.</returns>
+    /// <returns>The text <see cref="UnifiedDiff.ToUnified"/> writes; empty when nothing changed.</returns>
     /// <exception cref="ArgumentNullException">Either document is <see langword="null"/>.</exception>
     public static string ToUnifiedDiff(string before, string after) {
-        return ToUnifiedDiff(Compare(before, after));
-    }
-
-    /// <summary>Writes an existing comparison as unified diff text.</summary>
-    /// <param name="diff">The comparison to write.</param>
-    /// <returns>The text <see cref="UnifiedDiff.Format"/> writes; empty when nothing changed.</returns>
-    /// <exception cref="ArgumentNullException"><paramref name="diff"/> is <see langword="null"/>.</exception>
-    public static string ToUnifiedDiff(DiffDocument diff) {
-        ArgumentNullException.ThrowIfNull(diff);
-
-        return UnifiedDiff.Format(diff);
+        return Compare(before, after).ToUnified();
     }
 
     private static void AppendHunkHeader(StringBuilder builder, DiffHunk hunk) {

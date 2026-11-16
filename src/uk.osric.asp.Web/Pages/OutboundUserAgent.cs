@@ -25,7 +25,7 @@ internal static class OutboundUserAgent {
 
     /// <summary>The value sent for one origin.</summary>
     /// <param name="origin">Whether page code or the assistant asked.</param>
-    public static string For(OutboundOrigin origin) => origin switch {
+    public static string UserAgent(this OutboundOrigin origin) => origin switch {
         OutboundOrigin.Assistant => $"{Host} (assistant)",
         _ => $"{Host} (page)",
     };

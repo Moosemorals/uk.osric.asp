@@ -23,7 +23,7 @@ internal static class NotFound {
         if (isAuthenticated && path.IsAddressable) {
             // The edit form creates the page on its first save, so the most useful next step for an
             // owner who followed a stale link is the editor, already pointed at the key that missed.
-            remedies.Add(new(PageUrls.Editor(path, EditorPaths.Of(context.RequestServices)), "Create this page"));
+            remedies.Add(new(path.Editor(EditorPaths.Of(context.RequestServices)), "Create this page"));
         }
 
         remedies.AddRange(ErrorMessage.DefaultRemedies(isAuthenticated, EditorPaths.Of(context.RequestServices)));
