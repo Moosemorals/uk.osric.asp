@@ -89,7 +89,12 @@ and what depends on it is asserted by the suites that use it (`SimpleContextTest
   the commit point: the first flush applies the response, a wrapped page cannot flush, a streamed
   page is served alone, the tail is sent at completion, the body cap stops at the commit, `HEAD`
   writes nothing and a committed exception or deadline truncates rather than answering an error page
-  or a `504`. `PageJobTests` drives the whole job path with real workers — one writes the starting
+  or a `504`. `PageCompositionTests` drives an embed and a capture — the frame without the body, the
+  capture without the write, the captured response staying with its page, a page's own wrappers
+  running inside an embed, the request as the input with its path pinned, a redirect refused, the
+  cycle, a recursive component counted, the fan-out and depth caps, the bounded body and the one
+  write — and `PageCaptureTests` and `PageRequestQueryTests` pin the two values and the request's
+  copy-and-change helpers. `PageJobTests` drives the whole job path with real workers — one writes the starting
   page's storage, one receives a message the page sent, one waits past the silence clock but not past
   the ceiling, one is cut for never publishing, one is cancelled at its next await, one throws, one no
   longer compiles — and pins the refusals, another visitor's job being unknown, a full queue, the
@@ -173,12 +178,14 @@ and what depends on it is asserted by the suites that use it (`SimpleContextTest
   textarea's label in a fieldset legend), no role that repeats an implicit one (bar the documented
   `role="list"`), no focusable element inside an `aria-hidden` subtree, no inline style, and a name
   for every image and every `svg role="img"`, and a skip link that is the body's first focusable
-  element and targets `#main`. The layout chain is its own suite, `PageLayoutChainTests`, which
-  drives `PageEndpoint` with a stored page and its layouts: the default wrap, the opt-out, the
-  nesting, the depth limit, the cycle, the one slot and deadline, the shared budgets, the fallbacks
-  and the response the content owns; `SiteNavigationTests` covers the menu items, and the
-  integration suite's `SiteChromeTests` proves the shipped `Pages:Layout` through the real host and
-  compares the shell's menu with the layout's. `MarkupReader` is a hand-written reader rather than a parser dependency,
+  element and targets `#main`. The wrapper chain is its own suite, `PageLayoutChainTests`, which
+  drives `PageEndpoint` with a stored page and what it declares: the site layout, a named wrapper,
+  the stack of calls, a page that declares none, the nesting, the depth limit, the cycle, the one
+  slot and deadline, the shared budgets, the fallbacks, the wrapper's `Content` and the response the
+  content owns; `PageLayerRoleTests` pins what each of the three roles may ask of the response, and
+  `SiteNavigationTests` covers the one way home a shell document carries. The integration suite's
+  `SiteChromeTests` proves the shipped `Pages:Layout` through the real host: a shell document carries
+  home and, under `/admin`, admin, and the stored layout keeps the full menu. `MarkupReader` is a hand-written reader rather than a parser dependency,
   which is sound only because this repository encodes every value at the boundary — and is why it has
   to fail loudly when it meets something it does not expect. `ShellDocumentFragmentTests` covers the
   fragments the shell writes — the title, the encoding, the sheet order and deduplication, the

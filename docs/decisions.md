@@ -842,38 +842,40 @@ The one base sheet is `/site.css`: the document's shape — the visually hidden 
 the listing and the form grid — and the site's look, in a single seeded sheet linked before the view's
 own. The shape rules lead the file, a look rule of equal specificity can follow and override one, and a
 view's sheet still comes last, so a view exception can override a structural rule without a more
-specific selector. A page controls its own stylesheets — none, one or many — with `AddStylesheet(href)`;
-the order is `/site.css`, then each layout's from outermost in, then the page's in the order it asked,
-an exact duplicate href is linked once, and an href that is not site-relative is refused with an
-exception rather than left for `style-src 'self'` to block silently.
+specific selector. A page controls its own stylesheets — none, one or many — with `AddStylesheet(href)`,
+and an href that is not site-relative is refused with an exception rather than left for
+`style-src 'self'` to block silently. A wrapper folds the page's sheets beside its own by putting them
+where its document links them; an embed's sheets are the caller's to fold; the seeded `/_layout` and the
+`Site.Document` library keep the order — `/site.css`, the wrapper's own, then the page's — and link an
+exact duplicate once (`pages-a-page-inside-a-page-is-a-capture`).
 
 *Recorded in [site.css](../src/uk.osric.asp.Web/Pages/Seeds/site.css), [the shell](shell.md#the-document-shell).*
 
 ### pages-a-layout-is-a-capability
 
 A page served inside another page reaches its slots through `IContext.Capabilities` as `IPageLayout` —
-`Layout`, `Title`, `Head`, `Stylesheets`, `AddHead`, `AddStylesheet` and `Body` — not through new
-members on `IContext`. It is a set of slots a render offers, which is what the capabilities seam is
-for, and `IContext` and `PageResponse` are unchanged. The content owns the response; a layout is
-markup.
+`Content`, `Title`, `Head`, `Stylesheets`, `AddHead` and `AddStylesheet` — not through new members on
+`IContext`. It is a set of slots a render offers, which is what the capabilities seam is for, and
+`IContext` and `PageResponse` are unchanged. `Title` is a `string?` that starts unset, and `Content`
+is the layer inside this one when this page wraps another. The slots are the layer's own: the host
+composes nothing behind the outer page's back (`pages-a-page-inside-a-page-is-a-capture`). The content
+owns the response; a wrapper and an embedded page are markup (`pages-one-render-three-roles`).
 
 *Recorded in [site navigation](plans/archive/site-navigation.md#d2--the-layout-is-a-capability-not-more-icontext).*
 
 ### pages-one-request-one-chain
 
-`Pages:Layout` names the page every `text/html` page is wrapped in, seeded as `/_layout`. A page opts
-out by clearing `Layout`; a redirect, a non-HTML content type and the layout itself are never wrapped. A
-missing or uncompilable *default* layout serves the page unwrapped with a warning and a
-`page.layout.fallback` count; a missing layout the page *named* is an error naming the key.
+A page declares the page or pages that wrap it, innermost first, and a page that declares none is a
+fragment served exactly as it wrote itself (`pages-a-page-chooses-its-layout`). A redirect, a non-HTML
+content type and a no-code page are never wrapped. A default wrapper that cannot be served is skipped
+with a warning and a `page.layout.fallback` count; a wrapper the page *named* is an error naming the
+key.
 
 One request renders its whole chain under one render slot, one deadline, one fetch allowance, one body
-allowance and one antiforgery pair, with a seen-set and `Pages:Render:MaxLayoutDepth`. Each layer keeps
-its own `ctx.Path` — and so its own storage handle — and shares `ctx.Request`. A wrapped page must set a
-title and the outermost layer writes it: reading one that was never set throws, and the host refuses the
-chain after the content has run and before the layout starts, so the error names the page that forgot
-rather than the layout that noticed. A page that clears `Layout` is exempt because it writes its own
-`<head>`, and additive titles need no contract: a layout composes an interpolation over `layout.Title`
-and renders last.
+allowance, one write and one antiforgery pair, with an ancestor stack and
+`Pages:Render:MaxLayoutDepth`. Each layer keeps its own `ctx.Path` — and so its own storage handle —
+and shares `ctx.Request`. The chain is entered by the page, so a guard's early return is still wrapped,
+and the host runs it after the handler returns.
 
 *Recorded in [site navigation](plans/archive/site-navigation.md#d3--default-opt-out-and-what-is-never-wrapped).*
 
@@ -883,8 +885,83 @@ A layout is pure markup: it may not set the status, the content type or a respon
 attempt is ignored and logged. `AllowScripts` is the one response setting it shares, as a union with the
 content's, because its script is part of its chrome. The page store's read is offered to every layer and
 the writer is not, because a layout that saved itself would append a revision on every page it wraps.
+An embedded page is the same: it owns no response, though a redirect from one is refused rather than
+ignored, because the ordinary "if no user, redirect to login" guard must not vanish into an empty box.
+A wrapper must have code: a no-code page has no way to read `Content`.
 
 *Recorded in [site navigation](plans/archive/site-navigation.md#d4--the-chain-one-request-one-budget-several-renders).*
+
+### pages-a-page-chooses-its-layout
+
+A page declares the page or pages that wrap it, innermost first, with `IPageComposition.Wrap` — and the
+host does not wrap by default. `Wrap()` names `Pages:Layout`, so a page does not hard-code a key the
+owner can move; `Wrap(key, request)` names another page and the request it runs against; each call adds
+a layer outside the last. It is a declaration rather than a handover because the host runs the chain
+after `HandleAsync` returns, so a guard's early `return;` is still wrapped and the page can set its
+status after writing its body. A page that declares nothing is served exactly as it wrote itself — a
+fragment — and `IPageLayout.Layout` is gone.
+
+*Recorded in [page composition](plans/page-composition.md#d1--ipagecomposition-is-one-capability-with-four-calls), [layouts](shell.md#layouts).*
+
+### pages-an-embed-is-a-render
+
+An embedded page is a render of the whole page: its body, every wrapper it declares, its own key,
+storage and session, the caller's identity, one budget and one slot, and no response of its own. There
+is no embed-specific wrap suppression, and no per-call boundary: a page that should be a fragment
+declares no wrapper. It is offered the capabilities a content page has, including the write and the
+jobs, because the authority is the caller's identity; it may not redirect, because it has no response.
+One render still writes once, however many layers it has.
+
+*Recorded in [page composition](plans/page-composition.md#d4--one-layer-renderer-and-the-wrap-is-the-policy-over-it), [composition](shell.md#composition).*
+
+### pages-a-composed-page-gets-a-request
+
+An embed, a capture and a wrap all run the `PageRequest` they are given, with `null` meaning the
+caller's; `Path` is always the visitor's page, and the request's query is the page's input. There is no
+separate options type. A copy-and-change helper is an extension method on the request —
+`WithQuery`, `WithAnotherQuery`, `WithoutQuery` — so the sealed record keeps its shape and its own
+surface stays the values it carries.
+
+*Recorded in [page composition](plans/page-composition.md#d2--the-input-is-a-pagerequest-not-an-options-type), [composition](shell.md#composition).*
+
+### pages-a-capture-returns-the-body
+
+An embed returns a `PageFrame` — title, head, sheets and script permission, never the body, which is
+already written — and a capture returns a `PageCapture`: the frame beside the body. The captured page's
+response stays withheld, so its status, headers and content type never reach the caller and a capture
+that would redirect refuses. The result is a value rather than the live `IPageLayout`, because that is
+the capability a layer runs with, not the material it produced.
+
+*Recorded in [page composition](plans/page-composition.md#d8--capture-is-the-same-render-returned), [composition](shell.md#composition).*
+
+### pages-a-page-inside-a-page-is-a-capture
+
+A page rendered inside another yields a value — a `PageCapture` for a wrapper, a `PageFrame` for an
+embed — and the outer page folds what it wants, whether it asked for the inner page with `EmbedAsync`
+or received it with `Wrap`. The host composes nothing behind the outer page's back: the title, head and
+sheets of the layer inside are the caller's to fold, and the one thing the host still unions is the
+script permission, so a document that carries a body cannot lose it.
+
+*Recorded in [page composition](plans/page-composition.md#d5--the-wrapper-folds-the-contents-capture-it-does-not-get-the-response), [layouts](shell.md#layouts).*
+
+### pages-one-render-three-roles
+
+Content, layout and embedded are one role on the response and on the capability offer, not a boolean
+beside a special case. Content owns the response and may stream; layout and embedded are markup, so
+their status, content type and header settings are ignored and logged, neither may stream, and an
+embedded page's redirect is refused. The write, the jobs and a writable session are offered to content
+and embedded and not to layout, because a layout runs once per page it wraps.
+
+*Recorded in [page composition](plans/page-composition.md#d3--the-layer-role-replaces-islayout), [layouts](shell.md#layouts).*
+
+### pages-the-wrapper-owns-the-title
+
+`IPageLayout.Title` is a `string?` that starts unset, and the wrapper decides what a missing title
+means: the seeded `/_layout` uses the page's title when it has one and the site's own otherwise. The
+host no longer refuses a chain whose page forgot, so the error is a wrapper's decision rather than a
+host rule.
+
+*Recorded in [page composition](plans/page-composition.md#d6--ipagelayout-loses-layout-and-body-gains-content), [layouts](shell.md#layouts).*
 
 ### pages-the-document-is-the-shells
 
@@ -1489,14 +1566,23 @@ pass whose findings are recorded with the plan.
 
 *Recorded in [semantic-html-and-accessibility](plans/archive/semantic-html-and-accessibility.md#verification), [testing](testing.md#the-five-suites).*
 
-### shell-the-menu-is-written-twice
+### shell-documents-are-bootstrap
 
-The site menu is written twice on purpose: composed by `SiteNavigation` for the shell's own views, and
-written in the seeded `/_layout` for stored pages. Both render through one nav builder, and an
-integration test compares the two item lists. The shell's document is deliberately not the stored layout,
-because the error, health, sign-in and editor routes must answer when the page pipeline is broken.
+The shell's own documents — the error, sign-in, status, assistant and admin routes — are bootstrap and
+recovery surfaces, not the site's views. They carry one way home and no site menu; the menu a visitor
+sees day to day is written by the stored `/_layout`. The shell's document is still deliberately not the
+stored layout, because those routes must answer when the page pipeline is broken, and the two are
+compared on their shape, not on their items.
 
-*Recorded in [site navigation](plans/archive/site-navigation.md#d5--the-menu-lives-in-the-layout-and-in-the-shell-through-the-same-builder).*
+*Recorded in [page composition](plans/page-composition.md#d14--the-shells-documents-are-bootstrap-surfaces), [the shell](shell.md#the-document-shell).*
+
+### shell-a-shell-document-carries-one-way-home
+
+A shell document links `/`, and `/admin` when the request path is at or under that prefix. The footer's
+About and privacy links stay: they are not the menu and carry no policy. `SiteNavigation.For` keeps its
+signature and reads only the path.
+
+*Recorded in [page composition](plans/page-composition.md#d14--the-shells-documents-are-bootstrap-surfaces), [the shell](shell.md#the-document-shell).*
 
 ### shell-admin-is-a-page
 
@@ -2323,6 +2409,10 @@ someone who cannot see that it was once used.
 - `pages-the-editor-capability` — replaced by **pages-any-page-may-write-the-store**. It made the
   editor's registration the authority: one content key, `Pages:Editor:Key`, and the store's write offered
   to no other page. The owner removed that narrowing on 2026-11-15.
+- `shell-the-menu-is-written-twice` — replaced by **shell-documents-are-bootstrap** and
+  **shell-a-shell-document-carries-one-way-home**. It wrote the site menu twice, once in the shell and
+  once in the stored layout, and compared the two; the shell's documents became bootstrap surfaces with
+  one way home, so there is nothing to compare.
 
 The numbering scheme this file replaces was a way of writing decisions down rather than a decision with a
 name, and the entries that were already superseded when this file was written are in the

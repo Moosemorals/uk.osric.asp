@@ -517,7 +517,7 @@ landing on its own.
   one body budget and one antiforgery token, with a seen-set and `Pages:Render:MaxLayoutDepth`
   (four by default, clamped to 1–16). Each layer keeps its own `ctx.Path` (and storage) and shares
   `ctx.Request`.
-- **`shell-the-menu-is-written-twice`**: the site menu is written twice on purpose — composed by the host for shell views,
+- **the "menu is written twice" rule**: the site menu is written twice on purpose — composed by the host for shell views,
   written in the seeded `/_layout` for pages — and rendered by one `PageDocument.Nav`. The shell's
   document is not the stored layout, because the recovery routes must not depend on page code.
 - **`shell-admin-is-a-page`**: `/admin` is a seeded fragment page linking import, export and `/status`; `/_layout` is

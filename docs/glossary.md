@@ -69,17 +69,30 @@ may take an `IPageResponse` parameter to get the output and nothing else.
 
 ## Capability
 An ability the host grants one render and withholds from the next: storage, the visitor's session,
-outbound fetch, the page store read, the page's own save, the layout's slots, the Markdown and diff
-renderers, and the build the site is running. A page asks for one through `ctx.Capabilities`, read-only; the host decides what
-the render offers, and a capability is registered or absent, never `null`.
+outbound fetch, the page store read, the page's own save, the page's slots in its document, the
+composition of another page into this one, the Markdown and diff renderers, and the build the site is
+running. A page asks for one through `ctx.Capabilities`, read-only; the host decides what the render
+offers, and a capability is registered or absent, never `null`.
 
 **Not** a feature or an extension. A feature is something the product has — the assistant is one, and
 ASP.NET Core's `HttpContext.Features` are another mechanism altogether — and an extension is
 something a third party adds; a capability is something one render offers a page, and it may be
 absent from the next. The accessor was called `ctx.Features` until the capability seam took its name, and the old name went with the alias.
 
-**Owner:** pages — `IPageCapabilities`, `IContext.Capabilities` and the nine `Sdk` interfaces a page
+**Owner:** pages — `IPageCapabilities`, `IContext.Capabilities` and the ten `Sdk` interfaces a page
 may ask for; `PageCapabilities` is the shell's registry (`pages-capabilities-are-one-seam`).
+
+## Composition
+Rendering one stored page inside another. An **embed** includes the page where the call is and
+returns its `PageFrame`; a **capture** is the same render returned as a `PageCapture` instead of
+written; a **wrap** declares the page or pages that go around this one, innermost first. The page
+rendered inside is a whole render — its body, its own wrappers, its own key and capabilities — and
+the page that owns the document folds what it wants.
+
+**Not** a sandbox and not a second response: an embedded page has the capabilities a page has, and it
+cannot redirect. **Not** a partial view: an embed is the page's whole chain, and a fragment is a page
+that declares no wrapper. **Owner:** pages — `IPageComposition`, `PageChain` and
+`PageCompositionScope` (`pages-an-embed-is-a-render`, `pages-a-capture-returns-the-body`).
 
 ## Conversation
 One chat thread owned by one account, with a title, an approval mode and a message counter of its own.
@@ -110,8 +123,8 @@ The whole representation a page with no code serves: the stored source is the re
 author writes `<html>`, `<head>` and `<body>` because the shell injects nothing.
 
 **Not** a separate kind declared by an extension list. A page with code may write a whole document
-by clearing `IPageLayout.Layout`, but it is still a fragment the shell could have wrapped, so it is
-not an asset. **Owner:** pages — `PageAssetPolicy`, `PageScriptPolicy` and `SecurityHeaders`.
+by declaring no wrapper, but it is still a fragment another page could have wrapped, so it is not an
+asset. **Owner:** pages — `PageAssetPolicy`, `PageScriptPolicy` and `SecurityHeaders`.
 
 ## Exchange
 One user message plus everything it sets off: the run it starts and the messages that run produces.

@@ -45,9 +45,9 @@ registered or absent, never `null` (`pages-capabilities-are-one-seam`). The type
 the old `Features` spelling was removed once its release was over, so a page that still says
 `ctx.Features` no longer compiles (`pages-capabilities-are-one-seam`).
 
-Eleven capabilities are registered today — seven that do I/O or work and are bounded by the render,
-one that is the page's slots in its document, two that are pure renderers, and one that is a fact about
-the build:
+Twelve capabilities are registered today — seven that do I/O or work and are bounded by the render,
+one that is the page's slots in its document, one that renders other pages into this one, two that are
+pure renderers, and one that is a fact about the build:
 
 - `IBuildInfo` says which build is answering: `Commit` is the full git commit hash, or `null` when
   the build did not come from a checkout. It is a capability because the page API denies both the
@@ -119,10 +119,23 @@ the build:
   `InstallSeedAsync` — which refuses a row the seed gate does not allow — and `SeedSourceAsync`
   (`pages-a-page-may-save-itself`, `pages-layouts-are-markup`, `pages-scratch-saves-itself`,
   `pages-delete-install-and-restore`). See [source storage](storage.md#source-storage).
-- `IPageLayout` is the page's slots in the document it is served in — `Layout`, `Title`, `Head`,
-  `Stylesheets`, `AddHead`, `AddStylesheet` and `Body`. It is a capability rather than more
-  `IContext` because it is a set of slots a render offers, and because a page that never wants a
-  layout never meets one (`pages-a-layout-is-a-capability`). See [layouts](shell.md#layouts).
+- `IPageLayout` is the page's own slots in the document it is served in — `Title`, `Head`,
+  `Stylesheets`, `AddHead`, `AddStylesheet` — and `Content`, the page inside it when this page wraps
+  another. It is a capability rather than more `IContext` because it is a set of slots a render
+  offers, and because a page that never wants a layout never meets one
+  (`pages-a-layout-is-a-capability`). The host composes nothing behind the outer page's back, so a
+  wrapper folds `Content.Title`, `Content.Head` and `Content.Stylesheets` itself
+  (`pages-a-page-inside-a-page-is-a-capture`). See [layouts](shell.md#layouts).
+- `IPageComposition` renders stored pages beside and around this one. `EmbedAsync(key, request?)`
+  renders the whole page — body, every wrapper it declares, its own key, storage and session, the
+  visitor's identity, one budget and one slot — writes the outermost body where the call is and
+  returns the outermost `PageFrame`; `CaptureAsync` is the same render returned as a `PageCapture`
+  without the write; `Wrap(key, request?)` and `Wrap()` declare the pages that wrap this one,
+  innermost first. The input in both directions is a `PageRequest`, with `WithQuery`,
+  `WithAnotherQuery` and `WithoutQuery` as its copy-and-change helpers
+  (`pages-an-embed-is-a-render`, `pages-a-composed-page-gets-a-request`,
+  `pages-a-capture-returns-the-body`, `pages-a-page-chooses-its-layout`). See
+  [composition](shell.md#composition).
 - `IMarkdownRenderer` renders Markdown to HTML with `ToHtml`. It is pure and needs no `await`; its
   result is HTML, so the page writes it with `<%== %>`. The page profile is CommonMark plus heading
   anchors, pipe tables and auto-links, and raw HTML passes through: this is the author's renderer, not a
@@ -182,10 +195,10 @@ commit point and the whole of the opt-in:
 - Writes after a flush are buffered until the next flush; whatever is still buffered when the
   handler returns is sent then. The response has no `Content-Length`, because its length is not known
   when the headers go.
-- A flushing page is served alone. A layout needs the whole body before it can run, so a flush while
-  the page would be wrapped throws and names the remedy: clear `IPageLayout.Layout` and write the
-  page's own document before the first flush. A non-HTML page is never wrapped, so the layout value
-  does not matter to it. A layout itself cannot flush.
+- A flushing page is served alone. A wrapper needs the whole body before it can run, so a flush by a
+  page that declared `Wrap` throws and names the remedy: write the page's own document and declare no
+  wrapper. A `Wrap` call after the first flush throws for the same reason. A non-HTML page is never
+  wrapped. A wrapper itself cannot flush, and neither can an embedded page.
 - `Write` still HTML-encodes and `WriteRaw` still writes the caller's markup, before and after a
   flush. Streaming is not a way past the encoder.
 - A failure after the commit truncates the response. An exception is logged at Error and the
@@ -215,7 +228,7 @@ instead:
 ```html
 <%
 IHttpFetch fetch = ctx.Capabilities.GetRequired<IHttpFetch>();
-ctx.Capabilities.GetRequired<IPageLayout>().Layout = null;
+// No Wrap call: a page that streams writes its own document.
 ctx.Response.SetContentType("text/event-stream; charset=utf-8");
 ctx.Response.SetHeader("X-Accel-Buffering", "no");
 ctx.Response.WriteRaw(": connected\n\n");
@@ -558,7 +571,14 @@ waits for it against one deadline that covers both queueing and running:
 - `Pages:Render:MaxBodyChars` caps the buffered body, so a page that writes in a loop fails quickly
   instead of growing the process. The cap stops at the first flush: a streamed body is already on the
   wire and is not charged, so a post-commit loop is bounded by the stream's clocks and the container
-  rather than by this setting.
+  rather than by this setting. An embed renders into a view of what is left, and the caller is charged
+  once when it writes the result, so the embedded text is neither counted twice nor able to skip the
+  cap.
+- `Pages:Render:MaxLayoutDepth` bounds the pages that wrap one page, and `Pages:Render:MaxEmbedDepth`
+  bounds the embeds nested below the layer that is running, so a page composed out of data-driven
+  recursion stops. They are chosen apart because a widget is not chrome.
+  `Pages:Render:MaxEmbeds` bounds how many embeds one request may make, because depth alone would let
+  a listing embed a thousand siblings under one slot and one deadline.
 - A committed stream is bounded by `Pages:Stream` instead of by the render budget. The commit ends
   the render's deadline and starts two clocks: `SilenceSeconds` truncates a stream that flushes
   nothing for that long, and `MaxSeconds` truncates one that is still busy that far past its commit,

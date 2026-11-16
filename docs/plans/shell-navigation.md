@@ -12,7 +12,7 @@ SPDX-License-Identifier: MIT
 | Area | Sdk, Web (html, admin, assistant, metrics, pages, seeds), docs |
 | Spike | None. Every claim below was read off the working tree on 2026-11-16: the two menu lists, the admin index, the shell routes, the reserved paths and the tests that pin them |
 | Backlog | [IDEA-030](../jobs/IDEA-030.md) |
-| Decisions | Keeps and edits `shell-the-menu-is-written-twice` and `shell-admin-is-a-page`; new names proposed below: **pages-the-catalog-knows-the-shell**, **shell-the-shell-is-marked**, **shell-the-tools-live-under-admin**. Existing names it relies on: `pages-capabilities-are-one-seam`, `pages-a-layout-is-a-capability`, `pages-the-document-is-the-shells`, `pages-page-first`, `code-policy-values-are-configuration` |
+| Decisions | Keeps and edits the "menu is written twice" rule and `shell-admin-is-a-page`; new names proposed below: **pages-the-catalog-knows-the-shell**, **shell-the-shell-is-marked**, **shell-the-tools-live-under-admin**. Existing names it relies on: `pages-capabilities-are-one-seam`, `pages-a-layout-is-a-capability`, `pages-the-document-is-the-shells`, `pages-page-first`, `code-policy-values-are-configuration` |
 
 ## The short version
 
@@ -340,7 +340,7 @@ page pipeline is broken, so none of them can be served by a stored page, and the
 cannot call the seeded document library.
 
 What changes is the *list*: both documents read the same `ShellLink` values and render their own
-markup. `shell-the-menu-is-written-twice` is edited rather than retired — the menu is still written
+markup. the "menu is written twice" rule is edited rather than retired — the menu is still written
 twice, but the links are one list and each renderer decides what to do with them. The comparison
 test becomes stronger: it compares `(href, text, current)` rather than the words, and it compares a
 shell route with a page route rather than two page routes.
@@ -436,7 +436,7 @@ the administration views and the status dashboard. The routes outside it are not
 root as `/admin/status`. *Recorded in [the shell](../shell.md), [architecture](../architecture.md#where-a-view-lives)
 and this plan.*
 
-`shell-the-menu-is-written-twice` is edited: the menu is still written in two documents, but both
+the "menu is written twice" rule is edited: the menu is still written in two documents, but both
 render one list and the shell's document still does not depend on the page pipeline.
 `shell-admin-is-a-page` is edited: the index stays a page, and the tools it indexes now include
 Status under the same root.
