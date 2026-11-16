@@ -11,7 +11,7 @@ SPDX-License-Identifier: MIT
 | Area | Sdk, Web (pages, seeds, assistant), docs |
 | Location | `src/uk.osric.asp.Sdk/IContext.cs`, `src/uk.osric.asp.Sdk/IPageResponse.cs`, `src/uk.osric.asp.Web/Pages/SimpleContext.cs`, `src/uk.osric.asp.Web/Pages/Seeds/help`, `src/uk.osric.asp.Web/Assistant/PageAuthorPrompt.cs`, `docs/pages.md` |
 
-> **Raised 2026-11-16.** Evaluated while [IDEA-022](IDEA-022.md) was being planned, because the two are
+> **Raised 2026-11-16.** Evaluated while [IDEA-022](../plans/simple-context.md) was being planned, because the two are
 > the same split seen from opposite sides: 022 makes the response two collaborators inside `Web`, and
 > this makes it one type in `Sdk`. [The 022 plan](../plans/simple-context.md) is the implementation this
 > would expose; it is not a prerequisite for the shape, but doing this first would mean moving the
@@ -70,7 +70,7 @@ the contract: a page knows whether it flushed.
 
 **Names.** `IPageResponse` (the thing a page writes into) beside `PageResponse` (the value it produces)
 is the pairing; the implementation is `SimpleResponse` in `Web`, beside `SimpleContext`, built over the
-two collaborators [IDEA-022](IDEA-022.md) creates.
+two collaborators [IDEA-022](../plans/simple-context.md) creates.
 
 **Migration is the expensive half, and `PAGE005` is the template.** `RuntimeId` includes the `Sdk`
 module's version id, so the commit that adds this invalidates every stored image and recompiles every

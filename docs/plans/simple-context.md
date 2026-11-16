@@ -7,16 +7,16 @@ SPDX-License-Identifier: MIT
 
 | | |
 | --- | --- |
-| Status | Proposed 2026-11-16 — waits for the owner. Nothing below is built |
+| Status | Built 2026-11-16 — waits for the merge. Two commits on `idea-022`; see [Status](#status) |
 | Size | Small — one file split into two internal collaborators beside it, and the tests that test each part moved to meet it. No contract change, no migration, no configuration key, no build change |
 | Area | Web (pages), docs |
 | Spike | None. Every measurement below was read off the working tree on 2026-11-16 |
-| Backlog | [IDEA-022](../jobs/IDEA-022.md) |
-| Decisions | New name proposed: **code-one-concern-one-collaborator**. Relies on `code-shapes`, `code-nothing-public-without-a-caller`, `pages-capabilities-are-one-seam`, `pages-the-response-is-buffered-until-a-flush`, `pages-page-io-is-async` and `code-tests-are-written-first` |
+| Backlog | IDEA-022, closed with this plan ([closed jobs](../jobs/closed.md)) |
+| Decisions | Records `code-one-concern-one-collaborator`. Relies on `code-shapes`, `code-nothing-public-without-a-caller`, `pages-capabilities-are-one-seam`, `pages-the-response-is-buffered-until-a-flush`, `pages-page-io-is-async` and `code-tests-are-written-first` |
 
 ## The short version
 
-[IDEA-022](../jobs/IDEA-022.md) was right to insist on a re-measure first, and it was right about the
+[IDEA-022](../jobs/closed.md) was right to insist on a re-measure first, and it was right about the
 shape. The file did not shrink when the [page-features](../plans/archive/page-features.md) plan took
 storage and fetch out; it grew from 364 lines to 551, because
 [page-streaming](../plans/archive/page-streaming.md) then put the flush, the sink, the commit rule and
@@ -170,13 +170,13 @@ response or the body become one-line delegations. `ToResponse()` remains the end
 
 ### D4 — The name the record takes
 
-> **code-one-concern-one-collaborator** — a type that implements a wide contract composes one
+> `code-one-concern-one-collaborator` — a type that implements a wide contract composes one
 > `internal` collaborator per concern rather than collecting members, and it is split by composition
 > rather than by `partial`. The test is the point of it: a collaborator can be built and asserted
 > without the whole contract's dependencies, so a test that needs the whole context is testing the
 > context and not the part.
 
-It sits under `Code` beside `code-shapes`, and is a straight extension of that entry's "prefer
+It is recorded under `Code` beside `code-shapes`, and is a straight extension of that entry's "prefer
 composition over inheritance" to composition over a single do-everything type. `SimpleContext` is its
 first recorded customer; the rule is written for the next type that grows a fifth job.
 
@@ -208,8 +208,8 @@ Docs and the record, at the merge:
   example.
 - `docs/pages.md` — where the buffered and streaming implementations are described, the two names
   beside `SimpleContext`.
-- `docs/jobs/IDEA-022.md` and its row and step in [the jobs index](../jobs/README.md) — moved to
-  [closed](../jobs/closed.md), with the plan linked.
+- `docs/jobs/IDEA-022.md`, its row and its step — deleted, and the job recorded in
+  [closed](../jobs/closed.md) with this plan linked.
 - `/help` is not touched: no page author can do anything new.
 
 ## Phases
@@ -252,12 +252,13 @@ Two commits on one branch, so the smaller one can be read on its own.
   produces; the names are meant to read as one pipeline. If that is a puzzle on the branch, the body
   is `PageBodyBuffer` and the plan is unchanged otherwise.
 
-## The questions this plan asks the owner
+## The questions this plan asked the owner
 
-1. **Both phases, or the response surface alone?** The first phase is the safe half and buys the most
-   testability; the second is the larger move and the one the file most needs.
-2. **The name** — **code-one-concern-one-collaborator**, or something shorter that says the same?
-3. **The type names** — `PageResponseState` and `PageBody`, beside the existing `PageBodySink`?
+The owner said yes on 2026-11-16, and chose composition over partials before the plan was written:
+
+1. **Both phases** — both are built, in the two commits below.
+2. **The name** — `code-one-concern-one-collaborator`, as proposed.
+3. **The type names** — `PageResponseState` and `PageBody`, beside the existing `PageBodySink`.
 
 ## Considered and rejected
 
@@ -285,3 +286,31 @@ Two commits on one branch, so the smaller one can be read on its own.
   the rule the record takes says where a future one goes.
 - The capability registry, the renderer and the shell. `PageRenderer` still takes the `SimpleContext`;
   narrowing that to an interface is a different question about a different seam.
+
+## Status
+
+Built 2026-11-16 on `idea-022`, in two commits, and waiting for the merge.
+
+**What landed.** `SimpleContext` is 373 lines, down from 551, and the two collaborators are
+`PageResponseState` (121 lines) and `PageBody` (226, including the flush that used to be the largest
+block in the context). The context keeps the contract, the constructor, identity, the logging, the
+antiforgery token, `AssetUrl`, the layout rule, the commit gate and the four stream refusals; every
+other member is a delegation.
+
+**What proved it.** Fifteen response-surface tests moved to `PageResponseStateTests` and seven buffer
+and stream tests to `PageBodyTests`; both suites construct only the part they test. The two
+status-range tests were one behaviour and are now one test. Six of the streaming tests did not move
+because they are the context's: the no-sink, layout, redirect and wrapping refusals, the escaping
+rule on `Write`, and the settings-after-the-commit gate. The layout no-op had no test at all, so the
+context gained three — that a layout cannot set the response, that the layout gate runs before
+validation, and that a layout may still allow scripts. `make test-web` is 1931 green, `make format-check`,
+`make decisions` and `make license-check` are clean.
+
+**What is unchanged.** `IContext`, the generated handler, `PAGE002`, the API policy and `RuntimeId`:
+no stored page recompiles, and no seed, `/help` entry or assistant prompt moves.
+
+**What is unsure.** `PageBody.MintOnce` is the one member that does not read like the rest: it exists so
+the antiforgery token is still minted under the same gate that stops the writes, and it takes the
+context's field by `ref`. The alternative was an exposed lock or a second gate object, and both were
+worse. The name of `PageBody` beside `PageBodySink` is the other thing to look at; the plan kept it,
+and the sink reads as the consumer of what the body produces.

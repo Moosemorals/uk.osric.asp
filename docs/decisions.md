@@ -202,6 +202,19 @@ allocation or identity is measured to matter.
 
 *Recorded in [architecture](architecture.md#shapes).*
 
+### code-one-concern-one-collaborator
+
+A type that implements a wide contract composes one collaborator per concern rather than collecting
+members, and it is split by composition rather than by `partial`. `SimpleContext` is the case that
+settled it: it keeps `IContext`, the commit gate, the layout rule and the page's logging, and hands
+the body to `PageBody` and the response being assembled to `PageResponseState`. A partial would move
+the members and leave one type, one constructor and one set of fields, which is a layout of a file
+rather than a seam. The test is the point of it: a collaborator can be built and asserted without the
+whole contract's dependencies, so a test that still needs the whole context is testing the context
+and not the part.
+
+*Recorded in [architecture](architecture.md#shapes).*
+
 ### code-n-is-small
 
 `n` is small: prefer the obvious loop, the linear scan and the in-memory dictionary over clever
