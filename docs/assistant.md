@@ -106,7 +106,7 @@ each flagged call. Unresolved, stale, stopped, or restarted approvals never exec
 
 The tools also see the shell's own files, which are the site's routes (`assistant-reads-the-shell-files`). Every key in
 `Pages:ReservedPaths` — `/admin/changes`, `/admin/export`, `/admin/import`, `/admin/reference`,
-`/admin/restore`, `/admin/scrub`, `/assistant`, `/favicon.ico`, `/heath`, `/login`, `/logout`,
+`/admin/restore`, `/admin/scrub`, `/assistant`, `/favicon.ico`, `/health`, `/login`, `/logout`,
 `/metrics` and `/status` — is listed, searched and readable: `cat` and `read_page` return a host-written record of the route's methods, access and
 purpose rather than source, because the running image carries the assembly and not the source
 tree, and `ShellRoutesTests` pins the records to `ReservedPaths.Default` in both directions.

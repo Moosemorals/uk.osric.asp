@@ -230,7 +230,7 @@ internal sealed class BrowserHost : IAsyncDisposable {
                 throw new InvalidOperationException($"The web host exited with {_process.ExitCode}.{Environment.NewLine}{Log}");
             }
             try {
-                using HttpResponseMessage response = await client.GetAsync(new Uri(BaseAddress, "/heath"));
+                using HttpResponseMessage response = await client.GetAsync(new Uri(BaseAddress, "/health"));
                 if (response.StatusCode is HttpStatusCode.OK or HttpStatusCode.ServiceUnavailable) {
                     return;
                 }

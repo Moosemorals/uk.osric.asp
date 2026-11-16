@@ -75,10 +75,10 @@ this is what podman does about it.
   `StopTimeout=35` is longer than the host's 30 s graceful-shutdown budget, so a normal stop finishes
   cleanly and only a stuck page is `SIGKILL`ed.
 - **Probe.** `HealthCmd` runs
-  `wget -q -O /dev/null -T 3 http://127.0.0.1:8080/heath` every 10 s; three consecutive failures make
+  `wget -q -O /dev/null -T 3 http://127.0.0.1:8080/health` every 10 s; three consecutive failures make
   the container unhealthy, and `HealthOnFailure=restart` restarts it. Detection plus restart is about
   35 s, which is the cost of the design: nothing else can interrupt a page.
-- **`/heath` reports two things.** Storage reachability, and how many page renders have been
+- **`/health` reports two things.** Storage reachability, and how many page renders have been
   abandoned. Two abandoned renders at once is the limit; a page that hangs deterministically therefore
   costs one restart per attempt, not a permanently wedged site.
 - **The start limit still applies.** `StartLimitBurst=3` in 60 s means a page that wedges on every
@@ -176,7 +176,7 @@ podman volume rm uk.osric.asp-storage prometheus-data
 
 systemctl --user start uk.osric.asp.service prometheus.service
 # The app applies InitialCreate before it serves, so wait for health before creating the account.
-until curl -fsS -o /dev/null http://127.0.0.1:8080/heath; do sleep 2; done
+until curl -fsS -o /dev/null http://127.0.0.1:8080/health; do sleep 2; done
 make remote-user-add HOST=deploy@<server-ip> ACCOUNT=osric
 ```
 

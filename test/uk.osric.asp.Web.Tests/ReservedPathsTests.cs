@@ -15,7 +15,7 @@ public sealed class ReservedPathsTests {
     [TestCase("/admin/scrub/page")]
     [TestCase("/admin/scrub/a/b")]
     [TestCase("/favicon.ico")]
-    [TestCase("/heath")]
+    [TestCase("/health")]
     [TestCase("/login")]
     [TestCase("/logout")]
     [TestCase("/metrics")]

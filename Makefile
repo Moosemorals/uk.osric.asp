@@ -511,7 +511,7 @@ deploy: deploy-guard check test-browser image | $(SSH_CONTROL_DIR)
 	$(SSH) $(HOST) 'cat > .config/containers/systemd/prometheus.container' < deploy/prometheus.container
 	$(SSH) $(HOST) systemctl --user daemon-reload
 	$(SSH) $(HOST) systemctl --user restart uk.osric.asp.service prometheus.service
-	@$(SSH) $(HOST) 'i=0; until podman exec prometheus wget -qO- -T 3 http://app:8080/heath >/dev/null 2>&1; do \
+	@$(SSH) $(HOST) 'i=0; until podman exec prometheus wget -qO- -T 3 http://app:8080/health >/dev/null 2>&1; do \
 		i=$$((i+1)); \
 		if [ $$i -ge 10 ]; then \
 			echo "Prometheus cannot reach the app at app:8080: check podman network inspect uk.osric.asp"; \
@@ -524,8 +524,8 @@ deploy: deploy-guard check test-browser image | $(SSH_CONTROL_DIR)
 	$(SSH) $(HOST) 'sudo tee /etc/containers/systemd/caddy.container' < deploy/caddy.container > /dev/null
 	$(SSH) $(HOST) sudo systemctl daemon-reload
 	$(SSH) $(HOST) sudo systemctl restart caddy.service
-	@echo "waiting for /heath"
-	@$(SSH) $(HOST) 'i=0; until curl -fsS -o /dev/null http://127.0.0.1:8080/heath; do \
+	@echo "waiting for /health"
+	@$(SSH) $(HOST) 'i=0; until curl -fsS -o /dev/null http://127.0.0.1:8080/health; do \
 		i=$$((i+1)); \
 		if [ $$i -ge 30 ]; then \
 			echo "the site is not healthy 60s after the restart: journalctl --user -u uk.osric.asp.service"; \
