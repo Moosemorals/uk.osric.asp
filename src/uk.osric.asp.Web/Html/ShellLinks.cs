@@ -49,6 +49,7 @@ internal static class ShellLinks {
             new("/admin/restore", "Restore seeds", ShellSection.Administration, ShellAudience.Owner, ShellMatch.Leaf),
             new("/admin/seed-apply", "Apply seed updates", ShellSection.Administration, ShellAudience.Owner, ShellMatch.Leaf),
             new("/admin/reference", "Reference", ShellSection.Administration, ShellAudience.Everyone, ShellMatch.Subtree),
+            new("/admin/copyright", "Copyright and licences", ShellSection.Administration, ShellAudience.Everyone, ShellMatch.Leaf),
             new("/status", "Status", ShellSection.Administration, ShellAudience.Owner, ShellMatch.Subtree),
             new(editorPath, "Page list", ShellSection.Administration, ShellAudience.Owner, ShellMatch.Subtree),
             new("/help", "Help", ShellSection.Administration, ShellAudience.Everyone, ShellMatch.Subtree),

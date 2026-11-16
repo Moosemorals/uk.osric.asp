@@ -65,6 +65,7 @@ internal static class ShellViews {
         "admin",
         "reference",
         "reference-assembly",
+        "copyright",
         "help",
     ];
 
@@ -99,6 +100,7 @@ internal static class ShellViews {
         "admin" => RenderAsync(name, AdminAsync),
         "reference" => RenderAsync(name, ReferenceAsync),
         "reference-assembly" => RenderAsync(name, ReferenceAssemblyAsync),
+        "copyright" => RenderAsync(name, CopyrightAsync),
         "help" => RenderAsync(name, HelpAsync),
         _ => throw new ArgumentOutOfRangeException(nameof(name), name, "No such shell view."),
     };
@@ -157,6 +159,16 @@ internal static class ShellViews {
     private static async Task<string> ReferenceAsync() {
         DefaultHttpContext context = AuthenticatedContext("/admin/reference");
         await ReferenceEndpoint.IndexAsync(context, s_reference, CancellationToken.None);
+        return await TestHttp.ReadBodyAsync(context);
+    }
+
+    private static async Task<string> CopyrightAsync() {
+        DefaultHttpContext context = AuthenticatedContext("/admin/copyright");
+        await CopyrightEndpoint.HandleAsync(
+            context,
+            new LicenceLibrary(AppContext.BaseDirectory),
+            new MarkdownRenderer(),
+            CancellationToken.None);
         return await TestHttp.ReadBodyAsync(context);
     }
 

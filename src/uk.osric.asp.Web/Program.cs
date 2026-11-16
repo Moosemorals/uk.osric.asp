@@ -246,6 +246,8 @@ internal class Program {
         builder.Services.AddSingleton<ImportQueue>();
         builder.Services.AddSingleton<ImportStageStore>();
         builder.Services.AddSingleton<MarkdownRenderer>();
+        // Reads the licence and notice files the image carries, once, when the page first asks.
+        builder.Services.AddSingleton(new LicenceLibrary(AppContext.BaseDirectory));
         builder.Services.AddSingleton<OutboundFetcher>();
         builder.Services.AddSingleton<PageBudget>();
         builder.Services.AddSingleton<PageImageBuilder>();
@@ -478,6 +480,9 @@ internal class Program {
         // does, and the repository is published to be read.
         app.MapGet("/admin/reference", ReferenceEndpoint.IndexAsync);
         app.MapGet("/admin/reference/{slug}", ReferenceEndpoint.AssemblyAsync);
+        // Public for the same reason as the reference: the licence of published source is for
+        // whoever asks, and the notices are what the image ships.
+        app.MapGet("/admin/copyright", CopyrightEndpoint.HandleAsync);
         app.MapGet("/admin/restore", RestoreEndpoint.PreviewAsync)
             .RequireAuthorization(EditorPolicy.Name);
         app.MapPost("/admin/restore", RestoreEndpoint.RestoreAsync)

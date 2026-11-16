@@ -34,6 +34,8 @@ internal static class ShellRoutes {
             "The administration views' script, served from the web root: the import and export selection counter and its buttons."),
         new("/admin/changes", "GET", "the owner",
             "The changelist: every commit in the deployed build, newest first, each linking to its page on GitHub."),
+        new("/admin/copyright", "GET", "anyone",
+            "The copyright and licence page: the site's licence, the third-party notices and the LICENSES texts, read from the files the image carries."),
         new("/admin/export", "GET, POST", "the owner",
             "Lists the page store's contents and downloads it as a SQLite archive."),
         new("/admin/import", "GET, POST", "the owner",
