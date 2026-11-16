@@ -12,7 +12,7 @@ namespace uk.osric.asp.Core.Pages;
 /// request path gives the same answer as a canonical key.
 /// </para>
 /// <para>
-/// The map is a default, not a constraint: a page can still call <c>ctx.SetContentType</c> to send
+/// The map is a default, not a constraint: a page can still call <c>ctx.Response.SetContentType</c> to send
 /// something else. The script policy deliberately stays with the extension rather than following a
 /// changed content type. <see cref="Create(PageContentTypeRule, IEnumerable{KeyValuePair{string, PageContentTypeRule}})"/>
 /// validates and throws because the only caller is startup

@@ -290,8 +290,8 @@ internal sealed class PageChain {
                     ErrorMessage.DefaultRemedies(_user is not null, _environment.Editor.Key)));
             }
 
-            allowsScripts |= context.ToResponse().AllowsScripts;
-            innerBody = context.GetBody();
+            allowsScripts |= context.Response.ToResponse().AllowsScripts;
+            innerBody = context.Response.GetBody();
             inner = layout;
             target = layout.Layout;
             depth++;

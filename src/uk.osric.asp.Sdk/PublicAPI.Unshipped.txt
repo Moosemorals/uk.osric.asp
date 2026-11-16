@@ -406,3 +406,15 @@ uk.osric.asp.Sdk.MarkdownOptions.HeadingAnchors.init -> void
 uk.osric.asp.Sdk.MarkdownOptions.MarkdownOptions() -> void
 uk.osric.asp.Sdk.MarkdownOptions.PipeTables.get -> bool
 uk.osric.asp.Sdk.MarkdownOptions.PipeTables.init -> void
+uk.osric.asp.Sdk.IContext.Response.get -> uk.osric.asp.Sdk.IPageResponse!
+uk.osric.asp.Sdk.IPageResponse
+uk.osric.asp.Sdk.IPageResponse.AllowScripts() -> void
+uk.osric.asp.Sdk.IPageResponse.AntiforgeryField.get -> string!
+uk.osric.asp.Sdk.IPageResponse.FlushAsync() -> System.Threading.Tasks.Task!
+uk.osric.asp.Sdk.IPageResponse.Redirect(string! location, int status = 302) -> void
+uk.osric.asp.Sdk.IPageResponse.RedirectToLogin() -> void
+uk.osric.asp.Sdk.IPageResponse.SetContentType(string! contentType) -> void
+uk.osric.asp.Sdk.IPageResponse.SetHeader(string! name, string! value) -> void
+uk.osric.asp.Sdk.IPageResponse.SetStatus(int status) -> void
+uk.osric.asp.Sdk.IPageResponse.Write(string! message) -> void
+uk.osric.asp.Sdk.IPageResponse.WriteRaw(string! message) -> void

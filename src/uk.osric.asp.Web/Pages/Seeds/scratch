@@ -1,4 +1,4 @@
-<% if (ctx.User is not { } user) { ctx.RedirectToLogin(); return; } %>
+<% if (ctx.User is not { } user) { ctx.Response.RedirectToLogin(); return; } %>
 <% // The editor's key is the host's policy, so this page asks for it rather than naming it.
    string editSelf = ctx.EditorPath + "?edit=" + System.Uri.EscapeDataString(ctx.Path); %>
 <% ctx.Capabilities.GetRequired<IPageLayout>().Title = "Scratch: a page that edits itself"; %>
@@ -77,7 +77,7 @@ has this page's history and an <strong>Install from seed</strong> action.</p>
 </section>
 <% } %>
 <form method="post" class="form">
-    <%== ctx.AntiforgeryField %>
+    <%== ctx.Response.AntiforgeryField %>
     <input type="hidden" name="hash" value="<%= headHash %>">
     <fieldset>
         <legend>This page's own source</legend>

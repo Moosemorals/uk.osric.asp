@@ -82,7 +82,7 @@ public sealed class PageScopeTests {
                 }
             }
             %>
-            <% ctx.Write(await Slow.ValueAsync()); %>|<%= await Slow.ValueAsync() %>
+            <% ctx.Response.Write(await Slow.ValueAsync()); %>|<%= await Slow.ValueAsync() %>
             """;
 
         using PageHarness harness = new(new FakePageStore());
@@ -104,11 +104,11 @@ public sealed class PageScopeTests {
                 int visits = stored.Found ? stored.Value : 0;
                 await storage.SetAsync("visits", visits + 1);
                 await storage.DeleteAsync("gone");
-                ctx.Write(System.String.Join(",", await storage.KeysAsync()));
+                ctx.Response.Write(System.String.Join(",", await storage.KeysAsync()));
 
                 IHttpFetch fetch = ctx.Capabilities.GetRequired<IHttpFetch>();
                 HttpFetchResponse response = await fetch.SendAsync(new HttpFetchRequest("https://example.com/"));
-                ctx.Write(response.Succeeded ? response.Body : response.Failure.ToString());
+                ctx.Response.Write(response.Succeeded ? response.Body : response.Failure.ToString());
             %>
             """;
 
@@ -120,9 +120,9 @@ public sealed class PageScopeTests {
     [Test]
     public void TheAuthenticationContractCompiles() {
         string template = """
-            <% if (ctx.User is not { } user) { ctx.RedirectToLogin(); return; } %>
+            <% if (ctx.User is not { } user) { ctx.Response.RedirectToLogin(); return; } %>
             <p><%= user.Name %></p>
-            <form method="post"><%== ctx.AntiforgeryField %></form>
+            <form method="post"><%== ctx.Response.AntiforgeryField %></form>
             """;
 
         CompileResult result = Compiler.Compile(TestTemplates.Generate(template), []);

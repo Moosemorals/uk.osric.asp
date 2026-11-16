@@ -30,12 +30,12 @@ using Site.Editor;
         string? mode = One(ctx.Request.Form, "mode");
         if (mode is not (Editor.Vim or Editor.Plain)) {
             // Nothing is written, so an incomplete form cannot silently pick a mode for them.
-            ctx.SetStatus(400);
+            ctx.Response.SetStatus(400);
             problem = "That form did not say which editor to use, so nothing was changed.";
         } else {
             // The one page that writes the key, because a page may only write its own session.
             await session.SetAsync(Editor.Key, mode);
-            ctx.Redirect(target, 303);
+            ctx.Response.Redirect(target, 303);
             return;
         }
     }
@@ -50,7 +50,7 @@ ships a plain textarea and no script at all.</p>
 <p class="notice"><%= problem %></p>
 <% } %>
 <form method="post" action="<%= Editor.TogglePath %>" class="form">
-    <%== ctx.AntiforgeryField %>
+    <%== ctx.Response.AntiforgeryField %>
     <input type="hidden" name="to" value="<%= target %>">
     <fieldset>
         <legend>Which editor</legend>

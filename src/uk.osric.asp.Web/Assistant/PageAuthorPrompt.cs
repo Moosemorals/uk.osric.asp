@@ -8,7 +8,7 @@ using uk.osric.asp.Sdk;
 
 /// <summary>The system prompt and worked examples that teach the model to write a page.</summary>
 internal static class PageAuthorPrompt {
-    public const string Version = "page-author-v34";
+    public const string Version = "page-author-v35";
 
     public static IReadOnlyList<(string Name, string Source)> Examples { get; } = [
         ("query-driven", """
@@ -18,9 +18,9 @@ internal static class PageAuthorPrompt {
             """),
         ("form-post", """
             <% if (ctx.Request.Method == "POST" && ctx.Request.Form.TryGetValue("name", out string? name) && name is not null) {
-                ctx.Write("<p>Hello ");
-                ctx.Write(name);
-                ctx.Write("</p>");
+                ctx.Response.Write("<p>Hello ");
+                ctx.Response.Write(name);
+                ctx.Response.Write("</p>");
             } %>
             <form method="post" class="form"><dl><dt><label for="name">Name</label></dt><dd><input id="name" name="name"></dd></dl><button>Send</button></form>
             """),
@@ -39,11 +39,11 @@ internal static class PageAuthorPrompt {
             <p>Visited <%= visits.ToString() %> times.</p>
             """),
         ("private-page", """
-            <% if (ctx.User is not { } user) { ctx.RedirectToLogin(); return; } %>
+            <% if (ctx.User is not { } user) { ctx.Response.RedirectToLogin(); return; } %>
             <h1>Draft</h1>
             <p>Signed in as <%= user.Name %>.</p>
             <form method="post" class="form">
-                <%== ctx.AntiforgeryField %>
+                <%== ctx.Response.AntiforgeryField %>
                 <dl><dt><label for="note">Note</label></dt><dd><input id="note" name="note"></dd></dl>
                 <button>Save</button>
             </form>
@@ -64,7 +64,7 @@ internal static class PageAuthorPrompt {
             </ul>
             """),
         ("save-own-source", """
-            <% if (ctx.User is not { } user) { ctx.RedirectToLogin(); return; } %>
+            <% if (ctx.User is not { } user) { ctx.Response.RedirectToLogin(); return; } %>
             <% IPageCatalog catalog = ctx.Capabilities.GetRequired<IPageCatalog>();
                PageSource? current = await catalog.ReadAsync(ctx.Path);
                string draft = current?.Source ?? "";
@@ -75,7 +75,7 @@ internal static class PageAuthorPrompt {
                } %>
             <h1>Draft</h1>
             <% if (saved is not null) { %><p>Saved revision <%= saved.Hash %>. Reload to see it.</p><% } %>
-            <form method="post" class="form"><%== ctx.AntiforgeryField %>
+            <form method="post" class="form"><%== ctx.Response.AntiforgeryField %>
                 <fieldset><legend>Source</legend><textarea name="template" id="template"><%= draft %></textarea></fieldset>
                 <button>Save</button></form>
             """),
@@ -102,7 +102,7 @@ internal static class PageAuthorPrompt {
         writes raw HTML, and <%! declaration %> declares a type outside the
         generated handler. The handler is asynchronous and its response is
         buffered, so `await` is an ordinary expression in a code block and
-        inside <%= %>: `ctx.Write(await SomethingAsync())` works. The variable
+        inside <%= %>: `ctx.Response.Write(await SomethingAsync())` works. The variable
         `ctx` implements `IContext`.
 
         A note for yourself is <%# a note %>: it writes no output and is never
@@ -163,10 +163,10 @@ internal static class PageAuthorPrompt {
         A page's response type follows the extension in its key, and the map
         belongs to the host: this site currently maps `.js` and `.mjs` to
         `text/javascript; charset=utf-8`, but do not assume a fixed list.
-        Call `ctx.SetContentType` only to override that default, for example a
+        Call `ctx.Response.SetContentType` only to override that default, for example a
         `.js` page that sends HTML. The extension row also chooses the script
         policy: `none` sends `script-src 'none'` and `self` allows same-origin
-        modules. A page that needs scripts calls `ctx.AllowScripts()`, which
+        modules. A page that needs scripts calls `ctx.Response.AllowScripts()`, which
         widens `none` to `self` and never narrows a `self` row. Write the script
         as a native ES module: use `import`/`export` rather than globals, and
         end a side-effect-only script with `export {};`. Every page with code is
@@ -187,15 +187,22 @@ internal static class PageAuthorPrompt {
         syntax, not intent: a duplicated block that still parses is not
         reported.
 
-        ## IContext contract
+        ## IContext and IPageResponse contract
         {{ContractSection()}} `Request` is a `PageRequest`: its `Query`, `Form`,
         `Headers`, and `Cookies` are read-only dictionaries of strings, with
         `QueryValues` and `FormValues` holding every value a name was sent with,
         in order.
+        Everything a page writes goes through `ctx.Response`, an `IPageResponse`:
+        `ctx.Response.Write`, `ctx.Response.WriteRaw`, `ctx.Response.FlushAsync`,
+        `ctx.Response.SetStatus`, and so on. It is not a capability, every page
+        has one, and a helper method can take an `IPageResponse` parameter when
+        it only needs to write. A page that calls one of the response members
+        directly on the context still compiles for one release but reports a
+        `PAGE009` warning, so always write `ctx.Response.<member>`.
         `PageResponse` defaults to status 200, and a page's default content type
         follows its key's extension (HTML when the key is unmapped); status,
         content type, allowed headers, and redirect are applied after the
-        handler returns.
+        handler returns, or at the first flush.
         Optional capabilities are read from `ctx.Capabilities`: `Get<T>()` returns
         null when this render does not offer one, `GetRequired<T>()` throws,
         and `TryGet<T>(out T?)` reports whether it is there.
@@ -207,7 +214,7 @@ internal static class PageAuthorPrompt {
         type through a header, framing headers, or caching headers, because
         every page with code is `no-store` without a validator. A no-code asset
         is served from source and may be cached under its versioned URL.
-        `ctx.AllowScripts()` widens this response to
+        `ctx.Response.AllowScripts()` widens this response to
         `script-src 'self'` for same-origin external scripts; inline scripts
         and event-handler attributes stay blocked, so the script must be
         another page, or a seeded asset, served with a JavaScript content type
@@ -220,12 +227,12 @@ internal static class PageAuthorPrompt {
         `ctx.User` is a `PageUser?` carrying only `Name`, and it is null for
         an anonymous visitor. Put the guard at the top of the page:
 
-        `<% if (ctx.User is not { } user) { ctx.RedirectToLogin(); return; } %>`
+        `<% if (ctx.User is not { } user) { ctx.Response.RedirectToLogin(); return; } %>`
 
         `RedirectToLogin()` uses the shell's own sign-in form and returns to
         this page's path and query afterwards; the `return;` is what stops
         the rest of the handler. Every form an authenticated visitor can
-        submit must carry `<%== ctx.AntiforgeryField %>` written raw, because
+        submit must carry `<%== ctx.Response.AntiforgeryField %>` written raw, because
         the host refuses an authenticated `POST` without that pair. Never
         write a sign-in form, handle a password or read the auth cookie:
         `/login` and `/logout` already exist and are reserved paths.
@@ -316,7 +323,7 @@ internal static class PageAuthorPrompt {
         and reported. The write needs a signed-in visitor: an anonymous render
         is refused before anything is stored, so a page with a save form must
         also guard its own view with the ordinary `ctx.User` check, and must
-        carry `<%== ctx.AntiforgeryField %>` in the form. The signed-in visitor
+        carry `<%== ctx.Response.AntiforgeryField %>` in the form. The signed-in visitor
         is the authority, not the page: any page may save any key the shell
         does not route, and `Pages:Editor:Key` only says where the editor is
         served (`ctx.EditorPath`). Reserved keys are refused. The editor's own
@@ -587,10 +594,18 @@ internal static class PageAuthorPrompt {
         """;
 
     private static string ContractSection() {
-        IEnumerable<MemberInfo> members = typeof(IContext).GetMembers(BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly)
+        // Both halves of the contract: what a page reads (IContext) and what it writes into
+        // (IPageResponse, reached as ctx.Response). Deprecated members are left out so the prompt
+        // never teaches a spelling that is on its way out.
+        return string.Join('\n', Members(typeof(IContext)).Concat(Members(typeof(IPageResponse))));
+    }
+
+    private static IEnumerable<string> Members(Type contract) {
+        return contract.GetMembers(BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly)
             .Where(member => member is PropertyInfo || member is MethodInfo { IsSpecialName: false })
-            .OrderBy(member => member.MetadataToken);
-        return string.Join('\n', members.Select(Describe));
+            .Where(member => !member.IsDefined(typeof(ObsoleteAttribute)))
+            .OrderBy(member => member.MetadataToken)
+            .Select(Describe);
     }
 
     private static string Describe(MemberInfo member) => member switch {

@@ -24,7 +24,7 @@ public sealed class PageStreamingTests : IntegrationTest {
         await SavePageAsync("/_layout", Layout);
         await SavePageAsync("/stream", """
             <% ctx.Capabilities.GetRequired<IPageLayout>().Layout = null;
-               ctx.WriteRaw("<!DOCTYPE html><p>hi</p>"); await ctx.FlushAsync(); %>
+               ctx.Response.WriteRaw("<!DOCTYPE html><p>hi</p>"); await ctx.Response.FlushAsync(); %>
             """);
         using HttpClient client = CreateClient();
 
@@ -42,7 +42,7 @@ public sealed class PageStreamingTests : IntegrationTest {
     public async Task AStreamedExceptionTruncatesWithoutAnErrorPageAsync() {
         await SavePageAsync("/stream", """
             <% ctx.Capabilities.GetRequired<IPageLayout>().Layout = null;
-               ctx.Write("prefix"); await ctx.FlushAsync();
+               ctx.Response.Write("prefix"); await ctx.Response.FlushAsync();
                throw new System.InvalidOperationException("boom"); %>
             """);
         using HttpClient client = CreateClient();
@@ -73,7 +73,7 @@ public sealed class PageStreamingTests : IntegrationTest {
     public async Task AStreamedHeadHasNoBodyAndNoLengthAsync() {
         await SavePageAsync("/stream", """
             <% ctx.Capabilities.GetRequired<IPageLayout>().Layout = null;
-               await ctx.FlushAsync(); ctx.Write("hello"); %>
+               await ctx.Response.FlushAsync(); ctx.Response.Write("hello"); %>
             """);
         using HttpClient client = CreateClient();
 

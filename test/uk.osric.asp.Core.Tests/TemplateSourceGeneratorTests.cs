@@ -12,14 +12,14 @@ public sealed class TemplateSourceGeneratorTests {
     public void TextBecomesAWriteRawCall() {
         string? source = TemplateSourceGenerator.Generate("Hello").Source?.Text;
 
-        Assert.That(source, Does.Contain("ctx.WriteRaw(@\"Hello\");"));
+        Assert.That(source, Does.Contain("ctx.Response.WriteRaw(@\"Hello\");"));
     }
 
     [Test]
     public void QuotesInTextAreDoubledForAVerbatimLiteral() {
         string? source = TemplateSourceGenerator.Generate("Quote: \"Hello\"\\path").Source?.Text;
 
-        Assert.That(source, Does.Contain("ctx.WriteRaw(@\"Quote: \"\"Hello\"\"\\path\");"));
+        Assert.That(source, Does.Contain("ctx.Response.WriteRaw(@\"Quote: \"\"Hello\"\"\\path\");"));
     }
 
     [Test]
@@ -31,15 +31,15 @@ public sealed class TemplateSourceGeneratorTests {
 
     [Test]
     public void CodeBlocksAreCopiedVerbatimBetweenText() {
-        string? source = TemplateSourceGenerator.Generate("before<% ctx.Write(\"middle\"); %>after").Source?.Text;
+        string? source = TemplateSourceGenerator.Generate("before<% ctx.Response.Write(\"middle\"); %>after").Source?.Text;
 
-        Assert.That(source, Does.Contain("ctx.WriteRaw(@\"before\");"));
-        Assert.That(source, Does.Contain("ctx.Write(\"middle\");"));
-        Assert.That(source, Does.Contain("ctx.WriteRaw(@\"after\");"));
+        Assert.That(source, Does.Contain("ctx.Response.WriteRaw(@\"before\");"));
+        Assert.That(source, Does.Contain("ctx.Response.Write(\"middle\");"));
+        Assert.That(source, Does.Contain("ctx.Response.WriteRaw(@\"after\");"));
     }
 
-    [TestCase("<%= ctx.Path %>", "ctx.Write(", "ctx.Path")]
-    [TestCase("<%== ctx.Path %>", "ctx.WriteRaw(", "ctx.Path")]
+    [TestCase("<%= ctx.Path %>", "ctx.Response.Write(", "ctx.Path")]
+    [TestCase("<%== ctx.Path %>", "ctx.Response.WriteRaw(", "ctx.Path")]
     public void WriteBlocksGenerateTheMatchingContextCall(string template, string call, string expression) {
         string source = Generate(template);
 
@@ -52,12 +52,12 @@ public sealed class TemplateSourceGeneratorTests {
         string source = Generate("<%=   ctx.Path +\n      ctx.Path   %>");
 
         Assert.That(source, Does.Contain(
-            $"#line 1 \"page\"{Environment.NewLine}ctx.Write({Environment.NewLine}"
+            $"#line 1 \"page\"{Environment.NewLine}ctx.Response.Write({Environment.NewLine}"
             + $"#line 1 \"page\"{Environment.NewLine}      ctx.Path +\n      ctx.Path"));
     }
 
-    [TestCase("<%= ctx.Path; %>", "ctx.Write(", "ctx.Path")]
-    [TestCase("<%== ctx.Path; %>", "ctx.WriteRaw(", "ctx.Path")]
+    [TestCase("<%= ctx.Path; %>", "ctx.Response.Write(", "ctx.Path")]
+    [TestCase("<%== ctx.Path; %>", "ctx.Response.WriteRaw(", "ctx.Path")]
     public void OneTrailingSemicolonIsRemoved(string template, string call, string expression) {
         string source = Generate(template);
 
@@ -84,7 +84,7 @@ public sealed class TemplateSourceGeneratorTests {
         string source = Generate("<p>One</p><%# a note %><p>Two</p>");
 
         Assert.That(source, Does.Contain(
-            $"ctx.WriteRaw(@\"<p>One</p>\");{Environment.NewLine}ctx.WriteRaw(@\"<p>Two</p>\");"));
+            $"ctx.Response.WriteRaw(@\"<p>One</p>\");{Environment.NewLine}ctx.Response.WriteRaw(@\"<p>Two</p>\");"));
     }
 
     [Test]
@@ -100,7 +100,7 @@ public sealed class TemplateSourceGeneratorTests {
         string source = Generate("  <%=\n    ctx.Path %>");
 
         Assert.That(source, Does.Contain(
-            $"#line 1 \"page\"{Environment.NewLine}  ctx.Write({Environment.NewLine}"
+            $"#line 1 \"page\"{Environment.NewLine}  ctx.Response.Write({Environment.NewLine}"
             + $"#line 2 \"page\"{Environment.NewLine}    ctx.Path{Environment.NewLine}#line default{Environment.NewLine}#nullable disable{Environment.NewLine});"));
     }
 
@@ -142,7 +142,7 @@ public sealed class TemplateSourceGeneratorTests {
         string source = Generate("");
 
         Assert.That(source, Does.Contain("HandleAsync"));
-        Assert.That(source, Does.Not.Contain("ctx.WriteRaw"));
+        Assert.That(source, Does.Not.Contain("ctx.Response.WriteRaw"));
     }
 
     [Test]
@@ -179,7 +179,7 @@ public sealed class TemplateSourceGeneratorTests {
     public void DeclarationBlocksDoNotWriteOutput() {
         string source = Generate("<%! class Amount { } %>");
 
-        Assert.That(source, Does.Not.Contain("ctx.WriteRaw"));
+        Assert.That(source, Does.Not.Contain("ctx.Response.WriteRaw"));
     }
 
     [Test]
@@ -199,9 +199,9 @@ public sealed class TemplateSourceGeneratorTests {
 
         int amount = source.IndexOf("class Amount { }", StringComparison.Ordinal);
         int formatter = source.IndexOf("class Formatter { }", StringComparison.Ordinal);
-        int before = source.IndexOf("ctx.WriteRaw(@\"before\");", StringComparison.Ordinal);
-        int middle = source.IndexOf("ctx.WriteRaw(@\"middle\");", StringComparison.Ordinal);
-        int after = source.IndexOf("ctx.WriteRaw(@\"after\");", StringComparison.Ordinal);
+        int before = source.IndexOf("ctx.Response.WriteRaw(@\"before\");", StringComparison.Ordinal);
+        int middle = source.IndexOf("ctx.Response.WriteRaw(@\"middle\");", StringComparison.Ordinal);
+        int after = source.IndexOf("ctx.Response.WriteRaw(@\"after\");", StringComparison.Ordinal);
 
         Assert.That(amount, Is.GreaterThan(-1).And.LessThan(before));
         Assert.That(formatter, Is.GreaterThan(amount).And.LessThan(before));
@@ -280,7 +280,7 @@ public sealed class TemplateSourceGeneratorTests {
         string source = Generate("<%= await ctx.Path.ToStringAsync() %>");
 
         Assert.That(source, Does.Contain(
-            $"ctx.Write({Environment.NewLine}"
+            $"ctx.Response.Write({Environment.NewLine}"
             + $"#line 1 \"page\"{Environment.NewLine}"));
         Assert.That(source, Does.Contain(
             $"await ctx.Path.ToStringAsync(){Environment.NewLine}#line default{Environment.NewLine}#nullable disable{Environment.NewLine});"));
@@ -296,11 +296,11 @@ public sealed class TemplateSourceGeneratorTests {
     [Test]
     public void AGuardWithAReturnStaysInsideTheGeneratedHandler() {
         string source = Generate(
-            "<% if (ctx.User is null) { ctx.RedirectToLogin(); return; } %>after");
+            "<% if (ctx.User is null) { ctx.Response.RedirectToLogin(); return; } %>after");
 
         int handler = source.IndexOf("HandleAsync", StringComparison.Ordinal);
         int guard = source.IndexOf("return;", StringComparison.Ordinal);
-        int after = source.IndexOf("ctx.WriteRaw(@\"after\");", StringComparison.Ordinal);
+        int after = source.IndexOf("ctx.Response.WriteRaw(@\"after\");", StringComparison.Ordinal);
 
         Assert.That(handler, Is.GreaterThanOrEqualTo(0));
         Assert.That(guard, Is.GreaterThan(handler), "the guard must be emitted inside the handler");
@@ -343,14 +343,14 @@ public sealed class TemplateSourceGeneratorTests {
 
     [Test]
     public void APageThatDisablesNullableForItselfKeepsItDisabled() {
-        string source = Generate("<%\n#nullable disable\nctx.Write(ctx.User.Name);\n%>");
+        string source = Generate("<%\n#nullable disable\nctx.Response.Write(ctx.User.Name);\n%>");
 
         // The generator's directive is the one before the region; the page's own is the first line of
         // its code, copied through untouched. Inside the region the last directive wins, which is how
         // a page that wants to be oblivious says so.
         Assert.That(source, Does.Contain(
             $"#nullable enable{Environment.NewLine}#line 1 \"page\"{Environment.NewLine}"
-            + $"  {Environment.NewLine}#nullable disable{Environment.NewLine}ctx.Write(ctx.User.Name);"));
+            + $"  {Environment.NewLine}#nullable disable{Environment.NewLine}ctx.Response.Write(ctx.User.Name);"));
     }
 }
 
@@ -372,7 +372,7 @@ public sealed class TemplateSourceGeneratorKindTests {
     [TestCase("<% int value = 1; %>")]
     [TestCase("<%= ctx.Path %>")]
     [TestCase("<%== ctx.Path %>")]
-    [TestCase("<%! class Amount { } %><% ctx.Write(\"x\"); %>")]
+    [TestCase("<%! class Amount { } %><% ctx.Response.Write(\"x\"); %>")]
     [TestCase("<%! class Amount { } %>x")]
     public void ACodeTemplateThatRendersIsAPage(string template) {
         Assert.That(TemplateSourceGenerator.Generate(template).Kind, Is.EqualTo(PageKind.Page));

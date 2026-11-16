@@ -62,7 +62,7 @@ public sealed class PageFetchRenderTests {
         await pages.StoreCompiledAsync("/live", """
             <% IHttpFetch fetch = ctx.Capabilities.GetRequired<IHttpFetch>();
                HttpFetchStream stream = await fetch.StreamAsync(new HttpFetchRequest("https://api.example.com/events"));
-               ctx.Write(await stream.ReadLineAsync() ?? "empty"); %>
+               ctx.Response.Write(await stream.ReadLineAsync() ?? "empty"); %>
             """);
 
         (RenderResult result, string output) = await pages.RenderAsync("/live");
@@ -86,7 +86,7 @@ public sealed class PageFetchRenderTests {
                HttpFetchStream first = await fetch.StreamAsync(new HttpFetchRequest("https://api.example.com/first"));
                await first.CloseAsync();
                HttpFetchStream second = await fetch.StreamAsync(new HttpFetchRequest("https://api.example.com/second"));
-               ctx.Write(second.Failure.ToString());
+               ctx.Response.Write(second.Failure.ToString());
                await second.CloseAsync(); %>
             """);
 
@@ -131,8 +131,8 @@ public sealed class PageFetchRenderTests {
                 IHttpFetch fetch = ctx.Capabilities.GetRequired<IHttpFetch>();
                 for (int index = 0; index < 4; index++) {
                     HttpFetchResponse response = await fetch.GetAsync("https://api.example.com/");
-                    ctx.Write(response.Failure.ToString());
-                    ctx.Write(" ");
+                    ctx.Response.Write(response.Failure.ToString());
+                    ctx.Response.Write(" ");
                 }
             %>
             """);

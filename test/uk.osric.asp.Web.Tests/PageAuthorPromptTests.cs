@@ -16,15 +16,28 @@ using PageDiagnosticSeverity = uk.osric.asp.Core.Compilation.PageDiagnosticSever
 public sealed class PageAuthorPromptTests {
 
     [Test]
-    public void ContractSectionContainsEveryIContextMember() {
+    public void ContractSectionContainsEveryMemberOfBothHalves() {
         string prompt = PageAuthorPrompt.Build();
-        // The deprecated alias is not something a prompt should teach, so it is not expected there.
-        IEnumerable<string> members = typeof(IContext).GetMembers(BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly)
+        // Deprecated members are not something a prompt should teach, so they are not expected there.
+        IEnumerable<string> members = new[] { typeof(IContext), typeof(IPageResponse) }
+            .SelectMany(contract => contract.GetMembers(BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly))
             .Where(member => member is PropertyInfo || member is MethodInfo { IsSpecialName: false })
             .Where(member => !member.IsDefined(typeof(ObsoleteAttribute)))
             .Select(member => member.Name);
 
         Assert.That(members.All(prompt.Contains), Is.True);
+    }
+
+    [Test]
+    public void ThePromptTeachesTheResponseAndNeverTheOldSpelling() {
+        string prompt = PageAuthorPrompt.Build();
+
+        Assert.Multiple(() => {
+            Assert.That(prompt, Does.Contain("ctx.Response.Write"));
+            Assert.That(prompt, Does.Not.Contain("ctx.Write("));
+            Assert.That(prompt, Does.Not.Contain("ctx.SetStatus("));
+            Assert.That(prompt, Does.Not.Contain("ctx.FlushAsync("));
+        });
     }
 
     [Test]
@@ -70,7 +83,7 @@ public sealed class PageAuthorPromptTests {
         Assert.Multiple(() => {
             Assert.That(prompt, Does.Contain("type=\"IPageStorage\""));
             Assert.That(prompt, Does.Contain("query=\"cookie\""));
-            Assert.That(prompt, Does.Contain("page-author-v34"));
+            Assert.That(prompt, Does.Contain("page-author-v35"));
         });
     }
 
@@ -131,8 +144,8 @@ public sealed class PageAuthorPromptTests {
         Assert.Multiple(() => {
             Assert.That(prompt, Does.Contain("## Page authentication"));
             Assert.That(prompt, Does.Contain("ctx.User is not { } user"));
-            Assert.That(prompt, Does.Contain("ctx.RedirectToLogin()"));
-            Assert.That(prompt, Does.Contain("ctx.AntiforgeryField"));
+            Assert.That(prompt, Does.Contain("ctx.Response.RedirectToLogin()"));
+            Assert.That(prompt, Does.Contain("ctx.Response.AntiforgeryField"));
             Assert.That(prompt, Does.Contain("public unless the page's own code checks"));
             Assert.That(prompt, Does.Contain("write a sign-in form"));
         });
@@ -222,7 +235,7 @@ public sealed class PageAuthorPromptTests {
     [Test]
     public void ThePromptIsVersionedForNullablePages() {
         Assert.Multiple(() => {
-            Assert.That(PageAuthorPrompt.Version, Is.EqualTo("page-author-v34"));
+            Assert.That(PageAuthorPrompt.Version, Is.EqualTo("page-author-v35"));
             Assert.That(PageAuthorPrompt.Build(), Does.Contain("## Nullable page code"));
         });
     }
@@ -392,7 +405,7 @@ public sealed class PageAuthorPromptTests {
             Assert.That(prompt, Does.Contain("check_script` with the page's path"));
             Assert.That(prompt, Does.Contain("valid: false"));
             Assert.That(prompt, Does.Contain("SCRIPT002"));
-            Assert.That(PageAuthorPrompt.Version, Is.EqualTo("page-author-v34"));
+            Assert.That(PageAuthorPrompt.Version, Is.EqualTo("page-author-v35"));
         });
     }
 

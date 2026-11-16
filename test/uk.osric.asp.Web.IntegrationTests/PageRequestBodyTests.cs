@@ -12,7 +12,7 @@ public sealed class PageRequestBodyTests : IntegrationTest {
     [Test]
     public async Task ARepeatedQueryValueReachesThePage() {
         await SavePageAsync("/echo", """
-            <% foreach (string tag in ctx.Request.QueryValues["tag"]) { ctx.Write(tag + ";"); } %>
+            <% foreach (string tag in ctx.Request.QueryValues["tag"]) { ctx.Response.Write(tag + ";"); } %>
             """);
         using HttpClient client = CreateClient();
 
@@ -28,7 +28,7 @@ public sealed class PageRequestBodyTests : IntegrationTest {
     [Test]
     public async Task ARepeatedFormValueReachesThePage() {
         await SavePageAsync("/echo-form", """
-            <% foreach (string tag in ctx.Request.FormValues["tag"]) { ctx.Write(tag + ";"); } %>
+            <% foreach (string tag in ctx.Request.FormValues["tag"]) { ctx.Response.Write(tag + ";"); } %>
             """);
         using HttpClient client = CreateClient();
 

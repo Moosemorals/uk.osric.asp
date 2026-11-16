@@ -101,7 +101,7 @@ of the binding:</p>
 <pre class="source" tabindex="0"><code>&lt;%!
 namespace Site.Document {
     public static class Document {
-        public static void Head(IContext ctx) =&gt; ctx.WriteRaw("&lt;h1&gt;Hi&lt;/h1&gt;");
+        public static void Head(IContext ctx) =&gt; ctx.Response.WriteRaw("&lt;h1&gt;Hi&lt;/h1&gt;");
     }
 }
 %&gt;</code></pre>
@@ -178,7 +178,7 @@ from the page list.</p>
 
 <h2 id="streaming">Streaming a response</h2>
 <p>A page sends its body when its handler returns. To send part of it earlier, call
-<code>await ctx.FlushAsync()</code>. The first flush is the commit point: the status, content type and
+<code>await ctx.Response.FlushAsync()</code>. The first flush is the commit point: the status, content type and
 headers are final, any session or antiforgery cookie already minted is written, and the response
 starts. Later
 writes are buffered until the next flush, and whatever is left is sent when the handler returns.</p>
@@ -188,14 +188,14 @@ flush:</p>
    layout.Layout = null; %&gt;
 &lt;!DOCTYPE html&gt;
 &lt;html lang="en"&gt;&lt;head&gt;&lt;title&gt;Progress&lt;/title&gt;&lt;/head&gt;&lt;body&gt;
-&lt;% await ctx.FlushAsync(); %&gt;
+&lt;% await ctx.Response.FlushAsync(); %&gt;
 &lt;p&gt;First&lt;/p&gt;
-&lt;% await ctx.FlushAsync(); %&gt;
+&lt;% await ctx.Response.FlushAsync(); %&gt;
 &lt;p&gt;Second&lt;/p&gt;
 &lt;/body&gt;&lt;/html&gt;</code></pre>
-<p>Once the response is committed, <code>ctx.SetStatus</code>, <code>ctx.SetContentType</code>,
-<code>ctx.SetHeader</code>, <code>ctx.AllowScripts</code>, <code>ctx.Redirect</code> and reading
-<code>ctx.AntiforgeryField</code> throw. Read the antiforgery field and write any new session state
+<p>Once the response is committed, <code>ctx.Response.SetStatus</code>, <code>ctx.Response.SetContentType</code>,
+<code>ctx.Response.SetHeader</code>, <code>ctx.Response.AllowScripts</code>, <code>ctx.Response.Redirect</code> and reading
+<code>ctx.Response.AntiforgeryField</code> throw. Read the antiforgery field and write any new session state
 before the first flush: their cookies can no longer be sent afterwards.</p>
 <p>A failure after the commit cannot become an error page. An exception is logged and the response is
 truncated. A <code>HEAD</code> request commits but sends no body, and a streamed response has no
@@ -214,7 +214,7 @@ the site cannot be held open by more streams than that. When every slot is taken
 throws <code>PageStreamRefusedException</code> before anything is committed, and the visitor gets
 <code>503</code>; a page that would rather explain the wait catches it itself.</p>
 <p>A server-sent-events page sets <code>text/event-stream</code>, adds
-<code>X-Accel-Buffering: no</code> with <code>ctx.SetHeader</code>, writes one event at a time and
+<code>X-Accel-Buffering: no</code> with <code>ctx.Response.SetHeader</code>, writes one event at a time and
 flushes after each. Each flush is what keeps it inside the silence allowance, and the ceiling is what
 ends a conversation that would otherwise never finish.</p>
 <p>For a slow upstream, write and flush a first event before opening the fetch or waiting for a line.
@@ -225,26 +225,26 @@ send an error event instead:</p>
 <pre class="source" tabindex="0"><code>&lt;%
 IHttpFetch fetch = ctx.Capabilities.GetRequired&lt;IHttpFetch&gt;();
 ctx.Capabilities.GetRequired&lt;IPageLayout&gt;().Layout = null;
-ctx.SetContentType("text/event-stream; charset=utf-8");
-ctx.SetHeader("X-Accel-Buffering", "no");
-ctx.WriteRaw(": connected\n\n");
-await ctx.FlushAsync();
+ctx.Response.SetContentType("text/event-stream; charset=utf-8");
+ctx.Response.SetHeader("X-Accel-Buffering", "no");
+ctx.Response.WriteRaw(": connected\n\n");
+await ctx.Response.FlushAsync();
 
 HttpFetchStream upstream = await fetch.StreamAsync(
     new HttpFetchRequest("https://api.example.com/events"));
 try {
     string? line;
     while ((line = await upstream.ReadLineAsync()) is not null) {
-        ctx.WriteRaw($"data: {line}\n\n");
-        await ctx.FlushAsync();
+        ctx.Response.WriteRaw($"data: {line}\n\n");
+        await ctx.Response.FlushAsync();
     }
 
     string? failure = upstream.Truncated
         ? "truncated"
         : upstream.Failure == HttpFetchFailure.None ? null : upstream.Failure.ToString();
     if (failure is not null) {
-        ctx.WriteRaw($"event: error\ndata: {failure}\n\n");
-        await ctx.FlushAsync();
+        ctx.Response.WriteRaw($"event: error\ndata: {failure}\n\n");
+        await ctx.Response.FlushAsync();
     }
 } finally {
     await upstream.CloseAsync();
@@ -262,7 +262,7 @@ published and stops it:</p>
 <pre class="source" tabindex="0"><code>&lt;% IPageJobs jobs = ctx.Capabilities.GetRequired&lt;IPageJobs&gt;();
    PageJobStart start = await jobs.StartAsync("/_work/answer", "the question");
    if (!start.Started) {
-       ctx.Write("Could not start: " + start.Refusal);
+       ctx.Response.Write("Could not start: " + start.Refusal);
        return;
    } %&gt;
 &lt;p&gt;Started &lt;%= start.Id %&gt;.&lt;/p&gt;</code></pre>
@@ -315,13 +315,13 @@ for <code>Pages:Jobs:SilenceSeconds</code> is cut, and one that runs longer than
 
 <h2 id="head-and-scripts">Stylesheets, head and scripts</h2>
 <p>The page's key chooses its initial content type from the host's extension map; an unmapped key is
-HTML. <code>ctx.SetContentType("text/css; charset=utf-8")</code> overrides it when a page needs to
+HTML. <code>ctx.Response.SetContentType("text/css; charset=utf-8")</code> overrides it when a page needs to
 send something else. The extension also chooses the response's script policy, and that policy follows
 the extension even if the page changes its content type.</p>
-<p>A page with code that loads a script calls <code>ctx.AllowScripts()</code>. That widens the
+<p>A page with code that loads a script calls <code>ctx.Response.AllowScripts()</code>. That widens the
 response from <code>script-src 'none'</code> to <code>script-src 'self'</code>; it does not allow
 inline scripts or event-handler attributes:</p>
-<pre class="source" tabindex="0"><code>&lt;% ctx.AllowScripts(); %&gt;
+<pre class="source" tabindex="0"><code>&lt;% ctx.Response.AllowScripts(); %&gt;
 &lt;script type="module" src="/my-script.js"&gt;&lt;/script&gt;</code></pre>
 <p>A page with no code cannot call <code>AllowScripts</code>, so the extension policy is the only way
 to let a static document load a module. The shipped <code>.html</code> row is
@@ -342,11 +342,11 @@ in a page's own markup. Rewriting rendered HTML is not something the host does.<
 <code>await</code> is an ordinary expression in a block and inside an output expression.</p>
 <dl>
     <dt><code>&lt;% %&gt;</code></dt>
-    <dd>C# statements. They can write with <code>ctx.Write</code> or <code>ctx.WriteRaw</code>.</dd>
+    <dd>C# statements. They can write with <code>ctx.Response.Write</code> or <code>ctx.Response.WriteRaw</code>.</dd>
     <dt><code>&lt;%= %&gt;</code></dt>
-    <dd>Writes an HTML-escaped string, like <code>ctx.Write</code>.</dd>
+    <dd>Writes an HTML-escaped string, like <code>ctx.Response.Write</code>.</dd>
     <dt><code>&lt;%== %&gt;</code></dt>
-    <dd>Writes raw HTML, like <code>ctx.WriteRaw</code>. Only use it for markup you built or trust.</dd>
+    <dd>Writes raw HTML, like <code>ctx.Response.WriteRaw</code>. Only use it for markup you built or trust.</dd>
     <dt><code>&lt;%! %&gt;</code></dt>
     <dd>Declarations, such as <code>using</code> directives and types of the page's own. They are
     hoisted above the handler and keep their template order.</dd>
@@ -369,7 +369,7 @@ that may be null says so. <code>ctx.User</code> is a <code>PageUser?</code>, and
 <code>ctx.Capabilities.Get&lt;T&gt;()</code> returns <code>null</code> when this render does not offer
 the capability. Bind a guard to a local and use the local, which is the form the compiler can
 follow:</p>
-<pre class="source" tabindex="0"><code>&lt;% if (ctx.User is not { } user) { ctx.RedirectToLogin(); return; } %&gt;
+<pre class="source" tabindex="0"><code>&lt;% if (ctx.User is not { } user) { ctx.Response.RedirectToLogin(); return; } %&gt;
 &lt;p&gt;Signed in as &lt;%= user.Name %&gt;.&lt;/p&gt;</code></pre>
 <p>A warning does not stop the page: it compiles, is stored and is served. It is still unfinished
 work, the editor shows it beside your template, and the page list says <em>Compiled with
@@ -383,7 +383,7 @@ sealed class Amount {
     public static string Format(decimal value) =&gt; value.ToString("N2", CultureInfo.InvariantCulture);
 }
 %&gt;
-&lt;p&gt;Total: &lt;% ctx.Write(Amount.Format(42.5m)); %&gt;&lt;/p&gt;</code></pre>
+&lt;p&gt;Total: &lt;% ctx.Response.Write(Amount.Format(42.5m)); %&gt;&lt;/p&gt;</code></pre>
 <p>Forms use <code>&lt;form class="form"&gt;</code> with one <code>&lt;dl&gt;</code>; a label is a
 <code>&lt;dt&gt;</code> and its control is the matching <code>&lt;dd&gt;</code>. A textarea goes in a
 <code>&lt;fieldset&gt;</code> whose <code>&lt;legend&gt;</code> contains its label.</p>
@@ -432,12 +432,12 @@ response, and nothing else:</p>
     the URL that opens <em>this</em> page in it.</li>
     <li><a href="/admin/reference/sdk#m-IContext.Log-string"><code>ctx.Log</code></a>, <a href="/admin/reference/sdk#m-IContext.LogWarning-string"><code>ctx.LogWarning</code></a> and <a href="/admin/reference/sdk#m-IContext.LogError-string"><code>ctx.LogError</code></a> write to the
     page log, tagged with this page's key.</li>
-    <li><a href="/admin/reference/sdk#m-IContext.SetStatus-int"><code>ctx.SetStatus</code></a>, <a href="/admin/reference/sdk#m-IContext.SetContentType-string"><code>ctx.SetContentType</code></a>, <a href="/admin/reference/sdk#m-IContext.SetHeader-string-string"><code>ctx.SetHeader</code></a>,
-    <a href="/admin/reference/sdk#m-IContext.Redirect-string-int"><code>ctx.Redirect</code></a> and <a href="/admin/reference/sdk#m-IContext.RedirectToLogin"><code>ctx.RedirectToLogin</code></a> shape the response.
-    <a href="/admin/reference/sdk#m-IContext.FlushAsync"><code>ctx.FlushAsync()</code></a> commits the response and sends what has been written; see
+    <li><a href="/admin/reference/sdk#m-IContext.SetStatus-int"><code>ctx.Response.SetStatus</code></a>, <a href="/admin/reference/sdk#m-IContext.SetContentType-string"><code>ctx.Response.SetContentType</code></a>, <a href="/admin/reference/sdk#m-IContext.SetHeader-string-string"><code>ctx.Response.SetHeader</code></a>,
+    <a href="/admin/reference/sdk#m-IContext.Redirect-string-int"><code>ctx.Response.Redirect</code></a> and <a href="/admin/reference/sdk#m-IContext.RedirectToLogin"><code>ctx.Response.RedirectToLogin</code></a> shape the response.
+    <a href="/admin/reference/sdk#m-IContext.FlushAsync"><code>ctx.Response.FlushAsync()</code></a> commits the response and sends what has been written; see
     <a href="#streaming">Streaming a response</a>.</li>
-    <li><a href="/admin/reference/sdk#m-IContext.AllowScripts"><code>ctx.AllowScripts</code></a> permits same-origin external scripts;
-    <a href="/admin/reference/sdk#m-IContext.AntiforgeryField"><code>ctx.AntiforgeryField</code></a> carries the hidden input a form must include.</li>
+    <li><a href="/admin/reference/sdk#m-IContext.AllowScripts"><code>ctx.Response.AllowScripts</code></a> permits same-origin external scripts;
+    <a href="/admin/reference/sdk#m-IContext.AntiforgeryField"><code>ctx.Response.AntiforgeryField</code></a> carries the hidden input a form must include.</li>
     <li><a href="/admin/reference/sdk#m-IContext.AssetUrl-string"><code>ctx.AssetUrl(href)</code></a> versions a bare site-relative link when its target is a live
     asset, and returns the href unchanged otherwise.</li>
 </ul>
@@ -517,7 +517,7 @@ is listed as deleted and reads as absent, while its history stays readable.</p>
 anonymous visitor gets the same answers a signed-in one does. A page that wants its listing or its
 source private writes the ordinary guard at the top of its own source, exactly as any private page
 does:</p>
-<pre class="source" tabindex="0"><code>&lt;% if (ctx.User is not { } user) { ctx.RedirectToLogin(); return; } %&gt;</code></pre>
+<pre class="source" tabindex="0"><code>&lt;% if (ctx.User is not { } user) { ctx.Response.RedirectToLogin(); return; } %&gt;</code></pre>
 <p>The trade is worth stating plainly: a page that calls <code>ReadAsync</code> or
 <code>ReadRevisionAsync</code> publishes the source it reads to whoever can reach that page, including
 a template whose own guard hides its output, and including the history of a deleted page until it is
@@ -563,7 +563,7 @@ check comes from.</p>
 that calls it; changing what the site serves is not, so either save refuses an anonymous render before
 it compiles anything, with a message saying to sign in. Guard your own form as well when you want the
 visitor sent to the sign-in page instead of the error page:</p>
-<pre class="source" tabindex="0"><code>&lt;% if (ctx.User is not { } user) { ctx.RedirectToLogin(); return; } %&gt;</code></pre>
+<pre class="source" tabindex="0"><code>&lt;% if (ctx.User is not { } user) { ctx.Response.RedirectToLogin(); return; } %&gt;</code></pre>
 <p><strong>The visitor is the authority, not the page.</strong> Any page may save any key the shell does
 not answer; the editor is the first customer of the capability and the owner of none.
 <code>Pages:Editor:Key</code> says only where the editor is served, which is the key
@@ -594,7 +594,7 @@ reads a seed so a confirmation can show the diff. The seeded
 &lt;%== markdown.ToHtml("## Today\n\n- one\n- two") %&gt;</code></pre>
 <p>It understands CommonMark, heading anchors, pipe tables, auto-links, links and images. Raw HTML
 in the Markdown passes through, exactly like <code>&lt;%== %&gt;</code>: the renderer is not a
-sanitiser, so escape a visitor's or a fetched value with <code>ctx.Write</code> rather than
+sanitiser, so escape a visitor's or a fetched value with <code>ctx.Response.Write</code> rather than
 rendering it. An image must be served by this site, because the response's policy allows images
 only from the same origin. A table's header cells are written with <code>scope="col"</code>, and
 column alignment markers are ignored because the site's policy forbids inline styles.</p>
@@ -628,13 +628,13 @@ to say what happened.</p>
 <pre class="source" tabindex="0"><code>&lt;% IPageSession session = ctx.Capabilities.GetRequired&lt;IPageSession&gt;();
    if (ctx.Request.Method == "POST") {
        await session.SetAsync("notice", "Your note was saved.");
-       ctx.Redirect(ctx.Path, 303);
+       ctx.Response.Redirect(ctx.Path, 303);
        return;
    }
    PageValue&lt;string&gt; notice = await session.TryGetValueAsync&lt;string&gt;("notice");
    if (notice.Found) {
        await session.DeleteAsync("notice");
-       ctx.Write("&lt;p&gt;" + notice.Value! + "&lt;/p&gt;");
+       ctx.Response.Write("&lt;p&gt;" + notice.Value! + "&lt;/p&gt;");
    } %&gt;</code></pre>
 <p>A page writes, deletes and lists only its own keys: <a href="/admin/reference/sdk#m-IPageSession.SetAsync-g1-string-T"><code>SetAsync</code></a>,
 <a href="/admin/reference/sdk#m-IPageSession.DeleteAsync-string"><code>DeleteAsync</code></a> and <a href="/admin/reference/sdk#m-IPageSession.KeysAsync"><code>KeysAsync</code></a> are bound to this page's path. Reading is open, so
@@ -656,13 +656,13 @@ what the session cookie is for.</p>
 <h2 id="private">Private pages and forms</h2>
 <p>Pages are public unless their own code checks <a href="/admin/reference/sdk#m-IContext.User"><code>ctx.User</code></a>. Put the guard at the top and
 return after redirecting:</p>
-<pre class="source" tabindex="0"><code>&lt;% if (ctx.User is not { } user) { ctx.RedirectToLogin(); return; } %&gt;
+<pre class="source" tabindex="0"><code>&lt;% if (ctx.User is not { } user) { ctx.Response.RedirectToLogin(); return; } %&gt;
 &lt;h1&gt;Draft&lt;/h1&gt;
 &lt;p&gt;Signed in as &lt;%= user.Name %&gt;.&lt;/p&gt;</code></pre>
 <p>Every form an authenticated visitor can submit must carry the antiforgery field written raw,
 because the host refuses an authenticated <code>POST</code> without that pair:</p>
 <pre class="source" tabindex="0"><code>&lt;form method="post" class="form"&gt;
-    &lt;%== ctx.AntiforgeryField %&gt;
+    &lt;%== ctx.Response.AntiforgeryField %&gt;
     &lt;dl&gt;
         &lt;dt&gt;&lt;label for="note"&gt;Note&lt;/label&gt;&lt;/dt&gt;
         &lt;dd&gt;&lt;input id="note" name="note"&gt;&lt;/dd&gt;

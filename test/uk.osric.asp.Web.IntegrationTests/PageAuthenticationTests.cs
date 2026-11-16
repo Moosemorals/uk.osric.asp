@@ -14,11 +14,11 @@ using uk.osric.asp.Web.Pages;
 public sealed class PageAuthenticationTests : IntegrationTest {
 
     private const string GuardedPage = """
-        <% if (ctx.User is not { } user) { ctx.RedirectToLogin(); return; } %>
+        <% if (ctx.User is not { } user) { ctx.Response.RedirectToLogin(); return; } %>
         <h1>Draft</h1>
         <p>Signed in as <%= user.Name %>.</p>
         <form method="post" class="form">
-            <%== ctx.AntiforgeryField %>
+            <%== ctx.Response.AntiforgeryField %>
             <input id="note" name="note">
             <button type="submit">Save</button>
         </form>

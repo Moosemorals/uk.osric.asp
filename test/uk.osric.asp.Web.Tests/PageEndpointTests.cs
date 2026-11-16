@@ -149,7 +149,7 @@ public sealed class PageEndpointTests {
     public async Task SuccessfulTemplateIsRenderedAsync() {
         DefaultHttpContext context = CreateContext("hello.cs");
         FakePageStore storage = new();
-        storage["/hello.cs"] = new PageTemplate(PagePath.Normalize("/hello.cs"), "Hello, <% ctx.Write(\"world\"); %>!");
+        storage["/hello.cs"] = new PageTemplate(PagePath.Normalize("/hello.cs"), "Hello, <% ctx.Response.Write(\"world\"); %>!");
 
         await PageEndpoint.HandleAsync(context, CreatePages(storage), NullLoggerFactory.Instance, EndpointEnvironment());
 
@@ -177,7 +177,7 @@ public sealed class PageEndpointTests {
         DefaultHttpContext context = CreateContext("x.css");
         FakePageStore storage = new();
         storage["/x.css"] = new PageTemplate(PagePath.Normalize("/x.css"),
-            "<% ctx.SetContentType(\"text/html; charset=utf-8\"); %>Styled.");
+            "<% ctx.Response.SetContentType(\"text/html; charset=utf-8\"); %>Styled.");
 
         await PageEndpoint.HandleAsync(context, CreatePages(storage), NullLoggerFactory.Instance, EndpointEnvironment());
 
@@ -216,7 +216,7 @@ public sealed class PageEndpointTests {
         DefaultHttpContext context = CreateContext("scripted.cs");
         FakePageStore storage = new();
         storage["/scripted.cs"] = new PageTemplate(
-            PagePath.Normalize("/scripted.cs"), "<% ctx.AllowScripts(); %>Scripted.");
+            PagePath.Normalize("/scripted.cs"), "<% ctx.Response.AllowScripts(); %>Scripted.");
 
         await PageEndpoint.HandleAsync(context, CreatePages(storage), NullLoggerFactory.Instance, EndpointEnvironment());
 
@@ -240,7 +240,7 @@ public sealed class PageEndpointTests {
         DefaultHttpContext context = CreateContext("moved.cs");
         FakePageStore storage = new();
         storage["/moved.cs"] = new PageTemplate(
-            PagePath.Normalize("/moved.cs"), "<% ctx.AllowScripts(); ctx.Redirect(\"/elsewhere\"); %>");
+            PagePath.Normalize("/moved.cs"), "<% ctx.Response.AllowScripts(); ctx.Response.Redirect(\"/elsewhere\"); %>");
 
         await PageEndpoint.HandleAsync(context, CreatePages(storage), NullLoggerFactory.Instance, EndpointEnvironment());
 
@@ -378,7 +378,7 @@ public sealed class PageEndpointTests {
         DefaultHttpContext context = CreateContext("status.cs");
         FakePageStore storage = new();
         storage["/status.cs"] = new PageTemplate(PagePath.Normalize("/status.cs"),
-            "<% ctx.SetStatus(201); ctx.SetHeader(\"X-Page\", \"yes\"); ctx.Write(\"done\"); %>");
+            "<% ctx.Response.SetStatus(201); ctx.Response.SetHeader(\"X-Page\", \"yes\"); ctx.Response.Write(\"done\"); %>");
 
         await PageEndpoint.HandleAsync(context, CreatePages(storage), NullLoggerFactory.Instance, EndpointEnvironment());
 
@@ -395,7 +395,7 @@ public sealed class PageEndpointTests {
     public async Task PageRedirectIsSentWithNoBodyAsync(string location) {
         DefaultHttpContext context = CreateContext("moved.cs");
         FakePageStore storage = new();
-        storage["/moved.cs"] = new PageTemplate(PagePath.Normalize("/moved.cs"), $"<% ctx.Redirect(\"{location}\"); %>");
+        storage["/moved.cs"] = new PageTemplate(PagePath.Normalize("/moved.cs"), $"<% ctx.Response.Redirect(\"{location}\"); %>");
 
         await PageEndpoint.HandleAsync(context, CreatePages(storage), NullLoggerFactory.Instance, EndpointEnvironment());
 
@@ -415,7 +415,7 @@ public sealed class PageEndpointTests {
 
         FakePageStore storage = new();
         storage["/form.cs"] = new PageTemplate(PagePath.Normalize("/form.cs"),
-            "<% ctx.Write($\"{ctx.Request.Form[\"name\"]}/{ctx.Request.Form[\"repeat\"]}\"); %>");
+            "<% ctx.Response.Write($\"{ctx.Request.Form[\"name\"]}/{ctx.Request.Form[\"repeat\"]}\"); %>");
 
         await PageEndpoint.HandleAsync(context, CreatePages(storage), NullLoggerFactory.Instance, EndpointEnvironment());
 
@@ -567,7 +567,7 @@ public sealed class PageEndpointTests {
         DefaultHttpContext context = ChunkedForm("field=hello");
         FakePageStore storage = new();
         storage["/hello.cs"] = new PageTemplate(
-            PagePath.Normalize("/hello.cs"), "<% ctx.Write(ctx.Request.Form[\"field\"]); %>");
+            PagePath.Normalize("/hello.cs"), "<% ctx.Response.Write(ctx.Request.Form[\"field\"]); %>");
 
         await PageEndpoint.HandleAsync(context, CreatePages(storage), NullLoggerFactory.Instance, EndpointEnvironment());
 
@@ -654,7 +654,7 @@ public sealed class PageEndpointTests {
         SignIn(context);
         FakePageStore storage = new();
         storage["/private.cs"] = new PageTemplate(
-            PagePath.Normalize("/private.cs"), "<% ctx.Write(ctx.Request.Form[\"note\"]); %>");
+            PagePath.Normalize("/private.cs"), "<% ctx.Response.Write(ctx.Request.Form[\"note\"]); %>");
 
         await PageEndpoint.HandleAsync(context, CreatePages(storage), NullLoggerFactory.Instance, EndpointEnvironment());
 
@@ -668,7 +668,7 @@ public sealed class PageEndpointTests {
         DefaultHttpContext context = PostForm("public.cs", "note=hi");
         FakePageStore storage = new();
         storage["/public.cs"] = new PageTemplate(
-            PagePath.Normalize("/public.cs"), "<% ctx.Write(ctx.Request.Form[\"note\"]); %>");
+            PagePath.Normalize("/public.cs"), "<% ctx.Response.Write(ctx.Request.Form[\"note\"]); %>");
 
         await PageEndpoint.HandleAsync(context, CreatePages(storage), NullLoggerFactory.Instance, EndpointEnvironment());
 
@@ -682,7 +682,7 @@ public sealed class PageEndpointTests {
         SignIn(context);
         FakePageStore storage = new();
         storage["/private.cs"] = new PageTemplate(
-            PagePath.Normalize("/private.cs"), "<%== ctx.AntiforgeryField %><%== ctx.AntiforgeryField %>");
+            PagePath.Normalize("/private.cs"), "<%== ctx.Response.AntiforgeryField %><%== ctx.Response.AntiforgeryField %>");
 
         await PageEndpoint.HandleAsync(context, CreatePages(storage), NullLoggerFactory.Instance, EndpointEnvironment());
 
@@ -693,7 +693,7 @@ public sealed class PageEndpointTests {
     }
 
     private const string GuardedPage =
-        "<p>before</p><% if (ctx.User is not { } user) { ctx.RedirectToLogin(); return; } %><p><%= user.Name %></p>";
+        "<p>before</p><% if (ctx.User is not { } user) { ctx.Response.RedirectToLogin(); return; } %><p><%= user.Name %></p>";
 
     private static void SignIn(DefaultHttpContext context, string name = "owner") {
         context.User = new ClaimsPrincipal(new ClaimsIdentity(
@@ -898,13 +898,13 @@ public sealed class PageEndpointTests {
         FakePageStore storage = new();
         PageTemplate old = PageTemplate.NewRevision(
             PageHarness.Key("/page"),
-            "<% ctx.Write(\"old\"); %>",
+            "<% ctx.Response.Write(\"old\"); %>",
             null,
             _compiler.RuntimeId);
         storage["/page"] = old;
         storage["/page"] = PageTemplate.NewRevision(
             PageHarness.Key("/page"),
-            "<% ctx.Write(\"new\"); %>",
+            "<% ctx.Response.Write(\"new\"); %>",
             null,
             _compiler.RuntimeId);
         DefaultHttpContext context = TestHttp.CreateContext("page", "GET", "/page");

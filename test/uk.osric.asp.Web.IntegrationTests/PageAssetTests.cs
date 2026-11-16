@@ -73,7 +73,7 @@ public sealed class PageAssetTests : IntegrationTest {
 
         using HttpClient editor = await CreateSignedInClientAsync();
         const string updatedBody = "body { color: red; }\n";
-        string updatedTemplate = updatedBody + "<% ctx.SetContentType(\"text/css; charset=utf-8\"); %>";
+        string updatedTemplate = updatedBody + "<% ctx.Response.SetContentType(\"text/css; charset=utf-8\"); %>";
         using HttpResponseMessage save = await PostEditorAsync(editor, "site.css", updatedTemplate);
         Assert.That(save.StatusCode, Is.EqualTo(HttpStatusCode.OK));
 
@@ -175,7 +175,7 @@ public sealed class PageAssetTests : IntegrationTest {
     public async Task APagesOwnMarkupCanVersionALiveAssetAsync() {
         using HttpClient editor = await CreateSignedInClientAsync();
         _ = await editor.GetStringAsync("/site.css");
-        await PostEditorAsync(editor, "linker", "<% ctx.Write(ctx.AssetUrl(\"/site.css\")); %>|<% ctx.Write(ctx.AssetUrl(\"/about\")); %>");
+        await PostEditorAsync(editor, "linker", "<% ctx.Response.Write(ctx.AssetUrl(\"/site.css\")); %>|<% ctx.Response.Write(ctx.AssetUrl(\"/about\")); %>");
 
         string body = await editor.GetStringAsync("/linker");
 

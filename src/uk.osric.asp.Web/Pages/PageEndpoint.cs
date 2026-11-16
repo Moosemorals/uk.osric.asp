@@ -229,14 +229,14 @@ internal sealed class PageEndpoint() {
             result = selection is null
                 ? await render.RenderAsync(path, page)
                 : await render.RenderAsync(path, page, selection);
-        } catch (PageStreamRefusedException) when (!page.IsCommitted) {
+        } catch (PageStreamRefusedException) when (!page.Response.IsCommitted) {
             // Capacity, not a page bug: nothing has been committed, so the ordinary problem document
             // can still answer. A page that wanted to explain the wait catches this itself.
             EndpointLogger().LogWarning("Page {Path} could not start a live stream: every stream slot is taken", path.Key);
 
             await WriteStreamFullAsync(context, path);
             return;
-        } catch (Exception exception) when (page.IsCommitted) {
+        } catch (Exception exception) when (page.Response.IsCommitted) {
             // The response is already on the wire, so there is no error page to write and no status to
             // change. A client that left is not a page fault; anything else is.
             render.Fail();
@@ -258,7 +258,7 @@ internal sealed class PageEndpoint() {
                 await WriteCompileErrorAsync(context, result.Diagnostics);
                 return;
             case RenderStatus.Timeout:
-                if (page.IsCommitted) {
+                if (page.Response.IsCommitted) {
                     // A 504 cannot replace headers that are already sent. The renderer has already
                     // logged and counted the abandonment; this is the truncation.
                     EndpointLogger().LogWarning(
@@ -272,19 +272,19 @@ internal sealed class PageEndpoint() {
                 return;
         }
 
-        if (page.IsCommitted) {
+        if (page.Response.IsCommitted) {
             if (versionHash is not null) {
                 environment.Metrics.RecordAsset(PageMetrics.AssetNonAsset);
             }
 
-            if (contentLayout.Layout is not null && PageChain.IsHtml(page.ToResponse().ContentType)) {
+            if (contentLayout.Layout is not null && PageChain.IsHtml(page.Response.ToResponse().ContentType)) {
                 EndpointLogger().LogWarning(
                     "Page {Path} flushed its response and then named layout {Layout}; the page was served alone",
                     path.Key, contentLayout.Layout);
             }
 
             try {
-                await page.CompleteAsync();
+                await page.Response.CompleteAsync();
                 if (render.TokenCancelled) {
                     render.Truncated();
                 } else if (context.RequestAborted.IsCancellationRequested) {
@@ -309,7 +309,7 @@ internal sealed class PageEndpoint() {
             // The first render of a seed may have learned the revision has no code. That answer is
             // now stored, so the next request takes the fast path above. Nothing wraps a no-code
             // page: its source is the complete representation.
-            await WriteSourceAsync(context, path, page.GetBody(), versionHash, environment);
+            await WriteSourceAsync(context, path, page.Response.GetBody(), versionHash, environment);
 
             return;
         }
@@ -318,7 +318,7 @@ internal sealed class PageEndpoint() {
             environment.Metrics.RecordAsset(PageMetrics.AssetNonAsset);
         }
 
-        Task write = (await chain.WrapAsync(render, path, contentLayout, page.ToResponse(), page.GetBody())) switch {
+        Task write = (await chain.WrapAsync(render, path, contentLayout, page.Response.ToResponse(), page.Response.GetBody())) switch {
             PageChainResult.Failed failure => ErrorResponses.WriteAsync(context, failure.StatusCode, failure.Error),
             PageChainResult.Served served => WritePageAsync(context, served.Response, served.Body, environment, session),
         };

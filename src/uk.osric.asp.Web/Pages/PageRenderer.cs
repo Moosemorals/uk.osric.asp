@@ -190,7 +190,7 @@ internal sealed class PageRenderer(
             if (loaded.Source is { } source) {
                 // The page has no code, so there is nothing to load or invoke: the stored source is
                 // the body, byte for byte, and the render's body budget still applies.
-                context.WriteRaw(source);
+                context.Response.WriteRaw(source);
                 outcome = PageMetrics.RenderOk;
 
                 return RenderResult.FromSource;
