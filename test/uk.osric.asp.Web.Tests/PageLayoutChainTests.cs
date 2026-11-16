@@ -403,6 +403,27 @@ public sealed class PageLayoutChainTests {
     }
 
     [Test]
+    public async Task ADefaultWrapperThatCannotBeServedIsSkippedAndTheRestOfTheChainRuns() {
+        Store(DefaultLayout, "<% int broken = ; %>");
+        Store("/other", """
+            <% var layout = ctx.Capabilities.GetRequired<IPageLayout>(); %><div class="other"><%== layout.Content?.Body ?? "" %></div>
+            """);
+        Store("/page", """
+            <% var composition = ctx.Capabilities.GetRequired<IPageComposition>();
+               composition.Wrap();
+               composition.Wrap("/other"); %><h1>Page</h1>
+            """);
+
+        Rendered rendered = await RenderAsync("/page");
+
+        Assert.Multiple(() => {
+            Assert.That(rendered.Context.Response.StatusCode, Is.EqualTo(StatusCodes.Status200OK));
+            Assert.That(rendered.Body, Does.Contain("<div class=\"other\"><h1>Page</h1></div>"),
+                "the default was skipped and the wrapper the page named still ran");
+        });
+    }
+
+    [Test]
     public async Task AMissingNamedWrapperIsAnErrorNamingTheKey() {
         Store("/page", """
             <% var composition = ctx.Capabilities.GetRequired<IPageComposition>();

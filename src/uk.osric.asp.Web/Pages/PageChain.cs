@@ -358,14 +358,15 @@ internal sealed class PageChain {
             // A wrapper must have code: a no-code page has no way to read Content, so its stored
             // source would replace the page instead of wrapping it.
             if (rendered.Status != RenderStatus.Rendered || rendered.IsSource) {
-                // A default that will not serve degrades to serving the page unwrapped rather than
-                // taking the site down; a wrapper the page named is an error, because silence is worse.
+                // A default that will not serve degrades to serving the page without it rather than
+                // taking the site down, and the rest of the chain still runs; a wrapper the page
+                // named is an error, because silence would be worse.
                 if (wrap.IsDefault) {
                     _environment.Metrics.RecordLayoutFallback(PagePath.Normalize(path[0].Key));
                     _logger.LogWarning(
-                        "Default layout {Layout} could not be served for {Path} ({Status}); the page was served unwrapped",
+                        "Default layout {Layout} could not be served for {Path} ({Status}); the page was served without it",
                         wrap.Key.Key, path[0].Key, rendered.Status);
-                    break;
+                    continue;
                 }
 
                 throw new PageChainFailureException(StatusCodes.Status500InternalServerError, new ErrorMessage(

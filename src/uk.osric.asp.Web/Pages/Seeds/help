@@ -165,16 +165,20 @@ is the page it wraps, as a <a href="/admin/reference/sdk#t-PageCapture"><code>Pa
 <code>AllowsScripts</code>. It is <code>null</code> in the page the visitor asked for. <strong>The
 wrapper folds what it wants</strong> &mdash; nothing is merged behind its back &mdash; and the merged
 head is one call: <code>Document.Head(ctx, layout, "Site", ctx.AssetUrl)</code> uses the page's title
-when the wrapper set none, and its sheets and head before the wrapper's own.</p>
+when the wrapper set none, and links the wrapper's own sheets and head first, with the page's after,
+so the page is the last word on how it looks.</p>
+<p>A wrapper that is itself wrapped must pass on what it wants the outer layer to see: set
+<code>layout.Title</code> to <code>Content.Title</code> and add <code>Content.Head</code> and
+<code>Content.Stylesheets</code> to your own slots. The host passes nothing on for you.</p>
 <p>The chain renders inside out: the page first, then the wrapper it declared, then the wrapper's
 wrapper. The whole chain shares one render budget, one fetch allowance and one body allowance, so
 two layers do not get two bites. The chain is limited to four layers by
 <code>Pages:Render:MaxLayoutDepth</code>, and a page that reaches itself again with the same request
 is refused as a loop.</p>
-<p>If the site layout named by <code>Wrap()</code> is missing or does not compile, the page is served
-unwrapped and the host logs a warning. A page named by <code>Wrap(key)</code> that cannot be served is
-an error naming the key. A wrapper must have code: a no-code page has no way to read
-<code>Content</code>, so it cannot wrap.</p>
+<p>If the site layout named by <code>Wrap()</code> is missing or does not compile, that layer is
+skipped, the host logs a warning and the rest of the chain still runs. A page named by
+<code>Wrap(key)</code> that cannot be served is an error naming the key. A wrapper must have code: a
+no-code page has no way to read <code>Content</code>, so it cannot wrap.</p>
 <p>A wrapper does not own the response. Its <code>ctx.Response.SetStatus</code>,
 <code>SetContentType</code>, <code>SetHeader</code> and <code>Redirect</code> are ignored and logged,
 because the page the visitor asked for owns those; <code>AllowScripts</code> is the one setting it
