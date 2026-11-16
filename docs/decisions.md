@@ -2147,12 +2147,28 @@ than a thrash that outlasts the probe.
 ### deploy-the-firewall-and-the-backups
 
 `ufw` denies inbound by default and allows SSH, HTTP and HTTPS; unattended upgrades are enabled on the
-host. **No cloud firewall and no automatic backups** are accepted policy choices, recorded rather than
-assumed, and revisited deliberately rather than by accident. Backups use SQLite's online backup or a copy
-of the stopped volume: copying live database files is refused because the write-ahead log can hold
-committed data, and a database backup is a credential store, because it holds password hashes and stamps.
+host, and **no cloud firewall** is an accepted policy choice, recorded rather than assumed and revisited
+deliberately rather than by accident. Backups use SQLite's online backup or a copy of the stopped volume:
+copying live database files is refused because the write-ahead log can hold committed data, and a
+database backup is a credential store, because it holds password hashes and stamps. Backups are no longer
+a habit: [deploy-backups-are-pulled](#deploy-backups-are-pulled) is what takes and keeps them.
 
 *Recorded in [cloud-init](../deploy/cloud-init.yaml), [operations](../deploy/operations.md#backups).*
+
+### deploy-backups-are-pulled
+
+The site snapshots `storage.db` nightly — SQLite's online backup through `podman unshare`, checked with
+`PRAGMA integrity_check`, kept as a 31-slot ring of daily archives beside the two host-only configuration
+files — and the backup host pulls the newest one on its own timer, with a key restricted to read-only
+`rrsync` of that one directory. The direction is the rule, not an artefact of wiring: the public host
+holds no credential to the machine that keeps its history, the copy is verified where the failing host
+does not control it, and retention belongs to the destination, which keeps dated directories rather than
+mirroring a source that can have a bad day. The site never deletes what the pull has taken, and the pull
+never deletes on the site.
+
+*Recorded in [operations](../deploy/operations.md#backups), [the snapshot script](../deploy/backup-snapshot.sh),
+[the pull script](../deploy/pull-backups.sh), [the snapshot timer](../deploy/uk.osric.asp-backup.timer),
+[the pull timer](../deploy/uk.osric.asp-pull.timer), [the plan](archive/offsite-backups.md).*
 
 ### deploy-no-outbound-alerting
 

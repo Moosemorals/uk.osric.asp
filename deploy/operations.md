@@ -288,11 +288,11 @@ It sets `BatchMode=yes`, so an unknown host or a missing key fails the run rathe
 prompt nobody is there to answer. The script and the units are the source of truth in this repository;
 do not edit the copies on the backup host, and re-run `make pull-install` after changing either.
 
-The direction is deliberate. The public host never holds a credential to the machine that keeps its
-history; a `--delete` mirror cannot erase good copies because the site had a bad day; and verification
-happens somewhere the site's host does not control. `rsync` is needed at both ends and
-`cloud-init.yaml` installs it here; the backup host also needs `sqlite3` and `gzip`, which the script
-uses to check what it pulled. A host that was built before this change has neither `rsync` nor the
+The direction is deliberate — `deploy-backups-are-pulled`. The public host never holds a credential to
+the machine that keeps its history; a `--delete` mirror cannot erase good copies because the site had a
+bad day; and verification happens somewhere the site's host does not control. `rsync` is needed at both
+ends and `cloud-init.yaml` installs it here; the backup host also needs `sqlite3` and `gzip`, which the
+script uses to check what it pulled. A host that was built before this change has neither `rsync` nor the
 `cloud-init` entry, so it needs `sudo apt-get install -y rsync` once — `make deploy` refuses to run
 until it is there.
 

@@ -7,12 +7,12 @@ SPDX-License-Identifier: MIT
 
 | | |
 | --- | --- |
-| Status | Proposed and built 2026-11-16 — waits for the owner to merge. Nothing is merged, and the names below are taken by the merge |
+| Status | Proposed, built and merged 2026-11-16. The name it proposed is in [the record](../../decisions.md) |
 | Size | Small — one snapshot script, one pull script, two user units, one package in cloud-init, a few lines in `deploy`, and the operations section that says how to restore |
 | Area | deploy (host) |
 | Spike | None. Every path and command below was read off `trunk` or run on 2026-11-16: the volume's location from `podman volume inspect`, the online copy from `sqlite3`, the ownership the restore needs from `podman unshare install`, and the restricted key's limits from `rrsync` itself |
-| Backlog | None. This is the backup half of `deploy-the-firewall-and-the-backups`, which is edited in place; [OPS-05](../jobs/OPS-05.md) stays the notification work and is not this |
-| Decisions | `deploy-the-firewall-and-the-backups` is revised: its "no automatic backups" sentence stops being true. Proposed at the merge: **deploy-backups-are-pulled** |
+| Backlog | None. This is the backup half of `deploy-the-firewall-and-the-backups`, which is edited in place; [OPS-05](../../jobs/OPS-05.md) stays the notification work and is not this |
+| Decisions | [deploy-backups-are-pulled](../../decisions.md#deploy-backups-are-pulled) is new; `deploy-the-firewall-and-the-backups` is revised in place, because its "no automatic backups" sentence stopped being true |
 
 ## The short version
 
@@ -34,7 +34,7 @@ nightly snapshot and an off-site copy:
 1. Losing the volume costs a day, not the site: pages, revisions, state, sessions, accounts and the
    assistant's memory come back from a file the host does not hold.
 2. The copy is taken without stopping the app, and is a transaction rather than a file copy — the WAL
-   problem [operations](../../deploy/operations.md#storage-and-migrations) already refuses to ignore.
+   problem [operations](../../../deploy/operations.md#storage-and-migrations) already refuses to ignore.
 3. A backup that has quietly stopped looks like a failure, not like success. The pull is where that is
    detected, because that is the machine that is not the one being backed up.
 4. Restoring is written down and needs no invention: stop, copy into the volume as the container's
@@ -47,12 +47,12 @@ nightly snapshot and an off-site copy:
 - **A backup of Prometheus.** Thirty days of metrics are disposable; a lost volume costs a chart, not a
   fact. Caddy's volumes are the same: it reissues a certificate on first request.
 - **Outbound alerting.** A failure is still found by reading a log, which is
-  `deploy-no-outbound-alerting`'s question and [OPS-05](../jobs/OPS-05.md)'s work. The pull fails
+  `deploy-no-outbound-alerting`'s question and [OPS-05](../../jobs/OPS-05.md)'s work. The pull fails
   loudly in its own journal and leaves no dated directory behind.
 - **Incremental or encrypted archives.** The database is tens of megabytes; a compressed full copy a
   day is cheaper than the code that would avoid it. Encryption at rest is the backup host's disk.
 - **A restore button.** `/admin/import` carries pages, not users, sessions or history; the file is the
-  backup ([IDEA-020](../jobs/IDEA-020.md)).
+  backup ([IDEA-020](../../jobs/IDEA-020.md)).
 - **A VPN.** The pull needs nothing but the SSH the host already accepts. If the host is ever put on
   the VPN the pull can run over it, but the direction does not change.
 
@@ -63,9 +63,9 @@ nightly snapshot and an off-site copy:
 | The database | `uk.osric.asp-storage` → `/data/storage.db` | Every page, revision, page state, session, account and assistant memory; a credential store, because it carries password hashes |
 | The key ring | `uk.osric.asp-keys` → `/home/app/.aspnet/DataProtection-Keys` | Signing keys for the auth, antiforgery and session cookies; losing it signs everyone out and invalidates open forms, and nothing else |
 | Host-only configuration | `~/.config/uk.osric.asp/assistant.env`, `appsettings.Production.json` | The provider key and the content-type override; neither is in the repository |
-| The backup story | [operations](../../deploy/operations.md#backups) | Says to stop the unit or use `podman unshare`, and that backups must be off-host. Nothing runs it |
-| The manual step | [deploy/README.md](../../deploy/README.md#day-to-day) | "back up storage, then `make deploy`" — the owner's habit, not a mechanism |
-| Packages on the host | [cloud-init](../../deploy/cloud-init.yaml) | `sqlite3` is there for this; `rsync` is not, and the pull needs it at both ends |
+| The backup story | [operations](../../../deploy/operations.md#backups) | Says to stop the unit or use `podman unshare`, and that backups must be off-host. Nothing runs it |
+| The manual step | [deploy/README.md](../../../deploy/README.md#day-to-day) | "back up storage, then `make deploy`" — the owner's habit, not a mechanism |
+| Packages on the host | [cloud-init](../../../deploy/cloud-init.yaml) | `sqlite3` is there for this; `rsync` is not, and the pull needs it at both ends |
 
 ## Design
 
@@ -239,14 +239,14 @@ the scripts are checked where they run:
 | A single day's copy is corrupt | The pull keeps every earlier day; a restore picks the newest good file |
 | The database grows past the disk | A month of copies at tens of megabytes is nothing against 80 GB; the metrics section already asks for `df -h` before raising retention |
 | The key leaks from the backup host | It can only read `~/backups` on this host through `rrsync`; the snapshot it reads is already credential-bearing, which is why it is `0600` |
-| Nobody reads the failed pull | That is [OPS-05](../jobs/OPS-05.md), and it is unchanged by this plan |
+| Nobody reads the failed pull | That is [OPS-05](../../jobs/OPS-05.md), and it is unchanged by this plan |
 
 ## Delivered when
 
 The timer takes a snapshot nightly and `systemctl --user start uk.osric.asp-backup.service` takes one
 on demand; the file passes `integrity_check` and carries `0600`; a pull from the backup host produces
 `YYYY-MM-DD/storage.db.gz` and `conf/`, and refuses a stale or corrupt file; the restore steps in
-[operations](../../deploy/operations.md#backups) have been run once against a throwaway volume; and
+[operations](../../../deploy/operations.md#backups) have been run once against a throwaway volume; and
 `make decisions` and `make license-check` are green.
 
 ## What changed while building
@@ -279,8 +279,8 @@ on demand; the file passes `integrity_check` and carries `0600`; a pull from the
   directory, 15 MB, and `PRAGMA integrity_check` on the pulled file answered `ok` with 69 page heads,
   one account and the migration history.
 
-## The names this plan intends
+## The name this plan proposed
 
-- **deploy-backups-are-pulled** — the backup host reaches in and copies; the site's host never holds a
-  credential to the machine that keeps its history, and the history cannot be erased by a bad day on
-  the host.
+- [deploy-backups-are-pulled](../../decisions.md#deploy-backups-are-pulled) — the backup host reaches in
+  and copies; the site's host never holds a credential to the machine that keeps its history, and the
+  history cannot be erased by a bad day on the host.

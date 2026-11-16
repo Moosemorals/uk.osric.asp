@@ -109,6 +109,9 @@ and applies them.
   could migrate: `ssh deploy@<server-ip> systemctl --user start uk.osric.asp-backup.service`. The daily
   timer covers every other night — [backups](operations.md#backups) has what that keeps and how it is
   pulled off the host.
+- **The offsite copy:** it is not this host's job. The backup host pulls the newest snapshot on its own
+  timer, and `make pull-install HOST=osric@<backuphost>` is how that side is installed or updated. A pull
+  that has stopped shows up there, not here — [backups](operations.md#backups) has both halves.
 - **The gate:** `make check`, run by hand when you want it — `make deploy` runs it anyway, with the
   browser suite after it. `make ci` is the slower version that starts from `make clean` and fails if
   the build dirties the tree; run it before a release, or from any machine that is asked to prove the
