@@ -116,7 +116,9 @@ write buffer 2
   cannot be served is an error naming the key.
 - **The menu is written twice, on purpose.** `SiteNavigation` composes it from the principal for the
   shell's own views, and the seeded `/_layout` writes it from `ctx.User` for stored pages — the header
-  items and the constant footer alike. The shell's
+  items and the constant footer alike. The shell's copy is one list of `ShellLink` values
+  (`Html/ShellLinks.cs`) filtered by section and audience, and `AdminNavigation` filters the same
+  list for the administration views, so a route cannot appear in one menu and not the other. The shell's
   document must not depend on a stored page, because the error, health and sign-in routes have to
   answer when the page pipeline is broken (`shell-the-menu-is-written-twice`). The shell's copy comes from
   `ShellDocument.Nav`, the layout's from the seeded library, and an integration test compares the
@@ -129,6 +131,30 @@ storage and nothing of the page's.
 The author-facing version of this section is the seeded `/help` page, which is itself a page the
 owner can edit and restore. It is linked from the editor page; a change to what a page author can
 do updates it in the same change.
+
+## The administration index
+
+`/admin` is a route, not a page: it answers anyone, and it draws the administration section of the
+same link list the menus use, minus the tools this visitor may not reach. An anonymous visitor sees
+the public tools and a line saying the rest needs a sign-in; there is no redirect. The key is
+reserved, so the editor refuses to store a page there.
+
+## The copyright page
+
+`/admin/copyright` renders the licence and notice files the image carries — `LICENSE`,
+`THIRD-PARTY-NOTICES.md`, the `LICENSES` texts and `REUSE.toml`. They are packed beside the assembly
+for the same reason the changelist is: the container has no checkout. The route is public like the
+reference, and `/about` links to it rather than carrying a copy that has to be kept in step.
+
+## The shell's own files
+
+`admin.css`, `admin.js`, `status.css`, `reference.css` and `rocket.svg` are in the project's
+`wwwroot` and served by the static file handler, which runs before routing so a file answers before
+the page catch-all can claim its key. They are not pages: they are not seeded, not listed by the
+editor and not versioned by `/?v=`. The five keys are in `Pages:ReservedPaths`, so the editor refuses
+a page that the file would shadow. `/site.css` and the editor's and assistant's sheets and scripts
+are still seeded, because a stored page links them and the owner may want to fix one without a
+release.
 
 ## The reference
 
@@ -147,8 +173,8 @@ resolved across the corpus or to Microsoft Learn), and `ReferenceRenderer` trans
 once with the embedded `reference.xslt`; the fragment is held for the process. A missing file is an
 assembly the index does not list, and a build with none says so rather than failing. An
 `<inheritdoc/>` entry is copied down from its base or interface member when that source is one of
-ours, and names the source when it is not. The seeded `/reference.css` styles the document and marks a
-link that leaves the site with an arrow.
+ours, and names the source when it is not. The `/reference.css` file in the web root styles the
+document and marks a link that leaves the site with an arrow.
 
 ## Error responses
 

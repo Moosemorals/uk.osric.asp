@@ -1022,11 +1022,13 @@ names its own policy is [IDEA-047](../docs/jobs/IDEA-047.md)'s work.
 
 ### pages-scratch-saves-itself
 
-The write is demonstrated by one seeded page, `/scratch`: it guards its own view, reads its own source,
-saves it, answers the save in the response it is already writing, and refuses a form whose revision hash
-has been overtaken. The manual gains a section for the capability and the page list points at the draft.
+A page that saves itself guards its own view, reads its own source, saves it, answers the save in the
+response it is already writing, and refuses a form whose revision hash has been overtaken. The manual's
+**Writing the page store** section is the worked example; the seeded `/scratch` that demonstrated it
+was retired on 2026-11-16, because the editor is the same save, and the integration suite writes the
+page it drives rather than the site shipping one.
 
-*Recorded in [scratch](../src/uk.osric.asp.Web/Pages/Seeds/scratch), [page self-save](plans/archive/page-self-save.md#d8--the-seeded-scratch-a-page-that-edits-itself).*
+*Recorded in [the manual](../src/uk.osric.asp.Web/Pages/Seeds/help), [page self-save](plans/archive/page-self-save.md#d8--the-seeded-scratch-a-page-that-edits-itself).*
 
 ### pages-the-editor-is-a-page
 
@@ -1462,9 +1464,11 @@ pass whose findings are recorded with the plan.
 ### shell-the-menu-is-written-twice
 
 The site menu is written twice on purpose: composed by `SiteNavigation` for the shell's own views, and
-written in the seeded `/_layout` for stored pages. Both render through one nav builder, and an
-integration test compares the two item lists. The shell's document is deliberately not the stored layout,
-because the error, health, sign-in and editor routes must answer when the page pipeline is broken.
+written in the seeded `/_layout` for stored pages. The shell's copy and the administration menu both
+filter one list of `ShellLink` values, so a route cannot appear in one and not the other. Both render
+through one nav builder, and an integration test compares the two item lists. The shell's document is
+deliberately not the stored layout, because the error, health, sign-in and editor routes must answer
+when the page pipeline is broken.
 
 *Recorded in [site navigation](plans/archive/site-navigation.md#d5--the-menu-lives-in-the-layout-and-in-the-shell-through-the-same-builder).*
 
