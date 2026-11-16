@@ -11,7 +11,7 @@ SPDX-License-Identifier: MIT
 | Size | Small — a rule and its audit in two documents, one withdrawn decision, one new job and the cross-references that pointed at it. No product code |
 | Spike | None. Nothing is built: the step records where a view lives and what a page still cannot do |
 | Decisions | `pages-page-first` (the rule) stands; `assistant-memory-belongs-to-the-assistant` is withdrawn; `assistant-memory-belongs-to-the-assistant` records the re-scope |
-| Backlog | [IDEA-025](../../jobs/IDEA-025.md) (the assistant page, which now includes the memory view), [IDEA-024](../../jobs/IDEA-024.md) (an archive is not a form), [IDEA-033](../../jobs/IDEA-033.md) (a page has no persistent per-account store); streaming landed in [the streaming plan](../page-streaming.md) |
+| Backlog | [IDEA-025](../../jobs/IDEA-025.md) (the assistant page, which now includes the memory view), [IDEA-024](../../jobs/IDEA-024.md) (an archive is not a form), [IDEA-033](../../jobs/IDEA-033.md) (a page has no persistent per-account store); streaming landed in [the streaming plan](page-streaming.md) |
 
 ## The short version
 
@@ -75,7 +75,7 @@ recovery routes the first version left out are named.
 | `/status`, `/status/chart`, `/admin/changes` | **Bootstrap.** Diagnosing why a page did not load starts here, and the changelist is a file the image carries, which a page cannot read | `pages-page-first`, `shell-the-admin-tools` |
 | `/admin/restore`, `/admin/scrub` | **Bootstrap.** The restore is the way back for a page that no longer compiles, so it cannot itself be a page that might not compile; the scrub is the one irreversible delete and stays an explicit owner action | `pages-page-first`, `shell-the-admin-tools` |
 | `{**path}`, `/favicon.ico`, `/health`, `/metrics` | **The runtime.** The page catch-all, the reserved key that stops a page claiming the icon, the probe and the scrape target are the thing pages run on | `pages-page-first` |
-| `/assistant`, `/assistant/{id}`, its events, approvals, options, stop, delete and the memory view | **A page cannot, yet.** The live stream is now something a page can do ([the streaming plan](../page-streaming.md)); the conversation's actions are host singletons; the memory view belongs to that page rather than to a capability of its own | [IDEA-025](../../jobs/IDEA-025.md) |
+| `/assistant`, `/assistant/{id}`, its events, approvals, options, stop, delete and the memory view | **A page cannot, yet.** The live stream is now something a page can do ([the streaming plan](page-streaming.md)); the conversation's actions are host singletons; the memory view belongs to that page rather than to a capability of its own | [IDEA-025](../../jobs/IDEA-025.md) |
 | `/admin/import`, `/admin/export` | **A page cannot, yet.** A page can neither take an upload nor serve a file | [IDEA-024](../../jobs/IDEA-024.md) |
 
 Two sentences go with the table: the page column is the default, so a new route asks which column it
