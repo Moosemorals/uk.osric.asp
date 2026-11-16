@@ -605,6 +605,22 @@ added.
 
 *Recorded in [async page contract](plans/archive/async-page-contract.md), [IContext](../src/uk.osric.asp.Sdk/IContext.cs).*
 
+### pages-the-response-is-one-object
+
+What a page writes into is one object on the context: `IContext.Response`, of type `IPageResponse`.
+It holds the body (`Write`, `WriteRaw`, `FlushAsync`), the settings applied to it (`SetStatus`,
+`SetContentType`, `SetHeader`, `AllowScripts`), the two shapes that replace a body (`Redirect`,
+`RedirectToLogin`) and the token a form carries (`AntiforgeryField`). It is contract rather than a
+capability, because every page always has one; it is one member rather than ten so the buffering and
+commit rule has a home, and so a helper can take an `IPageResponse` to get the output and nothing else.
+The ten old members stay on `IContext` for one release as `[Obsolete]` warnings under `PAGE009` —
+stored pages are compiled source and a change to `Sdk` invalidates every image — and go with that
+alias (`pages-a-warning-never-stops-a-page`, `pages-what-a-diagnostic-is`). `Web`'s implementation is
+`SimpleResponse`, which composes the response state and the body the [context
+split](plans/simple-context.md) made.
+
+*Recorded in [pages](pages.md#page-contract), [glossary](glossary.md#response), [the plan](plans/page-response.md).*
+
 ### pages-the-response-is-buffered-until-a-flush
 
 The response body is buffered by default: status, content type and headers are applied after
@@ -652,7 +668,8 @@ called a **capability**: `IPageCapabilities`, reached through `IContext.Capabili
 abstract member — `TryGet<T>(out T?)` — with `Get<T>` and `GetRequired<T>` as default interface members
 over it. The host owns registration, which is out of the SDK entirely, and a capability is either
 registered or absent, never `null`. Everything a page always has — the request, the response, logging
-and identity — stays on `IContext`; something a render offers is asked for by name, so a page says
+and identity — stays on `IContext`; the response stays there as `IContext.Response`, one member rather
+than ten (`pages-the-response-is-one-object`). Something a render offers is asked for by name, so a page says
 which capability it wants instead of finding it on the context.
 
 A capability is not a *feature* — something the product has, or ASP.NET Core's request features — and

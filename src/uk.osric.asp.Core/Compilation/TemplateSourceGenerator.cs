@@ -208,7 +208,7 @@ public static class TemplateSourceGenerator {
     }
 
     private static void AppendText(StringBuilder result, Token token) {
-        result.Append("ctx.WriteRaw(");
+        result.Append("ctx.Response.WriteRaw(");
         result.Append(ToCSharpLiteral(token.Value));
         result.Append(");");
         result.Append(Environment.NewLine);
@@ -239,14 +239,14 @@ public static class TemplateSourceGenerator {
             token.Position,
             token.Value[..leadingWhitespaceLength]);
 
-        // Both mapped regions in a write - the opener's `ctx.Write(` and the expression - belong to
+        // Both mapped regions in a write - the opener's `ctx.Response.Write(` and the expression - belong to
         // the page, so one enable covers them and one disable closes them.
         result.Append(NullableEnable);
         result.Append(Environment.NewLine);
         result.Append(string.Create(CultureInfo.InvariantCulture, $"#line {opener.Line} \"{TemplateName}\""));
         result.Append(Environment.NewLine);
         result.Append(' ', opener.Column - 1);
-        result.Append(token.Type == TokenType.Write ? "ctx.Write(" : "ctx.WriteRaw(");
+        result.Append(token.Type == TokenType.Write ? "ctx.Response.Write(" : "ctx.Response.WriteRaw(");
         result.Append(Environment.NewLine);
 
         result.Append(string.Create(CultureInfo.InvariantCulture, $"#line {expressionPosition.Line} \"{TemplateName}\""));

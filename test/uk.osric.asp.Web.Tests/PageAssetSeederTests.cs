@@ -178,10 +178,10 @@ public sealed class PageAssetSeederTests {
         Assert.That(template, Is.Not.Null);
         Assert.That(template, Does.Not.Contain("<!DOCTYPE"));
         Assert.That(template, Does.Contain("<h1>Pages</h1>"));
-        Assert.That(template, Does.Contain("if (ctx.User is not { } user) { ctx.RedirectToLogin(); return; }"));
+        Assert.That(template, Does.Contain("if (ctx.User is not { } user) { ctx.Response.RedirectToLogin(); return; }"));
         Assert.That(template, Does.Contain("IPageWrites").And.Contain("IPageCatalog").And.Contain("IDiffRenderer"));
-        Assert.That(template, Does.Contain("ctx.AllowScripts()"));
-        Assert.That(template, Does.Contain("ctx.AntiforgeryField"), "every form is checked by the host");
+        Assert.That(template, Does.Contain("ctx.Response.AllowScripts()"));
+        Assert.That(template, Does.Contain("ctx.Response.AntiforgeryField"), "every form is checked by the host");
     }
 
     [Test]
@@ -191,11 +191,11 @@ public sealed class PageAssetSeederTests {
         Assert.That(template, Is.Not.Null);
         Assert.That(template, Does.Not.Contain("<!DOCTYPE"));
         Assert.That(template, Does.Contain("<h1>Scratch</h1>"));
-        Assert.That(template, Does.Contain("if (ctx.User is not { } user) { ctx.RedirectToLogin(); return; }"),
+        Assert.That(template, Does.Contain("if (ctx.User is not { } user) { ctx.Response.RedirectToLogin(); return; }"),
             "the draft guards its own view, so an anonymous visitor is sent to sign in");
         Assert.That(template, Does.Contain("IPageCatalog").And.Contain("IPageWrites"));
         Assert.That(template, Does.Contain("name=\"template\""));
-        Assert.That(template, Does.Contain("ctx.AntiforgeryField"));
+        Assert.That(template, Does.Contain("ctx.Response.AntiforgeryField"));
         Assert.That(template, Does.Contain("href=\"/help#writing\""));
     }
 
@@ -212,7 +212,7 @@ public sealed class PageAssetSeederTests {
     public async Task TheSvgSeedReliesOnItsExtensionForItsContentTypeAsync() {
         string? template = TestOptions.SeedSource(PagePath.Normalize("/rocket.svg"));
 
-        Assert.That(template, Does.Not.Contain("ctx.SetContentType"));
+        Assert.That(template, Does.Not.Contain("ctx.Response.SetContentType"));
         Assert.That(template, Does.Not.Contain("<%"), "the icon has no code, so it is an asset");
         Assert.That(TestContentTypes.Shipped.ForPath("/rocket.svg"), Is.EqualTo("image/svg+xml; charset=utf-8"));
     }

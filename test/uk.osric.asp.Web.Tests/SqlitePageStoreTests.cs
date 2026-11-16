@@ -574,7 +574,7 @@ public sealed class SqlitePageStoreTests {
 
     [Test]
     public async Task ACodeSaveStoresItsVerdictAndItsImageAsync() {
-        const string Source = "<% ctx.Write(\"hi\"); %>";
+        const string Source = "<% ctx.Response.Write(\"hi\"); %>";
         await using StorageDbContext database = new(_options);
         IPageStore storage = new SqlitePageStore(database, NullLogger<SqlitePageStore>.Instance);
         PagePath path = Key("/hello");
@@ -657,7 +657,7 @@ public sealed class SqlitePageStoreTests {
 
     [Test]
     public async Task TheRepairFillsTheContentHashAndOnlyTheContentHashAsync() {
-        const string source = "<% ctx.Write(\"hi\"); %>";
+        const string source = "<% ctx.Response.Write(\"hi\"); %>";
         await using StorageDbContext database = new(_options);
         IPageStore storage = new SqlitePageStore(database, NullLogger<SqlitePageStore>.Instance);
         await storage.SavePageAsync(new PageTemplate(Key("/example"), source));
@@ -677,7 +677,7 @@ public sealed class SqlitePageStoreTests {
 
     [Test]
     public async Task ALazyCompileFillsANullVerdictAsync() {
-        const string Source = "<% ctx.Write(\"hi\"); %>";
+        const string Source = "<% ctx.Response.Write(\"hi\"); %>";
         await using StorageDbContext database = new(_options);
         IPageStore storage = new SqlitePageStore(database, NullLogger<SqlitePageStore>.Instance);
         PagePath path = Key("/cold");

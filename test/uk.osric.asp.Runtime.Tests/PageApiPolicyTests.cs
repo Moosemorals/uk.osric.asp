@@ -51,7 +51,7 @@ public sealed class PageApiPolicyTests {
                 public static string Format(decimal value) => value.ToString("N2", CultureInfo.InvariantCulture);
             }
             %>
-            <p>Total: <% ctx.Write(Amount.Format(42.5m)); %></p>
+            <p>Total: <% ctx.Response.Write(Amount.Format(42.5m)); %></p>
             """;
 
         CompileResult result = Compile(template);
@@ -167,7 +167,7 @@ public sealed class PageApiPolicyTests {
                 }
             }
             %>
-            <% Report report = new(); report.Add(1); ctx.Write(report.Format()); %>
+            <% Report report = new(); report.Add(1); ctx.Response.Write(report.Format()); %>
             """;
 
         CompileResult result = Compile(template);
@@ -198,14 +198,14 @@ public sealed class PageApiPolicyTests {
             <%
                 System.Collections.Generic.List<int> items = [1, 2, 3];
                 foreach (int item in System.Linq.Enumerable.Where(items, value => value > 1)) {
-                    ctx.Write($"{item} ");
+                    ctx.Response.Write($"{item} ");
                 }
 
-                ctx.Write(System.String.Join(",", items));
+                ctx.Response.Write(System.String.Join(",", items));
                 try {
                     throw new System.InvalidOperationException("caught");
                 } catch (System.InvalidOperationException error) {
-                    ctx.Write(error.Message);
+                    ctx.Response.Write(error.Message);
                 }
             %>
             """;
@@ -223,7 +223,7 @@ public sealed class PageApiPolicyTests {
                 HttpFetchStream stream = await fetch.StreamAsync(new HttpFetchRequest("https://api.example.com/events"));
                 string? line = await stream.ReadLineAsync();
                 await stream.CloseAsync();
-                ctx.Write(line ?? "empty");
+                ctx.Response.Write(line ?? "empty");
             %>
             """;
 
@@ -255,7 +255,7 @@ public sealed class PageApiPolicyTests {
 
     [Test]
     public void CallingAnObjectMemberIsRejected() {
-        CompileResult result = Compile("<% System.Object value = 1; ctx.Write(value.ToString()); %>");
+        CompileResult result = Compile("<% System.Object value = 1; ctx.Response.Write(value.ToString()); %>");
 
         Assert.That(result.Diagnostics, Has.Some.Matches<PageDiagnostic>(
             diagnostic => diagnostic is not null
@@ -264,7 +264,7 @@ public sealed class PageApiPolicyTests {
 
     [Test]
     public void DynamicIsRejected() {
-        CompileResult result = Compile("<% dynamic value = 1; ctx.Write(value.ToString()); %>");
+        CompileResult result = Compile("<% dynamic value = 1; ctx.Response.Write(value.ToString()); %>");
 
         Assert.That(result.Diagnostics, Has.Some.Matches<PageDiagnostic>(
             diagnostic => diagnostic is not null
@@ -320,7 +320,7 @@ public sealed class PageApiPolicyTests {
                 }
             }
             %>
-            <% ctx.Write(await Helper.GetAsync()); %>
+            <% ctx.Response.Write(await Helper.GetAsync()); %>
             """;
 
         CompileResult result = Compile(template);
@@ -394,8 +394,8 @@ public sealed class PageApiPolicyTests {
             <%
                 System.Text.Json.JsonDocument document =
                     System.Text.Json.JsonDocument.Parse("{\"value\": 1}");
-                ctx.Write(document.RootElement.ValueKind == System.Text.Json.JsonValueKind.Object ? "object" : "other");
-                ctx.Write(System.Text.Json.JsonSerializer.Serialize(new System.Text.Json.JsonSerializerOptions(System.Text.Json.JsonSerializerDefaults.Web)));
+                ctx.Response.Write(document.RootElement.ValueKind == System.Text.Json.JsonValueKind.Object ? "object" : "other");
+                ctx.Response.Write(System.Text.Json.JsonSerializer.Serialize(new System.Text.Json.JsonSerializerOptions(System.Text.Json.JsonSerializerDefaults.Web)));
             %>
             """;
 
@@ -416,9 +416,9 @@ public sealed class PageApiPolicyTests {
                 JsonDocument document = JsonDocument.Parse("{\"a\": 1}", documentOptions);
                 JsonNode? node = JsonNode.Parse("{\"b\": 2}");
                 JsonSerializerOptions options = new() { PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
-                ctx.Write(document.RootElement.GetProperty("a").GetInt32().ToString());
-                ctx.Write(node is null ? "none" : node.ToJsonString());
-                ctx.Write(options.PropertyNamingPolicy?.ConvertName("TwoWords") ?? "");
+                ctx.Response.Write(document.RootElement.GetProperty("a").GetInt32().ToString());
+                ctx.Response.Write(node is null ? "none" : node.ToJsonString());
+                ctx.Response.Write(options.PropertyNamingPolicy?.ConvertName("TwoWords") ?? "");
             %>
             """;
 
@@ -439,9 +439,9 @@ public sealed class PageApiPolicyTests {
                 counts["a"] = 1;
                 int hash = HashCode.Combine(1, 2);
                 Random random = new(1);
-                ctx.Write(counts["A"].ToString());
-                ctx.Write(hash.ToString());
-                ctx.Write(random.Next(3).ToString());
+                ctx.Response.Write(counts["A"].ToString());
+                ctx.Response.Write(hash.ToString());
+                ctx.Response.Write(random.Next(3).ToString());
             %>
             """;
 
@@ -452,7 +452,7 @@ public sealed class PageApiPolicyTests {
 
     [Test]
     public void ADeniedTypeIsReportedOnce() {
-        CompileResult result = Compile("<% ctx.Write(System.IO.File.ReadAllText(\"page.txt\")); %>");
+        CompileResult result = Compile("<% ctx.Response.Write(System.IO.File.ReadAllText(\"page.txt\")); %>");
 
         Assert.That(result.IsSuccess, Is.False);
         PageDiagnostic[] refusals = [.. result.Diagnostics
@@ -466,7 +466,7 @@ public sealed class PageApiPolicyTests {
 
     [Test]
     public void EnvironmentIsStillRejected() {
-        CompileResult result = Compile("<% ctx.Write(System.Environment.NewLine); %>");
+        CompileResult result = Compile("<% ctx.Response.Write(System.Environment.NewLine); %>");
 
         Assert.That(result.IsSuccess, Is.False);
         Assert.That(result.Diagnostics, Has.Some.Matches<PageDiagnostic>(
@@ -476,7 +476,7 @@ public sealed class PageApiPolicyTests {
 
     [Test]
     public void AJsonSerializerAttributeIsStillRejected() {
-        CompileResult result = Compile("<% [System.Text.Json.Serialization.JsonPropertyName(\"value\")] string text; ctx.Write(text); %>");
+        CompileResult result = Compile("<% [System.Text.Json.Serialization.JsonPropertyName(\"value\")] string text; ctx.Response.Write(text); %>");
 
         Assert.That(result.IsSuccess, Is.False);
         Assert.That(result.Diagnostics, Has.Some.Matches<PageDiagnostic>(

@@ -95,7 +95,7 @@ public sealed class PageLayoutChainTests {
     public async Task ARedirectIsNeverWrapped() {
         StoreLayout();
         Store("/page", """
-            <% ctx.Capabilities.GetRequired<IPageLayout>().Title = "Page"; %><% ctx.Redirect("/elsewhere"); %>
+            <% ctx.Capabilities.GetRequired<IPageLayout>().Title = "Page"; %><% ctx.Response.Redirect("/elsewhere"); %>
             """);
 
         Rendered rendered = await RenderAsync("/page");
@@ -311,15 +311,15 @@ public sealed class PageLayoutChainTests {
         // The layout is the one that tries, so it is the layout that must be ignored.
         Store(DefaultLayout, """
             <% var layout = ctx.Capabilities.GetRequired<IPageLayout>();
-               ctx.SetStatus(418);
-               ctx.SetContentType("text/plain");
-               ctx.SetHeader("X-Layout", "1"); %><title><%= layout.Title %></title><%== layout.Body %>
+               ctx.Response.SetStatus(418);
+               ctx.Response.SetContentType("text/plain");
+               ctx.Response.SetHeader("X-Layout", "1"); %><title><%= layout.Title %></title><%== layout.Body %>
             """);
         Store("/page", """
             <% var layout = ctx.Capabilities.GetRequired<IPageLayout>();
                layout.Title = "Page";
-               ctx.SetStatus(202);
-               ctx.SetHeader("X-Page", "1"); %><h1>Page</h1>
+               ctx.Response.SetStatus(202);
+               ctx.Response.SetHeader("X-Page", "1"); %><h1>Page</h1>
             """);
 
         Rendered rendered = await RenderAsync("/page");
@@ -338,7 +338,7 @@ public sealed class PageLayoutChainTests {
         Store("/page", $$"""
             <% var layout = ctx.Capabilities.GetRequired<IPageLayout>();
                layout.Title = "Page";
-               {{(pageAllows ? "ctx.AllowScripts();" : "")}} %><h1>Page</h1>
+               {{(pageAllows ? "ctx.Response.AllowScripts();" : "")}} %><h1>Page</h1>
             """);
 
         Rendered rendered = await RenderAsync("/page");
@@ -610,7 +610,7 @@ public sealed class PageLayoutChainTests {
 
     [Test]
     public async Task TheWriteCapabilityIsOfferedToEveryPageAsync() {
-        const string Probe = """<% ctx.Capabilities.GetRequired<IPageLayout>().Title = "Probe"; %><% ctx.Write(ctx.Capabilities.Get<IPageWrites>() is null ? "absent" : "present"); %>""";
+        const string Probe = """<% ctx.Capabilities.GetRequired<IPageLayout>().Title = "Probe"; %><% ctx.Response.Write(ctx.Capabilities.Get<IPageWrites>() is null ? "absent" : "present"); %>""";
         Store("/pages", Probe);
         Store("/other", Probe);
 
@@ -630,7 +630,7 @@ public sealed class PageLayoutChainTests {
         Store("/pages", """<% ctx.Capabilities.GetRequired<IPageLayout>().Title = "Editor"; %>page""");
         Store(DefaultLayout, """
             <% var layout = ctx.Capabilities.GetRequired<IPageLayout>();
-               ctx.Write(ctx.Capabilities.Get<IPageWrites>() is null ? "absent" : "present"); %>
+               ctx.Response.Write(ctx.Capabilities.Get<IPageWrites>() is null ? "absent" : "present"); %>
             <title><%= layout.Title %></title><link rel="stylesheet" href="/site.css"><% foreach (string href in layout.Stylesheets) { %><link rel="stylesheet" href="<%= href %>"><% } %>
             <main id="main"><%== layout.Body %></main></body></html>
             """);
@@ -647,7 +647,7 @@ public sealed class PageLayoutChainTests {
 
     private void StoreLayout(bool allowsScripts = false) {
         Store(DefaultLayout, $$"""
-            <% var layout = ctx.Capabilities.GetRequired<IPageLayout>(); {{(allowsScripts ? "ctx.AllowScripts();" : "")}} %><!DOCTYPE html><html lang="en"><head><title><%= layout.Title %></title><link rel="stylesheet" href="/site.css"><% foreach (string href in layout.Stylesheets) { %><link rel="stylesheet" href="<%= href %>"><% } %><%== layout.Head %></head>
+            <% var layout = ctx.Capabilities.GetRequired<IPageLayout>(); {{(allowsScripts ? "ctx.Response.AllowScripts();" : "")}} %><!DOCTYPE html><html lang="en"><head><title><%= layout.Title %></title><link rel="stylesheet" href="/site.css"><% foreach (string href in layout.Stylesheets) { %><link rel="stylesheet" href="<%= href %>"><% } %><%== layout.Head %></head>
             <body>
             <main id="main">
             <%== layout.Body %>

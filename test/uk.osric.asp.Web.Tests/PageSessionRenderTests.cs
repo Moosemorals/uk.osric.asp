@@ -13,7 +13,7 @@ public sealed class PageSessionRenderTests {
         <% IPageSession session = ctx.Capabilities.GetRequired<IPageSession>();
            if (ctx.Request.Method == "POST") {
                await session.SetAsync("notice", "saved");
-               ctx.Redirect(ctx.Path, 303);
+               ctx.Response.Redirect(ctx.Path, 303);
                return;
            }
            PageValue<string> notice = await session.TryGetValueAsync<string>("notice"); %>
@@ -122,6 +122,6 @@ public sealed class PageSessionRenderTests {
         SimpleContext context = pages.CreateContext(PageHarness.Key(path), method: "POST");
         RenderResult result = await pages.Renderer.RenderAsync(PageHarness.Key(path), context, CancellationToken.None);
 
-        return (result, context.GetBody());
+        return (result, context.Response.GetBody());
     }
 }

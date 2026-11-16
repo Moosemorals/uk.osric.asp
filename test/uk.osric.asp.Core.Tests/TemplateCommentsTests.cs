@@ -29,7 +29,7 @@ public sealed class TemplateCommentsTests {
 
     [Test]
     public void ACommentMarkerInsideCodeIsNotAComment() {
-        const string Template = "<% ctx.Write(\"<%#\"); %>";
+        const string Template = "<% ctx.Response.Write(\"<%#\"); %>";
 
         Assert.That(TemplateComments.Remove(Template), Is.EqualTo(Template));
     }

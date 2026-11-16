@@ -45,7 +45,7 @@ public sealed class PageCompilerTests {
 
     [Test]
     public async Task CodeBlocksExecuteBetweenText() {
-        TestContext context = await CompileAndRun("before<% ctx.Write(\"middle\"); %>after");
+        TestContext context = await CompileAndRun("before<% ctx.Response.Write(\"middle\"); %>after");
 
         Assert.That(context.Output, Is.EqualTo("beforemiddleafter"));
     }
@@ -102,7 +102,40 @@ public sealed class PageCompilerTests {
         PageDiagnostic error = result.Diagnostics.Single(diagnostic =>
             diagnostic.Message.Contains("CS1501", StringComparison.Ordinal));
 
-        Assert.That(error.Position, Is.EqualTo(new TemplatePosition(2, 7)));
+        // The call is emitted as ctx.Response.Write(, so the member the compiler names sits nine
+        // columns right of the opener the call maps from. The expression keeps its own mapping.
+        Assert.That(error.Position, Is.EqualTo(new TemplatePosition(2, 16)));
+    }
+
+    [Test]
+    public void AWriteThroughTheResponseCompilesClean() {
+        CompileResult result = Compile("<% ctx.Response.Write(\"hi\"); %>");
+
+        Assert.That(result.Diagnostics, Is.Empty);
+    }
+
+    [Test]
+    public void AWriteThroughTheContextStillCompilesWithAPageWarning() {
+        CompileResult result = Compile("<% ctx.Write(\"hi\"); %>");
+
+        PageDiagnostic warning = result.Diagnostics.Single();
+
+        Assert.Multiple(() => {
+            Assert.That(result.IsSuccess, Is.True, "a warning never stops a page being served");
+            Assert.That(warning.Severity, Is.EqualTo(PageDiagnosticSeverity.Warning));
+            Assert.That(warning.Message, Does.StartWith("PAGE009:"));
+            Assert.That(warning.Message, Does.Contain("IContext.Response"));
+        });
+    }
+
+    // The narrow type is the point of the split: a helper can take the output and nothing else.
+    [Test]
+    public void APageHelperCanTakeTheResponseInsteadOfTheContext() {
+        CompileResult result = Compile(
+            "<%! static class Card { public static void Draw(IPageResponse output, string text) { output.Write(text); } } %>"
+            + "<% Card.Draw(ctx.Response, \"hi\"); %>");
+
+        Assert.That(result.Diagnostics, Is.Empty);
     }
 
     [Test]
@@ -121,7 +154,7 @@ public sealed class PageCompilerTests {
     [Test]
     public void APageMayEncodeBytesAndHashThem() {
         CompileResult result = Compile(
-            """<% byte[] bytes = System.Text.Encoding.UTF8.GetBytes("hello"); byte[] hash = System.Security.Cryptography.SHA256.HashData(bytes); ctx.Write(System.Convert.ToHexString(hash)); %>""");
+            """<% byte[] bytes = System.Text.Encoding.UTF8.GetBytes("hello"); byte[] hash = System.Security.Cryptography.SHA256.HashData(bytes); ctx.Response.Write(System.Convert.ToHexString(hash)); %>""");
 
         Assert.That(result.IsSuccess, Is.True, string.Join(Environment.NewLine, result.Diagnostics));
     }
@@ -163,7 +196,7 @@ public sealed class PageCompilerTests {
 
     [Test]
     public void APageThatDereferencesTheIdentityWithoutAGuardWarns() {
-        CompileResult result = Compile("<% ctx.Write(ctx.User.Name); %>");
+        CompileResult result = Compile("<% ctx.Response.Write(ctx.User.Name); %>");
 
         Assert.That(result.IsSuccess, Is.True, string.Join(Environment.NewLine, result.Diagnostics));
         Assert.That(result.Diagnostics, Has.Exactly(1).Matches<PageDiagnostic>(
@@ -175,7 +208,7 @@ public sealed class PageCompilerTests {
     [Test]
     public void APageThatGuardsTheIdentityIntoALocalDoesNotWarn() {
         CompileResult result = Compile("""
-            <% if (ctx.User is not { } user) { ctx.RedirectToLogin(); return; } %>
+            <% if (ctx.User is not { } user) { ctx.Response.RedirectToLogin(); return; } %>
             <p><%= user.Name %></p>
             """);
 
@@ -185,7 +218,7 @@ public sealed class PageCompilerTests {
 
     [Test]
     public void AWarningDoesNotStopTheImageBeingEmitted() {
-        CompileResult result = Compile("<% ctx.Write(ctx.User.Name); %>");
+        CompileResult result = Compile("<% ctx.Response.Write(ctx.User.Name); %>");
 
         Assert.That(result.Image, Is.Not.Null.And.Not.Empty);
         Assert.That(result.Symbols, Is.Not.Null.And.Not.Empty);
@@ -195,7 +228,7 @@ public sealed class PageCompilerTests {
 
     [Test]
     public void AWarningIsReportedAtTheTemplateLineTheAuthorWrote() {
-        CompileResult result = Compile("first\nsecond\n<% ctx.Write(ctx.User.Name); %>");
+        CompileResult result = Compile("first\nsecond\n<% ctx.Response.Write(ctx.User.Name); %>");
 
         PageDiagnostic warning = result.Diagnostics.Single(diagnostic =>
             diagnostic.Message.Contains("CS8602", StringComparison.Ordinal));
@@ -225,7 +258,7 @@ public sealed class PageCompilerTests {
         CompileResult result = Compile("""
             <%
             #nullable disable
-            ctx.Write(ctx.User.Name);
+            ctx.Response.Write(ctx.User.Name);
             %>
             """);
 
@@ -329,7 +362,7 @@ public sealed class PageCompilerTests {
                 public static string Format(decimal value) => value.ToString("N2", System.Globalization.CultureInfo.InvariantCulture);
             }
             %>
-            Total: <% ctx.Write(Amount.Format(42.5m)); %>
+            Total: <% ctx.Response.Write(Amount.Format(42.5m)); %>
             """);
 
         Assert.That(context.Output, Is.EqualTo("\nTotal: 42.50"));
@@ -339,7 +372,7 @@ public sealed class PageCompilerTests {
     public async Task APageDeclaredTypeIsUsableFromMoreThanOneBlock() {
         TestContext context = await CompileAndRun("""
             <%!static class Greeting { public static string For(string who) => "Hello, " + who; }%>
-            <% ctx.Write(Greeting.For("world")); %><% ctx.Write(Greeting.For("again")); %>
+            <% ctx.Response.Write(Greeting.For("world")); %><% ctx.Response.Write(Greeting.For("again")); %>
             """);
 
         Assert.That(context.Output, Is.EqualTo("\nHello, worldHello, again"));
@@ -400,7 +433,7 @@ public sealed class PageCompilerTests {
 
     [Test]
     public async Task OneImageCanBeLoadedAndInvokedMoreThanOnce() {
-        using LoadedPage template = Load("Hello, <% ctx.Write(\"world\"); %>!");
+        using LoadedPage template = Load("Hello, <% ctx.Response.Write(\"world\"); %>!");
         TestContext first = new();
         TestContext second = new();
 
@@ -472,7 +505,7 @@ public sealed class PageCompilerTests {
         return context;
     }
 
-    private sealed class TestContext : IContext {
+    private sealed class TestContext : IContext, IPageResponse {
         private static readonly IReadOnlyDictionary<string, string> s_empty = new Dictionary<string, string>();
         private static readonly IReadOnlyDictionary<string, IReadOnlyList<string>> s_noValues =
             new Dictionary<string, IReadOnlyList<string>>();
@@ -488,6 +521,8 @@ public sealed class PageCompilerTests {
         public PageUser? User => null;
 
         public CancellationToken Aborted => CancellationToken.None;
+
+        public IPageResponse Response => this;
 
         public string Output => _output.ToString();
 

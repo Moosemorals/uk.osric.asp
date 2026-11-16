@@ -18,15 +18,15 @@ public sealed class PageEditorTests {
         using PageHarness pages = new(storage);
 
         IReadOnlyList<PageDiagnostic> diagnostics = (await pages.Editor.SaveAsync(
-            PageHarness.Key("/hello"), "<% ctx.Write(\"Hello.\"); %>")).Diagnostics;
+            PageHarness.Key("/hello"), "<% ctx.Response.Write(\"Hello.\"); %>")).Diagnostics;
 
         Assert.That(diagnostics, Is.Empty);
         Assert.That(pages.Compiler.CompileCount, Is.EqualTo(1));
 
         PageTemplate saved = PageHarness.Stored(storage, "/hello");
-        Assert.That(saved.Template, Is.EqualTo("<% ctx.Write(\"Hello.\"); %>"));
+        Assert.That(saved.Template, Is.EqualTo("<% ctx.Response.Write(\"Hello.\"); %>"));
         Assert.That(saved.Image?.Bytes, Is.Not.Null.And.Not.Empty);
-        Assert.That(saved.Image?.TemplateHash, Is.EqualTo(TemplateFingerprint.Of("<% ctx.Write(\"Hello.\"); %>")));
+        Assert.That(saved.Image?.TemplateHash, Is.EqualTo(TemplateFingerprint.Of("<% ctx.Response.Write(\"Hello.\"); %>")));
         Assert.That(saved.Image?.RuntimeId, Is.EqualTo(pages.Compiler.RuntimeId));
         Assert.That(saved.CreationRuntimeId, Is.EqualTo(pages.Compiler.RuntimeId));
         Assert.That(saved.RevisionId, Is.Not.Empty);
@@ -129,10 +129,10 @@ public sealed class PageEditorTests {
         using PageHarness pages = new(storage, new FaultingCompiler());
 
         await Assert.ThrowsAsync<InvalidOperationException>(
-            () => pages.Editor.SaveAsync(PageHarness.Key("/fault"), "<% ctx.Write(\"Hello.\"); %>"));
+            () => pages.Editor.SaveAsync(PageHarness.Key("/fault"), "<% ctx.Response.Write(\"Hello.\"); %>"));
 
         PageTemplate saved = PageHarness.Stored(storage, "/fault");
-        Assert.That(saved.Template, Is.EqualTo("<% ctx.Write(\"Hello.\"); %>"));
+        Assert.That(saved.Template, Is.EqualTo("<% ctx.Response.Write(\"Hello.\"); %>"));
         Assert.That(saved.Image, Is.Null);
         Assert.That(saved.CreationRuntimeId, Is.EqualTo(pages.Compiler.RuntimeId));
     }

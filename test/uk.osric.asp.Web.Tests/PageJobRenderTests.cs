@@ -22,7 +22,7 @@ public sealed class PageJobRenderTests {
         using PageHarness pages = new(_storage);
         await pages.Editor.SaveAsync(PageHarness.Key("/jobs"), """
             <% ctx.Capabilities.GetRequired<IPageLayout>().Layout = null;
-               ctx.SetHeader("X-Jobs", ctx.Capabilities.Get<IPageJobs>() is null ? "none" : "present"); %>ok
+               ctx.Response.SetHeader("X-Jobs", ctx.Capabilities.Get<IPageJobs>() is null ? "none" : "present"); %>ok
             """);
 
         DefaultHttpContext context = await RenderAsync(pages, "/jobs");
@@ -55,7 +55,7 @@ public sealed class PageJobRenderTests {
             <% ctx.Capabilities.GetRequired<IPageLayout>().Layout = null;
                PageJobStart start = await ctx.Capabilities.GetRequired<IPageJobs>()
                    .StartAsync("/_work/echo", null);
-               ctx.SetHeader("X-Start", start.Refusal.ToString()); %>ok
+               ctx.Response.SetHeader("X-Start", start.Refusal.ToString()); %>ok
             """);
 
         DefaultHttpContext context = await RenderAsync(pages, "/jobs", method: "HEAD");
@@ -71,7 +71,7 @@ public sealed class PageJobRenderTests {
             <%! using System.Collections.Generic; %>
             <% ctx.Capabilities.GetRequired<IPageLayout>().Layout = null;
                IReadOnlyList<PageJobInfo> jobs = await ctx.Capabilities.GetRequired<IPageJobs>().ListAsync();
-               ctx.SetHeader("X-Jobs", jobs.Count.ToString()); %>ok
+               ctx.Response.SetHeader("X-Jobs", jobs.Count.ToString()); %>ok
             """);
 
         DefaultHttpContext context = await RenderAsync(pages, "/jobs", method: "HEAD");

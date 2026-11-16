@@ -462,7 +462,7 @@ public sealed class PageJobTests {
     public async Task AKeyThatIsNotAWorkerIsRefusedAsync() {
         using PageHarness pages = new(new FakePageStore());
         _ = await SaveAsync(pages, "/_lib/helpers", "<%! namespace Site.Helpers { public static class Help { } } %>");
-        _ = await SaveAsync(pages, "/ordinary", "<% ctx.Write(\"hi\"); %>");
+        _ = await SaveAsync(pages, "/ordinary", "<% ctx.Response.Write(\"hi\"); %>");
         _ = await SaveAsync(pages, "/plain.css", "body { }");
 
         PageJobRefusal missing = (await StartAsync(pages, "/starter", "/missing", null)).Refusal;

@@ -42,8 +42,8 @@ reading **Developer: Inspect Editor Tokens and Scopes**, and by keeping every C#
 
 - **Core tests** cover one rule at a time and exercise `Core` directly. `Sdk` has no suite of its
 own: it is the page contract — interfaces and plain values with documentation and no host behaviour —
-and what depends on it is asserted by the suites that use it (`SimpleContextTests`, `PageResponseStateTests`,
-`PageBodyTests`, `ErrorEndpointTests`, `PageScopeTests`,
+and what depends on it is asserted by the suites that use it (`SimpleContextTests`, `SimpleResponseTests`,
+`PageResponseStateTests`, `PageBodyTests`, `ErrorEndpointTests`, `PageScopeTests`,
 `PageLoadContextTests`, `PageReferenceSetTests`).
 - **Runtime tests** cover what the core cannot: Roslyn emitting a handler, loading the assembly and
   invoking it, and `PageWorkerTests` the fourth kind — a declaration-only source that stays a library,
@@ -109,7 +109,7 @@ and what depends on it is asserted by the suites that use it (`SimpleContextTest
   that keeps talking. `DisconnectGuardTests` pins the write after a client disconnect as a Debug-level end,
   `Web.IntegrationTests/PageStreamingTests` and `AssistantDisconnectTests` drive the same shapes
   through the real host. `LoginRedirectTests` pins the
-  `returnUrl` it builds, and `SimpleContextTests` the guard's status per method, the one-token-per-
+  `returnUrl` it builds, and `SimpleResponseTests` the guard's status per method, the one-token-per-
   render rule and the empty field an abandoned render gets. The logging is asserted rather than
   assumed: `RequestLogScopeTests` pins the request scope — the exchange, the account and the route's
   ids — and `RunProcessorTests` proves a provider failure is logged at Warning with its exception and
@@ -209,13 +209,13 @@ and what depends on it is asserted by the suites that use it (`SimpleContextTest
 - **Integration tests** cover what only exists when the host runs: route matching and ordering, the
   exception-handler branch, sign-in and authorisation, antiforgery rejection, status codes and
   content types set by middleware, startup-seeded page assets and their conditional responses,
-  a stored page that widens its own policy with `ctx.AllowScripts()` while a page that redirects or
+  a stored page that widens its own policy with `ctx.Response.AllowScripts()` while a page that redirects or
   throws does not, migrations, DI wiring and the fact that a page is compiled once. Editor integration coverage drives the page
   from its own form — a save that carries the revision it rendered, a stale save that is a `409`, an
   install through the confirmation, and a `/edit` that answers `404` until a page is stored there —
   and confirms deleted seeded assets remain tombstoned across restarts. `PageAuthenticationTests` runs the whole
   private-page round trip: a guarded page saved through the editor, the redirect to `/login` with its
-  query, signing in back to that page, its form with and without `ctx.AntiforgeryField`, sign-out and
+  query, signing in back to that page, its form with and without `ctx.Response.AntiforgeryField`, sign-out and
   a password change making an existing cookie anonymous, and an external `returnUrl` still falling
   back to the editor. The archive suites split the same way: `PageArchiveWriterTests` and
   `PageArchiveReaderTests` round-trip real serialized SQLite bytes and reject every hostile shape
@@ -296,7 +296,7 @@ serves with Playwright and Firefox — the browser the site is read in.
   page error the browser reported while it ran — which is how the seeded icon was found rendering as a
   black silhouette under the page content security policy. `PageTemplate` writes the title the default
   layout requires, so a page the suite saves is one the site will serve.
-- `PageScriptTests` saves a JavaScript page and an HTML page that calls `ctx.AllowScripts()`, then
+- `PageScriptTests` saves a JavaScript page and an HTML page that calls `ctx.Response.AllowScripts()`, then
   proves the browser loaded the script. That is the enforcement the header alone cannot show.
 - `EditorBrowserTests` drives the editor's module: a typed line adds a number to the gutter and a
   deleted one takes it away, the numbers stay right-aligned and step with the text's own rows, a

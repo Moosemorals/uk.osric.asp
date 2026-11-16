@@ -85,7 +85,7 @@ public sealed class SecurityHeaderTests : IntegrationTest {
 
     [Test]
     public async Task APageThatAllowsScriptsWidensItsPolicy() {
-        await SavePageAsync("/scripted", "<% ctx.AllowScripts(); %>Scripted.");
+        await SavePageAsync("/scripted", "<% ctx.Response.AllowScripts(); %>Scripted.");
         using HttpClient client = CreateClient();
 
         HttpResponseMessage response = await client.GetAsync("/scripted");
@@ -110,7 +110,7 @@ public sealed class SecurityHeaderTests : IntegrationTest {
     [Test]
     public async Task APageThatThrowsAfterAllowingScriptsStillForbidsThem() {
         await SavePageAsync("/boom-scripted",
-            "<% ctx.AllowScripts(); throw new System.InvalidOperationException(\"Boom.\"); %>");
+            "<% ctx.Response.AllowScripts(); throw new System.InvalidOperationException(\"Boom.\"); %>");
         using HttpClient client = CreateClient();
 
         HttpResponseMessage response = await client.GetAsync("/boom-scripted");
@@ -122,7 +122,7 @@ public sealed class SecurityHeaderTests : IntegrationTest {
 
     [Test]
     public async Task AScriptedPageKeepsItsPolicyAndIsNeverCached() {
-        await SavePageAsync("/scripted-cached", "<% ctx.AllowScripts(); %>Scripted.");
+        await SavePageAsync("/scripted-cached", "<% ctx.Response.AllowScripts(); %>Scripted.");
         using HttpClient client = CreateClient();
         HttpResponseMessage first = await client.GetAsync("/scripted-cached");
 

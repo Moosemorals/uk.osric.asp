@@ -46,8 +46,8 @@ Nothing the author types is an exception either. A template that does not parse 
 it, the page answers "Handler failed to compile.", and it is not recompiled on every request.
 
 A template is text, `<% %>` code blocks, `<%! %>` declaration blocks, `<%# %>` comments, and
-expression blocks: `<%= expression %>` writes a string through `ctx.Write` (HTML-encoded), while
-`<%== expression %>` uses `ctx.WriteRaw` (unencoded). Expressions must be strings; convert other
+expression blocks: `<%= expression %>` writes a string through `ctx.Response.Write` (HTML-encoded), while
+`<%== expression %>` uses `ctx.Response.WriteRaw` (unencoded). Expressions must be strings; convert other
 values explicitly, such as with `.ToString()`. The generator emits the corresponding call, trimming
 expression edges and removing at most one trailing semicolon. Declarations are hoisted above
 `GeneratedPage.HandleAsync` in template order, so a page's `using` directives and types are visible to
@@ -65,7 +65,7 @@ mention one, and `<%#if DEBUG %>` is a note rather than a directive — `<% #if 
 Diagnostics live in template space: `PageDiagnostic.Position` is a 1-based `TemplatePosition` in the
 page the author typed, or `null` when there is no position. The generator wraps each code block in
 `#line` directives that name the template line and pads the first line to the template column.
-Expression code is mapped separately from its generated `ctx.Write(...)` or `ctx.WriteRaw(...)`
+Expression code is mapped separately from its generated `ctx.Response.Write(...)` or `ctx.Response.WriteRaw(...)`
 wrapper, so expression errors point to the expression and wrapper errors map to the opener's line.
 For a wrapper diagnostic, Roslyn's column identifies the generated method name (for example,
 `Write`), not the opener itself. The closing braces are mapped to one line past the template, which
@@ -96,10 +96,13 @@ and the logs quote them:
 | `PAGE003` | `PageImageBuilder` | the page waited too long for a compile slot |
 | `PAGE004` | `PageImageBuilder` | the page took too long to compile |
 | `PAGE006` | `PageCompiler` | a worker does not declare exactly one constructible public entry point |
+| `PAGE009` | `IContext` | the page used a member that has moved to `ctx.Response` |
 | `SCRIPT001` | `JavaScriptValidator` | the assistant's script check found a syntax error |
 | `SCRIPT002` | `JavaScriptValidator` | the assistant's script check found an opener the failed parse never closed |
 
 `PAGE005` is retired with the alias it named and is never reused for a different meaning (`pages-capabilities-are-one-seam`).
+`PAGE009` is a warning rather than an error and is retired with the members it names
+(`pages-the-response-is-one-object`).
 `TEMPLATE003`–`TEMPLATE005` are warnings: they are stored beside the compiler's diagnostics, so a
 clean compile does not hide them, and they never stop a page being served (`pages-the-shape-check`).
 

@@ -100,7 +100,7 @@ public sealed class PageJobTests : IntegrationTest {
                ctx.Capabilities.GetRequired<IPageLayout>().Layout = null;
                PageJobStart start = await ctx.Capabilities.GetRequired<IPageJobs>()
                    .StartAsync("/_work/echo", "hello");
-               ctx.Write(start.Started ? "refused:none job:" + start.Id : "refused:" + start.Refusal);
+               ctx.Response.Write(start.Started ? "refused:none job:" + start.Id : "refused:" + start.Refusal);
             %>
             """);
 
@@ -115,14 +115,14 @@ public sealed class PageJobTests : IntegrationTest {
                ctx.Capabilities.GetRequired<IPageLayout>().Layout = null;
                IPageJobs jobs = ctx.Capabilities.GetRequired<IPageJobs>();
                string? id = ctx.Request.Query.TryGetValue("id", out string? given) ? given : null;
-               if (id is null) { ctx.Write("no id"); return; }
+               if (id is null) { ctx.Response.Write("no id"); return; }
 
                // The state first, then the events: a job that has already finished has published
                // everything it will, so the read that follows cannot straddle the transition.
                PageJobInfo? info = await jobs.GetAsync(id);
                PageJobEvents batch = await jobs.ReadEventsAsync(id, 0);
-               ctx.Write("event:" + (batch.Events.Count > 0 ? batch.Events[0].Data : "none"));
-               ctx.Write(" state:" + (info?.State.ToString() ?? "gone"));
+               ctx.Response.Write("event:" + (batch.Events.Count > 0 ? batch.Events[0].Data : "none"));
+               ctx.Response.Write(" state:" + (info?.State.ToString() ?? "gone"));
             %>
             """);
 
@@ -136,7 +136,7 @@ public sealed class PageJobTests : IntegrationTest {
             <%
                ctx.Capabilities.GetRequired<IPageLayout>().Layout = null;
                IReadOnlyList<PageJobInfo> jobs = await ctx.Capabilities.GetRequired<IPageJobs>().ListAsync();
-               ctx.Write("jobs:" + jobs.Count);
+               ctx.Response.Write("jobs:" + jobs.Count);
             %>
             """);
 

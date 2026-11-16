@@ -76,7 +76,7 @@ on a versioned URL. The versioned response is separate from `WritePageAsync` so 
 unconditional `no-store` and `ETag` removal cannot reach it. [Pages](pages.md#assets-and-versioned-urls)
 has the selection rules and `docs/metrics.md` the `page.asset.requests` outcome counter.
 
-The third shape is a **streamed** page: a page with code that calls `ctx.FlushAsync()`. The first
+The third shape is a **streamed** page: a page with code that calls `ctx.Response.FlushAsync()`. The first
 flush commits the response through `PageBodySink` and `PageResponseWriter`, and each later flush
 writes the buffer through the same sink. `PageEndpoint` skips `PageChain.WrapAsync` and
 `WritePageAsync` entirely once `SimpleContext.IsCommitted` is true, so a streamed page is never
@@ -306,7 +306,7 @@ that produced them: it answers a save in place, so a message that a redirect wou
 not needed. `/admin/restore`, `/admin/seed-apply` and `/admin/scrub` answer with their own documents for the same reason.
 - Every response carries one set of security headers, written by `SecurityHeaders` when the response
   starts (`shell-security-headers-are-one-set`). The assistant and admin views widen the policy to `script-src 'self'` for their
-  own modules, and a stored page asks for the same policy with `ctx.AllowScripts()` — which is how
+  own modules, and a stored page asks for the same policy with `ctx.Response.AllowScripts()` — which is how
   the editor page loads `/editor.js` (`shell-security-headers-are-one-set`).
   A stored page's starting policy comes from its extension row's `ScriptPolicy`, before the page
   runs; a page with code may widen `none` with `AllowScripts`, while a no-code page has no code to
@@ -353,14 +353,14 @@ The sign-in the editor page uses is available to any page, as ordinary page code
 directive, a metadata column or a route policy. A page is public unless it guards itself:
 
 ```html
-<% if (ctx.User is not { } user) { ctx.RedirectToLogin(); return; } %>
+<% if (ctx.User is not { } user) { ctx.Response.RedirectToLogin(); return; } %>
 ```
 
 - `ctx.User` is a `PageUser?` carrying only the account name, mapped by `PageEndpoint` from the
   principal `UseAuthentication` has already validated. An authenticated identity without a
   `NameIdentifier` maps to `null`, so a half-built principal fails closed. A page cannot forge the
   identity with a header, a cookie or a form field: it exists only as the shell's value.
-- `ctx.RedirectToLogin()` sends the visitor to `/login?returnUrl=` followed by this page's canonical
+- `ctx.Response.RedirectToLogin()` sends the visitor to `/login?returnUrl=` followed by this page's canonical
   key and **raw** query, built by `LoginRedirect` rather than from the collapsed query dictionary, so
   `/search?q=a&q=b` returns with both values. The status is `302` for `GET`/`HEAD` and `303` for
   `POST`, so a submitted form is not replayed. `LocalRedirect` still decides where a `returnUrl` may
@@ -370,7 +370,7 @@ directive, a metadata column or a route policy. A page is public unless it guard
   answers `400` with `no-store` when the pair is missing or stale. This is deliberately not opt-in:
   the sign-in cookie is exactly what turns a cross-site post into an action by the owner. An
   anonymous `POST` is unchanged, because it has no cookie-backed identity to forge.
-- `ctx.AntiforgeryField` is the hidden input the page writes with `<%==`, built by the same
+- `ctx.Response.AntiforgeryField` is the hidden input the page writes with `<%==`, built by the same
   `AntiforgeryField.Hidden` the shell's own forms use. It is generated once per render under the
   body lock, and returns an empty string after the render is abandoned, which fails closed.
 
