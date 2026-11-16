@@ -22,29 +22,6 @@ public sealed class SimpleContextTests {
         });
     }
 
-    [Test]
-    public void AStatusOutsideTheHttpRangeIsRefused() {
-        SimpleContext context = CreateContext(out _);
-
-        Assert.Multiple(() => {
-            Assert.Throws<ArgumentOutOfRangeException>(() => context.SetStatus(99));
-            Assert.Throws<ArgumentOutOfRangeException>(() => context.SetStatus(600));
-        });
-    }
-
-    [Test]
-    public void ResponseDefaultsToOkHtml() {
-        SimpleContext context = CreateContext(out _);
-
-        PageResponse response = context.ToResponse();
-
-        Assert.That(response.Status, Is.EqualTo(200));
-        Assert.That(response.ContentType, Is.EqualTo("text/html; charset=utf-8"));
-        Assert.That(response.Headers["Cache-Control"], Is.EqualTo("no-store"));
-        Assert.That(response.Location, Is.Null);
-        Assert.That(response.AllowsScripts, Is.False);
-    }
-
     [TestCase("/app.js", "text/javascript; charset=utf-8")]
     [TestCase("/app.mjs", "text/javascript; charset=utf-8")]
     [TestCase("/app.css", "text/css; charset=utf-8")]
@@ -75,15 +52,6 @@ public sealed class SimpleContextTests {
         Assert.That(context.ToResponse().ContentType, Is.EqualTo("text/javascript; charset=utf-8"));
     }
 
-    [TestCase("/app.js")]
-    [TestCase("/app.css")]
-    [TestCase("/notes")]
-    public void EveryPageDefaultsToNoStore(string path) {
-        SimpleContext context = CreateContext(out _, path: path);
-
-        Assert.That(context.ToResponse().Headers["Cache-Control"], Is.EqualTo("no-store"));
-    }
-
     [Test]
     public void AnUnmappedPageTakesTheConfiguredFallback() {
         PageContentTypes plain = PageContentTypes.Create("text/plain; charset=utf-8", []);
@@ -92,126 +60,44 @@ public sealed class SimpleContextTests {
         Assert.That(context.ToResponse().ContentType, Is.EqualTo("text/plain; charset=utf-8"));
     }
 
+    // A layout is markup and nothing else: the content ran first and owns the response.
     [Test]
-    public void AllowScriptsIsRecordedInTheResponse() {
-        SimpleContext context = CreateContext(out _);
+    public void ALayoutCannotSetTheResponse() {
+        SimpleContext context = CreateLayoutContext(out RecordingLoggerFactory logs);
 
-        context.AllowScripts();
+        context.SetStatus(201);
+        context.SetContentType("text/plain; charset=utf-8");
+        context.SetHeader("X-Page", "1");
+        context.Redirect("/elsewhere");
 
-        Assert.That(context.ToResponse().AllowsScripts, Is.True);
+        PageResponse response = context.ToResponse();
+
+        Assert.Multiple(() => {
+            Assert.That(response.Status, Is.EqualTo(200));
+            Assert.That(response.ContentType, Is.EqualTo("text/html; charset=utf-8"));
+            Assert.That(response.Headers.ContainsKey("X-Page"), Is.False);
+            Assert.That(response.Location, Is.Null);
+            Assert.That(logs.Entries.Count(entry => entry.Message.Contains("a layout cannot set the response")), Is.EqualTo(4));
+        });
     }
 
+    // The layout gate runs before validation, so a layout's bad argument is ignored rather than thrown.
     [Test]
-    public void AllowScriptsIsIdempotent() {
-        SimpleContext context = CreateContext(out _);
+    public void ALayoutsResponseSettingIsIgnoredBeforeItIsValidated() {
+        SimpleContext context = CreateLayoutContext(out _);
 
-        context.AllowScripts();
-        context.AllowScripts();
-
-        Assert.That(context.ToResponse().AllowsScripts, Is.True);
-    }
-
-    [TestCase("Content-Language")]
-    [TestCase("content-language")]
-    [TestCase("X-Robots-Tag")]
-    public void AllowedHeadersAreRecorded(string name) {
-        SimpleContext context = CreateContext(out _);
-
-        context.SetHeader(name, "value");
-
-        Assert.That(context.ToResponse().Headers[name], Is.EqualTo("value"));
-    }
-
-    [TestCase("Set-Cookie")]
-    [TestCase("Content-Length")]
-    [TestCase("Content-Type")]
-    [TestCase("Location")]
-    [TestCase("Transfer-Encoding")]
-    [TestCase("Connection")]
-    [TestCase("ETag")]
-    [TestCase("Expires")]
-    [TestCase("Vary")]
-    public void ReservedHeadersAreRefused(string name) {
-        SimpleContext context = CreateContext(out _);
-
-        Assert.That(() => context.SetHeader(name, "value"), Throws.ArgumentException);
-        Assert.That(context.ToResponse().Headers.ContainsKey(name), Is.False);
-    }
-
-    // A stored page is per-visitor, so caching policy is the host's and a page cannot claim one.
-    [TestCase("Cache-Control")]
-    [TestCase("cache-control")]
-    public void ACachePolicyThePageSetsIsRefused(string name) {
-        SimpleContext context = CreateContext(out _);
-
-        Assert.That(() => context.SetHeader(name, "max-age=3600"), Throws.ArgumentException);
-        Assert.That(context.ToResponse().Headers["Cache-Control"], Is.EqualTo("no-store"));
-    }
-
-    [TestCase("X-Content-Type-Options")]
-    [TestCase("x-content-type-options")]
-    [TestCase("X-Frame-Options")]
-    [TestCase("X-XSS-Protection")]
-    public void TheShellsOwnXHeadersAreRefusedThroughTheWildcard(string name) {
-        SimpleContext context = CreateContext(out _);
-
-        Assert.That(() => context.SetHeader(name, ""), Throws.ArgumentException);
-        Assert.That(() => context.SetHeader(name, "value"), Throws.ArgumentException);
-        Assert.That(context.ToResponse().Headers.ContainsKey(name), Is.False);
-    }
-
-    [TestCase("")]
-    [TestCase("   ")]
-    public void EmptyHeaderValuesAreRefused(string value) {
-        SimpleContext context = CreateContext(out _);
-
-        Assert.That(() => context.SetHeader("X-Page", value), Throws.ArgumentException);
-        Assert.That(context.ToResponse().Headers.ContainsKey("X-Page"), Is.False);
-    }
-
-    [TestCase("value\r\nSet-Cookie: stolen=yes")]
-    [TestCase("value\n")]
-    public void HeaderValuesWithLineBreaksAreRefused(string value) {
-        SimpleContext context = CreateContext(out _);
-
-        Assert.That(() => context.SetHeader("X-Page", value), Throws.ArgumentException);
-    }
-
-    [TestCase(99)]
-    [TestCase(600)]
-    public void StatusOutsideTheRangeIsRefused(int status) {
-        SimpleContext context = CreateContext(out _);
-
-        Assert.That(() => context.SetStatus(status), Throws.InstanceOf<ArgumentOutOfRangeException>());
+        Assert.That(() => context.SetStatus(99), Throws.Nothing);
         Assert.That(context.ToResponse().Status, Is.EqualTo(200));
     }
 
+    // The one setting a layout shares: its script is part of its chrome, so the chain unions it in.
     [Test]
-    public void RedirectRecordsTheLocationAndTheStatus() {
-        SimpleContext context = CreateContext(out _);
+    public void ALayoutMayAllowScripts() {
+        SimpleContext context = CreateLayoutContext(out _);
 
-        context.Redirect("/elsewhere");
+        context.AllowScripts();
 
-        Assert.That(context.ToResponse().Location, Is.EqualTo("/elsewhere"));
-        Assert.That(context.ToResponse().Status, Is.EqualTo(302));
-    }
-
-    [Test]
-    public void RedirectKeepsAnExplicitStatus() {
-        SimpleContext context = CreateContext(out _);
-
-        context.Redirect("/moved", 301);
-
-        Assert.That(context.ToResponse().Status, Is.EqualTo(301));
-    }
-
-    [TestCase("value\r\nSet-Cookie: stolen=yes")]
-    [TestCase("value\n")]
-    public void RedirectTargetsWithLineBreaksAreRefused(string location) {
-        SimpleContext context = CreateContext(out _);
-
-        Assert.That(() => context.Redirect(location), Throws.ArgumentException);
-        Assert.That(context.ToResponse().Location, Is.Null);
+        Assert.That(context.ToResponse().AllowsScripts, Is.True);
     }
 
     [Test]
@@ -604,6 +490,20 @@ public sealed class SimpleContextTests {
             isLayout: isLayout,
             bodySink: sink,
             wouldWrap: wouldWrap);
+    }
+
+    private static SimpleContext CreateLayoutContext(out RecordingLoggerFactory logs) {
+        logs = new RecordingLoggerFactory();
+        return new SimpleContext(
+            logs,
+            TestHttp.Request("/page"),
+            CancellationToken.None,
+            new StringWriter(),
+            CapabilitiesFor("/page"),
+            TestContentTypes.Shipped,
+            TestOptions.Render.MaxBodyChars,
+            TestOptions.Editor.Key,
+            isLayout: true);
     }
 
     private static SimpleContext CreateContext(string path, out RecordingLoggerFactory logs) {

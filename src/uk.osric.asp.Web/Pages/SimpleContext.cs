@@ -8,7 +8,6 @@ using System.Net;
 using System.Text;
 using uk.osric.asp.Core.Pages;
 using uk.osric.asp.Sdk;
-using uk.osric.asp.Web.Http;
 
 /// <summary>The only <see cref="IContext"/> a page ever runs against.</summary>
 /// <remarks>
@@ -24,14 +23,6 @@ using uk.osric.asp.Web.Http;
 #pragma warning disable CA1001 // One render's context; the flush gate never allocates a wait handle.
 internal sealed class SimpleContext : IContext {
 
-    // A page must not be able to clobber the shell's own cookies or framing. Everything that changes
-    // the meaning of the body is reachable through a dedicated member instead. Caching policy is not
-    // a page's to set: a page with code is per-visitor and the host sends no-store.
-    private static readonly HashSet<string> s_allowedHeaders = [with(StringComparer.OrdinalIgnoreCase),
-        "Content-Language"];
-
-    private const string CustomHeaderPrefix = "X-";
-
     // One category for every page, with the page's key on a scope. It cannot be a category per path:
     // ILoggerFactory caches a logger for each distinct category for the life of the process and
     // never evicts one, so the key would have to come from the request — and a not-found request
@@ -44,7 +35,6 @@ internal sealed class SimpleContext : IContext {
     private readonly Lock _body = new();
     private readonly PageCapabilities _capabilities;
     private readonly PageCommitState _commit;
-    private readonly Dictionary<string, string> _headers = [with(StringComparer.OrdinalIgnoreCase)];
     private readonly string _editorPath;
     private readonly SemaphoreSlim _flushing = new(1, 1);
     private readonly string _loginRedirect;
@@ -62,13 +52,10 @@ internal sealed class SimpleContext : IContext {
 
     // Written by the abandoning thread and read by the page's task, so the flag is volatile rather than
     // merely lock-protected.
+    private readonly PageResponseState _response;
     private volatile bool _abandoned;
-    private bool _allowsScripts;
-    private string _contentType;
     private CancellationToken _deadline = CancellationToken.None;
     private RenderLifetime? _lifetime;
-    private string? _location;
-    private int _status = PageResponse.Default.Status;
 
     /// <summary>Creates the context a page runs against.</summary>
     /// <param name="loggerFactory">Creates the one logger every page writes through.</param>
@@ -154,7 +141,7 @@ internal sealed class SimpleContext : IContext {
         User = user;
 
         // The extension decides the initial value; SetContentType overrides it.
-        _contentType = contentTypes.ForPath(_path.Key);
+        _response = new PageResponseState(contentTypes.ForPath(_path.Key));
     }
 
     /// <inheritdoc/>
@@ -176,15 +163,7 @@ internal sealed class SimpleContext : IContext {
     public IPageCapabilities Capabilities => _capabilities;
 
     /// <summary>What the page asked the response to be.</summary>
-    /// <remarks>
-    /// Every page that runs code is <c>no-store</c>: it can keep per-visitor state, so its body has
-    /// no business in a shared cache and no business inviting a conditional request. The host writes
-    /// the same header after the page's own, so this is the default rather than the last word.
-    /// </remarks>
-    public PageResponse ToResponse() {
-        _headers.TryAdd("Cache-Control", "no-store");
-        return new(_status, _contentType, _headers, _location) { AllowsScripts = _allowsScripts };
-    }
+    public PageResponse ToResponse() => _response.ToResponse();
 
     /// <summary>The body written so far.</summary>
     public string GetBody() {
@@ -355,11 +334,11 @@ internal sealed class SimpleContext : IContext {
             throw new InvalidOperationException($"{Path} cannot stream its response in this render.");
         }
 
-        if (_location is not null) {
+        if (_response.Location is not null) {
             throw new InvalidOperationException($"{Path} has redirected; a redirect has no body to stream.");
         }
 
-        if (_wouldWrap?.Invoke(_contentType) == true) {
+        if (_wouldWrap?.Invoke(_response.ContentType) == true) {
             throw new InvalidOperationException(
                 $"{Path} is wrapped in a layout, which needs its whole body before it can run. Set IPageLayout.Layout to null and write the page's own document before the first flush.");
         }
@@ -425,10 +404,7 @@ internal sealed class SimpleContext : IContext {
             return;
         }
 
-        ArgumentOutOfRangeException.ThrowIfLessThan(status, 100, nameof(status));
-        ArgumentOutOfRangeException.ThrowIfGreaterThan(status, 599, nameof(status));
-
-        _status = status;
+        _response.SetStatus(status);
     }
 
     /// <inheritdoc/>
@@ -439,9 +415,7 @@ internal sealed class SimpleContext : IContext {
             return;
         }
 
-        ArgumentException.ThrowIfNullOrWhiteSpace(contentType);
-
-        _contentType = contentType;
+        _response.SetContentType(contentType);
     }
 
     /// <inheritdoc/>
@@ -452,18 +426,7 @@ internal sealed class SimpleContext : IContext {
             return;
         }
 
-        ArgumentException.ThrowIfNullOrWhiteSpace(name);
-        ArgumentException.ThrowIfNullOrWhiteSpace(value);
-
-        if (!IsAllowed(name)) {
-            throw new ArgumentException($"{name} is set by the site, not by a page.", nameof(name));
-        }
-
-        if (value.Contains('\r') || value.Contains('\n')) {
-            throw new ArgumentException("A header value may not contain a line break.", nameof(value));
-        }
-
-        _headers[name] = value;
+        _response.SetHeader(name, value);
     }
 
     /// <inheritdoc/>
@@ -472,7 +435,7 @@ internal sealed class SimpleContext : IContext {
 
         // The one response setting a layout shares: its script is part of its chrome, so the union
         // with the content's is what the response is served with.
-        _allowsScripts = true;
+        _response.AllowScripts();
     }
 
     /// <inheritdoc/>
@@ -483,14 +446,9 @@ internal sealed class SimpleContext : IContext {
             return;
         }
 
-        ArgumentException.ThrowIfNullOrWhiteSpace(location);
-
-        if (location.Contains('\r') || location.Contains('\n')) {
-            throw new ArgumentException("A redirect target may not contain a line break.", nameof(location));
-        }
-
-        SetStatus(status);
-        _location = location;
+        // The commit and layout gates are the context's, so the redirect is applied whole by the
+        // state rather than through SetStatus, which would run those gates a second time.
+        _response.Redirect(location, status);
     }
 
     /// <inheritdoc/>
@@ -535,17 +493,6 @@ internal sealed class SimpleContext : IContext {
 
         LogWarning($"{Path} called {member}({detail}); a layout cannot set the response.");
         return true;
-    }
-
-    private static bool IsAllowed(string name) {
-        // The X- wildcard would otherwise reach the shell's own X-Content-Type-Options and friends,
-        // and a page clearing one silently weakens the response it is served in.
-        if (SecurityHeaders.IsOwned(name)) {
-            return false;
-        }
-
-        return s_allowedHeaders.Contains(name)
-            || name.StartsWith(CustomHeaderPrefix, StringComparison.OrdinalIgnoreCase);
     }
 #pragma warning restore CA1001
 }
