@@ -35,6 +35,7 @@ and shares one file, [WHIMS.md](WHIMS.md); a resolved job moves to [closed.md](c
 | [IDEA-042](IDEA-042.md) | M | — | [page-move](../plans/page-move.md) | A page cannot move a page |
 | [IDEA-044](IDEA-044.md) | L | — | — | A page cannot render a page in a browser |
 | [IDEA-047](IDEA-047.md) | L | — | [ide-host](../plans/ide-host.md) | A render may write a batch of pages, and the caller names the policy |
+| [IDEA-048](IDEA-048.md) | M | — | — | A page writes into a response object, not twelve members on the context |
 
 ## The order
 
@@ -55,17 +56,18 @@ moves as it is worked — and each is one unit of work, on one branch in one wor
 | 8 | [IDEA-037](IDEA-037.md) | M | Stops "check my work" storing a revision, so no history carries a test save. |
 | 9 | [IDEA-038](IDEA-038.md) | M | Lifts the assistant's own search into the contract rather than inventing anything. |
 | 10 | [IDEA-022](IDEA-022.md) | S | Easy, but it buys tidiness rather than a capability, so it sits below the small jobs that buy something. |
-| 11 | [OPS-05](OPS-05.md) | M | Useful, but one owner and a unit that restarts already notice most outages. |
-| 12 | [IDEA-030](IDEA-030.md) | M | Removes duplication in views that several later jobs rewrite anyway. |
-| 13 | [IDEA-020](IDEA-020.md) | M | A destructive reset has to be designed carefully; the additive import is the safe default until it is. |
-| 14 | [IDEA-033](IDEA-033.md) | L | The most useful large job, with a plan and a first customer, and a plan's yes is the only thing it waits on. |
-| 15 | [IDEA-001](IDEA-001.md) | L | High use and high cost; the gutter, the diagnostics and the row state already cover the worst of it. |
-| 16 | [IDEA-025](IDEA-025.md) | L | The assistant's conversation as a page needs the account store beneath it, and that is IDEA-033. |
-| 17 | [IDEA-024](IDEA-024.md) | L | The two admin routes already work; making them pages buys consistency, not capability. |
-| 18 | [SEC-03](SEC-03.md) | L | Medium severity and a redesign of how a page runs; the trimmed API policy and the sign-in guard already carry much of it. |
-| 19 | [IDEA-047](IDEA-047.md) | L | Only matters once something writes several pages at once, so it follows IDEA-042 and IDEA-038. |
-| 20 | [IDEA-044](IDEA-044.md) | L | A spike, a sidecar and a capability for a question the server's own answer often settles. |
-| 21 | [IDEA-029](IDEA-029.md) | L | Developer-only, and `make check-pages` already compiles the seeds. |
+| 11 | [IDEA-048](IDEA-048.md) | M | The public half of IDEA-022's split: the same ten members, moved to one type so a page helper can take the output and nothing else. A contract change with a migration, so it follows the work that buys a capability. |
+| 12 | [OPS-05](OPS-05.md) | M | Useful, but one owner and a unit that restarts already notice most outages. |
+| 13 | [IDEA-030](IDEA-030.md) | M | Removes duplication in views that several later jobs rewrite anyway. |
+| 14 | [IDEA-020](IDEA-020.md) | M | A destructive reset has to be designed carefully; the additive import is the safe default until it is. |
+| 15 | [IDEA-033](IDEA-033.md) | L | The most useful large job, with a plan and a first customer, and a plan's yes is the only thing it waits on. |
+| 16 | [IDEA-001](IDEA-001.md) | L | High use and high cost; the gutter, the diagnostics and the row state already cover the worst of it. |
+| 17 | [IDEA-025](IDEA-025.md) | L | The assistant's conversation as a page needs the account store beneath it, and that is IDEA-033. |
+| 18 | [IDEA-024](IDEA-024.md) | L | The two admin routes already work; making them pages buys consistency, not capability. |
+| 19 | [SEC-03](SEC-03.md) | L | Medium severity and a redesign of how a page runs; the trimmed API policy and the sign-in guard already carry much of it. |
+| 20 | [IDEA-047](IDEA-047.md) | L | Only matters once something writes several pages at once, so it follows IDEA-042 and IDEA-038. |
+| 21 | [IDEA-044](IDEA-044.md) | L | A spike, a sidecar and a capability for a question the server's own answer often settles. |
+| 22 | [IDEA-029](IDEA-029.md) | L | Developer-only, and `make check-pages` already compiles the seeds. |
 
 ### A step stops, and the owner answers
 

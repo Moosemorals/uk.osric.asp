@@ -275,6 +275,10 @@ Two commits on one branch, so the smaller one can be read on its own.
 
 ## Not in scope
 
+- **`IContext` itself.** Making the response one object in `Sdk` is [IDEA-048](../jobs/IDEA-048.md),
+  raised while this plan was written: it is the same split seen from the contract side, and the two
+  collaborators below are what its implementation would be built over. It is a contract change with a
+  migration of its own, so it waits until this has landed, rather than moving the members twice.
 - Anything a page author can do. There is no new member, capability, content type or response rule, so
   `/help` and the assistant's prompt stay as they are.
 - The rest of IDEA-022's "five jobs" beyond these two: logging and antiforgery stay on the context, and
