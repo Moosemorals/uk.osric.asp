@@ -243,12 +243,30 @@ ssh-keygen -t ed25519 -N '' -C backup@hathor -f ~/.ssh/id_backup_uk_osric_asp
 
 Keep it `0600` there and never copy it to the site; losing it costs one regenerated key and one line in
 `authorized_keys`, so it does not need its own backup either. Append its public half to `deploy`'s
-`authorized_keys` with the prefix above, copy `deploy/pull-backups.sh` there, and schedule it after
-03:15:
+`authorized_keys` with the prefix above, install the script as `~/bin/pull-backups.sh` there, and
+schedule it after 03:15:
 
 ```cron
-20 4 * * * /usr/local/bin/pull-backups.sh
+20 4 * * * /home/osric/bin/pull-backups.sh
 ```
+
+Everything lands under `~/backups/`, one directory per site, with the device's own user and `0700`
+directories:
+
+```text
+~/bin/pull-backups.sh
+~/backups/uk.osric.asp/2026-11-16/storage.db.gz
+~/backups/uk.osric.asp/2026-11-16/conf/assistant.env
+```
+
+The home directory, not a project folder and not `/srv`: a checkout is disposable — `make clean`, a
+re-clone or a removed worktree takes anything inside it — while this is the only copy of the site's
+history other than the month on the site itself. `~/backups` also means the cron job runs as the user
+who owns the key and the directory, so nothing on this host needs `sudo`. The name is the project's,
+`uk.osric.asp`, matching the repository, the image, the volumes and the units; `osricuk` names the
+deploy user on the other site's host, which is a different thing. Another site gets its own directory
+beside it, and each one is pruned by its own run. If the home directory is itself backed up somewhere,
+exclude `~/backups`, or that copy is of the copy.
 
 Run the script by hand once so `known_hosts` learns the host: it sets `BatchMode=yes`, so an unknown
 host or a missing key fails the run rather than hanging in cron. The script is the source of truth in
@@ -266,7 +284,7 @@ until it is there.
 stopped:
 
 ```bash
-scp backuphost:/srv/backup/uk.osric.asp/2026-11-16/storage.db.gz /tmp/
+scp backuphost:backups/uk.osric.asp/2026-11-16/storage.db.gz /tmp/
 ssh deploy@<server-ip> systemctl --user stop uk.osric.asp.service
 gunzip -c /tmp/storage.db.gz > /tmp/storage-restore.db
 mountpoint=$(podman volume inspect --format '{{.Mountpoint}}' uk.osric.asp-storage)

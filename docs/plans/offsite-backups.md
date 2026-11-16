@@ -109,7 +109,7 @@ checkout. It takes the source and destination as arguments so it can be run agai
 when it is changed, and it uses one key.
 
 ```text
-pull-backups.sh [deploy@moosemorals.com:backups] [/srv/backup/uk.osric.asp]
+pull-backups.sh [deploy@moosemorals.com:backups] [$HOME/backups/uk.osric.asp]
 ```
 
 1. `rsync -a` the `storage.db.gz` hard link and `conf/` into a staging directory `.YYYY-MM-DD.partial`.
@@ -120,6 +120,13 @@ pull-backups.sh [deploy@moosemorals.com:backups] [/srv/backup/uk.osric.asp]
    database is refused.
 4. Only then rename the staging directory to `YYYY-MM-DD`, replacing an earlier pull from the same day,
    and prune directories older than `KEEP_DAYS` (90 by default).
+
+Everything it writes stays under `~/backups/<site>/`, with the script itself at `~/bin/pull-backups.sh`
+— the home directory rather than a project folder, because a checkout is disposable (`make clean`, a
+re-clone, a removed worktree) and this copy is not, and rather than `/srv`, so the cron run needs no
+`sudo` and owns the key and the directory it writes. The directory is the project's name, `uk.osric.asp`,
+the same one the image, the volumes and the units use; another site gets a sibling. Each site's prune
+only walks its own directory.
 
 The key is `~/.ssh/id_backup_uk_osric_asp` on the backup host, and its public half goes in
 `deploy@…:~/.ssh/authorized_keys` with `restrict,command="/usr/bin/rrsync -ro /home/deploy/backups"`. That

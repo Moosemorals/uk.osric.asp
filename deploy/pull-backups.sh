@@ -6,14 +6,15 @@
 # here rather than on the site because the site is the machine that might be wrong: the copy is
 # verified somewhere the failing host does not control.
 #
-#   pull-backups.sh [deploy@moosemorals.com:backups] [/srv/backup/uk.osric.asp]
+#   pull-backups.sh [deploy@moosemorals.com:backups] [$HOME/backups/uk.osric.asp]
 #
 # The key named by SSH_KEY is the one in the site's authorized_keys, restricted with `rrsync -ro`.
-# KEEP_DAYS is how many days of dated directories are kept.
+# KEEP_DAYS is how many days of dated directories are kept. The destination is deliberately not a
+# project folder: a checkout is disposable and this is not.
 set -euo pipefail
 
 remote=${1:-deploy@moosemorals.com:backups}
-destination=${2:-/srv/backup/uk.osric.asp}
+destination=${2:-$HOME/backups/uk.osric.asp}
 keepDays=${KEEP_DAYS:-90}
 key=${SSH_KEY:-$HOME/.ssh/id_backup_uk_osric_asp}
 
