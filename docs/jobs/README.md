@@ -35,7 +35,6 @@ and shares one file, [WHIMS.md](WHIMS.md); a resolved job moves to [closed.md](c
 | [IDEA-044](IDEA-044.md) | L | — | — | A page cannot render a page in a browser |
 | [IDEA-047](IDEA-047.md) | L | — | [ide-host](../plans/ide-host.md) | A render may write a batch of pages, and the caller names the policy |
 | [IDEA-050](IDEA-050.md) | S | — | [page-response](../plans/page-response.md) | The old response spelling is still on `IContext` |
-| [IDEA-049](IDEA-049.md) | L | — | [page-composition](../plans/page-composition.md) | A page cannot render another page |
 
 ## The order
 
@@ -67,7 +66,6 @@ moves as it is worked — and each is one unit of work, on one branch in one wor
 | 19 | [IDEA-044](IDEA-044.md) | L | A spike, a sidecar and a capability for a question the server's own answer often settles. |
 | 20 | [IDEA-029](IDEA-029.md) | L | Developer-only, and `make check-pages` already compiles the seeds. |
 | 21 | [IDEA-050](IDEA-050.md) | S | Waits for a release: the alias has to have been out long enough that nothing in the store reports `PAGE009` before it is deleted. |
-| 22 | [IDEA-049](IDEA-049.md) | L | Composition is the largest duplication left in views, and the layout chain becomes the same render rather than a second one; nothing depends on it, so appended to leave the wave above unnumbered, and the owner can lift it. |
 
 ### A step stops, and the owner answers
 
