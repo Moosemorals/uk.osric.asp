@@ -11,7 +11,7 @@ SPDX-License-Identifier: MIT
 | Size | Medium — one `Sdk` interface with ten moved members and ten obsolete shims for one release, one new `Web` object over the two collaborators the split just made, the seven seeded pages and `/help`, the assistant's prompt and its version, the test templates that write pages as strings, and the docs. No store change, no migration, no configuration key, no new capability |
 | Area | Sdk, Web (pages, seeds, assistant), docs |
 | Spike | None. Every count below was taken off `trunk` on 2026-11-16, after the `SimpleContext` split merged |
-| Backlog | [IDEA-048](../jobs/IDEA-048.md) is this step; the shims' removal is a separate job (IDEA-049) written by this one |
+| Backlog | [IDEA-048](../jobs/IDEA-048.md) is this step; the shims' removal is a separate job (IDEA-050) written by this one |
 | Decisions | New name proposed: **pages-the-response-is-one-object**. Edits `pages-capabilities-are-one-seam`. Relies on `pages-the-contract-is-the-seam`, `code-one-concern-one-collaborator`, `pages-the-response-is-buffered-until-a-flush`, `pages-page-io-is-async`, `pages-a-warning-never-stops-a-page` and `pages-what-a-diagnostic-is` |
 
 ## The short version
@@ -63,7 +63,7 @@ is exactly what `PAGE005` did for `ctx.Features`, and `PAGE009` is the next free
 
 ## Non-goals
 
-- **Removing the shims.** That is IDEA-049, written by this change and due one release later; it is
+- **Removing the shims.** That is IDEA-050, written by this change and due one release later; it is
   the step that makes the surface ten and ten for real.
 - **A narrower response for a layout.** The layout rule stays "ignore and log", as
   [IDEA-048](../jobs/IDEA-048.md) says; narrowing what a layout's context offers is a change to what a
@@ -230,7 +230,7 @@ One branch, three commits, so each can be read alone:
 2. **The pages we ship** — the seven seeds, `/help`'s prose, the prompt and its version, and the test
    templates.
 3. **The docs and the record** — the four docs, the decision entry, the edit to
-   `pages-capabilities-are-one-seam`, IDEA-048 moved to closed, and IDEA-049 written for the removal.
+   `pages-capabilities-are-one-seam`, IDEA-048 moved to closed, and IDEA-050 written for the removal.
 
 ## Verification
 
@@ -252,7 +252,7 @@ One branch, three commits, so each can be read alone:
 - **The one line that must be right is `error: false`.** An obsolete-as-error would take every stored
   page down at its next render, including the ones the owner cannot see from the repository.
 - **The shims outliving their release.** They are invisible in the prompt and in `/help` by design, so
-  nothing but IDEA-049 closes them; the plan writes that job in the same change.
+  nothing but IDEA-050 closes them; the plan writes that job in the same change.
 - **A missed template keeps the old spelling silently**, because a warning still compiles. The
   seeded-page sweep is covered by a test; the test-template sweep is checked by the compiler's own
   warning count in `make check`, which treats a warning as an error in the suites themselves.
@@ -289,7 +289,7 @@ One branch, three commits, so each can be read alone:
 
 ## Not in scope
 
-- Removing the obsolete members — IDEA-049, one release later.
+- Removing the obsolete members — IDEA-050, one release later.
 - A narrower response for a layout, or any change to the layout rule.
 - Making the response a capability.
 - Anything a page can do that it could not do yesterday: the same ten operations, reached one step
@@ -321,5 +321,5 @@ tests moved to `SimpleResponseTests` with their names and assertions; `SimpleCon
 content-type mapping, the identity and the logging.
 
 **What is unsure.** The shims are the point and the risk: they are visible nowhere except the store's
-warnings, and IDEA-049 is what removes them. `PAGE009`'s column shift (above) is the one observable
+warnings, and IDEA-050 is what removes them. `PAGE009`'s column shift (above) is the one observable
 behaviour change. `page-move`'s plan claimed `page-author-v35` first and now says v36.

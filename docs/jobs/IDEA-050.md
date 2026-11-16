@@ -3,7 +3,7 @@ SPDX-FileCopyrightText: Copyright 2026 Osric Wilkinson <osric@fluffypeople.com>
 SPDX-License-Identifier: MIT
 -->
 
-# IDEA-049 — The old response spelling is still on `IContext`
+# IDEA-050 — The old response spelling is still on `IContext`
 
 | | |
 | --- | --- |
