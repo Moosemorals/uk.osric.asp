@@ -7,7 +7,7 @@ SPDX-License-Identifier: MIT
 
 | | |
 | --- | --- |
-| Size | L — one `Sdk` capability with two calls and their value, one layer renderer with three roles, the layout chain rebuilt on it and triggered by the page, `IPageLayout.Layout` and the automatic wrap deleted, two `Pages:Render` values, the shell-document policy and the trim it allows, every seeded page, the manual, the assistant's prompt, the docs and the tests that pin the recursion rules. It wants a plan |
+| Size | L — one `Sdk` capability with three calls and their value, one layer renderer with three roles, the layout chain rebuilt on it and triggered by the page, `IPageLayout.Layout` and the automatic wrap deleted, two `Pages:Render` values, the shell-document policy and the trim it allows, every seeded page, the manual, the assistant's prompt, the docs and the tests that pin the recursion rules. It wants a plan |
 | Area | Sdk, Web (pages, shell, seeds, assistant), docs |
 | Location | `src/uk.osric.asp.Sdk/IPageComposition.cs`, `src/uk.osric.asp.Sdk/PageEmbedOptions.cs`, `src/uk.osric.asp.Sdk/IPageLayout.cs`, `src/uk.osric.asp.Web/Pages/PageCompositionScope.cs`, `src/uk.osric.asp.Web/Pages/PageChain.cs`, `src/uk.osric.asp.Web/Pages/PageEndpoint.cs`, `src/uk.osric.asp.Web/Pages/PageRenderer.cs`, `src/uk.osric.asp.Web/Pages/SimpleContext.cs`, `src/uk.osric.asp.Web/Pages/SimpleResponse.cs`, `src/uk.osric.asp.Web/Pages/PageLayoutState.cs`, `src/uk.osric.asp.Web/Pages/RenderOptions.cs`, `src/uk.osric.asp.Web/Pages/PageMetrics.cs`, `src/uk.osric.asp.Web/appsettings.json`, `src/uk.osric.asp.Web/Html/ShellDocument.cs`, `src/uk.osric.asp.Web/Html/SiteNavigation.cs`, `src/uk.osric.asp.Web/Pages/Seeds/help`, `src/uk.osric.asp.Web/Assistant/PageAuthorPrompt.cs`, `docs/pages.md`, `docs/shell.md` |
 
@@ -23,7 +23,8 @@ SPDX-License-Identifier: MIT
 > flag the embed has to generalise is now on `SimpleResponse`, where the response rule already lives.
 >
 > The owner's `WrapAsync` note moved it again: the capability is `IPageComposition`, with one call that
-> **includes** another page and one that **wraps** this page in another. The wrap is a declaration —
+> **includes** another page, one that **captures** its body as a string, and one that **wraps** this page
+> in another. The wrap is a declaration —
 > `Wrap`, not `WrapAsync` — because the host performs it after the handler returns and every exit path
 > is then wrapped. That is the general form of the layout, and it is what lets `IPageLayout.Layout`
 > and the host's automatic wrap go without losing the slot.
@@ -61,6 +62,9 @@ policy over a render it no longer owns.
   that must know it is inside another is told by the options — or notices the one difference that is
   structural: `ctx.Path` names the embedded page while `ctx.Request.Path` still names the page the
   visitor asked for, which is the same difference a layout layer already shows.
+- **A capture is not a write.** `CaptureAsync` returns the body and the caller decides whether it
+  lands; the captured page's response, head, sheets and script permission stay behind, so a page can
+  use another page's output as data without joining its document.
 - **A page chooses its wrapper; nothing wraps it by default.** `Wrap()` asks for the site's layout,
   `Wrap(key)` for a named one, and a page that asks for neither is served exactly as it wrote itself.
   The host no longer applies `Pages:Layout` on its own.
@@ -76,6 +80,7 @@ header and footer partial is the use that argues for this most:
 ```csharp
 public interface IPageComposition {
     Task EmbedAsync(string key, PageEmbedOptions? options = null);
+    Task<string> CaptureAsync(string key, PageEmbedOptions? options = null);
     void Wrap(string key);
     void Wrap();
 }
@@ -94,8 +99,10 @@ public sealed record PageEmbedOptions {
 }
 ```
 
-`EmbedAsync` includes another page here. `Wrap` hands this page's finished output to another page and
-names it as the document; `Wrap()` uses the site's layout, `Pages:Layout`, so a page does not name a
+`EmbedAsync` includes another page here. `CaptureAsync` is the same render **returned** rather than
+written — the captured page gets its own clean response and the caller gets the body as a string, for
+the page that wants to run another page's output through the Markdown renderer or keep it for later.
+`Wrap` hands this page's finished output to another page and names it as the document; `Wrap()` uses the site's layout, `Pages:Layout`, so a page does not name a
 key the owner can move. A page does:
 
 ```html
@@ -293,7 +300,7 @@ Three bounds, because a cycle is not the only way one page becomes many:
   and allowed, with the caps below as its bound. It is the machinery the layout chain already has,
   shared instead of duplicated, and a layout that embeds the content it wraps is caught too.
 - **The recursive case is counted, so it can be watched.** An embed that repeats an ancestor's key
-  with different options counts `page.embed.recursive` and logs the chain at Debug. It is legal and
+  with different options counts `page.composition.recursive` and logs the chain at Debug. It is legal and
   occasionally brilliant, but a page that does it is worth knowing about, and the ordinary case pays
   nothing for the instrument.
 - **`Pages:Render:MaxEmbedDepth`** bounds nesting, separate from `MaxLayoutDepth` because a widget
@@ -330,36 +337,53 @@ not roll back: a side effect the embedded page already committed (a storage writ
 started job), and the body allowance it spent on the way. Catching is the page's decision; the
 capability does not hand out a result value that makes ignoring a failure the default.
 
-### Capture, deliberately later
+### Capture is the same render, returned
 
-"Probably just a call to embed" is the first shape, and capture is skipped for now. A capture variant
-— returning the markup so the caller can transform it — would charge the body allowance twice: once
-where the embedded page writes, and again where the caller writes the string back through `WriteRaw`.
-If a real page needs the string, the additive answer is a method that charges once, not a change to
-the primitive.
+`CaptureAsync` shares the embed's whole codepath — resolution, recursion, the derived request, the
+capabilities, the withheld response, the one write, the failures — and differs in one thing: where
+`EmbedAsync` writes the captured body through the caller's `IPageResponse`, `CaptureAsync` hands it
+back as a string and touches nothing. The captured page still gets a **clean response** of its own, so
+its `Write`/`WriteRaw` land in the string and its status, headers, content type and `AllowScripts`
+never reach the caller; its head and sheets are discarded for the same reason. A redirect still
+refuses, because a captured page has no response to redirect.
+
+The caller owns what happens next. The prod site's `/_md` wrapper proves the shape: a wrapper already
+receives its content as `IPageLayout.Body`, and a page that wants the same thing without being wrapped
+— or wants to transform it first — is what capture is for:
+
+```html
+<% var source = await ctx.Capabilities.GetRequired<IPageComposition>().CaptureAsync("/draft");
+   ctx.Response.WriteRaw(ctx.Capabilities.GetRequired<IMarkdownRenderer>().ToHtml(source)); %>
+```
+
+The capture is bounded by the caller's remaining body allowance, but the returned string is charged to
+the shared allowance only when (and if) the caller writes it, so a page that transforms the body is
+charged for what it wrote. A capture counts as an embed for the depth, the fan-out cap and the
+recursive counter.
 
 ## The manual and the docs, in the same change
 
-- `/help` gains the capability beside `IPageLayout`, with snippets for `EmbedAsync` and `Wrap`, the
-  "options are the query" rule, the bounds, the refusals, and the two warnings: an embedded page runs
+- `/help` gains the capability beside `IPageLayout`, with snippets for `EmbedAsync`, `CaptureAsync`
+  and `Wrap`, the "options are the query" rule, the bounds, the refusals, and the two warnings: an embedded page runs
   the caller's method and form, and its `ctx.Path` is its own key so its links must be site-absolute.
   It also says plainly that a page that does not call `Wrap` is served as a bare fragment, that a
   form inside an embed must post to the embedded page's own key rather than to the document's URL,
   that storage is bound to the key so two instances of one widget share state unless the page keys it
-  on its options, and that **the wrapper owns the title check** now — the host no longer refuses a
+  on its options, that a **capture** returns the body and discards the captured page's response, head
+  and sheets, and that **the wrapper owns the title check** now — the host no longer refuses a
   missing one.
 - Every seeded page with code gains its `Wrap()` line, and the editor's new-page template carries it,
   because that is where a page that would otherwise forget is most often born. The seeded `/_layout`
   supplies a default title when the page set none, which is the wrapper's job now.
-- The assistant's prompt lists the capability, its two calls, the "`Wrap` is ignored in an embed"
+- The assistant's prompt lists the capability, its three calls, the "`Wrap` is ignored in an embed"
   rule, so it does not write a guard around every wrap, and the nullable title.
 - `docs/pages.md` adds the capability to the list, the two option shapes and the constructor with
   `With`/`WithAnother`/`Without`, and says `IPageLayout.Layout` is gone and `Title` is nullable;
   `docs/shell.md` says the chain is policy over the layer render, entered by the page, that the shell's
   documents are bootstrap surfaces with one way home — `/`, plus `/admin` at or under that prefix —
-  and that the stored layout is the site's menu. `docs/metrics.md` names `page.embed.recursive`, so an
+  and that the stored layout is the site's menu. `docs/metrics.md` names `page.composition.recursive`, so an
   operator can see the one page that re-enters itself.
-- The glossary gains **embed** and **wrap**, distinct from asset, library and layout.
+- The glossary gains **embed**, **capture** and **wrap**, distinct from asset, library and layout.
 - `PublicAPI.Unshipped.txt` in `Sdk` gains the capability and the options value, and records
   `IPageLayout.Layout`'s removal and `Title`'s nullable type.
 
@@ -367,7 +391,8 @@ the primitive.
 
 Names only, not yet taken: an embedded page is a content render whose response is withheld
 (pages-an-embed-is-a-content-render); an embed sees the caller's request with the options as its
-query (pages-an-embeds-options-are-its-query); a page chooses the layout that wraps it
+query (pages-an-embeds-options-are-its-query); a capture is an embed whose body is returned rather than
+written (pages-a-capture-is-an-embed-returned); a page chooses the layout that wraps it
 (pages-a-page-chooses-its-layout); the chain and the embed are one layer render with a role
 (pages-one-render-three-roles); the wrapper owns the title check (pages-the-wrapper-owns-the-title);
 the shell's documents are bootstrap and recovery surfaces, and the stored layout is the site's menu

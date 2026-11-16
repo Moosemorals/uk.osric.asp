@@ -8,11 +8,11 @@ SPDX-License-Identifier: MIT
 | | |
 | --- | --- |
 | Status | Proposed 2026-11-16 — waits for the owner. Nothing below is built |
-| Size | Large — one new `Sdk` capability with two calls and a value, `IPageLayout` loses `Layout` and gains a nullable `Title`, one layer renderer with three roles, the layout chain rebuilt on it and entered by the page, the shell's documents trimmed to one way home, ten seeded pages and the editor's starter, the manual, the assistant's prompt and its version, two configuration values, one instrument, and the tests that pin the recursion, the response gates and the chrome |
+| Size | Large — one new `Sdk` capability with three calls and a value, `IPageLayout` loses `Layout` and gains a nullable `Title`, one layer renderer with three roles, the layout chain rebuilt on it and entered by the page, the shell's documents trimmed to one way home, ten seeded pages and the editor's starter, the manual, the assistant's prompt and its version, two configuration values, one instrument, and the tests that pin the recursion, the response gates and the chrome |
 | Area | Sdk, Web (pages, shell, seeds, assistant, metrics), docs |
 | Spike | None. Every count below was taken off `trunk` at `6004526` on 2026-11-16, after `pages-the-response-is-one-object` merged |
 | Backlog | [IDEA-049](../jobs/IDEA-049.md) is this step. [IDEA-047](../jobs/IDEA-047.md) is the answer if a real page needs more than one write in one render, which composition makes likelier |
-| Decisions | New names proposed: **pages-an-embed-is-a-content-render**, **pages-an-embeds-options-are-its-query**, **pages-a-page-chooses-its-layout**, **pages-one-render-three-roles**, **pages-the-wrapper-owns-the-title**, **shell-documents-are-bootstrap**, **shell-a-shell-document-carries-one-way-home**. Edits `pages-one-request-one-chain`, `pages-a-layout-is-a-capability`, `pages-layouts-are-markup`, `pages-one-base-sheet` and `pages-capabilities-are-one-seam`; retires `shell-the-menu-is-written-twice`. Relies on `pages-the-response-is-one-object`, `pages-the-contract-is-the-seam`, `pages-public-by-default`, `pages-a-warning-never-stops-a-page`, `pages-page-io-is-async`, `pages-any-page-may-write-the-store`, `pages-a-page-may-save-itself`, `metrics-one-panel-per-instrument` and `code-policy-values-are-configuration` |
+| Decisions | New names proposed: **pages-an-embed-is-a-content-render**, **pages-an-embeds-options-are-its-query**, **pages-a-capture-is-an-embed-returned**, **pages-a-page-chooses-its-layout**, **pages-one-render-three-roles**, **pages-the-wrapper-owns-the-title**, **shell-documents-are-bootstrap**, **shell-a-shell-document-carries-one-way-home**. Edits `pages-one-request-one-chain`, `pages-a-layout-is-a-capability`, `pages-layouts-are-markup`, `pages-one-base-sheet` and `pages-capabilities-are-one-seam`; retires `shell-the-menu-is-written-twice`. Relies on `pages-the-response-is-one-object`, `pages-the-contract-is-the-seam`, `pages-public-by-default`, `pages-a-warning-never-stops-a-page`, `pages-page-io-is-async`, `pages-any-page-may-write-the-store`, `pages-a-page-may-save-itself`, `metrics-one-panel-per-instrument` and `code-policy-values-are-configuration` |
 
 ## The short version
 
@@ -21,16 +21,18 @@ view that wants "this page, here" writes the markup again. This change adds the 
 uses it to remove the last special case in the page runtime: the layout chain stops being a thing the
 host does to every page and becomes a thing a page asks for.
 
-**Two calls, one capability.** `IPageComposition` is offered to every layer a render has:
+**Three calls, one capability.** `IPageComposition` is offered to every layer a render has:
 
 ```csharp
-Task EmbedAsync(string key, PageEmbedOptions? options = null);  // include another page here
-void Wrap(string key);                                          // hand this page to another
-void Wrap();                                                    // …the site's layout, Pages:Layout
+Task EmbedAsync(string key, PageEmbedOptions? options = null);   // include another page here
+Task<string> CaptureAsync(string key, PageEmbedOptions? options = null); // …or return its body
+void Wrap(string key);                                           // hand this page to another
+void Wrap();                                                     // …the site's layout, Pages:Layout
 ```
 
 `EmbedAsync` renders another stored page with the caller's request — same method, form, headers and
-cookies, with the options as its query — and writes its body where the call is. `Wrap` records the
+cookies, with the options as its query — and writes its body where the call is. `CaptureAsync` is the
+same render returned as a string instead of written, for the page that wants to transform it. `Wrap` records the
 page that will wrap this one; the host runs the chain after `HandleAsync` returns, exactly where it
 runs today, so a wrap declared near the top covers every exit path including a guard's early return.
 `Wrap` is not `WrapAsync`: it does not await the wrapper, the host does.
@@ -53,8 +55,8 @@ itself. That is the point and the migration: the seeds and the editor's starter 
 
 ## Goals
 
-1. A page can include another stored page's output, with options that are its query, under the same
-   request, budgets, identity and capabilities.
+1. A page can include another stored page's output, or capture it as a string, with options that are
+   its query, under the same request, budgets, identity and capabilities.
 2. A page chooses the page that wraps it; `IPageLayout.Layout` and the host's automatic wrap are gone,
    and the chain still renders content first and writes the outermost layer.
 3. The three layer roles are one rule, not two booleans: the response gates, the stream refusals, the
@@ -71,8 +73,6 @@ itself. That is the point and the migration: the seeds and the editor's starter 
 
 - **A slot API beyond `Body`.** A wrapper can embed its own partials around `Body`; named regions are a
   different contract.
-- **Capture from inside the page.** `EmbedAsync` writes; returning the markup would charge the body
-  allowance twice and hold two copies.
 - **A data bag in the options.** Options are the query. A typed payload is a new contract value.
 - **A failure value or an error boundary.** `EmbedAsync` throws and a page may catch it. A result value
   that makes ignoring a failure the default is not this step.
@@ -101,12 +101,13 @@ itself. That is the point and the migration: the seeds and the editor's starter 
 
 ## The design
 
-### D1 — `IPageComposition` is one capability with two calls
+### D1 — `IPageComposition` is one capability with three calls
 
 ```csharp
 // Sdk/IPageComposition.cs
 public interface IPageComposition {
     Task EmbedAsync(string key, PageEmbedOptions? options = null);
+    Task<string> CaptureAsync(string key, PageEmbedOptions? options = null);
     void Wrap(string key);
     void Wrap();
 }
@@ -119,7 +120,8 @@ and footer partial is the use that argues for this most, and because a page must
 
 `EmbedAsync` includes another page **now**. It renders into a bounded capture and then writes the
 result through the calling layer's `IPageResponse`, so the body allowance is charged once and a failure
-leaves nothing half-written in the caller.
+leaves nothing half-written in the caller. `CaptureAsync` is the same render with the write replaced by
+a return (D8): the caller gets the body and decides what to do with it.
 
 `Wrap` is a **declaration**: it records the key, and the host runs the chain after `HandleAsync`
 returns. That is what keeps a guard's early `return` wrapped and lets the page set its status after it
@@ -270,12 +272,12 @@ that used the old members reports diagnostics rather than serving stale markup.
 
 1. **Resolve** the key with `PagePath.Normalize`; a malformed key is an `ArgumentException`; a reserved
    key is an `InvalidOperationException`; the key must be a page the renderer can serve.
-2. **Check recursion** (D8) before anything is rendered.
+2. **Check recursion** (D9) before anything is rendered.
 3. **Derive the request**: the caller's request with `Query`/`QueryValues` replaced by the options.
    The method, form, headers, cookies and `Path` stay the caller's.
 4. **Create the layer**: a fresh `PageLayoutState` (no inner), a `StringWriter`, a fresh commit state,
    `role: Embedded`, the embedded key as the context's `Path`, the caller's user, login redirect,
-   antiforgery factory, asset map and abort token, and a **bounded body capture** (D9). The body sink is
+   antiforgery factory, asset map and abort token, and a **bounded body capture** (D10). The body sink is
    `null`, so the embedded layer cannot stream.
 5. **Render** it through the session: `session.RenderAsync(key, context)`.
 6. **Fold outward**: `AddHead(embedded.Head)` when it is non-empty, each `Stylesheet` through the
@@ -283,24 +285,59 @@ that used the old members reports diagnostics rather than serving stale markup.
 7. **Write** the body through the caller's `IPageResponse.WriteRaw`, which charges the shared body
    allowance once.
 
+`CaptureAsync` does the same through step 5 and then returns the string instead of folding and writing
+(D8). Everything before the last step is shared, including the recursion check, the capabilities and
+the one write.
+
 The embedded page keeps the capabilities a content page has: `IPageStorage` and `IPageSession` bound to
 its own key, `IHttpFetch`, `IPageCatalog`, `IPageLayout`, the two renderers, `IPageJobs`,
-`IPageWrites` and `IPageComposition`. The write shares the **render's one action** (D9), so two
+`IPageWrites` and `IPageComposition`. The write shares the **render's one action** (D10), so two
 instances of a writer cannot both write in one request.
 
 A no-code page embeds as its stored source less its comments; that projection moves into the renderer
-in D11. A library or a worker is not a page: it is refused with a `UserFacingException` naming the key.
+in D12. A library or a worker is not a page: it is refused with a `UserFacingException` naming the key.
 
-### D8 — An ancestor stack keyed by the page and its query
+### D8 — Capture is the same render, returned
+
+`CaptureAsync` takes the same key and options as `EmbedAsync` and shares its whole codepath: the
+resolution, the recursion check, the derived request, the content capabilities, the withheld
+response, the one write and the failure table. The difference is the last step: `EmbedAsync` writes
+the captured body through the caller's `IPageResponse`; `CaptureAsync` returns it as a string and
+touches nothing.
+
+The captured page gets a **clean response** of its own — a fresh `SimpleResponse` over the capture —
+so its `Write` and `WriteRaw` land in the string and its status, content type, headers and
+`AllowScripts` never reach the caller. Its head and sheets are discarded for the same reason: the
+caller may not write the body at all, so widening the document's policy or linking its sheets for a
+string that never lands would be wrong. A redirect still refuses, because a captured page has no
+response to redirect. A caller that does write the result can call `AddHead`, `AddStylesheet` and
+`AllowScripts` itself; the string is the artifact.
+
+This is the page-level twin of the wrapper's `IPageLayout.Body`: the prod site's `/_md` layout already
+receives its content as `Body`, and a page that wants the same view without being wrapped — or wants to
+transform it first — is what capture is for:
+
+```html
+<% var source = await ctx.Capabilities.GetRequired<IPageComposition>().CaptureAsync("/draft");
+   ctx.Response.WriteRaw(ctx.Capabilities.GetRequired<IMarkdownRenderer>().ToHtml(source)); %>
+```
+
+A capture counts as an embed for the ancestor stack, the depth, the fan-out cap and the recursive
+counter. It is bounded by the caller's remaining body allowance, but the returned string is charged to
+the shared allowance only when (and if) the caller writes it, so a caller that transforms the body is
+charged for what it wrote. A caller that captures and discards it holds one bounded copy per call,
+which the fan-out cap and the deadline bound.
+
+### D9 — An ancestor stack keyed by the page and its query
 
 `PageChain` owns a stack of `PageRenderIdentity` values, where the identity is the canonical key and a
 fingerprint of the query (the ordered `QueryValues` pairs). The content layer is seeded onto it; every
-layout and every embed pushes itself for the duration of its render and pops after.
+layout, embed and capture pushes itself for the duration of its render and pops after.
 
 - **Same identity in the stack** → `InvalidOperationException` naming the chain. `/foo` embedding
   `/foo` is an infinite loop; `/foo` wrapping the page it wraps is the same.
 - **Same key, different identity** → allowed. `/foo?q=1` embedding `/foo?q=2` is a recursive component
-  — a comment tree, a directory — and the caps are its bound. It records `page.embed.recursive` and
+  — a comment tree, a directory — and the caps are its bound. It records `page.composition.recursive` and
   logs the chain at Debug, so the one page doing it is visible without making the ordinary case noisy.
 - **Repeated at one level** → allowed, because the stack pops. A listing may embed the same card
   twenty times.
@@ -317,12 +354,16 @@ The fingerprint is a pure function over the query pairs, so it lives in `Core.Pa
 tests: two orders of names that a browser would send differently must not collide, and a repeated name
 keeps its order.
 
-### D9 — Output, budgets and the one write
+### D10 — Output, budgets and the one write
 
 - **The capture is bounded.** `BodyBudget` gains `Remaining`; an embedded layer renders into a
   `BodyBudget` sized to the caller's remaining allowance. If the embed overruns, it fails before
   anything reaches the caller. On success the caller's `WriteRaw` charges the shared budget once, which
   is why the embedded text is not counted twice and cannot be smuggled past the cap.
+- **A returned capture is charged when it lands.** `CaptureAsync` renders under the same bounded view
+  but does not write, so the returned string is charged to the shared allowance only when the caller
+  writes it. A caller that transforms the body is charged for the transformed text; one that discards
+  it holds one bounded copy per call, which `MaxEmbeds` and the deadline bound.
 - **One write per render.** `PageWritesScope` keeps its key binding but no longer owns its `_acted`; a
   `PageWriteAction` created by the chain is shared by the content layer and every embedded layer. A
   listing that embeds a self-saving widget therefore refuses the second instance, exactly as two saves
@@ -333,7 +374,7 @@ keeps its order.
   committed response and falls under `Pages:Stream`, not the body budget; the embedded page itself
   never flushes.
 
-### D10 — Failure is a throw the page may catch
+### D11 — Failure is a throw the page may catch
 
 | Case | Refusal |
 | --- | --- |
@@ -348,23 +389,23 @@ A page may catch any of these: the embedded output never reached the caller's bo
 clean. What does not roll back is a side effect the embedded page already committed (a storage write, a
 session write, a started job) and the body allowance it spent on the way.
 
-### D11 — The no-code projection moves into the renderer
+### D12 — The no-code projection moves into the renderer
 
 `PageRenderer.RenderLayerAsync`'s text branch writes `TemplateComments.Remove(source)` instead of the
 source, and `PageEndpoint.WriteSourceAsync` stops removing them because the body it receives is already
 the projection. An embed therefore cannot be a way for a `<%# … %>` to reach a visitor, and there is
 still one place where a stored source becomes a body.
 
-### D12 — Configuration and the instrument
+### D13 — Configuration and the instrument
 
 - `Pages:Render:MaxEmbedDepth` and `Pages:Render:MaxEmbeds` are policy values: an options record
   member read through `ConfigurationReader`, the shipped value in `appsettings.json`, and a test for
   the shipped value, an override and a refusal.
-- `page.embed.recursive` is a counter in `PageMetrics`, one panel in `StatusCatalogue` ("Recursive
-  embeds", a line chart by `page_path`), one row in the metrics table, and one call in
-  `MetricNamesTests`. The Pages panel count in `docs/metrics.md` moves from nineteen to twenty.
+- `page.composition.recursive` is a counter in `PageMetrics`, one panel in `StatusCatalogue`
+  ("Recursive composition", a line chart by `page_path`), one row in the metrics table, and one call
+  in `MetricNamesTests`. Both `EmbedAsync` and `CaptureAsync` count. The Pages panel count in `docs/metrics.md` moves from nineteen to twenty.
 
-### D13 — The shell's documents are bootstrap surfaces
+### D14 — The shell's documents are bootstrap surfaces
 
 `SiteNavigation.Links` becomes the one way home: `/` always, and `/admin` when the request path is at
 or under `/admin`. The assistant, editor, sign-in and sign-out items leave the **shell's** menu; the
@@ -381,7 +422,7 @@ keeps the full menu. `AnAnonymousVisitorSeesSignInAndNoTools` and
 `ASignedInVisitorSeesTheToolsAndSignOut` stay, because they assert the stored layout through a wrapped
 page.
 
-### D14 — The record
+### D15 — The record
 
 > **pages-an-embed-is-a-content-render** — an embedded page is a content render: its own key, storage,
 > session and capabilities, the caller's identity, one budget and one slot, and no response.
@@ -389,6 +430,10 @@ page.
 > **pages-an-embeds-options-are-its-query** — an embed's options are the embedded request's query;
 > omitting them forwards the caller's, an empty `PageEmbedOptions` clears it, and a constructor over
 > the caller's request makes a copy-and-change cheap.
+>
+> **pages-a-capture-is-an-embed-returned** — a capture is the embed render with its body returned
+> instead of written: the captured page gets a clean response, so its settings, head, sheets and
+> script permission never reach the caller, and a capture that would redirect refuses.
 >
 > **pages-a-page-chooses-its-layout** — a page declares the page that wraps it; the host does not wrap
 > by default, and `IPageLayout.Layout` is gone.
@@ -432,10 +477,11 @@ wrapped without the author knowing the rule.
 version (`page-author-v35` → `v36`).
 
 Tests: `PageLayoutChainTests` (36, retitled where the wrap changed), new `PageCompositionTests`,
-`PageEmbedOptionsTests`, `PageLayerRoleTests` in `Web.Tests`; `SimpleResponseTests`, `PageEndpointTests`,
-`PageWritesScopeTests` and `PageStreamingTests` gain the role and the one-write sharing;
-`PageAuthorPromptTests`; `SiteChromeTests` and `SiteLayoutEditingTests` in the integration suite;
-`MetricNamesTests`; `TemplateCommentsTests` and `PageCompilerTests` where the projection moved.
+`PageCaptureTests`, `PageEmbedOptionsTests` and `PageLayerRoleTests` in `Web.Tests`;
+`SimpleResponseTests`, `PageEndpointTests`, `PageWritesScopeTests` and `PageStreamingTests` gain the
+role and the one-write sharing; `PageAuthorPromptTests`; `SiteChromeTests` and `SiteLayoutEditingTests`
+in the integration suite; `MetricNamesTests`; `TemplateCommentsTests` and `PageCompilerTests` where the
+projection moved.
 
 Docs: `pages.md`, `shell.md`, `metrics.md`, `glossary.md`, `testing.md`, `architecture.md` where it
 names the capability set, `/help`, `docs/jobs/README.md` (the plan link), and `decisions.md` at the
@@ -449,9 +495,9 @@ One branch, four commits, so each can be read alone:
    `IPageLayout` change, `PageLayerRole`, `SimpleResponse`/`SimpleContext`, `PageLayoutState`, the
    `PageWriteAction`, and the tests that pin the role matrix, the options helpers and the nullable
    title.
-2. **The renderer and the two calls.** The layer loop, the session order, the embed path, the ancestor
-   stack, the bounded capture, the head/sheet fold, the projection move, the two configuration values
-   and the instrument. The chain tests move to the new shape here.
+2. **The renderer and the three calls.** The layer loop, the session order, the embed and capture
+   paths, the ancestor stack, the bounded capture, the head/sheet fold, the projection move, the two
+   configuration values and the instrument. The chain tests move to the new shape here.
 3. **The pages we ship.** Ten seeds with `Wrap()` and the nullable title, the editor's starter,
    `/help`, the prompt and its version. `make check-pages` and the prompt test prove it.
 4. **The shell and the docs.** `SiteNavigation`, `ShellDocument`, the chrome tests, `/help`'s shell
@@ -468,10 +514,13 @@ One branch, four commits, so each can be read alone:
   a refusal; an embed is offered the write and the jobs and a layout is not; two embedded writers spend
   one action.
 - **Recursion:** `/foo` embedding itself is refused; `/foo?q=1` embedding `/foo?q=2` renders, counts
-  `page.embed.recursive` and stops at the depth cap; a listing embedding one card ten times renders ten
+  `page.composition.recursive` and stops at the depth cap; a listing embedding one card ten times renders ten
   times; `MaxEmbeds` refuses the eleventh under its configured value.
 - **The body:** an embed over the remaining allowance fails before writing; the caller's body is
-  untouched; the successful embed is charged once.
+  untouched; the successful embed is charged once; a capture is charged only when its string is written.
+- **The capture:** `CaptureAsync` returns the body and leaves the caller's body untouched; the captured
+  page's `SetStatus`, `AddStylesheet`, `AllowScripts` and head do not leak; a redirect refuses; a capture
+  of an ancestor with the same options is a cycle; the Markdown use in D8 renders.
 - **The no-code page:** an embedded text page's `<%# … %>` does not reach the body, and a served one
   still loses it.
 - **The wrap:** a page with no `Wrap` is a fragment; `Wrap()` uses the configured key; `Wrap(key)` names
@@ -494,7 +543,9 @@ One branch, four commits, so each can be read alone:
   must move it to the chain or a listing of writers quietly writes several times.
 - **The body budget view is the subtle arithmetic.** Charging the embed's capture and the caller's copy
   both would shrink the allowance; charging neither would let a page exceed it. The test that renders a
-  near-limit embed is the proof.
+  near-limit embed, and the capture that is charged only when written, are the proof.
+- **A capture is a copy until it lands.** A page can hold one bounded capture per call and discard it;
+  `MaxEmbeds` and the deadline bound the total, and a page that writes the string pays for it then.
 - **The role touches the response gates**, which is the part a visitor can observe: the eight gate tests
   must move with the flag, not be rewritten, and the redirect exception for an embed is the one new
   behaviour.
@@ -516,8 +567,8 @@ One branch, four commits, so each can be read alone:
    must use `ctx.Path`) are manual warnings, not host guards.
 3. **What a no-code page means.** It embeds as the fragment it is, less its comments; a library or a
    worker is not a page and throws.
-4. **The capability and the timing.** `IPageComposition` with `EmbedAsync` and `Wrap`; `Wrap` is a
-   declaration, not `WrapAsync`, so every exit path is wrapped.
+4. **The capability and the timing.** `IPageComposition` with `EmbedAsync`, `CaptureAsync` and `Wrap`;
+   `Wrap` is a declaration, not `WrapAsync`, so every exit path is wrapped.
 5. **The title.** Checked by the wrapper, not the host; `IPageLayout` keeps `Body`, `Title`, `Head` and
    `Stylesheets`.
 6. **`Wrap()` with no key.** Yes: the configured default, so a page does not hard-code a key the owner
@@ -530,6 +581,9 @@ One branch, four commits, so each can be read alone:
    allowed, capped and counted.
 10. **Failure.** `EmbedAsync` throws; catching it is the page's choice; there is no failure value and no
     error boundary.
+11. **Capture.** Asked for after the plan was first written: the same codepath as an embed, the body
+    returned as a string, and the captured page's response, head, sheets and script permission kept
+    out of the caller. It is how a page does what a wrapper does with `Body` without being wrapped.
 
 ## Considered and rejected
 
@@ -541,8 +595,9 @@ One branch, four commits, so each can be read alone:
   top covers every path and lets the page set its status after writing.
 - **Two capabilities (`IPageEmbed` + `IPageWrap`).** They share the render, the budgets, the stack and
   the guards; one seam is the repository's rule.
-- **Capture (`RenderAsync`) now.** It would charge the body allowance twice and hold two copies; a
-  page that wants the markup can wait for a caller.
+- **A capture result carrying the captured response's status, sheets and script permission.** The
+  string is the artifact; a caller that writes it asks for the sheet or the script permission itself.
+  A result value would make every caller merge a response the capture exists to withhold.
 - **A slot API beyond `Body`.** A wrapper can embed partials around its slot; named regions are a
   different contract.
 - **A data bag in the options.** Options are the query, and a typed payload is a new value type on the
