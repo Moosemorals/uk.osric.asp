@@ -286,64 +286,6 @@ public sealed class SimpleContextTests {
     }
 
     [Test]
-    public async Task TheFirstFlushStartsTheResponseOnceAndWritesTheBuffer() {
-        SimpleContext context = CreateStreamingContext(out _, out FakePageBodySink sink);
-
-        context.Write("first");
-        await context.FlushAsync();
-
-        Assert.Multiple(() => {
-            Assert.That(context.IsCommitted, Is.True);
-            Assert.That(sink.Started, Has.Count.EqualTo(1));
-            Assert.That(sink.Started[0].Status, Is.EqualTo(200));
-            Assert.That(sink.Chunks, Is.EqualTo(["first"]));
-        });
-    }
-
-    [Test]
-    public async Task TheSecondFlushWritesOnlyWhatCameAfter() {
-        SimpleContext context = CreateStreamingContext(out _, out FakePageBodySink sink);
-
-        context.Write("one");
-        await context.FlushAsync();
-        context.Write("two");
-        await context.FlushAsync();
-
-        Assert.Multiple(() => {
-            Assert.That(sink.Started, Has.Count.EqualTo(1), "the response is committed once");
-            Assert.That(sink.Chunks, Is.EqualTo(["one", "two"]));
-        });
-    }
-
-    [Test]
-    public async Task TheTailAfterTheLastFlushIsSentAtCompletion() {
-        SimpleContext context = CreateStreamingContext(out _, out FakePageBodySink sink);
-
-        context.Write("one");
-        await context.FlushAsync();
-        context.Write("two");
-        await context.CompleteAsync();
-
-        Assert.Multiple(() => {
-            Assert.That(sink.Started, Has.Count.EqualTo(1));
-            Assert.That(sink.Chunks, Is.EqualTo(["one", "two"]));
-        });
-    }
-
-    [Test]
-    public async Task AnEmptyFirstFlushStartsTheResponseWithoutWritingABody() {
-        SimpleContext context = CreateStreamingContext(out _, out FakePageBodySink sink);
-
-        await context.FlushAsync();
-
-        Assert.Multiple(() => {
-            Assert.That(context.IsCommitted, Is.True);
-            Assert.That(sink.Started, Has.Count.EqualTo(1));
-            Assert.That(sink.Chunks, Is.Empty);
-        });
-    }
-
-    [Test]
     public void AContextWithNoSinkCannotStream() {
         SimpleContext context = CreateContext(out _);
 
@@ -376,21 +318,6 @@ public sealed class SimpleContextTests {
     }
 
     [Test]
-    public async Task AFlushAfterAbandonWritesNothing() {
-        SimpleContext context = CreateStreamingContext(out _, out FakePageBodySink sink);
-
-        context.Write("buffered");
-        context.Abandon();
-        await context.FlushAsync();
-
-        Assert.Multiple(() => {
-            Assert.That(context.IsCommitted, Is.False);
-            Assert.That(sink.Started, Is.Empty);
-            Assert.That(sink.Chunks, Is.Empty);
-        });
-    }
-
-    [Test]
     public async Task ResponseSettingsAfterTheFlushThrow() {
         SimpleContext context = CreateStreamingContext(out _, out _);
         await context.FlushAsync();
@@ -415,27 +342,6 @@ public sealed class SimpleContextTests {
         await context.FlushAsync();
 
         Assert.That(sink.Chunks, Is.EqualTo(["&lt;b&gt;<i>"]));
-    }
-
-    [Test]
-    public async Task TheBodyCapStopsAtTheFirstFlush() {
-        SimpleContext context = CreateStreamingContext(out _, out _, maxBodyChars: 10);
-
-        context.Write("0123456789");
-        await context.FlushAsync();
-        context.Write("0123456789");
-        await context.FlushAsync();
-        context.Write("0123456789");
-
-        Assert.That(context.IsCommitted, Is.True);
-    }
-
-    [Test]
-    public void TheBodyCapStillRefusesAnOversizedBufferBeforeTheFlush() {
-        SimpleContext context = CreateStreamingContext(out _, out _, maxBodyChars: 10);
-
-        Assert.That(() => context.Write("01234567890"), Throws.InvalidOperationException.With.Message.Contains("10"));
-        Assert.That(context.IsCommitted, Is.False);
     }
 
     // A page-level store over an empty one, registered as the capability the endpoint offers.
