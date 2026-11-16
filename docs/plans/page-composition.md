@@ -8,7 +8,7 @@ SPDX-License-Identifier: MIT
 | | |
 | --- | --- |
 | Status | Proposed 2026-11-16 — waits for the owner. Nothing below is built |
-| Size | Large — one new `Sdk` capability with three calls and two values, `IPageLayout` loses `Layout` and gains a nullable `Title`, one layer renderer with three roles, the layout chain rebuilt on it and entered by the page, the shell's documents trimmed to one way home, ten seeded pages and the editor's starter, the manual, the assistant's prompt and its version, two configuration values, one instrument, and the tests that pin the recursion, the response gates and the chrome |
+| Size | Large — one new `Sdk` capability with four calls and two values, `IPageLayout` loses `Layout` and gains a nullable `Title`, one layer renderer with three roles, the layout chain rebuilt on it and entered by the page, the shell's documents trimmed to one way home, ten seeded pages and the editor's starter, the manual, the assistant's prompt and its version, two configuration values, one instrument, and the tests that pin the recursion, the response gates and the chrome |
 | Area | Sdk, Web (pages, shell, seeds, assistant, metrics), docs |
 | Spike | None. Every count below was taken off `trunk` at `6004526` on 2026-11-16, after `pages-the-response-is-one-object` merged |
 | Backlog | [IDEA-049](../jobs/IDEA-049.md) is this step. [IDEA-047](../jobs/IDEA-047.md) is the answer if a real page needs more than one write in one render, which composition makes likelier |
@@ -21,7 +21,7 @@ view that wants "this page, here" writes the markup again. This change adds the 
 uses it to remove the last special case in the page runtime: the layout chain stops being a thing the
 host does to every page and becomes a thing a page asks for.
 
-**Three calls, one capability.** `IPageComposition` is offered to every layer a render has:
+**Four calls, one capability.** `IPageComposition` is offered to every layer a render has:
 
 ```csharp
 Task EmbedAsync(string key, PageEmbedOptions? options = null);   // include another page here
@@ -101,7 +101,7 @@ itself. That is the point and the migration: the seeds and the editor's starter 
 
 ## The design
 
-### D1 — `IPageComposition` is one capability with three calls
+### D1 — `IPageComposition` is one capability with four calls
 
 ```csharp
 // Sdk/IPageComposition.cs
@@ -513,7 +513,7 @@ One branch, four commits, so each can be read alone:
    `IPageLayout` change, `PageLayerRole`, `SimpleResponse`/`SimpleContext`, `PageLayoutState`, the
    `PageWriteAction`, and the tests that pin the role matrix, the options helpers and the nullable
    title.
-2. **The renderer and the three calls.** The layer loop, the session order, the embed and capture
+2. **The renderer and the four calls.** The layer loop, the session order, the embed and capture
    paths, the ancestor stack, the bounded capture, the head/sheet fold, the projection move, the two
    configuration values and the instrument. The chain tests move to the new shape here.
 3. **The pages we ship.** Ten seeds with `Wrap()` and the nullable title, the editor's starter,
@@ -586,7 +586,7 @@ One branch, four commits, so each can be read alone:
    must use `ctx.Path`) are manual warnings, not host guards.
 3. **What a no-code page means.** It embeds as the fragment it is, less its comments; a library or a
    worker is not a page and throws.
-4. **The capability and the timing.** `IPageComposition` with `EmbedAsync`, `CaptureAsync` and `Wrap`;
+4. **The capability and the timing.** `IPageComposition` with `EmbedAsync`, `CaptureAsync` and the two `Wrap` forms;
    `Wrap` is a declaration, not `WrapAsync`, so every exit path is wrapped.
 5. **The title.** Checked by the wrapper, not the host; `IPageLayout` keeps `Body`, `Title`, `Head` and
    `Stylesheets`.

@@ -7,7 +7,7 @@ SPDX-License-Identifier: MIT
 
 | | |
 | --- | --- |
-| Size | L — one `Sdk` capability with three calls and two values, one layer renderer with three roles, the layout chain rebuilt on it and triggered by the page, `IPageLayout.Layout` and the automatic wrap deleted, two `Pages:Render` values, the shell-document policy and the trim it allows, every seeded page, the manual, the assistant's prompt, the docs and the tests that pin the recursion rules. It wants a plan |
+| Size | L — one `Sdk` capability with four calls and two values, one layer renderer with three roles, the layout chain rebuilt on it and triggered by the page, `IPageLayout.Layout` and the automatic wrap deleted, two `Pages:Render` values, the shell-document policy and the trim it allows, every seeded page, the manual, the assistant's prompt, the docs and the tests that pin the recursion rules. It wants a plan |
 | Area | Sdk, Web (pages, shell, seeds, assistant), docs |
 | Location | `src/uk.osric.asp.Sdk/IPageComposition.cs`, `src/uk.osric.asp.Sdk/PageEmbedOptions.cs`, `src/uk.osric.asp.Sdk/IPageLayout.cs`, `src/uk.osric.asp.Web/Pages/PageCompositionScope.cs`, `src/uk.osric.asp.Web/Pages/PageChain.cs`, `src/uk.osric.asp.Web/Pages/PageEndpoint.cs`, `src/uk.osric.asp.Web/Pages/PageRenderer.cs`, `src/uk.osric.asp.Web/Pages/SimpleContext.cs`, `src/uk.osric.asp.Web/Pages/SimpleResponse.cs`, `src/uk.osric.asp.Web/Pages/PageLayoutState.cs`, `src/uk.osric.asp.Web/Pages/RenderOptions.cs`, `src/uk.osric.asp.Web/Pages/PageMetrics.cs`, `src/uk.osric.asp.Web/appsettings.json`, `src/uk.osric.asp.Web/Html/ShellDocument.cs`, `src/uk.osric.asp.Web/Html/SiteNavigation.cs`, `src/uk.osric.asp.Web/Pages/Seeds/help`, `src/uk.osric.asp.Web/Assistant/PageAuthorPrompt.cs`, `docs/pages.md`, `docs/shell.md` |
 
@@ -391,7 +391,7 @@ counter.
 - Every seeded page with code gains its `Wrap()` line, and the editor's new-page template carries it,
   because that is where a page that would otherwise forget is most often born. The seeded `/_layout`
   supplies a default title when the page set none, which is the wrapper's job now.
-- The assistant's prompt lists the capability, its three calls, the "`Wrap` is ignored in an embed"
+- The assistant's prompt lists the capability, its four calls, the "`Wrap` is ignored in an embed"
   rule, so it does not write a guard around every wrap, and the nullable title.
 - `docs/pages.md` adds the capability to the list, the two option shapes and the constructor with
   `With`/`WithAnother`/`Without`, and says `IPageLayout.Layout` is gone and `Title` is nullable;
