@@ -9,9 +9,13 @@ using uk.osric.asp.Web.Assistant;
 /// <summary>An <see cref="IAccountBalanceClient"/> that answers without a socket.</summary>
 internal sealed class StubAccountBalanceClient : IAccountBalanceClient {
 
-    /// <summary>The balance to answer with, or <see langword="null"/> for a provider that did not answer.</summary>
-    public AccountBalance? Balance { get; init; }
+    /// <summary>The answer to repeat, which defaults to a provider that did not answer.</summary>
+    public AccountBalanceRead Read { get; init; } = AccountBalanceRead.Failed(AccountBalanceReason.Error);
+
+    /// <summary>Answers to give before <see cref="Read"/>, for a sampler test that changes its mind.</summary>
+    public Queue<AccountBalanceRead> Reads { get; } = new();
 
     /// <inheritdoc/>
-    public Task<AccountBalance?> GetAsync(CancellationToken cancellationToken) => Task.FromResult(Balance);
+    public Task<AccountBalanceRead> GetAsync(CancellationToken cancellationToken) =>
+        Task.FromResult(Reads.Count > 0 ? Reads.Dequeue() : Read);
 }

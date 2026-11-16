@@ -2043,6 +2043,41 @@ the two answers are one transport with two projections rather than one shape wit
 
 *Recorded in [assistant](assistant.md#ai-page-assistant), [OutboundResponse](../src/uk.osric.asp.Web/Pages/OutboundResponse.cs).*
 
+### assistant-the-balance-is-sampled-on-a-clock
+
+The provider account's credit is sampled by a background service at startup and then every
+`Assistant:BalanceSampleSeconds`, not when the conversation page is opened. The page's fetch is free to
+reuse, but a history built from page views is a diary of the owner's visits, where a batch of runs
+between two visits draws as one step at the second.
+
+*Recorded in [assistant](assistant.md), [AccountBalanceSampler](../src/uk.osric.asp.Web/Assistant/AccountBalanceSampler.cs).*
+
+### assistant-a-balance-read-carries-its-reason
+
+Reading the balance answers a value — the figures, or one of a closed set of reasons (`unsupported`,
+`error`, `timeout`, `unreachable`, `invalid`) — and the client logs nothing. The page shows one sentence
+for any absence, and the sampler logs a reason when it changes. A client that logs its own failures
+cannot be used twice without one caller deciding the other's logging.
+
+*Recorded in [assistant](assistant.md), [AccountBalanceRead](../src/uk.osric.asp.Core/Assistant/AccountBalanceRead.cs).*
+
+### assistant-a-balance-is-read-as-a-number
+
+The provider's money text is parsed once in `Core` as an invariant-culture decimal. A figure that is not
+a number is skipped rather than recorded as zero, because a zero on the chart reads as credit gone; a
+negative figure is recorded as it came, because a provider that owes the account money is telling the
+truth. An unreadable figure logs its currency code and never the provider's text.
+
+*Recorded in [assistant](assistant.md), [AccountBalanceAmounts](../src/uk.osric.asp.Core/Assistant/AccountBalanceAmounts.cs).*
+
+### assistant-the-balance-cadence-is-configuration
+
+The cadence of the outbound balance read is `Assistant:BalanceSampleSeconds`, a policy value with no
+fallback: it decides how much history a day has and how much of the provider's time is spent, and its
+range (30 to 3600 seconds, 60 shipped) is a safety net rather than a ration.
+
+*Recorded in [assistant](assistant.md), [AssistantOptions](../src/uk.osric.asp.Web/Assistant/AssistantOptions.cs), [appsettings.json](../src/uk.osric.asp.Web/appsettings.json).*
+
 ## Deploy
 
 ### deploy-one-small-host
@@ -2215,6 +2250,24 @@ columns and the time labels under it agree. The renderer supplies the window it 
 window from the samples.
 
 *Recorded in [metrics](metrics.md#the-panels), [ChartTimeAxis](../src/uk.osric.asp.Core/Charting/ChartTimeAxis.cs), [ChartClip](../src/uk.osric.asp.Core/Charting/ChartClip.cs).*
+
+### metrics-a-balance-is-a-level
+
+A provider account's balance is an observable gauge tagged `currency`, and its panel is a line chart
+queried as a level (`max by (currency)`), so each currency is its own series rather than two currencies
+merged into one line. It is read beside `assistant.tokens` as the effective price: a step up is a
+top-up, and the slope is the spend.
+
+*Recorded in [metrics](metrics.md#the-panels), [AssistantMetrics](../src/uk.osric.asp.Web/Assistant/AssistantMetrics.cs), [StatusCatalogue](../src/uk.osric.asp.Web/Metrics/StatusCatalogue.cs).*
+
+### metrics-a-failed-sample-keeps-the-last-level
+
+A failed sample leaves the last good level in place rather than reporting nothing or zero, as the
+storage gauges already do. A dead sampler therefore draws a flat line rather than a gap; its log line is
+where a stuck sample is diagnosed. An age-of-sample gauge is rejected until a second level needs the
+same guard, when it becomes one panel for all of them rather than one more for each.
+
+*Recorded in [metrics](metrics.md#the-panels), [AccountBalanceSampler](../src/uk.osric.asp.Web/Assistant/AccountBalanceSampler.cs).*
 
 ## Retired
 

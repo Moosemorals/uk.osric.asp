@@ -85,7 +85,7 @@ internal static class StatusCatalogue {
             "Total capacity of the filesystem holding the database; read it against the database size.",
             "bytes"),
 
-        // Assistant: eight histograms and the two counters.
+        // Assistant: eight histograms, the two counters and the gauge.
         Heatmap(Assistant("assistant.run.duration"), "Run duration",
             "How long one assistant run takes, from the request to the final answer.",
             "seconds", "runs/s"),
@@ -116,6 +116,9 @@ internal static class StatusCatalogue {
         Stacked(Assistant("assistant.memory.writes"), "Memory writes",
             "Memory writes per second, split by outcome.",
             "writes/s", split: "outcome"),
+        Line(Assistant("assistant.balance"), "Account credit",
+            "The provider account's remaining credit, one line per currency; a step up is a top-up and the slope is the spend.",
+            "credit", by: "currency"),
 
         // Host: the framework's meters, which are not instruments this repository registers.
         new Panel {
@@ -202,11 +205,14 @@ internal static class StatusCatalogue {
         CellUnit = cellUnit,
     };
 
-    private static Panel Line(MetricInstrument instrument, string title, string description, string yTitle, string? topk = null) {
+    private static Panel Line(MetricInstrument instrument, string title, string description, string yTitle,
+        string? topk = null, string? by = null) {
         // A gauge is a level, not a counter: rate() over it asks for a _total family the exporter never
         // writes, which empties the panel rather than drawing it.
         string query = instrument.Kind == InstrumentKind.Gauge
-            ? $"max({PrometheusNames.Family(instrument)})"
+            ? by is null
+                ? $"max({PrometheusNames.Family(instrument)})"
+                : $"max by ({by}) ({PrometheusNames.Family(instrument)})"
             : topk is null
                 ? $"sum(rate({PrometheusNames.Total(instrument)}[5m]))"
                 : $"topk(8, sum by ({topk}) (rate({PrometheusNames.Total(instrument)}[5m])))";

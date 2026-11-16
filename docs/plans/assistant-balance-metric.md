@@ -7,12 +7,12 @@ SPDX-License-Identifier: MIT
 
 | | |
 | --- | --- |
-| Status | Planned, not started — waiting on the owner's yes (`product-steps-wait-for-the-owner`) |
+| Status | Proposed, built and merged 2026-11-16. The six names it proposed are in [the record](../decisions.md) |
 | Size | Small — one pure parse, one value on the client's answer, one sampler, one gauge, one panel and one key, with the tests for each |
 | Area | Core (assistant), Web (assistant, metrics, configuration) |
 | Spike | None. `/user/balance` is already read on every conversation page view, its JSON is already parsed, and the observability shape is the one `PageStorageSampler` already uses |
-| Backlog | [IDEA-032](../jobs/IDEA-032.md) |
-| Decisions | D1–D6 below; named from [decided](../decisions.md) when the work merges |
+| Backlog | IDEA-032, closed by this change ([the job index](../jobs/README.md#closed)) |
+| Decisions | Six, taken at the merge and listed at the bottom of this file; no existing entry is revised |
 
 ## The short version
 
@@ -261,7 +261,8 @@ tests are green.
 
 - [metrics](../metrics.md): the instrument row, the panel count sentence, and what the level answers.
 - [assistant](../assistant.md): the balance paragraph gains the sample.
-- [jobs](../jobs/README.md): IDEA-032 in the table and in "not in this programme".
+- [jobs](../jobs/README.md): IDEA-032 moved to Closed and its file removed; the open table and "not
+  in this programme" lose their rows.
 - `/help` is unchanged: this adds no page-authoring capability.
 
 ## Documentation and decisions
@@ -292,3 +293,38 @@ tests are green.
 startup and on the configured clock; the conversation page's figure, wording and fetch are unchanged;
 a provider with no balance route logs once and draws "No data"; `make check` is green; and the
 catalogue's drift tests hold the new instrument to its panel.
+
+## The names this plan proposed
+
+These are in [the record](../decisions.md), taken at the merge on 2026-11-16. They are D1–D6 above:
+
+- [metrics-a-balance-is-a-level](../decisions.md#metrics-a-balance-is-a-level) (D1) — a provider
+  balance is a gauge, drawn as a line, one series per currency, and the query splits by the label
+  rather than merging the currencies.
+- [assistant-the-balance-is-sampled-on-a-clock](../decisions.md#assistant-the-balance-is-sampled-on-a-clock)
+  (D2) — the sample is the clock's and not a page view's, so the history is the spend.
+- [assistant-a-balance-read-carries-its-reason](../decisions.md#assistant-a-balance-read-carries-its-reason)
+  (D3) — the client answers a closed reason and logs nothing; the caller decides what that reason is
+  worth.
+- [metrics-a-failed-sample-keeps-the-last-level](../decisions.md#metrics-a-failed-sample-keeps-the-last-level)
+  (D4) — a failed sample leaves the previous value alone, and the sampler's log line is where a stuck
+  sample is diagnosed.
+- [assistant-a-balance-is-read-as-a-number](../decisions.md#assistant-a-balance-is-read-as-a-number)
+  (D5) — the provider's money text is parsed once in `Core`; an unreadable figure is skipped and a
+  negative one is recorded as it came.
+- [assistant-the-balance-cadence-is-configuration](../decisions.md#assistant-the-balance-cadence-is-configuration)
+  (D6) — the cadence is a policy value with no fallback, and the shipped minute is the recommended
+  one.
+
+## What changed while building
+
+- There is no `Assistant:Enabled` block in `Program` any more — the assistant always runs
+  (`assistant-always-on`) — so the sampler is registered beside `RunWorker` unconditionally.
+- The gauge's snapshot is `CurrencyCredit`, a record in `AssistantMetrics`; the sampler builds it
+  from the currencies it could read.
+- The client no longer takes an `ILogger`, so "no failed case writes a log entry" is structural and
+  needs no test. The typed client also calls `RemoveAllLoggers()` in `Program`: the handler's own
+  start and end lines for every sample would otherwise be a minute's worth of log from a provider
+  that never answers, which is the flood this plan exists to avoid.
+- A successful read with no readable currency keeps the previous level rather than clearing it: the
+  plan's D4 rule applied to a body that has nothing to record.

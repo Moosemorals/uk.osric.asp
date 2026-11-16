@@ -38,6 +38,9 @@ internal sealed record AssistantOptions {
     /// <summary>How long the account balance panel waits for the provider before it shows nothing.</summary>
     public required double BalanceTimeoutSeconds { get; init; }
 
+    /// <summary>How often the balance sampler reads the provider account's credit.</summary>
+    public required int BalanceSampleSeconds { get; init; }
+
     public required int MaxProviderRetries { get; init; }
     public required int MaxMessageChars { get; init; }
     public required int MaxPageChars { get; init; }
@@ -137,6 +140,7 @@ internal sealed record AssistantOptions {
             RunTimeoutSeconds = reader.Decimal("RunTimeoutSeconds", recommended: 120, minimum: 1, maximum: 86_400),
             ToolTimeoutSeconds = reader.Decimal("ToolTimeoutSeconds", recommended: 10, minimum: 1, maximum: 3_600),
             BalanceTimeoutSeconds = reader.Decimal("BalanceTimeoutSeconds", recommended: 3, minimum: 1, maximum: 60),
+            BalanceSampleSeconds = reader.Number("BalanceSampleSeconds", recommended: 60, minimum: 30, maximum: 3_600),
             MaxProviderRetries = reader.Number("MaxProviderRetries", recommended: 1, minimum: 0, maximum: 10),
             MaxMessageChars = reader.Number("MaxMessageChars", recommended: 16_384, minimum: 1, maximum: 1_048_576),
             MaxPageChars = reader.Number("MaxPageChars", recommended: 262_144, minimum: 1, maximum: 4_194_304),
