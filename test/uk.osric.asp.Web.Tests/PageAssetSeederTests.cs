@@ -9,7 +9,7 @@ using uk.osric.asp.Web.Pages;
 [TestFixture]
 public sealed class PageAssetSeederTests {
 
-    private static readonly string[] SeedPaths = ["/_layout", "/_lib/document", "/_lib/editor", "/about", "/admin", "/admin.css", "/admin.js", "/assistant.css", "/assistant.js", "/editor-mode", "/editor.css", "/editor.js", "/help", "/pages", "/privacy", "/recent", "/reference.css", "/rocket.svg", "/scratch", "/site.css", "/sortable.css", "/sortable.js", "/status.css", "/vim-help", "/vim.css", "/vim.js"];
+    private static readonly string[] SeedPaths = ["/_layout", "/_lib/document", "/_lib/editor", "/about", "/admin", "/assistant.css", "/assistant.js", "/editor-mode", "/editor.css", "/editor.js", "/help", "/pages", "/privacy", "/recent", "/scratch", "/site.css", "/sortable.css", "/sortable.js", "/vim-help", "/vim.css", "/vim.js"];
 
     private static readonly PageSeeds Pack = new(Path.Combine(AppContext.BaseDirectory, "Pages", "Seeds"));
 
@@ -62,6 +62,17 @@ public sealed class PageAssetSeederTests {
         Assert.That(storage.WriteCount, Is.EqualTo(SeedPaths.Length));
     }
 
+    // The administration views' sheets and script, the status and reference sheets and the icon are
+    // the web root's: a release that put one back in the pack would have two homes for the same file.
+    [TestCase("/admin.css")]
+    [TestCase("/admin.js")]
+    [TestCase("/reference.css")]
+    [TestCase("/rocket.svg")]
+    [TestCase("/status.css")]
+    public void AShellFileIsNotASeed(string path) {
+        Assert.That(TestOptions.Seeds.Find(PagePath.Normalize(path)), Is.Null);
+    }
+
     [TestCaseSource(nameof(SeedPaths))]
     public async Task ShippedSeedCanBeReadByItsPagePathAsync(string path) {
         string? template = TestOptions.SeedSource(PagePath.Normalize(path));
@@ -69,7 +80,6 @@ public sealed class PageAssetSeederTests {
         Assert.That(template, Is.EqualTo(ShippedSeed(path)));
     }
 
-    [TestCase("/admin.js")]
     [TestCase("/assistant.js")]
     [TestCase("/editor.js")]
     public async Task ShippedScriptsAreNativeModulesAsync(string path) {
@@ -78,14 +88,11 @@ public sealed class PageAssetSeederTests {
         Assert.That(template, Does.Match(@"(?m)^(?:export|import)\b"));
     }
 
-    [TestCase("/admin.css")]
-    [TestCase("/admin.js")]
     [TestCase("/assistant.css")]
     [TestCase("/assistant.js")]
     [TestCase("/editor.css")]
     [TestCase("/editor.js")]
     [TestCase("/site.css")]
-    [TestCase("/status.css")]
     public async Task StylesheetsAndScriptsCarryNoTemplateDirectiveAsync(string path) {
         string? template = TestOptions.SeedSource(PagePath.Normalize(path));
 
@@ -206,15 +213,6 @@ public sealed class PageAssetSeederTests {
         Assert.That(template, Does.Contain("Document.Head"));
         Assert.That(template, Does.Contain("layout.Body"));
         Assert.That(new ReservedPaths(ReservedPaths.Default).IsReserved(PagePath.Normalize("/_layout")), Is.False);
-    }
-
-    [Test]
-    public async Task TheSvgSeedReliesOnItsExtensionForItsContentTypeAsync() {
-        string? template = TestOptions.SeedSource(PagePath.Normalize("/rocket.svg"));
-
-        Assert.That(template, Does.Not.Contain("ctx.SetContentType"));
-        Assert.That(template, Does.Not.Contain("<%"), "the icon has no code, so it is an asset");
-        Assert.That(TestContentTypes.Shipped.ForPath("/rocket.svg"), Is.EqualTo("image/svg+xml; charset=utf-8"));
     }
 
     [TestCase("/not-a-seed")]

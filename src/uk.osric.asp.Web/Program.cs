@@ -440,6 +440,12 @@ internal class Program {
             await ErrorResponses.WriteAsync(failed, failed.Response.StatusCode, message);
         });
 
+        // The shell's own files - the administration sheets and script, the status sheet, the
+        // reference sheet and the icon - are the web root's, not the page store's. Ahead of routing,
+        // so a physical file answers before the page catch-all can claim its key; the security
+        // headers above still run, and a stored asset keeps its own versioned link.
+        app.UseStaticFiles();
+
         // Order matters: routing first, so the limiter and identity read endpoint metadata, then
         // authorization, then the antiforgery check that guards the unsafe ones.
         app.UseRouting();

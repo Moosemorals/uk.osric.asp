@@ -26,6 +26,10 @@ internal static class ShellRoutes {
 
     /// <summary>The shipped records, in <see cref="ReservedPaths.Default"/> order.</summary>
     public static IReadOnlyList<ShellRoute> All { get; } = [
+        new("/admin.css", "GET", "anyone",
+            "The administration views' sheet, served from the web root: the selection list and its tags."),
+        new("/admin.js", "GET", "anyone",
+            "The administration views' script, served from the web root: the import and export selection counter and its buttons."),
         new("/admin/changes", "GET", "the owner",
             "The changelist: every commit in the deployed build, newest first, each linking to its page on GitHub."),
         new("/admin/export", "GET, POST", "the owner",
@@ -52,8 +56,14 @@ internal static class ShellRoutes {
             "The sign-out confirmation, then the POST that deletes the stored ticket and the cookie."),
         new("/metrics", "GET", "Prometheus on the internal network; 404 through the public origin",
             "The Prometheus scrape endpoint."),
+        new("/reference.css", "GET", "anyone",
+            "The reference page's sheet, served from the web root: the type index, signatures and parameter lists."),
+        new("/rocket.svg", "GET", "anyone",
+            "The site's icon, ISC licensed, served from the web root: every document links it and /about names its licence."),
         new("/status", "GET", "the owner",
             "The status dashboard: metrics, storage and build, rendered by the server without JavaScript."),
+        new("/status.css", "GET", "anyone",
+            "The status dashboard's sheet, served from the web root: the banner, the window nav and the panels."),
     ];
 
     private const string ShellFileLine =

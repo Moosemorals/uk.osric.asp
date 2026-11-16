@@ -24,18 +24,6 @@ public sealed class PageAssetTests : IntegrationTest {
         Assert.That(stylesheetBody, Is.EqualTo(RenderedSeed("site.css")));
         Assert.That(stylesheet.Headers.ETag, Is.Null, "a stored page carries no validator");
 
-        using HttpResponseMessage icon = await client.GetAsync("/rocket.svg");
-        Assert.That(icon.StatusCode, Is.EqualTo(HttpStatusCode.OK));
-        Assert.That(icon.Content.Headers.ContentType?.ToString(), Is.EqualTo("image/svg+xml; charset=utf-8"));
-        Assert.That(icon.Headers.CacheControl?.NoStore, Is.True);
-        Assert.That(await icon.Content.ReadAsStringAsync(), Is.EqualTo(RenderedSeed("rocket.svg")));
-
-        using HttpResponseMessage statusStylesheet = await client.GetAsync("/status.css");
-        Assert.That(statusStylesheet.StatusCode, Is.EqualTo(HttpStatusCode.OK));
-        Assert.That(statusStylesheet.Content.Headers.ContentType?.ToString(), Is.EqualTo("text/css; charset=utf-8"));
-        Assert.That(statusStylesheet.Headers.CacheControl?.NoStore, Is.True);
-        Assert.That(await statusStylesheet.Content.ReadAsStringAsync(), Is.EqualTo(RenderedSeed("status.css")));
-
         using HttpResponseMessage editorStylesheet = await client.GetAsync("/editor.css");
         Assert.That(editorStylesheet.StatusCode, Is.EqualTo(HttpStatusCode.OK));
         Assert.That(editorStylesheet.Content.Headers.ContentType?.ToString(), Is.EqualTo("text/css; charset=utf-8"));
@@ -66,7 +54,8 @@ public sealed class PageAssetTests : IntegrationTest {
         using HttpResponseMessage login = await client.GetAsync("/login");
         string loginBody = await login.Content.ReadAsStringAsync();
         Assert.That(loginBody, Does.Contain("<link rel=\"stylesheet\" href=\"/site.css?v="));
-        Assert.That(loginBody, Does.Contain("<link rel=\"icon\" href=\"/rocket.svg?v="));
+        Assert.That(loginBody, Does.Contain("href=\"/rocket.svg\" type=\"image/svg+xml\""),
+            "the icon is the web root's, so the page store has no revision to name");
 
         using HttpResponseMessage legacyIcon = await client.GetAsync("/favicon.ico");
         Assert.That(legacyIcon.StatusCode, Is.EqualTo(HttpStatusCode.NotFound));
@@ -82,6 +71,29 @@ public sealed class PageAssetTests : IntegrationTest {
         Assert.That(await changed.Content.ReadAsStringAsync(), Is.EqualTo(updatedBody));
         Assert.That(changed.Content.Headers.ContentLength, Is.EqualTo(Encoding.UTF8.GetByteCount(updatedBody)));
         Assert.That(changed.Headers.CacheControl?.NoStore, Is.True);
+    }
+
+    // The administration views' sheets and script, the status and reference sheets and the icon are
+    // files the shell owns: the web root answers them with the file handler's media type and a
+    // validator, where a stored asset carries its configured type and the page store's hash.
+    [TestCase("/admin.css", "text/css", ".admin-pages")]
+    [TestCase("/admin.js", "text/javascript", "input[name=\"include\"]")]
+    [TestCase("/reference.css", "text/css", ".reference-assemblies")]
+    [TestCase("/rocket.svg", "image/svg+xml", "SPDX-License-Identifier: ISC")]
+    [TestCase("/status.css", "text/css", ".status-nav")]
+    public async Task AShellFileIsServedFromTheWebRoot(string path, string contentType, string marker) {
+        using HttpClient client = CreateClient();
+
+        using HttpResponseMessage response = await client.GetAsync(path);
+        string body = await response.Content.ReadAsStringAsync();
+
+        Assert.Multiple(() => {
+            Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+            Assert.That(response.Content.Headers.ContentType?.ToString(), Is.EqualTo(contentType));
+            Assert.That(body, Does.Contain(marker), "the right file answered");
+            Assert.That(response.Headers.ETag, Is.Not.Null, "a file carries a validator");
+            Assert.That(response.Headers.CacheControl?.NoStore, Is.Not.True, "a file is not a stored asset");
+        });
     }
 
     [Test]

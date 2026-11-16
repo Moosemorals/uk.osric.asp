@@ -22,7 +22,7 @@ internal sealed class ReservedPaths {
 
     /// <summary>The keys the shipped <c>appsettings.json</c> carries; a test holds the two together.</summary>
     public static IReadOnlyList<string> Default { get; } =
-        ["/admin/changes", "/admin/export", "/admin/import", "/admin/reference", "/admin/restore", "/admin/scrub", "/admin/seed-apply", "/assistant", "/favicon.ico", "/health", "/login", "/logout", "/metrics", "/status"];
+        ["/admin.css", "/admin.js", "/admin/changes", "/admin/export", "/admin/import", "/admin/reference", "/admin/restore", "/admin/scrub", "/admin/seed-apply", "/assistant", "/favicon.ico", "/health", "/login", "/logout", "/metrics", "/reference.css", "/rocket.svg", "/status", "/status.css"];
 
     private readonly IReadOnlyList<PagePath> _keys;
 

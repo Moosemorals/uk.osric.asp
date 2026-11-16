@@ -300,7 +300,7 @@ browsers: build
 # the tool that draws it is here; a checkout without rsvg-convert keeps the committed PNG.
 VSCODE_EXTENSIONS := $(HOME)/.vscode/extensions
 VSCODE_EXTENSION := $(VSCODE_EXTENSIONS)/uk-osric-asp.asp-template-language-0.1.0
-ROCKET_SVG := src/uk.osric.asp.Web/Pages/Seeds/rocket.svg
+ROCKET_SVG := src/uk.osric.asp.Web/wwwroot/rocket.svg
 EXTENSION_ICON := tools/vscode-asp/icon.png
 
 vscode-extension:
