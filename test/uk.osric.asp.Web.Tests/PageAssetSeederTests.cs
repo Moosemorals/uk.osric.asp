@@ -176,7 +176,7 @@ public sealed class PageAssetSeederTests {
         string? template = TestOptions.SeedSource(PagePath.Normalize("/_layout"));
 
         Assert.That(template, Does.Contain("Document.Head"));
-        Assert.That(template, Does.Contain("layout.Body"));
+        Assert.That(template, Does.Contain("layout.Content"));
         Assert.That(new ReservedPaths(ReservedPaths.Default).IsReserved(PagePath.Normalize("/_layout")), Is.False);
     }
 

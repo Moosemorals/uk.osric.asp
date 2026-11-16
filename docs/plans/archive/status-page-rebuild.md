@@ -33,7 +33,7 @@ Two things it also settles:
   the `main` landmark and the close, and through `Sdk/PageDocument`, which owns the markup. `/status`
   therefore cannot drift from the rest of the site, and the plan adds the test that proves the view
   writes body content and nothing else. It stays a shell view rather than a stored page, because the
-  error, health and status routes must answer when the page pipeline is broken (`shell-the-menu-is-written-twice`).
+  error, health and status routes must answer when the page pipeline is broken (the "menu is written twice" rule).
 - **A chart is only a drawing.** The renderer that embeds a chart in the page can serve it alone, so
   a chart can be linked directly, with the start time and duration it was drawn for. The page keeps
   embedding its SVGs; the chart endpoint is an addon, not the page's assembly line.
@@ -220,7 +220,7 @@ The plan makes that true rather than assumed:
   quietly diverging.
 - The stylesheet list is declared once, in the `stylesheets:` argument: `/status.css` after the base
   sheets. A change to the base sheets reaches `/status` without touching it.
-- It stays a shell view, not a stored page in `/_layout`: `shell-the-menu-is-written-twice` keeps the error, health, sign-in,
+- It stays a shell view, not a stored page in `/_layout`: the "menu is written twice" rule keeps the error, health, sign-in,
   editor and status routes answering when the page pipeline is broken, which is exactly when
   `/status` is opened.
 

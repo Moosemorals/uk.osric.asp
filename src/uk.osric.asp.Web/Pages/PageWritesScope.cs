@@ -34,9 +34,8 @@ internal sealed class PageWritesScope(
     PageUser? user,
     bool writable,
     ReservedPaths reserved,
-    PageSeeds seeds) : RenderBoundCapability, IPageWrites {
-
-    private int _acted;
+    PageSeeds seeds,
+    PageWriteAction action) : RenderBoundCapability, IPageWrites {
 
     /// <inheritdoc/>
     public PageKeyResolution Resolve(string key) {
@@ -302,10 +301,10 @@ internal sealed class PageWritesScope(
     }
 
     private void ThrowIfActed() {
-        if (Volatile.Read(ref _acted) != 0) {
+        if (action.HasActed) {
             throw new InvalidOperationException($"{path.Key} has already edited a page in this render.");
         }
     }
 
-    private void Acted() => Interlocked.Exchange(ref _acted, 1);
+    private void Acted() => action.Act();
 }

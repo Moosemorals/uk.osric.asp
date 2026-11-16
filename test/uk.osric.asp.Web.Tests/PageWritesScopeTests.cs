@@ -588,7 +588,8 @@ public sealed class PageWritesScopeTests {
         signedIn ? user ?? Owner : null,
         writable,
         new ReservedPaths(ReservedPaths.Default),
-        TestOptions.Seeds);
+        TestOptions.Seeds,
+        new PageWriteAction());
 
     /// <summary>Reports one diagnostic the way a compile timeout does: with no position at all.</summary>
     private sealed class PositionlessCompiler : IPageCompiler {

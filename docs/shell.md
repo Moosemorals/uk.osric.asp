@@ -26,7 +26,10 @@ view to the next.
 
 - The body opens with the skip link, then the banner, then the one `main`. `BeginAsync` requires a
   navigation argument, so no view can be written without a menu: the shell composes its own with
-  `SiteNavigation`, and the seeded layout writes the same items for stored pages (`shell-the-menu-is-written-twice`, `pages-the-document-is-the-shells`). The header carries where the visitor can go from here; the footer carries About and the privacy policy on every page, and the shell writes the same footer from `SiteNavigation.FooterLinks()`.
+  `SiteNavigation`, and the seeded layout writes the same items for stored pages
+  (`shell-the-menu-is-written-twice`, `pages-the-document-is-the-shells`). The header carries where
+  the visitor can go from here; the footer carries About and the privacy policy on every page, and
+  the shell writes the same footer from `SiteNavigation.FooterLinks()`.
 - `/site.css` is a seeded page and the only base sheet (`pages-one-base-sheet`). It holds the document's shape —
   the visually hidden utility, the listing and the form grid — and the site's look, with the shape
   rules first. The view's own sheet is linked last, so it can override a structural rule without a
@@ -42,9 +45,9 @@ view to the next.
   [`/_lib/document`](../src/uk.osric.asp.Web/Pages/Seeds/_lib/document) library, so the owner can
   edit and restore what a stored page is served in. `Html/` keeps `DiagnosticLine`,
   `AntiforgeryField`, `SiteNavigation` and `PageUrls` beside it.
-- A stored page with code is wrapped in a layout by default, so it writes a fragment rather than a
-  document; the layout writes the head, the banner and the landmark with the library. See
-  "Layouts".
+- A stored page with code is a fragment, and it declares the pages that wrap it, so it writes a
+  fragment rather than a document; the wrapper writes the head, the banner and the landmark with the
+  library. See "Layouts".
 
 Every one of these views is rendered once by `ShellViews` and checked against the shared accessibility
 rules — see [testing](testing.md#the-five-suites) — with what a string cannot
@@ -52,13 +55,56 @@ prove left to a recorded hand pass (`shell-accessibility-is-asserted`).
 
 ## Layouts
 
-A page with code is a fragment. The host wraps every `text/html` page with code in the layout named
-by `Pages:Layout` (`/_layout` as seeded), unless the page clears `IPageLayout.Layout`. A page with no
-code is a complete representation and is never wrapped: its stored source is the response, whether
-the key is HTML or not. A library is neither: it has nothing to render, so its key answers `404` and
-no layout ever meets it. A redirect, a `HEAD`'s empty body, a non-HTML content type, a no-code page
-and the layout itself are never wrapped (`pages-one-request-one-chain`). A code page that wants its own document clears
-`IPageLayout.Layout` itself.
+A page with code is a fragment, and nothing wraps it by default. It declares the pages that wrap it
+with `IPageComposition`: `Wrap("/_some_layout")` names one, `Wrap()` names the layout in
+`Pages:Layout` (`/_layout` as seeded), and calls stack outward, so `Wrap("/_markdown"); Wrap()` is the
+markdown wrapper first and the site layout outside it (`pages-a-page-chooses-its-layout`). A page that
+declares none is served exactly as it wrote itself.
+
+The host runs the chain after `HandleAsync` returns, so a guard's early `return;` is still wrapped.
+It renders inside out — the page first, then its wrapper, then the wrapper's wrapper — and writes the
+outermost body. A redirect, a `HEAD`'s empty body, a non-HTML content type and a no-code page are never
+wrapped: they are served exactly as the page asked (`pages-one-request-one-chain`). A page that
+flushes its response declares no wrapper, and a `Wrap` after the first flush throws.
+
+The wrapper receives the layer inside it as `IPageLayout.Content`, a `PageCapture` beside the frame of
+the outermost layer inside it, and folds what it wants: the host merges nothing behind its back
+(`pages-a-page-inside-a-page-is-a-capture`, `pages-the-wrapper-owns-the-title`). The one thing the
+host composes is the script permission, unioned so a document that carries a body cannot lose the
+permission its script needs. A wrapper does not own the response: status, content type, headers and a
+redirect are ignored and logged, except that an embedded page's redirect is refused. `Title` is a
+`string?`, so the wrapper decides what a missing title means. A wrapper must have code, because a
+no-code page has no way to read `Content`.
+
+The chain shares one render slot, deadline, body allowance, fetch allowance and template allowance,
+and one write, so two layers do not get two bites. `Pages:Render:MaxLayoutDepth` bounds the number of
+wrappers; a page that reaches itself again with the same request is refused as a loop. The layout
+named by `Wrap()` degrades: one that cannot be served is skipped with a warning and
+`page.layout.fallback`, and the page is served unwrapped. A page named by `Wrap(key)` is an error when
+it cannot be served, because silence would be worse.
+
+## Composition
+
+A page can render another stored page through `IPageComposition` (`pages-an-embed-is-a-render`).
+`EmbedAsync(key, request?)` renders the whole page — its body and every wrapper it declares — with
+its own key, storage, session and capabilities, the caller's identity, and the request the call gives
+it, and writes the outermost body where the call is. It returns a `PageFrame`: the outermost layer's
+title, head, sheets and script permission, never the body, which is already written. `CaptureAsync`
+is the same render returned as a `PageCapture` with the write left out. An embedded page is not
+sandboxed: it may write the store and start a job, and it cannot redirect because it has no response
+of its own. A failure throws, and a page may catch it: the embedded output never reached the page's
+body, so nothing is half-written (`pages-a-capture-returns-the-body`).
+
+The input is the request, in both directions. A null request forwards the caller's, and one that is
+given runs as it stands except that `Path` stays the visitor's page, so `ctx.Path != ctx.Request.Path`
+is how a page knows it is inside another (`pages-a-composed-page-gets-a-request`).
+`PageRequestExtensions` is the copy-and-change surface.
+
+Recursion is bounded and honest. The same page with the same request anywhere above this one is a
+loop and is refused; the same page with a different request is a recursive component, allowed,
+counted as `page.composition.recursive` and bounded by `Pages:Render:MaxEmbedDepth`.
+`Pages:Render:MaxEmbeds` bounds the fan-out of one request, because depth alone would let a listing
+embed a thousand siblings under one slot and one deadline.
 
 ## The response shapes
 
@@ -80,50 +126,56 @@ The third shape is a **streamed** page: a page with code that calls `ctx.Respons
 flush commits the response through `PageBodySink` and `PageResponseWriter`, and each later flush
 writes the buffer through the same sink. `PageEndpoint` skips `PageChain.WrapAsync` and
 `WritePageAsync` entirely once `SimpleContext.IsCommitted` is true, so a streamed page is never
-wrapped; if it names a layout after flushing, the endpoint logs a warning and serves alone. A
-committed failure is a truncation: the endpoint logs and aborts rather than attempting an error page
-or a `504`, and `DisconnectGuard` treats a client that left mid-write as a Debug-level end rather
-than an unhandled exception ([pages](pages.md#streaming)).
+wrapped; a `Wrap` call after the flush throws. A committed failure is a truncation: the endpoint logs
+and aborts rather than attempting an error page or a `504`, and `DisconnectGuard` treats a client that
+left mid-write as a Debug-level end rather than an unhandled exception
+([pages](pages.md#streaming)).
 
 The chain renders inside out, content first, because only then does the host know what the content
-produced:
+produced. Each layer is a `PageCapture` — a body beside a `PageFrame` — and the layer outside consumes
+it as `IPageLayout.Content`:
 
 ```
 render /about   → buffer 1   (sets Title, AddHead, AddStylesheet)
-render /_layout → buffer 2   (Body = buffer 1)
+render /_layout → buffer 2   (Content = capture of buffer 1)
 write buffer 2
 ```
 
-- **One budget for the chain.** `PageRenderer.OpenSessionAsync` takes one render slot and one
-  deadline; each layer renders under them with its own key on the metric. The fetch allowance, the
-  body allowance and the antiforgery pair are shared the same way, so a layout cannot spend them
-  twice (`pages-one-request-one-chain`).
+- **One budget for the chain.** `PageRenderer.OpenSessionAsync` opens before the content layer is
+  built, so one render slot and one deadline cover every layer and every embed; each layer renders
+  under them with its own key on the metric. The fetch allowance, the body allowance, the write and
+  the antiforgery pair are shared the same way, so a layout cannot spend them twice
+  (`pages-one-request-one-chain`).
 - **The content owns the response.** Status, content type, headers and the redirect come from the
-  layer the visitor asked for; a layout that tries to set one is ignored and logged. `AllowScripts`
-  is the union, because the layout's script is part of its chrome (`pages-layouts-are-markup`).
-- **A wrapped page must set a title.** Reading `Title` before it is set throws, and the host refuses
-  the chain before the layout starts, so the error names the page that forgot. A layout may read the
-  title so far and compose its own; the outermost layer is the one written (`pages-one-request-one-chain`).
-- **A page controls its own sheets.** `AddStylesheet` once per link, from none to many. The order on
-  the wire is the document's base sheets, then each layout's from outermost in, then the page's in
-  the order it asked; an exact duplicate is linked once and an href that is not site-relative is
-  refused rather than blocked silently by `style-src 'self'` (`pages-one-base-sheet`).
+  layer the visitor asked for; a layout or an embedded page that tries to set one is ignored and
+  logged, and an embedded page's redirect is refused (`pages-one-render-three-roles`,
+  `pages-layouts-are-markup`). `AllowScripts` is the union, because the wrapper's script is part of
+  its chrome.
+- **The wrapper owns the title.** `Title` is a `string?` and the wrapper decides what a missing one
+  means, so the host no longer refuses a page that forgot
+  (`pages-the-wrapper-owns-the-title`).
+- **A page controls its own sheets.** `AddStylesheet` once per link, from none to many; an href that
+  is not site-relative is refused rather than blocked silently by `style-src 'self'`. The wrapper
+  links the page's sheets where its document wants them, and the seeded document library keeps the
+  base sheet first, then the wrapper's, then the page's, with an exact duplicate linked once
+  (`pages-one-base-sheet`).
 - **Depth and cycles.** `Pages:Render:MaxLayoutDepth` (four shipped, accepted 1–16) bounds the
-  chain and a seen-set stops at the first repeat — which is why the seeded `/_layout`, pre-filled
-  with the default like every layer, needs no special case.
-- **Failure is not symmetric.** A *default* layout that is missing or does not compile serves the
-  page unwrapped, logs a warning and counts `page.layout.fallback`; a layout the page *named* that
+  number of wrappers, and the ancestor stack refuses a page that reaches itself again with the same
+  request; the same page with a different request is a recursive component, allowed and capped by
+  `Pages:Render:MaxEmbedDepth`.
+- **Failure is not symmetric.** A *default* wrapper that is missing or does not compile serves the
+  page unwrapped, logs a warning and counts `page.layout.fallback`; a wrapper the page *named* that
   cannot be served is an error naming the key.
 - **The menu is written twice, on purpose.** `SiteNavigation` composes it from the principal for the
   shell's own views, and the seeded `/_layout` writes it from `ctx.User` for stored pages — the header
-  items and the constant footer alike. The shell's copy is one list of `ShellLink` values
-  (`Html/ShellLinks.cs`) filtered by section and audience, and `AdminNavigation` filters the same
-  list for the administration views, so a route cannot appear in one menu and not the other. The shell's
-  document must not depend on a stored page, because the error, health and sign-in routes have to
-  answer when the page pipeline is broken (`shell-the-menu-is-written-twice`). The shell's copy comes from
-  `ShellDocument.Nav`, the layout's from the seeded library, and an integration test compares the
-  document shape the two write as well as the items in it. The editor is a stored page, so its menu
-  is written by the page rather than by `SiteNavigation`.
+  items and the constant footer alike. The shell's copy is one table of shell routes
+  (`Shell/ShellCatalogue.cs`) filtered by section and audience, and `AdminNavigation` filters the same
+  table for the administration views, so a route cannot appear in one menu and not the other. The
+  shell's document must not depend on a stored page, because the error, health and sign-in routes have
+  to answer when the page pipeline is broken (`shell-the-menu-is-written-twice`). The shell's copy
+  comes from `ShellDocument.Nav`, the layout's from the seeded library, and an integration test
+  compares the document shape the two write as well as the items in it. The editor is a stored page,
+  so its menu is written by the page rather than by `SiteNavigation`.
 
 The layout is not a guard: the content has already run. It is not a data boundary: it reads its own
 storage and nothing of the page's.

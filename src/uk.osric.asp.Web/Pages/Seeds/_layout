@@ -1,7 +1,4 @@
 <%! using Site.Document; %><% var layout = ctx.Capabilities.GetRequired<IPageLayout>();
-   // Asked for by name, this page is the document rather than the chrome around one, so nothing has
-   // set a title for it. When it wraps a page, that page's title is already here.
-   if (ctx.Path == ctx.Request.Path) { layout.Title = "Site"; }
    bool At(string href) => ctx.Request.Path == href;
    bool Under(string href) => At(href) || ctx.Request.Path.StartsWith(href + "/", System.StringComparison.Ordinal);
    var links = new System.Collections.Generic.List<NavLink> {
@@ -15,10 +12,12 @@
        links.Add(new("/admin", "Admin", Under("/admin")));
        links.Add(new("/logout", "Sign out", At("/logout")));
    }
-   Document.Head(ctx, layout.Title, layout.Stylesheets, layout.Head, ctx.AssetUrl);
+   // The wrapper owns the document, so it folds the page's title, head and sheets itself. Asking for
+   // this page directly has no content to fold, which is why the merge names the site's own title.
+   Document.Head(ctx, layout, "Site", ctx.AssetUrl);
    Document.Banner(ctx, "Site", links, "site-nav");
    Document.OpenMain(ctx); %>
-<%== layout.Body %>
+<%== layout.Content?.Body ?? "" %>
 <footer><% Document.Nav(ctx, "Footer",
     new System.Collections.Generic.List<NavLink> {
         new("/about", "About", false),

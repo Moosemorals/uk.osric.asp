@@ -18,7 +18,8 @@ public sealed class PageCatalogTests : IntegrationTest {
     // The public listing the tests read. It is the whole of `ListAsync`: keys and save times, never a
     // template, and no guard, which is the capability's rule whether or not the site ships such a page.
     private const string Listing = """
-<% ctx.Capabilities.GetRequired<IPageLayout>().Title = "Listing"; %>
+<% ctx.Capabilities.GetRequired<IPageLayout>().Title = "Listing";
+   ctx.Capabilities.GetRequired<IPageComposition>().Wrap(); %>
 <h1>Listing</h1>
 <table>
     <caption>Stored pages</caption>

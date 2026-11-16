@@ -40,6 +40,7 @@ internal sealed class PageMetrics : IDisposable {
         new("page.cache.staleness", InstrumentKind.Counter, "1"),
         new("page.asset.requests", InstrumentKind.Counter, "1"),
         new("page.layout.fallback", InstrumentKind.Counter, "1"),
+        new("page.composition.recursive", InstrumentKind.Counter, "1"),
         new("page.storage.payload.size", InstrumentKind.Gauge, "By"),
         new("page.storage.database.size", InstrumentKind.Gauge, "By"),
         new("page.storage.volume.capacity", InstrumentKind.Gauge, "By"),
@@ -189,6 +190,7 @@ internal sealed class PageMetrics : IDisposable {
     private readonly Counter<long> _staleness;
     private readonly Counter<long> _assetRequests;
     private readonly Counter<long> _layoutFallbacks;
+    private readonly Counter<long> _recursiveCompositions;
     private readonly Histogram<long> _imageSize;
     private readonly Histogram<double> _fetchDuration;
     private readonly Histogram<double> _importDuration;
@@ -221,6 +223,8 @@ internal sealed class PageMetrics : IDisposable {
             "page.asset.requests", null, "Requests for an asset, by whether they were served, unchanged or refused.");
         _layoutFallbacks = _meter.CreateCounter<long>(
             "page.layout.fallback", null, "Pages served without the default layout because it could not be served.");
+        _recursiveCompositions = _meter.CreateCounter<long>(
+            "page.composition.recursive", null, "Pages composed inside themselves with a different request, which the caps bound.");
         _imageSize = _meter.CreateHistogram<long>(
             "page.image.size", "By", "Size of an emitted page assembly.");
         _fetchDuration = _meter.CreateHistogram<double>(
@@ -294,6 +298,18 @@ internal sealed class PageMetrics : IDisposable {
         TagList tags = new() { { "page.path", path.Key } };
 
         _layoutFallbacks.Add(1, tags);
+    }
+
+    /// <summary>Records a page composed inside itself with a different request.</summary>
+    /// <param name="path">The page that was composed again.</param>
+    /// <remarks>
+    /// A recursive component is ordinary — a comment tree, a directory listing — so it is counted
+    /// rather than warned about: the count says which page does it, and the depth cap is the bound.
+    /// </remarks>
+    public void RecordRecursiveComposition(PagePath path) {
+        TagList tags = new() { { "page.path", path.Key } };
+
+        _recursiveCompositions.Add(1, tags);
     }
 
     /// <summary>Records a render that was given up on; it may still be running.</summary>

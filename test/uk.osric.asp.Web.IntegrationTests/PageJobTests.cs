@@ -97,7 +97,6 @@ public sealed class PageJobTests : IntegrationTest {
     private static async Task SaveStarterAsync(HttpClient client) {
         HttpResponseMessage saved = await PostEditorAsync(client, StarterPath, """
             <%
-               ctx.Capabilities.GetRequired<IPageLayout>().Layout = null;
                PageJobStart start = await ctx.Capabilities.GetRequired<IPageJobs>()
                    .StartAsync("/_work/echo", "hello");
                ctx.Response.Write(start.Started ? "refused:none job:" + start.Id : "refused:" + start.Refusal);
@@ -112,7 +111,6 @@ public sealed class PageJobTests : IntegrationTest {
         HttpResponseMessage saved = await PostEditorAsync(client, ViewerPath, """
             <%! using System.Collections.Generic; %>
             <%
-               ctx.Capabilities.GetRequired<IPageLayout>().Layout = null;
                IPageJobs jobs = ctx.Capabilities.GetRequired<IPageJobs>();
                string? id = ctx.Request.Query.TryGetValue("id", out string? given) ? given : null;
                if (id is null) { ctx.Response.Write("no id"); return; }
@@ -134,7 +132,6 @@ public sealed class PageJobTests : IntegrationTest {
         HttpResponseMessage saved = await PostEditorAsync(client, ListPath, """
             <%! using System.Collections.Generic; %>
             <%
-               ctx.Capabilities.GetRequired<IPageLayout>().Layout = null;
                IReadOnlyList<PageJobInfo> jobs = await ctx.Capabilities.GetRequired<IPageJobs>().ListAsync();
                ctx.Response.Write("jobs:" + jobs.Count);
             %>

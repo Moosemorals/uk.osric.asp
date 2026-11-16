@@ -26,6 +26,7 @@ the other half of the same question and live in [logging](logging.md).
 | `page.image.size` | histogram | By | `page.path` |
 | `page.import.duration` | histogram | s | `outcome` — one imported archive, compiled and committed |
 | `page.layout.fallback` | counter | — | `page.path` — pages served without the default layout because it could not be served |
+| `page.composition.recursive` | counter | — | `page.path` — pages composed inside themselves with a different request, which the depth cap bounds |
 | `page.asset.requests` | counter | — | `outcome` (`served`, `not-modified`, `unknown`, `non-asset`) — no path label; the access log names the URL |
 | `page.storage.payload.size` | observable gauge | By | — logical UTF-8 bytes for every revision text column plus image/symbol blobs, and the `PageState` key and value bytes; excludes indexes and SQLite overhead |
 | `page.storage.database.size` | observable gauge | By | — whole database `page_count * page_size`, including indexes and freelist pages; excludes the separate WAL |
@@ -88,9 +89,10 @@ instrument, and the instrument's type decides the chart (`metrics-one-panel-per-
 | counter whose labels partition one total | stacked area | The parts and the whole are readable, and the top edge of the stack is the total. |
 | gauge | line chart | A level over time. |
 
-`StatusCatalogue` holds the list: nineteen Pages panels (ten heatmaps for the duration and size
+`StatusCatalogue` holds the list: twenty Pages panels (ten heatmaps for the duration and size
 histograms, stacked areas for the render chain, cache lookups, staleness and asset requests, line
-charts for abandoned renders, layout fallbacks and the three storage gauges), eleven Assistant panels
+charts for abandoned renders, layout fallbacks, recursive composition and the three storage gauges),
+eleven Assistant panels
 (eight heatmaps, the token counter as a line chart, memory writes as a stacked area and the account
 balance as a line chart split by currency), and five Host panels from the framework's own meters
 — process memory, process CPU, connections and active requests, request duration and the HTTP status

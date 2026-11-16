@@ -418,3 +418,52 @@ uk.osric.asp.Sdk.IPageResponse.SetHeader(string! name, string! value) -> void
 uk.osric.asp.Sdk.IPageResponse.SetStatus(int status) -> void
 uk.osric.asp.Sdk.IPageResponse.Write(string! message) -> void
 uk.osric.asp.Sdk.IPageResponse.WriteRaw(string! message) -> void
+*REMOVED*uk.osric.asp.Sdk.IPageLayout.Body.get -> string!
+*REMOVED*uk.osric.asp.Sdk.IPageLayout.Layout.get -> string?
+*REMOVED*uk.osric.asp.Sdk.IPageLayout.Layout.set -> void
+*REMOVED*uk.osric.asp.Sdk.IPageLayout.Title.get -> string!
+override sealed uk.osric.asp.Sdk.PageCapture.Equals(uk.osric.asp.Sdk.PageFrame? other) -> bool
+override uk.osric.asp.Sdk.PageCapture.<Clone>$() -> uk.osric.asp.Sdk.PageCapture!
+override uk.osric.asp.Sdk.PageCapture.Equals(object? obj) -> bool
+override uk.osric.asp.Sdk.PageCapture.GetHashCode() -> int
+override uk.osric.asp.Sdk.PageCapture.ToString() -> string!
+override uk.osric.asp.Sdk.PageFrame.Equals(object? obj) -> bool
+override uk.osric.asp.Sdk.PageFrame.GetHashCode() -> int
+override uk.osric.asp.Sdk.PageFrame.ToString() -> string!
+static uk.osric.asp.Sdk.PageCapture.operator !=(uk.osric.asp.Sdk.PageCapture? left, uk.osric.asp.Sdk.PageCapture? right) -> bool
+static uk.osric.asp.Sdk.PageCapture.operator ==(uk.osric.asp.Sdk.PageCapture? left, uk.osric.asp.Sdk.PageCapture? right) -> bool
+static uk.osric.asp.Sdk.PageFrame.operator !=(uk.osric.asp.Sdk.PageFrame? left, uk.osric.asp.Sdk.PageFrame? right) -> bool
+static uk.osric.asp.Sdk.PageFrame.operator ==(uk.osric.asp.Sdk.PageFrame? left, uk.osric.asp.Sdk.PageFrame? right) -> bool
+static uk.osric.asp.Sdk.PageRequestExtensions.WithAnotherQuery(this uk.osric.asp.Sdk.PageRequest! request, string! name, string! value) -> uk.osric.asp.Sdk.PageRequest!
+static uk.osric.asp.Sdk.PageRequestExtensions.WithQuery(this uk.osric.asp.Sdk.PageRequest! request, System.Collections.Generic.IReadOnlyList<System.Collections.Generic.KeyValuePair<string!, string!>>! query) -> uk.osric.asp.Sdk.PageRequest!
+static uk.osric.asp.Sdk.PageRequestExtensions.WithQuery(this uk.osric.asp.Sdk.PageRequest! request, string! name, string! value) -> uk.osric.asp.Sdk.PageRequest!
+static uk.osric.asp.Sdk.PageRequestExtensions.WithoutQuery(this uk.osric.asp.Sdk.PageRequest! request) -> uk.osric.asp.Sdk.PageRequest!
+static uk.osric.asp.Sdk.PageRequestExtensions.WithoutQuery(this uk.osric.asp.Sdk.PageRequest! request, string! name) -> uk.osric.asp.Sdk.PageRequest!
+uk.osric.asp.Sdk.IPageComposition
+uk.osric.asp.Sdk.IPageComposition.CaptureAsync(string! key, uk.osric.asp.Sdk.PageRequest? request = null) -> System.Threading.Tasks.Task<uk.osric.asp.Sdk.PageCapture!>!
+uk.osric.asp.Sdk.IPageComposition.EmbedAsync(string! key, uk.osric.asp.Sdk.PageRequest? request = null) -> System.Threading.Tasks.Task<uk.osric.asp.Sdk.PageFrame!>!
+uk.osric.asp.Sdk.IPageComposition.Wrap() -> void
+uk.osric.asp.Sdk.IPageComposition.Wrap(string! key, uk.osric.asp.Sdk.PageRequest? request = null) -> void
+uk.osric.asp.Sdk.IPageLayout.Content.get -> uk.osric.asp.Sdk.PageCapture?
+uk.osric.asp.Sdk.IPageLayout.Title.get -> string?
+uk.osric.asp.Sdk.PageCapture
+uk.osric.asp.Sdk.PageCapture.Body.get -> string!
+uk.osric.asp.Sdk.PageCapture.Equals(uk.osric.asp.Sdk.PageCapture? other) -> bool
+uk.osric.asp.Sdk.PageCapture.PageCapture(string! body, uk.osric.asp.Sdk.PageFrame! frame) -> void
+uk.osric.asp.Sdk.PageFrame
+uk.osric.asp.Sdk.PageFrame.AllowsScripts.get -> bool
+uk.osric.asp.Sdk.PageFrame.AllowsScripts.init -> void
+uk.osric.asp.Sdk.PageFrame.Deconstruct(out string? Title, out string! Head, out System.Collections.Generic.IReadOnlyList<string!>! Stylesheets, out bool AllowsScripts) -> void
+uk.osric.asp.Sdk.PageFrame.Head.get -> string!
+uk.osric.asp.Sdk.PageFrame.Head.init -> void
+uk.osric.asp.Sdk.PageFrame.PageFrame(string? Title, string! Head, System.Collections.Generic.IReadOnlyList<string!>! Stylesheets, bool AllowsScripts) -> void
+uk.osric.asp.Sdk.PageFrame.PageFrame(uk.osric.asp.Sdk.PageFrame! original) -> void
+uk.osric.asp.Sdk.PageFrame.Stylesheets.get -> System.Collections.Generic.IReadOnlyList<string!>!
+uk.osric.asp.Sdk.PageFrame.Stylesheets.init -> void
+uk.osric.asp.Sdk.PageFrame.Title.get -> string?
+uk.osric.asp.Sdk.PageFrame.Title.init -> void
+uk.osric.asp.Sdk.PageRequestExtensions
+virtual uk.osric.asp.Sdk.PageFrame.<Clone>$() -> uk.osric.asp.Sdk.PageFrame!
+virtual uk.osric.asp.Sdk.PageFrame.EqualityContract.get -> System.Type!
+virtual uk.osric.asp.Sdk.PageFrame.Equals(uk.osric.asp.Sdk.PageFrame? other) -> bool
+virtual uk.osric.asp.Sdk.PageFrame.PrintMembers(System.Text.StringBuilder! builder) -> bool

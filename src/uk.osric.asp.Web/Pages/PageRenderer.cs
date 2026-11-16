@@ -188,9 +188,11 @@ internal sealed class PageRenderer(
             }
 
             if (loaded.Source is { } source) {
-                // The page has no code, so there is nothing to load or invoke: the stored source is
-                // the body, byte for byte, and the render's body budget still applies.
-                context.Response.WriteRaw(source);
+                // The page has no code, so there is nothing to load or invoke: the stored source,
+                // less its comments, is the body, and the render's body budget still applies. The
+                // projection is here rather than at the endpoint, so a page composed into another
+                // cannot be a way for a comment to reach a visitor.
+                context.Response.WriteRaw(TemplateComments.Remove(source));
                 outcome = PageMetrics.RenderOk;
 
                 return RenderResult.FromSource;

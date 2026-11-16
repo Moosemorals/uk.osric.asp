@@ -20,7 +20,8 @@ public sealed partial class PageSelfSaveTests : IntegrationTest {
     // its own source in a textarea, the head hash the form was drawn from, and the diagnostics the
     // compiler answered with.
     private const string Draft = """
-<% ctx.Capabilities.GetRequired<IPageLayout>().Title = "Self-save"; %>
+<% ctx.Capabilities.GetRequired<IPageLayout>().Title = "Self-save";
+   ctx.Capabilities.GetRequired<IPageComposition>().Wrap(); %>
 <h1>Self-save</h1>
 <% if (ctx.User is not { } user) { ctx.Response.RedirectToLogin(); return; } %>
 <%

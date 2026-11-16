@@ -19,7 +19,8 @@ using uk.osric.asp.Web.Pages;
 public sealed partial class SiteChromeTests : IntegrationTest {
 
     private const string Fragment = """
-        <% ctx.Capabilities.GetRequired<IPageLayout>().Title = "A fragment"; %><h1>Fragment</h1>
+        <% ctx.Capabilities.GetRequired<IPageLayout>().Title = "A fragment";
+           ctx.Capabilities.GetRequired<IPageComposition>().Wrap(); %><h1>Fragment</h1>
         """;
 
     internal override AspApplication CreateApplication() => new(pageLayout: "/_layout");
@@ -57,6 +58,27 @@ public sealed partial class SiteChromeTests : IntegrationTest {
         IReadOnlyList<string> items = await MenuAsync(client, "/private-chrome");
 
         Assert.That(items, Is.EqualTo(["Home", "Assistant", "Pages", "Admin", "Sign out"]));
+    }
+
+    [Test]
+    public async Task TheSeededLayoutFoldsThePagesTitleSheetAndHead() {
+        await SavePageAsync("/folded", """
+            <% var layout = ctx.Capabilities.GetRequired<IPageLayout>();
+               ctx.Capabilities.GetRequired<IPageComposition>().Wrap();
+               layout.Title = "Folded";
+               layout.AddStylesheet("/folded.css");
+               layout.AddHead("<meta name=\"folded\" content=\"1\">"); %><h1>Folded</h1>
+            """);
+        using HttpClient client = CreateClient();
+
+        string body = await BodyAsync(client, "/folded");
+
+        Assert.Multiple(() => {
+            Assert.That(body, Does.Contain("<title>Folded</title>"));
+            Assert.That(body, Does.Contain("/folded.css"), "the page's sheet reaches the document");
+            Assert.That(body, Does.Contain("<meta name=\"folded\" content=\"1\">"));
+            Assert.That(body, Does.Contain("<h1>Folded</h1>"));
+        });
     }
 
     [Test]
@@ -221,31 +243,30 @@ public sealed partial class SiteChromeTests : IntegrationTest {
     }
 
     [Test]
-    public async Task ASignedInOwnerIsSentToTheEditorWhenThePageSetsNoTitle() {
-        await SavePageAsync("/untitled", "<% // deliberately no title %>\n<h1>Forgot</h1>");
+    public async Task APageThatSetsNoTitleIsServedInTheLayoutsOwnTitle() {
+        await SavePageAsync("/untitled", """
+            <% ctx.Capabilities.GetRequired<IPageComposition>().Wrap(); %><h1>Forgot</h1>
+            """);
         using HttpClient client = await CreateSignedInClientAsync();
 
         HttpResponseMessage response = await client.GetAsync("/untitled");
         string body = await response.Content.ReadAsStringAsync();
 
-        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.InternalServerError));
-        Assert.That(body, Does.Contain("<h1>The page set no title</h1>"));
-        Assert.That(body, Does.Contain("href=\"/pages?edit=/untitled\">Edit this page"));
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+        Assert.That(body, Does.Contain("<h1>Forgot</h1>"), "the wrapper decides what a missing title means");
+        Assert.That(body, Does.Contain("<title>Site</title>"));
     }
 
     [Test]
-    public async Task APageThatClearsItsLayoutIsServedUnwrapped() {
+    public async Task APageThatDeclaresNoWrapperIsServedAsTheFragmentItIs() {
         await SavePageAsync("/own-document", """
-            <% ctx.Capabilities.GetRequired<IPageLayout>().Layout = null; %><!DOCTYPE html>
-            <html lang="en"><head><title>Mine</title></head><body><h1>Mine</h1></body></html>
+            <% ctx.Capabilities.GetRequired<IPageLayout>().Title = "Mine"; %><h1>Mine</h1>
             """);
         using HttpClient client = CreateClient();
 
         string body = await (await client.GetAsync("/own-document")).Content.ReadAsStringAsync();
 
-        Assert.That(body, Does.StartWith("<!DOCTYPE html>"));
-        Assert.That(body, Does.Not.Contain("<link rel=\"stylesheet\""));
-        Assert.That(body, Does.Not.Contain("<main id=\"main\">"));
+        Assert.That(body.Trim(), Is.EqualTo("<h1>Mine</h1>"));
     }
 
     [Test]

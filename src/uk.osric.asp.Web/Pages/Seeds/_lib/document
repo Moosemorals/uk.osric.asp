@@ -67,6 +67,39 @@ namespace Site.Document {
             ctx.Response.WriteRaw("</head>\n<body>\n");
         }
 
+        /// <summary>Writes the head, folding the layer inside this one into the wrapper's own slots.</summary>
+        /// <param name="ctx">The page's context.</param>
+        /// <param name="layout">
+        /// The wrapper's slots, with the layer it wraps on <see cref="IPageLayout.Content"/>.
+        /// </param>
+        /// <param name="fallbackTitle">
+        /// The title to use when neither this layer nor the layer inside it set one.
+        /// </param>
+        /// <param name="resolveHref">Versions a link, normally <c>ctx.AssetUrl</c>.</param>
+        /// <remarks>
+        /// The wrapper chooses what to fold, so this is the one call that keeps an ordinary site
+        /// layout a couple of lines: the page's title is used when the wrapper set none, and the
+        /// wrapper's own sheets and head come first, with the page's after, so the page is the last
+        /// word on how it looks.
+        /// </remarks>
+        public static void Head(IContext ctx, IPageLayout layout, string fallbackTitle, Func<string, string> resolveHref) {
+            ArgumentNullException.ThrowIfNull(ctx);
+            ArgumentNullException.ThrowIfNull(layout);
+            ArgumentException.ThrowIfNullOrWhiteSpace(fallbackTitle);
+            ArgumentNullException.ThrowIfNull(resolveHref);
+
+            PageCapture? content = layout.Content;
+            string title = layout.Title ?? content?.Title ?? fallbackTitle;
+
+            List<string> sheets = [.. layout.Stylesheets];
+            if (content is not null) {
+                sheets.AddRange(content.Stylesheets);
+            }
+
+            string head = layout.Head + (content?.Head ?? string.Empty);
+            Head(ctx, title, sheets, head, resolveHref);
+        }
+
         /// <summary>Writes the skip link, the banner and the navigation landmark.</summary>
         /// <param name="ctx">The page's context.</param>
         /// <param name="label">The landmark's accessible name.</param>

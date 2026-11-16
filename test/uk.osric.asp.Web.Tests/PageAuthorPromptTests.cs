@@ -83,7 +83,7 @@ public sealed class PageAuthorPromptTests {
         Assert.Multiple(() => {
             Assert.That(prompt, Does.Contain("type=\"IPageStorage\""));
             Assert.That(prompt, Does.Contain("query=\"cookie\""));
-            Assert.That(prompt, Does.Contain("page-author-v35"));
+            Assert.That(prompt, Does.Contain("page-author-v36"));
         });
     }
 
@@ -193,7 +193,7 @@ public sealed class PageAuthorPromptTests {
     }
 
     [Test]
-    public void TheLayoutSectionTeachesAFragmentAndATitle() {
+    public void TheLayoutSectionTeachesTheWrapAndTheTitle() {
         string prompt = PageAuthorPrompt.Build();
 
         Assert.Multiple(() => {
@@ -201,11 +201,55 @@ public sealed class PageAuthorPromptTests {
             Assert.That(prompt, Does.Contain("A page with no C# at all is an asset"));
             Assert.That(prompt, Does.Contain("pure-text page must write its own complete document"));
             Assert.That(prompt, Does.Contain("IPageLayout layout = ctx.Capabilities.GetRequired<IPageLayout>()"));
-            Assert.That(prompt, Does.Contain("must set `layout.Title`"));
+            Assert.That(prompt, Does.Contain("ctx.Capabilities.GetRequired<IPageComposition>().Wrap()"));
+            Assert.That(prompt, Does.Contain("Declare the wrap near the top"));
+            Assert.That(prompt, Does.Contain("`layout.Title` is a `string?`"));
             Assert.That(prompt, Does.Contain("layout.AddStylesheet"));
             Assert.That(prompt, Does.Contain("layout.AddHead"));
-            Assert.That(prompt, Does.Contain("serves the page alone"));
+            Assert.That(prompt, Does.Contain("served exactly as it wrote itself"));
+            Assert.That(prompt, Does.Contain("`layout.Content`"));
         });
+    }
+
+    [Test]
+    public void TheCompositionSectionTeachesTheFourCalls() {
+        string prompt = PageAuthorPrompt.Build();
+
+        Assert.Multiple(() => {
+            Assert.That(prompt, Does.Contain("## Composing pages"));
+            Assert.That(prompt, Does.Contain("EmbedAsync(key)"));
+            Assert.That(prompt, Does.Contain("CaptureAsync(key)"));
+            Assert.That(prompt, Does.Contain("PageFrame"));
+            Assert.That(prompt, Does.Contain("PageCapture"));
+            Assert.That(prompt, Does.Contain("WithQuery"));
+            Assert.That(prompt, Does.Contain("WithAnotherQuery"));
+            Assert.That(prompt, Does.Contain("WithoutQuery"));
+            Assert.That(prompt, Does.Contain("recursive component"));
+            Assert.That(prompt, Does.Contain("MaxEmbedDepth"));
+            Assert.That(prompt, Does.Contain("one render still writes once"));
+            Assert.That(prompt, Does.Contain("cannot redirect"));
+        });
+    }
+
+    [Test]
+    public void TheContractSectionContainsEveryMemberOfAComposedPage() {
+        string prompt = PageAuthorPrompt.Build();
+
+        string[] members = [
+            .. typeof(IPageComposition).GetMembers(BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly)
+                .Where(member => member is MethodInfo { IsSpecialName: false })
+                .Select(member => member.Name),
+            .. typeof(PageFrame).GetProperties(BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly)
+                .Select(property => property.Name),
+            .. typeof(PageCapture).GetProperties(BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly)
+                .Select(property => property.Name),
+            .. typeof(PageRequestExtensions).GetMethods(BindingFlags.Public | BindingFlags.Static | BindingFlags.DeclaredOnly)
+                .Where(method => !method.IsSpecialName)
+                .Select(method => method.Name),
+        ];
+
+        Assert.That(members.All(prompt.Contains), Is.True,
+            string.Join(", ", members.Where(member => !prompt.Contains(member))));
     }
 
     [Test]
@@ -235,7 +279,7 @@ public sealed class PageAuthorPromptTests {
     [Test]
     public void ThePromptIsVersionedForNullablePages() {
         Assert.Multiple(() => {
-            Assert.That(PageAuthorPrompt.Version, Is.EqualTo("page-author-v35"));
+            Assert.That(PageAuthorPrompt.Version, Is.EqualTo("page-author-v36"));
             Assert.That(PageAuthorPrompt.Build(), Does.Contain("## Nullable page code"));
         });
     }
@@ -406,7 +450,7 @@ public sealed class PageAuthorPromptTests {
             Assert.That(prompt, Does.Contain("check_script` with the page's path"));
             Assert.That(prompt, Does.Contain("valid: false"));
             Assert.That(prompt, Does.Contain("SCRIPT002"));
-            Assert.That(PageAuthorPrompt.Version, Is.EqualTo("page-author-v35"));
+            Assert.That(PageAuthorPrompt.Version, Is.EqualTo("page-author-v36"));
         });
     }
 

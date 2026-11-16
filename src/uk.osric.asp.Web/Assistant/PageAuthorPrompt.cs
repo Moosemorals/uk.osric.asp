@@ -9,7 +9,7 @@ using uk.osric.asp.Web.Shell;
 
 /// <summary>The system prompt and worked examples that teach the model to write a page.</summary>
 internal static class PageAuthorPrompt {
-    public const string Version = "page-author-v35";
+    public const string Version = "page-author-v36";
 
     public static IReadOnlyList<(string Name, string Source)> Examples { get; } = [
         ("query-driven", """
@@ -80,6 +80,19 @@ internal static class PageAuthorPrompt {
                 <fieldset><legend>Source</legend><textarea name="template" id="template"><%= draft %></textarea></fieldset>
                 <button>Save</button></form>
             """),
+        ("composed-cards", """
+            <% var composition = ctx.Capabilities.GetRequired<IPageComposition>();
+               IPageLayout layout = ctx.Capabilities.GetRequired<IPageLayout>();
+               layout.Title = "Cards";
+               composition.Wrap();
+               for (int index = 0; index < 3; index++) {
+                   PageFrame card = await composition.EmbedAsync("/cards/card", ctx.Request.WithQuery("id", index.ToString()));
+                   if (card.Title is not null) { layout.AddHead("<meta name=\"card\" content=\"" + index.ToString() + "\">"); }
+               } %>
+            <h1>Cards</h1>
+            <p>Each card is /cards/card, which declares its own markdown wrapper: an
+            embed renders the page's whole chain.</p>
+            """),
         ("json-fetch", """
             <% IHttpFetch fetch = ctx.Capabilities.GetRequired<IHttpFetch>();
                HttpFetchResponse response = await fetch.GetAsync("https://api.example.com/status");
@@ -139,26 +152,66 @@ internal static class PageAuthorPrompt {
         ## Layout
         A page is a fragment, not a document. Do not write `<!DOCTYPE html>`,
         `<html>`, `<head>`, `<body>`, a title element or the site menu: the
-        host wraps every HTML page **with code** in the stored layout page,
-        which writes all of that. Start at the page's first heading, and write
-        one `<h1>`. A page with no C# at all is an asset instead: it is never
-        wrapped, so a pure-text page must write its own complete document. If
-        you want the site chrome, include a code block and set
-        `layout.Title`.
-        The layout's slots are on `IPageLayout`, reached through the page's
+        site layout page writes all of that. Start at the page's first heading,
+        and write one `<h1>`. A page with no C# at all is an asset instead: it is
+        never wrapped, so a pure-text page must write its own complete document.
+        A page with code is wrapped only if it asks, and every page you write asks:
+
+        `<% ctx.Capabilities.GetRequired<IPageComposition>().Wrap(); %>`
+
+        `Wrap()` names the site layout; `Wrap("/some/layout")` names another
+        stored page and `Wrap("/some/layout", ctx.Request)` runs it against a
+        request of your choosing. Calls stack outward, so
+        `Wrap("/_markdown"); Wrap();` is the markdown layout first and the site
+        layout outside it. Declare the wrap near the top: the host runs the chain
+        after the page returns, so a guard's early `return;` is still wrapped.
+        A page that declares no wrapper is served exactly as it wrote itself —
+        a bare fragment with no head and no menu.
+
+        The page's own slots are on `IPageLayout`, reached through the page's
         capabilities:
 
         `<% IPageLayout layout = ctx.Capabilities.GetRequired<IPageLayout>(); %>`
 
-        A wrapped page must set `layout.Title`; the host refuses the chain and
-        names the page if it does not. `layout.AddStylesheet("/blog.css")`
-        links one sheet, called once per link, after the site's own and any
-        layout's, so zero, one or several are all ordinary; the href must stay
-        on this site. `layout.AddHead("<meta …>")` adds markup to `<head>`.
-        `layout.Layout` names another stored page to wrap this one, and setting
-        it to null serves the page alone — do that only for a page that
-        genuinely writes its own document, because nothing else will give it a
-        head or a menu.
+        `layout.Title` is a `string?` that starts unset and refuses a blank
+        value; set it, because the wrapper uses it for the document's title.
+        `layout.AddStylesheet("/blog.css")` links one sheet, called once per
+        link, so zero, one or several are all ordinary; the href must stay on
+        this site. `layout.AddHead("<meta …>")` adds markup to `<head>`.
+
+        In a page that wraps another, `layout.Content` is the page inside it as
+        a `PageCapture` — `Body` beside `Title`, `Head`, `Stylesheets` and
+        `AllowsScripts` — and the wrapper decides what to fold; nothing is
+        merged behind its back. A wrapper does not own the response: its
+        status, content type, headers and redirect are ignored. A no-code page
+        cannot read `Content`, so a wrapper must have code.
+
+        ## Composing pages
+        `ctx.Capabilities.GetRequired<IPageComposition>()` renders stored pages
+        beside or around this one. `EmbedAsync(key)` renders the whole page —
+        its body and every wrapper it declares — where the call is, and returns
+        a `PageFrame`: the outermost layer's `Title`, `Head`, `Stylesheets` and
+        `AllowsScripts`, never the body, because the body is already written.
+        `CaptureAsync(key)` is the same render returned as a `PageCapture`
+        instead of written, for a page that wants to transform another page's
+        output.
+
+        `<% var composition = ctx.Capabilities.GetRequired<IPageComposition>();
+           PageFrame frame = await composition.EmbedAsync("/cards/post");
+           if (frame.Title is not null) { layout.Title = frame.Title; } %>`
+
+        The input is a request: omit it to run the embedded page against this
+        page's own request, or shape it with `ctx.Request.WithQuery("id", "7")`,
+        `WithAnotherQuery` and `WithoutQuery`. `ctx.Request.Path` stays the page
+        the visitor asked for, so the embedded page sees its own key as
+        `ctx.Path`. An embedded page is not sandboxed: it has the capabilities a
+        page has, including the write and the jobs, and it cannot redirect. It
+        spends the same render, the same deadline and the same body allowance,
+        and one render still writes once. The same page with the same request
+        anywhere above this one is a loop and is refused; the same page with a
+        different request is a recursive component, allowed within
+        `Pages:Render:MaxEmbedDepth` and `Pages:Render:MaxEmbeds`. A failure
+        throws and a page may catch it.
 
         ## Scripts
         A page's response type follows the extension in its key, and the map
@@ -591,18 +644,33 @@ internal static class PageAuthorPrompt {
         """;
 
     private static string ContractSection() {
-        // Both halves of the contract: what a page reads (IContext) and what it writes into
-        // (IPageResponse, reached as ctx.Response). Deprecated members are left out so the prompt
-        // never teaches a spelling that is on its way out.
-        return string.Join('\n', Members(typeof(IContext)).Concat(Members(typeof(IPageResponse))));
+        // Every part of the contract a page writes against: what it reads (IContext), what it writes
+        // into (IPageResponse, reached as ctx.Response), what it composes (IPageComposition with the
+        // values it hands back) and the request's copy-and-change helpers. Deprecated members are
+        // left out so the prompt never teaches a spelling that is on its way out.
+        return string.Join('\n',
+            Members(typeof(IContext))
+                .Concat(Members(typeof(IPageResponse)))
+                .Concat(Members(typeof(IPageComposition)))
+                .Concat(Properties(typeof(PageFrame)))
+                .Concat(Properties(typeof(PageCapture)))
+                .Concat(Members(typeof(PageRequestExtensions))));
     }
 
     private static IEnumerable<string> Members(Type contract) {
-        return contract.GetMembers(BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly)
+        return contract.GetMembers(BindingFlags.Public | BindingFlags.Instance | BindingFlags.Static | BindingFlags.DeclaredOnly)
             .Where(member => member is PropertyInfo || member is MethodInfo { IsSpecialName: false })
             .Where(member => !member.IsDefined(typeof(ObsoleteAttribute)))
             .OrderBy(member => member.MetadataToken)
             .Select(Describe);
+    }
+
+    // A value's surface is its properties: the record's equality and formatting members say nothing a
+    // page author can use.
+    private static IEnumerable<string> Properties(Type value) {
+        return value.GetProperties(BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly)
+            .OrderBy(property => property.MetadataToken)
+            .Select(property => $"{Display(property.PropertyType)} {property.Name}");
     }
 
     private static string Describe(MemberInfo member) => member switch {

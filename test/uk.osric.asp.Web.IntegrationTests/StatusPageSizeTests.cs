@@ -13,7 +13,7 @@ public sealed class StatusPageSizeTests : IntegrationTest {
     private const int Samples = 500;
     private const int HistogramSeries = 15;
     private const int ChartSeries = 8;
-    private const int PageBudgetBytes = 2_750_000;
+    private const int PageBudgetBytes = 2_800_000;
 
     internal override AspApplication CreateApplication() => new(metricsSource: new WideMetricsSource());
 

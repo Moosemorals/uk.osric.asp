@@ -115,12 +115,8 @@ uk.osric.asp.Sdk.IPageFeatures.TryGet<T>(out T? feature) -> bool
 uk.osric.asp.Sdk.IPageLayout
 uk.osric.asp.Sdk.IPageLayout.AddHead(string! markup) -> void
 uk.osric.asp.Sdk.IPageLayout.AddStylesheet(string! href) -> void
-uk.osric.asp.Sdk.IPageLayout.Body.get -> string!
 uk.osric.asp.Sdk.IPageLayout.Head.get -> string!
-uk.osric.asp.Sdk.IPageLayout.Layout.get -> string?
-uk.osric.asp.Sdk.IPageLayout.Layout.set -> void
 uk.osric.asp.Sdk.IPageLayout.Stylesheets.get -> System.Collections.Generic.IReadOnlyList<string!>!
-uk.osric.asp.Sdk.IPageLayout.Title.get -> string!
 uk.osric.asp.Sdk.IPageLayout.Title.set -> void
 uk.osric.asp.Sdk.IPageStorage
 uk.osric.asp.Sdk.IPageStorage.DeleteAsync(string! key) -> System.Threading.Tasks.Task<bool>!

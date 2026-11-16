@@ -8,6 +8,7 @@ using Site.Editor;
     IPageSession session = ctx.Capabilities.GetRequired<IPageSession>();
 
     layout.Title = "Editor mode";
+    ctx.Capabilities.GetRequired<IPageComposition>().Wrap();
 
     static string? One(IReadOnlyDictionary<string, string> values, string name) =>
         values.TryGetValue(name, out string? value) && !string.IsNullOrWhiteSpace(value) ? value : null;
