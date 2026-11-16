@@ -1,0 +1,13 @@
+# SPDX-FileCopyrightText: Copyright 2026 Osric Wilkinson <osric@fluffypeople.com>
+# SPDX-License-Identifier: MIT
+
+[Unit]
+Description=Snapshot uk.osric.asp storage for the backup host
+
+[Service]
+Type=oneshot
+ExecStart=%h/bin/backup-snapshot.sh
+# The site is serving requests at the time this runs; let those win.
+Nice=10
+IOSchedulingClass=best-effort
+IOSchedulingPriority=7

@@ -194,19 +194,104 @@ count both. Nothing in either volume is worth keeping.
 
 ### Backups
 
-Run storage maintenance as `deploy`. Either stop `uk.osric.asp.service` with `systemctl --user stop`
-and back up the entire volume while no process has the database open, or use SQLite's online backup
-API against the database — `sqlite3` is installed on the host by `cloud-init.yaml`, so
-`sqlite3 storage.db '.backup /tmp/storage-backup.db'` works from inside `podman unshare`. Do not
-simply copy `storage.db` while the app is running: committed data may still be in the WAL, and
-copying database files individually can produce an inconsistent backup.
+The volume is the site: pages and their history, page state and sessions, the accounts, the assistant's
+memory and conversations. Nothing else holds a copy, so it is snapshotted nightly and pulled off the
+host.
 
-Use `podman volume inspect uk.osric.asp-storage` as `deploy` to locate the volume. Its files are
-owned by mapped subordinate IDs, so offline file access may require `podman unshare`. Keep backups
-outside the volume and off-host, and test restoration. Restore only with the app stopped, retain
-the correct mapped ownership, and start an image compatible with the restored schema. For the
-stop-and-copy approach, keep the app stopped until the backup finishes, then start it again with
-`systemctl --user start uk.osric.asp.service`.
+**The host takes the snapshot.** `~/bin/backup-snapshot.sh`, installed by `make deploy`, runs as
+`deploy` from `uk.osric.asp-backup.timer` at 03:15 — with `Persistent=true`, so a host that was down
+takes it on the way back up. It uses SQLite's online backup through `podman unshare`, so the site keeps
+serving, checks the copy with `PRAGMA integrity_check`, and leaves it gzipped as
+`~/backups/storage.<dd>.db.gz` and hard-links it to `~/backups/storage.db.gz`, which is the name the
+pull takes. The day of the month is the slot — a 31-entry ring, not a queue of the last 31 runs — so a
+month of daily copies is kept and the same day next month overwrites it. A day the host missed stays a
+hole until that date comes round again. The hard link, not a symlink, because the pull's restricted
+`rrsync` refuses to follow one. The two host files the repository does not carry —
+`~/.config/uk.osric.asp/assistant.env`, which holds the provider key, and
+`appsettings.Production.json` — are copied beside it in `conf/`.
+
+To take one before a release or a migration, run the oneshot by hand:
+
+```bash
+ssh deploy@<server-ip> systemctl --user start uk.osric.asp-backup.service
+ssh deploy@<server-ip> journalctl --user -u uk.osric.asp-backup.service --since -5m
+```
+
+Snapshots are mode `0600` and treated as credential stores: `storage.db` carries a PBKDF2 hash for
+every account. Keep them outside the volume, and remember that the local month is convenience — the
+copy on the backup host is the backup.
+
+**The backup host pulls.** `deploy/pull-backups.sh` runs there, on its own schedule, with a key that can
+read `~/backups` on this host and nothing else: the key's `authorized_keys` entry is
+`restrict,command="/usr/bin/rrsync -ro /home/deploy/backups"`. Each run copies `storage.db.gz` and
+`conf/` into `YYYY-MM-DD/` on the backup host, then:
+
+- refuses a snapshot whose mtime is 26 hours old, because a failed snapshot leaves yesterday's file in
+  place and filing it under today's date would turn a dead backup into a quiet one;
+- checks `gzip -t`, `PRAGMA integrity_check`, and that `PageHeads`, `Users` and
+  `__EFMigrationsHistory` are present, so a valid but foreign database is refused;
+- renames the staging directory into place only after those pass, so a bad pull leaves the previous day
+  alone;
+- prunes dated directories older than `KEEP_DAYS` (90 by default).
+
+Set it up on the backup host once. Generate a key with **no passphrase** — it runs unattended, and
+nothing on that host would unlock it:
+
+```bash
+ssh-keygen -t ed25519 -N '' -C backup@hathor -f ~/.ssh/id_backup_uk_osric_asp
+```
+
+Keep it `0600` there and never copy it to the site; losing it costs one regenerated key and one line in
+`authorized_keys`, so it does not need its own backup either. Append its public half to `deploy`'s
+`authorized_keys` with the prefix above, copy `deploy/pull-backups.sh` there, and schedule it after
+03:15:
+
+```cron
+20 4 * * * /usr/local/bin/pull-backups.sh
+```
+
+Run the script by hand once so `known_hosts` learns the host: it sets `BatchMode=yes`, so an unknown
+host or a missing key fails the run rather than hanging in cron. The script is the source of truth in
+this repository, not a file to edit on the backup host.
+
+The direction is deliberate. The public host never holds a credential to the machine that keeps its
+history; a `--delete` mirror cannot erase good copies because the site had a bad day; and verification
+happens somewhere the site's host does not control. `rsync` is needed at both ends and
+`cloud-init.yaml` installs it here; the backup host also needs `sqlite3` and `gzip`, which the script
+uses to check what it pulled.
+
+**Restore.** Copy the newest good `storage.db.gz` from the backup host to the site, then, with the app
+stopped:
+
+```bash
+scp backuphost:/srv/backup/uk.osric.asp/2026-11-16/storage.db.gz /tmp/
+ssh deploy@<server-ip> systemctl --user stop uk.osric.asp.service
+gunzip -c /tmp/storage.db.gz > /tmp/storage-restore.db
+mountpoint=$(podman volume inspect --format '{{.Mountpoint}}' uk.osric.asp-storage)
+podman unshare rm -f "$mountpoint/_data/storage.db-wal" "$mountpoint/_data/storage.db-shm"
+podman unshare install -o 1654 -g 1654 -m 0640 /tmp/storage-restore.db "$mountpoint/_data/storage.db"
+rm /tmp/storage-restore.db
+systemctl --user start uk.osric.asp.service
+until curl -fsS -o /dev/null http://127.0.0.1:8080/health; do sleep 2; done
+```
+
+`1654` is the container's uid and the volume is created with `:U`, so the file has to arrive with that
+ownership inside the user namespace; `podman unshare install` is what sets it. Remove the stale
+`-wal`/`-shm` first: replaying a newer log over an older database corrupts it. Restore onto an image
+whose schema the file matches — migrations run forward at startup, so a file written by a newer release
+is not one an older image can open. Test this drill; a backup nobody has restored is a hope.
+
+**Not covered.** The `uk.osric.asp-keys` volume — the key ring behind the auth, antiforgery and session
+cookies — is not in the snapshot: a restore without it signs everyone out and invalidates open forms,
+and nothing else. Prometheus's data is disposable, Caddy reissues certificates, and the image and
+quadlets come from the registry and this repository, so a rebuild is `make deploy`.
+
+The manual route still works when a copy has to be taken at a moment of the owner's choosing: stop the
+unit and copy the volume while no process has the database open, or use `sqlite3 storage.db
+'.backup /tmp/storage-backup.db'` from inside `podman unshare`. Do not simply copy `storage.db` while
+the site runs — committed data may still be in the write-ahead log, and copying the files one at a time
+can produce an inconsistent backup. `podman volume inspect uk.osric.asp-storage` locates the volume;
+its files are owned by mapped subordinate IDs, so offline access needs `podman unshare` too.
 
 ## Metrics and the status page
 

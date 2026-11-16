@@ -87,9 +87,9 @@ and applies them.
    suites and a Release publish), then the browser suite in Firefox — two minutes, and `make browsers`
    installs Firefox the first time — before it builds and pushes the image, pulls it as `deploy`,
    installs the network and the app's user quadlet, restarts the app, writes the Prometheus config and
-   quadlet and restarts that, then writes the Caddyfile to `/etc/caddy/` with sudo, installs the Caddy
-   unit, reloads systemd and restarts Caddy. Caddy obtains a certificate on first request, so the site
-   is reachable a few seconds later.
+   quadlet and restarts that, installs the nightly snapshot script and its timer, then writes the
+   Caddyfile to `/etc/caddy/` with sudo, installs the Caddy unit, reloads systemd and restarts Caddy.
+   Caddy obtains a certificate on first request, so the site is reachable a few seconds later.
 
    The target refuses to run from a tree with uncommitted changes, because the image is tagged with
    its commit and that tag is only meaningful if the commit is the tree (`ALLOW_DIRTY=1` overrides,
@@ -103,9 +103,12 @@ and applies them.
 
 ## Day-to-day
 
-- **New code:** commit it, then back up storage, then `make deploy HOST=deploy@<server-ip>`
+- **New code:** commit it, then `make deploy HOST=deploy@<server-ip>`
   (guards, checks, runs the browser suite, builds, pushes, pulls, restarts, waits for `/health`, then
-  says so if the commit it deployed is not on the remote yet).
+  says so if the commit it deployed is not on the remote yet). Take a snapshot first when the release
+  could migrate: `ssh deploy@<server-ip> systemctl --user start uk.osric.asp-backup.service`. The daily
+  timer covers every other night — [backups](operations.md#backups) has what that keeps and how it is
+  pulled off the host.
 - **The gate:** `make check`, run by hand when you want it — `make deploy` runs it anyway, with the
   browser suite after it. `make ci` is the slower version that starts from `make clean` and fails if
   the build dirties the tree; run it before a release, or from any machine that is asked to prove the

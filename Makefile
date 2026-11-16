@@ -490,6 +490,11 @@ deploy: deploy-guard check test-browser image | $(SSH_CONTROL_DIR)
 		echo "the host is missing aardvark-dns: container names will not resolve"; \
 		echo "run: sudo apt-get install -y aardvark-dns"; \
 		exit 1; }'
+	@# The backup host pulls with rsync, which runs a copy on this host as the remote side.
+	@$(SSH) $(HOST) 'command -v rsync >/dev/null 2>&1 || { \
+		echo "the host is missing rsync: the backup host cannot copy its snapshots"; \
+		echo "run: sudo apt-get install -y rsync"; \
+		exit 1; }'
 	podman tag $(LOCAL_IMAGE) $(IMAGE_REF)
 	podman tag $(LOCAL_IMAGE) $(IMAGE_SHA_REF)
 	podman push --authfile $(AUTHFILE) $(IMAGE_REF)
@@ -509,8 +514,17 @@ deploy: deploy-guard check test-browser image | $(SSH_CONTROL_DIR)
 	sed 's|^Image=.*|Image=$(IMAGE_SHA_REF)|' deploy/uk.osric.asp.container | $(SSH) $(HOST) 'cat > .config/containers/systemd/uk.osric.asp.container'
 	$(SSH) $(HOST) 'cat > .config/prometheus/prometheus.yml' < deploy/prometheus.yml
 	$(SSH) $(HOST) 'cat > .config/containers/systemd/prometheus.container' < deploy/prometheus.container
+	@# The snapshot script and its clock live on the host like the quadlets do. The pull is the backup
+	@# host's job and runs from its own copy of deploy/pull-backups.sh, so nothing here reaches it.
+	$(SSH) $(HOST) install -d bin
+	$(SSH) $(HOST) 'cat > bin/backup-snapshot.sh' < deploy/backup-snapshot.sh
+	$(SSH) $(HOST) chmod 0755 bin/backup-snapshot.sh
+	$(SSH) $(HOST) install -d .config/systemd/user
+	$(SSH) $(HOST) 'cat > .config/systemd/user/uk.osric.asp-backup.service' < deploy/uk.osric.asp-backup.service
+	$(SSH) $(HOST) 'cat > .config/systemd/user/uk.osric.asp-backup.timer' < deploy/uk.osric.asp-backup.timer
 	$(SSH) $(HOST) systemctl --user daemon-reload
 	$(SSH) $(HOST) systemctl --user restart uk.osric.asp.service prometheus.service
+	$(SSH) $(HOST) systemctl --user enable --now uk.osric.asp-backup.timer
 	@$(SSH) $(HOST) 'i=0; until podman exec prometheus wget -qO- -T 3 http://app:8080/health >/dev/null 2>&1; do \
 		i=$$((i+1)); \
 		if [ $$i -ge 10 ]; then \

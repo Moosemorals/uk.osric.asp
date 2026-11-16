@@ -1,0 +1,14 @@
+# SPDX-FileCopyrightText: Copyright 2026 Osric Wilkinson <osric@fluffypeople.com>
+# SPDX-License-Identifier: MIT
+
+[Unit]
+Description=Daily snapshot of uk.osric.asp storage
+
+[Timer]
+OnCalendar=*-*-* 03:15:00
+# A host that was down at 03:15 takes the snapshot when it comes back rather than skipping the day.
+Persistent=true
+RandomizedDelaySec=600
+
+[Install]
+WantedBy=timers.target
