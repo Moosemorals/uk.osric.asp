@@ -177,8 +177,9 @@ Step 9 landed smaller than it was planned. The rule and its audit are in
 [architecture](../architecture.md#where-a-view-lives), the memory capability the first version proposed
 is withdrawn (`assistant-memory-belongs-to-the-assistant`), and the view that would have used it is the assistant's — step 8. What a page
 actually lacks is somewhere to keep something for a signed-in account, and that is
-[IDEA-033](IDEA-033.md): a job with the shape, the cost and the open questions in it, waiting for a
-plan and a named first customer. `/assistant/memory` stays a shell route until step 8 replaces it.
+[IDEA-033](IDEA-033.md): a job with the shape, the cost and the open questions in it, which now has
+[a plan](../plans/account-store.md) and a named first customer. `/assistant/memory` stays a shell
+route until step 8 replaces it.
 
 Step 6 followed 5 rather than needing it: the editor's listing carries the compile state, and that is
 the state the assistant's one seam answers with too (`pages-a-page-has-a-state`). Step 7 closed BUG-17's one loose end
@@ -204,7 +205,8 @@ destructive reset is not built; [IDEA-022](IDEA-022.md) is the `SimpleContext` s
 touched; [IDEA-027](IDEA-027.md) is the flash a page cannot leave for another page;
 [IDEA-032](IDEA-032.md) is a sitting's work whenever a cost line is wanted, and does not touch the
 files the programme is working through; and
-[IDEA-033](IDEA-033.md) wants a plan and a named first customer before it is a step.
+[IDEA-033](IDEA-033.md) has [a plan](../plans/account-store.md) and a named first customer — the
+transcript of the assistant page's port — and becomes a step when the owner says yes to it.
 
 ## Closed
 
