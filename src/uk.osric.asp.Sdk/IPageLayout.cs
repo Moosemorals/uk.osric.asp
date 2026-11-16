@@ -3,7 +3,7 @@
 
 namespace uk.osric.asp.Sdk;
 
-/// <summary>The slots a render offers a page that is served inside another page.</summary>
+/// <summary>The slots one layer of a render owns, and the layer inside it.</summary>
 /// <remarks>
 /// <para>
 /// Reached through <see cref="IContext.Capabilities"/> as
@@ -11,34 +11,45 @@ namespace uk.osric.asp.Sdk;
 /// chrome and a page that never wants a layout never meets one.
 /// </para>
 /// <para>
-/// The host pre-fills <see cref="Layout"/> with the site's default, so being wrapped needs no page
-/// code and opting out is one statement. A page that is wrapped must set <see cref="Title"/>: the
-/// host refuses the chain before the layout runs, so the error names the page that forgot rather
-/// than the layout that noticed.
+/// The slots are this layer's own: the host does not fold the layer inside into them. A wrapper reads
+/// <see cref="Content"/> and decides what to fold with <see cref="AddHead"/>, <see cref="AddStylesheet"/>
+/// and <see cref="Title"/>, so the page that owns the document chooses in both directions.
 /// </para>
 /// <para>
-/// It is not a guard. The content has already run by the time the layout starts, so a layout hides
+/// A page is wrapped only if it asks: <see cref="IPageComposition.Wrap()"/> names the site's layout,
+/// and a page that asks for nothing is served exactly as it wrote itself.
+/// </para>
+/// <para>
+/// It is not a guard. The content has already run by the time the wrapper starts, so a layout hides
 /// chrome; it cannot prevent a side effect.
 /// </para>
 /// <para>
-/// A page that streams its response with <see cref="IContext.FlushAsync"/> is served alone: clear
-/// <see cref="Layout"/> before the first flush, because a layout needs the whole body before it can
-/// write its own.
+/// A page that streams its response with <see cref="IPageResponse.FlushAsync"/> is served alone: a
+/// layout needs the whole body before it can write its own, so a page that flushes is a page that
+/// declares no wrapper.
 /// </para>
 /// </remarks>
 public interface IPageLayout {
 
-    /// <summary>The key of the page that wraps this one, or <see langword="null"/> to be served alone.</summary>
-    public string? Layout { get; set; }
+    /// <summary>The layer inside this one, when this is a wrapper; <see langword="null"/> otherwise.</summary>
+    /// <remarks>
+    /// The content's whole body, wrappers and all, beside the frame of the outermost layer inside
+    /// this one. A wrapper that ignores it serves its own document and nothing of the content.
+    /// </remarks>
+    public PageCapture? Content { get; }
 
-    /// <summary>The document title.</summary>
-    /// <exception cref="InvalidOperationException">No title has been set yet.</exception>
-    public string Title { get; set; }
+    /// <summary>This layer's own document title, or <see langword="null"/> until it is set.</summary>
+    /// <remarks>
+    /// The setter refuses a blank title, so the only way to have none is to leave it unset, and a
+    /// wrapper decides what a missing title from the layer inside it means.
+    /// </remarks>
+    /// <exception cref="ArgumentException">The title is blank.</exception>
+    public string? Title { get; set; }
 
-    /// <summary>Every layer's <see cref="AddHead"/> markup, outermost layout first.</summary>
+    /// <summary>This layer's <see cref="AddHead"/> markup, in the order it was added.</summary>
     public string Head { get; }
 
-    /// <summary>Every layer's sheets, in cascade order: outermost layout first, this page last.</summary>
+    /// <summary>This layer's sheets, in the order it added them.</summary>
     public IReadOnlyList<string> Stylesheets { get; }
 
     /// <summary>Adds raw markup to the document's <c>head</c>.</summary>
@@ -52,8 +63,4 @@ public interface IPageLayout {
     /// </param>
     /// <exception cref="ArgumentException">The href is not a site-relative URL.</exception>
     public void AddStylesheet(string href);
-
-    /// <summary>What the layout wraps: the body of the page inside it.</summary>
-    /// <remarks>Empty in the content layer, because the layout is the only layer with one.</remarks>
-    public string Body { get; }
 }

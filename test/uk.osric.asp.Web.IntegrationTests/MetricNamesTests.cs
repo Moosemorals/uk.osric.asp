@@ -57,6 +57,7 @@ public sealed class MetricNamesTests : IntegrationTest {
         using (PageMetrics pages = new()) {
             pages.RecordRender(path, PageMetrics.RenderOk, PageMetrics.CacheHit, TimeSpan.FromMilliseconds(5));
             pages.RecordWait(TimeSpan.FromMilliseconds(5));
+            pages.RecordRecursiveComposition(path);
             pages.RecordCompile(path, true, PageMetrics.ReasonSave, TimeSpan.FromMilliseconds(5));
             pages.RecordLoad(path, TimeSpan.FromMilliseconds(5));
             pages.RecordInvoke(path, true, TimeSpan.FromMilliseconds(5));

@@ -158,7 +158,7 @@ public sealed class SimpleResponseTests {
 
     [Test]
     public void ALayoutCannotStream() {
-        SimpleResponse response = CreateResponse(out _, isLayout: true);
+        SimpleResponse response = CreateResponse(out _, role: PageLayerRole.Layout);
 
         Assert.That(() => response.FlushAsync(), Throws.InvalidOperationException.With.Message.Contains("layout"));
     }
@@ -177,7 +177,7 @@ public sealed class SimpleResponseTests {
         SimpleResponse response = CreateResponse(out _, wouldWrap: _ => true);
 
         Assert.That(() => response.FlushAsync(),
-            Throws.InvalidOperationException.With.Message.Contains("Set IPageLayout.Layout to null"));
+            Throws.InvalidOperationException.With.Message.Contains("IPageComposition.Wrap"));
         Assert.That(response.IsCommitted, Is.False);
     }
 
@@ -213,7 +213,7 @@ public sealed class SimpleResponseTests {
         string method = "GET",
         string loginRedirect = "/login",
         Func<string>? antiforgeryField = null,
-        bool isLayout = false,
+        PageLayerRole role = PageLayerRole.Content,
         bool canStream = true,
         Func<string, bool>? wouldWrap = null,
         RecordingLoggerFactory? loggerFactory = null) {
@@ -232,7 +232,7 @@ public sealed class SimpleResponseTests {
             PageHarness.Key("/page"),
             TestHttp.Request("/page", method),
             loginRedirect,
-            isLayout,
+            role,
             loggerFactoryOrNull.CreateLogger(SimpleContext.PageCategory),
             antiforgeryField,
             wouldWrap);
@@ -241,6 +241,6 @@ public sealed class SimpleResponseTests {
     private static SimpleResponse CreateLayoutResponse(out RecordingLoggerFactory logs) {
         logs = new RecordingLoggerFactory();
 
-        return CreateResponse(out _, isLayout: true, loggerFactory: logs);
+        return CreateResponse(out _, role: PageLayerRole.Layout, loggerFactory: logs);
     }
 }

@@ -1,4 +1,5 @@
-<% ctx.Capabilities.GetRequired<IPageLayout>().Title = "Help"; %>
+<% ctx.Capabilities.GetRequired<IPageLayout>().Title = "Help";
+   ctx.Capabilities.GetRequired<IPageComposition>().Wrap(); %>
 <h1>Help</h1>
 <p>This is the author manual. It is itself a stored page, so logged in users
 can improve it at <a href="<%= ctx.EditorPath %>?edit=<%= System.Uri.EscapeDataString(ctx.Path) %>"><%= ctx.EditorPath %>?edit=<%= ctx.Path %></a>.</p>
@@ -9,6 +10,7 @@ can improve it at <a href="<%= ctx.EditorPath %>?edit=<%= System.Uri.EscapeDataS
         <li><a href="#editor">The editor</a></li>
         <li><a href="#fragment">A page with code is a fragment</a></li>
         <li><a href="#layout">Layout and title</a></li>
+        <li><a href="#composition">Including another page</a></li>
         <li><a href="#streaming">Streaming a response</a></li>
         <li><a href="#head-and-scripts">Stylesheets, head and scripts</a></li>
         <li><a href="#syntax">Template syntax</a></li>
@@ -74,14 +76,27 @@ same page. A path the site's own routes already answer for, such as <code>/admin
 <code>/login</code>, cannot be created as a page.</p>
 
 <h2 id="fragment">A page with code is a fragment</h2>
-<p>A page with C# is wrapped in the site's default layout, <code>/_layout</code>. The layout writes
-the document: the doctype, <code>html</code>, <code>head</code>, title, stylesheets, the site menu,
-the banner, the <code>main</code> landmark and the close. Your page writes only what belongs inside
-<code>main</code>.</p>
-<p>A page with <strong>no C#</strong> is a complete representation: it is never wrapped, its stored
-source is the response, and it must write its own whole document. Add a code block &mdash; even one
-that only sets a title &mdash; if you want the site chrome. There is no hidden layout for a static
-page.</p>
+<p>A page with C# is a fragment unless it asks to be more. Nothing wraps it for you: the page
+declares the page or pages that wrap it with
+<a href="/admin/reference/sdk#t-IPageComposition"><code>IPageComposition</code></a>, and the site's
+layout <code>/_layout</code> writes the document &mdash; the doctype, <code>html</code>,
+<code>head</code>, title, stylesheets, the site menu, the banner, the <code>main</code> landmark and
+the close. A page that declares nothing is served exactly as it wrote itself, which is a bare
+fragment:</p>
+<pre class="source" tabindex="0"><code>&lt;% ctx.Capabilities.GetRequired&lt;IPageLayout&gt;().Title = "About";
+   ctx.Capabilities.GetRequired&lt;IPageComposition&gt;().Wrap(); %&gt;
+&lt;h1&gt;About&lt;/h1&gt;
+&lt;p&gt;This page is wrapped in the site layout.&lt;/p&gt;</code></pre>
+<p><code>Wrap()</code> names the site layout, so the page does not hard-code a key the owner can
+move. <code>Wrap("/_other")</code> names a page instead, and <code>Wrap("/_other", ctx.Request)</code>
+runs that page against a request of your choosing. Calls stack outward: <code>Wrap("/_markdown"); Wrap();</code>
+is the markdown layout first and the site layout outside it. Declare the wrap near the top of the
+page: the host runs the chain after the page returns, so a guard's early <code>return;</code> is
+still wrapped.</p>
+<p>A page with <strong>no C#</strong> is a complete representation: its stored source is the response
+and it must write its own whole document. A no-code page cannot read another page, so it can never
+wrap or be wrapped. Add a code block &mdash; even one that only sets a title &mdash; if you want the
+site chrome.</p>
 <p>A page whose blocks are <strong>only declarations</strong> &mdash; <code>&lt;%! ... %&gt;</code> and
 nothing else &mdash; is a <strong>library</strong>: it has nothing to render, so it is never served and
 its own URL answers &ldquo;not found&rdquo;. It is still checked when you save it, so code that will not
@@ -126,49 +141,56 @@ with no code are not wrapped. A page whose key has a content type of its own, su
 wrapped.</p>
 
 <h2 id="layout">Layout and title</h2>
-<p>The layout is <a href="/admin/reference/sdk#t-IPageLayout"><code>IPageLayout</code></a>, and its slots are reached through the page's
-capabilities, so a page that never wants a layout never meets one:</p>
+<p>The slots are <a href="/admin/reference/sdk#t-IPageLayout"><code>IPageLayout</code></a>, reached
+through the page's capabilities, so a page that never wants a layout never meets one. They are this
+layer's own slots:</p>
 <pre class="source" tabindex="0"><code>&lt;% IPageLayout layout = ctx.Capabilities.GetRequired&lt;IPageLayout&gt;();
    layout.Title = "About";
-   layout.AddStylesheet("/about.css"); %&gt;
+   layout.AddStylesheet("/about.css");
+   ctx.Capabilities.GetRequired&lt;IPageComposition&gt;().Wrap(); %&gt;
 &lt;h1&gt;About&lt;/h1&gt;
 &lt;p&gt;This page is wrapped in the site layout.&lt;/p&gt;</code></pre>
-<p><strong>A wrapped page must set a title.</strong> Reading <code>Title</code> before any layer sets
-it throws, and the host refuses the chain before the layout runs, so the error names the page that
-forgot rather than the layout that noticed. A layout may read the title so far and compose its own:
-<code>layout.Title = $"{layout.Title} — Site";</code>.</p>
-<p><a href="/admin/reference/sdk#m-IPageLayout.AddStylesheet-string"><code>AddStylesheet("/about.css")</code></a> links one sheet. Call it zero, one or many times. The
-document's base sheets come first, then each layout's from the outermost in, then the page's in the
-order it asked. A sheet must be a site-relative URL, and an exact duplicate is linked once.</p>
+<p><code>Title</code> is a <code>string?</code> that starts unset; the setter refuses a blank one, so
+leaving it unset is the only way to have none. <strong>The wrapper decides what a missing title
+means</strong>: the seeded <code>/_layout</code> uses the page's title when it has one and the site's
+own otherwise. The host no longer refuses a page that forgot.</p>
+<p><a href="/admin/reference/sdk#m-IPageLayout.AddStylesheet-string"><code>AddStylesheet("/about.css")</code></a> links one sheet. Call it zero, one or many times. A sheet
+must be a site-relative URL, and the same sheet added twice to one layer is linked once.</p>
 <p><a href="/admin/reference/sdk#m-IPageLayout.AddHead-string"><code>AddHead("&lt;meta name=&quot;robots&quot; content=&quot;noindex&quot;&gt;")</code></a> adds raw markup to the
 document's <code>head</code>. Use it for a meta tag or another document-level link, not for a
 stylesheet; <code>AddStylesheet</code> owns those.</p>
-<p><code>layout.Layout</code> names another stored page to wrap this one. The host pre-fills it with
-the site default, so leaving it alone gets the site chrome. Setting it to <code>null</code> serves
-the page alone: do that only when the page genuinely writes its own whole document, because nothing
-else will give it a head, a title or a menu.</p>
-<p>Inside a layout, <code>layout.Body</code> is the page the layout wraps. It is empty in the content
-layer, because only a layout has something to wrap.</p>
-<p>The chain renders inside out: the page first, then its layout, then the layout's parent. The
-whole chain shares one render budget, one fetch allowance and one body allowance, so two layers do
-not get two bites. The default chain is limited to four layouts, and the host stops at the first
-repeat, so a layout cannot wrap itself forever.</p>
-<p>If the default layout is missing or does not compile, the page is served unwrapped and the host
-logs a warning. A layout the page named that cannot be served is an error that names the missing
-layout.</p>
+<p>Inside a wrapper, <a href="/admin/reference/sdk#m-IPageLayout.Content"><code>layout.Content</code></a>
+is the page it wraps, as a <a href="/admin/reference/sdk#t-PageCapture"><code>PageCapture</code></a>:
+<code>Body</code> beside <code>Title</code>, <code>Head</code>, <code>Stylesheets</code> and
+<code>AllowsScripts</code>. It is <code>null</code> in the page the visitor asked for. <strong>The
+wrapper folds what it wants</strong> &mdash; nothing is merged behind its back &mdash; and the merged
+head is one call: <code>Document.Head(ctx, layout, "Site", ctx.AssetUrl)</code> uses the page's title
+when the wrapper set none, and its sheets and head before the wrapper's own.</p>
+<p>The chain renders inside out: the page first, then the wrapper it declared, then the wrapper's
+wrapper. The whole chain shares one render budget, one fetch allowance and one body allowance, so
+two layers do not get two bites. The chain is limited to four layers by
+<code>Pages:Render:MaxLayoutDepth</code>, and a page that reaches itself again with the same request
+is refused as a loop.</p>
+<p>If the site layout named by <code>Wrap()</code> is missing or does not compile, the page is served
+unwrapped and the host logs a warning. A page named by <code>Wrap(key)</code> that cannot be served is
+an error naming the key. A wrapper must have code: a no-code page has no way to read
+<code>Content</code>, so it cannot wrap.</p>
+<p>A wrapper does not own the response. Its <code>ctx.Response.SetStatus</code>,
+<code>SetContentType</code>, <code>SetHeader</code> and <code>Redirect</code> are ignored and logged,
+because the page the visitor asked for owns those; <code>AllowScripts</code> is the one setting it
+shares, and the host unions it with the page's.</p>
 <p>A layout is not a guard. The content has already run by the time the layout starts, so a layout
 can hide chrome but cannot prevent a side effect.</p>
-<p>A minimal layout calls the document library the site seeds at <code>/_lib/document</code> and puts
+<p>A minimal wrapper calls the document library the site seeds at <code>/_lib/document</code> and puts
 the page in the middle:</p>
 <pre class="source" tabindex="0"><code>&lt;%! using Site.Document; %&gt;
 &lt;% var layout = ctx.Capabilities.GetRequired&lt;IPageLayout&gt;();
-   if (ctx.Path == ctx.Request.Path) { layout.Title = "Site"; }
    bool At(string href) =&gt; ctx.Request.Path == href;
    var links = new System.Collections.Generic.List&lt;NavLink&gt; { new("/", "Home", At("/")) };
-   Document.Head(ctx, layout.Title, layout.Stylesheets, layout.Head, ctx.AssetUrl);
+   Document.Head(ctx, layout, "Site", ctx.AssetUrl);
    Document.Banner(ctx, "Site", links, "site-nav");
    Document.OpenMain(ctx); %&gt;
-&lt;%== layout.Body %&gt;
+&lt;%== layout.Content?.Body ?? "" %&gt;
 &lt;% Document.CloseMain(ctx); Document.End(ctx); %&gt;</code></pre>
 <p>The last argument to <code>Head</code> is the link resolver: <code>ctx.AssetUrl</code> is what lets
 the base sheet and the icon carry a revision hash. The library is an ordinary stored page, so you can
@@ -176,17 +198,53 @@ edit the document itself from the page list, and <code>/admin/restore</code> put
 <p>The seeded <code>/_layout</code> is the full version of that page, and you can edit or restore both
 from the page list.</p>
 
+<h2 id="composition">Including another page</h2>
+<p><a href="/admin/reference/sdk#m-IPageComposition.EmbedAsync-string-PageRequest"><code>EmbedAsync("/cards/post")</code></a>
+renders another stored page where the call is. It is a render of the whole page &mdash; its body and
+every wrapper it declares &mdash; with its own key, storage and session, the visitor's identity, and
+the request the call gives it. Nothing about it is a sandbox: it may write the store and start a job
+like any page. It is offered every capability a page the visitor asked for is offered, except its
+own response.</p>
+<pre class="source" tabindex="0"><code>&lt;% var composition = ctx.Capabilities.GetRequired&lt;IPageComposition&gt;();
+   PageFrame frame = await composition.EmbedAsync("/cards/post");
+   if (frame.Title is not null) { ctx.Capabilities.GetRequired&lt;IPageLayout&gt;().Title = frame.Title; } %&gt;</code></pre>
+<p>The return value is a <a href="/admin/reference/sdk#t-PageFrame"><code>PageFrame</code></a>: the
+outermost layer's title, head, sheets and script permission. The body is not in it, because the body
+is already written. A page that wants the body too calls
+<a href="/admin/reference/sdk#m-IPageComposition.CaptureAsync-string-PageRequest"><code>CaptureAsync</code></a>,
+which renders the same page and returns a <code>PageCapture</code> without writing anything:</p>
+<pre class="source" tabindex="0"><code>&lt;% PageCapture captured = await ctx.Capabilities.GetRequired&lt;IPageComposition&gt;().CaptureAsync("/draft");
+   if (captured.AllowsScripts) { ctx.Response.AllowScripts(); }
+   ctx.Response.WriteRaw(ctx.Capabilities.GetRequired&lt;IMarkdownRenderer&gt;().ToHtml(captured.Body)); %&gt;</code></pre>
+<p>The input is a request. Omit it to run the embedded page against this page's own request, or pass
+one to shape what it sees: <code>ctx.Request.WithQuery("id", "7")</code> replaces a query name,
+<code>WithAnotherQuery</code> adds a value beside the ones a name has, and <code>WithoutQuery</code>
+drops one. The page the visitor asked for stays on <code>ctx.Request.Path</code>, so the embedded
+page sees its own key as <code>ctx.Path</code> and <code>ctx.Path != ctx.Request.Path</code> is how it
+knows it is inside another page. A method, form, header or cookie can be shaped the same way, because
+they are the page's real input; only the path is the host's.</p>
+<p>Recursion is bounded and honest. The same page with the same request anywhere above this one is a
+loop and is refused. The same page with a different request is a recursive component &mdash; a comment
+tree, a directory &mdash; and is allowed, counted on the status page, and bounded by
+<code>Pages:Render:MaxEmbedDepth</code> (four levels below the page that is running). One request may
+make <code>Pages:Render:MaxEmbeds</code> embeds (32), so a listing cannot embed a thousand siblings.</p>
+<p><code>EmbedAsync</code> throws when the page cannot be served, and a page may catch that: the
+output never reached the page's body, so nothing is half-written. What does not roll back is a side
+effect the embedded page already made. An embedded page cannot redirect, because it has no response
+of its own; one that tries is refused and the page that embedded it may catch it.</p>
+<p>One render still writes once. A page that embeds a widget which saves itself spends the render's
+one write, so a second one &mdash; in the page or in another instance of the widget &mdash; is
+refused; a job, by contrast, is per call and bounded by the job queue.</p>
+
 <h2 id="streaming">Streaming a response</h2>
 <p>A page sends its body when its handler returns. To send part of it earlier, call
 <code>await ctx.Response.FlushAsync()</code>. The first flush is the commit point: the status, content type and
 headers are final, any session or antiforgery cookie already minted is written, and the response
 starts. Later
 writes are buffered until the next flush, and whatever is left is sent when the handler returns.</p>
-<p>A streaming page is served alone, so clear the layout and write your own document before the first
-flush:</p>
-<pre class="source" tabindex="0"><code>&lt;% var layout = ctx.Capabilities.GetRequired&lt;IPageLayout&gt;();
-   layout.Layout = null; %&gt;
-&lt;!DOCTYPE html&gt;
+<p>A streaming page is served alone, so it declares no wrapper and writes its own document before
+the first flush. A <code>Wrap</code> call after the first flush throws:</p>
+<pre class="source" tabindex="0"><code>&lt;!DOCTYPE html&gt;
 &lt;html lang="en"&gt;&lt;head&gt;&lt;title&gt;Progress&lt;/title&gt;&lt;/head&gt;&lt;body&gt;
 &lt;% await ctx.Response.FlushAsync(); %&gt;
 &lt;p&gt;First&lt;/p&gt;
@@ -224,7 +282,7 @@ The commit starts the client's <code>Pages:Stream</code> lifetime; the upstream 
 send an error event instead:</p>
 <pre class="source" tabindex="0"><code>&lt;%
 IHttpFetch fetch = ctx.Capabilities.GetRequired&lt;IHttpFetch&gt;();
-ctx.Capabilities.GetRequired&lt;IPageLayout&gt;().Layout = null;
+// No Wrap call: a page that streams writes its own document.
 ctx.Response.SetContentType("text/event-stream; charset=utf-8");
 ctx.Response.SetHeader("X-Accel-Buffering", "no");
 ctx.Response.WriteRaw(": connected\n\n");

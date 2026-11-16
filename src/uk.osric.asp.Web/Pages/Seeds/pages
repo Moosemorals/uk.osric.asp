@@ -8,6 +8,7 @@ using Site.Editor;
     if (ctx.User is not { } user) { ctx.Response.RedirectToLogin(); return; }
 
     IPageLayout layout = ctx.Capabilities.GetRequired<IPageLayout>();
+    ctx.Capabilities.GetRequired<IPageComposition>().Wrap();
     IPageWrites writes = ctx.Capabilities.GetRequired<IPageWrites>();
     IPageCatalog catalog = ctx.Capabilities.GetRequired<IPageCatalog>();
     IDiffRenderer differ = ctx.Capabilities.GetRequired<IDiffRenderer>();
@@ -78,6 +79,9 @@ using Site.Editor;
 
     string key = "";
     string stage = "listing";
+    // The opening and closing markers are built from pieces: a literal one in this page's own source
+    // would be read as a block, and the editor's starter would be dropped.
+    const string Starter = "<" + "% ctx.Capabilities.GetRequired<IPageComposition>().Wrap(); " + "%" + ">\n<h1>A new page</h1>";
     string text = "";
 
     string? command = One(ctx.Request.Form, "cmd") ?? One(ctx.Request.Query, "cmd");
@@ -293,7 +297,9 @@ using Site.Editor;
             revisions = await catalog.RevisionsAsync(key);
             live = await catalog.ReadAsync(key);
             deleted = live is null && revisions.Count > 0;
-            text = live?.Source ?? "";
+            // A page created here is wrapped without the author knowing the rule: the starter names
+            // the site's layout, so an empty page is a document from the first save.
+            text = live?.Source ?? Starter;
             expected = live?.Hash;
             return;
         }

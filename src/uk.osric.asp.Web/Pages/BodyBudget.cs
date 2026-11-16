@@ -24,6 +24,10 @@ internal sealed class BodyBudget {
     /// <summary>How much body one request may buffer.</summary>
     public int MaxChars { get; }
 
+    /// <summary>How much body this budget has left to give.</summary>
+    /// <remarks>An embedded layer renders into a budget of this size, so its whole body fits.</remarks>
+    public int Remaining => MaxChars - Volatile.Read(ref _written);
+
     /// <summary>Charges one write against the budget.</summary>
     /// <param name="chars">The length of the text about to be written.</param>
     /// <returns>Whether the write fits; nothing is charged when it does not.</returns>

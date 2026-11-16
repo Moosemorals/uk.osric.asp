@@ -285,7 +285,7 @@ internal sealed class PageHarness : IDisposable {
         }
 
         if (withWrites) {
-            PageWritesScope writes = new(path, Editor, user, writable: !isHead, Reserved, Seeds);
+            PageWritesScope writes = new(path, Editor, user, writable: !isHead, Reserved, Seeds, new PageWriteAction());
             capabilities.Add<IPageWrites>(writes);
         }
 

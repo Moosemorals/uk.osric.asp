@@ -156,16 +156,19 @@ public sealed class PageStreamingTests {
     }
 
     [Test]
-    public async Task AFlushingPageIsRefusedWhileItIsWrappedAsync() {
+    public async Task AFlushingPageIsRefusedWhileItDeclaresAWrapAsync() {
         StoreLayout();
-        Store("/stream", """<% ctx.Response.Write("hi"); await ctx.Response.FlushAsync(); %>""");
+        Store("/stream", """
+            <% ctx.Capabilities.GetRequired<IPageComposition>().Wrap();
+               ctx.Response.Write("hi"); await ctx.Response.FlushAsync(); %>
+            """);
 
         InvalidOperationException? refused = await Assert.ThrowsAsync<InvalidOperationException>(
             () => RenderAsync("/stream", layout: DefaultLayout));
 
         Assert.Multiple(() => {
             Assert.That(refused?.Message, Does.Contain("/stream"));
-            Assert.That(refused?.Message, Does.Contain("Set IPageLayout.Layout to null"));
+            Assert.That(refused?.Message, Does.Contain("IPageComposition.Wrap"));
         });
     }
 
@@ -183,11 +186,10 @@ public sealed class PageStreamingTests {
     }
 
     [Test]
-    public async Task APageThatClearsItsLayoutStreamsWithoutChromeAsync() {
+    public async Task APageThatDeclaresNoWrapperStreamsWithoutChromeAsync() {
         StoreLayout();
         Store("/stream", """
-            <% ctx.Capabilities.GetRequired<IPageLayout>().Layout = null;
-               ctx.Response.WriteRaw("<!DOCTYPE html><p>hi</p>"); await ctx.Response.FlushAsync(); %>
+            <% ctx.Response.WriteRaw("<!DOCTYPE html><p>hi</p>"); await ctx.Response.FlushAsync(); %>
             """);
 
         (_, string body) = await RenderAsync("/stream", layout: DefaultLayout);
@@ -201,7 +203,10 @@ public sealed class PageStreamingTests {
     [Test]
     public async Task ALayoutCannotFlushAsync() {
         Store(DefaultLayout, """<% await ctx.Response.FlushAsync(); %>""");
-        Store("/page", """<% ctx.Capabilities.GetRequired<IPageLayout>().Title = "Page"; %>hi""");
+        Store("/page", """
+            <% ctx.Capabilities.GetRequired<IPageComposition>().Wrap();
+               ctx.Capabilities.GetRequired<IPageLayout>().Title = "Page"; %>hi
+            """);
 
         InvalidOperationException? refused = await Assert.ThrowsAsync<InvalidOperationException>(
             () => RenderAsync("/page", layout: DefaultLayout));
@@ -210,14 +215,14 @@ public sealed class PageStreamingTests {
     }
 
     [Test]
-    public async Task APageThatNamesALayoutAfterFlushingIsServedAloneAndWarnedAsync() {
+    public async Task APageThatDeclaresAWrapAfterFlushingIsTruncatedAndLoggedAsync() {
+        // A committed body cannot be handed to a wrapper, so the declaration is refused: the response
+        // is already on the wire, and the page's own document is what the visitor keeps.
         StoreLayout();
         Store("/stream", """
-            <% var layout = ctx.Capabilities.GetRequired<IPageLayout>();
-               layout.Layout = null;
-               ctx.Response.Write("body");
+            <% ctx.Response.Write("body");
                await ctx.Response.FlushAsync();
-               layout.Layout = "/_layout"; %>
+               ctx.Capabilities.GetRequired<IPageComposition>().Wrap(); %>
             """);
 
         RecordingLoggerFactory logs = new();
@@ -226,7 +231,7 @@ public sealed class PageStreamingTests {
         Assert.Multiple(() => {
             Assert.That(body, Is.EqualTo("body"));
             Assert.That(logs.Entries.Any(entry =>
-                entry.Level == LogLevel.Warning && entry.Message.Contains("was served alone", StringComparison.Ordinal)), Is.True);
+                entry.Level == LogLevel.Error && entry.Message.Contains("truncated", StringComparison.Ordinal)), Is.True);
         });
     }
 
@@ -404,7 +409,7 @@ public sealed class PageStreamingTests {
     }
 
     private void StoreLayout() => Store(DefaultLayout, """
-        <% var layout = ctx.Capabilities.GetRequired<IPageLayout>(); %><!DOCTYPE html><html><head><title><%= layout.Title %></title></head><body><%== layout.Body %></body></html>
+        <% var layout = ctx.Capabilities.GetRequired<IPageLayout>(); %><!DOCTYPE html><html><head><title><%= layout.Content?.Title ?? "" %></title></head><body><%== layout.Content?.Body ?? "" %></body></html>
         """);
 
     private (Task Run, DefaultHttpContext Context) Start(

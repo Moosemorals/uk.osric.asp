@@ -98,7 +98,7 @@ internal sealed class PageEndpoint() {
             }
 
             if (PageAssetPolicy.IsAsset(selected.Kind)) {
-                await WriteSourceAsync(context, path, selected.Template, versionHash, environment);
+                await WriteSourceAsync(context, path, TemplateComments.Remove(selected.Template), versionHash, environment);
 
                 return;
             }
@@ -163,7 +163,7 @@ internal sealed class PageEndpoint() {
                 if (PageAssetPolicy.IsAsset(head.Kind)) {
                     // Nothing is compiled or executed for this revision, and no render slot is taken:
                     // the stored source is the body, on this path, and a bare URL is not cacheable.
-                    await WriteSourceAsync(context, path, head.Template, versionHash: null, environment);
+                    await WriteSourceAsync(context, path, TemplateComments.Remove(head.Template), versionHash: null, environment);
 
                     return;
                 }
@@ -195,6 +195,11 @@ internal sealed class PageEndpoint() {
         // verifiable against the same token, and a second would leave the first unverifiable.
         string? antiforgeryField = null;
 
+        // One slot and one deadline for the whole render, so a wrapped page - or a page that embeds
+        // three others - costs one render rather than four. It is opened before the content layer is
+        // built, so the composition an embed runs holds the session it belongs to.
+        await using PageRenderer.RenderSession render = await pages.OpenSessionAsync(path, context.RequestAborted);
+
         // One body, one fetch allowance and one template allowance for the whole chain: the chrome is
         // part of the response, so a layout must not be able to buffer, fetch or read beside the
         // page's own budgets.
@@ -214,29 +219,30 @@ internal sealed class PageEndpoint() {
             assets,
             LoginRedirect.For(path, context.Request.QueryString),
             () => antiforgeryField ??= AntiforgeryField.Hidden(environment.Antiforgery.GetAndStoreTokens(context)),
+            render,
             context.RequestAborted);
 
-        PageLayoutState contentLayout = new(environment.Layout.Default);
-        StringWriter output = new();
-        SimpleContext page = chain.CreateLayer(path, output, contentLayout, isLayout: false);
-
-        // One slot and one deadline for the whole chain, so a wrapped page costs one render rather
-        // than two.
-        await using PageRenderer.RenderSession render = await pages.OpenSessionAsync(path, context.RequestAborted);
+        PageLayer page = chain.CreateLayer(
+            path,
+            PageLayerRole.Content,
+            snapshot,
+            new BodyBudget(environment.Render.MaxBodyChars),
+            [PageRenderIdentity.Of(path, snapshot)],
+            depth: 0);
 
         RenderResult result;
         try {
             result = selection is null
-                ? await render.RenderAsync(path, page)
-                : await render.RenderAsync(path, page, selection);
-        } catch (PageStreamRefusedException) when (!page.Response.IsCommitted) {
+                ? await render.RenderAsync(path, page.Context)
+                : await render.RenderAsync(path, page.Context, selection);
+        } catch (PageStreamRefusedException) when (!page.Context.Response.IsCommitted) {
             // Capacity, not a page bug: nothing has been committed, so the ordinary problem document
             // can still answer. A page that wanted to explain the wait catches this itself.
             EndpointLogger().LogWarning("Page {Path} could not start a live stream: every stream slot is taken", path.Key);
 
             await WriteStreamFullAsync(context, path);
             return;
-        } catch (Exception exception) when (page.Response.IsCommitted) {
+        } catch (Exception exception) when (page.Context.Response.IsCommitted) {
             // The response is already on the wire, so there is no error page to write and no status to
             // change. A client that left is not a page fault; anything else is.
             render.Fail();
@@ -258,7 +264,7 @@ internal sealed class PageEndpoint() {
                 await WriteCompileErrorAsync(context, result.Diagnostics);
                 return;
             case RenderStatus.Timeout:
-                if (page.Response.IsCommitted) {
+                if (page.Context.Response.IsCommitted) {
                     // A 504 cannot replace headers that are already sent. The renderer has already
                     // logged and counted the abandonment; this is the truncation.
                     EndpointLogger().LogWarning(
@@ -272,19 +278,13 @@ internal sealed class PageEndpoint() {
                 return;
         }
 
-        if (page.Response.IsCommitted) {
+        if (page.Context.Response.IsCommitted) {
             if (versionHash is not null) {
                 environment.Metrics.RecordAsset(PageMetrics.AssetNonAsset);
             }
 
-            if (contentLayout.Layout is not null && PageChain.IsHtml(page.Response.ToResponse().ContentType)) {
-                EndpointLogger().LogWarning(
-                    "Page {Path} flushed its response and then named layout {Layout}; the page was served alone",
-                    path.Key, contentLayout.Layout);
-            }
-
             try {
-                await page.Response.CompleteAsync();
+                await page.Context.Response.CompleteAsync();
                 if (render.TokenCancelled) {
                     render.Truncated();
                 } else if (context.RequestAborted.IsCancellationRequested) {
@@ -308,8 +308,8 @@ internal sealed class PageEndpoint() {
         if (result.IsSource) {
             // The first render of a seed may have learned the revision has no code. That answer is
             // now stored, so the next request takes the fast path above. Nothing wraps a no-code
-            // page: its source is the complete representation.
-            await WriteSourceAsync(context, path, page.Response.GetBody(), versionHash, environment);
+            // page: its source is the complete representation, with the renderer's projection of it.
+            await WriteSourceAsync(context, path, page.Context.Response.GetBody(), versionHash, environment);
 
             return;
         }
@@ -318,7 +318,7 @@ internal sealed class PageEndpoint() {
             environment.Metrics.RecordAsset(PageMetrics.AssetNonAsset);
         }
 
-        Task write = (await chain.WrapAsync(render, path, contentLayout, page.Response.ToResponse(), page.Response.GetBody())) switch {
+        Task write = (await chain.WrapAsync(path, page, page.Context.Response.ToResponse())) switch {
             PageChainResult.Failed failure => ErrorResponses.WriteAsync(context, failure.StatusCode, failure.Error),
             PageChainResult.Served served => WritePageAsync(context, served.Response, served.Body, environment, session),
         };
@@ -330,16 +330,17 @@ internal sealed class PageEndpoint() {
     // revision. The hash is the validator, so a browser that revalidates anyway gets a cheap 304.
     private const string ImmutableCacheControl = "public, max-age=31536000, immutable";
 
-    // A text page's body is its source less its comments: a comment is neither code nor text, so it
-    // reaches the visitor no more than it changes the kind. This is the one place a stored source
-    // becomes a response, so the rule cannot be missed by a second path that writes one.
+    // A no-code page's body is its stored source less its comments: a comment is neither code nor
+    // text, so it reaches the visitor no more than it changes the kind. The projection is the
+    // renderer's for a page it rendered and the caller's here for a revision it did not - this writes
+    // the body it is given, so there is one rule and no second projection.
     private static async Task WriteSourceAsync(
         HttpContext context,
         PagePath path,
-        string source,
+        string body,
         string? versionHash,
         PageEnvironment environment) {
-        byte[] body = Encoding.UTF8.GetBytes(TemplateComments.Remove(source));
+        byte[] bytes = Encoding.UTF8.GetBytes(body);
         context.Response.ContentType = environment.ContentTypes.ForPath(path.Key);
 
         if (versionHash is not null) {
@@ -360,10 +361,10 @@ internal sealed class PageEndpoint() {
         }
 
         context.Response.StatusCode = StatusCodes.Status200OK;
-        context.Response.ContentLength = body.LongLength;
+        context.Response.ContentLength = bytes.LongLength;
 
         if (!HttpMethods.IsHead(context.Request.Method)) {
-            await context.Response.Body.WriteAsync(body.AsMemory(), context.RequestAborted);
+            await context.Response.Body.WriteAsync(bytes.AsMemory(), context.RequestAborted);
         }
     }
 

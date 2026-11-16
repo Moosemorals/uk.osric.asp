@@ -51,9 +51,10 @@ internal sealed class SimpleContext : IContext {
     /// Builds the hidden antiforgery input, or <see langword="null"/> when the page must get nothing.
     /// </param>
     /// <param name="path">The layer's own key, which is the request's path for the content layer.</param>
-    /// <param name="isLayout">
-    /// Whether this layer is a layout, in which case the response belongs to the content: status,
-    /// content type, headers and a redirect are ignored, because a layout is markup and nothing else.
+    /// <param name="role">
+    /// What this layer is. Only the content owns the response: a layout or an embedded page is
+    /// markup, so status, content type and headers are ignored, and an embedded page's redirect
+    /// refuses because it has no response to redirect.
     /// </param>
     /// <param name="bodyBudget">
     /// The allowance the whole chain shares; a layer on its own gets one of its own.
@@ -87,7 +88,7 @@ internal sealed class SimpleContext : IContext {
         string loginRedirect = "/login",
         Func<string>? antiforgeryField = null,
         PagePath? path = null,
-        bool isLayout = false,
+        PageLayerRole role = PageLayerRole.Content,
         BodyBudget? bodyBudget = null,
         Func<string, string>? assetUrl = null,
         PageCommitState? commitState = null,
@@ -128,7 +129,7 @@ internal sealed class SimpleContext : IContext {
             _path,
             request,
             loginRedirect,
-            isLayout,
+            role,
             _logger,
             antiforgeryField,
             wouldWrap);

@@ -13,9 +13,11 @@ using uk.osric.asp.Web.Pages;
 /// <remarks>
 /// <para>
 /// The shell owns this document because the error, sign-in, status and admin routes must answer when
-/// the page pipeline is broken, so it cannot depend on a stored page. The stored layout writes its
-/// own document, through the <c>Site.Document</c> library the site seeds; the two are kept honest by
-/// a test that compares their shape rather than by sharing a builder.
+/// the page pipeline is broken, so it cannot depend on a stored page. It is a bootstrap surface
+/// rather than a view: it carries one way home and no site menu, and the stored <c>/_layout</c>
+/// writes the menu a visitor sees day to day, through the <c>Site.Document</c> library the site
+/// seeds. The two documents share their shape — the language, the charset, the sheet order, the icon,
+/// the skip link, the landmark and the close — and a test compares that shape.
 /// </para>
 /// <para>
 /// The fragments here still own the document's policy — the language, the charset, the sheet order,
@@ -158,7 +160,7 @@ internal static class ShellDocument {
     /// <param name="context">The response being written.</param>
     /// <param name="title">The document title, encoded by the builder.</param>
     /// <param name="navigation">
-    /// The site menu, normally <see cref="SiteNavigation.For"/>. It is required so a view cannot be
+    /// The navigation, normally <see cref="SiteNavigation.For"/>. It is required so a view cannot be
     /// written without one.
     /// </param>
     /// <param name="statusCode">The response status.</param>

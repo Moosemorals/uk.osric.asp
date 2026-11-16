@@ -7,6 +7,7 @@
 IPageLayout layout = ctx.Capabilities.GetRequired<IPageLayout>();
 layout.Title = "Vim keys";
 layout.AddStylesheet("/vim.css");
+ctx.Capabilities.GetRequired<IPageComposition>().Wrap();
 %>
 <h1>Vim keys</h1>
 <p>What a textarea answers to once <code>/vim.js</code> has attached to it. Every page

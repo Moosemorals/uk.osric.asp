@@ -16,6 +16,9 @@ internal sealed record RenderOptions {
     /// <summary>The deepest chain a configuration may ask for.</summary>
     public const int MaximumLayoutDepth = 16;
 
+    /// <summary>The deepest embed a configuration may ask for.</summary>
+    public const int MaximumEmbedDepth = 16;
+
     /// <summary>The whole budget for one render, including the wait for a slot.</summary>
     public required double TimeoutSeconds { get; init; }
 
@@ -33,6 +36,19 @@ internal sealed record RenderOptions {
 
     /// <summary>How many layouts one page may be wrapped in, up to <see cref="MaximumLayoutDepth"/>.</summary>
     public required int MaxLayoutDepth { get; init; }
+
+    /// <summary>How deep embeds may nest below the layer that is running, up to <see cref="MaximumEmbedDepth"/>.</summary>
+    /// <remarks>
+    /// Chosen apart from <see cref="MaxLayoutDepth"/> because a widget is not chrome: a listing that
+    /// draws each row through a page needs depth the layout chain should not grant.
+    /// </remarks>
+    public required int MaxEmbedDepth { get; init; }
+
+    /// <summary>How many embeds one request may make, which bounds a listing's fan-out.</summary>
+    /// <remarks>
+    /// Depth alone lets one listing embed a thousand siblings under one slot and one deadline.
+    /// </remarks>
+    public required int MaxEmbeds { get; init; }
 
     /// <summary>The budget as a time span.</summary>
     public TimeSpan Timeout => TimeSpan.FromSeconds(TimeoutSeconds);
@@ -62,6 +78,8 @@ internal sealed record RenderOptions {
                 minimum: 1024, maximum: 64 * 1024 * 1024),
             AbandonedLimit = reader.Number("AbandonedLimit", recommended: 2, minimum: 1, maximum: 64),
             MaxLayoutDepth = reader.Number("MaxLayoutDepth", recommended: 4, minimum: 1, maximum: MaximumLayoutDepth),
+            MaxEmbedDepth = reader.Number("MaxEmbedDepth", recommended: 4, minimum: 1, maximum: MaximumEmbedDepth),
+            MaxEmbeds = reader.Number("MaxEmbeds", recommended: 32, minimum: 1, maximum: 256),
         };
         return options;
     }

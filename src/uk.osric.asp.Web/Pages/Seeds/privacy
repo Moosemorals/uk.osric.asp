@@ -1,4 +1,5 @@
-<% ctx.Capabilities.GetRequired<IPageLayout>().Title = "Privacy"; %>
+<% ctx.Capabilities.GetRequired<IPageLayout>().Title = "Privacy";
+   ctx.Capabilities.GetRequired<IPageComposition>().Wrap(); %>
 <h1>Privacy</h1>
 
 <p><strong>I don't care who you are, and I'm not tracking you.</strong></p>

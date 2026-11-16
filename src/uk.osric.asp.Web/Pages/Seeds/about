@@ -1,6 +1,7 @@
 <% // The credits and licence texts below mirror THIRD-PARTY-NOTICES.md, LICENSES/MIT.txt and
    // LICENSES/ISC.txt; update this page in the same change as any of them.
-   ctx.Capabilities.GetRequired<IPageLayout>().Title = "About"; %>
+   ctx.Capabilities.GetRequired<IPageLayout>().Title = "About";
+   ctx.Capabilities.GetRequired<IPageComposition>().Wrap(); %>
 <h1>About</h1>
 <p><strong>uk.osric.asp</strong> is a small web server whose pages are C# and can edit themselves.
 Every page is a row in SQLite, compiled with Roslyn when it is saved, and the site ships with an

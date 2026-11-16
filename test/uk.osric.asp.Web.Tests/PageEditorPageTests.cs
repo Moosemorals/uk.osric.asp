@@ -36,7 +36,7 @@ public sealed class PageEditorPageTests {
         Store(DocumentLibraryPath, (await SeedAsync(DocumentLibraryPath))!);
         Store("/_lib/editor", (await SeedAsync("/_lib/editor"))!);
         Store("/_layout", """
-            <% var layout = ctx.Capabilities.GetRequired<IPageLayout>(); %><title><%= layout.Title %></title><link rel="stylesheet" href="/site.css"><% foreach (string href in layout.Stylesheets) { %><link rel="stylesheet" href="<%= href %>"><% } %><main id="main"><%== layout.Body %></main></body></html>
+            <% var layout = ctx.Capabilities.GetRequired<IPageLayout>(); %><title><%= layout.Content?.Title ?? "" %></title><link rel="stylesheet" href="/site.css"><% foreach (string href in layout.Content?.Stylesheets ?? []) { %><link rel="stylesheet" href="<%= href %>"><% } %><main id="main"><%== layout.Content?.Body ?? "" %></main></body></html>
             """);
     }
 

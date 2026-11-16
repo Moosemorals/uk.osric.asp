@@ -6,7 +6,8 @@ sealed class RecentOrder : IComparer<PageEntry> {
         return byTime != 0 ? byTime : string.CompareOrdinal(left.Key, right.Key);
     }
 } %>
-<% ctx.Capabilities.GetRequired<IPageLayout>().Title = "Recent changes"; %>
+<% ctx.Capabilities.GetRequired<IPageLayout>().Title = "Recent changes";
+   ctx.Capabilities.GetRequired<IPageComposition>().Wrap(); %>
 <h1>Recent changes</h1>
 <p>Every page this site stores, most recently saved first. This is a demonstration page for the
 page-store read capability (<code>IPageCatalog</code>), and the worked example for the listing the

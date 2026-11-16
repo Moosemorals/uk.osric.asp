@@ -19,7 +19,8 @@ using uk.osric.asp.Web.Pages;
 public sealed partial class SiteChromeTests : IntegrationTest {
 
     private const string Fragment = """
-        <% ctx.Capabilities.GetRequired<IPageLayout>().Title = "A fragment"; %><h1>Fragment</h1>
+        <% ctx.Capabilities.GetRequired<IPageLayout>().Title = "A fragment";
+           ctx.Capabilities.GetRequired<IPageComposition>().Wrap(); %><h1>Fragment</h1>
         """;
 
     internal override AspApplication CreateApplication() => new(pageLayout: "/_layout");
@@ -60,14 +61,39 @@ public sealed partial class SiteChromeTests : IntegrationTest {
     }
 
     [Test]
-    public async Task TheShellAndTheLayoutOfferTheSameItems() {
+    public async Task AShellDocumentCarriesHomeAndNoTools() {
+        using HttpClient anonymous = CreateClient();
+        using HttpClient owner = await CreateSignedInClientAsync();
+
+        IReadOnlyList<string> signIn = await MenuAsync(anonymous, "/login");
+        IReadOnlyList<string> status = await MenuAsync(owner, "/status");
+        IReadOnlyList<string> assistant = await MenuAsync(owner, "/assistant");
+
+        Assert.Multiple(() => {
+            Assert.That(signIn, Is.EqualTo(["Home"]));
+            Assert.That(status, Is.EqualTo(["Home"]));
+            Assert.That(assistant, Is.EqualTo(["Home"]));
+        });
+    }
+
+    [Test]
+    public async Task AShellDocumentUnderAdminCarriesAdminBesideHome() {
+        using HttpClient client = await CreateSignedInClientAsync();
+
+        IReadOnlyList<string> items = await MenuAsync(client, "/admin/import");
+
+        Assert.That(items, Is.EqualTo(["Home", "Admin"]));
+    }
+
+    [Test]
+    public async Task TheStoredLayoutKeepsTheFullMenu() {
         await SavePageAsync("/menu-compare", Fragment);
         using HttpClient client = await CreateSignedInClientAsync();
 
         IReadOnlyList<string> page = await MenuAsync(client, "/menu-compare");
-        IReadOnlyList<string> shell = await MenuAsync(client, "/pages");
 
-        Assert.That(page, Is.EqualTo(shell), "the seeded layout and the shell must not drift");
+        Assert.That(page, Is.EqualTo(["Home", "Assistant", "Pages", "Admin", "Sign out"]),
+            "the menu a visitor sees is the stored layout's, not the shell's");
     }
 
     // The shell writes its own document and the seeded layout writes the library's, so a change to
@@ -199,31 +225,30 @@ public sealed partial class SiteChromeTests : IntegrationTest {
     }
 
     [Test]
-    public async Task ASignedInOwnerIsSentToTheEditorWhenThePageSetsNoTitle() {
-        await SavePageAsync("/untitled", "<% // deliberately no title %>\n<h1>Forgot</h1>");
+    public async Task APageThatSetsNoTitleIsServedInTheLayoutsOwnTitle() {
+        await SavePageAsync("/untitled", """
+            <% ctx.Capabilities.GetRequired<IPageComposition>().Wrap(); %><h1>Forgot</h1>
+            """);
         using HttpClient client = await CreateSignedInClientAsync();
 
         HttpResponseMessage response = await client.GetAsync("/untitled");
         string body = await response.Content.ReadAsStringAsync();
 
-        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.InternalServerError));
-        Assert.That(body, Does.Contain("<h1>The page set no title</h1>"));
-        Assert.That(body, Does.Contain("href=\"/pages?edit=/untitled\">Edit this page"));
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+        Assert.That(body, Does.Contain("<h1>Forgot</h1>"), "the wrapper decides what a missing title means");
+        Assert.That(body, Does.Contain("<title>Site</title>"));
     }
 
     [Test]
-    public async Task APageThatClearsItsLayoutIsServedUnwrapped() {
+    public async Task APageThatDeclaresNoWrapperIsServedAsTheFragmentItIs() {
         await SavePageAsync("/own-document", """
-            <% ctx.Capabilities.GetRequired<IPageLayout>().Layout = null; %><!DOCTYPE html>
-            <html lang="en"><head><title>Mine</title></head><body><h1>Mine</h1></body></html>
+            <% ctx.Capabilities.GetRequired<IPageLayout>().Title = "Mine"; %><h1>Mine</h1>
             """);
         using HttpClient client = CreateClient();
 
         string body = await (await client.GetAsync("/own-document")).Content.ReadAsStringAsync();
 
-        Assert.That(body, Does.StartWith("<!DOCTYPE html>"));
-        Assert.That(body, Does.Not.Contain("<link rel=\"stylesheet\""));
-        Assert.That(body, Does.Not.Contain("<main id=\"main\">"));
+        Assert.That(body.Trim(), Is.EqualTo("<h1>Mine</h1>"));
     }
 
     [Test]

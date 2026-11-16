@@ -1,7 +1,8 @@
 <% if (ctx.User is not { } user) { ctx.Response.RedirectToLogin(); return; } %>
 <% // The editor's key is the host's policy, so this page asks for it rather than naming it.
    string editSelf = ctx.EditorPath + "?edit=" + System.Uri.EscapeDataString(ctx.Path); %>
-<% ctx.Capabilities.GetRequired<IPageLayout>().Title = "Scratch: a page that edits itself"; %>
+<% ctx.Capabilities.GetRequired<IPageLayout>().Title = "Scratch: a page that edits itself";
+   ctx.Capabilities.GetRequired<IPageComposition>().Wrap(); %>
 <h1>Scratch</h1>
 <p>Signed in as <%= user.Name %>. This page is a demonstration of the page-write capability
 (<code>IPageWrites</code>): it reads its own source with <code>IPageCatalog</code>, shows it below,

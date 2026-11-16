@@ -6,71 +6,49 @@ namespace uk.osric.asp.Web.Pages;
 using uk.osric.asp.Sdk;
 using uk.osric.asp.Web.Html;
 
-/// <summary>One layer's <see cref="IPageLayout"/>, composed with the layers inside it.</summary>
+/// <summary>One layer's <see cref="IPageLayout"/>: its own slots, and the layer inside it.</summary>
 /// <remarks>
-/// <para>
-/// A chain renders inside out — the content first, then its layout, then the layout's parent — so
-/// each state points at the layer it wraps. The head and the sheets are therefore read
-/// outermost-first, which is the order they appear on the wire, even though the layers rendered in
-/// the opposite order.
-/// </para>
-/// <para>
-/// The title flows the other way: a new state is seeded with the title so far, so a layout reads
-/// what the page called itself and may compose its own.
-/// </para>
+/// The host no longer composes the layer inside into these slots: <see cref="Content"/> is handed
+/// over and the wrapper folds what it wants. That is what makes a wrapper and an embed the same
+/// relation from opposite ends.
 /// </remarks>
-/// <param name="defaultLayout">The key the host wraps with when nothing says otherwise.</param>
-/// <param name="inner">The layer this one wraps, when this is a layout.</param>
-internal sealed class PageLayoutState(string? defaultLayout, PageLayoutState? inner = null) : IPageLayout {
+internal sealed class PageLayoutState : IPageLayout {
 
     private readonly List<string> _head = [];
-    private readonly PageLayoutState? _inner = inner;
     private readonly List<string> _stylesheets = [];
-    private string? _title = inner?.TitleOrNull;
+    private string? _title;
 
     /// <inheritdoc/>
-    public string? Layout { get; set; } = defaultLayout;
+    public PageCapture? Content { get; init; }
 
     /// <inheritdoc/>
-    /// <exception cref="InvalidOperationException">No title has been set in this or any level.</exception>
-    public string Title {
-        get => _title ?? throw new InvalidOperationException(
-            "This page is wrapped by a layout but set no title. Set it with ctx.Capabilities.GetRequired<IPageLayout>().Title.");
+    public string? Title {
+        get => _title;
         set {
             ArgumentException.ThrowIfNullOrWhiteSpace(value);
+
             _title = value;
         }
     }
 
     /// <inheritdoc/>
-    public string Head => string.Concat(_head) + (_inner?.Head ?? string.Empty);
+    public string Head => string.Concat(_head);
 
     /// <inheritdoc/>
-    /// <remarks>
-    /// Read outermost first, with a sheet another layer already asked for left out: the document
-    /// links each sheet once however many layers want it.
-    /// </remarks>
+    /// <remarks>A sheet this layer asked for twice is linked once.</remarks>
     public IReadOnlyList<string> Stylesheets {
         get {
             List<string> sheets = [];
 
-            for (PageLayoutState? layer = this; layer is not null; layer = layer._inner) {
-                foreach (string href in layer._stylesheets) {
-                    if (!sheets.Contains(href, StringComparer.Ordinal)) {
-                        sheets.Add(href);
-                    }
+            foreach (string href in _stylesheets) {
+                if (!sheets.Contains(href, StringComparer.Ordinal)) {
+                    sheets.Add(href);
                 }
             }
 
             return sheets;
         }
     }
-
-    /// <inheritdoc/>
-    public string Body { get; init; } = string.Empty;
-
-    /// <summary>The title set so far, or <see langword="null"/> when no layer has set one.</summary>
-    public string? TitleOrNull => _title;
 
     /// <inheritdoc/>
     public void AddHead(string markup) {

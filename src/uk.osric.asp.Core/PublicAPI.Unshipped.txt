@@ -764,3 +764,5 @@ static uk.osric.asp.Core.Assistant.AccountBalanceRead.operator !=(uk.osric.asp.C
 static uk.osric.asp.Core.Assistant.AccountBalanceRead.operator ==(uk.osric.asp.Core.Assistant.AccountBalanceRead? left, uk.osric.asp.Core.Assistant.AccountBalanceRead? right) -> bool
 uk.osric.asp.Core.Assistant.AccountBalanceRead.<Clone>$() -> uk.osric.asp.Core.Assistant.AccountBalanceRead!
 uk.osric.asp.Core.Assistant.AccountBalanceRead.Equals(uk.osric.asp.Core.Assistant.AccountBalanceRead? other) -> bool
+static uk.osric.asp.Core.Pages.PageQueryFingerprint.Of(System.Collections.Generic.IEnumerable<System.Collections.Generic.KeyValuePair<string!, System.Collections.Generic.IReadOnlyList<string!>!>>! query) -> string!
+uk.osric.asp.Core.Pages.PageQueryFingerprint

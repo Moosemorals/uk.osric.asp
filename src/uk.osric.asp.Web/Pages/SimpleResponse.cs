@@ -12,8 +12,8 @@ using uk.osric.asp.Sdk;
 /// <remarks>
 /// <para>
 /// What the page asks for is collected by <see cref="PageResponseState"/> and <see cref="PageBody"/>;
-/// this type is the page's door to them and the rules about who may ask. The commit gate, the layout
-/// rule, the stream refusals and the antiforgery token are here because each answers "may this layer
+/// this type is the page's door to them and the rules about who may ask. The commit gate, the layer
+/// role, the stream refusals and the antiforgery token are here because each answers "may this layer
 /// set that?" about the response.
 /// </para>
 /// <para>
@@ -26,11 +26,12 @@ using uk.osric.asp.Sdk;
 /// <param name="path">The layer's own key, which the refusals name.</param>
 /// <param name="request">The request, for the method a sign-in redirect answers with.</param>
 /// <param name="loginRedirect">Where <see cref="RedirectToLogin"/> sends an anonymous visitor.</param>
-/// <param name="isLayout">
-/// Whether this layer is a layout, in which case the response belongs to the content: status,
-/// content type, headers and a redirect are ignored, because a layout is markup and nothing else.
+/// <param name="role">
+/// What this layer is. Only the content owns the response: a layout or an embedded page is markup,
+/// so status, content type and headers are ignored, and an embedded page's redirect refuses because
+/// it has no response to redirect.
 /// </param>
-/// <param name="logger">Where a layout's ignored setting is reported.</param>
+/// <param name="logger">Where a layer that does not own the response reports an ignored setting.</param>
 /// <param name="antiforgeryField">
 /// Builds the hidden antiforgery input, or <see langword="null"/> when the page must get nothing.
 /// </param>
@@ -44,7 +45,7 @@ internal sealed class SimpleResponse(
     PagePath path,
     PageRequest request,
     string loginRedirect,
-    bool isLayout,
+    PageLayerRole role,
     ILogger logger,
     Func<string>? antiforgeryField,
     Func<string, bool>? wouldWrap) : IPageResponse {
@@ -94,8 +95,8 @@ internal sealed class SimpleResponse(
 
     /// <inheritdoc/>
     /// <exception cref="InvalidOperationException">
-    /// This render cannot stream, the page is a layout, it has redirected, or it is still wrapped in a
-    /// layout.
+    /// This render cannot stream, the page is a layout or an embedded page, it has redirected, or it
+    /// has declared a wrapper.
     /// </exception>
     public async Task FlushAsync() {
         ThrowIfCannotStream();
@@ -107,7 +108,7 @@ internal sealed class SimpleResponse(
     public void SetStatus(int status) {
         ThrowIfCommitted(nameof(SetStatus));
 
-        if (IgnoreAsLayout(nameof(SetStatus), status.ToString(CultureInfo.InvariantCulture))) {
+        if (IgnoreWhenNotOwning(nameof(SetStatus), status.ToString(CultureInfo.InvariantCulture))) {
             return;
         }
 
@@ -118,7 +119,7 @@ internal sealed class SimpleResponse(
     public void SetContentType(string contentType) {
         ThrowIfCommitted(nameof(SetContentType));
 
-        if (IgnoreAsLayout(nameof(SetContentType), contentType)) {
+        if (IgnoreWhenNotOwning(nameof(SetContentType), contentType)) {
             return;
         }
 
@@ -129,7 +130,7 @@ internal sealed class SimpleResponse(
     public void SetHeader(string name, string value) {
         ThrowIfCommitted(nameof(SetHeader));
 
-        if (IgnoreAsLayout(nameof(SetHeader), name)) {
+        if (IgnoreWhenNotOwning(nameof(SetHeader), name)) {
             return;
         }
 
@@ -140,20 +141,28 @@ internal sealed class SimpleResponse(
     public void AllowScripts() {
         ThrowIfCommitted(nameof(AllowScripts));
 
-        // The one response setting a layout shares: its script is part of its chrome, so the union
-        // with the content's is what the response is served with.
+        // The one response setting a layout shares: its script is part of its chrome, so the chain
+        // unions it with the content's to build the response.
         response.AllowScripts();
     }
 
     /// <inheritdoc/>
+    /// <exception cref="UserFacingException">An embedded page cannot redirect.</exception>
     public void Redirect(string location, int status = 302) {
         ThrowIfCommitted(nameof(Redirect));
 
-        if (IgnoreAsLayout(nameof(Redirect), location)) {
+        // Ignoring it would make the ordinary "if no user, redirect to login" guard vanish into an
+        // empty box, so an embedded page that redirects is refused rather than silently dropped.
+        if (role == PageLayerRole.Embedded) {
+            throw new UserFacingException(
+                $"{path.Key} is rendered inside {request.Path} and tried to redirect to {location}; an embedded page has no response of its own.");
+        }
+
+        if (IgnoreWhenNotOwning(nameof(Redirect), location)) {
             return;
         }
 
-        // The commit and layout gates are this type's, so the redirect is applied whole by the state
+        // The commit and role gates are this type's, so the redirect is applied whole by the state
         // rather than through SetStatus, which would run those gates a second time.
         response.Redirect(location, status);
     }
@@ -182,11 +191,12 @@ internal sealed class SimpleResponse(
         }
     }
 
-    // Validated before the commit: a redirect has no body, a layout cannot stream, and a page that
-    // would be wrapped has no place to put the bytes before the layout has run.
+    // Validated before the commit: a redirect has no body, a layer that does not own the response
+    // cannot stream, and a page that declared a wrapper has no place to put the bytes before the
+    // wrapper has run.
     private void ThrowIfCannotStream() {
-        if (isLayout) {
-            throw new InvalidOperationException($"{path.Key} is a layout; a layout is markup and cannot stream.");
+        if (role != PageLayerRole.Content) {
+            throw new InvalidOperationException($"{path.Key} is a {Describe(role)}; only the page the visitor asked for can stream.");
         }
 
         if (!body.CanStream) {
@@ -199,7 +209,7 @@ internal sealed class SimpleResponse(
 
         if (wouldWrap?.Invoke(response.ContentType) == true) {
             throw new InvalidOperationException(
-                $"{path.Key} is wrapped in a layout, which needs its whole body before it can run. Set IPageLayout.Layout to null and write the page's own document before the first flush.");
+                $"{path.Key} declares a wrapper, which needs its whole body before it can run. A streaming page writes its own document, so it cannot call IPageComposition.Wrap.");
         }
     }
 
@@ -210,11 +220,12 @@ internal sealed class SimpleResponse(
         }
     }
 
-    // A layout is markup and nothing else. The content ran first and owns the response, so an
-    // attempt from a layout is ignored rather than allowed to change what the visitor asked for -
-    // and logged, because a silent no-op is a puzzle for whoever wrote the layout.
-    private bool IgnoreAsLayout(string member, string detail) {
-        if (!isLayout) {
+    // Only the content owns the response. A layout or an embedded page is markup and nothing else, so
+    // an attempt from one is ignored rather than allowed to change what the visitor asked for - and
+    // logged, because a silent no-op is a puzzle for whoever wrote the page. A redirect is the one
+    // setting an embedded page is refused for rather than ignored, above.
+    private bool IgnoreWhenNotOwning(string member, string detail) {
+        if (role == PageLayerRole.Content) {
             return false;
         }
 
@@ -222,9 +233,16 @@ internal sealed class SimpleResponse(
         // the provider will never see.
         if (logger.IsEnabled(LogLevel.Warning)) {
             using IDisposable? scope = logger.BeginScope("Page {Path}", path.Key);
-            logger.LogWarning("{Message}", $"{path.Key} called {member}({detail}); a layout cannot set the response.");
+            logger.LogWarning("{Message}",
+                $"{path.Key} called {member}({detail}); a {Describe(role)} cannot set the response.");
         }
 
         return true;
     }
+
+    private static string Describe(PageLayerRole role) => role switch {
+        PageLayerRole.Layout => "layout",
+        PageLayerRole.Embedded => "embedded page",
+        _ => "page",
+    };
 }

@@ -10,7 +10,8 @@ using System.Net;
 public sealed class SiteLayoutEditingTests : IntegrationTest {
 
     private const string Fragment = """
-        <% ctx.Capabilities.GetRequired<IPageLayout>().Title = "A fragment"; %><h1>Fragment</h1>
+        <% ctx.Capabilities.GetRequired<IPageLayout>().Title = "A fragment";
+           ctx.Capabilities.GetRequired<IPageComposition>().Wrap(); %><h1>Fragment</h1>
         """;
 
     internal override AspApplication CreateApplication() => new(pageLayout: "/_layout");
@@ -25,8 +26,8 @@ public sealed class SiteLayoutEditingTests : IntegrationTest {
 
         HttpResponseMessage saved = await PostEditorAsync(client, "_layout", """
             <%! using Site.Document; %><% var layout = ctx.Capabilities.GetRequired<IPageLayout>();
-               Document.Head(ctx, layout.Title, layout.Stylesheets, layout.Head, ctx.AssetUrl); %>
-            <p>Chrome from the editor</p><% Document.OpenMain(ctx); %><%== layout.Body %><% Document.CloseMain(ctx); Document.End(ctx); %>
+               Document.Head(ctx, layout, "Site", ctx.AssetUrl); %>
+            <p>Chrome from the editor</p><% Document.OpenMain(ctx); %><%== layout.Content?.Body ?? "" %><% Document.CloseMain(ctx); Document.End(ctx); %>
             """);
         Assert.That(saved.StatusCode, Is.EqualTo(HttpStatusCode.OK));
 

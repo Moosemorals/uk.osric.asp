@@ -998,10 +998,11 @@ public sealed class PageEndpointTests {
     public async Task ADocumentWithCodeCanStillChooseTheLayoutAsync() {
         FakePageStore storage = new();
         storage["/_layout"] = new PageTemplate(PageHarness.Key("/_layout"), """
-            <% var layout = ctx.Capabilities.GetRequired<IPageLayout>(); %><html><head><title><%= layout.Title %></title></head><body><%== layout.Body %></body></html>
+            <% var layout = ctx.Capabilities.GetRequired<IPageLayout>(); %><html><head><title><%= layout.Content?.Title ?? "" %></title></head><body><%== layout.Content?.Body ?? "" %></body></html>
             """);
         storage["/mine.html"] = new PageTemplate(PageHarness.Key("/mine.html"), """
-            <% var layout = ctx.Capabilities.GetRequired<IPageLayout>(); layout.Layout = "/_layout"; layout.Title = "Mine"; %><p>Own body</p>
+            <% ctx.Capabilities.GetRequired<IPageComposition>().Wrap("/_layout");
+               ctx.Capabilities.GetRequired<IPageLayout>().Title = "Mine"; %><p>Own body</p>
             """);
         DefaultHttpContext context = TestHttp.CreateContext("mine.html", "GET", "/mine.html");
 
@@ -1029,10 +1030,11 @@ public sealed class PageEndpointTests {
     public async Task AnHtmKeyIsStillAFragmentAndIsWrappedAsync() {
         FakePageStore storage = new();
         storage["/_layout"] = new PageTemplate(PageHarness.Key("/_layout"), """
-            <% var layout = ctx.Capabilities.GetRequired<IPageLayout>(); %><html><head><title><%= layout.Title %></title></head><body><%== layout.Body %></body></html>
+            <% var layout = ctx.Capabilities.GetRequired<IPageLayout>(); %><html><head><title><%= layout.Content?.Title ?? "" %></title></head><body><%== layout.Content?.Body ?? "" %></body></html>
             """);
         storage["/doc.htm"] = new PageTemplate(PageHarness.Key("/doc.htm"), """
-            <% ctx.Capabilities.GetRequired<IPageLayout>().Title = "Doc"; %><p>Fragment</p>
+            <% ctx.Capabilities.GetRequired<IPageComposition>().Wrap();
+               ctx.Capabilities.GetRequired<IPageLayout>().Title = "Doc"; %><p>Fragment</p>
             """);
         DefaultHttpContext context = TestHttp.CreateContext("doc.htm", "GET", "/doc.htm");
 
