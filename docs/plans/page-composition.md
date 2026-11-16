@@ -8,7 +8,7 @@ SPDX-License-Identifier: MIT
 | | |
 | --- | --- |
 | Status | Proposed 2026-11-16 — waits for the owner. Nothing below is built |
-| Size | Large — one new `Sdk` capability with three calls and a value, `IPageLayout` loses `Layout` and gains a nullable `Title`, one layer renderer with three roles, the layout chain rebuilt on it and entered by the page, the shell's documents trimmed to one way home, ten seeded pages and the editor's starter, the manual, the assistant's prompt and its version, two configuration values, one instrument, and the tests that pin the recursion, the response gates and the chrome |
+| Size | Large — one new `Sdk` capability with three calls and two values, `IPageLayout` loses `Layout` and gains a nullable `Title`, one layer renderer with three roles, the layout chain rebuilt on it and entered by the page, the shell's documents trimmed to one way home, ten seeded pages and the editor's starter, the manual, the assistant's prompt and its version, two configuration values, one instrument, and the tests that pin the recursion, the response gates and the chrome |
 | Area | Sdk, Web (pages, shell, seeds, assistant, metrics), docs |
 | Spike | None. Every count below was taken off `trunk` at `6004526` on 2026-11-16, after `pages-the-response-is-one-object` merged |
 | Backlog | [IDEA-049](../jobs/IDEA-049.md) is this step. [IDEA-047](../jobs/IDEA-047.md) is the answer if a real page needs more than one write in one render, which composition makes likelier |
@@ -25,7 +25,7 @@ host does to every page and becomes a thing a page asks for.
 
 ```csharp
 Task EmbedAsync(string key, PageEmbedOptions? options = null);   // include another page here
-Task<string> CaptureAsync(string key, PageEmbedOptions? options = null); // …or return its body
+Task<PageCapture> CaptureAsync(string key, PageEmbedOptions? options = null); // …or return it
 void Wrap(string key);                                           // hand this page to another
 void Wrap();                                                     // …the site's layout, Pages:Layout
 ```
@@ -107,7 +107,7 @@ itself. That is the point and the migration: the seeds and the editor's starter 
 // Sdk/IPageComposition.cs
 public interface IPageComposition {
     Task EmbedAsync(string key, PageEmbedOptions? options = null);
-    Task<string> CaptureAsync(string key, PageEmbedOptions? options = null);
+    Task<PageCapture> CaptureAsync(string key, PageEmbedOptions? options = null);
     void Wrap(string key);
     void Wrap();
 }
@@ -120,8 +120,9 @@ and footer partial is the use that argues for this most, and because a page must
 
 `EmbedAsync` includes another page **now**. It renders into a bounded capture and then writes the
 result through the calling layer's `IPageResponse`, so the body allowance is charged once and a failure
-leaves nothing half-written in the caller. `CaptureAsync` is the same render with the write replaced by
-a return (D8): the caller gets the body and decides what to do with it.
+leaves nothing half-written in the caller. `CaptureAsync` is the same render with the fold and the
+write replaced by a `PageCapture` return (D8): the caller gets the body and the document facts and
+decides what to do with them.
 
 `Wrap` is a **declaration**: it records the key, and the host runs the chain after `HandleAsync`
 returns. That is what keeps a guard's early `return` wrapped and lets the page set its status after it
@@ -285,9 +286,9 @@ that used the old members reports diagnostics rather than serving stale markup.
 7. **Write** the body through the caller's `IPageResponse.WriteRaw`, which charges the shared body
    allowance once.
 
-`CaptureAsync` does the same through step 5 and then returns the string instead of folding and writing
-(D8). Everything before the last step is shared, including the recursion check, the capabilities and
-the one write.
+`CaptureAsync` does the same through step 5 and then returns a `PageCapture` instead of folding and
+writing (D8). `EmbedAsync` is literally that value plus steps 6 and 7, which is why the two cannot
+drift.
 
 The embedded page keeps the capabilities a content page has: `IPageStorage` and `IPageSession` bound to
 its own key, `IHttpFetch`, `IPageCatalog`, `IPageLayout`, the two renderers, `IPageJobs`,
@@ -301,29 +302,46 @@ in D12. A library or a worker is not a page: it is refused with a `UserFacingExc
 
 `CaptureAsync` takes the same key and options as `EmbedAsync` and shares its whole codepath: the
 resolution, the recursion check, the derived request, the content capabilities, the withheld
-response, the one write and the failure table. The difference is the last step: `EmbedAsync` writes
-the captured body through the caller's `IPageResponse`; `CaptureAsync` returns it as a string and
-touches nothing.
+response, the one write and the failure table. The difference is the last step. `EmbedAsync` folds the
+captured page's head and sheets into the caller, writes its body and opts into its scripts;
+`CaptureAsync` returns a value and touches nothing:
 
-The captured page gets a **clean response** of its own — a fresh `SimpleResponse` over the capture —
-so its `Write` and `WriteRaw` land in the string and its status, content type, headers and
-`AllowScripts` never reach the caller. Its head and sheets are discarded for the same reason: the
-caller may not write the body at all, so widening the document's policy or linking its sheets for a
-string that never lands would be wrong. A redirect still refuses, because a captured page has no
-response to redirect. A caller that does write the result can call `AddHead`, `AddStylesheet` and
-`AllowScripts` itself; the string is the artifact.
+```csharp
+// Sdk/PageCapture.cs
+public sealed record PageCapture(
+    string Body,
+    string? Title,
+    string Head,
+    IReadOnlyList<string> Stylesheets,
+    bool AllowsScripts);
+```
+
+`EmbedAsync` is then literally `CaptureAsync` plus the fold and the write, so the two calls have one
+render and one set of rules. The captured page gets a **clean response** of its own — a fresh
+`SimpleResponse` over the capture — so its `Write` and `WriteRaw` land in the body and its status,
+content type, headers and `AllowScripts` never reach the caller except as the record's
+`AllowsScripts`. A redirect still refuses, because a captured page has no response to redirect.
+
+The result is deliberately a **value, not the live `IPageLayout`**. The interface is the capability a
+page runs with: it is mutable, `AddHead` and `AddStylesheet` are how a page contributes rather than
+what a caller reads, and — decisively — its `Body` is empty on an embedded layer, because `Body` is the
+slot a wrapper receives, not the output a page wrote. The capture's output is the response body, and
+`PageCapture` carries it beside the three document facts a caller may want to fold: the title, the
+head and sheets, and whether the captured page asked for scripts.
 
 This is the page-level twin of the wrapper's `IPageLayout.Body`: the prod site's `/_md` layout already
 receives its content as `Body`, and a page that wants the same view without being wrapped — or wants to
 transform it first — is what capture is for:
 
 ```html
-<% var source = await ctx.Capabilities.GetRequired<IPageComposition>().CaptureAsync("/draft");
-   ctx.Response.WriteRaw(ctx.Capabilities.GetRequired<IMarkdownRenderer>().ToHtml(source)); %>
+<% var captured = await ctx.Capabilities.GetRequired<IPageComposition>().CaptureAsync("/draft");
+   foreach (string sheet in captured.Stylesheets) { layout.AddStylesheet(sheet); }
+   if (captured.AllowsScripts) { ctx.Response.AllowScripts(); }
+   ctx.Response.WriteRaw(ctx.Capabilities.GetRequired<IMarkdownRenderer>().ToHtml(captured.Body)); %>
 ```
 
 A capture counts as an embed for the ancestor stack, the depth, the fan-out cap and the recursive
-counter. It is bounded by the caller's remaining body allowance, but the returned string is charged to
+counter. It is bounded by the caller's remaining body allowance, but the returned body is charged to
 the shared allowance only when (and if) the caller writes it, so a caller that transforms the body is
 charged for what it wrote. A caller that captures and discards it holds one bounded copy per call,
 which the fan-out cap and the deadline bound.
@@ -431,9 +449,9 @@ page.
 > omitting them forwards the caller's, an empty `PageEmbedOptions` clears it, and a constructor over
 > the caller's request makes a copy-and-change cheap.
 >
-> **pages-a-capture-is-an-embed-returned** — a capture is the embed render with its body returned
-> instead of written: the captured page gets a clean response, so its settings, head, sheets and
-> script permission never reach the caller, and a capture that would redirect refuses.
+> **pages-a-capture-is-an-embed-returned** — a capture is the embed render returned as a value: the
+> body beside the title, head, sheets and script permission, with the captured page's settings kept
+> out of it, and a capture that would redirect refuses.
 >
 > **pages-a-page-chooses-its-layout** — a page declares the page that wraps it; the host does not wrap
 > by default, and `IPageLayout.Layout` is gone.
@@ -458,8 +476,8 @@ retired: the menu is written once.
 
 ## What it touches
 
-`Sdk`: `IPageComposition.cs` and `PageEmbedOptions.cs` new; `IPageLayout.cs` loses `Layout` and its
-`Title` becomes nullable; `PublicAPI.Unshipped.txt`.
+`Sdk`: `IPageComposition.cs`, `PageEmbedOptions.cs` and `PageCapture.cs` new; `IPageLayout.cs` loses
+`Layout` and its `Title` becomes nullable; `PublicAPI.Unshipped.txt`.
 
 `Core`: the query fingerprint for the ancestor stack.
 
@@ -518,9 +536,10 @@ One branch, four commits, so each can be read alone:
   times; `MaxEmbeds` refuses the eleventh under its configured value.
 - **The body:** an embed over the remaining allowance fails before writing; the caller's body is
   untouched; the successful embed is charged once; a capture is charged only when its string is written.
-- **The capture:** `CaptureAsync` returns the body and leaves the caller's body untouched; the captured
-  page's `SetStatus`, `AddStylesheet`, `AllowScripts` and head do not leak; a redirect refuses; a capture
-  of an ancestor with the same options is a cycle; the Markdown use in D8 renders.
+- **The capture:** `CaptureAsync` returns a `PageCapture` and leaves the caller's body untouched; the
+  captured page's `SetStatus` does not leak and its head, sheets and script permission arrive only in
+  the value; `EmbedAsync` is the same value folded and written; a redirect refuses; a capture of an
+  ancestor with the same options is a cycle; the Markdown use in D8 renders.
 - **The no-code page:** an embedded text page's `<%# … %>` does not reach the body, and a served one
   still loses it.
 - **The wrap:** a page with no `Wrap` is a fragment; `Wrap()` uses the configured key; `Wrap(key)` names
@@ -581,9 +600,11 @@ One branch, four commits, so each can be read alone:
    allowed, capped and counted.
 10. **Failure.** `EmbedAsync` throws; catching it is the page's choice; there is no failure value and no
     error boundary.
-11. **Capture.** Asked for after the plan was first written: the same codepath as an embed, the body
-    returned as a string, and the captured page's response, head, sheets and script permission kept
-    out of the caller. It is how a page does what a wrapper does with `Body` without being wrapped.
+11. **Capture.** Asked for after the plan was first written: the same codepath as an embed, returned as
+    a `PageCapture` — the body beside the title, head, sheets and script permission — with the captured
+    page's response kept out of the caller. Not the live `IPageLayout`, because its `Body` is the
+    wrapper's slot and is empty here. It is how a page does what a wrapper does with `Body` without
+    being wrapped.
 
 ## Considered and rejected
 
@@ -595,9 +616,11 @@ One branch, four commits, so each can be read alone:
   top covers every path and lets the page set its status after writing.
 - **Two capabilities (`IPageEmbed` + `IPageWrap`).** They share the render, the budgets, the stack and
   the guards; one seam is the repository's rule.
-- **A capture result carrying the captured response's status, sheets and script permission.** The
-  string is the artifact; a caller that writes it asks for the sheet or the script permission itself.
-  A result value would make every caller merge a response the capture exists to withhold.
+- **Returning the captured page's `IPageLayout`.** It is the live capability, it is mutable, and its
+  `Body` is the wrapper's slot rather than the output the page wrote — on an embedded layer it is
+  empty. A value carries the output and the facts a caller can fold without handing back a capability.
+- **Returning the captured response's status and content type.** The body is the artifact; a capture
+  has no document to answer with, which is why a redirect refuses.
 - **A slot API beyond `Body`.** A wrapper can embed partials around its slot; named regions are a
   different contract.
 - **A data bag in the options.** Options are the query, and a typed payload is a new value type on the
