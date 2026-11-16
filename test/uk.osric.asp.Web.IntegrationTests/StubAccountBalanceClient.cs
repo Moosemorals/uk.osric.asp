@@ -16,6 +16,10 @@ internal sealed class StubAccountBalanceClient : IAccountBalanceClient {
     /// <summary>The balance to answer with; <see langword="null"/> stands for a provider that did not answer.</summary>
     public AccountBalance? Balance { get; init; } = Default;
 
+    /// <summary>The reason a fixture's absent balance carries.</summary>
+    public AccountBalanceReason Reason { get; init; } = AccountBalanceReason.Error;
+
     /// <inheritdoc/>
-    public Task<AccountBalance?> GetAsync(CancellationToken cancellationToken) => Task.FromResult(Balance);
+    public Task<AccountBalanceRead> GetAsync(CancellationToken cancellationToken) =>
+        Task.FromResult(Balance is null ? AccountBalanceRead.Failed(Reason) : AccountBalanceRead.Ok(Balance));
 }

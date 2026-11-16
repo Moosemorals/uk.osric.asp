@@ -81,6 +81,7 @@ public sealed class MetricNamesTests : IntegrationTest {
             assistant.RecordUsage(new TokenUsage(12, 4));
             assistant.RecordMemoryRecall(2, 500);
             assistant.RecordMemoryWrite("remember", MemoryKind.Fact, success: true);
+            assistant.RecordBalance([new CurrencyCredit("CNY", 110.00)]);
         }
     }
 }

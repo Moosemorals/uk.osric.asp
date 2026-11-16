@@ -96,7 +96,6 @@ the batch that lets a render write several pages is IDEA-047, a little further d
 | [IDEA-029](IDEA-029.md) | — | L | VS Code cannot check a page as it is typed: highlighting and clickable diagnostics are static |
 | [IDEA-030](IDEA-030.md) | — | M | Every view writes its own navigation: the shell, the admin, the assistant and the seeds each assemble the same links |
 | [IDEA-031](IDEA-031.md) | — | S | Some policy is still a constant in code: password and user-name length, the security headers, the page API allow-list, and the internal retry and sweep periods |
-| [IDEA-032](IDEA-032.md) | — | S | The provider's credit is shown on the conversation page but has no history, so the one figure the site spends has no instrument |
 | [IDEA-033](IDEA-033.md) | — | L | A page has no persistent per-account store: `IPageStorage` is shared by every visitor, `IPageSession` goes when the visitor signs out, and nothing keeps anything for a signed-in account |
 | [IDEA-037](IDEA-037.md) | — | M | A page cannot check a template without saving it, so "check my work" is "add a revision to the history" |
 | [IDEA-038](IDEA-038.md) | — | M | A page cannot search the store's source: `search_pages` and `grep` walk it, and no page can |
@@ -201,9 +200,7 @@ Not in this programme: [OPS-03](OPS-03.md) is the obvious next candidate once th
 empty; [SEC-03](SEC-03.md) and [OPS-05](OPS-05.md) wait for a reason to exist;
 [IDEA-001](IDEA-001.md) wants a third-party editor; [IDEA-020](IDEA-020.md) records why a
 destructive reset is not built; [IDEA-022](IDEA-022.md) is the `SimpleContext` split, which step 7
-touched; [IDEA-027](IDEA-027.md) is the flash a page cannot leave for another page;
-[IDEA-032](IDEA-032.md) is a sitting's work whenever a cost line is wanted, and does not touch the
-files the programme is working through; and
+touched; [IDEA-027](IDEA-027.md) is the flash a page cannot leave for another page; and
 [IDEA-033](IDEA-033.md) wants a plan and a named first customer before it is a step.
 
 ## Closed
@@ -212,6 +209,7 @@ Resolved jobs; the files were deleted and their history is in git.
 
 | ID | Fix |
 | --- | --- |
+| [IDEA-032](../plans/assistant-balance-metric.md) | The provider's credit is a level on `/status`: `assistant.balance` is an observable gauge tagged for its currency, sampled at startup and every `Assistant:BalanceSampleSeconds`, and the client answers a balance or a reason rather than logging one, so a provider without the route costs one line and an empty panel. The conversation page's figure, wording and fetch are unchanged. See [the plan](../plans/assistant-balance-metric.md) |
 | [IDEA-043](../plans/archive/page-writes.md) | Any page may write the store: `IPageEditor` and `IPageWriter` become one capability, `IPageWrites`, offered to every content layer and never a layout, with the signed-in visitor as the authority and `Pages:Editor:Key` saying only where the editor is served. The bound self-save stays beside the conditional named save, one write per render stays, and the editor's own key is deletable — `/admin/restore` is the way back. `pages-any-page-may-write-the-store`. The batch that lets a render write several pages is [IDEA-047](IDEA-047.md). See [the plan](../plans/archive/page-writes.md) |
 | [IDEA-036](../plans/archive/seed-provenance.md) | A seed remembers where it came from: a seed write records the hash it installed, and with the recorded anchor, the shipped seed's hash and the live content's hash the host answers one verdict per row — so a deploy can say what it would change, an automatic write is allowed only where the page still holds the seed it came from, and the page list stops reading two sources to produce one bit. `seeds` brings the running store's bytes home into `Pages/Seeds`, `/admin/seed-apply` writes what a release moved and stops at the first page that has drifted, and an archive carries the anchor. `pages-a-seed-write-records-its-hash`, `pages-a-seed-verdict-is-the-hosts`, `shell-the-pack-comes-home`, `shell-the-seed-apply-is-a-route`, `pages-an-archive-carries-provenance`. See [the plan](../plans/archive/seed-provenance.md) |
 | [IDEA-045](../plans/assistant-view.md) | A run sees the site it is serving: `view` GETs a path on `Site:Origin` as the owner the run belongs to, and answers the response as the server produced it — every header, the body's own bytes read as UTF-8, the redirects it followed — where `fetch` stays anonymous and keeps its text projection. The token is minted per run, held in memory and dead when the run ends; it reads and never writes, and a page cannot name it. `auth-a-view-token-names-its-run`, `auth-a-view-token-reads-only`, `auth-a-view-that-does-not-verify-is-refused`, `shell-the-site-knows-its-own-origin`, `assistant-a-view-is-a-read`, `assistant-a-view-is-the-response`. See [the plan](../plans/assistant-view.md) |

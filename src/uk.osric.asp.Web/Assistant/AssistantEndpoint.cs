@@ -109,7 +109,7 @@ internal static class AssistantEndpoint {
         // The balance is the page's one outbound call, so it runs while the transcript is read and
         // is awaited before the document starts: a slow provider costs the page its own deadline,
         // and a failure is still a page rather than a half-written response.
-        Task<AccountBalance?> balanceTask = balanceClient.GetAsync(context.RequestAborted);
+        Task<AccountBalanceRead> balanceTask = balanceClient.GetAsync(context.RequestAborted);
         IReadOnlyList<Message> messages = await conversations.GetMessagesAsync(id, owner!, context.RequestAborted);
         string alwaysApprove = nameof(ApprovalMode.AlwaysApprove);
         string requireApproval = nameof(ApprovalMode.RequireApproval);
@@ -125,7 +125,7 @@ internal static class AssistantEndpoint {
                 ? await conversations.GetPendingApprovalsAsync(id, owner!, context.RequestAborted)
                 : [];
         AntiforgeryTokenSet tokens = antiforgery.GetAndStoreTokens(context);
-        AccountBalance? balance = await balanceTask;
+        AccountBalance? balance = (await balanceTask).Balance;
         SecurityHeaders.AllowScripts(context);
         await ShellDocument.BeginAsync(context, conversation.Title,
             SiteNavigation.For(context), stylesheets: ["/assistant.css"], bodyClass: "assistant-page");

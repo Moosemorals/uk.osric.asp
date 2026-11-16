@@ -74,6 +74,32 @@ public sealed class AssistantMetricsTests {
     }
 
 
+    [Test]
+    public void ReportsOneBalanceMeasurementPerCurrencyAndNoneBeforeASample() {
+        using AssistantMetrics metrics = new();
+        List<(double Value, string Tags)> measurements = [];
+        using MeterListener listener = new();
+        listener.InstrumentPublished = (instrument, current) => {
+            if (instrument.Meter.Name == AssistantMetrics.MeterName) {
+                current.EnableMeasurementEvents(instrument);
+            }
+        };
+        listener.SetMeasurementEventCallback<double>((instrument, value, tags, _) => {
+            if (instrument.Name == "assistant.balance") {
+                measurements.Add((value, FormatTags(tags)));
+            }
+        });
+        listener.Start();
+
+        listener.RecordObservableInstruments();
+        Assert.That(measurements, Is.Empty, "a gauge reports nothing before the first sample");
+
+        metrics.RecordBalance([new CurrencyCredit("CNY", 110.00), new CurrencyCredit("USD", 5.50)]);
+        listener.RecordObservableInstruments();
+
+        Assert.That(measurements, Is.EquivalentTo([(110.00, "currency=CNY"), (5.50, "currency=USD")]));
+    }
+
     /// <summary>`metrics-one-panel-per-instrument`: a sample that reached its cap is the one the panel was opened for.</summary>
     [Test]
     public void EveryScaleReachesPastTheCapTheSiteShips() {
