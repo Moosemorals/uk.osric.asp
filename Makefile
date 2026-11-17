@@ -497,12 +497,20 @@ deploy: deploy-guard check test-browser image | $(SSH_CONTROL_DIR)
 		echo "run: sudo apt-get install -y rsync"; \
 		exit 1; }'
 	@# cloud-init installs the ban once, when the host is created; a host that predates it needs the
-	@# packages before the jail below has anything to run in. nft is the ban action's own command: a
-	@# jail without it installs, starts and silently fails to ban.
-	@$(SSH) $(HOST) 'dpkg -s fail2ban nftables >/dev/null 2>&1 && command -v nft >/dev/null 2>&1 || { \
-		echo "the host is missing fail2ban or nftables: nothing will ban an address that keeps failing to sign in"; \
-		echo "run: sudo apt-get install -y fail2ban nftables jq"; \
-		exit 1; }'
+	@# packages before the jail below has anything to run in. nft is the ban action's own command and
+	@# lives in /usr/sbin, which is not on the PATH an ssh command runs with, so it is named in full
+	@# rather than looked up: a jail without it installs, starts and silently fails to ban. Each
+	@# missing piece is named, because "missing fail2ban or nftables" sends an operator to apt for
+	@# packages that are already there.
+	@$(SSH) $(HOST) 'missing=; \
+		dpkg -s fail2ban >/dev/null 2>&1 || missing="$$missing fail2ban"; \
+		dpkg -s nftables >/dev/null 2>&1 || missing="$$missing nftables"; \
+		test -x /usr/sbin/nft || missing="$$missing /usr/sbin/nft"; \
+		if [ -n "$$missing" ]; then \
+			echo "the host is missing$${missing}: nothing will ban an address that keeps failing to sign in"; \
+			echo "run: sudo apt-get install -y fail2ban nftables jq"; \
+			exit 1; \
+		fi'
 	podman tag $(LOCAL_IMAGE) $(IMAGE_REF)
 	podman tag $(LOCAL_IMAGE) $(IMAGE_SHA_REF)
 	podman push --authfile $(AUTHFILE) $(IMAGE_REF)
