@@ -401,10 +401,13 @@ every peer.
 
 ## Bans
 
-The host runs **one** fail2ban jail, `uk.osric.asp`, and no other. Debian's package arrives with
-sshd's jail enabled and dozens more configured; `deploy/fail2ban/jail.local` turns sshd's off, and
-nothing here enables a scanner that reads a log this site does not write. Adding a jail is an edit to
-that file and a `make deploy`, not a command on the host.
+The host runs **two** fail2ban jails and no others: `sshd`, which comes with Debian and is left on
+because the host answers SSH and the scanners that try it should cost something, and
+`uk.osric.asp`, which is this site's own. Debian ships dozens more and every one of them is off:
+nothing here enables a scanner that reads a log this site does not write. Adding a jail is an edit
+to `deploy/fail2ban/jail.local` and a `make deploy`, not a command on the host. `sshd` keeps
+fail2ban's stock rule — five failures in ten minutes, a ten-minute ban — while the site's own jail is
+the ten-a-minute, one-hour rule below.
 
 **What counts as a failure.** Every request that ends unauthenticated and is refused, whoever refused
 it: the view guard's `401`, the cookie's challenge, a page's own `ctx.Response.RedirectToLogin()`,

@@ -43,9 +43,10 @@ packages:
   - fuse-overlayfs
   - dbus-user-session
   - ufw
-  # Bans an address that keeps failing the site's authentication. The package is only half of it:
-  # `make deploy` installs the host's one jail and its filter and starts the service, and runcmd below
-  # stops the service the package starts for itself, so Debian's sshd jail never runs a second time.
+  # Bans an address that keeps failing the site's authentication, and the SSH brute force Debian's
+  # own jail catches. The package is only half of it: `make deploy` installs the jails and the filter
+  # and starts the service, and runcmd below stops the service the package starts for itself, so
+  # nothing watches anything before that.
   - fail2ban
   # The ban is fail2ban's nftables action, which is Debian's default; apt only recommends the package,
   # and a missing nft would leave the jail installed and unable to ban.

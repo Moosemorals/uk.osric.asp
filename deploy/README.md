@@ -226,9 +226,10 @@ The quadlets, the Caddyfile and the fail2ban configuration are the source of tru
   single-line JSON object with its scopes as fields; [the logging notes](../docs/logging.md#working-with-the-journal)
   have the levels and the `jq` recipes for reading one run or every warning.
 - **Status:** `ssh deploy@<server-ip> systemctl --user status uk.osric.asp.service`
-- **Bans:** the host runs one fail2ban jail, `uk.osric.asp`, and it bans for an hour an address that
-  fails authentication ten times inside a minute — a sign-in, a stale view token, a page's redirect
-  to the sign-in form ([bans](operations.md#bans)). Read and undo it from the host:
+- **Bans:** the host runs two fail2ban jails: Debian's `sshd`, and `uk.osric.asp`, which bans for an
+  hour an address that fails authentication ten times inside a minute — a sign-in, a stale view
+  token, a page's redirect to the sign-in form ([bans](operations.md#bans)). Read and undo it from
+  the host:
   `sudo fail2ban-client status uk.osric.asp` and
   `sudo fail2ban-client set uk.osric.asp unbanip 203.0.113.7`.
 - **Edge:** `ssh deploy@<server-ip> sudo systemctl status caddy`

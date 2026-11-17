@@ -1,13 +1,15 @@
 # SPDX-FileCopyrightText: Copyright 2026 Osric Wilkinson <osric@fluffypeople.com>
 # SPDX-License-Identifier: MIT
 #
-# The host's only fail2ban jail. `make deploy` installs this file to /etc/fail2ban/jail.local and
-# the filter beside it; deploy/ is the source of truth for the host, never the copy on it.
+# fail2ban's two jobs here, and no others. `make deploy` installs this file to
+# /etc/fail2ban/jail.local and the filter beside it; deploy/ is the source of truth for the host,
+# never the copy on it.
 #
-# Debian ships dozens of jails and enables sshd's, and none of the rest is wanted here: this host is
-# reached through Caddy, and a scanner that reads logs nobody writes is a service pretending to
-# work. The one thing worth banning is an address that keeps failing this site's authentication,
-# which is what the jail below does and the only jail that is on.
+# Debian ships dozens of jails and enables sshd's. sshd's stays on, because this host answers SSH
+# and the scanners that try it are worth costing ten minutes; everything else stays off, because
+# this host is reached through Caddy and a scanner that reads a log nobody writes is a service
+# pretending to work. The second jail is this site's own: an address that keeps failing its
+# authentication.
 
 [DEFAULT]
 # Every port, not the one a jail names: the address is being stopped, not reasoned with. Debian's
@@ -18,8 +20,10 @@ banaction = nftables[type=allports]
 # The host's own addresses are never banned, including the loopback the app is published on.
 ignoreip = 127.0.0.1/8 ::1
 
+# Debian's defaults-debian.conf supplies this jail's backend and journal match, and its stock rule -
+# five failures in ten minutes, a ten-minute ban - is left alone. Only its state is decided here.
 [sshd]
-enabled = false
+enabled = true
 
 [uk.osric.asp]
 enabled = true
