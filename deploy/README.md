@@ -26,10 +26,13 @@ deploy/
   uk.osric.asp.network      user network: the app and Prometheus talking by name
   prometheus.container      user quadlet: Prometheus, rootless, publishing 127.0.0.1:9090
   prometheus.yml            scrape config, installed to ~/.config/prometheus/prometheus.yml
+  node-exporter.container   user quadlet: node_exporter serving the host's textfile metrics
+  fail2ban-metrics.sh       root collector: fail2ban's counters as Prometheus text
   caddy.container           system quadlet: Caddy, host network, terminating TLS
   Caddyfile                 site config, installed to /etc/caddy/Caddyfile
-  fail2ban/jail.local       the host's only jail: an address that keeps failing auth is banned
-  fail2ban/filter.d/        the app's refusal line, which that jail matches
+  fail2ban/jail.local       the jails: Debian's sshd, and the site's own
+  fail2ban/filter.d/        the app's refusal line, which the site's jail matches
+  uk.osric.asp-fail2ban-metrics.service, .timer   the collector's clock, system units
 ```
 
 The quadlets, the Caddyfile and the fail2ban configuration are the source of truth for the server:

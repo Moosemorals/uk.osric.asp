@@ -153,6 +153,33 @@ public sealed class StatusCatalogueTests {
     }
 
     [Test]
+    public void TheFail2banPanelsReadALevelForTheCountsAndARateForTheTotals() {
+        Panel banned = StatusCatalogue.Panels.Single(panel => panel.Id == "host.fail2ban.banned");
+        Panel bannedTotals = StatusCatalogue.Panels.Single(panel => panel.Id == "host.fail2ban.bans");
+
+        Assert.Multiple(() => {
+            Assert.That(banned.Group, Is.EqualTo("Host"));
+            Assert.That(banned.Chart, Is.EqualTo(PanelChart.Line));
+            Assert.That(banned.Queries.Single().Query, Does.Contain("fail2ban_jail_banned_current"));
+            Assert.That(banned.Queries.Single().Query, Does.Not.Contain("rate("),
+                "an address that is banned now is a level, not a rate");
+            Assert.That(bannedTotals.Chart, Is.EqualTo(PanelChart.StackedArea));
+            Assert.That(bannedTotals.PartsOfAWhole, Is.EqualTo("jail"), "the jails partition the bans");
+            Assert.That(bannedTotals.Queries.Single().Query, Does.Contain("rate(fail2ban_jail_banned_total[5m])"));
+        });
+    }
+
+    [Test]
+    public void TheCollectorAgePanelRisesWhenTheHostStopsWriting() {
+        Panel age = StatusCatalogue.Panels.Single(panel => panel.Id == "host.fail2ban.age");
+
+        Assert.That(age.Chart, Is.EqualTo(PanelChart.Line));
+        Assert.That(age.Queries.Single().Query, Does.Contain("time()"));
+        Assert.That(age.Queries.Single().Query, Does.Contain("fail2ban_collected_timestamp_seconds"),
+            "the age is the wall clock less the last time the host wrote the file");
+    }
+
+    [Test]
     public void EveryPanelDescribesWhatItShows() {
         foreach (Panel panel in StatusCatalogue.Panels) {
             Assert.That(panel.Description, Is.Not.Null.And.Not.Empty, $"{panel.Id} has no description");
@@ -223,7 +250,7 @@ public sealed class StatusCatalogueTests {
 
     private static readonly HashSet<string> Keywords = [
         "sum", "rate", "irate", "avg", "min", "max", "count", "topk", "bottomk", "by", "without", "le",
-        "or", "label_replace",
+        "or", "label_replace", "time",
     ];
 
     private static bool KnownRuntimeFamily(string identifier) =>

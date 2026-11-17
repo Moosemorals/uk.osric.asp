@@ -331,15 +331,27 @@ its files are owned by mapped subordinate IDs, so offline access needs `podman u
 
 ## Metrics and the status page
 
-Prometheus scrapes `app:8080/metrics` every 15 s over the shared network and keeps 30 days or 4 GB,
-whichever comes first; the container is capped at 512 MB of RAM so runaway cardinality fails a scrape
-instead of the host. `/status` is owner-only and queries Prometheus by name, so neither service is
-reachable from the internet.
+Prometheus scrapes `app:8080/metrics` and `node-exporter:9100/metrics` every 15 s over the shared
+network and keeps 30 days or 4 GB, whichever comes first; the container is capped at 512 MB of RAM so
+runaway cardinality fails a scrape instead of the host. `/status` is owner-only and queries
+Prometheus by name, so neither service is reachable from the internet.
 
-- **Two gates on `/metrics`.** The app publishes on the loopback only (the control `deploy-loopback-and-caddy` describes),
-  and Caddy answers `404` for the path on the public origin. Keep both.
+- **One gate on `/metrics`, one network for the other.** The app publishes on the loopback only (the
+  control `deploy-loopback-and-caddy` describes), and Caddy answers `404` for the path on the public
+  origin: keep both. node-exporter publishes nothing at all, so the only thing that can reach it is a
+  container on `uk.osric.asp.network`.
 - **Prometheus is never proxied.** It has no authentication; reach it with
   `ssh -L 9090:127.0.0.1:9090 deploy@<server-ip>` and open `http://localhost:9090`.
+- **The Host group's fail2ban panels come from the host, not the app.**
+  `uk.osric.asp-fail2ban-metrics.timer` runs `deploy/fail2ban-metrics.sh` as root every 30 s, because
+  the fail2ban socket is root-only; it writes each jail's current and total counts to
+  `/var/lib/node-exporter/textfile/fail2ban.prom`, the rootless `node-exporter` container serves that
+  directory, and Prometheus scrapes it as the `host` job. Nothing is published. Addresses are never
+  labels: one series per address is unbounded, and it would put a visitor's address in the store. The
+  two totals reset when fail2ban reloads — every deploy — so a rate across a deploy dips; the current
+  counts and `fail2ban_collected_timestamp_seconds` are the signals that do not move on their own. If
+  the panels go flat while the collector's age climbs, the timer or fail2ban has stopped: start with
+  `systemctl status uk.osric.asp-fail2ban-metrics.timer` and `cat` the file.
 - **No data is a banner, not a failure.** A stopped Prometheus, a slow query, or an unreadable reply
   makes `/status` say so and still render; only a bug in the page itself is a `500`.
 - **One chart can be linked on its own.** `/status/chart?panel=<id>&start=<ISO-8601>&duration=<token>`
@@ -442,7 +454,9 @@ port — its own table, hooked at the input ahead of ufw's chains — so it does
 firewall, it adds to it. ufw stays the allow-list and is unchanged.
 
 A ban is an address, so a client behind a shared address bans its neighbours with it. That is the
-cost of the rule, and the reason the threshold is ten rather than one.
+cost of the rule, and the reason the threshold is ten rather than one. `/status` draws the numbers
+under Host — how many are banned now, how many failures each jail is counting, and how old the numbers
+are — and [metrics and the status page](#metrics-and-the-status-page) says where they come from.
 
 ```bash
 ssh deploy@<server-ip> sudo fail2ban-client status uk.osric.asp     # currently banned, and why

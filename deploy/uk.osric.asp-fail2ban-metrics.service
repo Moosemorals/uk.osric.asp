@@ -1,0 +1,9 @@
+# SPDX-FileCopyrightText: Copyright 2026 Osric Wilkinson <osric@fluffypeople.com>
+# SPDX-License-Identifier: MIT
+
+[Unit]
+Description=Write fail2ban's numbers for the host's textfile collector
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/uk.osric.asp-fail2ban-metrics

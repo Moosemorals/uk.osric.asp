@@ -530,6 +530,11 @@ deploy: deploy-guard check test-browser image | $(SSH_CONTROL_DIR)
 	sed 's|^Image=.*|Image=$(IMAGE_SHA_REF)|' deploy/uk.osric.asp.container | $(SSH) $(HOST) 'cat > .config/containers/systemd/uk.osric.asp.container'
 	$(SSH) $(HOST) 'cat > .config/prometheus/prometheus.yml' < deploy/prometheus.yml
 	$(SSH) $(HOST) 'cat > .config/containers/systemd/prometheus.container' < deploy/prometheus.container
+	$(SSH) $(HOST) 'cat > .config/containers/systemd/node-exporter.container' < deploy/node-exporter.container
+	@# node_exporter serves this directory and nothing else; the root timer below fills it. It has to
+	@# exist before the container starts, and the files in it are 0644 so the image's nobody can read
+	@# them from inside a rootless container.
+	$(SSH) $(HOST) sudo install -d -o root -g root -m 0755 /var/lib/node-exporter/textfile
 	@# The snapshot script and its clock live on the host like the quadlets do. The pull is the backup
 	@# host's job and runs from its own copy of deploy/pull-backups.sh, so nothing here reaches it.
 	$(SSH) $(HOST) install -d bin
@@ -539,7 +544,7 @@ deploy: deploy-guard check test-browser image | $(SSH_CONTROL_DIR)
 	$(SSH) $(HOST) 'cat > .config/systemd/user/uk.osric.asp-backup.service' < deploy/uk.osric.asp-backup.service
 	$(SSH) $(HOST) 'cat > .config/systemd/user/uk.osric.asp-backup.timer' < deploy/uk.osric.asp-backup.timer
 	$(SSH) $(HOST) systemctl --user daemon-reload
-	$(SSH) $(HOST) systemctl --user restart uk.osric.asp.service prometheus.service
+	$(SSH) $(HOST) systemctl --user restart uk.osric.asp.service prometheus.service node-exporter.service
 	$(SSH) $(HOST) systemctl --user enable --now uk.osric.asp-backup.timer
 	@$(SSH) $(HOST) 'i=0; until podman exec prometheus wget -qO- -T 3 http://app:8080/health >/dev/null 2>&1; do \
 		i=$$((i+1)); \
@@ -561,6 +566,26 @@ deploy: deploy-guard check test-browser image | $(SSH_CONTROL_DIR)
 	$(SSH) $(HOST) 'sudo tee /etc/fail2ban/jail.local > /dev/null' < deploy/fail2ban/jail.local
 	$(SSH) $(HOST) sudo systemctl enable fail2ban.service
 	$(SSH) $(HOST) sudo systemctl reload-or-restart fail2ban.service
+	@# fail2ban's numbers, for the status page's Host group. The collector is root's because the socket
+	@# is; node_exporter was restarted above and picks the file up on its next scrape. The service is
+	@# started once here as well as by the timer, so a fresh host has numbers before the first tick.
+	$(SSH) $(HOST) 'sudo tee /usr/local/sbin/uk.osric.asp-fail2ban-metrics > /dev/null' < deploy/fail2ban-metrics.sh
+	$(SSH) $(HOST) sudo chmod 0755 /usr/local/sbin/uk.osric.asp-fail2ban-metrics
+	$(SSH) $(HOST) 'sudo tee /etc/systemd/system/uk.osric.asp-fail2ban-metrics.service > /dev/null' < deploy/uk.osric.asp-fail2ban-metrics.service
+	$(SSH) $(HOST) 'sudo tee /etc/systemd/system/uk.osric.asp-fail2ban-metrics.timer > /dev/null' < deploy/uk.osric.asp-fail2ban-metrics.timer
+	$(SSH) $(HOST) sudo systemctl daemon-reload
+	$(SSH) $(HOST) sudo systemctl start uk.osric.asp-fail2ban-metrics.service
+	$(SSH) $(HOST) sudo systemctl enable --now uk.osric.asp-fail2ban-metrics.timer
+	@# The scrape path end to end: the container must resolve by name on the network and the file must
+	@# parse, or the Host panels are silently empty.
+	@$(SSH) $(HOST) 'i=0; until podman exec prometheus wget -qO- -T 3 http://node-exporter:9100/metrics 2>/dev/null | grep -q "^fail2ban_jail_banned_current"; do \
+		i=$$((i+1)); \
+		if [ $$i -ge 15 ]; then \
+			echo "Prometheus cannot read the fail2ban metrics from node-exporter:9100: check systemctl status uk.osric.asp-fail2ban-metrics.service and /var/lib/node-exporter/textfile"; \
+			exit 1; \
+		fi; \
+		sleep 2; \
+	done'
 	@echo "waiting for /health"
 	@$(SSH) $(HOST) 'i=0; until curl -fsS -o /dev/null http://127.0.0.1:8080/health; do \
 		i=$$((i+1)); \

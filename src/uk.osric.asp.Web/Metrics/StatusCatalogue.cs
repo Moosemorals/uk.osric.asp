@@ -123,7 +123,9 @@ internal static class StatusCatalogue {
             "The provider account's remaining credit, one line per currency; a step up is a top-up and the slope is the spend.",
             "credit", by: "currency"),
 
-        // Host: the framework's meters, which are not instruments this repository registers.
+        // Host: meters this repository does not register. Five are the framework's own; five are
+        // fail2ban's, which the host writes to a file and node_exporter serves, so they reach this
+        // page the same way an instrument does - through Prometheus.
         new Panel {
             Id = "host.memory",
             Group = "Host",
@@ -179,6 +181,58 @@ internal static class StatusCatalogue {
             Queries = [new PanelQuery("sum by (http_response_status_code) (rate(http_server_request_duration_seconds_count[5m]))", string.Empty)],
             HostFamilies = ["http_server_request_duration_seconds"],
             PartsOfAWhole = "http_response_status_code",
+        },
+        new Panel {
+            Id = "host.fail2ban.banned",
+            Group = "Host",
+            Title = "Banned addresses",
+            Description = "Addresses fail2ban is holding off right now, one line per jail.",
+            YTitle = "addresses",
+            Chart = PanelChart.Line,
+            Queries = [new PanelQuery("max by (jail) (fail2ban_jail_banned_current)", string.Empty)],
+            HostFamilies = ["fail2ban_jail_banned_current"],
+        },
+        new Panel {
+            Id = "host.fail2ban.failed",
+            Group = "Host",
+            Title = "Failures counting",
+            Description = "Failures each jail is counting inside its window; ten inside a minute is what the site's jail bans on.",
+            YTitle = "failures",
+            Chart = PanelChart.Line,
+            Queries = [new PanelQuery("max by (jail) (fail2ban_jail_failed_current)", string.Empty)],
+            HostFamilies = ["fail2ban_jail_failed_current"],
+        },
+        new Panel {
+            Id = "host.fail2ban.bans",
+            Group = "Host",
+            Title = "Bans",
+            Description = "Bans per second, stacked by jail.",
+            YTitle = "bans/s",
+            Chart = PanelChart.StackedArea,
+            Queries = [new PanelQuery("sum by (jail) (rate(fail2ban_jail_banned_total[5m]))", string.Empty)],
+            HostFamilies = ["fail2ban_jail_banned_total"],
+            PartsOfAWhole = "jail",
+        },
+        new Panel {
+            Id = "host.fail2ban.failures",
+            Group = "Host",
+            Title = "Failures",
+            Description = "Failures per second, stacked by jail.",
+            YTitle = "failures/s",
+            Chart = PanelChart.StackedArea,
+            Queries = [new PanelQuery("sum by (jail) (rate(fail2ban_jail_failed_total[5m]))", string.Empty)],
+            HostFamilies = ["fail2ban_jail_failed_total"],
+            PartsOfAWhole = "jail",
+        },
+        new Panel {
+            Id = "host.fail2ban.age",
+            Group = "Host",
+            Title = "Fail2ban collector age",
+            Description = "Seconds since the host last wrote these numbers; a rising line means its timer or fail2ban has stopped.",
+            YTitle = "seconds",
+            Chart = PanelChart.Line,
+            Queries = [new PanelQuery("time() - max(fail2ban_collected_timestamp_seconds)", string.Empty)],
+            HostFamilies = ["fail2ban_collected_timestamp_seconds"],
         },
     ];
 

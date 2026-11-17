@@ -94,10 +94,23 @@ histograms, stacked areas for the render chain, cache lookups, staleness and ass
 charts for abandoned renders, layout fallbacks, recursive composition and the three storage gauges),
 eleven Assistant panels
 (eight heatmaps, the token counter as a line chart, memory writes as a stacked area and the account
-balance as a line chart split by currency), and five Host panels from the framework's own meters
-— process memory, process CPU, connections and active requests, request duration and the HTTP status
-mix. Combined panels are allowed where several series answer one question: the Host panels read
-meters this repository does not register, and the Pages render chain composes four that it does.
+balance as a line chart split by currency), and ten Host panels — five from the framework's own
+meters (process memory, process CPU, connections and active requests, request duration and the HTTP
+status mix) and five from fail2ban (banned now, failures counting, bans per second, failures per
+second and the collector's age). Combined panels are allowed where several series answer one
+question: the Host panels read meters this repository does not register, and the Pages render chain
+composes four that it does.
+
+The fail2ban panels are the one group whose numbers are not the app's at all. A root timer on the
+host writes `fail2ban_jail_banned_current{jail}` and `fail2ban_jail_failed_current` as gauges and
+`fail2ban_jail_banned_total` and `fail2ban_jail_failed_total` as counters, plus
+`fail2ban_collected_timestamp_seconds`; node_exporter serves the file and Prometheus scrapes it as the
+`host` job. So the current counts are queried as levels, the totals as rates stacked by `jail`, and
+the age is `time()` less the last write. Two consequences are the panel's, not the app's: a jail name
+appears and disappears with `deploy/fail2ban/jail.local`, and the totals reset whenever fail2ban
+reloads — every deploy — so a rate across a deploy dips rather than lying. Addresses are deliberately
+not exported: one label per address is unbounded cardinality, and it would put a visitor's address in
+the time-series store.
 
 `assistant.tokens` is a line chart, not a stacked area, because its labels do not partition one
 total: cached tokens are already inside prompt tokens and reasoning tokens inside completion tokens.
@@ -171,7 +184,8 @@ emptying a panel.
 **A heatmap draws runs, not cells.** Neighbouring samples of the same shade merge into one `rect` with
 one hover title, and an answer with more samples than the cap allows is folded into at most sixty
 columns before it is drawn. Seventeen heatmaps of a busy thirty-day window then fit in the page's
-markup budget, which `StatusPageSizeTests` pins.
+markup budget, which `StatusPageSizeTests` pins for the whole catalogue — every panel answered with
+eight series of five hundred samples — so a panel is a deliberate edit to that ceiling.
 
 ### Identifying a series without colour
 
@@ -218,10 +232,11 @@ page can claim it.
 
 ## Export and the status page
 
-One exporter listens: OpenTelemetry's Prometheus exporter, registered for metrics only — no tracer
+The app exports through OpenTelemetry's Prometheus exporter, registered for metrics only — no tracer
 provider, no logger provider, and no instrumentation packages, because the framework's own meters are
 already there (`Microsoft.AspNetCore.Hosting`, `Microsoft.AspNetCore.Server.Kestrel`,
-`System.Runtime`).
+`System.Runtime`). The only other exporter on the host is node_exporter, and it serves a file the host
+writes; nothing it reports comes from the app.
 
 - **A gauge is a level, not a counter.** The storage gauges are queried with `max(<family>)` rather
   than `rate(<family>_total[5m])`: a gauge has no `_total` family, so a rate over one is a query that
@@ -244,9 +259,11 @@ already there (`Microsoft.AspNetCore.Hosting`, `Microsoft.AspNetCore.Server.Kest
   up to an hour.
   `page.image.size` has its own byte scale. The SDK's default starts at 0–5 s for a seconds
   instrument, which would make every render one column and every percentile meaningless.
-- **Two gates on `/metrics`.** The app publishes on the loopback only (`deploy-loopback-and-caddy`), and Caddy answers
-  `404` for the path on the public origin. Prometheus scrapes `app:8080` over the shared rootless
-  network; see [deployment](../deploy/operations.md#metrics-and-the-status-page).
+- **Two targets, one gate each.** Prometheus scrapes `app:8080` and `node-exporter:9100` over the
+  shared rootless network. The app publishes on the loopback only (`deploy-loopback-and-caddy`), and
+  Caddy answers `404` for `/metrics` on the public origin; node_exporter publishes nothing at all, so
+  only a container on the podman network can reach it. See
+  [deployment](../deploy/operations.md#metrics-and-the-status-page).
 - **`/status` is a shell endpoint.** It writes body markup inside `ShellDocument`, so its head, sheet
   list, menu and footer are the shell's (see [the shell](shell.md)). It queries Prometheus over the
   shared network and draws SVG from pure `Core` functions (`LineChart`, `Heatmap`, `StackedAreaChart`,

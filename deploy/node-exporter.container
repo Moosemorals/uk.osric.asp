@@ -1,0 +1,33 @@
+# SPDX-FileCopyrightText: Copyright 2026 Osric Wilkinson <osric@fluffypeople.com>
+# SPDX-License-Identifier: MIT
+
+[Unit]
+Description=node_exporter serving the host's textfile metrics (rootless)
+
+[Container]
+ContainerName=node-exporter
+# Pinned to an exact patch, like Caddy: a version bump should be a deliberate commit.
+Image=docker.io/prom/node-exporter:v1.9.1
+# Prometheus reaches it by name on the shared network. Nothing is published and the public origin
+# never sees it, so there is no second gate to keep.
+Network=uk.osric.asp.network
+NetworkAlias=node-exporter
+# The host writes these files; this container only serves them. `make deploy` creates the directory
+# before the unit starts, and the files are 0644 so the image's `nobody` can read them. The path is
+# the collector's `directory=` in deploy/fail2ban-metrics.sh.
+Volume=/var/lib/node-exporter/textfile:/textfile:ro
+# The default collectors read the *container's* /proc and /sys, which would be a lie about the host;
+# the textfile is the whole point, so every default is off.
+Exec=--collector.disable-defaults --collector.textfile --collector.textfile.directory=/textfile
+PodmanArgs=--memory=64m
+PodmanArgs=--pids-limit=64
+NoNewPrivileges=true
+DropCapability=all
+
+[Service]
+Restart=always
+RestartSec=5
+TimeoutStartSec=300
+
+[Install]
+WantedBy=default.target
