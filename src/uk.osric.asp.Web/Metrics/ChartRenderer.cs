@@ -40,7 +40,8 @@ internal sealed class ChartRenderer(IMetricsSource source, MetricsOptions option
         List<ChartSeries> series = [];
 
         foreach (PanelQuery query in panel.Queries) {
-            QueryResult result = await source.QueryAsync(query.Query, window.Start, window.End, window.Step, cancellationToken);
+            string expression = query.Query.Replace(PanelQuery.Range, window.RateRange, StringComparison.Ordinal);
+            QueryResult result = await source.QueryAsync(expression, window.Start, window.End, window.Step, cancellationToken);
 
             if (result is MetricsUnavailable unavailable) {
                 return new ChartResult(null, unavailable.Reason);
@@ -60,7 +61,7 @@ internal sealed class ChartRenderer(IMetricsSource source, MetricsOptions option
             "time",
             window.Start,
             window.End,
-            NiceTicks.ForTime(window.Start, window.End, options.TimeZone));
+            NiceTicks.ForTime(window.Start, window.End, options.TimeZone, PanelSize.PlotWidth));
 
         return panel.Chart switch {
             PanelChart.Heatmap => new ChartResult(

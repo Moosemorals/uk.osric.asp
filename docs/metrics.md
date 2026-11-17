@@ -154,7 +154,9 @@ answer. A panel whose answer was empty still draws its axes and its
 frame and says "No data" over them, rather than becoming a gap in the grid or a blank rectangle; that
 is a different statement from the banner that says Prometheus itself is unwell. Every drawing is the
 same size, so the small multiples line up, and the title, the legend and the value axis all start at
-the same x, so the band reads as one column rather than a label strip beside a chart.
+the same x, so the band reads as one column rather than a label strip beside a chart. Every label is
+written in the site's `system-ui` stack at its body size, as presentation attributes, so a drawing
+served on its own reads like the page rather than like the browser's serif fallback.
 
 Every plot is framed — a line at each edge of the drawn area — and its value axis is labelled with
 `BudgetAmount.Format`, the same three-significant-figures-and-SI-suffix code the assistant's budget
@@ -271,10 +273,15 @@ writes; nothing it reports comes from the app.
   rather than a `500`, because the page is what gets opened when something is broken. The window is
   chosen by a `duration` token — `1h`, `3h`, `8h`, `1d`, `7d` or `30d`; the token is matched against
   that list, never parsed as a length of time, and anything unrecognised is the default day. The nav
-  shows every token, with the current one as text rather than a link to itself. A token sets two
-  things: how far back the queries reach and the sample step, which widens in whole minutes so a
-  thirty-day view asks for a few hundred points rather than the 43,200 a minute step would, because
-  Prometheus refuses a range query over 11,000 points. Each window is cached separately, in a bounded
+  shows every token, with the current one as text rather than a link to itself. A token sets three
+  things: how far back the queries reach, the sample step, and the window each rate averages over. The
+  step follows the length — a day is drawn every half hour, a week every three hours, a month every
+  twelve — so every view has about sixty samples rather than the 43,200 a minute step would ask for
+  over thirty days, and Prometheus never sees a range query past its 11,000-point ceiling. A rate
+  averages over the same step, so a drawn sample is the whole slice it stands for rather than a narrow
+  reading of it; a one-minute spike cannot dominate a day's chart. Time ticks get coarser when their
+  labels would not fit the plot, and a tick that lands on a whole day carries the date without a clock
+  time. Each window is cached separately, in a bounded
   map, so switching back does not re-query and a link cannot grow it without limit. A query's deadline
   is `Metrics:QueryTimeoutSeconds` (two seconds shipped), the map holds
   `Metrics:MaxCachedWindows` windows, and the URL and time zone come from the same section. Every

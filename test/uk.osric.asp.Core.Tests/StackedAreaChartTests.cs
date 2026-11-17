@@ -98,8 +98,14 @@ public sealed class StackedAreaChartTests {
         (double X, double Y)[] points = [.. TopPoints(svg)];
 
         Assert.That(points, Has.Length.EqualTo(2));
-        Assert.That(points[0].X, Is.EqualTo(146.5).Within(0.01), "a quarter of the 322-wide plot after its 66 left edge");
-        Assert.That(points[1].X, Is.EqualTo(227).Within(0.01), "and half way across");
+        Assert.That(
+            points[0].X,
+            Is.EqualTo(ChartChrome.LeftMargin + (Size.PlotWidth / 4)).Within(0.01),
+            "a quarter of the plot after its left edge");
+        Assert.That(
+            points[1].X,
+            Is.EqualTo(ChartChrome.LeftMargin + (Size.PlotWidth / 2)).Within(0.01),
+            "and half way across");
     }
 
     [Test]

@@ -22,32 +22,44 @@ public static class NiceTicks {
     private const int TargetTicks = 6;
     private const double SecondsPerDay = 86400;
 
+    // Room a label keeps from its neighbour, in drawing units.
+    private const double LabelGap = 14;
+
     private static readonly double[] TimeSteps =
-        [1, 5, 15, 30, 60, 300, 900, 1800, 3600, 21600, 43200, SecondsPerDay];
+        [1, 5, 15, 30, 60, 300, 900, 1800, 3600, 7200, 10800, 21600, 43200, SecondsPerDay];
 
     /// <summary>Chooses time ticks between two instants, labelled in a zone.</summary>
     /// <param name="from">The left edge of the chart.</param>
     /// <param name="to">The right edge of the chart.</param>
     /// <param name="zone">The zone the labels are written in.</param>
+    /// <param name="availableWidth">
+    /// The room the labels have, in drawing units. A finite width coarsens the ticks until the labels
+    /// fit; an infinite one, or the default, asks for at most <see cref="TargetTicks"/> labels.
+    /// </param>
     /// <returns>
     /// The ticks, positioned in seconds after <paramref name="from"/>. A span with no width yields a
     /// single tick rather than none.
     /// </returns>
-    public static IReadOnlyList<ChartTick> ForTime(DateTimeOffset from, DateTimeOffset to, TimeZoneInfo zone) {
+    public static IReadOnlyList<ChartTick> ForTime(
+        DateTimeOffset from,
+        DateTimeOffset to,
+        TimeZoneInfo zone,
+        double availableWidth = double.PositiveInfinity) {
+
         ArgumentNullException.ThrowIfNull(zone);
 
         TimeSpan span = to - from;
         if (span <= TimeSpan.Zero) {
-            return [new ChartTick(0, LocalLabel(to, zone, carriesDate: false, carriesYear: false))];
+            return [new ChartTick(0, LocalLabel(to, zone, "HH:mm"))];
         }
 
         bool carriesYear = TimeZoneInfo.ConvertTime(from, zone).Year != TimeZoneInfo.ConvertTime(to, zone).Year;
-        bool carriesDate = carriesYear || span >= TimeSpan.FromDays(1);
-        double step = StepFor(span);
+        bool overADay = span >= TimeSpan.FromDays(1);
+        (double step, string format) = ScaleFor(span.TotalSeconds, overADay, carriesYear, availableWidth);
 
         List<ChartTick> ticks = [];
         if (step >= SecondsPerDay) {
-            AddDayTicks(ticks, from, to, zone, days: (int)Math.Round(step / SecondsPerDay), carriesDate, carriesYear);
+            AddDayTicks(ticks, from, to, zone, days: (int)Math.Round(step / SecondsPerDay), format);
             return ticks;
         }
 
@@ -56,9 +68,7 @@ public static class NiceTicks {
 
         for (long at = first; at <= to.UtcTicks; at += stepTicks) {
             DateTimeOffset instant = new(at, TimeSpan.Zero);
-            ticks.Add(new ChartTick(
-                (instant - from).TotalSeconds,
-                LocalLabel(instant, zone, carriesDate, carriesYear)));
+            ticks.Add(new ChartTick((instant - from).TotalSeconds, LocalLabel(instant, zone, format)));
         }
 
         return ticks;
@@ -102,16 +112,62 @@ public static class NiceTicks {
         return ticks;
     }
 
-    private static double StepFor(TimeSpan span) {
-        double seconds = span.TotalSeconds;
+    // The shortest step whose labels fit — by count when there is no width to measure, or by their
+    // estimated width when there is. The format follows the step: ticks on whole days need no clock.
+    private static (double Step, string Format) ScaleFor(
+        double seconds,
+        bool overADay,
+        bool carriesYear,
+        double availableWidth) {
 
-        foreach (double candidate in TimeSteps) {
-            if (candidate >= seconds / TargetTicks) {
-                return candidate;
+        double last = TimeSteps[^1];
+
+        foreach (double candidate in Candidates(seconds)) {
+            last = candidate;
+            string format = FormatFor(candidate, overADay, carriesYear);
+
+            if (Fits(seconds, candidate, format, availableWidth)) {
+                return (candidate, format);
             }
         }
 
-        return Math.Ceiling(seconds / TargetTicks / SecondsPerDay) * SecondsPerDay;
+        return (last, FormatFor(last, overADay, carriesYear));
+    }
+
+    private static IEnumerable<double> Candidates(double seconds) {
+        foreach (double step in TimeSteps) {
+            yield return step;
+        }
+
+        int days = Math.Max(2, (int)Math.Ceiling(seconds / SecondsPerDay));
+        for (int multiple = 2; multiple <= days; multiple++) {
+            yield return multiple * SecondsPerDay;
+        }
+    }
+
+    private static bool Fits(double seconds, double step, string format, double availableWidth) {
+        if (double.IsNaN(availableWidth) || availableWidth <= 0 || double.IsPositiveInfinity(availableWidth)) {
+            return seconds / step <= TargetTicks;
+        }
+
+        double width = (format.Length * SvgText.CharacterWidth) + LabelGap;
+        int labels = (int)Math.Ceiling(seconds / step) + 1;
+
+        return labels * width <= availableWidth;
+    }
+
+    // A tick on a whole day lands at local midnight; only a span over a day that still ticks by the
+    // hour needs both the date and the clock.
+    private static string FormatFor(double step, bool overADay, bool carriesYear) {
+        if (!overADay) {
+            return "HH:mm";
+        }
+
+        if (step >= SecondsPerDay) {
+            return carriesYear ? "d MMM yyyy" : "d MMM";
+        }
+
+        return carriesYear ? "d MMM yyyy HH:mm" : "d MMM HH:mm";
     }
 
     private static void AddDayTicks(
@@ -120,8 +176,7 @@ public static class NiceTicks {
         DateTimeOffset to,
         TimeZoneInfo zone,
         int days,
-        bool carriesDate,
-        bool carriesYear) {
+        string format) {
 
         DateTime local = TimeZoneInfo.ConvertTime(from, zone).Date;
 
@@ -132,9 +187,7 @@ public static class NiceTicks {
             }
 
             if (instant >= from) {
-                ticks.Add(new ChartTick(
-                    (instant - from).TotalSeconds,
-                    LocalLabel(instant, zone, carriesDate, carriesYear)));
+                ticks.Add(new ChartTick((instant - from).TotalSeconds, LocalLabel(instant, zone, format)));
             }
 
             local = local.AddDays(days);
@@ -148,10 +201,8 @@ public static class NiceTicks {
         return new DateTimeOffset(unspecified, zone.GetUtcOffset(unspecified));
     }
 
-    private static string LocalLabel(DateTimeOffset instant, TimeZoneInfo zone, bool carriesDate, bool carriesYear) {
-        string format = carriesYear ? "d MMM yyyy HH:mm" : carriesDate ? "ddd d MMM HH:mm" : "HH:mm";
-        return TimeZoneInfo.ConvertTime(instant, zone).ToString(format, CultureInfo.InvariantCulture);
-    }
+    private static string LocalLabel(DateTimeOffset instant, TimeZoneInfo zone, string format) =>
+        TimeZoneInfo.ConvertTime(instant, zone).ToString(format, CultureInfo.InvariantCulture);
 
     private static double NiceStep(double raw) {
         if (!(raw > 0) || !double.IsFinite(raw)) {

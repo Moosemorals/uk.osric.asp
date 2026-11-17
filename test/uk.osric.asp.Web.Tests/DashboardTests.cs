@@ -136,6 +136,23 @@ public sealed class DashboardTests {
     }
 
     [Test]
+    public async Task EveryRateAveragesOverTheDrawnStep() {
+        List<string> queries = [];
+        Dashboard dashboard = New(
+            new FakeMetricsSource(query => {
+                queries.Add(query);
+                return Answer();
+            }),
+            new TestClock { Now = Now });
+
+        await dashboard.GetAsync(ChartWindow.At(Now, TimeSpan.FromDays(1)), CancellationToken.None);
+
+        Assert.That(queries, Has.Some.Contain("[30m]"), "a day is drawn every half hour, so a rate covers half an hour");
+        Assert.That(queries.Where(query => query.Contains("rate(", StringComparison.Ordinal)),
+            Is.All.Not.Contain(PanelQuery.Range), "every placeholder is replaced before the query is sent");
+    }
+
+    [Test]
     public async Task AnEmptyAnswerStillDrawsEveryPanel() {
         Dashboard dashboard = New(new FakeMetricsSource(_ => new MetricsMatrix([])), new TestClock { Now = Now });
 

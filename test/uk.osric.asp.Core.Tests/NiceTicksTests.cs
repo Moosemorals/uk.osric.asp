@@ -77,12 +77,13 @@ public sealed class NiceTicksTests {
     }
 
     [Test]
-    public void SpansOverADayCarryTheDate() {
+    public void SpansOverADayCarryTheDateButNoClockTime() {
         IReadOnlyList<ChartTick> ticks = NiceTicks.ForTime(At("2026-06-01T00:00:00Z"), At("2026-06-11T00:00:00Z"), London);
 
         Assert.That(ticks, Is.Not.Empty);
-        Assert.That(ticks.All(tick => tick.Label.Contains(" Jun ", StringComparison.Ordinal)), Is.True);
-        Assert.That(ticks.All(tick => tick.Label.EndsWith("00:00", StringComparison.Ordinal)), Is.True);
+        Assert.That(ticks.All(tick => tick.Label.Contains(" Jun", StringComparison.Ordinal)), Is.True);
+        Assert.That(ticks.All(tick => !tick.Label.Contains(':', StringComparison.Ordinal)), Is.True,
+            "a tick that lands on midnight needs no clock reading");
     }
 
     [Test]
@@ -91,6 +92,18 @@ public sealed class NiceTicksTests {
 
         Assert.That(ticks.Any(tick => tick.Label.Contains("2026", StringComparison.Ordinal)), Is.True);
         Assert.That(ticks.Any(tick => tick.Label.Contains("2027", StringComparison.Ordinal)), Is.True);
+    }
+
+    [Test]
+    public void AFiniteWidthCoarsensTheTicksUntilTheirLabelsFit() {
+        IReadOnlyList<ChartTick> ticks = NiceTicks.ForTime(
+            At("2026-11-16T00:00:00Z"),
+            At("2026-11-17T00:00:00Z"),
+            London,
+            availableWidth: 400);
+
+        Assert.That(ticks, Has.Count.EqualTo(3), "the day is labelled at 12-hour intervals");
+        Assert.That(Labels(ticks), Does.Contain("16 Nov 12:00"));
     }
 
     [Test]
@@ -134,8 +147,8 @@ public sealed class NiceTicksTests {
         IReadOnlyList<ChartTick> ticks = NiceTicks.ForTime(At("2026-06-01T23:00:00Z"), At("2026-06-06T23:00:00Z"), London);
 
         Assert.That(ticks, Has.Count.EqualTo(6), "a tick on each edge, not six inside them");
-        Assert.That(ticks[0].Label, Is.EqualTo("Tue 2 Jun 00:00"));
-        Assert.That(ticks[^1].Label, Is.EqualTo("Sun 7 Jun 00:00"));
+        Assert.That(ticks[0].Label, Is.EqualTo("2 Jun"));
+        Assert.That(ticks[^1].Label, Is.EqualTo("7 Jun"));
     }
 
     [Test]

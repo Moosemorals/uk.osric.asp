@@ -88,6 +88,19 @@ public sealed class PrometheusMetricsSourceTests {
         Assert.That(((MetricsMatrix)result).Series[0].Label, Is.EqualTo("first-use"));
     }
 
+    [TestCase("jail", "sshd")]
+    [TestCase("stage", "load/compile")]
+    [TestCase("currency", "GBP")]
+    public async Task AGroupedSeriesTakesItsNameFromTheLabelItWasGroupedBy(string key, string value) {
+        QueryResult result = await QueryAsync($$$"""
+            {"status":"success","data":{"resultType":"matrix","result":[
+              {"metric":{"{{{key}}}":"{{{value}}}"},"values":[[1700000000,"1"]]}
+            ]}}
+            """);
+
+        Assert.That(((MetricsMatrix)result).Series[0].Label, Is.EqualTo(value));
+    }
+
     [Test]
     public async Task AnEmptyResultIsAnEmptyMatrix() {
         QueryResult result = await QueryAsync("""

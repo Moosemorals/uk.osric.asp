@@ -21,7 +21,7 @@ using System.Text;
 public static class LineChart {
 
     private const double PointRadius = 2;
-    private const double LabelHeight = 10 * SvgText.TypeScale;
+    private const double LabelHeight = ChartChrome.SeriesFontSize;
 
     /// <summary>Renders one chart.</summary>
     /// <param name="series">The lines to draw; a null value is a gap rather than a zero.</param>

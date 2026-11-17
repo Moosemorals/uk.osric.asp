@@ -768,3 +768,6 @@ uk.osric.asp.Core.Assistant.AccountBalanceRead.<Clone>$() -> uk.osric.asp.Core.A
 uk.osric.asp.Core.Assistant.AccountBalanceRead.Equals(uk.osric.asp.Core.Assistant.AccountBalanceRead? other) -> bool
 static uk.osric.asp.Core.Pages.PageQueryFingerprint.Fingerprint(this System.Collections.Generic.IEnumerable<System.Collections.Generic.KeyValuePair<string!, System.Collections.Generic.IReadOnlyList<string!>!>>! query) -> string!
 uk.osric.asp.Core.Pages.PageQueryFingerprint
+*REMOVED*static uk.osric.asp.Core.Charting.NiceTicks.ForTime(System.DateTimeOffset from, System.DateTimeOffset to, System.TimeZoneInfo! zone) -> System.Collections.Generic.IReadOnlyList<uk.osric.asp.Core.Charting.ChartTick>!
+static uk.osric.asp.Core.Charting.NiceTicks.ForTime(System.DateTimeOffset from, System.DateTimeOffset to, System.TimeZoneInfo! zone, double availableWidth = Infinity) -> System.Collections.Generic.IReadOnlyList<uk.osric.asp.Core.Charting.ChartTick>!
+uk.osric.asp.Core.Charting.ChartSize.PlotWidth.get -> double

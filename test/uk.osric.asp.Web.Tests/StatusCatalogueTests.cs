@@ -165,7 +165,7 @@ public sealed class StatusCatalogueTests {
                 "an address that is banned now is a level, not a rate");
             Assert.That(bannedTotals.Chart, Is.EqualTo(PanelChart.StackedArea));
             Assert.That(bannedTotals.PartsOfAWhole, Is.EqualTo("jail"), "the jails partition the bans");
-            Assert.That(bannedTotals.Queries.Single().Query, Does.Contain("rate(fail2ban_jail_banned_total[5m])"));
+            Assert.That(bannedTotals.Queries.Single().Query, Does.Contain($"rate(fail2ban_jail_banned_total[{PanelQuery.Range}])"));
         });
     }
 
@@ -177,6 +177,7 @@ public sealed class StatusCatalogueTests {
         Assert.That(age.Queries.Single().Query, Does.Contain("time()"));
         Assert.That(age.Queries.Single().Query, Does.Contain("fail2ban_collected_timestamp_seconds"),
             "the age is the wall clock less the last time the host wrote the file");
+        Assert.That(age.Queries.Single().Label, Is.EqualTo("collector age"), "its one line still needs a name");
     }
 
     [Test]
