@@ -7,9 +7,18 @@ SPDX-License-Identifier: MIT
 
 | | |
 | --- | --- |
-| Size | S |
-| Area | Sdk, Web, page session |
-| Location | `src/uk.osric.asp.Sdk/IPageSession.cs`, `src/uk.osric.asp.Web/Pages/PageSessionScope.cs` |
+| Size | L — re-sized 2026-11-17. The chosen shape is a durable mailbox for pages and workers, not one write into the session store |
+| Area | Sdk, Web (pages, work, storage), docs |
+| Location | `src/uk.osric.asp.Sdk/IPageInbox.cs` (new), `src/uk.osric.asp.Sdk/PageTopic.cs` (new), `src/uk.osric.asp.Web/Pages/PageInboxScope.cs` (new), `src/uk.osric.asp.Web/Pages/SqlitePageInboxStore.cs` (new), `src/uk.osric.asp.Web/Pages/PageSessionOptions.cs`, `src/uk.osric.asp.Web/Work/PageJobRunner.cs`, `src/uk.osric.asp.Web/Pages/PageChain.cs`, `src/uk.osric.asp.Web/Storage/`, `src/uk.osric.asp.Web/Pages/Seeds/_layout`, `src/uk.osric.asp.Web/Pages/Seeds/help`, `src/uk.osric.asp.Web/Pages/Seeds/privacy` |
+
+> **Planned 2026-11-17** — [a page leaves a message for another page](../plans/page-inbox.md) answers
+> the questions the sketch left open. The inbox belongs to the account that posted it (or the page
+> session when anonymous): a signed-in message is shared by every device of the account, kept 30 days
+> from the last inbox activity, and not deleted by signing out; an anonymous one ends with the
+> session. Workers are valid sources and sinks; the take is one atomic dequeue; and every expected
+> outcome is a value. Named topics, starting with `flash`, let a page leave a confirmation that
+> whichever layout runs next takes once. The same change moves the signed-in page session's lifetime
+> onto the sign-in. Nothing is built until the owner says yes to the plan.
 
 ## Idea
 
