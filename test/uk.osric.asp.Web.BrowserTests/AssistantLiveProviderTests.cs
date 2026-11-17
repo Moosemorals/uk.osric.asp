@@ -58,10 +58,14 @@ internal sealed class AssistantLiveProviderTests : BrowserTest {
         await Assertions.Expect(Page.Locator(".assistant-content").Last).Not.ToBeEmptyAsync(new() { Timeout = 240_000 });
         Assert.That(Host.Log, Does.Not.Contain("finished as failed"));
 
-        IResponse? written = await Page.GotoAsync(path.TrimStart('/'));
+        // The run's completion reloads the conversation page, and that reload would abort a
+        // navigation started from it; the written page is read from a page of its own.
+        IPage visitor = await NewPageAsync();
+        IResponse? written = await visitor.GotoAsync(path.TrimStart('/'));
+        string content = await visitor.ContentAsync();
         Assert.Multiple(() => {
             Assert.That(written?.Status, Is.EqualTo(200));
-            Assert.That(Page.ContentAsync().Result, Does.Contain(phrase));
+            Assert.That(content, Does.Contain(phrase));
         });
     }
 }

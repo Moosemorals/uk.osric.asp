@@ -61,7 +61,10 @@ internal sealed class AssistantStreamTests : BrowserTest {
         await Assertions.Expect(Page.Locator("details.assistant-tool")).ToContainTextAsync("write_page", new() { Timeout = 60_000 });
         await Assertions.Expect(Page.Locator("#assistant-transcript")).ToContainTextAsync("I wrote the page.", new() { Timeout = 60_000 });
 
-        IResponse? written = await Page.GotoAsync(path.TrimStart('/'));
+        // The run's completion reloads the conversation page, and that reload would abort a
+        // navigation started from it; the written page is read from a page of its own.
+        IPage visitor = await NewPageAsync();
+        IResponse? written = await visitor.GotoAsync(path.TrimStart('/'));
         Assert.That(written?.Status, Is.EqualTo(200));
     }
 }

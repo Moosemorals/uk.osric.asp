@@ -23,9 +23,12 @@ internal sealed class AssistantApprovalTests : BrowserTest {
         await Page.Locator(".assistant-approval button", new() { HasTextString = "Approve" }).ClickAsync();
         await Assertions.Expect(Page.Locator("#assistant-transcript")).ToContainTextAsync("The page is written.", new() { Timeout = 60_000 });
 
-        IResponse? written = await Page.GotoAsync(path.TrimStart('/'));
+        // The conversation page reloads itself when its run completes, and its reload would abort a
+        // navigation started from it; the page the run wrote is read from a page of its own.
+        IPage visitor = await NewPageAsync();
+        IResponse? written = await visitor.GotoAsync(path.TrimStart('/'));
         Assert.That(written?.Status, Is.EqualTo(200));
-        await Assertions.Expect(Page.Locator("p")).ToHaveTextAsync("approved by the owner");
+        await Assertions.Expect(visitor.Locator("p")).ToHaveTextAsync("approved by the owner");
     }
 
     [Test]
@@ -41,7 +44,10 @@ internal sealed class AssistantApprovalTests : BrowserTest {
         await Page.Locator(".assistant-approval button", new() { HasTextString = "Deny" }).ClickAsync();
         await Assertions.Expect(Page.Locator("#assistant-transcript")).ToContainTextAsync("The write was denied.", new() { Timeout = 60_000 });
 
-        IResponse? missing = await Page.GotoAsync(path.TrimStart('/'));
+        // Same reload, same reason: the question is whether the site holds the page, so it is asked
+        // from a page the conversation is not reloading.
+        IPage visitor = await NewPageAsync();
+        IResponse? missing = await visitor.GotoAsync(path.TrimStart('/'));
         Assert.That(missing?.Status, Is.EqualTo(404));
     }
 

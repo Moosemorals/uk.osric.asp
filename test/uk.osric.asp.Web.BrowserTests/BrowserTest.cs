@@ -45,29 +45,37 @@ internal abstract partial class BrowserTest {
             });
             """);
         Page = await Context.NewPageAsync();
-        Page.Console += (_, message) => {
-            // Firefox logs the in-flight event stream as interrupted whenever the page navigates,
-            // which is the page's own reload after a run; that is the design, not a defect.
-            if (message.Type == "error" && !message.Text.Contains("was interrupted while the page was loading", StringComparison.Ordinal)) {
-                _problems.Add($"console error: {message.Text}");
-            }
-        };
-        Page.PageError += (_, error) => _problems.Add($"page error: {error}");
+        Watch(Page);
         Host.Provider?.ForgetRequests();
+    }
+
+    /// <summary>Opens a second page in this test's context, watched like the first.</summary>
+    /// <remarks>
+    /// For a check the first page's own reload must not race: the assistant page reloads itself when
+    /// its run completes, and a navigation started from it can be aborted by that reload
+    /// (<c>NS_BINDING_ABORTED</c>), which is the page working as designed rather than anything to
+    /// repair. What the run wrote, or did not write, is a fact about the site, so it is read from a
+    /// page with no conversation behind it.
+    /// </remarks>
+    protected async Task<IPage> NewPageAsync() {
+        IPage page = await Context.NewPageAsync();
+        Watch(page);
+
+        return page;
     }
 
     [TearDown]
     public async Task ClosePageAsync() {
-        try {
-            if (Page is not null && !Page.IsClosed) {
-                IReadOnlyList<string> violations = await Page.EvaluateAsync<string[]>("window.__cspViolations ?? []");
-                _problems.AddRange(violations.Select(violation => $"content security policy: {violation}"));
-            }
-        } catch (PlaywrightException) {
-            // The page went away with the test; there is nothing left to ask.
-        }
-
         if (Context is not null) {
+            foreach (IPage page in Context.Pages.Where(page => !page.IsClosed)) {
+                try {
+                    IReadOnlyList<string> violations = await page.EvaluateAsync<string[]>("window.__cspViolations ?? []");
+                    _problems.AddRange(violations.Select(violation => $"content security policy: {violation}"));
+                } catch (PlaywrightException) {
+                    // The page went away with the test; there is nothing left to ask.
+                }
+            }
+
             await Context.CloseAsync();
         }
 
@@ -75,6 +83,17 @@ internal abstract partial class BrowserTest {
             Host.WriteDiagnostics(Path.Combine(TestContext.CurrentContext.WorkDirectory, "browser-logs"));
             Assert.Fail($"The browser reported {_problems.Count} problem(s):{Environment.NewLine}{string.Join(Environment.NewLine, _problems)}{Environment.NewLine}{Environment.NewLine}Host log:{Environment.NewLine}{Host.Log}");
         }
+    }
+
+    private void Watch(IPage page) {
+        page.Console += (_, message) => {
+            // Firefox logs the in-flight event stream as interrupted whenever the page navigates,
+            // which is the page's own reload after a run; that is the design, not a defect.
+            if (message.Type == "error" && !message.Text.Contains("was interrupted while the page was loading", StringComparison.Ordinal)) {
+                _problems.Add($"console error: {message.Text}");
+            }
+        };
+        page.PageError += (_, error) => _problems.Add($"page error: {error}");
     }
 
     /// <summary>Signs in through the real form, for a fixture whose host the suite did not sign into.</summary>
