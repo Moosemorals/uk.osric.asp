@@ -424,6 +424,13 @@ failed:` and the address straight after it; [the logging notes](../docs/logging.
 wording. An authenticated
 request is never one of these lines, so a `403` and a view token that tries to write do not count.
 
+**Where the jail reads.** `deploy/fail2ban/jail.local` names the journal root
+(`backend = systemd[journalpath="/var/log/journal"]`) rather than leaving the backend on its default.
+The app is a user unit, so journald writes its output to `user-<uid>.journal`, and the default opens
+the system journal only: the jail starts, reports no failures and bans nobody. The directory is named
+rather than a file so rotation and each boot's journal are followed, and the journal matches narrow it
+back to this unit.
+
 **What a ban is.** Ten of those lines inside a minute, and the address is banned for an hour. The
 sign-in throttle permits ten attempts in the same minute, so a password guesser meets the ban at the
 throttle's own limit; a page's sign-in redirect and a stale token are not throttled at all, so a
