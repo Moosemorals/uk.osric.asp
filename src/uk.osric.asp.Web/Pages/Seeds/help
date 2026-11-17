@@ -542,7 +542,9 @@ limit, a 600-second total limit and a 4 MiB byte limit. Check <code>Failure</cod
 <p>A request may name an operator-configured credential with
 <code>Credential = "name"</code> on <code>HttpFetchRequest</code>. The host adds the header; the
 page never sees the value. Use the name the operator gives you, not a token. An unknown name is an
-<code>InvalidRequest</code>.</p>
+<code>InvalidRequest</code>. A credential is bound to one page, or to a page and everything under it
+when the operator writes its <code>Page</code> as <code>/inbox/*</code>, so a page under that prefix
+may name it too; the host still sends the header only to the credential's own host.</p>
 <p>The page API allows the <code>uk.osric.asp.Sdk</code> contract, the common collection, culture and
 LINQ helpers, the explicit base types the contract uses, and the system exception types a page may
 catch. <code>System.IO</code>, <code>System.Net</code>, <code>System.Reflection</code>,

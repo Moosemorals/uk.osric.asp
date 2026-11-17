@@ -111,13 +111,16 @@ internal sealed record PageFetchOptions {
             throw new ConfigurationException($"{entry.Path}: the name must be 1 to {MaximumCredentialNameLength} characters with no control characters.");
         }
 
+        (PagePath page, bool includesDescendants) = ReadPage(entry);
+
         return new PageCredential(
             name,
             ReadHost(entry),
             ReadHeader(entry),
             ReadScheme(entry),
             ReadValue(entry),
-            ReadPage(entry));
+            page,
+            includesDescendants);
     }
 
     private static string ReadHost(IConfigurationSection entry) {
@@ -171,17 +174,27 @@ internal sealed record PageFetchOptions {
         return value;
     }
 
-    private static PagePath ReadPage(IConfigurationSection entry) {
+    // A trailing /* widens the binding to the page and everything under it; anything else is one exact
+    // page. The wildcard is explicit so an operator widening a token's reach says so, and the boundary
+    // is a slash so /tools cannot be read as a prefix of /toolshed.
+    private static (PagePath Page, bool IncludesDescendants) ReadPage(IConfigurationSection entry) {
         string? page = entry["Page"];
         if (string.IsNullOrWhiteSpace(page)) {
             throw new ConfigurationException($"{entry.Path}: Page is required.");
         }
 
-        PagePath key = PagePath.Normalize(page);
+        bool includesDescendants = page.EndsWith("/*", StringComparison.Ordinal);
+        string path = includesDescendants ? page[..^2] : page;
+        if (path.Contains('*')) {
+            throw new ConfigurationException(
+                $"{entry.Path}: Page must be a page path, or a page path ending in /* for that page and everything under it.");
+        }
+
+        PagePath key = PagePath.Normalize(path);
         if (!key.IsAddressable) {
             throw new ConfigurationException($"{entry.Path}: Page must be an addressable page path.");
         }
 
-        return key;
+        return (key, includesDescendants);
     }
 }

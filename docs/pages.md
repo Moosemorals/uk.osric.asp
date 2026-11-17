@@ -78,8 +78,9 @@ pure renderers, and one that is a fact about the build:
   abandoned. The render's shared request count, the deadline and abandonment bound the request
   (`pages-outbound-fetch`, `pages-capabilities-are-one-seam`). A request may name an operator-configured credential with
   `Credential`: the host supplies the header, only to that credential's host and only from the page
-  the credential is bound to, and the page never reads the value. An unknown name is an
-  `InvalidRequest` (`pages-fetch-credentials`). Response headers use `Pages:Fetch:TimeoutSeconds`; a stream's body
+  the credential is bound to — or from a page under it, when the entry's `Page` ends in `/*`, so a
+  page family and its worker can share one token. The page never reads the value, and an unknown
+  name is an `InvalidRequest` (`pages-fetch-credentials`). Response headers use `Pages:Fetch:TimeoutSeconds`; a stream's body
   also has independent `StreamSilenceSeconds`, `StreamMaxSeconds` and `MaxStreamBytes` limits.
 - `IPageJobs` starts a **worker** as a **job**, talks to it, reads what it published and stops it.
   A job outlives the request that started it, so it has no response and no visitor waiting on it: it

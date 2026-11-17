@@ -89,7 +89,7 @@ internal sealed class PageFetcher(
         }
 
         if (!credential.IsBoundTo(path.Key)) {
-            LogRefusal(path, request.Url, $"{credential.Name} is bound to another page");
+            LogRefusal(path, request.Url, $"{credential.Name} is bound to {credential.Scope}");
             credential = null;
 
             return false;

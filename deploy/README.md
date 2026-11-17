@@ -177,9 +177,11 @@ and applies them.
   A page can name an operator-configured credential instead of carrying a token itself; put it in
   the same environment file and restart:
   `Pages__Fetch__Credentials__assistant__Host=api.deepseek.com`,
-  `__Header=Authorization`, `__Scheme=Bearer`, `__Value=<token>` and `__Page=/assistant`. The host
-  sends the header only to that host, only from that page, and only over HTTPS unless the host is
-  loopback; a redirect to another host or to plaintext drops it. `Header` defaults to
+  `__Header=Authorization`, `__Scheme=Bearer`, `__Value=<token>` and `__Page=/assistant`. `Page` takes
+  one page key, or a key ending in `/*` for that page and everything under it, which is how a page
+  family and its worker share one token. The host sends the header only to that host, only from a page
+  inside the binding, and only over HTTPS unless the host is loopback; a redirect to another host or
+  to plaintext drops it. `Header` defaults to
   `Authorization` and may also name an `X-` header, and `Scheme` is optional. The value never
   enters the database, an export archive or a page, and a bad entry stops the app at startup.
 - **Page state:** a page reaches state through `ctx.Features.GetRequired<IPageStorage>()`; it is

@@ -733,8 +733,10 @@ so.
 
 A page names an operator-configured credential, never its value. `HttpFetchRequest.Credential` is a key
 into `Pages:Fetch:Credentials`, whose entries hold the host, header, optional scheme and value, and are
-bound to one canonical page key. The host attaches the header only to that host, only from that page,
-only over HTTPS unless loopback, and drops it on a redirect to another host or to plaintext. The value
+bound to one canonical page key — or to that key and every page under it when the entry's `Page` ends
+in `/*`, so one token can serve a page family without being usable from anywhere. The host attaches
+the header only to that host, only from a page inside the binding, only over HTTPS unless loopback, and
+drops it on a redirect to another host or to plaintext. The value
 is never in page source, page state, a revision, an export archive or the assistant transcript, and a
 page that names an unknown credential gets an `InvalidRequest` rather than an exception.
 

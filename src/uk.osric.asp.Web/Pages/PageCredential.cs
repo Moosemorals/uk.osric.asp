@@ -13,6 +13,10 @@ using uk.osric.asp.Core.Pages;
 /// log line cannot carry it.
 /// </para>
 /// <para>
+/// The credential is bound to one page or to a page and everything under it, so pages that share an
+/// API name one entry rather than duplicating the secret for each of them.
+/// </para>
+/// <para>
 /// It is a class rather than a record because the generated record <c>ToString</c> would print every
 /// property, the value included.
 /// </para>
@@ -23,7 +27,8 @@ internal sealed class PageCredential(
     string header,
     string? scheme,
     string value,
-    PagePath page) : IOutboundCredential {
+    PagePath page,
+    bool includesDescendants) : IOutboundCredential {
 
     /// <summary>The name a page uses to ask for this credential.</summary>
     public string Name { get; } = name;
@@ -34,8 +39,18 @@ internal sealed class PageCredential(
     /// <summary>The request header that carries the value.</summary>
     public string Header { get; } = header;
 
-    /// <summary>The page this credential is bound to.</summary>
+    /// <summary>The page this credential is bound to, or the root of the subtree it is bound to.</summary>
     public PagePath Page { get; } = page;
+
+    /// <summary>Whether the pages under <see cref="Page"/> may name this credential too.</summary>
+    public bool IncludesDescendants { get; } = includesDescendants;
+
+    /// <summary>The pages that may name this credential, as a phrase safe to log.</summary>
+    public string Scope => (Page.Key, IncludesDescendants) switch {
+        ("/", true) => "every page",
+        (_, true) => $"{Page.Key} and below",
+        _ => Page.Key,
+    };
 
     /// <summary>The header value: the scheme and one space, then the secret, or the secret alone.</summary>
     public string HeaderValue => string.IsNullOrEmpty(scheme) ? value : $"{scheme} {value}";
@@ -54,10 +69,27 @@ internal sealed class PageCredential(
 
     /// <summary>Whether this credential belongs to the page with <paramref name="key"/>.</summary>
     /// <param name="key">The canonical page key.</param>
-    /// <returns><see langword="true"/> only for the page named in the credential's configuration.</returns>
-    public bool IsBoundTo(string key) => string.Equals(Page.Key, key, StringComparison.Ordinal);
+    /// <returns>
+    /// <see langword="true"/> for the page named in the credential's configuration, and for any page
+    /// below it when the entry's <c>Page</c> ended in <c>/*</c>.
+    /// </returns>
+    public bool IsBoundTo(string key) {
+        ArgumentNullException.ThrowIfNull(key);
+
+        if (string.Equals(Page.Key, key, StringComparison.Ordinal)) {
+            return true;
+        }
+
+        if (!IncludesDescendants) {
+            return false;
+        }
+
+        // The boundary is the slash, so a scope of /tools does not reach /toolshed.
+        string prefix = Page.Key == "/" ? "/" : Page.Key + "/";
+        return key.StartsWith(prefix, StringComparison.Ordinal);
+    }
 
     /// <summary>Names the credential and its scope, never its value.</summary>
     /// <returns>A line safe to log.</returns>
-    public override string ToString() => $"credential {Name} for {Header} on {Host} from {Page.Key}";
+    public override string ToString() => $"credential {Name} for {Header} on {Host} from {Scope}";
 }

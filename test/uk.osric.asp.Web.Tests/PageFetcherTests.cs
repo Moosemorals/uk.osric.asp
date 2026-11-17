@@ -552,6 +552,57 @@ public sealed class PageFetcherTests {
     }
 
     [Test]
+    public async Task ACredentialScopedToASubtreeIsAttachedFromAPageBelowItAsync() {
+        StubHttpMessageHandler handler = new(request => {
+            Assert.That(request.Headers.Authorization?.ToString(), Is.EqualTo("Bearer secret-value"));
+
+            return Respond(HttpStatusCode.OK, "ok")(request);
+        });
+        PageFetcher fetcher = Fetcher(handler, CredentialOptions(page: "/inbox", includesDescendants: true));
+
+        HttpFetchResponse response = await fetcher.FetchAsync(
+            new HttpFetchRequest("https://api.example.com/") { Credential = "assistant" },
+            "/inbox/mail/thread",
+            CancellationToken.None,
+            CancellationToken.None);
+
+        Assert.That(response.Succeeded, Is.True);
+    }
+
+    [Test]
+    public async Task ACredentialScopeDoesNotReachASiblingWhoseNameMerelyStartsWithItAsync() {
+        StubHttpMessageHandler handler = new(Respond(HttpStatusCode.OK, "no"));
+        PageFetcher fetcher = Fetcher(handler, CredentialOptions(page: "/tools", includesDescendants: true));
+
+        HttpFetchResponse response = await fetcher.FetchAsync(
+            new HttpFetchRequest("https://api.example.com/") { Credential = "assistant" },
+            "/toolshed",
+            CancellationToken.None,
+            CancellationToken.None);
+
+        Assert.That(response.Failure, Is.EqualTo(HttpFetchFailure.InvalidRequest));
+        Assert.That(handler.Requests, Is.Empty);
+    }
+
+    [Test]
+    public async Task ACredentialBoundToEveryPageIsAttachedAnywhereAsync() {
+        StubHttpMessageHandler handler = new(request => {
+            Assert.That(request.Headers.Authorization?.ToString(), Is.EqualTo("Bearer secret-value"));
+
+            return Respond(HttpStatusCode.OK, "ok")(request);
+        });
+        PageFetcher fetcher = Fetcher(handler, CredentialOptions(page: "/", includesDescendants: true));
+
+        HttpFetchResponse response = await fetcher.FetchAsync(
+            new HttpFetchRequest("https://api.example.com/") { Credential = "assistant" },
+            "/somewhere/deep",
+            CancellationToken.None,
+            CancellationToken.None);
+
+        Assert.That(response.Succeeded, Is.True);
+    }
+
+    [Test]
     public async Task ACredentialForAnotherHostIsInvalidWithoutASocketAsync() {
         StubHttpMessageHandler handler = new(Respond(HttpStatusCode.OK, "no"));
 
@@ -676,6 +727,31 @@ public sealed class PageFetcherTests {
         Assert.That(response.Succeeded, Is.True);
         Assert.That(handler.Requests, Has.Count.EqualTo(2));
         Assert.That(dropped, Is.True);
+    }
+
+    [TestCase("/assistant", "/assistant", false, "/assistant")]
+    [TestCase("/inbox/*", "/inbox", true, "/inbox and below")]
+    [TestCase("/*", "/", true, "every page")]
+    public void ACredentialPageScopeIsReadFromConfiguration(
+        string configured,
+        string page,
+        bool includesDescendants,
+        string scope) {
+        PageCredential credential = Options(CredentialConfiguration(configured)).Credentials["assistant"];
+
+        Assert.Multiple(() => {
+            Assert.That(credential.Page.Key, Is.EqualTo(page));
+            Assert.That(credential.IncludesDescendants, Is.EqualTo(includesDescendants));
+            Assert.That(credential.Scope, Is.EqualTo(scope));
+        });
+    }
+
+    [TestCase("/inbox*")]
+    [TestCase("/a/*/b")]
+    [TestCase("*")]
+    [TestCase("/*/")]
+    public void ABadCredentialPageScopeStopsStartup(string page) {
+        Assert.Throws<ConfigurationException>(() => Options(CredentialConfiguration(page)));
     }
 
     [Test]
@@ -848,10 +924,11 @@ public sealed class PageFetcherTests {
         string header = "Authorization",
         string? scheme = "Bearer",
         string value = "secret-value",
-        string page = "/page") {
+        string page = "/page",
+        bool includesDescendants = false) {
         return TestOptions.Fetch with {
             Credentials = new Dictionary<string, PageCredential>(StringComparer.OrdinalIgnoreCase) {
-                ["assistant"] = new("assistant", host, header, scheme, value, PagePath.Normalize(page)),
+                ["assistant"] = new("assistant", host, header, scheme, value, PagePath.Normalize(page), includesDescendants),
             },
         };
     }
