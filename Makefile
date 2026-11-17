@@ -496,6 +496,13 @@ deploy: deploy-guard check test-browser image | $(SSH_CONTROL_DIR)
 		echo "the host is missing rsync: the backup host cannot copy its snapshots"; \
 		echo "run: sudo apt-get install -y rsync"; \
 		exit 1; }'
+	@# cloud-init installs the ban once, when the host is created; a host that predates it needs the
+	@# packages before the jail below has anything to run in. nft is the ban action's own command: a
+	@# jail without it installs, starts and silently fails to ban.
+	@$(SSH) $(HOST) 'dpkg -s fail2ban nftables >/dev/null 2>&1 && command -v nft >/dev/null 2>&1 || { \
+		echo "the host is missing fail2ban or nftables: nothing will ban an address that keeps failing to sign in"; \
+		echo "run: sudo apt-get install -y fail2ban nftables jq"; \
+		exit 1; }'
 	podman tag $(LOCAL_IMAGE) $(IMAGE_REF)
 	podman tag $(LOCAL_IMAGE) $(IMAGE_SHA_REF)
 	podman push --authfile $(AUTHFILE) $(IMAGE_REF)
@@ -539,6 +546,13 @@ deploy: deploy-guard check test-browser image | $(SSH_CONTROL_DIR)
 	$(SSH) $(HOST) 'sudo tee /etc/containers/systemd/caddy.container' < deploy/caddy.container > /dev/null
 	$(SSH) $(HOST) sudo systemctl daemon-reload
 	$(SSH) $(HOST) sudo systemctl restart caddy.service
+	@# The ban's one jail and its filter live here like the quadlets and the Caddyfile do. Installing
+	@# them beside the app's restart keeps the words the app logs and the words fail2ban matches in
+	@# one commit; the reload re-reads both without losing the rest of the host's state.
+	$(SSH) $(HOST) 'sudo tee /etc/fail2ban/filter.d/uk.osric.asp.conf > /dev/null' < deploy/fail2ban/filter.d/uk.osric.asp.conf
+	$(SSH) $(HOST) 'sudo tee /etc/fail2ban/jail.local > /dev/null' < deploy/fail2ban/jail.local
+	$(SSH) $(HOST) sudo systemctl enable fail2ban.service
+	$(SSH) $(HOST) sudo systemctl reload-or-restart fail2ban.service
 	@echo "waiting for /health"
 	@$(SSH) $(HOST) 'i=0; until curl -fsS -o /dev/null http://127.0.0.1:8080/health; do \
 		i=$$((i+1)); \

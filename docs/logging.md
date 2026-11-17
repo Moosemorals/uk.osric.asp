@@ -138,12 +138,36 @@ query strings, page source, prompts and reasoning are never in one. Nor is anyth
 | `PageImageBuilder`/`PageCompiler` | compile faults (Error); compile timeouts (Warning); the generated source of a failure (Debug) |
 | `EditorEndpoint`/`PageEditor` | saves (Information); a scrub that did not complete (Error) |
 | `PageJobs`/`PageJobRunner` | a start, a stop and a job's end (Information); a refusal and a job that failed or was cut (Warning) |
-| `Authentication` | sign-in, failed sign-in, sign-out (Information); a ticket that would not be deleted (Warning) |
+| `Authentication` | sign-in, failed sign-in, sign-out (Information); a ticket that would not be deleted (Warning). A refused request writes one line, `Authentication failed:`, which the host's ban reads |
 | `Admin` | imports and exports (Information); a compiler fault during an import (Error); a rejected archive (Debug) |
 | `Assistant` | run start and finish (Information); provider and tool failures (Warning); a run that escaped (Error) |
 | `Storage`/`Metrics` | a failed sample or query (Warning); a retried write (Debug) |
 | `Health` | nothing per probe: the status is the signal, and a Warning every ten seconds would bury the journal |
 | `Core`/`Runtime`/`Sdk` | nothing, ever |
+
+## Refusals
+
+A request that ends unauthenticated and is refused writes exactly one line, from one middleware
+after the response is decided, so the view guard's `401`, the cookie's challenge and a page's own
+`ctx.Response.RedirectToLogin()` all say the same thing. A refused sign-in is the one case the
+response does not report — it re-renders the form with a `200` — so the endpoint writes that line
+itself, through the same helper.
+
+```
+Authentication failed: 203.0.113.7 GET /hue/ws (sent to sign in)
+```
+
+The address comes straight after the words because the host's fail2ban filter
+(`deploy/fail2ban/filter.d/uk.osric.asp.conf`) matches this category and exactly that much of the
+sentence, and bans an address that keeps appearing there ([bans](../deploy/operations.md#bans)). So
+the beginning of the line is a contract, not a message: change the words and the ban stops matching.
+Everything after the address — the method, the path, the reason and, for a sign-in, the account — is
+for the person reading the journal and may change freely.
+
+It is `Information` for the reason the refusal is worth recording at all: a bot and a mistyped
+password are both somebody else's mistake, and neither is broken. A request that carries an identity
+is never one of these lines: a `403` is an account asking for something it may not have, and a view
+token that tries to `POST` is authenticated and refused for its method.
 
 ## Working with the journal
 

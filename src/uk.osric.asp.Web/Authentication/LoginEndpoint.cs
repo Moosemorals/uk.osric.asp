@@ -101,9 +101,10 @@ internal static class LoginEndpoint {
             }
         }
 
-        // Information, not Warning: nobody is broken when somebody mistypes a password, and the line
-        // is here because "who tried to get in" is worth being able to answer.
-        logger.LogInformation("Sign-in failed for {UserName}", userName);
+        // Information, not Warning: nobody is broken when somebody mistypes a password. The line is
+        // here because "who tried to get in" is worth being able to answer, and because the host's ban
+        // reads it - a sign-in refused here is answered with the form, so no response reports it.
+        AuthenticationFailures.Log(context, "invalid username or password", userName);
 
         await WriteFormAsync(context, antiforgery, returnUrl, userName, rememberMe, "Invalid username or password.");
     }

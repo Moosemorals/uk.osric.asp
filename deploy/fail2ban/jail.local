@@ -1,0 +1,39 @@
+# SPDX-FileCopyrightText: Copyright 2026 Osric Wilkinson <osric@fluffypeople.com>
+# SPDX-License-Identifier: MIT
+#
+# The host's only fail2ban jail. `make deploy` installs this file to /etc/fail2ban/jail.local and
+# the filter beside it; deploy/ is the source of truth for the host, never the copy on it.
+#
+# Debian ships dozens of jails and enables sshd's, and none of the rest is wanted here: this host is
+# reached through Caddy, and a scanner that reads logs nobody writes is a service pretending to
+# work. The one thing worth banning is an address that keeps failing this site's authentication,
+# which is what the jail below does and the only jail that is on.
+
+[DEFAULT]
+# Every port, not the one a jail names: the address is being stopped, not reasoned with. Debian's
+# action is nftables, which writes its own table and hooks input ahead of ufw's chains, so the two
+# firewalls do not have to agree about anything.
+banaction = nftables[type=allports]
+
+# The host's own addresses are never banned, including the loopback the app is published on.
+ignoreip = 127.0.0.1/8 ::1
+
+[sshd]
+enabled = false
+
+[uk.osric.asp]
+enabled = true
+filter = uk.osric.asp
+# The app is a user unit, and the container's output is the unit's: its lines are in the journal,
+# not in a file. The container name is matched too, so an entry is found whichever way podman
+# attaches it to the journal - the two lines are alternatives, not a requirement for both.
+backend = systemd
+journalmatch = _SYSTEMD_USER_UNIT=uk.osric.asp.service
+              CONTAINER_NAME=uk.osric.asp
+# Ten refusals inside a minute is a client that is not going to succeed, and an hour is long enough
+# to be worth having. The sign-in throttle already permits ten attempts in the same minute, so a
+# password guesser meets the ban at the throttle's own limit; everything else - a stale token, a
+# page's sign-in redirect - is not throttled at all and meets it at ten requests.
+maxretry = 10
+findtime = 1m
+bantime = 1h

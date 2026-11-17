@@ -28,10 +28,12 @@ deploy/
   prometheus.yml            scrape config, installed to ~/.config/prometheus/prometheus.yml
   caddy.container           system quadlet: Caddy, host network, terminating TLS
   Caddyfile                 site config, installed to /etc/caddy/Caddyfile
+  fail2ban/jail.local       the host's only jail: an address that keeps failing auth is banned
+  fail2ban/filter.d/        the app's refusal line, which that jail matches
 ```
 
-The quadlets and the Caddyfile are the source of truth for the server: `make deploy` copies them up
-and applies them.
+The quadlets, the Caddyfile and the fail2ban configuration are the source of truth for the server:
+`make deploy` copies them up and applies them.
 
 ## First deployment
 
@@ -63,10 +65,13 @@ and applies them.
    `cloud-init.yaml` installs podman with the rootless pieces (`uidmap`, `passt`, `fuse-overlayfs`),
    creates the `deploy` user with subuid/subgid ranges and its own SSH keys, enables lingering so its
    user manager outlives the login, hardens SSH, and opens 22, 80 and 443 (TCP and UDP) in ufw. It
-   also creates a 4 GiB swap file and adds it to `/etc/fstab` — see [memory and
-   swap](operations.md#memory-and-swap) for what it is for. It reboots once if the package upgrade
-   installed a new kernel, and ends with a rootless `podman info` that must print `true` — check it
-   with `cloud-init status --long` and `swapon --show` before relying on the host.
+   also installs `fail2ban`, `nftables` and `jq` — the package, not the ban: it stops the service the
+   package starts for itself, and `make deploy` is what installs the host's one jail and starts it, so
+   no scanner runs before the site does ([bans](operations.md#bans)). It creates a 4 GiB swap file and
+   adds it to `/etc/fstab` — see [memory and swap](operations.md#memory-and-swap) for what it is for.
+   It reboots once if the package upgrade installed a new kernel, and ends with a rootless `podman
+   info` that must print `true` — check it with `cloud-init status --long` and `swapon --show` before
+   relying on the host.
 
 2. Point an `A` (and `AAAA`, if you use IPv6) record at the server.
 
@@ -221,6 +226,11 @@ and applies them.
   single-line JSON object with its scopes as fields; [the logging notes](../docs/logging.md#working-with-the-journal)
   have the levels and the `jq` recipes for reading one run or every warning.
 - **Status:** `ssh deploy@<server-ip> systemctl --user status uk.osric.asp.service`
+- **Bans:** the host runs one fail2ban jail, `uk.osric.asp`, and it bans for an hour an address that
+  fails authentication ten times inside a minute — a sign-in, a stale view token, a page's redirect
+  to the sign-in form ([bans](operations.md#bans)). Read and undo it from the host:
+  `sudo fail2ban-client status uk.osric.asp` and
+  `sudo fail2ban-client set uk.osric.asp unbanip 203.0.113.7`.
 - **Edge:** `ssh deploy@<server-ip> sudo systemctl status caddy`
 - **Rollback:** the quadlet's `Image=` already names the commit the host is running, so going back is
   editing that line to the commit you want and restarting: `podman pull` the

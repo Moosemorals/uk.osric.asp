@@ -399,6 +399,51 @@ If the app ever runs somewhere else — another proxy, a load balancer, or a dir
 replace the cleared `KnownProxies`/`KnownIPNetworks` with that proxy's address instead of trusting
 every peer.
 
+## Bans
+
+The host runs **one** fail2ban jail, `uk.osric.asp`, and no other. Debian's package arrives with
+sshd's jail enabled and dozens more configured; `deploy/fail2ban/jail.local` turns sshd's off, and
+nothing here enables a scanner that reads a log this site does not write. Adding a jail is an edit to
+that file and a `make deploy`, not a command on the host.
+
+**What counts as a failure.** Every request that ends unauthenticated and is refused, whoever refused
+it: the view guard's `401`, the cookie's challenge, a page's own `ctx.Response.RedirectToLogin()`,
+and a refused sign-in (which answers with the form, so nothing in the response reports it). The app
+writes one line for it:
+
+```json
+{"LogLevel":"Information","Category":"uk.osric.asp.Authentication",
+ "Message":"Authentication failed: 203.0.113.7 GET /hue/ws (sent to sign in)", ...}
+```
+
+The address is the browser's rather than Caddy's, because the app reads it from the forwarded header
+([proxy trust](#proxy-trust-and-forwarded-headers)), and Caddy replaces a client-supplied
+`X-Forwarded-For` rather than passing it through. The words are a contract with
+`deploy/fail2ban/filter.d/uk.osric.asp.conf`, which matches the line's category, `Authentication
+failed:` and the address straight after it; [the logging notes](../docs/logging.md#refusals) own the
+wording. An authenticated
+request is never one of these lines, so a `403` and a view token that tries to write do not count.
+
+**What a ban is.** Ten of those lines inside a minute, and the address is banned for an hour. The
+sign-in throttle permits ten attempts in the same minute, so a password guesser meets the ban at the
+throttle's own limit; a page's sign-in redirect and a stale token are not throttled at all, so a
+client that keeps retrying meets it at ten requests. The ban is fail2ban's nftables action over every
+port — its own table, hooked at the input ahead of ufw's chains — so it does not negotiate with the
+firewall, it adds to it. ufw stays the allow-list and is unchanged.
+
+A ban is an address, so a client behind a shared address bans its neighbours with it. That is the
+cost of the rule, and the reason the threshold is ten rather than one.
+
+```bash
+ssh deploy@<server-ip> sudo fail2ban-client status uk.osric.asp     # currently banned, and why
+ssh deploy@<server-ip> sudo fail2ban-client set uk.osric.asp unbanip 203.0.113.7
+ssh deploy@<server-ip> journalctl --user -u uk.osric.asp.service -g 'Authentication failed' -o cat \
+  | jq -r '[.Timestamp, .Message] | @tsv'
+```
+
+`make deploy` installs the jail and the filter and reloads the service; the in-memory ban list does not
+survive that reload, so a banned address is one more failure away from being banned again.
+
 ## Image layout and size
 
 Every image goes through `registry.osric.uk`, so the layout is chosen for layers:

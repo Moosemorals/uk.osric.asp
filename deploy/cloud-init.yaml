@@ -43,8 +43,17 @@ packages:
   - fuse-overlayfs
   - dbus-user-session
   - ufw
+  # Bans an address that keeps failing the site's authentication. The package is only half of it:
+  # `make deploy` installs the host's one jail and its filter and starts the service, and runcmd below
+  # stops the service the package starts for itself, so Debian's sshd jail never runs a second time.
+  - fail2ban
+  # The ban is fail2ban's nftables action, which is Debian's default; apt only recommends the package,
+  # and a missing nft would leave the jail installed and unable to ban.
+  - nftables
   - unattended-upgrades
   - sqlite3
+  # The journal is read with jq; a JSON line per entry is what makes that worth doing.
+  - jq
   # The backup host pulls the nightly snapshot with rsync, which runs its remote half here.
   - rsync
   - ca-certificates
@@ -86,6 +95,10 @@ runcmd:
   - ufw allow 443/udp
   - ufw --force enable
   - systemctl enable --now unattended-upgrades
+  # The fail2ban package starts itself, with Debian's sshd jail enabled, the moment it is installed.
+  # Nothing here wants a scanner, so the service goes down again and stays down until `make deploy`
+  # installs the host's one jail and starts it.
+  - systemctl disable --now fail2ban.service
   # Validate before reloading, so a broken drop-in fails here rather than silently leaving the old
   # configuration in place.
   - sshd -t && systemctl reload ssh

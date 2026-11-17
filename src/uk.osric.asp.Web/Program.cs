@@ -461,6 +461,10 @@ internal class Program {
         // After authentication and routing: the account and the route's ids are the two facts the
         // scope could not carry when it opened.
         app.UseRequestLogSubject();
+        // Before every refusal, so one line says a request ended unauthenticated however it was
+        // answered - the view guard's 401, the cookie's challenge, a page's own sign-in redirect.
+        // The host's ban reads that line; deploy/fail2ban/ is where the words are matched.
+        app.Use(AuthenticationFailures.ApplyAsync);
         // A view token reads and never writes, and a bearer header that did not authenticate is a 401.
         app.Use(ViewGuard.ApplyAsync);
         app.UseAuthorization();
