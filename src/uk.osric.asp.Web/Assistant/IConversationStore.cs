@@ -14,6 +14,7 @@ internal interface IConversationStore {
     Task<bool> SetApprovalModeAsync(long id, string owner, ApprovalMode mode, CancellationToken cancellationToken = default);
     Task<bool> DeleteAsync(long id, string owner, CancellationToken cancellationToken = default);
     Task<RunStartResult> StartRunAsync(long id, string owner, string content, string model, string promptVersion, CancellationToken cancellationToken = default);
+    /// <summary>Appends a message and returns its stored id, or null when the conversation is gone.</summary>
     Task<long?> AppendMessageAsync(long conversationId, string runId, MessageInput message, CancellationToken cancellationToken = default);
     Task<IReadOnlyList<Message>> GetMessagesAsync(long id, string owner, CancellationToken cancellationToken = default);
     Task<Message?> GetMessageAsync(long conversationId, string owner, long messageId, CancellationToken cancellationToken = default);

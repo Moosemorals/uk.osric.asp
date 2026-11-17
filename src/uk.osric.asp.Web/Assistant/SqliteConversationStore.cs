@@ -257,7 +257,8 @@ internal sealed class SqliteConversationStore(
         database.Add(message);
         await database.SaveChangesAsync(cancellationToken);
         await transaction.CommitAsync(cancellationToken);
-        return message.Sequence;
+        // The row's id, not its sequence: the live transcript fetches the stored message by id.
+        return message.Id;
     }
 
     public async Task<IReadOnlyList<Message>> GetMessagesAsync(long id, string owner, CancellationToken cancellationToken = default) {

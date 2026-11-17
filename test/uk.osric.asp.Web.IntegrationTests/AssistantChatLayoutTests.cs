@@ -250,6 +250,27 @@ public sealed partial class AssistantChatLayoutTests : IntegrationTest {
         });
     }
 
+    [Test]
+    public async Task ACompletedStepIsAvailableWhenItsSequenceHasDriftedFromItsIdAsync() {
+        using HttpClient client = await CreateSignedInClientAsync();
+        // A fresh conversation keeps ids and sequences in step, so an earlier conversation is what
+        // puts an id ahead of the sequence the live event used to carry instead.
+        await RunAsync(client, await CreateConversationAsync(client));
+        string conversation = await CreateConversationAsync(client);
+        string eventStream = await RunAsync(client, conversation);
+
+        long messageId = ParseEvents(eventStream)
+            .Last(item => item.Type == "message.completed"
+                && item.Data.GetProperty("status").GetString() == "complete")
+            .Data.GetProperty("messageId").GetInt64();
+
+        using HttpResponseMessage content = await client.GetAsync(
+            $"{conversation}/messages/{messageId}/content");
+
+        Assert.That(content.StatusCode, Is.EqualTo(HttpStatusCode.OK),
+            "the completed step's content route serves the id the event reported");
+    }
+
     private static async Task<string> RunAndReloadAsync(HttpClient client, string conversation) {
         await RunAsync(client, conversation);
         using HttpResponseMessage reloaded = await client.GetAsync(conversation);

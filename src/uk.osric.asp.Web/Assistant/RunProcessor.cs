@@ -546,14 +546,14 @@ internal sealed class RunProcessor(
         string status,
         bool includeToolCalls,
         CancellationToken cancellationToken) {
-        long? sequence = await StoreAsync(store => store.AppendMessageAsync(
+        long? messageId = await StoreAsync(store => store.AppendMessageAsync(
             queued.ConversationId,
             queued.RunId,
             new MessageInput("assistant", response.Content, response.Reasoning,
                 includeToolCalls ? SerializeToolCalls(response.ToolCalls) : null, Status: status),
             cancellationToken));
-        if (sequence is { } messageSequence) {
-            stream.Publish("message.completed", new { step, messageId = messageSequence, status, finishReason = response.FinishReason });
+        if (messageId is { } stored) {
+            stream.Publish("message.completed", new { step, messageId = stored, status, finishReason = response.FinishReason });
         }
     }
 
@@ -564,13 +564,13 @@ internal sealed class RunProcessor(
         ChatResponse response,
         IReadOnlyList<PreparedToolCall> calls,
         CancellationToken cancellationToken) {
-        long? sequence = await StoreAsync(store => store.AppendMessageAsync(
+        long? messageId = await StoreAsync(store => store.AppendMessageAsync(
             queued.ConversationId,
             queued.RunId,
             new MessageInput("assistant", response.Content, response.Reasoning, SerializePreparedToolCalls(calls)),
             cancellationToken));
-        if (sequence is { } messageSequence) {
-            stream.Publish("message.completed", new { step, messageId = messageSequence, status = "complete", finishReason = response.FinishReason });
+        if (messageId is { } stored) {
+            stream.Publish("message.completed", new { step, messageId = stored, status = "complete", finishReason = response.FinishReason });
         }
     }
 

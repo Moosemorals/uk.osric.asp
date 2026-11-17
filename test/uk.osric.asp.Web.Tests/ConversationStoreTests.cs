@@ -221,12 +221,32 @@ public sealed class ConversationStoreTests {
         })];
         gate.SetResult();
 
-        long?[] sequences = await Task.WhenAll(appends);
+        long?[] ids = await Task.WhenAll(appends);
         await using StorageDbContext reader = new(_options);
         IReadOnlyList<Message> messages = await NewStore(reader).GetMessagesAsync(conversationId, "owner");
 
-        Assert.That(sequences, Is.All.Not.Null);
+        Assert.That(ids, Is.All.Not.Null);
         Assert.That(messages.Select(message => message.Sequence), Is.EqualTo(Enumerable.Range(1, Appends + 1).Select(value => (long)value)));
+    }
+
+    [Test]
+    public async Task AnAppendedMessageReportsTheIdTheContentRouteServesAsync() {
+        await using StorageDbContext database = new(_options);
+        IConversationStore conversations = NewStore(database);
+        Conversation first = await conversations.CreateAsync("owner");
+        RunStartResult firstRun = await conversations.StartRunAsync(first.Id, "owner", "first", "model", "prompt-v1");
+        await conversations.AppendMessageAsync(first.Id, firstRun.RunId!, new MessageInput("assistant", "reply"));
+
+        Conversation second = await conversations.CreateAsync("owner");
+        RunStartResult secondRun = await conversations.StartRunAsync(second.Id, "owner", "second", "model", "prompt-v1");
+        long? reported = await conversations.AppendMessageAsync(
+            second.Id, secondRun.RunId!, new MessageInput("assistant", "reply"));
+
+        Message stored = (await conversations.GetMessagesAsync(second.Id, "owner")).Single(message => message.Role == "assistant");
+        Assert.Multiple(() => {
+            Assert.That(stored.Sequence, Is.Not.EqualTo(stored.Id), "the case needs a sequence that has drifted from the id");
+            Assert.That(reported, Is.EqualTo(stored.Id), "the transcript fetches the message by the id this call reports");
+        });
     }
 
     [Test]
