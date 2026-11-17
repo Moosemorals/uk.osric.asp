@@ -168,7 +168,8 @@ The quadlets, the Caddyfile and the fail2ban configuration are the source of tru
   and internal network are not otherwise restricted, and the assistant's `fetch` tool uses the same
   path, so a stored page or an approved tool call can reach anything the container can. That is the
   single-owner trust boundary, not a sandbox (SEC-03). Every request carries
-  `moosemorals.com (page)` or `moosemorals.com (assistant)` as its `User-Agent`, set by the host.
+  `moosemorals.com (page)` or `moosemorals.com (assistant)`, followed by
+  `fetchmoose@fluffypeople.com`, as its `User-Agent`, set by the host.
   The site's own origin is reachable too: the quadlet's `AddHost=moosemorals.com:host-gateway` stops
   podman writing the host's hostname into `/etc/hosts` as `127.0.1.1`, which would otherwise point a
   page's fetch at the container's own loopback and refuse it. The entry sends the name to Caddy over

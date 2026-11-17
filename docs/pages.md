@@ -70,8 +70,8 @@ pure renderers, and one that is a fact about the build:
   and the caps are `pages-the-session`; see [storage](storage.md#page-sessions).
 - `IHttpFetch` makes one outbound HTTP request from the host, not the browser, to any `http` or
   `https` host the URL names: there is no host allow-list (`pages-outbound-fetch`). Every request carries
-  `moosemorals.com (page)` as its `User-Agent`, set by the host after the page's own headers, so a
-  page cannot claim to be another client. `GetAsync` and `PostAsync` sit over
+  `moosemorals.com (page) fetchmoose@fluffypeople.com` as its `User-Agent`, set by the host after the
+  page's own headers, so a page cannot claim to be another client. `GetAsync` and `PostAsync` sit over
   `SendAsync(HttpFetchRequest)`; `StreamAsync` opens the same request rules and returns an
   `HttpFetchStream` that reads decoded text lines with `ReadLineAsync()`, exposes response metadata
   and failure values, and can be closed explicitly. Open streams close when the render ends or is

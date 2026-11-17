@@ -472,8 +472,9 @@ internal static class PageAuthorPrompt {
         `HEAD` render cannot POST. Never put a secret in a URL, never log a
         response body that may contain one, and never fetch an internal
         address a page was not asked to reach. The host sends
-        `moosemorals.com (page)` as the `User-Agent`, whatever header the page
-        names, so a page cannot claim to be another client.
+        `moosemorals.com (page) fetchmoose@fluffypeople.com` as the
+        `User-Agent`, whatever header the page names, so a page cannot claim to
+        be another client.
 
         A request may name an operator-configured credential with
         `Credential = "name"` on `HttpFetchRequest`. The host adds the header,

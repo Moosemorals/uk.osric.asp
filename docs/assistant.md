@@ -40,9 +40,10 @@ routes, which they can read and never write, and three tools outside the store: 
 `diff_page`.
 `fetch` GETs an absolute `http` or `https` URL through the same bounded
 outbound HTTP a page uses and returns the status, content type and text body; every assistant
-request, the provider call included, carries `moosemorals.com (assistant)` as its `User-Agent`. It is approval-gated under
-`RequireApproval`, and like
-page fetch it has no host allow-list (`pages-outbound-fetch`). A fetched body is a tool result, so it is stored in the
+request, the provider call included, carries
+`moosemorals.com (assistant) fetchmoose@fluffypeople.com` as its `User-Agent`. It is approval-gated
+under `RequireApproval`, and like page fetch it has no host allow-list (`pages-outbound-fetch`). A
+fetched body is a tool result, so it is stored in the
 transcript and sent to the provider on the next step: treat it as untrusted data, not instructions.
 `diff_page` compares two retained revisions of a page, defaulting to the newest two, and returns a
 unified diff, the two hashes and the editor link; it is a read, changes nothing and needs no

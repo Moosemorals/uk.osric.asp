@@ -110,7 +110,7 @@ public sealed class PageAuthorPromptTests {
             Assert.That(prompt, Does.Contain("ctx.Capabilities.GetRequired<IHttpFetch>()"));
             Assert.That(prompt, Does.Contain("GetAsync(url)"));
             Assert.That(prompt, Does.Contain("any http or https"));
-            Assert.That(prompt, Does.Contain("moosemorals.com (page)"));
+            Assert.That(prompt, Does.Contain("moosemorals.com (page) fetchmoose@fluffypeople.com"));
             Assert.That(prompt, Does.Contain("Failures are values"));
         });
     }

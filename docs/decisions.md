@@ -704,7 +704,8 @@ Outbound fetch is bounded, not allow-listed: page code and the assistant's `fetc
 absolute `http` or `https` URL. Both use one outbound path with `GET`/`POST` only, text bodies, no
 cookies and no automatic redirects; a redirect hop must still be `http`/`https`, so the scheme rule and
 the redirect limit are the only destination guards. Every request carries `moosemorals.com (page)` or
-`moosemorals.com (assistant)` as its `User-Agent`, set by the host and not replaceable by a page. The
+`moosemorals.com (assistant)`, followed by the owner's address `fetchmoose@fluffypeople.com`, as its
+`User-Agent`, set by the host and not replaceable by a page. The
 page contract keeps every failure a value — status, content type, reason — so a page showing live data
 can fall back without a `try`, and a 4xx or 5xx keeps its real status and is marked `HttpError` so it
 is distinguishable from a success. Storage misuse is the opposite: a bad key, an oversized value, a
