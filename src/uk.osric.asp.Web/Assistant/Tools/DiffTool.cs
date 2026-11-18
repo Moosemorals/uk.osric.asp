@@ -75,7 +75,7 @@ internal sealed class DiffPageTool : AssistantTool {
 
         DiffDocument comparison = DiffRenderer.Compare(before.Template, after.Template);
         string text = comparison.ToUnified();
-        int budget = services.Options.ToolResultBudget;
+        int budget = (int)Math.Min(services.Budget.ToolResultChars, int.MaxValue);
         bool truncated = text.Length > budget;
         if (truncated) {
             text = text[..budget] + "\n[truncated]";

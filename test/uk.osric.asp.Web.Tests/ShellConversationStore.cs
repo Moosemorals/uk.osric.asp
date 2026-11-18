@@ -84,8 +84,14 @@ internal sealed class ShellConversationStore(
     public Task<int> FailPendingApprovalsAsync(string runId, string failureCode, CancellationToken cancellationToken = default) =>
         Task.FromResult(0);
 
-    public Task<bool> RecordStepAsync(string runId, int toolCallCount, long requestBytes, TokenUsage? usage, CancellationToken cancellationToken = default) =>
-        Task.FromResult(true);
+    public Task<bool> RecordStepAsync(
+        string runId,
+        int toolCallCount,
+        long requestBytes,
+        long estimatedTokens,
+        int maxTokens,
+        TokenUsage? usage,
+        CancellationToken cancellationToken = default) => Task.FromResult(true);
 
     public Task<int> RecoverInterruptedRunsAsync(CancellationToken cancellationToken = default) =>
         Task.FromResult(0);

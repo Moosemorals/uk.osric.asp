@@ -13,17 +13,17 @@ using uk.osric.asp.Web.Assistant;
 [TestFixture]
 public sealed class AssistantContextMaskingTests : IntegrationTest {
 
-    // Ten read_page results of about 61 kB each: eight fit the request budget, the ninth does not, so
-    // the run has to elide its oldest observation to send the next step. The budget carries the
-    // system prompt and tool definitions, so it moves when the prompt gains a section or a tool result
-    // grows: the invariant is "eight fit, nine do not", not the number itself.
+    // Ten read_page results of about 61 kB each: some fit the request budget and the rest do not, so
+    // the run has to elide its oldest tool results to send the next step. The window leaves 168,928
+    // tokens for the prompt, which the system prompt and three of the results fill: the invariant is
+    // "the newest payloads survive and the oldest are masked", not a number of results.
     private const int ToolCalls = 10;
-    private const int Budget = 400_000;
+    private const long Window = 300_000;
 
     private readonly ReadingClient _provider = new(ToolCalls);
 
     internal override AspApplication CreateApplication() =>
-        new(chatCompletionClient: _provider, maxContextTokens: Budget, maxOutputTokens: 4_096);
+        new(chatCompletionClient: _provider, modelWindow: Window);
 
     [Test]
     public async Task AnOldToolResultIsMaskedInTheRequestButNotInTheTranscript() {
@@ -105,7 +105,8 @@ public sealed class AssistantOverBudgetTests : IntegrationTest {
     private readonly CountingClient _provider = new();
 
     internal override AspApplication CreateApplication() =>
-        new(chatCompletionClient: _provider, maxContextTokens: 16_384);
+        // The floor leaves 16,384 tokens for the prompt, which is less than the system prompt alone.
+        new(chatCompletionClient: _provider, modelWindow: 147_456);
 
     [Test]
     public async Task ARunThatCannotFitFailsWithContextTooLong() {

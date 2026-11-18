@@ -161,7 +161,9 @@ Recall happens once per run, on the first step, and the block it builds is froze
 run: a memory the model writes mid-run reaches the next run, not the turn that wrote it. The newest
 user message becomes quoted FTS5 prefix terms, the owner's pinned memories and the memories this
 conversation has already used are mixed with the ranked matches by a pure rule, and the selection
-stops at `Assistant:MaxMemoriesPerRun` and `Assistant:MaxMemoryCharsPerRun`. The block is appended to
+stops at the memory block's share of the context budget — a thirty-second of the prompt's, 45,875
+characters shipped — rather than at a count: relevance already ranks, and the budget is what decides
+how much of it the model may read. The block is appended to
 the system prompt rather than sent as its own message, so the context row counts it with everything
 else and the invariant part of the prompt stays the prefix the provider's cache keys on. It declares
 itself data rather than instructions, its content is HTML-escaped inside a labelled element, and it
@@ -194,11 +196,17 @@ shows, so a model can link the owner to the line changes it read (`pages-diff`).
 
 The feature bounds run duration, concurrency, queue depth, steps, tool calls, arguments, page size,
 results, context and event replay. The shipped caps are 160 steps and 128 tool calls per run, a
-500,000 estimated-token request budget with a 393,216-token output limit, and 131,072 characters
-for one tool result. `deepseek-flash` reports a 1,048,576-token context window and a 393,216-token
-output maximum; the request budget stays below the window so the output reserve fits. Each cap is
-configuration rather than a constant — the shipped `appsettings.json` is the whole list — and every
-one of them is required, so a missing or out-of-range value stops the site at startup
+262,144-character page, 270,336 characters of tool-call arguments, and a reply floor of 131,072
+tokens. Everything the model reads is measured against one budget: the window the provider's model
+list reports for the configured model, less that floor (`assistant-the-budget-is-window-minus-reply`).
+`deepseek-flash` reports a 1,048,576-token window and a 393,216-token output maximum, so the prompt's
+share is 917,504 tokens, one tool result is an eighth of it, the owner's message another eighth and a
+run's memory block a thirty-second. Those fractions are invariants in `ContextBudget`, not
+configuration, so no setting can raise one to the whole budget. The argument cap is the one number
+that is not a fraction: it is `MaxPageChars` plus room for the envelope, because a page the store
+accepts must be writable through a tool. Every remaining cap is configuration — the shipped
+`appsettings.json` is the whole list — and every one of them is required, so a missing or
+out-of-range value stops the site at startup
 ([configuration](architecture.md#configuration)). Each provider request is bounded by silence rather
 than duration: the deadline is re-armed for every event the provider sends, so a model that reasons
 for minutes is not cut off, while a stalled stream ends the step with `provider_timeout`. The whole run uses the same
@@ -223,23 +231,39 @@ tags.
 The budgets the page shows are one `BudgetSnapshot`: the request plan and the stored transcript,
 measured once. The page renders it, and the run publishes it as `budget.updated` over the journal the
 page already listens to, at the start of each step, when that step's usage is stored and around each
-tool call. A figure a reader watches move is therefore the figure the reload will show. The request
-row is the provider request as sent: the system prompt, the tool definitions and the messages after
-masking and trimming, measured in estimated tokens against `Assistant:MaxContextTokens`.
-`ChatRequestJson` measures the exact UTF-8 body,
-and `TokenEstimator` turns that into tokens with the bytes-per-token ratio the provider's last
-`prompt_tokens` report calibrated, a ten-percent margin and a conservative default before the first
-report. `ContextPlanner` elides old tool results and long old tool-call arguments first, and drops
-whole older turns only when masking cannot free enough. The panel is read at a glance: each row is a
-label and a meter with its figure drawn over it, and `BudgetAmount` keeps every figure to at most
-three digits and a unit letter (`16k`, `90k`), so the seven rows fit two columns.
+tool call. A figure a reader watches move is therefore the figure the reload will show. The panel has
+ten rows: Message, Context, Reply, Window, Estimate, Steps, Tool calls, Tool arguments, Tool result
+and Completion. Context is the estimate for the request the next step would send, measured against
+the prompt's share of the window; Reply is the `max_tokens` that request leaves; Window is the two
+together against the reported window, with the remainder spare. Estimate is the last step's signed
+error against the margin the estimate allows — `over` when the estimate was high, which is safe, and
+`under`, the direction that can breach the budget — and it takes the exceeded class past the margin.
+Completion is the last step's tokens against the allowance that step was given, not the model's
+ceiling. `BudgetAmount` keeps every figure to at most three digits and a unit letter (`16k`, `90k`),
+so ten rows fit two columns.
+
+The estimate is anchored on the provider's own count. `ChatRequestJson` measures the exact UTF-8 body
+of a request once; `TokenEstimator` starts from the `prompt_tokens` the provider reported for the
+request the previous step sent and adds only the bytes appended since, with a three-percent margin on
+that delta (`assistant-tokens-anchor-on-the-last-report`). Masking a payload and dropping a turn are
+changes to known parts of the body, so they move the anchor by their own size and nothing else, and a
+step that changes nothing is estimated as the last request plus its new messages. The reply's
+allowance follows the estimate: `max_tokens` is the window less the estimate, capped at the
+provider's published maximum and floored at `Assistant:MinOutputTokens`, so prompt and reply always
+add up to the window. Every step records the estimate and the allowance it sent with, and the
+difference between the estimate and the reported count is both the signed figure on the page and
+`assistant.context.estimate.error`. `ContextPlanner` elides old tool results and long old tool-call
+arguments first, oldest first and with nothing exempt, and drops whole older turns only when masking
+cannot free enough. A step whose request the planner returned untouched should report most of its
+prompt as cached; one that reports none is a warning, said once per run, because something moved that
+should not have.
 
 A second fieldset, "Tokens this run", shows what the provider reported rather than what a limit
 allows: prompt, cached, completion and reasoning tokens, the cached share of the prompt, and the
 prompt-plus-completion total. Cached is a subset of prompt and reasoning a subset of completion, so
 the list says so rather than summing them twice. The run accumulates the figures across its steps;
 the page reads the stored totals after a reload, and `budget.updated` carries the same object while
-the run is live. The context row is the only estimate; the usage list is the provider's own count.
+the run is live. The Context row is the only estimate; the usage list is the provider's own count.
 
 The conversation page also shows the provider account's balance. `AccountBalanceClient` GETs the
 configured provider's `/user/balance` — DeepSeek's balance route — with the assistant's key and

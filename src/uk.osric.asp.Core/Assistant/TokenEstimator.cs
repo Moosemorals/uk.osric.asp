@@ -3,8 +3,8 @@
 
 namespace uk.osric.asp.Core.Assistant;
 
-/// <summary>What the provider's last report says about the bytes in one request.</summary>
-/// <param name="RequestBytes">The exact UTF-8 bytes of the request that report describes.</param>
+/// <summary>What the provider's last report says about the request it counted.</summary>
+/// <param name="RequestBytes">The exact UTF-8 bytes of the request that report describes: the anchor.</param>
 /// <param name="PromptTokens">The prompt tokens the provider reported for that request.</param>
 public sealed record TokenCalibration(long RequestBytes, int PromptTokens) {
 
@@ -15,22 +15,23 @@ public sealed record TokenCalibration(long RequestBytes, int PromptTokens) {
     public double BytesPerToken => RequestBytes / (double)PromptTokens;
 }
 
-/// <summary>Estimates a request's token count from its exact byte count and the provider's last report.</summary>
+/// <summary>Estimates a request's token count from the provider's own count of the last one.</summary>
 /// <remarks>
-/// This is deliberately an estimate, not a tokenizer: the assistant has no DeepSeek vocabulary to
-/// count with, and the provider reports the exact figure after each step. The ratio is the previous
-/// request's bytes divided by its reported prompt tokens, so it learns the conversation's content
-/// mixture; before the first report it falls back to the densest case the tokenizer spike measured
-/// (JSON at about 1.6 bytes per token). A ten-percent margin covers the chat template and content
-/// that tokenizes denser than the previous request.
+/// The provider counts every request it receives and reports the figure, so the estimate is anchored
+/// on that exact count and only the bytes appended since are estimated. The margin therefore covers
+/// the delta's ratio error rather than the whole conversation, and each step's report corrects the
+/// next (<c>assistant-tokens-anchor-on-the-last-report</c>). Masking and dropping change the request by
+/// known byte amounts, so they move the anchor by that amount and nothing else. Before the first
+/// report there is no anchor, and the whole request is estimated with the densest ratio the tokenizer
+/// spike measured (JSON at about 1.6 bytes per token).
 /// </remarks>
 public sealed class TokenEstimator {
 
     /// <summary>The conservative ratio used before the provider has reported anything.</summary>
     public const double DefaultBytesPerToken = 1.6;
 
-    /// <summary>How much the estimate is raised above the calibrated ratio.</summary>
-    public const double EstimateMargin = 1.1;
+    /// <summary>How much the estimate is raised above the calibrated ratio; it covers the delta only.</summary>
+    public const double DeltaMargin = 1.03;
 
     /// <summary>The densest ratio a report may imply; below this the estimate is clamped.</summary>
     public const double MinimumBytesPerToken = 1.0;
@@ -41,7 +42,10 @@ public sealed class TokenEstimator {
     /// <summary>Builds an estimator from a ratio, clamped to the range the spike measured.</summary>
     /// <param name="bytesPerToken">The bytes one token is expected to cost.</param>
     /// <param name="margin">How much to raise the estimate; one means no margin.</param>
-    public TokenEstimator(double bytesPerToken, double margin = EstimateMargin) {
+    public TokenEstimator(double bytesPerToken, double margin = DeltaMargin) : this(bytesPerToken, margin, null) {
+    }
+
+    private TokenEstimator(double bytesPerToken, double margin, TokenCalibration? anchor) {
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(bytesPerToken);
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(margin);
         if (!double.IsFinite(bytesPerToken) || !double.IsFinite(margin)) {
@@ -50,6 +54,7 @@ public sealed class TokenEstimator {
 
         BytesPerToken = Math.Clamp(bytesPerToken, MinimumBytesPerToken, MaximumBytesPerToken);
         Margin = margin;
+        Anchor = anchor;
     }
 
     /// <summary>The bytes one token is expected to cost.</summary>
@@ -58,11 +63,16 @@ public sealed class TokenEstimator {
     /// <summary>How much the estimate is raised above the calibrated ratio.</summary>
     public double Margin { get; }
 
-    /// <summary>Builds the estimator a provider report supports, or the conservative default.</summary>
+    /// <summary>The request the provider last counted, or null when it has counted none.</summary>
+    public TokenCalibration? Anchor { get; }
+
+    /// <summary>Builds the estimator a provider report supports, anchored on that report.</summary>
     /// <param name="calibration">The last request's bytes and prompt tokens, or null when there is none.</param>
     /// <returns>An estimator whose ratio is the calibration's, clamped, or the default.</returns>
-    public static TokenEstimator For(TokenCalibration? calibration) =>
-        new(calibration is { IsUsable: true } ? calibration.BytesPerToken : DefaultBytesPerToken);
+    public static TokenEstimator For(TokenCalibration? calibration) => new(
+        calibration is { IsUsable: true } ? calibration.BytesPerToken : DefaultBytesPerToken,
+        DeltaMargin,
+        calibration is { IsUsable: true } ? calibration : null);
 
     /// <summary>Estimates the tokens a request would cost.</summary>
     /// <param name="request">The request whose serialized body is measured.</param>
@@ -77,6 +87,15 @@ public sealed class TokenEstimator {
     /// <returns>The estimated prompt tokens, including the margin.</returns>
     public long Estimate(long requestBytes) {
         ArgumentOutOfRangeException.ThrowIfNegative(requestBytes);
-        return (long)Math.Ceiling(requestBytes / BytesPerToken * Margin);
+
+        if (Anchor is not { } anchor) {
+            return (long)Math.Ceiling(requestBytes / BytesPerToken * Margin);
+        }
+
+        // Only what the provider has not counted is estimated: the anchor keeps its exact figure, and
+        // the difference between this body and the anchored one is what the margin covers.
+        double delta = requestBytes - anchor.RequestBytes;
+        long estimated = anchor.PromptTokens + (long)Math.Ceiling(delta / BytesPerToken * Margin);
+        return Math.Max(0, estimated);
     }
 }

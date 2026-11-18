@@ -22,7 +22,7 @@ public sealed class AssistantBudgetTests {
         ];
 
         ChatMessage[] stored = [.. messages.Select(message => message.ToChatMessage())];
-        BudgetSnapshot snapshot = BudgetSnapshot.Measure(Plan(stored), stored, 1, 2, null);
+        BudgetSnapshot snapshot = BudgetSnapshot.Measure(Plan(stored), stored, 1, 2, null, null, TestOptions.Budget, 0);
         Dictionary<string, (string Name, string Arguments)> calls = AssistantEndpoint.ReadToolCalls(messages);
 
         Assert.Multiple(() => {
@@ -33,8 +33,9 @@ public sealed class AssistantBudgetTests {
     }
 
     private static ContextPlan Plan(IReadOnlyList<ChatMessage> messages) {
-        ChatRequest request = new("model", messages, [], 0.2, 20, "reasoning_content", IncludeUsage: true);
-        return ContextPlanner.Build(request, ChatRequestJson.MeasureBytes(request), Exact);
+        ChatRequest request = new("model", messages, [], 0.2, 1, "reasoning_content");
+        return ContextPlanner.Build(
+            request, ContextBudget.ForPromptShare(ChatRequestJson.MeasureBytes(request)), Exact);
     }
 
     private static readonly TokenEstimator Exact = new(1.0, 1.0);

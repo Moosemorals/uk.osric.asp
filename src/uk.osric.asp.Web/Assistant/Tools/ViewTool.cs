@@ -34,8 +34,8 @@ internal sealed class ViewTool : AssistantTool {
         + "page renders for you and a redirect to /login is what a stranger sees. An absolute URL is "
         + "refused: use fetch for another host, which is anonymous. Read only. There is no cookie jar, "
         + "so page state starts empty and each call is a first visit; a path that streams will time "
-        + "out. The body is text when it is UTF-8 and base64 when it is not, and a large body is cut "
-        + "to the tool limit with truncated set, and length is the byte length of what came back "
+        + "out. The body is text when it is UTF-8 and base64 when it is not, and a large body is "
+        + "truncated at the tool limit with truncated set, and length is the byte length of what came back "
         + "(Content-Length in the headers is the server's own figure).",
         false,
         [new("path", ToolArgumentType.String, true)]) {
@@ -85,7 +85,7 @@ internal sealed class ViewTool : AssistantTool {
                 return services.Results.Failure("The view did not produce a response.", "View failed");
         }
 
-        int budget = services.Options.ToolResultBudget;
+        int budget = (int)Math.Min(services.Budget.ToolResultChars, int.MaxValue);
         bool truncated = response.Truncated;
         string? content = null;
         string? base64 = null;

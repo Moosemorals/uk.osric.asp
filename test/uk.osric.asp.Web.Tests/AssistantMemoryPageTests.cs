@@ -23,8 +23,6 @@ public sealed class AssistantMemoryPageTests {
     private readonly AssistantOptions _options = TestOptions.Assistant with {
         MaxMemoriesPerOwner = 3,
         MaxMemoryChars = 40,
-        MaxMemoriesPerRun = 12,
-        MaxMemoryCharsPerRun = 4_000,
     };
 
     private string _databasePath = string.Empty;

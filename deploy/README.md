@@ -133,11 +133,17 @@ The quadlets, the Caddyfile and the fail2ban configuration are the source of tru
   `Assistant:ApiKey is not set.`, and the deploy never overwrites an existing file. The configured
   provider must speak OpenAI-compatible streaming chat completions with tool calls. Local HTTP is
   allowed only for a loopback provider or when explicitly enabled.
-  **Upgrading the context budget:** `Assistant__MaxContextChars` and `Assistant__MaxRequestBytes` are
-  both now `Assistant__MaxContextTokens`, and the old keys are not aliased. The shipped 500,000 tokens
-  plus the 393,216 output limit fits the default `Assistant__ModelContextTokens` of 1,048,576, which is
-  what DeepSeek-V4.1-Flash reports for `deepseek-flash`; set both numbers if the provider's window
-  differs.
+  **The context budget is the provider's:** the model's window and output ceiling are read from the
+  provider's model list (`Assistant:ModelsPath`, `/models` by default) at startup, so there is no
+  `Assistant__MaxContextTokens`, `Assistant__ModelContextTokens`, `Assistant__MaxOutputTokens` or
+  `Assistant__IncludeUsage` to set; a leftover override of one is not read, because a configured
+  figure beside a fetched one is two answers. The prompt's share is that window less
+  `Assistant__MinOutputTokens`, and a reply's allowance is computed per request. If the provider is
+  unreachable when the host starts, every page still serves and the assistant refuses runs with
+  `model_window_unknown` until the model list can be read; if the provider answers without the
+  configured model, the deploy stops and says so. `Assistant__MaxMessageChars`,
+  `Assistant__MaxToolResultChars`, `Assistant__MaxMemoryCharsPerRun` and `Assistant__MaxMemoriesPerRun`
+  are gone too: those caps are now fractions of the one budget.
   The host sends the system prompt, conversation transcript, and any page source read by the assistant to
   that provider. Do not store content there that the provider must not receive. Prompts, page source,
   reasoning, credentials, and provider error bodies are not logged. The default provider is DeepSeek;

@@ -37,9 +37,13 @@ internal sealed class OpenAiChatCompletionClient(
             if (!response.IsSuccessStatusCode) {
                 // The status is the whole diagnosis for a rejected request - a wrong model name, a
                 // revoked key, a quota - and the body that would say more is never logged, because a
-                // provider is free to quote the prompt back in it.
+                // provider is free to quote the prompt back in it. A 400 is the one status whose body
+                // changes what happens next: a context-length rejection means the cached window is stale.
                 logger.LogWarning("The provider answered {StatusCode} for model {Model}", (int)response.StatusCode, request.Model);
-                ProviderException failure = ProviderError(response.StatusCode);
+                string? rejection = response.StatusCode == HttpStatusCode.BadRequest
+                    ? await ReadRejectionAsync(response, silence.Token)
+                    : null;
+                ProviderException failure = ProviderError(response.StatusCode, rejection);
                 response.Dispose();
                 throw failure;
             }
@@ -230,11 +234,67 @@ internal sealed class OpenAiChatCompletionClient(
 #pragma warning restore CA5394
     }
 
-    private static ProviderException ProviderError(HttpStatusCode status) => status switch {
+    private static ProviderException ProviderError(HttpStatusCode status, string? rejection) => status switch {
         HttpStatusCode.Unauthorized or HttpStatusCode.Forbidden =>
             new ProviderException("provider_unauthorised", "The configured provider rejected the request."),
         HttpStatusCode.TooManyRequests =>
             new ProviderException("provider_rate_limited", "The configured provider is rate limiting requests."),
+        HttpStatusCode.BadRequest when rejection is not null && NamesContextLength(rejection) =>
+            new ProviderException(ProviderException.ContextWindowMismatch,
+                "The provider rejected the request because the prompt and the reply exceed the model's window."),
         _ => new ProviderException("provider_error", "The configured provider could not complete the request."),
     };
+
+    // The body of a rejection is read only to name its code, and only for a 400: whether the fault is
+    // the window or an invalid field decides whether the step is planned again or fails.
+    private static async Task<string?> ReadRejectionAsync(HttpResponseMessage response, CancellationToken cancellationToken) {
+        try {
+            return await response.Content.ReadAsStringAsync(cancellationToken);
+        } catch (OperationCanceledException) {
+            return null;
+        } catch (HttpRequestException) {
+            return null;
+        } catch (IOException) {
+            return null;
+        }
+    }
+
+    /// <summary>Whether a provider's rejection names the context length as its cause.</summary>
+    /// <param name="body">The provider's error body.</param>
+    /// <returns>True when the error's code, type or message says the request was too long.</returns>
+    /// <remarks>
+    /// The body is parsed and then dropped: the message is the provider's text and is never logged or
+    /// shown, so only the fact that it named the window survives.
+    /// </remarks>
+    internal static bool NamesContextLength(string body) {
+        ArgumentNullException.ThrowIfNull(body);
+
+        JsonDocument document;
+        try {
+            document = JsonDocument.Parse(body);
+        } catch (JsonException) {
+            return false;
+        }
+
+        using (document) {
+            if (document.RootElement.ValueKind != JsonValueKind.Object
+                || !document.RootElement.TryGetProperty("error", out JsonElement error)
+                || error.ValueKind != JsonValueKind.Object) {
+                return false;
+            }
+
+            StringBuilder text = new();
+            foreach (string field in (string[])["code", "type", "message"]) {
+                if (error.TryGetProperty(field, out JsonElement value) && value.ValueKind == JsonValueKind.String) {
+                    text.Append(value.GetString()).Append(' ');
+                }
+            }
+
+            string named = text.ToString();
+            return named.Contains("context_length", StringComparison.OrdinalIgnoreCase)
+                || named.Contains("context length", StringComparison.OrdinalIgnoreCase)
+                || named.Contains("context window", StringComparison.OrdinalIgnoreCase)
+                || named.Contains("too many tokens", StringComparison.OrdinalIgnoreCase);
+        }
+    }
 }

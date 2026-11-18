@@ -120,19 +120,24 @@ and what depends on it is asserted by the suites that use it (`SimpleContextTest
   ids — and `RunProcessorTests` proves a provider failure is logged at Warning with its exception and
   the run's scope. `Web.IntegrationTests/ErrorHandlingTests` proves the framework's own
   unhandled-exception line carries the request scope, which is what fixes the order of the middleware.
-- **The assistant** is covered at the same boundaries: `Core.Tests` checks request planning — observation
-  masking, whole-turn trimming, token estimation and the byte measure the estimator calibrates —
-  stream accumulation, usage accumulation, strict tool arguments, virtual-shell parsing, title
-  generation, authored template-source line edits, the page store's tree and scope (`PageTreeTests`,
-  `PageScopeRuleTests`) and the `BudgetSnapshot` the page and the stream both read.
+- **The assistant** is covered at the same boundaries: `Core.Tests` checks request planning — tool-result
+  masking, whole-turn trimming, the anchored token estimate (a report's exact count plus the delta,
+  and a masked payload subtracted from the anchor), the byte measure the estimate anchors on, the
+  one budget's fractions and the reply allowance that follows the prompt — stream accumulation, usage
+  accumulation, strict tool arguments, virtual-shell parsing, title generation, authored
+  template-source line edits, the page store's tree and scope (`PageTreeTests`, `PageScopeRuleTests`)
+  and the `BudgetSnapshot` the page and the stream both read, including the signed estimate error.
   `Web.Tests` pins the one read seam the tools and the virtual shell share in `PageStoreReaderTests`
   — reserved rows, tombstone visibility, key order, scope, history order and a revision's path — so
   those rules are proved once rather than through a tool and an applet each. It also uses migrated
   SQLite files for conversations, sequence allocation, approvals and restart repair; fake HTTP
-  handlers for provider SSE; and scripted model streams for the run processor. `Web.IntegrationTests` runs the real authenticated host with a
+  handlers for provider SSE; the model list parsed from the provider's own documented example, and a
+  `400` named as a context-length rejection rather than a generic fault; and scripted model streams
+  for the run processor, including a reply cut through a tool call, a run with no reported window and
+  the cache warning said once. `Web.IntegrationTests` runs the real authenticated host with a
   scripted provider to verify disabled routing, conversation streaming, approval gating and writes,
-  and compares the last `budget.updated` a run published — its budgets and its usage — with the page
-  the reload renders. The browser suite watches a budget figure and the usage list move while the run
+  and compares the last `budget.updated` a run published — its ten budget rows, their limits and its
+  usage — with the page the reload renders. The browser suite watches a budget figure and the usage list move while the run
   is still busy, and watches a scripted Markdown reply become formatted when its step completes.
   Memory is covered at the same boundaries:
   `Core.Tests` pins the query terms, the selection rule and the block, content normalisation and the

@@ -16,12 +16,14 @@ if (root) {
     const count = document.getElementById('assistant-char-count');
     const messageBudget = document.getElementById('assistant-budget-message');
     const messageMeter = document.getElementById('assistant-budget-message-meter');
-    // Keyed by the name the server writes, so an update needs no table of its own.
+    // Keyed by the name the server writes, so an update needs no table of its own. A row the provider
+    // has not reported a limit for has no meter: it is a figure rather than a share, and it stays one.
     const budgetRows = new Map(Array.from(document.querySelectorAll('[data-budget]'), row => [row.dataset.budget, {
         row,
         count: row.querySelector('.assistant-budget-count > span'),
         limit: row.querySelector('.assistant-budget-limit'),
         meter: row.querySelector('meter'),
+        direction: row.querySelector('#assistant-budget-estimate-direction'),
     }]));
     const token = messageForm.querySelector('input[name="__RequestVerificationToken"]')?.value ?? '';
     const messages = new Map();
@@ -233,10 +235,17 @@ if (root) {
     // The server already knows what each figure is; the page only shows it, by the same two rules
     // the markup is written with: the number may exceed the meter, the meter may not. A continuation
     // widens one budget, so the limit the row names moves with the figure.
-    function applyBudgets(budgets, limits) {
+    function applyBudgets(budgets, limits, estimate) {
         for (const [name, used] of Object.entries(budgets ?? {})) {
             const budget = budgetRows.get(name);
             if (!budget) {
+                continue;
+            }
+            budget.count.textContent = formatAmount(used);
+            if (budget.direction && estimate?.direction) {
+                budget.direction.textContent = estimate.direction;
+            }
+            if (!budget.meter) {
                 continue;
             }
             const maximum = Number(limits?.[name] ?? budget.meter.max);
@@ -244,7 +253,6 @@ if (root) {
             budget.meter.low = String(Math.floor(maximum * 3 / 5));
             budget.meter.high = String(Math.floor(maximum * 17 / 20));
             budget.meter.value = Math.min(used, maximum);
-            budget.count.textContent = formatAmount(used);
             if (budget.limit) {
                 budget.limit.textContent = formatAmount(maximum);
             }
@@ -356,7 +364,7 @@ if (root) {
         });
         source.addEventListener('budget.updated', event => {
             const data = JSON.parse(event.data);
-            applyBudgets(data.budgets, data.limits);
+            applyBudgets(data.budgets, data.limits, data.estimate);
             applyUsage(data.usage);
         });
         source.addEventListener('tool.started', event => showTool(JSON.parse(event.data)));

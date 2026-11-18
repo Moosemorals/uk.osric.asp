@@ -20,7 +20,8 @@ internal sealed class ShellTool : AssistantTool {
         ToolServices services,
         CancellationToken cancellationToken) {
         ShellOutcome outcome = await ShellRunner.RunAsync(
-            values.RequiredString("command"), services.Pages, services.Paths, services.Options, cancellationToken);
+            values.RequiredString("command"), services.Pages, services.Paths, services.Options, services.Budget,
+            cancellationToken);
 
         return outcome.IsSuccess
             ? services.Results.Success(new { output = outcome.Output, truncated = outcome.Truncated }, outcome.Summary)

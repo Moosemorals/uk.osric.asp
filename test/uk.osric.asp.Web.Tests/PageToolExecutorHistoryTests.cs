@@ -196,8 +196,10 @@ public sealed class PageToolExecutorHistoryTests {
         PageTemplate revision = new(PagePath.Normalize("/notes"), source);
         await storage.SavePageAsync(revision);
 
-        ToolExecutionResult whole = await RunAsync(storage, "read_revision", $$"""{"path":"/notes","hash":"{{revision.Hash}}"}""", SmallBudget());
-        ToolExecutionResult live = await RunAsync(storage, "read_page", """{"path":"/notes"}""", SmallBudget());
+        ContextBudget small = TestOptions.BudgetOfResultChars(4_096);
+        ToolExecutionResult whole = await RunAsync(
+            storage, "read_revision", $$"""{"path":"/notes","hash":"{{revision.Hash}}"}""", SmallBudget(), small);
+        ToolExecutionResult live = await RunAsync(storage, "read_page", """{"path":"/notes"}""", SmallBudget(), small);
 
         JsonElement read = Data(whole).GetProperty("truncated").GetBoolean() ? Data(whole) : default;
         JsonElement page = Data(live);
@@ -335,7 +337,7 @@ public sealed class PageToolExecutorHistoryTests {
 
     private static AssistantOptions SmallBudget() => TestOptions.Assistant with {
         MaxToolArgumentChars = 65_536,
-        MaxToolResultChars = 2_048,
+
         MaxPageChars = 65_536,
     };
 
@@ -355,7 +357,8 @@ public sealed class PageToolExecutorHistoryTests {
         FakePageStore storage,
         string tool,
         string arguments,
-        AssistantOptions? options = null) {
+        AssistantOptions? options = null,
+        ContextBudget? budget = null) {
         using PageHarness pages = new(storage);
         using ServiceProvider services = new ServiceCollection()
             .AddScoped(_ => pages.Editor)
@@ -365,7 +368,8 @@ public sealed class PageToolExecutorHistoryTests {
         PageToolExecutor tools = new(
             services.GetRequiredService<IServiceScopeFactory>(),
             new PagePathPolicy(new ReservedPaths(ReservedPaths.Default), TestOptions.Assistant),
-            options ?? TestOptions.Assistant with { MaxToolArgumentChars = 65_536, MaxToolResultChars = 65_536, MaxPageChars = 65_536 },
+            options ?? TestOptions.Assistant with { MaxToolArgumentChars = 65_536, MaxPageChars = 65_536 },
+            ModelWindowSource.Fixed(budget ?? TestOptions.Budget),
             new AssistantMetrics(),
             new FakeAssistantFetcher());
 

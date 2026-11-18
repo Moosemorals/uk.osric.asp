@@ -31,7 +31,7 @@ internal sealed record BrowserHostSettings {
     /// <summary>The model name the conversation is recorded with.</summary>
     public string Model { get; init; } = "stub-model";
 
-    /// <summary>The provider's output cap, small when a test wants a truncated answer.</summary>
+    /// <summary>The output limit the model list reports; small when a test wants a truncated answer.</summary>
     public int MaxOutputTokens { get; init; } = 4096;
 
     /// <summary>The run's step budget, small when a test wants the run to pause for the owner.</summary>
@@ -155,7 +155,7 @@ internal sealed class BrowserHost : IAsyncDisposable {
         int port = FreePort();
         BaseAddress = new Uri($"http://127.0.0.1:{port}");
         if (settings.ProviderBaseUrl is null) {
-            Provider = new StubProvider(FreePort());
+            Provider = new StubProvider(FreePort(), settings.Model, maxOutputTokens: settings.MaxOutputTokens);
         }
 
         Dictionary<string, string?> environment = new() {
@@ -164,7 +164,6 @@ internal sealed class BrowserHost : IAsyncDisposable {
             ["Assistant__ApiKey"] = settings.ApiKey ?? "browser-test-key",
             ["Assistant__BaseUrl"] = (settings.ProviderBaseUrl ?? new Uri(Provider!.BaseUrl)).ToString(),
             ["Assistant__Model"] = settings.Model,
-            ["Assistant__MaxOutputTokens"] = settings.MaxOutputTokens.ToString(System.Globalization.CultureInfo.InvariantCulture),
             ["Assistant__MaxSteps"] = settings.MaxSteps.ToString(System.Globalization.CultureInfo.InvariantCulture),
             ["Assistant__HeartbeatSeconds"] = settings.HeartbeatSeconds.ToString(System.Globalization.CultureInfo.InvariantCulture),
             ["Assistant__RequestTimeoutSeconds"] = settings.RequestTimeoutSeconds.ToString(System.Globalization.CultureInfo.InvariantCulture),

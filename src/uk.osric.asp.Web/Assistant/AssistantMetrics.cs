@@ -29,6 +29,10 @@ internal sealed class AssistantMetrics : IDisposable {
         new("assistant.memory.chars", InstrumentKind.Histogram, "{char}"),
         new("assistant.memory.writes", InstrumentKind.Counter, "{write}"),
         new("assistant.balance", InstrumentKind.Gauge, "{credit}"),
+        new("assistant.context.estimate.error", InstrumentKind.Histogram, "{token}"),
+        new("assistant.context.shaped", InstrumentKind.Counter, "{step}"),
+        new("assistant.budget.exhausted", InstrumentKind.Counter, "{run}"),
+        new("assistant.tool.truncated", InstrumentKind.Counter, "{result}"),
     ];
 
     /// <summary>Buckets for <c>assistant.run.steps</c>, in steps.</summary>
@@ -69,6 +73,15 @@ internal sealed class AssistantMetrics : IDisposable {
     public static readonly double[] ToolDurationBuckets =
         [0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5, 10, 20];
 
+    /// <summary>Buckets for <c>assistant.context.estimate.error</c>, in tokens.</summary>
+    /// <remarks>
+    /// The margin is one of the boundaries — 27,525 tokens is three percent of the 917,504-token
+    /// prompt budget — so whatever lands above it is the step that spent more than the estimate
+    /// allows. The same trick the step and tool-call buckets use: draw the cap rather than hide the
+    /// overrun under <c>+Inf</c> (`metrics-one-panel-per-instrument`).
+    /// </remarks>
+    public static readonly double[] EstimateErrorBuckets = [0, 64, 256, 1024, 4096, 16384, 27525, 65536, 262144];
+
     /// <summary>Buckets for the memory instruments: how many were recalled and how large they were.</summary>
     public static readonly double[] MemoryCountBuckets = [0, 1, 2, 4, 8, 12];
     public static readonly double[] MemoryCharBuckets = [0, 512, 1024, 2048, 4096];
@@ -85,6 +98,21 @@ internal sealed class AssistantMetrics : IDisposable {
     /// <summary>The kind tag recorded for a write that had no kind, which includes every refusal.</summary>
     public const string NoKind = "(none)";
 
+    /// <summary>An old payload was masked so the request would fit.</summary>
+    public const string ShapedMasked = "masked";
+
+    /// <summary>Whole turns were dropped so the request would fit.</summary>
+    public const string ShapedTrimmed = "trimmed";
+
+    /// <summary>Our own estimate of the request stopped the run before it was sent.</summary>
+    public const string ExhaustedContext = "context";
+
+    /// <summary>The provider's window rejected the request.</summary>
+    public const string ExhaustedProvider = "provider";
+
+    /// <summary>The reply reached the tokens its request left for it.</summary>
+    public const string ExhaustedOutput = "output";
+
     private readonly Meter _meter = new(MeterName, typeof(AssistantMetrics).Assembly.GetName().Version?.ToString() ?? "0.0.0");
     private readonly Histogram<double> _runDuration;
     private readonly Histogram<long> _runSteps;
@@ -96,6 +124,10 @@ internal sealed class AssistantMetrics : IDisposable {
     private readonly Histogram<long> _memoryRecalled;
     private readonly Histogram<long> _memoryChars;
     private readonly Counter<long> _memoryWrites;
+    private readonly Histogram<long> _estimateError;
+    private readonly Counter<long> _shaped;
+    private readonly Counter<long> _exhausted;
+    private readonly Counter<long> _truncated;
     private IReadOnlyList<CurrencyCredit>? _balance;
 
     public AssistantMetrics() {
@@ -109,6 +141,10 @@ internal sealed class AssistantMetrics : IDisposable {
         _memoryRecalled = _meter.CreateHistogram<long>("assistant.memory.recalled", "{memory}");
         _memoryChars = _meter.CreateHistogram<long>("assistant.memory.chars", "{char}");
         _memoryWrites = _meter.CreateCounter<long>("assistant.memory.writes", "{write}");
+        _estimateError = _meter.CreateHistogram<long>("assistant.context.estimate.error", "{token}");
+        _shaped = _meter.CreateCounter<long>("assistant.context.shaped", "{step}");
+        _exhausted = _meter.CreateCounter<long>("assistant.budget.exhausted", "{run}");
+        _truncated = _meter.CreateCounter<long>("assistant.tool.truncated", "{result}");
         _meter.CreateObservableGauge("assistant.balance", ObserveBalance, "{credit}",
             "The provider account's remaining credit, one measurement per currency.");
     }
@@ -153,6 +189,32 @@ internal sealed class AssistantMetrics : IDisposable {
             _tokens.Add(usage.ReasoningTokens.Value, new TagList { { "kind", "reasoning" } });
         }
     }
+
+    /// <summary>Records how far one step's estimate was from the count the provider reported.</summary>
+    /// <param name="estimate">The tokens the step's request was estimated at.</param>
+    /// <param name="actual">The prompt tokens the provider counted for it.</param>
+    /// <remarks>
+    /// The magnitude is the figure; the direction is the label. <c>under</c> is the one that can
+    /// breach the budget, so a rising share of it is the signal to revisit the margin.
+    /// </remarks>
+    public void RecordEstimateError(long estimate, long actual) {
+        long error = estimate - actual;
+        _estimateError.Record(Math.Abs(error), new TagList { { "direction", error < 0 ? "under" : "over" } });
+    }
+
+    /// <summary>Records that the planner had to change a request so it would fit.</summary>
+    /// <param name="kind">One of <see cref="ShapedMasked"/> or <see cref="ShapedTrimmed"/>.</param>
+    public void RecordShaped(string kind) => _shaped.Add(1, new TagList { { "kind", kind } });
+
+    /// <summary>Records that a run stopped on a budget.</summary>
+    /// <param name="cause">One of <see cref="ExhaustedContext"/>, <see cref="ExhaustedProvider"/>
+    /// or <see cref="ExhaustedOutput"/>.</param>
+    public void RecordBudgetExhausted(string cause) => _exhausted.Add(1, new TagList { { "cause", cause } });
+
+    /// <summary>Records that one tool result was truncated at its cap.</summary>
+    /// <param name="tool">The registered tool's name, or <see cref="UnknownTool"/>.</param>
+    public void RecordToolTruncated(string? tool) =>
+        _truncated.Add(1, new TagList { { "tool", tool ?? UnknownTool } });
 
     /// <summary>Records what one run recalled: how many memories and how many characters.</summary>
     /// <param name="memories">The memories the run was given.</param>

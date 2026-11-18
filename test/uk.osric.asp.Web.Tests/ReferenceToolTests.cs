@@ -18,7 +18,7 @@ public sealed class ReferenceToolTests {
 
     private static readonly AssistantOptions Options = TestOptions.Assistant with {
         MaxToolArgumentChars = 8_192,
-        MaxToolResultChars = 131_072,
+
         DefaultListLimit = 50,
         MaxListLimit = 500,
     };
@@ -40,6 +40,7 @@ public sealed class ReferenceToolTests {
             _services.GetRequiredService<IServiceScopeFactory>(),
             new PagePathPolicy(new ReservedPaths(ReservedPaths.Default), Options),
             Options,
+            ModelWindowSource.Fixed(TestOptions.Budget),
             _services.GetRequiredService<AssistantMetrics>(),
             new FakeAssistantFetcher());
     }

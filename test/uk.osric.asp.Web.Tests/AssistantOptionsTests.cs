@@ -107,29 +107,30 @@ public sealed class AssistantOptionsTests {
     }
 
     [Test]
-    public void ABudgetAndOutputOverTheModelWindowAreRejected() {
+    public void AnArgumentCapBelowThePageCapIsRejected() {
+        // A page's content travels inside a tool call's arguments, so a cap below the page cap is the
+        // half-page bug: the store would accept a page that no tool could write.
         AssistantOptions options = TestOptions.Assistant with {
             ApiKey = "configured",
-            MaxContextTokens = 1_000_000,
-            MaxOutputTokens = 393_216,
-            ModelContextTokens = 1_048_576,
+            MaxPageChars = 262_144,
+            MaxToolArgumentChars = 131_072,
         };
 
         Assert.Multiple(() => {
             Assert.That(Validate(options).Failed, Is.True);
-            Assert.That(Validate(options).FailureMessage, Does.Contain("ModelContextTokens"));
+            Assert.That(Validate(options).FailureMessage, Does.Contain("MaxToolArgumentChars"));
         });
     }
 
     [Test]
-    public void AMemoryLongerThanOneRunsMemoryBlockIsRejected() {
+    public void AnArgumentCapJustOverThePageCapIsAccepted() {
         AssistantOptions options = TestOptions.Assistant with {
             ApiKey = "configured",
-            MaxMemoryChars = 5_000,
-            MaxMemoryCharsPerRun = 4_000,
+            MaxPageChars = 262_144,
+            MaxToolArgumentChars = 270_336,
         };
 
-        Assert.That(Validate(options).FailureMessage, Does.Contain("MaxMemoryCharsPerRun"));
+        Assert.That(Validate(options).Failed, Is.False);
     }
 
     [Test]

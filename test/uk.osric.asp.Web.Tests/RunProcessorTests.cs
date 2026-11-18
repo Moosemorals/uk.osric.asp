@@ -26,8 +26,10 @@ public sealed class RunProcessorTests {
         RunTimeoutSeconds = 5,
         RequestTimeoutSeconds = 3,
         ToolTimeoutSeconds = 2,
-        MaxContextTokens = 90_000,
     };
+
+    // The window the run is given. A test that is about the request budget passes a smaller one.
+    private readonly ModelWindowSource _windows = ModelWindowSource.Fixed(TestOptions.Budget);
 
     private readonly ToolApprovalCoordinator _approvals = new();
 
@@ -151,6 +153,110 @@ public sealed class RunProcessorTests {
             Assert.That(messages[1].Reasoning, Is.EqualTo("provider reasoning"));
             Assert.That(events.Select(item => item.Type), Does.Contain("content.delta"));
             Assert.That(events[^1].Type, Is.EqualTo("run.completed"));
+        });
+    }
+
+    [Test]
+    public async Task TheRunStoresTheEstimateAndTheAllowanceItSentWithAsync() {
+        SteppedClient client = new([
+            [
+                new ToolCallDelta(0, "call-1", "read_page", """{"path":"/missing"}"""),
+                new UsageEvent(new TokenUsage(1_000, 20)),
+                new Finished("tool_calls"),
+            ],
+            [
+                new ContentDelta("Done."),
+                new UsageEvent(new TokenUsage(2_000, 30)),
+                new Finished("stop"),
+            ],
+        ]);
+        (Conversation conversation, RunStartResult started, RunStream stream, RunProcessor processor) =
+            await StartRunAsync(client);
+
+        await processor.RunAsync(new QueuedRun(conversation.Id, started.RunId!, "owner"), CancellationToken.None);
+
+        await using AsyncServiceScope scope = _services!.CreateAsyncScope();
+        Run run = await scope.ServiceProvider.GetRequiredService<StorageDbContext>().Set<Run>().AsNoTracking().SingleAsync();
+        RunEvent[] events = await CollectAsync(stream);
+        JsonElement budgets = JsonElement.Parse(events.Last(@event => @event.Type == "budget.updated").DataJson).GetProperty("budgets");
+
+        Assert.Multiple(() => {
+            Assert.That(run.EstimatedTokens, Is.Not.Null, "the page rebuilds the signed error from this after a reload");
+            Assert.That(run.MaxTokens, Is.Not.Null, "the completion row is read against the allowance the step had");
+            Assert.That(run.MaxTokens, Is.EqualTo(client.Requests[^1].MaxTokens));
+            Assert.That(budgets.TryGetProperty("estimate", out JsonElement estimate), Is.True);
+            Assert.That(estimate.GetInt64(), Is.EqualTo(Math.Abs(run.EstimatedTokens!.Value - run.LastPromptTokens!.Value)));
+            Assert.That(budgets.GetProperty("reply").GetInt32(), Is.EqualTo(run.MaxTokens));
+        });
+    }
+
+    [Test]
+    public async Task AStepWhoseRequestWasUntouchedSaysOnceWhenTheProviderCachedNoneOfItAsync() {
+        SteppedClient client = new([
+            [
+                new ToolCallDelta(0, "call-1", "read_page", """{"path":"/missing"}"""),
+                new UsageEvent(new TokenUsage(1_000, 20, 0)),
+                new Finished("tool_calls"),
+            ],
+            [
+                new ContentDelta("Done."),
+                new UsageEvent(new TokenUsage(2_000, 30, 0)),
+                new Finished("stop"),
+            ],
+            [
+                new ContentDelta("Done again."),
+                new UsageEvent(new TokenUsage(2_500, 30, 0)),
+                new Finished("stop"),
+            ],
+        ]);
+        (Conversation conversation, RunStartResult started, RunStream stream, RunProcessor processor) =
+            await StartRunAsync(client);
+
+        await processor.RunAsync(new QueuedRun(conversation.Id, started.RunId!, "owner"), CancellationToken.None);
+
+        int warnings = _logs.Entries.Count(entry =>
+            entry.Message.Contains("no cached tokens", StringComparison.Ordinal));
+
+        Assert.That(warnings, Is.EqualTo(1), "the cache warning is said once per run, not once per step");
+    }
+
+    [Test]
+    public async Task AReplyCutThroughAToolCallIsNamedRatherThanReadAsBadArgumentsAsync() {
+        ScriptedClient client = new([
+            new ToolCallDelta(0, "call-1", "read_page", """{"path":"/mis"""),
+            new Finished("length"),
+        ]);
+        (Conversation conversation, RunStartResult started, RunStream stream, RunProcessor processor) =
+            await StartRunAsync(client);
+
+        await processor.RunAsync(new QueuedRun(conversation.Id, started.RunId!, "owner"), CancellationToken.None);
+
+        await using AsyncServiceScope scope = _services!.CreateAsyncScope();
+        Run run = await scope.ServiceProvider.GetRequiredService<StorageDbContext>().Set<Run>().AsNoTracking().SingleAsync();
+        RunEvent[] events = await CollectAsync(stream);
+
+        Assert.Multiple(() => {
+            Assert.That(run.Status, Is.EqualTo("failed"));
+            Assert.That(run.ErrorCode, Is.EqualTo("reply_truncated"));
+            Assert.That(events.Any(@event => @event.Type == "run.failed"), Is.True);
+        });
+    }
+
+    [Test]
+    public async Task ARunWithoutAModelWindowRefusesInsteadOfGuessingAsync() {
+        ScriptedClient client = new([new ContentDelta("Never sent."), new Finished("stop")]);
+        (Conversation conversation, RunStartResult started, RunStream stream, RunProcessor processor) =
+            await StartRunWithWindowAsync(client, new ModelWindowSource());
+
+        await processor.RunAsync(new QueuedRun(conversation.Id, started.RunId!, "owner"), CancellationToken.None);
+
+        await using AsyncServiceScope scope = _services!.CreateAsyncScope();
+        Run run = await scope.ServiceProvider.GetRequiredService<StorageDbContext>().Set<Run>().AsNoTracking().SingleAsync();
+
+        Assert.Multiple(() => {
+            Assert.That(run.Status, Is.EqualTo("failed"));
+            Assert.That(run.ErrorCode, Is.EqualTo("model_window_unknown"));
+            Assert.That(client.Requests, Is.Empty, "a run with no budget never reaches the provider");
         });
     }
 
@@ -488,13 +594,10 @@ public sealed class RunProcessorTests {
             RunTimeoutSeconds = 5,
             RequestTimeoutSeconds = 3,
             ToolTimeoutSeconds = 2,
-            MaxContextTokens = 1_000,
-            MaxOutputTokens = 1_000,
-            ModelContextTokens = 16_384,
         };
         ScriptedClient client = new([new ContentDelta("Never sent."), new Finished("stop")]);
         (Conversation conversation, RunStartResult started, RunStream stream, RunProcessor processor) =
-            await StartRunAsync(client, options);
+            await StartRunAsync(client, options, budget: ContextBudget.ForPromptShare(1_000));
 
         await processor.RunAsync(new QueuedRun(conversation.Id, started.RunId!, "owner"), CancellationToken.None);
 
@@ -531,9 +634,8 @@ public sealed class RunProcessorTests {
                 RunTimeoutSeconds = 5,
                 RequestTimeoutSeconds = 3,
                 ToolTimeoutSeconds = 2,
-                MaxOutputTokens = 32_768,
-                MaxContextTokens = (int)TokenEstimator.For(null).Estimate(MaskedBudget(seeds)),
-            }));
+            }),
+            budget: ContextBudget.ForPromptShare((int)TokenEstimator.For(null).Estimate(MaskedBudget(seeds))));
 
         await processor.RunAsync(new QueuedRun(conversation.Id, started.RunId!, "owner"), CancellationToken.None);
 
@@ -588,8 +690,7 @@ public sealed class RunProcessorTests {
             PageToolExecutor.Definitions,
             0.2,
             32_768,
-            "reasoning_content",
-            IncludeUsage: true);
+            "reasoning_content");
         return ChatRequestJson.MeasureBytes(request);
     }
 
@@ -620,7 +721,6 @@ public sealed class RunProcessorTests {
             RunTimeoutSeconds = seconds,
             RequestTimeoutSeconds = 3,
             ToolTimeoutSeconds = toolSeconds,
-            MaxContextTokens = 90_000,
             MaxSteps = steps,
             MaxToolCalls = calls,
             MaxToolCallsPerStep = callsPerStep,
@@ -638,12 +738,26 @@ public sealed class RunProcessorTests {
         Assert.Fail("The run never asked for approval.");
     }
 
-    private async Task<(Conversation Conversation, RunStartResult Started, RunStream Stream, RunProcessor Processor)> StartRunAsync(
+    private Task<(Conversation Conversation, RunStartResult Started, RunStream Stream, RunProcessor Processor)> StartRunAsync(
         IChatCompletionClient client,
         AssistantOptions? options = null,
         ApprovalMode? approvalMode = null,
         Func<IConversationStore, Conversation, string, Task>? seed = null,
-        Func<IConversationStore, Conversation, string, Task<AssistantOptions>>? measureOptions = null) {
+        Func<IConversationStore, Conversation, string, Task<AssistantOptions>>? measureOptions = null,
+        ContextBudget? budget = null) => StartRunCoreAsync(
+            client, options, approvalMode, seed, measureOptions, budget is null ? _windows : ModelWindowSource.Fixed(budget));
+
+    private Task<(Conversation Conversation, RunStartResult Started, RunStream Stream, RunProcessor Processor)> StartRunWithWindowAsync(
+        IChatCompletionClient client,
+        ModelWindowSource windows) => StartRunCoreAsync(client, null, null, null, null, windows);
+
+    private async Task<(Conversation Conversation, RunStartResult Started, RunStream Stream, RunProcessor Processor)> StartRunCoreAsync(
+        IChatCompletionClient client,
+        AssistantOptions? options,
+        ApprovalMode? approvalMode,
+        Func<IConversationStore, Conversation, string, Task>? seed,
+        Func<IConversationStore, Conversation, string, Task<AssistantOptions>>? measureOptions,
+        ModelWindowSource windows) {
         ServiceProvider services = _services!;
         await using AsyncServiceScope scope = services.CreateAsyncScope();
         IConversationStore store = scope.ServiceProvider.GetRequiredService<IConversationStore>();
@@ -659,7 +773,9 @@ public sealed class RunProcessorTests {
         RunRegistry registry = new(options, TimeProvider.System);
         Assert.That(registry.TryStart(started.RunId!, conversation.Id, out RunStream? stream), Is.True);
         PagePathPolicy paths = new(new ReservedPaths(ReservedPaths.Default), options);
-        PageToolExecutor tools = new(services.GetRequiredService<IServiceScopeFactory>(), paths, options, new AssistantMetrics(), new FakeAssistantFetcher());
+        PageToolExecutor tools = new(
+            services.GetRequiredService<IServiceScopeFactory>(), paths, options, windows,
+            new AssistantMetrics(), new FakeAssistantFetcher());
         RunProcessor processor = new(
             services.GetRequiredService<IServiceScopeFactory>(),
             client,
@@ -669,6 +785,11 @@ public sealed class RunProcessorTests {
             _continuation,
             new AssistantMetrics(),
             options,
+            new ModelWindowSampler(
+                services.GetRequiredService<IServiceScopeFactory>(),
+                windows,
+                options,
+                _logs.CreateLogger<ModelWindowSampler>()),
             services.GetRequiredService<IUserStore>(),
             new ViewTokenStore(options),
             _logs.CreateLogger<RunProcessor>());

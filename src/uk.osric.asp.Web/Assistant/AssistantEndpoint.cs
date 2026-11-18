@@ -5,6 +5,7 @@ namespace uk.osric.asp.Web.Assistant;
 
 using Microsoft.AspNetCore.Antiforgery;
 using Microsoft.Extensions.Options;
+using System.Globalization;
 using System.Net;
 using System.Net.ServerSentEvents;
 using System.Runtime.CompilerServices;
@@ -96,9 +97,14 @@ internal static class AssistantEndpoint {
         IAntiforgery antiforgery,
         RunRegistry registry,
         AssistantOptions options,
+        ModelWindowSource windows,
         IAccountBalanceClient balanceClient) {
         ArgumentNullException.ThrowIfNull(context);
 
+        ContextBudget? budget = windows.Budget;
+        string messageLimit = budget is null ? string.Empty
+            : $" maxlength=\"{budget.MessageChars.ToString(CultureInfo.InvariantCulture)}\"";
+        string messageScale = budget is null ? string.Empty : $" / {BudgetAmount.Format(budget.MessageChars)}";
         string? owner = Owner(context);
         Conversation? conversation = owner is null ? null : await conversations.GetAsync(id, owner, context.RequestAborted);
         if (conversation is null) {
@@ -139,15 +145,15 @@ internal static class AssistantEndpoint {
         await context.Response.WriteAsync($"""
             <div class="assistant-chat" id="assistant-chat" data-conversation-id="{id}" data-active-run="{Encode(activeRun?.Id ?? "")}" data-replay-from="{replayFrom}">
                 <fieldset class="assistant-compose">
-                    <legend><label for="assistant-message">Prompt</label></legend>
+                    <legend><label for="assistant-message">Message</label></legend>
                     <form id="assistant-message-form" method="post" action="/assistant/{id}/messages">
                         {AntiforgeryField.Hidden(tokens)}
-                        <textarea id="assistant-message" name="content" rows="5" maxlength="{options.MaxMessageChars}" required></textarea>
+                        <textarea id="assistant-message" name="content" rows="5"{messageLimit} required></textarea>
                         <div class="assistant-compose-actions">
                             <button type="submit" id="assistant-send">Send</button>
                             <!-- Stopping is its own action, and formnovalidate lets an empty box still stop the run. -->
                             <button type="submit" id="assistant-stop" formaction="/assistant/{id}/stop" formnovalidate{(activeRun is null ? " hidden" : "")}>Stop</button>
-                            <p class="assistant-char-count" aria-hidden="true"><span id="assistant-char-count">0</span> / {options.MaxMessageChars}</p>
+                            <p class="assistant-char-count" aria-hidden="true"><span id="assistant-char-count">0</span>{messageScale}</p>
                         </div>
                     </form>
                 </fieldset>
@@ -177,29 +183,37 @@ internal static class AssistantEndpoint {
                     </section>
                 </fieldset>
             """);
-        // The page builds the plan the next step would send, from the same stored transcript and the
-        // same options the run uses, so the figure a reader reloads is the one the run just published.
+        // The page builds the plan the next step would send from the same stored transcript and the
+        // same options the run uses, so the figure a reader reloads is the one the run published.
         List<ChatMessage> stored = [new ChatMessage("system", PageAuthorPrompt.Build()), .. messages.Select(message => message.ToChatMessage())];
-        ChatRequest request = new(
-            lastRun?.Model ?? options.Model,
-            stored,
-            PageToolExecutor.Definitions,
-            options.Temperature,
-            options.MaxOutputTokens,
-            options.ReasoningField,
-            options.IncludeUsage);
-        TokenEstimator estimator = TokenEstimator.For(
-            lastRun?.RequestBytes is { } calibratedBytes && lastRun?.LastPromptTokens is { } calibratedPrompt
-                ? new TokenCalibration(calibratedBytes, calibratedPrompt)
-                : null);
-        ContextPlan plan = ContextPlanner.Build(request, options.MaxContextTokens, estimator);
-        BudgetSnapshot budgets = BudgetSnapshot.Measure(
-            plan,
-            stored,
-            lastRun?.StepCount ?? 0,
-            lastRun?.ToolCallCount ?? 0,
-            lastRun?.OutputTokens);
-        await WriteBudgetsAsync(context, budgets, options, lastRun);
+        long estimateError = lastRun?.EstimatedTokens is { } storedEstimate && lastRun.LastPromptTokens is { } storedPrompt
+            ? storedEstimate - storedPrompt
+            : 0;
+        BudgetSnapshot budgets = BudgetSnapshot.Empty;
+        if (budget is not null) {
+            ChatRequest request = new(
+                lastRun?.Model ?? options.Model,
+                stored,
+                PageToolExecutor.Definitions,
+                options.Temperature,
+                budget.MinimumOutputTokens,
+                options.ReasoningField);
+            TokenEstimator estimator = TokenEstimator.For(
+                lastRun?.RequestBytes is { } calibratedBytes && lastRun?.LastPromptTokens is { } calibratedPrompt
+                    ? new TokenCalibration(calibratedBytes, calibratedPrompt)
+                    : null);
+            ContextPlan plan = ContextPlanner.Build(request, budget, estimator);
+            budgets = BudgetSnapshot.Measure(
+                plan,
+                stored,
+                lastRun?.StepCount ?? 0,
+                lastRun?.ToolCallCount ?? 0,
+                lastRun?.OutputTokens,
+                lastRun?.MaxTokens,
+                budget,
+                estimateError);
+        }
+        await WriteBudgetsAsync(context, budgets, options, budget, lastRun);
         await WriteUsageAsync(context, lastRun?.ToUsage() ?? RunUsage.Empty);
         await WriteAccountBalanceAsync(context, balance);
         await context.Response.WriteAsync($"""
@@ -239,7 +253,8 @@ internal static class AssistantEndpoint {
         IConversationStore conversations,
         RunQueue queue,
         RunRegistry registry,
-        AssistantOptions options) {
+        AssistantOptions options,
+        ModelWindowSource windows) {
         ArgumentNullException.ThrowIfNull(context);
 
         string? owner = await ValidatedOwnerAsync(context, id, conversations, "The message could not be sent");
@@ -247,14 +262,24 @@ internal static class AssistantEndpoint {
             return;
         }
 
+        // The owner's message is bounded by its share of the model's window rather than by a count of
+        // its own: an owner pasting a specification is not an attack, and the newest turn is the one
+        // thing trimming cannot touch.
+        if (windows.Budget is not { } budget) {
+            await WriteJsonErrorAsync(context, StatusCodes.Status409Conflict,
+                "assistant.model_window_unknown", "The model's window is not reported",
+                "The provider has not reported this model's context window, so the assistant cannot run yet.");
+            return;
+        }
+
         if (!context.Request.HasFormContentType
             || !context.Request.Form.TryGetValue("content", out Microsoft.Extensions.Primitives.StringValues contentValues)
             || contentValues.Count != 1
             || string.IsNullOrWhiteSpace(contentValues[0])
-            || contentValues[0]!.Length > options.MaxMessageChars) {
+            || contentValues[0]!.Length > budget.MessageChars) {
             await WriteJsonErrorAsync(context, StatusCodes.Status400BadRequest,
                 "assistant.message_invalid", "The message is empty or too long",
-                $"A message needs one value no longer than {options.MaxMessageChars} characters.");
+                $"A message needs one value no longer than {budget.MessageChars.ToString(CultureInfo.InvariantCulture)} characters.");
             return;
         }
         if (await conversations.GetActiveRunAsync(id, owner, context.RequestAborted) is not null) {
@@ -764,27 +789,33 @@ internal static class AssistantEndpoint {
 
     // Every budget a reader can run into is shown with what has been spent on it, so a run that
     // stops on one names it before it stops. The figures come from the same snapshot the run
-    // publishes, so a live one and a reloaded one cannot disagree.
+    // publishes (`assistant-budgets-are-one-snapshot`), so a live one and a reloaded one cannot disagree.
     private static async Task WriteBudgetsAsync(
         HttpContext context,
         BudgetSnapshot snapshot,
         AssistantOptions options,
+        ContextBudget? budget,
         Run? run) {
         await context.Response.WriteAsync("""
             <fieldset class="assistant-budgets">
                 <legend>Budgets</legend>
                 <dl class="assistant-budget-list">
             """);
-        await WriteBudgetAsync(context, "message", "Message", 0, options.MaxMessageChars, "chars");
-        await WriteBudgetAsync(context, "context", "Request", snapshot.ContextTokens, options.MaxContextTokens, "tokens");
+        await WriteBudgetAsync(context, "message", "Message", 0, budget?.MessageChars, "chars");
+        await WriteBudgetAsync(context, "context", "Context", snapshot.ContextTokens, budget?.PromptBudget, "tokens");
+        // The reply's allowance is a figure, not a share: it is whatever the prompt left of the window.
+        await WriteBudgetAsync(context, "reply", "Reply", snapshot.MaxTokens, null, "tokens");
+        await WriteBudgetAsync(context, "window", "Window", snapshot.WindowUsed, budget?.ContextWindow, "tokens");
+        await WriteEstimateAsync(context, snapshot, budget?.EstimateMargin);
         await WriteBudgetAsync(context, "steps", "Steps", snapshot.Steps, run?.StepLimit ?? options.MaxSteps, "steps");
         await WriteBudgetAsync(context, "tool-calls", "Tool calls", snapshot.ToolCalls, run?.ToolCallLimit ?? options.MaxToolCalls, "calls");
         await WriteBudgetAsync(context, "tool-arguments", "Tool arguments", snapshot.LongestArguments, options.MaxToolArgumentChars, "chars");
-        await WriteBudgetAsync(context, "tool-result", "Tool result", snapshot.LongestResult, options.MaxToolResultChars, "chars");
-        await WriteBudgetAsync(context, "output", "Output", snapshot.OutputTokens, options.MaxOutputTokens, "tokens");
+        await WriteBudgetAsync(context, "tool-result", "Tool result", snapshot.LongestResult, budget?.ToolResultChars, "chars");
+        await WriteBudgetAsync(context, "output", "Completion", snapshot.LastCompletionTokens,
+            snapshot.LastMaxTokens == 0 ? null : snapshot.LastMaxTokens, "tokens");
         await context.Response.WriteAsync("""
                 </dl>
-                <p class="assistant-budget-note">Request is the provider request as sent: the system prompt, the tool definitions and the messages after masking and trimming, estimated in tokens from the exact body and the last provider report. The transcript above is complete. Steps, tool calls and output count the current or most recent run.</p>
+                <p class="assistant-budget-note">Context is the next request's estimate: the provider's count of the last request plus the messages added since, in tokens. Reply is the max_tokens that request leaves, and Window is the two together against the model's reported window. Estimate is the last step's error, signed, against the margin the estimate allows; Completion counts the last step and the allowance it was given. The transcript above is complete.</p>
             </fieldset>
             """);
     }
@@ -797,7 +828,7 @@ internal static class AssistantEndpoint {
             <fieldset class="assistant-usage">
                 <legend>Tokens this run</legend>
                 <dl class="assistant-usage-list">
-                    <div data-usage="prompt"><dt>Prompt</dt><dd><span id="assistant-usage-prompt">{BudgetAmount.Format(usage.PromptTokens)}</span></dd></div>
+                    <div data-usage="prompt"><dt>Prompt tokens</dt><dd><span id="assistant-usage-prompt">{BudgetAmount.Format(usage.PromptTokens)}</span></dd></div>
                     <div data-usage="cached"><dt>Cached</dt><dd><span id="assistant-usage-cached">{BudgetAmount.Format(usage.CachedTokens)}</span> <span id="assistant-usage-cached-share">({share}%)</span></dd></div>
                     <div data-usage="completion"><dt>Completion</dt><dd><span id="assistant-usage-completion">{BudgetAmount.Format(usage.CompletionTokens)}</span></dd></div>
                     <div data-usage="reasoning"><dt>Reasoning</dt><dd><span id="assistant-usage-reasoning">{BudgetAmount.Format(usage.ReasoningTokens)}</span></dd></div>
@@ -856,24 +887,65 @@ internal static class AssistantEndpoint {
         string row,
         string label,
         long used,
-        long available,
+        long? available,
         string unit) {
-        // A meter past its own maximum is invalid markup, so only the number is allowed to exceed it.
-        long shown = Math.Clamp(used, 0, available);
-        string exceeded = used > available ? " assistant-budget-exceeded" : "";
-        string usedText = BudgetAmount.Format(used);
-        string limit = BudgetAmount.Format(available);
-
         // The row's name is what the page's script looks it up by, and both ids follow from it, so a
         // live figure and a reloaded one address the same elements. The meter is the picture of a
         // number that is already spelled out over it, so it is hidden from assistive technology
         // rather than announced twice with no name.
+        if (available is not { } limit) {
+            // A figure with no denominator is a figure, not a share: the provider has not reported a
+            // window, so the row says what is known and draws no meter rather than inventing a limit.
+            await context.Response.WriteAsync($"""
+                <div class="assistant-budget" data-budget="{Encode(row)}">
+                    <dt>{Encode(label)}</dt>
+                    <dd class="assistant-budget-gauge">
+                        <span class="assistant-budget-count"><span id="assistant-budget-{Encode(row)}">{BudgetAmount.Format(used)}</span> {Encode(unit)}</span>
+                    </dd>
+                </div>
+                """);
+            return;
+        }
+
+        // A meter past its own maximum is invalid markup, so only the number is allowed to exceed it.
+        long shown = Math.Clamp(used, 0, limit);
+        string exceeded = used > limit ? " assistant-budget-exceeded" : "";
         await context.Response.WriteAsync($"""
             <div class="assistant-budget{exceeded}" data-budget="{Encode(row)}">
                 <dt>{Encode(label)}</dt>
                 <dd class="assistant-budget-gauge">
-                    <meter id="assistant-budget-{Encode(row)}-meter" aria-hidden="true" min="0" max="{available}" value="{shown}" low="{available * 3 / 5}" high="{available * 17 / 20}" optimum="0"></meter>
-                    <span class="assistant-budget-count"><span id="assistant-budget-{Encode(row)}">{usedText}</span> / <span class="assistant-budget-limit" id="assistant-budget-{Encode(row)}-limit">{limit}</span> {Encode(unit)}</span>
+                    <meter id="assistant-budget-{Encode(row)}-meter" aria-hidden="true" min="0" max="{limit}" value="{shown}" low="{limit * 3 / 5}" high="{limit * 17 / 20}" optimum="0"></meter>
+                    <span class="assistant-budget-count"><span id="assistant-budget-{Encode(row)}">{BudgetAmount.Format(used)}</span> / <span class="assistant-budget-limit" id="assistant-budget-{Encode(row)}-limit">{BudgetAmount.Format(limit)}</span> {Encode(unit)}</span>
+                </dd>
+            </div>
+            """);
+    }
+
+    // The estimate row is the one signed figure: its magnitude against the margin the estimate allows,
+    // with the direction beside it, because `under` is the direction that can breach the budget.
+    private static async Task WriteEstimateAsync(HttpContext context, BudgetSnapshot snapshot, long? allowance) {
+        long magnitude = snapshot.EstimateErrorMagnitude;
+        string direction = snapshot.EstimateDirection;
+        if (allowance is not { } margin) {
+            await context.Response.WriteAsync($"""
+                <div class="assistant-budget" data-budget="estimate">
+                    <dt>Estimate</dt>
+                    <dd class="assistant-budget-gauge">
+                        <span class="assistant-budget-count"><span id="assistant-budget-estimate">{BudgetAmount.Format(magnitude)}</span> <span id="assistant-budget-estimate-direction">{direction}</span></span>
+                    </dd>
+                </div>
+                """);
+            return;
+        }
+
+        long shown = Math.Clamp(magnitude, 0, margin);
+        string exceeded = magnitude > margin ? " assistant-budget-exceeded" : "";
+        await context.Response.WriteAsync($"""
+            <div class="assistant-budget{exceeded}" data-budget="estimate">
+                <dt>Estimate</dt>
+                <dd class="assistant-budget-gauge">
+                    <meter id="assistant-budget-estimate-meter" aria-hidden="true" min="0" max="{margin}" value="{shown}" low="{margin * 3 / 5}" high="{margin * 17 / 20}" optimum="0"></meter>
+                    <span class="assistant-budget-count"><span id="assistant-budget-estimate">{BudgetAmount.Format(magnitude)}</span> / <span class="assistant-budget-limit" id="assistant-budget-estimate-limit">{BudgetAmount.Format(margin)}</span> <span id="assistant-budget-estimate-direction">{direction}</span> tokens</span>
                 </dd>
             </div>
             """);

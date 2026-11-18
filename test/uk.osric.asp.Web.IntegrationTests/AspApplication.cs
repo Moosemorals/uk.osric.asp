@@ -32,7 +32,8 @@ using uk.osric.asp.Web.Users;
 /// <param name="accountBalanceClient">Stands in for the provider's balance endpoint.</param>
 /// <param name="pageFetcher">Stands in for the page fetcher, so no fixture needs a socket.</param>
 /// <param name="archiveUploadBytes">Overrides the import upload cap, for the too-large fixture.</param>
-/// <param name="maxContextTokens">Overrides the assistant's estimated token budget, so a fixture can make a conversation too big to send.</param>
+/// <param name="modelWindow">Overrides the window the model list reports, so a fixture can make a conversation too big to send.</param>
+/// <param name="maxOutputTokens">Overrides the output limit the model list reports.</param>
 /// <param name="pageLayout">
 /// The layout pages are wrapped in. Off by default so a fixture about one page does not also have to
 /// write the layout; <c>SiteChromeTests</c> switches the shipped default on.
@@ -54,7 +55,7 @@ internal sealed class AspApplication(
     int? assistantMaxSteps = null,
     IPageFetcher? pageFetcher = null,
     int? archiveUploadBytes = null,
-    int? maxContextTokens = null,
+    long? modelWindow = null,
     int? maxOutputTokens = null,
     string? pageLayout = null,
     string? changelist = null,
@@ -107,12 +108,6 @@ internal sealed class AspApplication(
         if (archiveUploadBytes is { } uploadBytes) {
             builder.UseSetting("Pages:Archive:MaxUploadBytes", uploadBytes.ToString(CultureInfo.InvariantCulture));
         }
-        if (maxContextTokens is { } contextTokens) {
-            builder.UseSetting("Assistant:MaxContextTokens", contextTokens.ToString(CultureInfo.InvariantCulture));
-        }
-        if (maxOutputTokens is { } outputTokens) {
-            builder.UseSetting("Assistant:MaxOutputTokens", outputTokens.ToString(CultureInfo.InvariantCulture));
-        }
         if (changelist is not null) {
             builder.UseSetting("Admin:Changelist", changelist);
         }
@@ -144,6 +139,13 @@ internal sealed class AspApplication(
             // The page asks the provider for the account balance; no fixture may reach a socket for
             // it, so the last registration wins over the typed HTTP client the host added.
             services.AddSingleton<IAccountBalanceClient>(accountBalanceClient ?? new StubAccountBalanceClient());
+
+            // The model's window comes from the provider's model list, so no fixture may reach a
+            // socket for it: the last registration wins over the typed HTTP client the host added.
+            services.AddSingleton<IProviderModelsClient>(new StubModelsClient {
+                ContextWindow = modelWindow ?? StubModelsClient.DefaultWindow,
+                MaximumOutputTokens = maxOutputTokens ?? StubModelsClient.DefaultOutput,
+            });
 
             if (pageFetcher is not null) {
                 services.AddSingleton(pageFetcher);

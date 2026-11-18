@@ -1930,33 +1930,38 @@ read aloud.
 
 ### assistant-the-request-budget-is-tokens
 
-The assistant's request budget is estimated tokens, not bytes. `TokenEstimator` converts the serialized
-request's byte count with the bytes-per-token ratio the provider's last `prompt_tokens` report
-calibrated, a ten-percent margin, and a 1.6-bytes-per-token default before the first report; the ratio is
-clamped between 1.0 and 6.0, and `Assistant:ModelContextTokens` is checked against the request and output
-budgets together. The provider's own limit remains the backstop. The provider bills and limits in tokens,
-so the exact byte count is the estimator's input and not the budget.
+The assistant's request budget is estimated tokens, not bytes. The provider bills and limits in tokens,
+so the exact byte count is the estimator's input and not the budget. `TokenEstimator` starts from the
+`prompt_tokens` the provider reported for the request the previous step sent — an exact count — and adds
+only the bytes appended since, divided by the bytes-per-token ratio that report implies, with a
+three-percent margin on that delta and a 1.6-bytes-per-token default before the first report; the ratio
+is clamped between 1.0 and 6.0. Masking a payload and dropping a turn are known byte amounts, so they
+move the anchor by their own size and nothing else. The prompt's share of the budget is the model's
+reported window less the configured reply floor, and `max_tokens` is what that estimate leaves
+([assistant-the-budget-is-window-minus-reply](#assistant-the-budget-is-window-minus-reply)).
 
-*Recorded in [TokenEstimator](../src/uk.osric.asp.Core/Assistant/TokenEstimator.cs), [assistant context masking](plans/archive/assistant-context-masking.md).*
+*Recorded in [TokenEstimator](../src/uk.osric.asp.Core/Assistant/TokenEstimator.cs), [ContextBudget](../src/uk.osric.asp.Core/Assistant/ContextBudget.cs), [prompt-token-budget](plans/prompt-token-budget.md).*
 
 ### assistant-old-tool-results-are-masked
 
-Before any whole turn is dropped, `ObservationMasker` replaces old tool results with
+Before any whole turn is dropped, `ToolResultMasker` replaces old tool results with
 `[tool result elided: N chars]` and long string values in old tool-call arguments with
-`[elided N chars]`. The newest eight tool results, the last two tool-call messages, every user and
-assistant word, every tool-call id and name and the tool definitions are kept. The mask is derived per
-request and never stored, so the transcript stays complete, the changed-pages card still reads real
-results, and there is no migration. Tool-call arguments are masked as well as results because a page
-write carries the whole page source, the largest thing in a page-authoring history.
+`[elided N chars]`. Every user and assistant word, every tool-call id and name and the tool definitions
+are kept; nothing else is exempt. The mask is derived per request and never stored, so the transcript
+stays complete, the changed-pages card still reads real results, and there is no migration. Tool-call
+arguments are masked as well as results because a page write carries the whole page source, the largest
+thing in a page-authoring history.
 
 Masking is attempted one old message at a time, oldest first, and only when the request is already over
 budget; a result or an assistant message's long arguments are masked as one payload. Whole user turns are
 dropped only after masking is exhausted, never split from their tool calls and results, and the newest
-turn is never dropped. A request that still does not fit fails with `context_too_long` naming the bytes
+turn is never dropped. A request that still does not fit fails with `context_too_long` naming the estimate
 rather than being sent. A request already under budget is returned untouched, so the common step keeps
-its prefix byte-identical for the provider's prompt cache.
+its prefix byte-identical for the provider's prompt cache. There is no protected window: a count of
+exempt results can be larger than the whole budget, and the oldest-first order already says what matters
+([assistant-one-budget-decides-what-fits](#assistant-one-budget-decides-what-fits)).
 
-*Recorded in [ObservationMasker](../src/uk.osric.asp.Core/Assistant/ObservationMasker.cs), [ContextPlanner](../src/uk.osric.asp.Core/Assistant/ContextPlanner.cs).*
+*Recorded in [ToolResultMasker](../src/uk.osric.asp.Core/Assistant/ToolResultMasker.cs), [ContextPlanner](../src/uk.osric.asp.Core/Assistant/ContextPlanner.cs).*
 
 ### assistant-usage-is-accumulated
 
@@ -2244,6 +2249,67 @@ fallback: it decides how much history a day has and how much of the provider's t
 range (30 to 3600 seconds, 60 shipped) is a safety net rather than a ration.
 
 *Recorded in [assistant](assistant.md), [AssistantOptions](../src/uk.osric.asp.Web/Assistant/AssistantOptions.cs), [appsettings.json](../src/uk.osric.asp.Web/appsettings.json).*
+
+### assistant-tokens-anchor-on-the-last-report
+
+Every step's estimate starts from the provider's `prompt_tokens` for the previous request and adds only
+what has been appended since. The margin covers the delta, not the conversation, so it is three percent
+rather than ten, and every step records how far the estimate was from the count the provider returned,
+both as a log line and as `assistant.context.estimate.error` labelled `over` or `under`. The exact
+tokenizer the spike measured was rejected: it costs 1 MB of DeepSeek-acquired vocabulary, a chat-template
+renderer and a fixture regenerated on every vocabulary bump, and still cannot see how the API injects
+`tools`. The anchor has the same blind spot and needs none of the rest.
+
+*Recorded in [TokenEstimator](../src/uk.osric.asp.Core/Assistant/TokenEstimator.cs), [RunProcessor](../src/uk.osric.asp.Web/Assistant/RunProcessor.cs), [spike](spikes/deepseek-token-counting.md).*
+
+### assistant-one-budget-decides-what-fits
+
+There is one content budget, derived from the model's window, and every other content cap is a fraction
+of it or gone: one tool result and one owner's message are an eighth of the prompt's share, a run's
+memory block a thirty-second. The fractions are invariants in `ContextBudget` rather than configuration,
+because a value that could raise one to the whole budget would switch the guard off. The one exception
+is a tool call's arguments, which must carry a page and so is `MaxPageChars` plus room for the envelope.
+A cap that cannot be derived this way must either come from the model or have a note and a way to ask
+again; a free-standing character count never decides what the model may read. `MaxContextTokens`,
+`ModelContextTokens`, `MaxOutputTokens`, `MaxToolResultChars`, `MaxMessageChars`,
+`MaxMemoryCharsPerRun` and `MaxMemoriesPerRun` are gone.
+
+*Recorded in [ContextBudget](../src/uk.osric.asp.Core/Assistant/ContextBudget.cs), [AssistantOptions](../src/uk.osric.asp.Web/Assistant/AssistantOptions.cs), [assistant](assistant.md).*
+
+### assistant-tool-results-are-cut-not-refused
+
+At a cap, a tool result is truncated, marked `truncated: true` and named in the note, and the head is
+kept. It is never replaced by a refusal, because a refusal loses the information and the fact that there
+was information, and the model usually calls the tool again. Refusals stay for what they are for: an
+invalid argument, a stale revision hash, a path outside the writable prefix, a missing page.
+
+*Recorded in [ToolResults](../src/uk.osric.asp.Web/Assistant/Tools/ToolResults.cs), [assistant](assistant.md), [metrics](metrics.md).*
+
+### assistant-the-budget-is-window-minus-reply
+
+The model's limits come from the provider's model list, not from configuration: `GET /models` publishes
+each model's `context_window` and `max_output_tokens`, and `ModelWindowSampler` reads it once at startup
+and again when a request is rejected for length. The prompt's share is the window less
+`Assistant:MinOutputTokens`, the reply's floor; `max_tokens` is what the estimate leaves of the window,
+capped at the published maximum and floored at that minimum, so prompt and reply always add up to the
+window. A provider that does not answer leaves the assistant without a budget and a run refuses with
+`model_window_unknown`; a provider that answers without the configured model stops the deploy, because
+that answer is authoritative. Neither `Assistant:MaxContextTokens` nor `Assistant:ModelContextTokens`
+exists any more.
+
+*Recorded in [ContextBudget](../src/uk.osric.asp.Core/Assistant/ContextBudget.cs), [ProviderModelsClient](../src/uk.osric.asp.Web/Assistant/ProviderModelsClient.cs), [ModelWindowSampler](../src/uk.osric.asp.Web/Assistant/ModelWindowSampler.cs).*
+
+### assistant-the-vocabulary-is-the-providers
+
+Where the provider has a word, use it; where it does not, one concept has one word. A tool's returned
+content is a **tool result** everywhere — `ToolResultMasker`, the budget row and the decision that records
+masking — and never an observation, a tool output or an answer. The owner's message is a **message**, not
+a prompt; *prompt* names only the system prompt unless it is the provider's `prompt_tokens`. The reply's
+quantity is a **completion**, and `RunUsage` says `LastCompletionTokens` for the last step and
+`CompletionTokens` for the run. `max_tokens` is the request's own field name, and the only configured
+figure left is `Assistant:MinOutputTokens`.
+
+*Recorded in [assistant](assistant.md), [glossary](glossary.md), [RunUsage](../src/uk.osric.asp.Core/Assistant/RunUsage.cs).*
 
 ## Deploy
 
