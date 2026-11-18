@@ -34,6 +34,7 @@ and shares one file, [WHIMS.md](WHIMS.md); a resolved job moves to [closed.md](c
 | [IDEA-044](IDEA-044.md) | L | — | — | A page cannot render a page in a browser |
 | [IDEA-047](IDEA-047.md) | L | — | [ide-host](../plans/ide-host.md) | A render may write a batch of pages, and the caller names the policy |
 | [IDEA-050](IDEA-050.md) | S | — | [page-response](../plans/page-response.md) | The old response spelling is still on `IContext` |
+| [IDEA-052](IDEA-052.md) | L | — | [assistant-ask-owner](../plans/assistant-ask-owner.md) | The assistant cannot ask the owner a question |
 
 ## The order
 
@@ -50,20 +51,21 @@ moves as it is worked — and each is one unit of work, on one branch in one wor
 | 4 | [IDEA-041](IDEA-041.md) | S | Diagnostics point at half the right place today; one value widened fixes it for the author and the assistant together. |
 | 5 | [IDEA-040](IDEA-040.md) | S | Says what a library edit recompiles; small, and it makes a cost the reader cannot see visible. |
 | 6 | [OPS-03](OPS-03.md) | M | Turns the gate from a habit into a rule, which makes every step below it cheaper. |
-| 7 | [IDEA-042](IDEA-042.md) | M | A rename is two histories and silent breakage today; medium work for a common act. |
-| 8 | [IDEA-037](IDEA-037.md) | M | Stops "check my work" storing a revision, so no history carries a test save. |
-| 9 | [IDEA-038](IDEA-038.md) | M | Lifts the assistant's own search into the contract rather than inventing anything. |
-| 10 | [OPS-05](OPS-05.md) | M | Useful, but one owner and a unit that restarts already notice most outages. |
-| 11 | [IDEA-020](IDEA-020.md) | M | A destructive reset has to be designed carefully; the additive import is the safe default until it is. |
-| 12 | [IDEA-033](IDEA-033.md) | L | The most useful large job, with a plan and a first customer, and a plan's yes is the only thing it waits on. |
-| 13 | [IDEA-001](IDEA-001.md) | L | High use and high cost; the gutter, the diagnostics and the row state already cover the worst of it. |
-| 14 | [IDEA-025](IDEA-025.md) | L | The assistant's conversation as a page needs the account store beneath it, and that is IDEA-033. |
-| 15 | [IDEA-024](IDEA-024.md) | L | The two admin routes already work; making them pages buys consistency, not capability. |
-| 16 | [SEC-03](SEC-03.md) | L | Medium severity and a redesign of how a page runs; the trimmed API policy and the sign-in guard already carry much of it. |
-| 17 | [IDEA-047](IDEA-047.md) | L | Only matters once something writes several pages at once, so it follows IDEA-042 and IDEA-038. |
-| 18 | [IDEA-044](IDEA-044.md) | L | A spike, a sidecar and a capability for a question the server's own answer often settles. |
-| 19 | [IDEA-029](IDEA-029.md) | L | Developer-only, and `make check-pages` already compiles the seeds. |
-| 20 | [IDEA-050](IDEA-050.md) | S | Waits for a release: the alias has to have been out long enough that nothing in the store reports `PAGE009` before it is deleted. |
+| 7 | [IDEA-052](IDEA-052.md) | L | Every assistant run that meets an unknown guesses today; the wait is the approval's, so the new part is the card. |
+| 8 | [IDEA-042](IDEA-042.md) | M | A rename is two histories and silent breakage today; medium work for a common act. |
+| 9 | [IDEA-037](IDEA-037.md) | M | Stops "check my work" storing a revision, so no history carries a test save. |
+| 10 | [IDEA-038](IDEA-038.md) | M | Lifts the assistant's own search into the contract rather than inventing anything. |
+| 11 | [OPS-05](OPS-05.md) | M | Useful, but one owner and a unit that restarts already notice most outages. |
+| 12 | [IDEA-020](IDEA-020.md) | M | A destructive reset has to be designed carefully; the additive import is the safe default until it is. |
+| 13 | [IDEA-033](IDEA-033.md) | L | The most useful large job, with a plan and a first customer, and a plan's yes is the only thing it waits on. |
+| 14 | [IDEA-001](IDEA-001.md) | L | High use and high cost; the gutter, the diagnostics and the row state already cover the worst of it. |
+| 15 | [IDEA-025](IDEA-025.md) | L | The assistant's conversation as a page needs the account store beneath it, and that is IDEA-033. |
+| 16 | [IDEA-024](IDEA-024.md) | L | The two admin routes already work; making them pages buys consistency, not capability. |
+| 17 | [SEC-03](SEC-03.md) | L | Medium severity and a redesign of how a page runs; the trimmed API policy and the sign-in guard already carry much of it. |
+| 18 | [IDEA-047](IDEA-047.md) | L | Only matters once something writes several pages at once, so it follows IDEA-042 and IDEA-038. |
+| 19 | [IDEA-044](IDEA-044.md) | L | A spike, a sidecar and a capability for a question the server's own answer often settles. |
+| 20 | [IDEA-029](IDEA-029.md) | L | Developer-only, and `make check-pages` already compiles the seeds. |
+| 21 | [IDEA-050](IDEA-050.md) | S | Waits for a release: the alias has to have been out long enough that nothing in the store reports `PAGE009` before it is deleted. |
 
 ### A step stops, and the owner answers
 
