@@ -162,6 +162,9 @@ smallest changes come first because they are what every later slice is written a
 7. **047 — the batch.** Last, and the largest: it changes the shape of every save, so it lands after the
    saves it batches are settled. Proves: All with a stale edit writes nothing; FirstRefusal writes the
    prefix; Continue writes the rest and reports each refusal; one save behaves exactly as it did.
+   *The owner re-prioritised it on 2026-11-18 to just after 037, ahead of this plan: it is the
+   assistant's daily friction and the gate in front of a job writer. If it lands first, this step
+   shrinks to wiring Save all to the batch, and T4 loses its last dependency.*
 
 ## Tests
 
