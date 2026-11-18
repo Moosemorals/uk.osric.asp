@@ -27,7 +27,7 @@ internal sealed class RunProcessor(
     ViewTokenStore views,
     ILogger<RunProcessor> logger) {
 
-    private static readonly JsonSerializerOptions s_jsonOptions = new(JsonSerializerDefaults.Web);
+    private static readonly JsonSerializerOptions s_jsonOptions = new(JsonSerialization.Options);
 
     public async Task RunAsync(QueuedRun queued, CancellationToken hostStopping) {
         // The run's ids are the worker's scope: it is open before the processor is resolved and

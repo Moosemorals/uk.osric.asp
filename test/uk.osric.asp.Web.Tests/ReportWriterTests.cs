@@ -53,10 +53,21 @@ public sealed class HealthReportWriterTests {
         Assert.That(body, Does.Contain("\"durationMs\""));
     }
 
-    private static HealthReport Report() {
+    [Test]
+    public async Task MarkupInADescriptionIsWrittenAsWritten() {
+        DefaultHttpContext context = new();
+        context.Response.Body = new MemoryStream();
+
+        await ReportWriter.WriteAsync(context, Report("<span title='x'>a & b</span>"));
+
+        string body = await TestHttp.ReadBodyAsync(context);
+        Assert.That(body, Does.Contain("<span title='x'>a & b</span>"));
+    }
+
+    private static HealthReport Report(string description = "storage unreachable") {
         HealthReportEntry entry = new(
             HealthStatus.Unhealthy,
-            "storage unreachable",
+            description,
             TimeSpan.FromMilliseconds(12),
             new InvalidOperationException(Secret),
             new Dictionary<string, object> { ["path"] = Secret });

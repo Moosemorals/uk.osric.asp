@@ -15,6 +15,7 @@ using OpenTelemetry.Metrics;
 using System.Net;
 using System.Text.Json;
 using uk.osric.asp.Core.Pages;
+using uk.osric.asp.Core.Text;
 using uk.osric.asp.Runtime;
 using uk.osric.asp.Web.Admin;
 using uk.osric.asp.Web.Assistant;
@@ -67,7 +68,10 @@ internal class Program {
             options.IncludeScopes = true;
             options.UseUtcTimestamp = true;
             options.TimestampFormat = "yyyy-MM-dd'T'HH:mm:ss.fff'Z'";
-            options.JsonWriterOptions = new JsonWriterOptions { Indented = false };
+            options.JsonWriterOptions = new JsonWriterOptions {
+                Indented = false,
+                Encoder = JsonSerialization.Encoder,
+            };
         });
 
         if (isSeedsCommand) {

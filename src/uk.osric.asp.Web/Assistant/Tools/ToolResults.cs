@@ -6,12 +6,13 @@ namespace uk.osric.asp.Web.Assistant.Tools;
 using System.Globalization;
 using System.Text.Json;
 using uk.osric.asp.Core.Assistant;
+using uk.osric.asp.Core.Text;
 
 /// <summary>Writes the tool result envelope, so no tool can bypass the one budget.</summary>
 /// <param name="budget">The content budget one tool result may spend.</param>
 internal sealed class ToolResults(ContextBudget budget) {
 
-    private static readonly JsonSerializerOptions s_jsonOptions = new(JsonSerializerDefaults.Web);
+    private static readonly JsonSerializerOptions s_jsonOptions = new(JsonSerialization.Options);
 
     // The cap is what a tool's answer may cost; the envelope around it — the flag, the note, the
     // summary and JSON escaping — is not an answer and is allowed this much more. A tool that cut its

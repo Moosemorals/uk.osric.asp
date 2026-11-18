@@ -25,7 +25,7 @@ using static uk.osric.asp.Web.Html.Markup;
 /// <summary>Serves the assistant page and the JSON endpoints its stream and approvals use.</summary>
 internal static class AssistantEndpoint {
 
-    private static readonly JsonSerializerOptions s_jsonOptions = new(JsonSerializerDefaults.Web);
+    private static readonly JsonSerializerOptions s_jsonOptions = new(JsonSerialization.Options);
 
     public static async Task ListAsync(
         HttpContext context,

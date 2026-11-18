@@ -65,6 +65,13 @@ public sealed class ChatRequestJsonTests {
     }
 
     [Test]
+    public void MarkupInAMessageCrossesTheWireAsWritten() {
+        ChatRequest request = Request([new("user", "<div class=\"page\">&</div>")], []);
+
+        Assert.That(ChatRequestJson.Serialize(request), Does.Contain("""<div class=\"page\">&</div>"""));
+    }
+
+    [Test]
     public void MeasuringCountsUtf8BytesNotCharacters() {
         ChatRequest request = Request([new("user", "🙂")], []);
 
@@ -73,7 +80,7 @@ public sealed class ChatRequestJsonTests {
         Assert.Multiple(() => {
             Assert.That(measured, Is.EqualTo(Encoding.UTF8.GetByteCount(ChatRequestJson.Serialize(request))));
             Assert.That(measured, Is.GreaterThan(Encoding.UTF8.GetByteCount("🙂")),
-                "the escaped body is larger than the message's own text");
+                "the body carries more than the message's own text");
         });
     }
 

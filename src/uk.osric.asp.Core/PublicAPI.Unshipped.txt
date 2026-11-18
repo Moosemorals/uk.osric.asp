@@ -826,3 +826,6 @@ uk.osric.asp.Core.Assistant.ContextBudget.ContextWindow.get -> long
 static uk.osric.asp.Core.Assistant.MemorySecrets.LooksLikeSecret(string! content) -> string?
 *REMOVED*static uk.osric.asp.Core.Charting.SvgText.SeriesColour(int index) -> string!
 *REMOVED*uk.osric.asp.Core.Charting.SvgText
+uk.osric.asp.Core.Text.JsonSerialization
+static uk.osric.asp.Core.Text.JsonSerialization.Encoder.get -> System.Text.Encodings.Web.JavaScriptEncoder!
+static uk.osric.asp.Core.Text.JsonSerialization.Options.get -> System.Text.Json.JsonSerializerOptions!

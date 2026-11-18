@@ -11,6 +11,7 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using uk.osric.asp.Core.Compilation;
 using uk.osric.asp.Core.Pages;
+using uk.osric.asp.Core.Text;
 using uk.osric.asp.Web.Storage;
 
 /// <summary>The SQLite-backed page store.</summary>
@@ -23,6 +24,7 @@ internal sealed class SqlitePageStore(
     private const int CheckpointAttempts = 3;
 
     private static readonly JsonSerializerOptions s_jsonOptions = new() {
+        Encoder = JsonSerialization.Encoder,
         Converters = { new JsonStringEnumConverter() },
     };
 

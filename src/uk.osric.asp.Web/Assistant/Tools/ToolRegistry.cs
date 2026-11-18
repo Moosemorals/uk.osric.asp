@@ -5,6 +5,7 @@ namespace uk.osric.asp.Web.Assistant.Tools;
 
 using System.Text.Json;
 using uk.osric.asp.Core.Assistant;
+using uk.osric.asp.Core.Text;
 
 /// <summary>The assistant's tools, in declaration order, by the name that calls them.</summary>
 /// <remarks>
@@ -15,7 +16,7 @@ using uk.osric.asp.Core.Assistant;
 /// </remarks>
 internal sealed class ToolRegistry {
 
-    private static readonly JsonSerializerOptions s_jsonOptions = new(JsonSerializerDefaults.Web);
+    private static readonly JsonSerializerOptions s_jsonOptions = new(JsonSerialization.Options);
 
     private readonly Dictionary<string, AssistantTool> _byName;
 

@@ -7,6 +7,7 @@ using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using uk.osric.asp.Core.Pages;
+using uk.osric.asp.Core.Text;
 using uk.osric.asp.Sdk;
 
 /// <summary>One page's <see cref="IPageSession"/>, bound to that page's key.</summary>
@@ -27,7 +28,7 @@ internal sealed class PageSessionScope(
 
     // One instance is enough: JsonSerializerOptions is thread-safe once it has been used, and every
     // page serialises the same way page storage does.
-    private static readonly JsonSerializerOptions s_json = new(JsonSerializerDefaults.Web) {
+    private static readonly JsonSerializerOptions s_json = new(JsonSerialization.Options) {
         Converters = { new JsonStringEnumConverter() },
     };
 

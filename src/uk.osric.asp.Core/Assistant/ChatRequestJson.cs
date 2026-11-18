@@ -5,6 +5,7 @@ namespace uk.osric.asp.Core.Assistant;
 
 using System.Text;
 using System.Text.Json;
+using uk.osric.asp.Core.Text;
 
 /// <summary>The one serializer for the provider's chat-completions body, and the one measure of it.</summary>
 /// <remarks>
@@ -15,6 +16,7 @@ using System.Text.Json;
 public static class ChatRequestJson {
 
     private static readonly JsonSerializerOptions s_jsonOptions = new() {
+        Encoder = JsonSerialization.Encoder,
         PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower,
     };
 
