@@ -11,7 +11,7 @@ SPDX-License-Identifier: MIT
 | Answered | 2026-11-18 |
 | Sources | Vendor documentation read on 2026-11-18: MCP specification (`2025-06-18`, `2025-11-25`, `2026-07-28`), Anthropic's Claude Agent SDK and tools reference, OpenAI's function-calling and Responses documentation, DeepSeek's tool-call guide and API reference, VS Code's `askQuestions` source, Cline's and Roo Code's tool schemas, LangGraph's interrupts, AutoGen's user proxy. No provider was called and no token was spent |
 | Verdict | There is no cross-vendor standard, but every large vendor independently converged on the same shape: **one tool, an array of 1–4 question objects, options of `{label, description}` that are optional, free text always allowed, and hard caps**. MCP's deliberately flat schema exists because it must run against unknown clients; Claude Code's nested schema exists because it owns the client. DeepSeek is a known provider and this site's `edit_page` already fills a nested array of objects, so the bounded nested shape is the one to copy. The two things the evidence says matter more than the schema are a description that says *when to use it and when not*, and a per-argument description — which this site's tool schema does not emit at all |
-| Recorded | Nothing yet. The plan that would adopt it is [the assistant's question](../plans/assistant-ask-owner.md), which proposes **assistant-a-question-is-a-tool-call** and **assistant-a-question-pauses-its-run** |
+| Recorded | Nothing yet. Two plans would adopt it: [the owner interrupt](../plans/assistant-owner-interrupt.md) proposes **assistant-a-run-waits-on-one-owner-interrupt** and [the assistant's question](../plans/assistant-ask-owner.md) proposes **assistant-a-question-is-a-tool-call** |
 
 ## The answer
 
