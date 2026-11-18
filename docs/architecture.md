@@ -68,7 +68,8 @@ its extent too — `PageDiagnostic.End` is one past the last character, and is `
 diagnostic names a point — so an editor can underline the token rather than a character of it. Both
 ends are mapped through the same `#line` directives, and an end Roslyn puts at or before the start is
 dropped: a span is only ever read forwards. `PageDiagnostic.Source` is the key of the library a
-diagnostic is in, or `null` for the page itself, so a consumer knows which file a position is in.
+diagnostic is in, or `null` for the page itself, so a consumer knows which file a position is in
+(`pages-a-diagnostic-names-its-source`).
 The generator wraps each code block in `#line` directives that name the template line and pads the
 first line to the template column.
 Expression code is mapped separately from its generated `ctx.Response.Write(...)` or `ctx.Response.WriteRaw(...)`

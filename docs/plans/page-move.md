@@ -11,7 +11,7 @@ SPDX-License-Identifier: MIT
 | Size | M — one member and one outcome on the write capability, one store transaction, the seeded editor's action, and the tests, manual and prompt for each. No migration: the owner's answer of 2026-11-16 leaves nothing at the old key, which removes the column the job expected |
 | Spike | None. Every claim about what exists was read off `trunk` on 2026-11-16: `IPageWrites`, `PageWritesScope`, `PageEditor`, `PageSaver`, `SqlitePageStore`, `PageHead`, `PageRevision`, `PageTemplate`, `PageSeedInstaller`, `ApplySeedsEndpoint`, `RestoreEndpoint`, `PageTree`, `RevisionHash`, `ToolRegistry` and the migrations |
 | Decisions | At the merge: **pages-a-key-moves-with-its-history** is new, and `pages-any-page-may-write-the-store` is edited in place to name the new member |
-| Backlog | [IDEA-042](../jobs/IDEA-042.md) is this step; [IDEA-040](../jobs/IDEA-040.md), [IDEA-038](../jobs/IDEA-038.md), [IDEA-039](../jobs/IDEA-039.md), [IDEA-041](../jobs/IDEA-041.md), [IDEA-037](../jobs/IDEA-037.md), [IDEA-043](../jobs/closed.md) and [IDEA-047](../jobs/IDEA-047.md) are its neighbours in [the IDE plan](ide-host.md) |
+| Backlog | [IDEA-042](../jobs/IDEA-042.md) is this step; [IDEA-040](../jobs/IDEA-040.md), [IDEA-038](../jobs/IDEA-038.md), [IDEA-039](../jobs/IDEA-039.md), [IDEA-041](../jobs/closed.md), [IDEA-037](../jobs/IDEA-037.md), [IDEA-043](../jobs/closed.md) and [IDEA-047](../jobs/IDEA-047.md) are its neighbours in [the IDE plan](ide-host.md) |
 
 ## The short version
 

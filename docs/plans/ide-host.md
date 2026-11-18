@@ -7,11 +7,11 @@ SPDX-License-Identifier: MIT
 
 | | |
 | --- | --- |
-| Status | Proposed 2026-11-15 — waits for the owner. Nothing below is built, and nothing below is the IDE |
+| Status | Proposed 2026-11-15 — waits for the owner. Slice 0 is built and merged; the other seven are unbuilt, and nothing below is the IDE |
 | Size | Large as a programme, small as a step: eight capabilities, each its own job and its own branch, ordered so that each ships on its own and can be backed out on its own |
 | Spike | None. Every claim about what exists was read off `trunk` on 2026-11-15: `IPageCatalog`, `IPageEditor`, `PageEditorScope`, `PageWriterScope`, `PageCompiler.MapDiagnostics`, `PageDiagnostics.ToSdk` and `PageJobRunner` |
-| Decisions | None recorded yet. They are named at the merge (`product-plan-before-building`); this branch states the names it intends. One entry is retired rather than revised — the one that made the editor's registration the authority — and `pages-a-page-may-save-itself` is revised twice, once by 043 and once by 047 |
-| Backlog | [IDEA-037](../jobs/IDEA-037.md), [IDEA-038](../jobs/IDEA-038.md), [IDEA-039](../jobs/IDEA-039.md), [IDEA-040](../jobs/IDEA-040.md), [IDEA-041](../jobs/IDEA-041.md), [IDEA-042](../jobs/IDEA-042.md), [IDEA-043](../jobs/closed.md), [IDEA-047](../jobs/IDEA-047.md) |
+| Decisions | `pages-a-diagnostic-names-its-source` (041), recorded at its merge. The rest are named at the merge (`product-plan-before-building`); this branch states the names it intends. One entry is retired rather than revised — the one that made the editor's registration the authority — and `pages-a-page-may-save-itself` is revised twice, once by 043 and once by 047 |
+| Backlog | [IDEA-037](../jobs/IDEA-037.md), [IDEA-038](../jobs/IDEA-038.md), [IDEA-039](../jobs/IDEA-039.md), [IDEA-040](../jobs/IDEA-040.md), [IDEA-041](../jobs/closed.md), [IDEA-042](../jobs/IDEA-042.md), [IDEA-043](../jobs/closed.md), [IDEA-047](../jobs/IDEA-047.md) |
 
 ## The short version
 
@@ -96,14 +96,15 @@ policy needs it, written in one transaction when the policy needs it. The words 
 they are the ones `/help` and the assistant's prompt will use.
 
 The names this plan intends, taken at the merge — bold rather than in backticks, because `make
-decisions` fails on a cited name the record does not have yet:
+decisions` fails on a cited name the record does not have yet. The one already taken is cited in
+backticks beside the slice that took it:
 
 - **pages-a-check-stores-nothing** (037)
 - **pages-a-search-returns-matches** (038)
 - **pages-a-listing-resumes-from-a-key** (039)
 - **pages-a-page-names-its-libraries** (040)
-- **pages-a-diagnostic-names-its-source** (041) — the span and the key are one rule: a diagnostic points
-  at the thing, in the file it is in
+- `pages-a-diagnostic-names-its-source` (041) — recorded: the span and the key are one rule, a
+  diagnostic points at the thing in the file it is in
 - **pages-a-key-moves-with-its-history** (042)
 - **pages-any-page-may-write-the-store** (043) — the authority is the signed-in visitor and the two
   write handles are one capability
@@ -133,9 +134,10 @@ Each is one job, one branch, one step through the gate, and one stop for the own
 (`product-steps-wait-for-the-owner`). The order is by cost and by dependency, not by IDE value: the
 smallest changes come first because they are what every later slice is written against.
 
-0. **041 — the diagnostic value.** Smallest, and a breaking change to a public record, so it lands
-   before three more consumers learn the point-shaped version. Proves: a token diagnostic has an
-   extent, a library's diagnostic names the library, an unknown position is still `null`.
+0. **041 — the diagnostic value.** Landed, and the record is `pages-a-diagnostic-names-its-source`.
+   Smallest, and a breaking change to a public record, so it landed before three more consumers learned
+   the point-shaped version. Proved: a token diagnostic has an extent, a library's diagnostic names the
+   library, an unknown position is still `null`.
 1. **039 — the cursor.** Small, independent, and the shape 038 and the tree both need. Proves: a
    cursor walks the store in slices with no key twice and none missed, and the row cap becomes a limit
    rather than a refusal.

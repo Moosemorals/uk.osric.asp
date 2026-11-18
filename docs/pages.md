@@ -428,7 +428,8 @@ stored. That is the only compile outside a save: there is no startup warm-up, so
 after a deploy pays one compile per page. A failure is stored too, so a broken page serves its
 diagnostics without recompiling, and the editor shows them after the save instead of losing the
 edit. `Diagnostics` is a JSON array of positioned, severity-tagged `PageDiagnostic` values, each with
-the run it covers and the key of the library it is in when the problem is not in the page itself; a
+the run it covers and the key of the library it is in when the problem is not in the page itself
+(`pages-a-diagnostic-names-its-source`); a
 warning-only page stores its image and reports "Saved with warnings." A compiler fault stores only
 the source, so the author's edit survives and the next request retries.
 
