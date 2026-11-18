@@ -9,10 +9,12 @@ using System.Net;
 using System.Security.Claims;
 using uk.osric.asp.Core.Assistant;
 using uk.osric.asp.Sdk;
+using uk.osric.asp.Web.Authentication;
 using uk.osric.asp.Web.Errors;
 using uk.osric.asp.Web.Html;
 using uk.osric.asp.Web.Http;
 using uk.osric.asp.Web.Pages;
+using static uk.osric.asp.Web.Html.Markup;
 
 /// <summary>The owner's page for the assistant's memory: list, edit, pin and forget.</summary>
 /// <remarks>
@@ -39,7 +41,7 @@ internal static class AssistantMemoryEndpoint {
         AssistantOptions options) {
         ArgumentNullException.ThrowIfNull(context);
 
-        string? owner = Owner(context);
+        string? owner = SignedInOwner.Of(context);
         if (owner is null) {
             await WriteNotFoundAsync(context, "That memory does not exist");
             return;
@@ -77,7 +79,7 @@ internal static class AssistantMemoryEndpoint {
             return;
         }
 
-        string? owner = Owner(context);
+        string? owner = SignedInOwner.Of(context);
         if (owner is null) {
             await WriteNotFoundAsync(context, "The memory was not saved");
             return;
@@ -132,7 +134,7 @@ internal static class AssistantMemoryEndpoint {
         IAntiforgery antiforgery) {
         ArgumentNullException.ThrowIfNull(context);
 
-        string? owner = Owner(context);
+        string? owner = SignedInOwner.Of(context);
         MemoryCandidate? memory = owner is null ? null : await memories.GetAsync(owner, id, context.RequestAborted);
         if (memory is null) {
             await WriteNotFoundAsync(context, "That memory does not exist");
@@ -181,7 +183,7 @@ internal static class AssistantMemoryEndpoint {
             return;
         }
 
-        string? owner = Owner(context);
+        string? owner = SignedInOwner.Of(context);
         if (owner is null || !await memories.ForgetAsync(owner, id, context.RequestAborted)) {
             await WriteNotFoundAsync(context, "That memory does not exist");
             return;
@@ -355,8 +357,6 @@ internal static class AssistantMemoryEndpoint {
         return true;
     }
 
-    private static string? Owner(HttpContext context) => context.User.FindFirstValue(ClaimTypes.NameIdentifier);
-
     private static bool IsPostValid(HttpContext context) =>
         context.Features.Get<IAntiforgeryValidationFeature>() is not { IsValid: false };
 
@@ -366,6 +366,4 @@ internal static class AssistantMemoryEndpoint {
             title,
             "It may have been forgotten, or it belongs to another account.",
             [new(Path, "Memory")]));
-
-    private static string Encode(string value) => WebUtility.HtmlEncode(value);
 }

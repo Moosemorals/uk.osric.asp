@@ -9,15 +9,16 @@ using System.Globalization;
 using System.Net;
 using System.Net.ServerSentEvents;
 using System.Runtime.CompilerServices;
-using System.Security.Claims;
 using System.Text.Json;
 using uk.osric.asp.Core.Assistant;
 using uk.osric.asp.Core.Pages;
 using uk.osric.asp.Core.Text;
 using uk.osric.asp.Runtime;
 using uk.osric.asp.Sdk;
+using uk.osric.asp.Web.Authentication;
 using uk.osric.asp.Web.Errors;
 using uk.osric.asp.Web.Html;
+using static uk.osric.asp.Web.Html.Markup;
 using uk.osric.asp.Web.Http;
 using uk.osric.asp.Web.Pages;
 
@@ -32,7 +33,7 @@ internal static class AssistantEndpoint {
         IAntiforgery antiforgery) {
         ArgumentNullException.ThrowIfNull(context);
 
-        string? owner = Owner(context);
+        string? owner = SignedInOwner.Of(context);
         if (owner is null) {
             await WriteConversationNotFoundAsync(context);
             return;
@@ -105,7 +106,7 @@ internal static class AssistantEndpoint {
         string messageLimit = budget is null ? string.Empty
             : $" maxlength=\"{budget.MessageChars.ToString(CultureInfo.InvariantCulture)}\"";
         string messageScale = budget is null ? string.Empty : $" / {BudgetAmount.Format(budget.MessageChars)}";
-        string? owner = Owner(context);
+        string? owner = SignedInOwner.Of(context);
         Conversation? conversation = owner is null ? null : await conversations.GetAsync(id, owner, context.RequestAborted);
         if (conversation is null) {
             await WriteConversationNotFoundAsync(context);
@@ -374,7 +375,7 @@ internal static class AssistantEndpoint {
 
         SecurityHeaders.NoStore(context);
         context.Response.Headers["X-Accel-Buffering"] = "no";
-        string? owner = Owner(context);
+        string? owner = SignedInOwner.Of(context);
         if (owner is null) {
             return ErrorResponses.Problem(StatusCodes.Status401Unauthorized, new ErrorMessage(
                 "auth.required",
@@ -430,7 +431,7 @@ internal static class AssistantEndpoint {
                 "The form could not be verified. Reload the conversation and try again.");
             return;
         }
-        string? owner = Owner(context);
+        string? owner = SignedInOwner.Of(context);
         if (owner is null) {
             await WriteJsonErrorAsync(context, StatusCodes.Status404NotFound,
                 "assistant.conversation_not_found", "That conversation does not exist",
@@ -498,7 +499,7 @@ internal static class AssistantEndpoint {
                 "The form could not be verified. Reload the conversation and try again.");
             return;
         }
-        string? owner = Owner(context);
+        string? owner = SignedInOwner.Of(context);
         if (owner is null || !context.Request.HasFormContentType
             || !context.Request.Form.TryGetValue("decision", out Microsoft.Extensions.Primitives.StringValues decision)
             || decision.Count != 1 || decision[0] is not ("approve" or "deny")) {
@@ -546,7 +547,7 @@ internal static class AssistantEndpoint {
                 "The form could not be verified. Reload the conversation and try again.");
             return;
         }
-        string? owner = Owner(context);
+        string? owner = SignedInOwner.Of(context);
         Conversation? conversation = owner is null ? null : await conversations.GetAsync(id, owner, context.RequestAborted);
         if (conversation is null) {
             await WriteJsonErrorAsync(context, StatusCodes.Status404NotFound,
@@ -577,7 +578,7 @@ internal static class AssistantEndpoint {
         IAntiforgery antiforgery) {
         ArgumentNullException.ThrowIfNull(context);
 
-        string? owner = Owner(context);
+        string? owner = SignedInOwner.Of(context);
         Conversation? conversation = owner is null ? null : await conversations.GetAsync(id, owner, context.RequestAborted);
         if (conversation is null) {
             await WriteConversationNotFoundAsync(context);
@@ -637,7 +638,7 @@ internal static class AssistantEndpoint {
         long id,
         long messageId,
         IConversationStore conversations) {
-        string? owner = Owner(context);
+        string? owner = SignedInOwner.Of(context);
         Message? message = owner is null
             ? null
             : await conversations.GetMessageAsync(id, owner, messageId, context.RequestAborted);
@@ -1051,7 +1052,7 @@ internal static class AssistantEndpoint {
             return null;
         }
 
-        string? owner = Owner(context);
+        string? owner = SignedInOwner.Of(context);
         if (owner is null || await conversations.GetAsync(id, owner, context.RequestAborted) is null) {
             await WriteConversationNotFoundAsync(context);
             return null;
@@ -1059,8 +1060,6 @@ internal static class AssistantEndpoint {
 
         return owner;
     }
-
-    private static string? Owner(HttpContext context) => context.User.FindFirstValue(ClaimTypes.NameIdentifier);
 
     private static bool IsPostValid(HttpContext context) =>
         context.Features.Get<IAntiforgeryValidationFeature>() is not { IsValid: false };
@@ -1074,8 +1073,6 @@ internal static class AssistantEndpoint {
 
     private static Task WriteJsonErrorAsync(HttpContext context, int statusCode, string code, string title, string summary) =>
         ErrorResponses.WriteJsonAsync(context, statusCode, new ErrorMessage(code, title, summary, []));
-
-    private static string Encode(string value) => WebUtility.HtmlEncode(value);
 
     private static string Selected(bool selected) => selected ? " selected" : "";
 }

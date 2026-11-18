@@ -7,6 +7,7 @@ using System.Diagnostics;
 using System.Text.Json;
 using uk.osric.asp.Core.Assistant;
 using uk.osric.asp.Core.Text;
+using uk.osric.asp.Web.Assistant.Tools;
 using uk.osric.asp.Web.Authentication;
 using uk.osric.asp.Web.Configuration;
 using uk.osric.asp.Web.Logging;
@@ -513,7 +514,7 @@ internal sealed class RunProcessor(
                 await StoreAsync(store => store.AppendMessageAsync(
                     queued.ConversationId,
                     queued.RunId,
-                    new MessageInput("tool", ToolFailure(message, MessageText.Sanitize(activeToolName ?? "tool")).Content,
+                    new MessageInput("tool", ToolResults.Refusal(message, MessageText.Sanitize(activeToolName ?? "tool")).Content,
                         ToolCallId: activeToolCallId, ToolName: activeToolName),
                     CancellationToken.None));
             }
@@ -617,7 +618,7 @@ internal sealed class RunProcessor(
                 await wait;
             } catch (OperationCanceledException) {
             }
-            return ToolFailure("This tool call already has an approval record.", $"{call.DisplayName}: approval conflict");
+            return ToolResults.Refusal("This tool call already has an approval record.", $"{call.DisplayName}: approval conflict");
         }
 
         await StoreAsync(store => store.SetRunStatusAsync(queued.RunId, "awaiting_approval", cancellationToken: cancellationToken));
@@ -636,7 +637,7 @@ internal sealed class RunProcessor(
 
         return decision == ApprovalResolutionResult.Approved
             ? await ExecuteToolAsync(call, context, stream, cancellationToken)
-            : ToolFailure("The owner denied this tool call.", $"{call.DisplayName}: denied");
+            : ToolResults.Refusal("The owner denied this tool call.", $"{call.DisplayName}: denied");
     }
 
     private async Task<ToolExecutionResult> ExecuteToolAsync(
@@ -649,12 +650,12 @@ internal sealed class RunProcessor(
         try {
             return await tools.ExecuteAsync(call.Name, call.Arguments, context, timeout.Token);
         } catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested) {
-            return ToolFailure("The tool exceeded its configured time limit.", $"{call.DisplayName}: timeout");
+            return ToolResults.Refusal("The tool exceeded its configured time limit.", $"{call.DisplayName}: timeout");
         } catch (OperationCanceledException) {
             throw;
         } catch (Exception exception) {
             logger.LogWarning(exception, "Assistant tool {ToolName} in run {RunId} failed", call.Name, stream.RunId);
-            return ToolFailure("The tool could not complete this operation.", $"{call.DisplayName}: failed");
+            return ToolResults.Refusal("The tool could not complete this operation.", $"{call.DisplayName}: failed");
         }
     }
 
@@ -831,11 +832,6 @@ internal sealed class RunProcessor(
             type = "function",
             function = new { name = call.Name, arguments = call.Arguments },
         }), s_jsonOptions);
-
-    private static ToolExecutionResult ToolFailure(string error, string summary) => new(
-        false,
-        JsonSerializer.Serialize(new { ok = false, data = (object?)null, error }, s_jsonOptions),
-        summary);
 
     private sealed record PreparedToolCall(string Id, string Name, string Arguments) {
 

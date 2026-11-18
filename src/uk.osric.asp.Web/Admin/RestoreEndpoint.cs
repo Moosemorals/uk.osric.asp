@@ -51,9 +51,9 @@ internal static class RestoreEndpoint {
         // - the cookie is a session cookie and the sign-in cookie is not - would lose the button.
         AntiforgeryTokenSet? tokens = work == 0 ? null : antiforgery.GetAndStoreTokens(context);
 
-        await BeginAsync(context, "Restore every seed");
+        await AdminPage.BeginAsync(context, "Restore every seed");
         await context.Response.WriteAsync("<h1>Restore every seed</h1>");
-        await context.Response.WriteAsync(BackLinks);
+        await context.Response.WriteAsync(AdminPage.BackLinks);
         await context.Response.WriteAsync("""
             <p>This page carries no stylesheet and no script, so it still works when a seeded sheet,
             script or layout has been broken.</p>
@@ -76,7 +76,7 @@ internal static class RestoreEndpoint {
                 """);
         }
 
-        await EndAsync(context);
+        await AdminPage.EndAsync(context);
     }
 
     /// <summary>Restores every seed that differs, reporting each one rather than stopping at a failure.</summary>
@@ -151,9 +151,9 @@ internal static class RestoreEndpoint {
         int failed = results.Count(result => result.Outcome == SeedOutcome.Failed);
         int unchanged = results.Count(result => result.Outcome == SeedOutcome.Unchanged);
 
-        await BeginAsync(context, "Restored the seeds");
+        await AdminPage.BeginAsync(context, "Restored the seeds");
         await context.Response.WriteAsync("<h1>Restored the seeds</h1>");
-        await context.Response.WriteAsync(BackLinks);
+        await context.Response.WriteAsync(AdminPage.BackLinks);
         await context.Response.WriteAsync(
             $"<p>{restored.ToString(CultureInfo.InvariantCulture)} restored, {failed.ToString(CultureInfo.InvariantCulture)} failed, {unchanged.ToString(CultureInfo.InvariantCulture)} already matched.</p>");
 
@@ -177,35 +177,8 @@ internal static class RestoreEndpoint {
         }
 
         await context.Response.WriteAsync("</tbody></table>");
-        await EndAsync(context);
+        await AdminPage.EndAsync(context);
     }
-
-    private const string BackLinks =
-        """<p><a href="/admin">Administration</a> · <a href="/status">Status</a></p>""";
-
-    private static async Task BeginAsync(HttpContext context, string title) {
-        context.Response.ContentType = "text/html; charset=utf-8";
-        SecurityHeaders.NoStoreIfAbsent(context);
-
-        await context.Response.WriteAsync($"""
-            <!DOCTYPE html>
-            <html lang="en">
-            <head>
-            <meta charset="utf-8">
-            <meta name="viewport" content="width=device-width, initial-scale=1">
-            <title>{WebUtility.HtmlEncode(title)}</title>
-            </head>
-            <body>
-            <a href="#main">Skip to content</a>
-            <main id="main">
-            """, context.RequestAborted);
-    }
-
-    private static Task EndAsync(HttpContext context) => context.Response.WriteAsync("""
-        </main>
-        </body>
-        </html>
-        """, context.RequestAborted);
 
     private static string ButtonText(int work) => work == 1
         ? "Restore the seed"

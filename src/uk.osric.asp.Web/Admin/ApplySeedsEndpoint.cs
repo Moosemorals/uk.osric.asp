@@ -47,9 +47,9 @@ internal static class ApplySeedsEndpoint {
 
         AntiforgeryTokenSet? tokens = work == 0 ? null : antiforgery.GetAndStoreTokens(context);
 
-        await BeginAsync(context, "Apply seed updates");
+        await AdminPage.BeginAsync(context, "Apply seed updates");
         await context.Response.WriteAsync("<h1>Apply seed updates</h1>");
-        await context.Response.WriteAsync(BackLinks);
+        await context.Response.WriteAsync(AdminPage.BackLinks);
         await context.Response.WriteAsync("""
             <p>This writes what the release moved and leaves everything else alone. A page the
             release did not move, a page you changed, and a page you deleted are not written.</p>
@@ -76,7 +76,7 @@ internal static class ApplySeedsEndpoint {
                 """);
         }
 
-        await EndAsync(context);
+        await AdminPage.EndAsync(context);
     }
 
     /// <summary>Writes the rows the gate allows, and stops at the first that has drifted.</summary>
@@ -171,9 +171,9 @@ internal static class ApplySeedsEndpoint {
         int failed = results.Count(result => result.Outcome == SeedOutcome.Failed);
         int unchanged = results.Count(result => result.Outcome == SeedOutcome.Unchanged);
 
-        await BeginAsync(context, "Applied the seed updates");
+        await AdminPage.BeginAsync(context, "Applied the seed updates");
         await context.Response.WriteAsync("<h1>Applied the seed updates</h1>");
-        await context.Response.WriteAsync(BackLinks);
+        await context.Response.WriteAsync(AdminPage.BackLinks);
         await context.Response.WriteAsync(
             $"<p>{written.ToString(CultureInfo.InvariantCulture)} written, {adopted.ToString(CultureInfo.InvariantCulture)} recorded as installed, {unchanged.ToString(CultureInfo.InvariantCulture)} already matched, {failed.ToString(CultureInfo.InvariantCulture)} failed.</p>");
 
@@ -201,35 +201,8 @@ internal static class ApplySeedsEndpoint {
         }
 
         await context.Response.WriteAsync("</tbody></table>");
-        await EndAsync(context);
+        await AdminPage.EndAsync(context);
     }
-
-    private const string BackLinks =
-        """<p><a href="/admin">Administration</a> · <a href="/status">Status</a></p>""";
-
-    private static async Task BeginAsync(HttpContext context, string title) {
-        context.Response.ContentType = "text/html; charset=utf-8";
-        SecurityHeaders.NoStoreIfAbsent(context);
-
-        await context.Response.WriteAsync($"""
-            <!DOCTYPE html>
-            <html lang="en">
-            <head>
-            <meta charset="utf-8">
-            <meta name="viewport" content="width=device-width, initial-scale=1">
-            <title>{WebUtility.HtmlEncode(title)}</title>
-            </head>
-            <body>
-            <a href="#main">Skip to content</a>
-            <main id="main">
-            """, context.RequestAborted);
-    }
-
-    private static Task EndAsync(HttpContext context) => context.Response.WriteAsync("""
-        </main>
-        </body>
-        </html>
-        """, context.RequestAborted);
 
     private static string ButtonText(int work) => work == 1
         ? "Apply one seed"
