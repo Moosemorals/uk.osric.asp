@@ -18,8 +18,8 @@ cannot answer for the assistant never comes up at all (`assistant-always-on`).
 A submitted message and its queued run are committed together. A hosted worker owns the run after the
 request returns; the browser is only a viewer and can disconnect without cancelling work. SQLite is
 the transcript and lifecycle record. A bounded in-memory journal carries live deltas and reconnect
-replay; on restart, active runs become interrupted, unresolved approvals fail closed, and dangling
-tool calls receive synthetic results rather than being replayed to the provider.
+replay; on restart, active runs become interrupted, an interrupt the owner had not answered fails
+closed, and dangling tool calls receive synthetic results rather than being replayed to the provider.
 
 The provider boundary is an explicitly configured OpenAI-compatible streaming chat-completions
 endpoint. A run sends the system prompt, conversation transcript, and page source read
@@ -104,6 +104,14 @@ human page at `/admin/reference` covers all four assemblies.
 There is no process, filesystem, git, package, or other outbound-network tool. The per-conversation
 approval mode defaults to `AlwaysApprove`; `RequireApproval` waits for an individual owner decision on
 each flagged call. Unresolved, stale, stopped, or restarted approvals never execute.
+
+Every time a run stops for its owner it is one **interrupt**: a stored request, the resolution the
+owner gives, and the run in `awaiting_owner` until then. The kinds are the approval of a flagged call
+and the continuation of a spent budget, and a new kind is a request and a card rather than a new
+status, table or route. A run waits on one thing at a time, so the run's id is the record's key. The card is rendered from the stored request, so a reload
+or another device shows what the live page showed, and the route is one
+(`POST /assistant/{id}/runs/{runId}/interrupt`) whose body is read against the record's kind: a form
+built for another wait is refused rather than guessed at.
 
 The tools also see the shell's own files, which are the site's routes (`assistant-reads-the-shell-files`).
 Every route in the shell's table — `/login`, `/assistant`, `/admin/scrub`, `/metrics` and the rest,
@@ -218,9 +226,8 @@ asks "Do you want to continue?" in a card rendered from the run's stored state, 
 another device still shows it. Continue gives that budget one more window of itself — another
 `MaxSteps` steps, `MaxToolCalls` calls, or `MaxToolCallsPerStep` calls in one step — and the run
 carries on with the request it was about to make, so the model never learns it was interrupted.
-Stopping a paused run is the ordinary Stop. An approval or a continuation the owner never answers
-leaves the run `awaiting_approval` or `awaiting_continuation` until they stop the run or delete the
-conversation, or the host restarts. A run that stops leaves its reason in the
+Stopping a paused run is the ordinary Stop. An interrupt the owner never answers leaves the run
+`awaiting_owner` until they stop the run or delete the conversation, or the host restarts. A run that stops leaves its reason in the
 transcript, and a message that stops at the provider's output limit is stored as `truncated`, because
 the reload after a terminal event is when a reader needs the reason, and a bare status word would
 not give it. Provider

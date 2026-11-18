@@ -130,13 +130,13 @@ and what depends on it is asserted by the suites that use it (`SimpleContextTest
   `Web.Tests` pins the one read seam the tools and the virtual shell share in `PageStoreReaderTests`
   — reserved rows, tombstone visibility, key order, scope, history order and a revision's path — so
   those rules are proved once rather than through a tool and an applet each. It also uses migrated
-  SQLite files for conversations, sequence allocation, approvals and restart repair; fake HTTP
+  SQLite files for conversations, sequence allocation, the owner interrupt and restart repair; fake HTTP
   handlers for provider SSE; the model list parsed from the provider's own documented example, and a
   `400` named as a context-length rejection rather than a generic fault; and scripted model streams
   for the run processor, including a reply cut through a tool call, a run with no reported window, a
   tool-call row that ticks as each call starts and the cache warning said once.
   `Web.IntegrationTests` runs the real authenticated host with a scripted provider to verify disabled
-  routing, conversation streaming, approval gating and writes,
+  routing, conversation streaming, the interrupt route's refusals, approval gating and writes,
   and compares the last `budget.updated` a run published — its ten budget rows, their limits and its
   usage — with the page the reload renders. The browser suite watches a projected budget figure and
   the usage list move while the run is still busy, watches the projection give way to the reported

@@ -37,7 +37,8 @@ public sealed class AssistantContinuationFlowTests : IntegrationTest {
         using HttpResponseMessage eventResponse = await client.SendAsync(eventRequest, HttpCompletionOption.ResponseHeadersRead);
         using StreamReader reader = new(await eventResponse.Content.ReadAsStreamAsync(), Encoding.UTF8);
 
-        string paused = await ReadUntilEventAsync(reader, "run.paused");
+        string paused = await ReadUntilEventAsync(reader, "interrupt.required");
+        Assert.That(paused, Does.Contain("\"kind\":\"continuation\""));
         Assert.That(paused, Does.Contain("\"budget\":\"steps\""));
         Assert.That(paused, Does.Contain("used all 1 of its steps"), "the pause says which budget ran out");
 
@@ -47,16 +48,16 @@ public sealed class AssistantContinuationFlowTests : IntegrationTest {
         Assert.Multiple(() => {
             Assert.That(pending, Does.Contain("Do you want to continue?"));
             Assert.That(pending, Does.Contain("used all 1 of its steps"));
-            Assert.That(pending, Does.Contain($"/runs/{runId}/continue"));
+            Assert.That(pending, Does.Contain($"/runs/{runId}/interrupt"));
         });
 
         string continueToken = await GetAntiforgeryTokenAsync(client, conversation);
         using HttpResponseMessage continued = await client.PostAsync(
-            $"{conversation}/runs/{runId}/continue", Form(("__RequestVerificationToken", continueToken)));
+            $"{conversation}/runs/{runId}/interrupt", Form(("__RequestVerificationToken", continueToken)));
         Assert.That(continued.StatusCode, Is.EqualTo(HttpStatusCode.NoContent));
 
         string finished = await ReadUntilEventAsync(reader, "run.completed");
-        Assert.That(finished, Does.Contain("event: run.resumed"));
+        Assert.That(finished, Does.Contain("event: interrupt.resolved"));
 
         // The answer the continuation unlocked is stored, and nothing was written for the pause itself.
         using HttpResponseMessage page = await client.GetAsync(conversation);
@@ -82,10 +83,10 @@ public sealed class AssistantContinuationFlowTests : IntegrationTest {
 
         string continueToken = await GetAntiforgeryTokenAsync(client, conversation);
         using HttpResponseMessage refused = await client.PostAsync(
-            $"{conversation}/runs/{runId}/continue", Form(("__RequestVerificationToken", continueToken)));
+            $"{conversation}/runs/{runId}/interrupt", Form(("__RequestVerificationToken", continueToken)));
 
         Assert.That(refused.StatusCode, Is.EqualTo(HttpStatusCode.Conflict));
-        Assert.That(await refused.Content.ReadAsStringAsync(), Does.Contain("not waiting to continue"));
+        Assert.That(await refused.Content.ReadAsStringAsync(), Does.Contain("no longer waiting"));
 
         // Leave no run behind for the next fixture to trip over.
         string stopToken = await GetAntiforgeryTokenAsync(client, conversation);

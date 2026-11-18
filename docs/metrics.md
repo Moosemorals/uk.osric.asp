@@ -64,7 +64,7 @@ add a request-duration metric of our own. A streamed render is measured twice on
 `page.render.duration` ends at the commit, where the visitor stopped waiting for the page, and
 `page.stream.duration` covers the committed lifetime that follows, so the two are adjacent rather than
 nested. A run's duration is wall-clock, so it includes the time an
-approval or a continuation waited for its owner, as `assistant.run.duration` always has. On a cache
+the owner was being asked — an approval, a continuation or an answer — as `assistant.run.duration` always has. On a cache
 miss `page.compile.duration` is a subset of
 `page.render.duration`; never add the two together. `page.path` is bounded by the number of stored
 pages, which is small — if that ever stops being true, drop the tag and keep the path in logs.

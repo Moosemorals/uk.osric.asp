@@ -109,14 +109,13 @@ internal sealed class StorageDbContext(DbContextOptions<StorageDbContext> option
             run.Property(row => row.ApprovalMode).HasMaxLength(32);
             run.Property(row => row.PromptVersion).HasMaxLength(100);
             run.Property(row => row.ErrorCode).HasMaxLength(100);
-            run.Property(row => row.PausedBudget).HasMaxLength(32);
             run.HasOne<Conversation>()
                 .WithMany()
                 .HasForeignKey(row => row.ConversationId)
                 .OnDelete(DeleteBehavior.Cascade);
             run.HasIndex(row => row.ConversationId)
                 .IsUnique()
-                .HasFilter("\"Status\" IN ('queued', 'running', 'awaiting_approval', 'awaiting_continuation')");
+                .HasFilter("\"Status\" IN ('queued', 'running', 'awaiting_owner')");
         });
 
         modelBuilder.Entity<Message>(message => {
@@ -138,15 +137,16 @@ internal sealed class StorageDbContext(DbContextOptions<StorageDbContext> option
             message.HasIndex(row => new { row.ConversationId, row.RunId });
         });
 
-        modelBuilder.Entity<ToolApproval>(approval => {
-            approval.ToTable("AssistantToolApprovals");
-            approval.HasKey(row => new { row.RunId, row.ToolCallId });
-            approval.Property(row => row.RunId).HasMaxLength(32).UseCollation("BINARY");
-            approval.Property(row => row.ToolCallId).UseCollation("BINARY");
-            approval.Property(row => row.Status).HasMaxLength(16);
-            approval.Property(row => row.ResolvedBy).HasMaxLength(UserName.MaximumLength).UseCollation("BINARY");
-            approval.Property(row => row.FailureCode).HasMaxLength(100);
-            approval.HasOne<Run>()
+        modelBuilder.Entity<OwnerInterrupt>(interrupt => {
+            interrupt.ToTable("AssistantInterrupts");
+            interrupt.HasKey(row => row.RunId);
+            interrupt.Property(row => row.RunId).HasMaxLength(32).UseCollation("BINARY");
+            interrupt.Property(row => row.Kind).HasMaxLength(32);
+            interrupt.Property(row => row.Status).HasMaxLength(16);
+            interrupt.Property(row => row.ToolCallId).UseCollation("BINARY");
+            interrupt.Property(row => row.ResolvedBy).HasMaxLength(UserName.MaximumLength).UseCollation("BINARY");
+            interrupt.Property(row => row.FailureCode).HasMaxLength(100);
+            interrupt.HasOne<Run>()
                 .WithMany()
                 .HasForeignKey(row => row.RunId)
                 .OnDelete(DeleteBehavior.Cascade);

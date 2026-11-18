@@ -217,26 +217,55 @@ if (root) {
         }
     }
 
+    // One card per kind of thing the run stops to ask. The event carries the kind and the request the
+    // server stored, so the page builds exactly the card the reload will render, and the route says
+    // nothing about the kind: the record does.
+    function interruptAction(runId) {
+        return `/assistant/${encodeURIComponent(conversationId)}/runs/${encodeURIComponent(runId)}/interrupt`;
+    }
+
+    function addInterrupt(data) {
+        if (data.kind === 'approval') {
+            addApproval(data);
+        } else if (data.kind === 'continuation') {
+            addContinuation(data);
+        }
+    }
+
     function addApproval(data) {
+        const request = data.request ?? {};
+        transcript.querySelector('section.assistant-approvals')?.remove();
+        const section = document.createElement('section');
+        section.className = 'assistant-approvals';
+        section.setAttribute('aria-label', 'Pending tool approvals');
+        section.dataset.interruptKind = data.kind;
+        const heading = document.createElement('h2');
+        heading.textContent = 'Approval required';
+        section.append(heading);
+
         const article = document.createElement('article');
         article.className = 'assistant-approval';
         article.dataset.toolCallId = data.toolCallId;
-        const heading = document.createElement('h3');
-        heading.textContent = data.name;
+        const title = document.createElement('h3');
+        title.textContent = request.name;
         const description = document.createElement('p');
-        description.textContent = data.description;
+        description.textContent = request.description;
         const args = document.createElement('pre');
-        args.textContent = data.arguments;
-        article.append(heading, description, args);
+        args.textContent = request.arguments;
+        article.append(title, description, args);
 
         for (const [decision, label] of [['approve', 'Approve'], ['deny', 'Deny']]) {
             const form = document.createElement('form');
             form.method = 'post';
-            form.action = `/assistant/${encodeURIComponent(conversationId)}/runs/${encodeURIComponent(data.runId)}/tool-calls/${encodeURIComponent(data.toolCallId)}/approval`;
+            form.action = interruptAction(data.runId);
             const csrf = document.createElement('input');
             csrf.type = 'hidden';
             csrf.name = '__RequestVerificationToken';
             csrf.value = token;
+            const call = document.createElement('input');
+            call.type = 'hidden';
+            call.name = 'toolCallId';
+            call.value = data.toolCallId ?? '';
             const choice = document.createElement('input');
             choice.type = 'hidden';
             choice.name = 'decision';
@@ -244,7 +273,7 @@ if (root) {
             const button = document.createElement('button');
             button.type = 'submit';
             button.textContent = label;
-            form.append(csrf, choice, button);
+            form.append(csrf, call, choice, button);
             form.addEventListener('submit', async event => {
                 event.preventDefault();
                 button.disabled = true;
@@ -258,7 +287,8 @@ if (root) {
             });
             article.append(form);
         }
-        prepend(article);
+        section.append(article);
+        prepend(section);
         statusLine.textContent = 'A tool needs your approval';
     }
 
@@ -354,19 +384,19 @@ if (root) {
     // A run that ran out of a budget waits here rather than failing: the same card the server
     // renders on a reload, with the server's own sentence, so the two cannot disagree.
     function addContinuation(data) {
-        // A reload renders the server's copy of this card, and the journal replays the event that
-        // asked for it, so the live card replaces the stored one rather than joining it.
-        transcript.querySelector(`section.assistant-continuation[data-budget="${CSS.escape(data.budget)}"]`)?.remove();
+        const request = data.request ?? {};
+        transcript.querySelector('section.assistant-continuation')?.remove();
         const section = document.createElement('section');
         section.className = 'assistant-continuation';
-        section.dataset.budget = data.budget;
+        section.dataset.budget = request.budget;
+        section.dataset.interruptKind = data.kind;
         const heading = document.createElement('h2');
         heading.textContent = 'Do you want to continue?';
         const message = document.createElement('p');
-        message.textContent = data.message;
+        message.textContent = request.message;
         const form = document.createElement('form');
         form.method = 'post';
-        form.action = `/assistant/${encodeURIComponent(conversationId)}/runs/${encodeURIComponent(data.runId)}/continue`;
+        form.action = interruptAction(data.runId);
         const csrf = document.createElement('input');
         csrf.type = 'hidden';
         csrf.name = '__RequestVerificationToken';
@@ -467,17 +497,11 @@ if (root) {
             // count the server has published yet.
             addPending(['output', 'context'], data.arguments?.length ?? 0);
         });
-        source.addEventListener('approval.required', event => addApproval(JSON.parse(event.data)));
-        source.addEventListener('approval.resolved', event => {
+        source.addEventListener('interrupt.required', event => addInterrupt(JSON.parse(event.data)));
+        source.addEventListener('interrupt.resolved', event => {
             const data = JSON.parse(event.data);
-            transcript.querySelector(`[data-tool-call-id="${CSS.escape(data.toolCallId)}"].assistant-approval`)?.remove();
-            statusLine.textContent = data.decision === 'approved' ? 'Tool approved' : 'Tool denied';
-        });
-        source.addEventListener('run.paused', event => addContinuation(JSON.parse(event.data)));
-        source.addEventListener('run.resumed', event => {
-            const data = JSON.parse(event.data);
-            transcript.querySelector(`section.assistant-continuation[data-budget="${CSS.escape(data.budget)}"]`)?.remove();
-            statusLine.textContent = 'Continuing';
+            transcript.querySelector(`[data-interrupt-kind="${CSS.escape(data.kind)}"]`)?.remove();
+            statusLine.textContent = data.kind === 'approval' ? 'Approval recorded' : 'Continuing';
         });
         source.addEventListener('tool.finished', event => {
             const data = JSON.parse(event.data);

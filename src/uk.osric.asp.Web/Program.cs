@@ -292,10 +292,9 @@ internal class Program {
         builder.Services.AddSingleton(services => new ReferenceLibrary(
             AppContext.BaseDirectory,
             services.GetRequiredService<ILogger<ReferenceLibrary>>()));
-        builder.Services.AddSingleton<RunContinuationCoordinator>();
         builder.Services.AddSingleton<RunQueue>();
         builder.Services.AddSingleton<RunRegistry>();
-        builder.Services.AddSingleton<ToolApprovalCoordinator>();
+        builder.Services.AddSingleton<OwnerInterruptCoordinator>();
         builder.Services.AddSingleton<ViewTokenStore>();
 
         builder.Services.AddScoped<IConversationStore, SqliteConversationStore>();
@@ -569,10 +568,7 @@ internal class Program {
         app.MapPost("/assistant/{id:long}/stop", AssistantEndpoint.StopAsync)
             .RequireAuthorization(EditorPolicy.Name)
             .WithMetadata(new RequireAntiforgeryTokenAttribute(true));
-        app.MapPost("/assistant/{id:long}/runs/{runId}/tool-calls/{toolCallId}/approval", AssistantEndpoint.ApprovalAsync)
-            .RequireAuthorization(EditorPolicy.Name)
-            .WithMetadata(new RequireAntiforgeryTokenAttribute(true));
-        app.MapPost("/assistant/{id:long}/runs/{runId}/continue", AssistantEndpoint.ContinueAsync)
+        app.MapPost("/assistant/{id:long}/runs/{runId}/interrupt", AssistantEndpoint.InterruptAsync)
             .RequireAuthorization(EditorPolicy.Name)
             .WithMetadata(new RequireAntiforgeryTokenAttribute(true));
         app.MapPost("/assistant/{id:long}/options", AssistantEndpoint.OptionsAsync)

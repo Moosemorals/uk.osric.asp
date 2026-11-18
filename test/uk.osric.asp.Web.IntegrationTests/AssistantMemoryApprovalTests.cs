@@ -59,7 +59,7 @@ public sealed class AssistantMemoryApprovalTests : IntegrationTest {
         using Stream eventStream = await eventResponse.Content.ReadAsStreamAsync();
         using StreamReader reader = new(eventStream, Encoding.UTF8);
 
-        string approvalEvent = await ReadUntilEventAsync(reader, "approval.required");
+        string approvalEvent = await ReadUntilEventAsync(reader, "interrupt.required");
         Assert.Multiple(() => {
             Assert.That(approvalEvent, Does.Contain("remember"));
             Assert.That(approvalEvent, Does.Contain("British English"));
@@ -71,10 +71,11 @@ public sealed class AssistantMemoryApprovalTests : IntegrationTest {
         string pendingBody = await pendingView.Content.ReadAsStringAsync();
         Assert.That(pendingBody, Does.Contain("British English"));
 
-        string approvalPath = $"{conversation}/runs/{runId}/tool-calls/remember-1/approval";
+        string approvalPath = $"{conversation}/runs/{runId}/interrupt";
         string pendingToken = await GetAntiforgeryTokenAsync(client, conversation);
         using HttpResponseMessage resolved = await client.PostAsync(approvalPath, Form(
             ("__RequestVerificationToken", pendingToken),
+            ("toolCallId", "remember-1"),
             ("decision", decision)));
         Assert.That(resolved.StatusCode, Is.EqualTo(HttpStatusCode.NoContent));
 

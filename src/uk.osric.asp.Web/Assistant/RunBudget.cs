@@ -21,9 +21,6 @@ internal static class RunBudget {
     /// <summary>One step asked for more tool calls than a single step may make.</summary>
     public const string ToolCallsPerStep = "tool-calls-per-step";
 
-    /// <summary>The status a run takes while it waits for the owner to continue it.</summary>
-    public const string Awaiting = "awaiting_continuation";
-
     /// <summary>The sentence that says which budget ran out, and what continuing buys.</summary>
     /// <param name="budget">One of the budget constants.</param>
     /// <param name="limit">The limit the run reached.</param>

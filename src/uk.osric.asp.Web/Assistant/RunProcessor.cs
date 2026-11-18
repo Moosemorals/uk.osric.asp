@@ -19,8 +19,7 @@ internal sealed class RunProcessor(
     IChatCompletionClient client,
     PageToolExecutor tools,
     RunRegistry registry,
-    ToolApprovalCoordinator approvals,
-    RunContinuationCoordinator continuation,
+    OwnerInterruptCoordinator interrupts,
     AssistantMetrics metrics,
     AssistantOptions options,
     ModelWindowSampler windows,
@@ -41,7 +40,7 @@ internal sealed class RunProcessor(
         long runStart = Stopwatch.GetTimestamp();
         RunStream? stream = registry.Find(queued.RunId);
         if (stream is null) {
-            await StoreAsync(store => store.SetRunStatusAsync(queued.RunId, "interrupted", "missing_journal", "The run could not be resumed."));
+            await StoreAsync(store => store.SetRunStatusAsync(queued.RunId, RunStatus.Interrupted, "missing_journal", "The run could not be resumed."));
             return;
         }
 
@@ -72,21 +71,23 @@ internal sealed class RunProcessor(
         Task<int> PauseAsync(
             QueuedRun queued,
             RunStream stream,
+            int step,
             string budget,
             int used,
             int limit,
             int window,
             CancellationToken cancellationToken) => WhilePaused(async () => {
                 string message = RunBudget.Sentence(budget, limit, window);
-                await StoreAsync(store => store.PauseRunAsync(queued.RunId, budget, cancellationToken));
-                stream.Publish("run.paused", new { runId = queued.RunId, budget, used, limit, window, message });
-                logger.LogInformation("Assistant run {RunId} paused on its {Budget} budget after {Used} of {Limit}",
-                    queued.RunId, budget, used, limit);
-
-                await continuation.WaitAsync(queued.RunId, cancellationToken);
+                OwnerInterrupt? interrupt = await WaitAsync(
+                    queued, stream, step, OwnerInterruptKind.Continuation, toolCallId: null,
+                    new ContinuationRequest(budget, limit, window, message), cancellationToken);
+                if (interrupt is null) {
+                    // The run was not running when the ask was opened, which only happens when it has
+                    // already been stopped; the loop's own cancellation ends it.
+                    throw new InvalidOperationException("The run stopped before it could wait on its owner.");
+                }
 
                 int next = limit + window;
-                stream.Publish("run.resumed", new { runId = queued.RunId, budget, limit = next });
                 logger.LogInformation("Assistant run {RunId} continued with {Budget} limit {Limit}", queued.RunId, budget, next);
 
                 return next;
@@ -169,7 +170,7 @@ internal sealed class RunProcessor(
 
             stream.StopToken.ThrowIfCancellationRequested();
 
-            await StoreAsync(store => store.SetRunStatusAsync(queued.RunId, "running", cancellationToken: runTimeout.Token));
+            await StoreAsync(store => store.SetRunStatusAsync(queued.RunId, RunStatus.Running, cancellationToken: runTimeout.Token));
             stream.Publish("run.started", new { runId = queued.RunId, model = run.Model, promptVersion = run.PromptVersion });
             modelScope.Set("Model", run.Model);
             logger.LogInformation("Assistant run {RunId} in conversation {ConversationId} started with model {Model}",
@@ -399,12 +400,12 @@ internal sealed class RunProcessor(
                         // shows a tool working that the run was not allowed to make.
                         if (callsThisStep > perStepLimit) {
                             perStepLimit = await PauseAsync(
-                                queued, stream, RunBudget.ToolCallsPerStep, callsThisStep - 1, perStepLimit,
+                                queued, stream, step, RunBudget.ToolCallsPerStep, callsThisStep - 1, perStepLimit,
                                 options.MaxToolCallsPerStep, runTimeout.Token);
                         }
                         if (toolCallCount >= toolCallLimit) {
                             toolCallLimit = await PauseAsync(
-                                queued, stream, RunBudget.ToolCalls, toolCallCount, toolCallLimit,
+                                queued, stream, step, RunBudget.ToolCalls, toolCallCount, toolCallLimit,
                                 options.MaxToolCalls, runTimeout.Token);
                         }
 
@@ -477,7 +478,7 @@ internal sealed class RunProcessor(
                 // The steps are spent. Waiting for the owner is not the provider going quiet, so the
                 // run's silence clock stops while the question is on the page.
                 stepLimit = await PauseAsync(
-                    queued, stream, RunBudget.Steps, step - 1, stepLimit, options.MaxSteps, runTimeout.Token);
+                    queued, stream, step - 1, RunBudget.Steps, step - 1, stepLimit, options.MaxSteps, runTimeout.Token);
                 PublishBudgets(stream, budgets, usageTotals, budget, stepLimit, toolCallLimit);
             }
         } catch (ProviderException exception) {
@@ -486,24 +487,24 @@ internal sealed class RunProcessor(
             logger.LogWarning(exception, "Assistant provider request for run {RunId} failed with {ErrorCode}", queued.RunId, exception.Code);
             await FailAsync(queued, stream, exception.Code, exception.Message, partial, step, CancellationToken.None);
         } catch (OperationCanceledException) {
-            string status = hostStopping.IsCancellationRequested ? "interrupted"
-                : stream.StopToken.IsCancellationRequested ? "cancelled" : "failed";
+            string status = hostStopping.IsCancellationRequested ? RunStatus.Interrupted
+                : stream.StopToken.IsCancellationRequested ? RunStatus.Cancelled : RunStatus.Failed;
             string code = status switch {
-                "interrupted" => "restart",
-                "cancelled" => "stop",
+                RunStatus.Interrupted => "restart",
+                RunStatus.Cancelled => "stop",
                 _ => "run_timeout",
             };
             string message = status switch {
-                "interrupted" => "The host stopped before the run completed.",
-                "cancelled" => "The run was stopped.",
+                RunStatus.Interrupted => "The host stopped before the run completed.",
+                RunStatus.Cancelled => "The run was stopped.",
                 _ => "The run stopped responding for longer than its configured time limit.",
             };
 
             // A stop and a restart are the site working as told; a run that fell silent is the
             // provider, which we cannot fix and should still hear about.
-            if (status == "interrupted") {
+            if (status == RunStatus.Interrupted) {
                 logger.LogInformation("Assistant run {RunId} was interrupted by the host stopping", queued.RunId);
-            } else if (status == "cancelled") {
+            } else if (status == RunStatus.Cancelled) {
                 logger.LogInformation("Assistant run {RunId} was stopped by its owner", queued.RunId);
             } else {
                 logger.LogWarning("Assistant run {RunId} fell silent for more than {TimeoutSeconds} s and was given up on",
@@ -519,8 +520,8 @@ internal sealed class RunProcessor(
                         ToolCallId: activeToolCallId, ToolName: activeToolName),
                     CancellationToken.None));
             }
-            await StoreAsync(store => store.FailPendingApprovalsAsync(queued.RunId, code, CancellationToken.None));
-            if (status == "cancelled") {
+            await StoreAsync(store => store.FailPendingInterruptAsync(queued.RunId, code, CancellationToken.None));
+            if (status == RunStatus.Cancelled) {
                 await StoreAsync(store => store.SetRunStatusAsync(queued.RunId, status, cancellationToken: CancellationToken.None));
                 stream.Publish("run.cancelled", new { runId = queued.RunId });
             } else {
@@ -610,35 +611,58 @@ internal sealed class RunProcessor(
         ToolDefinition definition,
         ToolContext context,
         CancellationToken cancellationToken) {
-        using CancellationTokenSource waiterCancellation = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-        Task<ApprovalResolutionResult> wait = approvals.WaitAsync(queued.RunId, call.Id, waiterCancellation.Token);
-        bool created = await StoreAsync(store => store.CreateApprovalAsync(queued.RunId, call.Id, cancellationToken));
-        if (!created) {
-            await waiterCancellation.CancelAsync();
-            try {
-                await wait;
-            } catch (OperationCanceledException) {
-            }
-            return ToolResults.Refusal("This tool call already has an approval record.", $"{call.DisplayName}: approval conflict");
+        OwnerInterrupt? interrupt = await WaitAsync(
+            queued, stream, step, OwnerInterruptKind.Approval, call.Id,
+            new ApprovalRequest(call.Name, definition.Description, call.Arguments), cancellationToken);
+        if (interrupt is null) {
+            return ToolResults.Refusal("This tool call already has an interrupt record.", $"{call.DisplayName}: approval conflict");
         }
 
-        await StoreAsync(store => store.SetRunStatusAsync(queued.RunId, "awaiting_approval", cancellationToken: cancellationToken));
-        stream.Publish("approval.required", new {
-            step,
-            toolCallId = call.Id,
-            runId = queued.RunId,
-            name = call.Name,
-            description = definition.Description,
-            arguments = call.Arguments,
-        });
-
-        ApprovalResolutionResult decision = await wait;
-        await StoreAsync(store => store.SetRunStatusAsync(queued.RunId, "running", cancellationToken: cancellationToken));
-        stream.Publish("approval.resolved", new { step, toolCallId = call.Id, decision = decision == ApprovalResolutionResult.Approved ? "approved" : "denied" });
-
-        return decision == ApprovalResolutionResult.Approved
+        bool approved = InterruptPayloads.Resolution(interrupt.ResolutionJson)?.Decision == "approve";
+        return approved
             ? await ExecuteToolAsync(call, context, stream, cancellationToken)
             : ToolResults.Refusal("The owner denied this tool call.", $"{call.DisplayName}: denied");
+    }
+
+    /// <summary>Stops the run until its owner resolves the interrupt this opens.</summary>
+    /// <returns>The resolved interrupt, or null when the run could not be stopped for the ask.</returns>
+    private async Task<OwnerInterrupt?> WaitAsync(
+        QueuedRun queued,
+        RunStream stream,
+        int step,
+        string kind,
+        string? toolCallId,
+        object request,
+        CancellationToken cancellationToken) {
+        string requestJson = InterruptPayloads.Write(request);
+        bool opened = await StoreAsync(store => store.OpenInterruptAsync(queued.RunId, kind, toolCallId, requestJson, cancellationToken));
+        if (!opened) {
+            return null;
+        }
+
+        stream.Publish("interrupt.required", new {
+            step,
+            runId = queued.RunId,
+            kind,
+            toolCallId,
+            request,
+        });
+        logger.LogInformation("Assistant run {RunId} waits on its owner for a {Kind}", queued.RunId, kind);
+
+        await interrupts.WaitAsync(queued.RunId, cancellationToken);
+
+        OwnerInterrupt? interrupt = await StoreAsync(store => store.GetInterruptAsync(queued.RunId, cancellationToken));
+        JsonElement? resolution = interrupt?.ResolutionJson is { } json
+            ? JsonSerializer.Deserialize<JsonElement>(json)
+            : null;
+        stream.Publish("interrupt.resolved", new {
+            step,
+            runId = queued.RunId,
+            kind,
+            toolCallId,
+            resolution,
+        });
+        return interrupt;
     }
 
     private async Task<ToolExecutionResult> ExecuteToolAsync(
@@ -722,8 +746,8 @@ internal sealed class RunProcessor(
         int step,
         CancellationToken cancellationToken) {
         await PersistPartialAsync(queued, stream, step, partial, "failed", cancellationToken);
-        await StoreAsync(store => store.FailPendingApprovalsAsync(queued.RunId, code, cancellationToken));
-        await StoreAsync(store => store.SetRunStatusAsync(queued.RunId, "failed", code, message, cancellationToken));
+        await StoreAsync(store => store.FailPendingInterruptAsync(queued.RunId, code, cancellationToken));
+        await StoreAsync(store => store.SetRunStatusAsync(queued.RunId, RunStatus.Failed, code, message, cancellationToken));
         stream.Publish("run.failed", new { runId = queued.RunId, code, message });
     }
 
@@ -741,7 +765,7 @@ internal sealed class RunProcessor(
         int lastMaxTokens,
         int stepLimit,
         int toolCallLimit) {
-        await StoreAsync(store => store.SetRunStatusAsync(queued.RunId, "completed"));
+        await StoreAsync(store => store.SetRunStatusAsync(queued.RunId, RunStatus.Completed));
         // The last live figure is the request the next step would send, built from the transcript as
         // stored. The reload builds the same plan the same way, so it cannot correct what a reader
         // just watched. `Publish` throws once the stream is complete, so nothing may follow
