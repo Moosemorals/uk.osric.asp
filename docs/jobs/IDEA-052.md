@@ -7,7 +7,7 @@ SPDX-License-Identifier: MIT
 
 | | |
 | --- | --- |
-| Size | M — once [ARCH-17](ARCH-17.md) has landed: one tool, one interrupt kind, the card in two renderers, three limits, a prompt version and five suites |
+| Size | M — [ARCH-17](../plans/assistant-owner-interrupt.md) has landed, so this is one tool, one interrupt kind, the card in two renderers, three limits, a prompt version and five suites |
 | Area | Core (Assistant), Web (assistant) |
 | Location | `src/uk.osric.asp.Core/Assistant/`, `src/uk.osric.asp.Web/Assistant/Tools/`, `src/uk.osric.asp.Web/Pages/Seeds/assistant.js`, `docs/assistant.md` |
 
@@ -27,15 +27,15 @@ to the shell's assistant.
 [The survey](../spikes/ask-tool-shape.md) found no cross-vendor standard, but a strong convergence on
 one tool, an array of one to four question objects, optional options of a label and a description, free
 text always allowed, and hard caps. [The plan](../plans/assistant-ask-owner.md) adopts that shape; the
-wait it needs is [ARCH-17](ARCH-17.md), which should land first.
+wait it needs is [the owner interrupt](../plans/assistant-owner-interrupt.md), which landed on
+2026-11-18.
 
 ## Sketch
 
 1. One tool, `ask_owner`, carrying its schema beside its code like every other tool
    (`assistant-a-tool-is-one-type`): `questions[]` of `{question, header?, options[]{label,
    description?}, multiSelect?}`, capped at four questions and five options by configuration.
-2. The wait is the owner interrupt's third kind, so there is no new status, record, coordinator or route
-   family: the run opens a `question` interrupt, the card is rendered from its request, and the answer
+2. The wait is the owner interrupt's third kind, so there is no new status, record, coordinator or route: the run opens a `question` interrupt, the card is rendered from its request, and the answer
    is its resolution.
 3. The answer is the tool's result, read from the record after the run wakes, so a disconnected browser,
    a second device or a reload changes nothing about the outcome.

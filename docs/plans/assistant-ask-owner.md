@@ -12,8 +12,8 @@ SPDX-License-Identifier: MIT
 | Area | Core (Assistant), Web (assistant), docs |
 | Spike | [The ask tool's shape](../spikes/ask-tool-shape.md) read MCP elicitation, Claude Code, VS Code, Cline, Roo Code, OpenAI, DeepSeek, LangGraph and AutoGen; it recommends the schema, the caps and the result shape this plan adopts, and names the two levers — the description and the parameter descriptions — that the evidence says matter most |
 | Backlog | [IDEA-052](../jobs/IDEA-052.md) |
-| Depends on | [The owner interrupt](assistant-owner-interrupt.md) (ARCH-17), which lands first as its own step |
-| Decisions | New name proposed: **assistant-a-question-is-a-tool-call**. Relies on **assistant-a-run-waits-on-one-owner-interrupt** and `assistant-a-tool-is-one-type`; edits nothing |
+| Depends on | [The owner interrupt](assistant-owner-interrupt.md) (ARCH-17), landed 2026-11-18 |
+| Decisions | New name proposed: **assistant-a-question-is-a-tool-call**. Relies on `assistant-a-run-waits-on-one-owner-interrupt` and `assistant-a-tool-is-one-type`; edits nothing |
 
 ## The short version
 

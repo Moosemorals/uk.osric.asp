@@ -7,12 +7,12 @@ SPDX-License-Identifier: MIT
 
 | | |
 | --- | --- |
-| Status | Proposed 2026-11-18 — waits for the owner. Nothing below is built |
+| Status | Merged 2026-11-18 — built on *assistant-owner-interrupt* and merged into trunk with `make check` and `make test-browser` green |
 | Size | Large — one record and its table, one migration, one run status, one coordinator, one route, one wait, and the two existing cards rendered from the record. No new behaviour |
 | Area | Web (assistant, storage), docs |
 | Spike | None. The shape is LangGraph's `interrupt(value, response_schema)` applied to three waits this codebase already implements; [the ask tool's survey](../spikes/ask-tool-shape.md) is where the shape was met |
 | Backlog | ARCH-17 |
-| Decisions | New name proposed: **assistant-a-run-waits-on-one-owner-interrupt**. Edits `assistant-a-run-pauses-on-budget` and `assistant-deadlines-bound-silence`. Relies on `assistant-a-run-is-not-resumed` |
+| Decisions | Recorded at the merge: `assistant-a-run-waits-on-one-owner-interrupt`. Edited `assistant-a-run-pauses-on-budget` and `assistant-deadlines-bound-silence`. Relies on `assistant-a-run-is-not-resumed` |
 
 ## The short version
 

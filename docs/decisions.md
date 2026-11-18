@@ -1926,23 +1926,38 @@ ends the step. A stall fails the run with `provider_timeout` and its own sentenc
 run-timeout code, and the sentence is rendered in the transcript, because the reload that follows a
 terminal event is exactly when a bare `failed` would erase the reason. `Assistant:RunTimeoutSeconds`
 applies the same rule to the whole run: two minutes without a streamed event fails it with `run_timeout`,
-an SSE keep-alive comment does not count as an event, and the clock is stopped while a tool executes or an
-approval waits for its owner, so neither counts as the run going quiet. A message that stops at the
+an SSE keep-alive comment does not count as an event, and the clock is stopped while a tool executes or the
+owner is being asked, so neither counts as the run going quiet. A message that stops at the
 provider's output limit is stored as `truncated` for the same reason: the warning in the status line does
 not survive the reload.
 
 *Recorded in [the assistant](assistant.md#ai-page-assistant).*
 
+### assistant-a-run-waits-on-one-owner-interrupt
+
+Every time a run stops for its owner it is one thing: a row in `AssistantInterrupts` holding the kind, the
+request the owner is shown and the resolution they give, with the run stored `awaiting_owner` while it
+waits and the run's id as the key, because a run waits on one thing at a time. The kinds are the approval
+of a flagged tool call and the continuation of a spent budget; a further kind is a request and a card,
+not a new status, table, coordinator or route, because the store never reads inside either half of the
+record. One coordinator wakes the worker and the row is the authority, so no signal can disagree with what
+was recorded. One status, because the run's availability is the fact and the kind says why. The route
+carries no kind either, and its body is parsed against the record's kind, so a form built for another wait
+is refused rather than guessed at. A restart fails a pending interrupt closed and leaves the synthetic tool
+result the stop path writes.
+
+*Recorded in [the assistant](assistant.md#ai-page-assistant), [the owner interrupt](plans/assistant-owner-interrupt.md).*
+
 ### assistant-a-run-pauses-on-budget
 
 Running out of a run budget pauses the run instead of failing it: the step loop, the tool-call budget and
-the per-step call budget stop at the point the budget forbids, the run is stored `awaiting_continuation`
-with the budget it ran out of, and the page asks "Do you want to continue?" in a card rendered from that
-stored state, so a reload still shows it. The transcript gains nothing for the pause, so the next provider
+the per-step call budget stop at the point the budget forbids, the run is stored `awaiting_owner` with a
+pending `continuation` interrupt that carries the budget it ran out of and what continuing buys, and the
+page asks "Do you want to continue?" in a card rendered from that request, so a reload still shows it. The transcript gains nothing for the pause, so the next provider
 request is the one the run would have made and the model never learns it happened. Continue buys one
 window of that budget alone, kept in the run's `StepLimit` and `ToolCallLimit`, and Stop ends a paused run
 as `cancelled`, exactly as Stop ends a running one. The silence clock stops while the question waits; a
-host restart still interrupts the run, as it interrupts an approval. Provider silence and a timed-out tool
+host restart still interrupts the run, as it interrupts any other wait on the owner. Provider silence and a timed-out tool
 keep failing, because neither is a budget the owner can grant.
 
 *Recorded in [the assistant](assistant.md#ai-page-assistant), [RunProcessor](../src/uk.osric.asp.Web/Assistant/RunProcessor.cs).*
