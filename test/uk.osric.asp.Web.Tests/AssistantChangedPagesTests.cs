@@ -163,7 +163,7 @@ public sealed class AssistantChangedPagesTests {
         context.User = new ClaimsPrincipal(new ClaimsIdentity(
             [new Claim(ClaimTypes.NameIdentifier, "owner")], "test"));
 
-        await AssistantEndpoint.ConversationAsync(
+        await AssistantConversationPage.ConversationAsync(
             context,
             1,
             new ShellConversationStore(messages, activeRun: activeRun),

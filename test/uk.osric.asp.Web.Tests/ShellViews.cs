@@ -403,7 +403,7 @@ internal static class ShellViews {
                 },
             ]
             : []);
-        await AssistantEndpoint.ConversationAsync(context, 1, conversations, new TestAntiforgery(),
+        await AssistantConversationPage.ConversationAsync(context, 1, conversations, new TestAntiforgery(),
             new RunRegistry(TestOptions.Assistant, TimeProvider.System), TestOptions.Assistant,
             ModelWindowSource.Fixed(TestOptions.Budget), new StubAccountBalanceClient());
         return await TestHttp.ReadBodyAsync(context);

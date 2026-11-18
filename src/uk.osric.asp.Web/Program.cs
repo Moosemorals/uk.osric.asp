@@ -553,7 +553,7 @@ internal class Program {
         app.MapPost("/assistant", AssistantEndpoint.ListAsync)
             .RequireAuthorization(EditorPolicy.Name)
             .WithMetadata(new RequireAntiforgeryTokenAttribute(true));
-        app.MapGet("/assistant/{id:long}", AssistantEndpoint.ConversationAsync)
+        app.MapGet("/assistant/{id:long}", AssistantConversationPage.ConversationAsync)
             .RequireAuthorization(EditorPolicy.Name);
         app.MapPost("/assistant/{id:long}/messages", AssistantEndpoint.MessagesAsync)
             .RequireAuthorization(EditorPolicy.Name)

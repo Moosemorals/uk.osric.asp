@@ -23,7 +23,7 @@ public sealed class AssistantBudgetTests {
 
         ChatMessage[] stored = [.. messages.Select(message => message.ToChatMessage())];
         BudgetSnapshot snapshot = BudgetSnapshot.Measure(Plan(stored), stored, 1, 2, null, null, TestOptions.Budget, 0);
-        Dictionary<string, (string Name, string Arguments)> calls = AssistantEndpoint.ReadToolCalls(messages);
+        Dictionary<string, (string Name, string Arguments)> calls = AssistantConversationPage.ReadToolCalls(messages);
 
         Assert.Multiple(() => {
             Assert.That(calls, Has.Count.EqualTo(2), "the page renders a name for every stored call");
