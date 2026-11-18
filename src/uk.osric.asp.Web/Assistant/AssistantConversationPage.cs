@@ -341,7 +341,7 @@ internal static class AssistantConversationPage {
             snapshot.LastMaxTokens == 0 ? null : snapshot.LastMaxTokens, "tokens");
         await context.Response.WriteAsync("""
                 </dl>
-                <p class="assistant-budget-note">Context is the next request's estimate: the provider's count of the last request plus the messages added since, in tokens. Reply is the max_tokens that request leaves, and Window is the two together against the model's reported window. Estimate is the last step's error, signed, against the margin the estimate allows; Completion counts the last step and the allowance it was given. The transcript above is complete.</p>
+                <p class="assistant-budget-note">Context is the next request's estimate: the provider's count of the last request plus the messages added since, in tokens. Reply is the max_tokens that request leaves, and Window is the two together against the model's reported window. Estimate is the last step's error, signed, against the margin the estimate allows; Completion counts the last step and the allowance it was given. Tool calls counts the calls this run has attempted. While a step streams, Context, Window and Completion are marked estimates until the next snapshot replaces them. The transcript above is complete.</p>
             </fieldset>
             """);
     }

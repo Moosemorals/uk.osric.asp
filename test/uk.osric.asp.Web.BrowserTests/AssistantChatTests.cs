@@ -260,4 +260,109 @@ internal sealed class AssistantChatTests : BrowserTest {
             "nodes => nodes.filter(node => !Array.from(node.querySelectorAll('pre')).some(pre => pre.textContent.trim())).length");
         Assert.That(blankRows, Is.Zero, "a step that only calls a tool must not add a blank row");
     }
+
+    [Test]
+    public async Task TheCompletionRowRisesWhileTheAnswerStreamsAsync() {
+        await NewConversationAsync();
+        Provider.Script(StubResponse.Words(string.Join(' ', Enumerable.Repeat("word", 300)), TimeSpan.FromMilliseconds(100)));
+
+        await SendAsync("Write a lot, slowly");
+        await Assertions.Expect(Page.Locator("#assistant-stop")).ToBeVisibleAsync(new() { Timeout = 30_000 });
+
+        await Assertions.Expect(Page.Locator("[data-budget=\"output\"][data-estimated=\"true\"]"))
+            .ToHaveCountAsync(1, new() { Timeout = 60_000 });
+        double figure = await FigureAsync("output");
+        bool hidden = await Page.Locator("[data-budget=\"output\"] .assistant-budget-estimated-word")
+            .EvaluateAsync<bool>("word => word.hidden");
+
+        Assert.Multiple(() => {
+            Assert.That(figure, Is.GreaterThan(0), "the completion row did not move while the answer streamed");
+            Assert.That(hidden, Is.False, "an estimated figure must say so to a screen reader");
+        });
+        await StopAsync();
+    }
+
+    [Test]
+    public async Task TheContextRowRisesWithTheAnswerItWillCarryAsync() {
+        await NewConversationAsync();
+        double before = await MeterAsync("context");
+        Provider.Script(StubResponse.Words(string.Join(' ', Enumerable.Repeat("word", 300)), TimeSpan.FromMilliseconds(100)));
+
+        await SendAsync("Write a lot, slowly");
+        await Assertions.Expect(Page.Locator("#assistant-stop")).ToBeVisibleAsync(new() { Timeout = 30_000 });
+        await Assertions.Expect(Page.Locator("[data-budget=\"context\"][data-estimated=\"true\"]"))
+            .ToHaveCountAsync(1, new() { Timeout = 60_000 });
+        double during = await MeterAsync("context");
+
+        Assert.That(during, Is.GreaterThan(before), "the context row did not move while the answer streamed");
+        await StopAsync();
+    }
+
+    [Test]
+    public async Task TheProjectionIsReplacedByTheReportedFigureWhenTheRunEndsAsync() {
+        await NewConversationAsync();
+        Provider.Script(StubResponse.Words("A few words to finish.", TimeSpan.Zero));
+
+        await SendAsync("Say something");
+        await Assertions.Expect(Page.Locator("#assistant-transcript"))
+            .ToContainTextAsync("A few words to finish.", new() { Timeout = 30_000 });
+
+        // The page reloads when the run completes, and the reload is the provider's own count.
+        await Assertions.Expect(Page.Locator("[data-estimated]")).ToHaveCountAsync(0, new() { Timeout = 30_000 });
+        await Assertions.Expect(Page.Locator("#assistant-budget-output")).ToHaveTextAsync("20", new() { Timeout = 30_000 });
+    }
+
+    [Test]
+    public async Task AReloadMidRunRebuildsTheProjectionRatherThanDoublingItAsync() {
+        await NewConversationAsync();
+        Provider.Script(StubResponse.Words(string.Join(' ', Enumerable.Repeat("word", 400)), TimeSpan.FromMilliseconds(100)));
+
+        await SendAsync("Write a lot, slowly");
+        await Assertions.Expect(Page.Locator("#assistant-stop")).ToBeVisibleAsync(new() { Timeout = 30_000 });
+        double before = await WaitForFigureAsync("output", 60);
+        Assert.That(before, Is.GreaterThanOrEqualTo(60), "the answer did not stream far enough to observe the projection");
+
+        await Page.ReloadAsync();
+        await Assertions.Expect(Page.Locator("#assistant-stop")).ToBeVisibleAsync(new() { Timeout = 30_000 });
+        await Assertions.Expect(Page.Locator("[data-budget=\"output\"][data-estimated=\"true\"]"))
+            .ToHaveCountAsync(1, new() { Timeout = 60_000 });
+        double after = await FigureAsync("output");
+
+        Assert.Multiple(() => {
+            Assert.That(after, Is.GreaterThanOrEqualTo(before), "the replayed journal lost the projection");
+            Assert.That(after, Is.LessThan(before * 2), "the replayed journal was counted twice");
+        });
+        await StopAsync();
+    }
+
+    // A run left streaming holds the run worker, and the next test's run would queue behind it. Stopping
+    // it here reads the reload the cancellation performs, which is when the box is the reader's again.
+    private async Task StopAsync() {
+        await Page.ClickAsync("#assistant-stop");
+        await Assertions.Expect(Page.Locator("#assistant-send")).ToBeEnabledAsync(new() { Timeout = 30_000 });
+    }
+
+    private Task<double> MeterAsync(string row) =>
+        Page.Locator($"#assistant-budget-{row}-meter").EvaluateAsync<double>("meter => meter.value");
+
+    // The figure as it is drawn, which is at most three digits and a unit letter. The meter is not
+    // available for a row whose denominator the provider has not reported yet, and Completion is one.
+    private async Task<double> FigureAsync(string row) {
+        string text = (await Page.Locator($"#assistant-budget-{row}").TextContentAsync() ?? "0").Trim();
+        double scale = text.EndsWith('k') ? 1_000 : text.EndsWith('M') ? 1_000_000 : 1;
+        string digits = scale == 1 ? text : text[..^1];
+        return double.Parse(digits, System.Globalization.CultureInfo.InvariantCulture) * scale;
+    }
+
+    private async Task<double> WaitForFigureAsync(string row, double atLeast) {
+        double value = 0;
+        for (int attempt = 0; attempt < 600; attempt++) {
+            value = await FigureAsync(row);
+            if (value >= atLeast) {
+                return value;
+            }
+            await Task.Delay(100);
+        }
+        return value;
+    }
 }

@@ -133,12 +133,15 @@ and what depends on it is asserted by the suites that use it (`SimpleContextTest
   SQLite files for conversations, sequence allocation, approvals and restart repair; fake HTTP
   handlers for provider SSE; the model list parsed from the provider's own documented example, and a
   `400` named as a context-length rejection rather than a generic fault; and scripted model streams
-  for the run processor, including a reply cut through a tool call, a run with no reported window and
-  the cache warning said once. `Web.IntegrationTests` runs the real authenticated host with a
-  scripted provider to verify disabled routing, conversation streaming, approval gating and writes,
+  for the run processor, including a reply cut through a tool call, a run with no reported window, a
+  tool-call row that ticks as each call starts and the cache warning said once.
+  `Web.IntegrationTests` runs the real authenticated host with a scripted provider to verify disabled
+  routing, conversation streaming, approval gating and writes,
   and compares the last `budget.updated` a run published — its ten budget rows, their limits and its
-  usage — with the page the reload renders. The browser suite watches a budget figure and the usage list move while the run
-  is still busy, and watches a scripted Markdown reply become formatted when its step completes.
+  usage — with the page the reload renders. The browser suite watches a projected budget figure and
+  the usage list move while the run is still busy, watches the projection give way to the reported
+  figure after the reload, and watches a scripted Markdown reply become formatted when its step
+  completes.
   Memory is covered at the same boundaries:
   `Core.Tests` pins the query terms, the selection rule and the block, content normalisation and the
   secret rules; `Web.Tests` runs `SqliteMemoryStore` against a migrated file for owner scope, the

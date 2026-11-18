@@ -319,21 +319,21 @@ public sealed class ConversationStoreTests {
     }
 
     [Test]
-    public async Task RecordStepAddsEveryReportedCountToTheRunAsync() {
+    public async Task RecordStepAddsTheReportedUsageToTheRunAsync() {
         await using StorageDbContext database = new(_options);
         IConversationStore conversations = NewStore(database);
         Conversation conversation = await conversations.CreateAsync("owner");
         RunStartResult start = await conversations.StartRunAsync(conversation.Id, "owner", "write", "model", "prompt-v1");
 
-        Assert.That(await conversations.RecordStepAsync(start.RunId!, 1, 4_000, 1_100, 100_000,
+        Assert.That(await conversations.RecordStepAsync(start.RunId!, 4_000, 1_100, 100_000,
             new TokenUsage(1_000, 20, 600, 5), CancellationToken.None), Is.True);
-        Assert.That(await conversations.RecordStepAsync(start.RunId!, 2, 5_000, 2_100, 90_000,
+        Assert.That(await conversations.RecordStepAsync(start.RunId!, 5_000, 2_100, 90_000,
             new TokenUsage(2_000, 30, 1_200, 7), CancellationToken.None), Is.True);
 
         Run run = await database.Set<Run>().AsNoTracking().SingleAsync();
         Assert.Multiple(() => {
             Assert.That(run.StepCount, Is.EqualTo(2));
-            Assert.That(run.ToolCallCount, Is.EqualTo(3));
+            Assert.That(run.ToolCallCount, Is.Zero, "a step records no calls; they are counted as they run");
             Assert.That(run.PromptTokens, Is.EqualTo(3_000));
             Assert.That(run.CompletionTokens, Is.EqualTo(50));
             Assert.That(run.CachedTokens, Is.EqualTo(1_800));
@@ -353,12 +353,12 @@ public sealed class ConversationStoreTests {
         Conversation conversation = await conversations.CreateAsync("owner");
         RunStartResult start = await conversations.StartRunAsync(conversation.Id, "owner", "write", "model", "prompt-v1");
 
-        Assert.That(await conversations.RecordStepAsync(start.RunId!, 4, 9_000, 9_100, 80_000, null, CancellationToken.None), Is.True);
+        Assert.That(await conversations.RecordStepAsync(start.RunId!, 9_000, 9_100, 80_000, null, CancellationToken.None), Is.True);
 
         Run run = await database.Set<Run>().AsNoTracking().SingleAsync();
         Assert.Multiple(() => {
             Assert.That(run.StepCount, Is.EqualTo(1));
-            Assert.That(run.ToolCallCount, Is.EqualTo(4));
+            Assert.That(run.ToolCallCount, Is.Zero);
             Assert.That(run.PromptTokens, Is.Null);
             Assert.That(run.CompletionTokens, Is.Null);
             Assert.That(run.RequestBytes, Is.Null);
@@ -368,12 +368,28 @@ public sealed class ConversationStoreTests {
     }
 
     [Test]
+    public async Task AToolCallCountsWhenItIsAttemptedAsync() {
+        await using StorageDbContext database = new(_options);
+        IConversationStore conversations = NewStore(database);
+        Conversation conversation = await conversations.CreateAsync("owner");
+        RunStartResult start = await conversations.StartRunAsync(conversation.Id, "owner", "write", "model", "prompt-v1");
+
+        Assert.That(await conversations.RecordToolCallAsync(start.RunId!, CancellationToken.None), Is.True);
+        Assert.That(await conversations.RecordToolCallAsync(start.RunId!, CancellationToken.None), Is.True);
+
+        Run run = await database.Set<Run>().AsNoTracking().SingleAsync();
+        Assert.That(run.ToolCallCount, Is.EqualTo(2));
+        Assert.That(await conversations.RecordToolCallAsync("no-such-run", CancellationToken.None), Is.False,
+            "a call for a run that is not there counts nothing");
+    }
+
+    [Test]
     public async Task ANewRunStartsWithTheLastRunsCalibrationForTheSameModelAsync() {
         await using StorageDbContext database = new(_options);
         IConversationStore conversations = NewStore(database);
         Conversation conversation = await conversations.CreateAsync("owner");
         RunStartResult first = await conversations.StartRunAsync(conversation.Id, "owner", "write", "model", "prompt-v1");
-        await conversations.RecordStepAsync(first.RunId!, 0, 4_000, 1_100, 100_000, new TokenUsage(1_000, 20), CancellationToken.None);
+        await conversations.RecordStepAsync(first.RunId!, 4_000, 1_100, 100_000, new TokenUsage(1_000, 20), CancellationToken.None);
         await conversations.SetRunStatusAsync(first.RunId!, "completed");
 
         RunStartResult second = await conversations.StartRunAsync(conversation.Id, "owner", "again", "model", "prompt-v1");

@@ -191,6 +191,16 @@
     font-weight: 600;
 }
 
+/* A projected figure is a guess until the next snapshot replaces it. The mark says so, and the
+   drawing stays in the panel's own colours: the exceeded red is reserved for a measured figure. */
+.assistant-budget[data-estimated="true"] .assistant-budget-count {
+    font-style: italic;
+}
+
+.assistant-budget[data-estimated="true"] meter {
+    opacity: 0.3;
+}
+
 .assistant-budget-note {
     margin: 0.35rem 0 0;
     color: #414b48;

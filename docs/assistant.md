@@ -230,17 +230,37 @@ tags.
 
 The budgets the page shows are one `BudgetSnapshot`: the request plan and the stored transcript,
 measured once. The page renders it, and the run publishes it as `budget.updated` over the journal the
-page already listens to, at the start of each step, when that step's usage is stored and around each
-tool call. A figure a reader watches move is therefore the figure the reload will show. The panel has
-ten rows: Message, Context, Reply, Window, Estimate, Steps, Tool calls, Tool arguments, Tool result
-and Completion. Context is the estimate for the request the next step would send, measured against
-the prompt's share of the window; Reply is the `max_tokens` that request leaves; Window is the two
-together against the reported window, with the remainder spare. Estimate is the last step's signed
-error against the margin the estimate allows — `over` when the estimate was high, which is safe, and
-`under`, the direction that can breach the budget — and it takes the exceeded class past the margin.
-Completion is the last step's tokens against the allowance that step was given, not the model's
-ceiling. `BudgetAmount` keeps every figure to at most three digits and a unit letter (`16k`, `90k`),
-so ten rows fit two columns.
+page already listens to, at the start of each step, when that step's usage is stored, as each tool
+call starts, and once more before `run.completed`. A reported figure a reader watches move is
+therefore the figure the reload will show. The panel has ten rows: Message, Context, Reply, Window,
+Estimate, Steps, Tool calls, Tool arguments, Tool result and Completion. Context is the estimate for
+the request the next step would send, measured against the prompt's share of the window; Reply is the
+`max_tokens` that request leaves; Window is the two together against the reported window, with the
+remainder spare. Estimate is the last step's signed error against the margin the estimate allows —
+`over` when the estimate was high, which is safe, and `under`, the direction that can breach the
+budget — and it takes the exceeded class past the margin. Completion is the last step's tokens against
+the allowance that step was given, not the model's ceiling. `BudgetAmount` keeps every figure to at
+most three digits and a unit letter (`16k`, `90k`), so ten rows fit two columns.
+
+Tool calls counts the calls the run has attempted, which is the figure the cap spends and the one a
+pause is named after: the response's call count is not used, because it lands before any of the calls
+runs and would read past the limit while the run is still working. Each `tool.started` carries the
+next attempt, so the row ticks with the card, and `RecordToolCallAsync` stores the same count rather
+than the step recording it in advance. A reload taken while a call is in flight lags by that one call,
+the same way Steps lags by the step in flight; the reload after a run agrees with the tick.
+
+Between snapshots the page projects the three token rows from the deltas it already has: Completion
+from the characters of `content.delta` and `reasoning.delta` for the step, and Context from those plus
+the tool-call arguments, added to the reported figure. The division is the prose ratio the token
+spike measured, about 3.8 characters per token — not `TokenEstimator.BytesPerToken`, which is a JSON
+request body's bytes per prompt token and would read an answer at more than twice its size. Window
+follows the projected Context plus the reported Reply. A projection is marked: a `~` beside the
+figure, a visually-hidden "estimated" for a screen reader, and `data-estimated` for the stylesheet,
+cleared by the next snapshot that supplies the row. It never takes the exceeded class, which is
+reserved for a figure the server measured; the reload renders only reported figures, so no projection
+outlives the run. Replay is what keeps it one opinion: the journal replays snapshots and deltas in
+the order the run produced them, so each snapshot resets the characters the page has counted and the
+projection is rebuilt rather than doubled.
 
 The estimate is anchored on the provider's own count. `ChatRequestJson` measures the exact UTF-8 body
 of a request once; `TokenEstimator` starts from the `prompt_tokens` the provider reported for the

@@ -545,14 +545,12 @@ internal sealed class SqliteConversationStore(
 
     public async Task<bool> RecordStepAsync(
         string runId,
-        int toolCallCount,
         long requestBytes,
         long estimatedTokens,
         int maxTokens,
         TokenUsage? usage,
         CancellationToken cancellationToken = default) {
         ArgumentException.ThrowIfNullOrWhiteSpace(runId);
-        ArgumentOutOfRangeException.ThrowIfNegative(toolCallCount);
         ArgumentOutOfRangeException.ThrowIfNegative(estimatedTokens);
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(maxTokens);
 
@@ -560,12 +558,10 @@ internal sealed class SqliteConversationStore(
         int updated = usage is null
             ? await run.ExecuteUpdateAsync(setters => setters
                 .SetProperty(item => item.StepCount, item => item.StepCount + 1)
-                .SetProperty(item => item.ToolCallCount, item => item.ToolCallCount + toolCallCount)
                 .SetProperty(item => item.EstimatedTokens, item => estimatedTokens)
                 .SetProperty(item => item.MaxTokens, item => maxTokens), cancellationToken)
             : await run.ExecuteUpdateAsync(setters => setters
                 .SetProperty(item => item.StepCount, item => item.StepCount + 1)
-                .SetProperty(item => item.ToolCallCount, item => item.ToolCallCount + toolCallCount)
                 .SetProperty(item => item.EstimatedTokens, item => estimatedTokens)
                 .SetProperty(item => item.MaxTokens, item => maxTokens)
                 .SetProperty(item => item.PromptTokens, item => (item.PromptTokens ?? 0) + (usage.PromptTokens ?? 0))
@@ -575,6 +571,17 @@ internal sealed class SqliteConversationStore(
                 .SetProperty(item => item.OutputTokens, item => usage.CompletionTokens ?? item.OutputTokens)
                 .SetProperty(item => item.RequestBytes, item => requestBytes)
                 .SetProperty(item => item.LastPromptTokens, item => usage.PromptTokens ?? item.LastPromptTokens), cancellationToken);
+        return updated > 0;
+    }
+
+    public async Task<bool> RecordToolCallAsync(string runId, CancellationToken cancellationToken = default) {
+        ArgumentException.ThrowIfNullOrWhiteSpace(runId);
+
+        int updated = await database.Set<Run>()
+            .Where(item => item.Id == runId)
+            .ExecuteUpdateAsync(
+                setters => setters.SetProperty(item => item.ToolCallCount, item => item.ToolCallCount + 1),
+                cancellationToken);
         return updated > 0;
     }
 
