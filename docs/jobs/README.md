@@ -34,7 +34,7 @@ and shares one file, [WHIMS.md](WHIMS.md); a resolved job moves to [closed.md](c
 | [IDEA-044](IDEA-044.md) | L | — | — | A page cannot render a page in a browser |
 | [IDEA-047](IDEA-047.md) | L | — | [ide-host](../plans/ide-host.md) | A render may write a batch of pages, and the caller names the policy |
 | [IDEA-050](IDEA-050.md) | S | — | [page-response](../plans/page-response.md) | The old response spelling is still on `IContext` |
-| [IDEA-051](IDEA-051.md) | M | — | [assistant-live-estimates](../plans/assistant-live-estimates.md) | The budget panel's token figures only move at a step's edge |
+| [IDEA-051](IDEA-051.md) | M | — | [assistant-live-figures](../plans/assistant-live-figures.md) | The budget panel's figures only move at a step's edge |
 
 ## The order
 
@@ -51,7 +51,7 @@ moves as it is worked — and each is one unit of work, on one branch in one wor
 | 4 | [IDEA-041](IDEA-041.md) | S | Diagnostics point at half the right place today; one value widened fixes it for the author and the assistant together. |
 | 5 | [IDEA-040](IDEA-040.md) | S | Says what a library edit recompiles; small, and it makes a cost the reader cannot see visible. |
 | 6 | [OPS-03](OPS-03.md) | M | Turns the gate from a habit into a rule, which makes every step below it cheaper. |
-| 7 | [IDEA-051](IDEA-051.md) | M | No dependency and no new mechanism: the bytes it needs are already on the wire, and it shortens every long run the owner watches. |
+| 7 | [IDEA-051](IDEA-051.md) | M | No new mechanism: the bytes it needs are already on the wire, and it shortens every long run the owner watches. It also fixes the tool-call row, which counts a different figure from the cap that pauses the run. |
 | 8 | [IDEA-042](IDEA-042.md) | M | A rename is two histories and silent breakage today; medium work for a common act. |
 | 9 | [IDEA-037](IDEA-037.md) | M | Stops "check my work" storing a revision, so no history carries a test save. |
 | 10 | [IDEA-038](IDEA-038.md) | M | Lifts the assistant's own search into the contract rather than inventing anything. |
