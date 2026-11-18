@@ -7,7 +7,7 @@ SPDX-License-Identifier: MIT
 
 | | |
 | --- | --- |
-| Size | S — a data change and a measurement, with the capability already in `Core` |
+| Size | S — a data change, one optional schema value and a measurement, with the capability already in `Core` |
 | Area | Core (Assistant), Web (assistant), docs |
 | Location | `src/uk.osric.asp.Web/Assistant/Tools/`, `src/uk.osric.asp.Core/Assistant/ToolArguments.cs` |
 
@@ -41,6 +41,21 @@ before and after rather than an opinion.
    than only pass or fail; a suite that passes either way says nothing about the change.
 4. **Pin it.** If every argument ends up described, `ToolSpecsTests` asserts it for every registered tool
    rather than for the one waiting tool.
+5. **Say a closed set once, in the schema.** `ToolArgumentSchema` gains an optional set of values beside
+   the description, emitted as JSON Schema's `enum` only when it is set, so the other tools' request
+   bodies are byte-identical.
+
+## The one argument a description cannot fix
+
+[IDEA-054](IDEA-054.md)'s `check` takes `language`, one of a closed set that grows as validators land
+([IDEA-055](IDEA-055.md)). Prose can enumerate it, and prose goes stale: the tool's description would
+have to be edited every time a language arrived, which is the drift `help` avoids by rendering the shell
+registry. `enum` states the set where the model reads it as a constraint rather than a sentence, and
+`enum` is what the provider guidance asks for in place of prose — unlike `maxItems` and `minLength`,
+which DeepSeek's strict mode rejects and this site never opts into.
+
+So the capability and the argument land together: one optional value on `ToolArgumentSchema`, one
+declaration that uses it, and a new language later costs a row rather than a rewritten description.
 
 ## Not in scope
 
@@ -48,3 +63,11 @@ before and after rather than an opinion.
   a rename is a different change with a different cost.
 - **Describing a boolean one by one.** Where a value is a boolean or a two-value string, the parent
   argument's description carries its meaning; a sentence per flag is cost without a new fact.
+
+## Where it lands
+
+Slice 1 of the assistant tool surface plan, `docs/plans/assistant-tool-surface.md`, written once
+[IDEA-037](IDEA-037.md) has merged, with [IDEA-054](IDEA-054.md) as slice 2. The two are one step
+because both rewrite the tool definitions and so the provider's cached prefix, and because the `enum`
+this job adds has no argument to describe until `check` exists. This job closes at that merge; the
+sketch above is unchanged.
