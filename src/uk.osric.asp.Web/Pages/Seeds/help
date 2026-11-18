@@ -40,8 +40,10 @@ confirms a delete, <code>?edit=&lt;path&gt;&amp;cmd=install</code> confirms a se
     A page that does not compile is still stored, so you do not lose your work.</li>
     <li><strong>Save and view</strong> saves, then opens the page. If it does not compile, you stay
     in the editor with the diagnostics instead.</li>
-    <li><strong>Diagnostics</strong> name the line and column in your template. A diagnostic that
-    has a position is a link to the matching number in the line gutter.</li>
+    <li><strong>Diagnostics</strong> name the line and the columns in your template: one about a
+    token covers it, from its first column to just past its last. A diagnostic that has a position is
+    a link to the matching number in the line gutter. One from a library names the library's key
+    instead, because the gutter holds this page and not that one.</li>
     <li><strong>State</strong> is what the page's stored image amounts to: <em>Compiled</em>,
     <em>Compiled with warnings</em>, <em>Compile failed</em>, <em>Not compiled</em>, or <em>Stale</em>
     when the image was built by an earlier deploy. A page compiled elsewhere says <em>Stale</em>
@@ -125,8 +127,8 @@ namespace Site.Document {
 &lt;% Document.Head(ctx); %&gt;</code></pre>
 <p>A page is compiled with every library its <code>using</code> directives reach, and with the
 libraries those reach in turn, so one library may build on another. Editing a library recompiles the
-pages that name it, and nothing else. A diagnostic from library code names the library and the line in
-it, rather than pointing at your page.</p>
+pages that name it, and nothing else. A diagnostic from library code names the library and the line
+and columns in it, rather than pointing at your page.</p>
 <p>A library's <code>static</code> fields are one copy for each page that names it, not one copy for
 the site: do not use them to share a value between pages. A library that does not compile stops the
 pages that name it from compiling until it is fixed &mdash; and the editor page names the document
@@ -633,8 +635,9 @@ signed-in visitor's rather than the page's. There are two saves.</p>
 <p>It answers a <a href="/admin/reference/sdk#t-PageSaveResult"><code>PageSaveResult</code></a>: the new
 revision's hash, and the compiler's diagnostics as
 <a href="/admin/reference/sdk#t-PageDiagnostic"><code>PageDiagnostic</code></a> values — severity, the
-template line and column when there is one, the code (<code>PAGE001</code>, <code>CS1002</code>) and its
-text.</p>
+key of the library a diagnostic is in (<code>null</code> when it is in this page), the template line
+and column it starts at, the line and column just past where it ends when it covers a token, the code
+(<code>PAGE001</code>, <code>CS1002</code>) and its text.</p>
 <p><code>SaveAsync(key, template, expectedHash)</code> stores <em>any</em> key the site's own routes do
 not answer, and only while that page still has the head hash the form was drawn from. It answers a
 <a href="/admin/reference/sdk#t-PageEditResult"><code>PageEditResult</code></a>: <code>Outcome</code> is

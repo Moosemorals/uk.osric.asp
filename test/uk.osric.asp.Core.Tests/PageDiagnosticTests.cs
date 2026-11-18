@@ -41,6 +41,57 @@ public sealed class PageDiagnosticTests {
     }
 
     [Test]
+    public void ASpanOnOneLineIsRenderedAsItsColumns() {
+        PageDiagnostic diagnostic = new(
+            PageDiagnosticSeverity.Error,
+            new TemplatePosition(2, 16),
+            "CS0103: The name 'missing' does not exist") {
+            End = new TemplatePosition(2, 23),
+        };
+
+        Assert.That(diagnostic.ToString(),
+            Is.EqualTo("line 2, columns 16-23: error CS0103: The name 'missing' does not exist"));
+    }
+
+    [Test]
+    public void ASpanThatCrossesALineBreakNamesBothEnds() {
+        PageDiagnostic diagnostic = new(
+            PageDiagnosticSeverity.Error,
+            new TemplatePosition(2, 16),
+            "CS1503: Argument 1: cannot convert from 'int' to 'string'") {
+            End = new TemplatePosition(3, 4),
+        };
+
+        Assert.That(diagnostic.ToString(),
+            Is.EqualTo("line 2, column 16 to line 3, column 4: error CS1503: Argument 1: cannot convert from 'int' to 'string'"));
+    }
+
+    [Test]
+    public void AnEndAtTheStartIsRenderedAsAPoint() {
+        PageDiagnostic diagnostic = new(
+            PageDiagnosticSeverity.Error,
+            new TemplatePosition(1, 16),
+            "CS1525: Invalid expression term ';'") {
+            End = new TemplatePosition(1, 16),
+        };
+
+        Assert.That(diagnostic.ToString(), Is.EqualTo("line 1, column 16: error CS1525: Invalid expression term ';'"));
+    }
+
+    [Test]
+    public void ADiagnosticFromALibraryNamesTheLibraryBeforeItsPosition() {
+        PageDiagnostic diagnostic = new(
+            PageDiagnosticSeverity.Error,
+            new TemplatePosition(12, 3),
+            "CS0103: The name 'missing' does not exist") {
+            Source = "/_lib/document",
+        };
+
+        Assert.That(diagnostic.ToString(),
+            Is.EqualTo("/_lib/document, line 12, column 3: error CS0103: The name 'missing' does not exist"));
+    }
+
+    [Test]
     public void DisplayOrderIsByLineThenColumn() {
         PageDiagnostic third = new(PageDiagnosticSeverity.Error, new TemplatePosition(3, 1), "third");
         PageDiagnostic secondColumn = new(PageDiagnosticSeverity.Warning, new TemplatePosition(1, 20), "second");

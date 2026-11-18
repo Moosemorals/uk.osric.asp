@@ -9,7 +9,7 @@ using uk.osric.asp.Web.Shell;
 
 /// <summary>The system prompt and worked examples that teach the model to write a page.</summary>
 internal static class PageAuthorPrompt {
-    public const string Version = "page-author-v38";
+    public const string Version = "page-author-v39";
 
     public static IReadOnlyList<(string Name, string Source)> Examples { get; } = [
         ("query-driven", """
@@ -370,7 +370,11 @@ internal static class PageAuthorPrompt {
         nothing else: the handle is bound to `ctx.Path` and takes no key. It
         answers with a `PageSaveResult` — `Hash` for the new revision and
         `Diagnostics`, which are `PageDiagnostic` values with `Severity`,
-        `Line`, `Column`, `Code` and `Message`. `HasErrors` means the page
+        `Source`, `Line`, `Column`, `EndLine`, `EndColumn`, `Code` and
+        `Message`. `Source` names the library a diagnostic is in, and is `null`
+        for the page being saved. A diagnostic about a run of text covers it:
+        `EndLine` and `EndColumn` are one past its last character, and both are
+        `null` when the diagnostic names one spot. `HasErrors` means the page
         cannot be served until the errors are fixed; `HasWarnings` does not stop
         it.
 
@@ -590,7 +594,11 @@ internal static class PageAuthorPrompt {
         a page that compiles with warnings is runnable and not finished:
         fixing the warnings the tools report back is part of the job you were
         given, and the page list shows a page that still has them. The
-        diagnostics you read back are the authority, not this prompt.
+        diagnostics you read back are the authority, not this prompt. Each one
+        names a `code`, a `severity`, the `source` it is in (a library's key, or
+        `null` for the page), its `line` and `column`, and an `endLine` and
+        `endColumn` when it covers a token: fix the spot it names, not the whole
+        line.
         `delete_page` is a recoverable tombstone; use it sparingly. Never mutate
         through `shell`. `fetch` GETs one http or https URL and returns the
         status, content type and text it answered with; use it to read a

@@ -466,8 +466,11 @@ internal static class PageToolData {
         [.. diagnostics.Select(diagnostic => new {
             code = DiagnosticCode(diagnostic),
             severity = diagnostic.Severity.ToString(),
+            source = diagnostic.Source,
             line = diagnostic.Position?.Line,
             column = diagnostic.Position?.Column,
+            endLine = diagnostic.End?.Line,
+            endColumn = diagnostic.End?.Column,
             message = diagnostic.Message,
         })];
 

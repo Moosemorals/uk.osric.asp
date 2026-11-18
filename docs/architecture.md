@@ -63,8 +63,14 @@ and makes the template code. A block ends at the first `%>` whatever it holds, s
 mention one, and `<%#if DEBUG %>` is a note rather than a directive — `<% #if DEBUG %>` is the code.
 
 Diagnostics live in template space: `PageDiagnostic.Position` is a 1-based `TemplatePosition` in the
-page the author typed, or `null` when there is no position. The generator wraps each code block in
-`#line` directives that name the template line and pads the first line to the template column.
+page the author typed, or `null` when there is no position. A diagnostic about a run of text carries
+its extent too — `PageDiagnostic.End` is one past the last character, and is `null` when the
+diagnostic names a point — so an editor can underline the token rather than a character of it. Both
+ends are mapped through the same `#line` directives, and an end Roslyn puts at or before the start is
+dropped: a span is only ever read forwards. `PageDiagnostic.Source` is the key of the library a
+diagnostic is in, or `null` for the page itself, so a consumer knows which file a position is in.
+The generator wraps each code block in `#line` directives that name the template line and pads the
+first line to the template column.
 Expression code is mapped separately from its generated `ctx.Response.Write(...)` or `ctx.Response.WriteRaw(...)`
 wrapper, so expression errors point to the expression and wrapper errors map to the opener's line.
 For a wrapper diagnostic, Roslyn's column identifies the generated method name (for example,
