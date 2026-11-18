@@ -348,9 +348,9 @@ A **library** is a template whose only tokens are declaration blocks, plus any c
 whitespace between them. It has nothing to render, so it
 is never served: its key answers `404` and it is never an asset, never pinned with `?v=` and never
 wrapped. It is checked when it is saved — Roslyn analyses it and the diagnostics are stored beside the
-source, with no assembly — and a page API violation inside it is reported at the library's own line
-and key. A library declares at least one type in a namespace, which is how a page names it; a page
-may not declare a namespace.
+source, with no assembly — and a page API violation inside it is reported at the library's own line,
+columns and key. A library declares at least one type in a namespace, which is how a page names it; a
+page may not declare a namespace.
 
 A **worker** is a library that declares one entry point: a public type implementing `IWorker` with a
 parameterless constructor. It is compiled to an assembly when it is saved, so its image is stored
@@ -427,7 +427,9 @@ write, or every row after an upgrade that touched `Sdk` or `Core` — is compile
 stored. That is the only compile outside a save: there is no startup warm-up, so the first visitor
 after a deploy pays one compile per page. A failure is stored too, so a broken page serves its
 diagnostics without recompiling, and the editor shows them after the save instead of losing the
-edit. `Diagnostics` is a JSON array of positioned, severity-tagged `PageDiagnostic` values; a
+edit. `Diagnostics` is a JSON array of positioned, severity-tagged `PageDiagnostic` values, each with
+the run it covers and the key of the library it is in when the problem is not in the page itself
+(`pages-a-diagnostic-names-its-source`); a
 warning-only page stores its image and reports "Saved with warnings." A compiler fault stores only
 the source, so the author's edit survives and the next request retries.
 

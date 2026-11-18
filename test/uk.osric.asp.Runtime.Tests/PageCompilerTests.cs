@@ -76,6 +76,45 @@ public sealed class PageCompilerTests {
     }
 
     [Test]
+    public void ATokenDiagnosticCoversTheTokenItNames() {
+        CompileResult result = Compile("<% ctx.Missing(); %>");
+
+        PageDiagnostic error = result.Diagnostics.Single(diagnostic =>
+            diagnostic.Message.Contains("CS1061", StringComparison.Ordinal));
+
+        Assert.Multiple(() => {
+            Assert.That(error.Position, Is.EqualTo(new TemplatePosition(1, 8)));
+            Assert.That(error.End, Is.EqualTo(new TemplatePosition(1, 15)), "the end is one past the name");
+        });
+    }
+
+    [Test]
+    public void ADiagnosticThatNamesAPointHasNoExtent() {
+        CompileResult result = Compile("<% int x = 1 %>");
+
+        PageDiagnostic error = result.Diagnostics.Single(diagnostic =>
+            diagnostic.Message.Contains("CS1002", StringComparison.Ordinal));
+
+        Assert.Multiple(() => {
+            Assert.That(error.Position, Is.Not.Null);
+            Assert.That(error.End, Is.Null, "an absent end is the start");
+        });
+    }
+
+    [Test]
+    public void AnExtentThatCrossesATemplateLineBreakKeepsBothEnds() {
+        CompileResult result = Compile("<%\n  ctx.Response.Write(1 +\n    2);\n%>");
+
+        PageDiagnostic error = result.Diagnostics.Single(diagnostic =>
+            diagnostic.Message.Contains("CS1503", StringComparison.Ordinal));
+
+        Assert.Multiple(() => {
+            Assert.That(error.Position, Is.EqualTo(new TemplatePosition(2, 22)));
+            Assert.That(error.End, Is.EqualTo(new TemplatePosition(3, 6)));
+        });
+    }
+
+    [Test]
     public void AWriteExpressionErrorOnALaterLineReportsItsTemplatePosition() {
         CompileResult result = Compile("first\n<%=\n    ctx\n      .Missing\n%>");
 

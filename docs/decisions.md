@@ -432,6 +432,26 @@ retired: `PAGE005` left with the capability alias and is not reissued.
 
 *Recorded in [architecture](architecture.md#functional-core-imperative-shell), [compiler diagnostics](plans/archive/compiler-diagnostics.md#decisions).*
 
+### pages-a-diagnostic-names-its-source
+
+A diagnostic points at the thing, in the file it is in. Beside the severity, code and text of
+`pages-what-a-diagnostic-is` it carries the **run** it is about and the **source** it is in, because a
+start alone is half an answer: an editor cannot underline a token it has one end of, and a page that
+names a library compiles diagnostics in a file the author is not looking at.
+
+The run is two template positions — a start and an end one past the last character, as an editor's
+selection is — and an absent end means the start, so a consumer that wants a line never meets a second
+kind of unknown. The source is the key of the page or library the position refers to, or `null` for
+the page being saved: a key is what a consumer needs to name *which* library, where a "this is a
+library" flag would say only that it is one. Both survive every hop: `PageCompiler.MapDiagnostics`
+maps the end Roslyn already had in hand and drops one that is not after the start, `PageDiagnostics`
+copies the span and the key into the `Sdk` value as `EndLine`, `EndColumn` and `Source`, and the
+editor, `/admin/errors`, `make check-pages` and the assistant's tool results each read them rather
+than recomputing a range. The span is within mapped template lines: an end column is exact within one
+line and approximate across a line break, because Roslyn's mapped span is per generated line.
+
+*Recorded in [architecture](architecture.md#functional-core-imperative-shell), [pages](pages.md#compiled-pages), [MapDiagnostics](../src/uk.osric.asp.Runtime/PageCompiler.cs), [Sdk PageDiagnostic](../src/uk.osric.asp.Sdk/PageDiagnostic.cs).*
+
 ### pages-a-warning-never-stops-a-page
 
 A warning never stops a page compiling or being served. `Success` is "no diagnostic is an error"; a

@@ -3,127 +3,97 @@ SPDX-FileCopyrightText: Copyright 2026 Osric Wilkinson <osric@fluffypeople.com>
 SPDX-License-Identifier: MIT
 -->
 
-# IDEA-056 — A block that is not code still compiles
+# IDEA-056 — A job acts with its starter's credential, and loses it when that credential dies
 
 | | |
 | --- | --- |
-| Size | S — two codes in one pure function, one text-run rule so a mistake is reported once, one more consumer in `check-pages`, and the tests and the docs for each |
-| Area | Core (Compilation), tools, docs |
-| Location | `src/uk.osric.asp.Core/Compilation/TemplateShapeCheck.cs`, `test/uk.osric.asp.Core.Tests/TemplateShapeCheckTests.cs`, `tools/check-pages/Program.cs`, `docs/architecture.md`, `docs/pages.md`, `src/uk.osric.asp.Web/Pages/Seeds/help` |
+| Size | L — a credential captured at start, a liveness check on every identity-bearing action, the write offered to a job, and the tests, manual, prompt and records for each. It wants a plan of its own |
+| Area | Sdk, Web (work and authentication), docs, assistant |
+| Location | `src/uk.osric.asp.Web/Work/PageJob.cs`, `PageJobRunner.cs`, `PageJobs.cs`, `src/uk.osric.asp.Web/Pages/PageJobsScope.cs`, `PageWritesScope.cs`, `PageJobEnvironment.cs`, `src/uk.osric.asp.Sdk/IWorkerContext.cs` |
+
+> **Written 2026-11-18** at the owner's direction. Its prerequisite is
+> [IDEA-047](IDEA-047.md), which the owner also moved up the order the same day: a job cannot be
+> offered a writer while one action per render is the rule. Nothing is built until a plan answers the
+> open questions below.
 
 ## Idea
 
-`TemplateShapeCheck` reports the shape problems that compile cleanly — a `%>` in literal text, a `{`
-never closed, a `}` with no opener (`pages-the-shape-check`). Two shapes still get through, and one of
-them is answered today with the wrong cause.
+A job carries `PageUser Owner` and every check compares the name, so a job's authority is a string
+that never expires. A page has the same authority but holds it through a live request: the cookie's
+ticket is a row that sign-out deletes, and the account's security stamp is compared on every request.
+A job outlives the request that started it, so "the caller" is a snapshot, not a credential — and
+that is the whole reason `IPageWrites` is withheld ([IDEA-025](IDEA-025.md) §4). Give a job the
+credential and revocation comes with it.
 
-**A block that holds no code.** `<% %>`, a block of whitespace, and `<% /* note */ %>` are dead
-lexically and decisive semantically, because kind is "is there a token that is not text or comment".
-`<% %>` turns a text page into a **page**: compiled, wrapped, given a banner, a skip link and a title
-requirement. `<%! /* note */ %>` satisfies `IsLibrary`'s `declares` flag while declaring nothing, so a
-text page carrying one is stored as a **library**, and its key answers `404`. The manual already says
-`<% /* … */ %>` "makes the template code, the two are not interchangeable" — this is what that costs.
-
-**A block that ends inside a literal.** `<% string s = "%>"; %>` ends at the `%>` inside the string,
-the rest of the line becomes text, Roslyn says `CS1010` against the quote — and the check adds
-`TEMPLATE003: '%>' has no matching '<%'` about the leftover text, which names the symptom as the
-cause. The scan already knows: `SkipString` and its siblings return `value.Length` for a literal that
-never closes.
-
-Both are warnings in the existing value, positioned in template space, merged where `TEMPLATE003`–`005`
-already are, and subject to `pages-a-warning-never-stops-a-page`. Nothing here needs Roslyn: the
-tokenizer's tokens and the scanner's own literal tracking carry every fact.
+The credential is whichever one the starting render presented: the cookie's ticket key
+(`AuthTicket.Key`) or a run's view secret (`ViewToken.Secret`). Both are revocable today, by deleting
+the row (`users` changes, sign-out, a new sign-in on the same browser) or by forgetting the view
+token when the run ends. The worker never sees either secret: the capability is constructed bound,
+exactly as `PageWritesScope` is bound to `user` today, so there is nothing in stored page code to
+leak and nothing new on the page contract.
 
 ## Sketch
 
-1. **`TEMPLATE006` — the block holds no code.** A `Code` or `Declaration` token whose value is
-   whitespace and comments only, judged lexically: a lone `;` is a statement only Roslyn can call
-   empty, so it stays code. Positioned at the character after the opener, which is always on the
-   opener's line. Two messages from the one code, because the consequence differs: "this block holds
-   no code" when the template has other code, and "…and it is what makes this template a page" when
-   this block is the only one. An empty write is already `TEMPLATE002`, an error, and an empty
-   `<%# %>` is a legitimate note: neither is touched.
-
-2. **`TEMPLATE007` — the block ends inside a literal.** The scan already walks strings, characters and
-   block comments; it gains a report when the token's end is reached still inside one, positioned at
-   the literal's opening quote. The message carries the way out, because the author has nowhere else
-   to look for it: *"the block ends inside a string literal; a block ends at the first `%>`, so write
-   the character as `\u003e`, or join `"%"` and `">"`."* Watch the source: in a C# string `\u003e`
-   is unescaped by the compiler, so the message is built with `\\u003e` or a raw literal.
-
-3. **One mistake, one warning.** The text run that directly follows such a block starts inside the
-   string, so its first `%>` is that block's own closer. `AddStrayClosers` skips that run; later `%>`
-   in it are still `TEMPLATE003`. A template the tokenizer refused keeps today's behaviour: the error
-   at the opener, and none of the new guesses beside it.
-
-4. **Nothing to wire in the host.** `PageImageBuilder.Build` already calls the check on every save and
-   every lazy compile and merges the result, for pages and no-code pages alike. The editor, the
-   history, the page list and the assistant's save answers show the new warnings without a line of
-   `Web` code.
-
-5. **`make check-pages` becomes a consumer, and the seeds become the noise test.** The tool skips
-   no-code templates and never asks for the shape; it starts asking for every file, prints the
-   warnings in the same `file:line:column: severity message` shape its problem matcher already reads,
-   and fails only on errors. The shipped seeds then say, mechanically, whether a rule is quiet enough
-   to keep.
-
-6. **The tests** go in `TemplateShapeCheckTests`: empty, whitespace-only and comment-only blocks in
-   both kinds; a text page that gains one and a text page that gains the declaration; a `%>` inside an
-   ordinary, verbatim and raw string; a block cut short inside a comment; the suppressed closer; and
-   the seeds' own `%><%` spellings asserted clean.
-
-7. **The record.** `TEMPLATE006` and `TEMPLATE007` are allocated here and never reused. The plan
-   proposes **pages-a-block-with-no-code-warns**, stating the rule rather than restating
-   `pages-the-shape-check`, which it cites; `TEMPLATE007` is that same entry's second face, since "a
-   block ends at the first `%>`" is unchanged and only its diagnosis moves.
-
-8. **The documents.** The diagnostics table and the paragraph beneath it in
-   [architecture](../architecture.md); the shape-warnings sentence in [pages](../pages.md); and in
-   `/help`'s syntax section, beside the `<%#` entry:
-
-   > A block ends at the first `%&gt;` whatever it holds, so a string that contains one ends the
-   > block early and the rest of the line becomes text. An ordinary string writes the character
-   > instead of the pair: `"%\u003e"`, or `"%" + "&gt;"`, which also works in a verbatim or raw
-   > string, where `\u` escapes are not processed. In literal text write `%&gt;`; it reaches the
-   > browser as `%&gt;`.
-
-   The manual is where an author meets `TEMPLATE007`, so it is written in the change rather than
-   after it. The assistant's prompt (one clause after "It ends at the first `%>`", and a version
-   bump) is worth the same edit and is a separate yes.
+1. **The credential, not the name.** At start, `PageJobsScope` captures a `PageJobAuthority` from the
+   request — owner, security stamp and the credential handle (ticket key, or view secret) — and
+   `PageJob` holds it for the job's life. `IWorkerContext.User` stays the plain `PageUser` it is: a
+   label, not the authority. A job started from a `GET` render is possible today, so the run's view
+   scheme is a branch of this and not a later idea.
+2. **The check.** One host-side call answers live or dead: the ticket row still exists and the
+   account still exists with the same stamp; or the view token still resolves and the stamp matches.
+   The two checks are the ones `OnValidatePrincipal` and `ViewAuthenticationHandler` already make, so
+   there is no second definition of "signed in".
+3. **The writer.** `PageJobRunner` offers `IPageWrites` bound to the **starting page** through the
+   same `PageWritesScope`, once [IDEA-047](IDEA-047.md) has replaced the one-action counter with a
+   policy the caller names. The first version offers the batch and the bound self-save; the named
+   save follows the same answer the page store already gives.
+4. **The clocks.** A write is activity: it re-arms `Pages:Jobs:SilenceSeconds` as `Publish` does, or
+   a compile longer than the silence limit cuts the job mid-save. A save that has begun is still
+   never abandoned (`pages-a-page-may-save-itself`).
+5. **The refusal.** A dead authority throws `UserFacingException` in the existing house style
+   ("The account that started this job is no longer signed in. Nothing was saved."); a worker that
+   lets it escape fails the job with that reason on the journal. The job's own child `StartAsync` is
+   gated by the same check. Storage, publishing and `ReceiveAsync` are not identity-bearing and keep
+   working: the authority dies, the job does not have to.
+6. **The records.** The merge writes **pages-a-jobs-authority-is-its-starters-credential** and edits:
+   `pages-a-worker-gets-no-response` (the renderer and the layout stay out by shape; the writer comes
+   in by authority), `pages-any-page-may-write-the-store` (the authority is the presented credential),
+   `pages-jobs-run-a-worker-for-the-page` ("owned by the visitor" becomes "owned by the credential"),
+   and `auth-sign-in-is-long-lived-and-revocable` (a job's authority ends with its own ticket, not
+   with a stamp rotation, so other devices keep theirs). `/help` and `PageAuthorPrompt` gain the rule,
+   with the prompt's `Version` bumped (`product-manual-is-a-page`).
 
 ## Open questions
 
-1. **Whose block is a comment-only declaration.** `TEMPLATE006` says "no code" for a `<%! … %>` that
-   declares nothing; whether the fix it suggests is "delete the block" or "write the declaration" is
-   the message's wording, not the rule.
-2. **A block that is only whitespace across lines.** The position is the character after the opener,
-   which is right for the author and wrong for a block whose opener is on a different line from its
-   content. Reporting at the opener would need `Token` to carry an opener position for every kind,
-   not only writes; that is a `Core` change to weigh against the rarity.
-3. **Whether `make check-pages` should fail on a warning.** It does not fail on one today and warning
-   severity does not stop a page; the seeds staying quiet is a habit the gate can only encourage.
-4. **What the assistant should be told.** A save's answer already carries the warnings; whether the
-   prompt should name the empty block as a thing not to write is [IDEA-054](IDEA-054.md)'s subject
-   with its own prompt version.
+1. **Which keys a job may write.** Any unreserved key is what the page store already allows; only the
+   starting page is the smallest first version. The bound self-save is the starting page either way.
+2. **Check cadence.** Once per batch is cheap and closes most of the window; per edit is stricter and
+   costs one indexed read each time. A write is the only place the answer changes anything.
+3. **What a dead authority does to the job.** Refuse the action and let the worker decide, or end the
+   job with the reason. The first terminates the authority; the second terminates the work.
+4. **The view-scheme handle.** A job started from a run's view would hold a live bearer secret in
+   memory. It never leaves the process, but whether it is the secret itself or an in-process handle
+   minted from it is the plan's decision.
+5. **Whether a job may start a job at all** once a child's authority is checked the same way. Today it
+   can; a child would inherit the same dead-able credential, which is probably right but is the plan's
+   to confirm.
 
 ## Not in scope
 
-- **Fixing the template.** A warning says what shape a block has; an autofix that deletes a dead block
-  or escapes a `%>` is a different change with a different risk.
-- **Making any of them an error.** `pages-a-warning-never-stops-a-page`.
-- **`%><%` between two blocks.** The seeds use it four times and three are the only spelling for a
-  declaration followed by code. [IDEA-057](IDEA-057.md) makes the declaration close name itself, so
-  the junction is marked by the grammar rather than scolded by a warning; nothing here needs to say
-  anything about adjacency.
-- **An escaped closer.** `%%>` is already a spelling (`<%%>` is an empty code block), and after
-  IDEA-057 a declaration does not need one; the character is written `\u003e`. IDEA-057's record holds
-  the full argument and the spelling to take if demand ever arrives.
-- **Publishing to VS Code.** The language server is [IDEA-029](../jobs/IDEA-029.md); `check-pages`
-  already puts the warnings in its Problems list for free.
-- **A check without saving.** [IDEA-037](../jobs/IDEA-037.md) answers what a save answers, so it
-  inherits these; the assistant's `check` inherits them through that.
-- **Roslyn.** None of this needs the compiler, which is the whole point of the shape check.
+- **Session, layout, the markdown and diff renderers, composition, the response.** Absent by shape,
+  not by distrust: a job has no request and no document, so there is nothing to bind them to.
+- **Fetch credentials.** Bound to the worker key, not the caller, so revocation does not apply.
+- **Durable jobs and a jobs table.** `pages-a-job-is-not-durable` stands.
+- **A configured worker account.** Rejected in [IDEA-025](IDEA-025.md): the authority is the starter's
+  credential or nothing, never a configured name.
 
-**Origin:** [WHIM-02](WHIMS.md), promoted by the owner on 2026-11-18. The evidence that the `%><%`
-rule cannot be broad is in the seeds; the evidence that the string case is a mis-diagnosis is
-`TEMPLATE003` firing on the text after a truncated block.
+## What would make it unnecessary
+
+If the write a job needs belonged to an account-scoped store ([IDEA-033](IDEA-033.md)) rather than to
+the page store, the job would write rows and not source, and no page-store authority would be
+involved.
+
+**Origin:** the owner, 2026-11-18 — "the worker/job gets to write with all the authority of the
+caller, and I'd really like to terminate that authority if the caller logs out or otherwise
+invalidates their session, so probably going to need to hand the job a token". The withheld writer is
+[IDEA-025](IDEA-025.md) §4; the batch it needs is [IDEA-047](IDEA-047.md).

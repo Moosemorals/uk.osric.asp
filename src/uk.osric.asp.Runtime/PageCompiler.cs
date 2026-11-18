@@ -380,10 +380,17 @@ public sealed class PageCompiler : IPageCompiler {
                 && sources.TryGetValue(tree, out string? key)
                     ? key
                     : null;
+            TemplatePosition start = new(span.StartLinePosition.Line + 1, span.StartLinePosition.Character + 1);
+            TemplatePosition end = new(span.EndLinePosition.Line + 1, span.EndLinePosition.Character + 1);
             mapped.Add(new PageDiagnostic(
                 isError ? PageDiagnosticSeverity.Error : PageDiagnosticSeverity.Warning,
-                new TemplatePosition(span.StartLinePosition.Line + 1, span.StartLinePosition.Character + 1),
+                start,
                 $"{diagnostic.Id}: {diagnostic.GetMessage(CultureInfo.InvariantCulture)}") {
+                // An end at or before the start is a diagnostic about a point: a zero-width token, or
+                // a span whose end mapped round a line the generator wrote. The start stays exact.
+                End = end.Line > start.Line || (end.Line == start.Line && end.Column > start.Column)
+                    ? end
+                    : null,
                 Source = source,
             });
 

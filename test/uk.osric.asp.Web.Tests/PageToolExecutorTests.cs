@@ -614,6 +614,28 @@ public sealed class PageToolExecutorTests {
     }
 
     [Test]
+    public async Task WritingABrokenPageReportsTheSpanOfTheTokenItNamesAsync() {
+        FakePageStore storage = new();
+        using PageHarness pages = new(storage);
+        using ServiceProvider services = Services(pages.Editor);
+        PageToolExecutor tools = CreateTools(services);
+
+        ToolExecutionResult result = await tools.ExecuteAsync(
+            "write_page", "{\"path\":\"/broken\",\"content\":\"<% ctx.Missing(); %>\"}", Context, CancellationToken.None);
+
+        JsonElement diagnostic = Data(result).GetProperty("diagnostics")[0];
+        Assert.Multiple(() => {
+            Assert.That(result.IsSuccess, Is.True, result.Content);
+            Assert.That(diagnostic.GetProperty("severity").GetString(), Is.EqualTo("Error"));
+            Assert.That(diagnostic.GetProperty("source").ValueKind, Is.EqualTo(JsonValueKind.Null), "the page names no library");
+            Assert.That(diagnostic.GetProperty("line").GetInt32(), Is.EqualTo(1));
+            Assert.That(diagnostic.GetProperty("column").GetInt32(), Is.EqualTo(8));
+            Assert.That(diagnostic.GetProperty("endLine").GetInt32(), Is.EqualTo(1));
+            Assert.That(diagnostic.GetProperty("endColumn").GetInt32(), Is.EqualTo(15));
+        });
+    }
+
+    [Test]
     public async Task SearchPagesFindsLiteralMatchesWithLineNumbersAsync() {
         FakePageStore storage = new();
         storage["/a"] = new PageTemplate(PageHarness.Key("/a"), "alpha\nbeta\nAlpha");

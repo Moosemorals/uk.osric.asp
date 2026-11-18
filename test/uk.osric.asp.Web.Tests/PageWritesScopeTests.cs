@@ -465,6 +465,44 @@ public sealed class PageWritesScopeTests {
     }
 
     [Test]
+    public async Task AnErrorCarriesTheExtentOfTheTokenItNamesAsync() {
+        using PageHarness pages = new(new FakePageStore());
+
+        PageSaveResult result = await Scope(pages, path: "/self").SaveAsync("<% ctx.Missing(); %>");
+
+        PageDiagnostic error = result.Diagnostics.Single(diagnostic => diagnostic.Severity == PageDiagnosticSeverity.Error);
+        Assert.Multiple(() => {
+            Assert.That(error.Line, Is.EqualTo(1));
+            Assert.That(error.Column, Is.EqualTo(8));
+            Assert.That(error.EndLine, Is.EqualTo(1));
+            Assert.That(error.EndColumn, Is.EqualTo(15));
+            Assert.That(error.Source, Is.Null, "the page's own diagnostic names no key");
+        });
+    }
+
+    [Test]
+    public async Task ADiagnosticFromALibraryNamesTheLibraryAndItsExtentAsync() {
+        FakePageStore storage = new();
+        using PageHarness pages = new(storage);
+        pages.ReadStore.Save(
+            "/_lib/document",
+            "<%! namespace Site { public static class Document { public static string Read() => Missing(); } } %>",
+            templateKind: PageKind.Library);
+
+        PageSaveResult result = await Scope(pages, path: "/self")
+            .SaveAsync("<%! using Site; %><% ctx.Response.Write(Document.Read()); %>");
+
+        PageDiagnostic error = result.Diagnostics.Single(diagnostic => diagnostic.Code == "CS0103");
+        Assert.Multiple(() => {
+            Assert.That(error.Source, Is.EqualTo("/_lib/document"));
+            Assert.That(error.Line, Is.EqualTo(1));
+            Assert.That(error.Column, Is.EqualTo(84));
+            Assert.That(error.EndLine, Is.EqualTo(1));
+            Assert.That(error.EndColumn, Is.EqualTo(91));
+        });
+    }
+
+    [Test]
     public async Task ADiagnosticCarriesItsCodeAndItsTextApartAsync() {
         using PageHarness pages = new(new FakePageStore());
 
@@ -486,6 +524,8 @@ public sealed class PageWritesScopeTests {
         PageDiagnostic error = result.Diagnostics.Single();
         Assert.That(error.Line, Is.Null);
         Assert.That(error.Column, Is.Null);
+        Assert.That(error.EndLine, Is.Null);
+        Assert.That(error.EndColumn, Is.Null);
         Assert.That(error.Code, Is.EqualTo("PAGE003"));
     }
 

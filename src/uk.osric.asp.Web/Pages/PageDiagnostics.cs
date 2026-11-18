@@ -37,6 +37,10 @@ internal static class PageDiagnostics {
             diagnostic.Position?.Line,
             diagnostic.Position?.Column,
             code,
-            message);
+            message) {
+            EndLine = diagnostic.End?.Line,
+            EndColumn = diagnostic.End?.Column,
+            Source = diagnostic.Source,
+        };
     }
 }
