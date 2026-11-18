@@ -32,13 +32,15 @@ wait it needs is [the owner interrupt](../plans/assistant-owner-interrupt.md), w
 
 ## Sketch
 
-1. One tool, `ask_owner`, carrying its schema beside its code like every other tool
+1. One tool, `ask_user`, carrying its schema beside its code like every other tool
    (`assistant-a-tool-is-one-type`): `questions[]` of `{question, header?, options[]{label,
    description?}, multiSelect?}`, capped at four questions and five options by configuration.
 2. The wait is the owner interrupt's third kind, so there is no new status, record, coordinator or route: the run opens a `question` interrupt, the card is rendered from its request, and the answer
    is its resolution.
 3. The answer is the tool's result, read from the record after the run wakes, so a disconnected browser,
-   a second device or a reload changes nothing about the outcome.
+   a second device or a reload changes nothing about the outcome. A question the owner leaves blank is
+   carried as an empty answer; they can read the whole card before answering any of it, and there is no
+   `skipped` flag to interpret.
 4. The card is rendered twice from one record — pending with a form, answered with the question and the
    answer — and the live one is keyed so a replayed event replaces the server's copy.
 5. The prompt gains an "Asking the owner" section and the version moves; the tool description says when
@@ -52,7 +54,7 @@ wait it needs is [the owner interrupt](../plans/assistant-owner-interrupt.md), w
 - A page capability that asks a visitor a question and waits. A page is rendered and returned; a
   question is the assistant's conversation. If that ever changes it is an `IDEA-` of its own.
 - Per-argument descriptions for the other twenty tools. It invalidates the provider's cached prefix and
-  deserves its own measurement.
+  deserves its own measurement: [IDEA-053](IDEA-053.md).
 - A timeout for the answer. An interrupt waits until the owner answers, stops it, deletes the
   conversation or restarts the host.
 - Any way for a question to carry a file, an image or a link the owner clicks.
