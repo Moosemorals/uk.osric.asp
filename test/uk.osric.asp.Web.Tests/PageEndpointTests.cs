@@ -24,7 +24,7 @@ public sealed class PageEndpointTests {
     private static readonly RenderOptions Options = TestOptions.Render;
     private static readonly PageStorageOptions StorageOptions = TestOptions.Storage;
     private static readonly PageFetchOptions FetchOptions = TestOptions.Fetch;
-    private static readonly PageLayoutConfiguration NoLayout = TestOptions.Layout with { Default = null };
+    private static readonly PageLayoutOptions NoLayout = TestOptions.Layout with { Default = null };
     private readonly RecordingCompiler _compiler = new(new PageCompiler());
     private readonly PageMetrics _metrics = new();
     private readonly TestAntiforgery _antiforgery = new();
@@ -37,7 +37,7 @@ public sealed class PageEndpointTests {
     private PageEnvironment EndpointEnvironment(
         RenderOptions? render = null,
         PageContentTypes? contentTypes = null,
-        PageLayoutConfiguration? layout = null) {
+        PageLayoutOptions? layout = null) {
         return new PageEnvironment(
             Reserved,
             TestOptions.Editor,

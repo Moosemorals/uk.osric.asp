@@ -29,7 +29,7 @@ public sealed class ShippedConfigurationTests {
             Assert.That(() => uk.osric.asp.Web.Admin.ArchiveOptions.FromConfiguration(configuration), Throws.Nothing);
             Assert.That(() => uk.osric.asp.Web.Admin.AdminOptions.FromConfiguration(configuration), Throws.Nothing);
             Assert.That(() => PageEditorOptions.FromConfiguration(configuration), Throws.Nothing);
-            Assert.That(() => PageLayoutConfiguration.FromConfiguration(configuration), Throws.Nothing);
+            Assert.That(() => PageLayoutOptions.FromConfiguration(configuration), Throws.Nothing);
             Assert.That(() => uk.osric.asp.Web.Assistant.AssistantOptions.FromConfiguration(configuration), Throws.Nothing);
             Assert.That(() => uk.osric.asp.Web.Authentication.AuthenticationOptions.FromConfiguration(configuration), Throws.Nothing);
             Assert.That(() => uk.osric.asp.Web.Metrics.MetricsOptions.FromConfiguration(configuration), Throws.Nothing);

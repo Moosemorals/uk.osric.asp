@@ -116,7 +116,7 @@ itself. That is the point and the migration: the seeds and the editor's starter 
 | No-code bodies | the renderer writes the stored source; `PageEndpoint.WriteSourceAsync` is the only place that removes `<%# … %>` | [PageEndpoint.cs](../../src/uk.osric.asp.Web/Pages/PageEndpoint.cs) |
 | Seeded pages | ten pages with code; 18 `IPageLayout` uses in ten files; `layout.Layout` is named only in `/help`'s prose and streaming snippet | `src/uk.osric.asp.Web/Pages/Seeds/` |
 | The shell | `SiteNavigation.Links` writes home, sign-in or assistant/pages/admin/sign-out, and a footer; `SiteChromeTests` asserts the shell and the seeded layout offer the same items | [SiteNavigation.cs](../../src/uk.osric.asp.Web/Html/SiteNavigation.cs), [SiteChromeTests.cs](../../test/uk.osric.asp.Web.IntegrationTests/SiteChromeTests.cs) |
-| Configuration | `Pages:Layout` (required, blank means none) and `Pages:Render:MaxLayoutDepth` | [PageLayoutConfiguration.cs](../../src/uk.osric.asp.Web/Pages/PageLayoutConfiguration.cs), [RenderOptions.cs](../../src/uk.osric.asp.Web/Pages/RenderOptions.cs) |
+| Configuration | `Pages:Layout` (required, blank means none) and `Pages:Render:MaxLayoutDepth` | [PageLayoutOptions.cs](../../src/uk.osric.asp.Web/Pages/PageLayoutOptions.cs), [RenderOptions.cs](../../src/uk.osric.asp.Web/Pages/RenderOptions.cs) |
 | The prompt | `page-author-v35`, a reflective capability section and 47 `ctx.` mentions | [PageAuthorPrompt.cs](../../src/uk.osric.asp.Web/Assistant/PageAuthorPrompt.cs) |
 | Metrics | 18 instruments, one panel each; `page.layout.fallback` is the only chain instrument | [PageMetrics.cs](../../src/uk.osric.asp.Web/Pages/PageMetrics.cs), [StatusCatalogue.cs](../../src/uk.osric.asp.Web/Metrics/StatusCatalogue.cs) |
 | Docs | `IPageLayout` is named 22 times outside the archive; the capability count is eleven | [pages.md](../pages.md), [shell.md](../shell.md) |
@@ -558,7 +558,7 @@ as trunk edits it, because the shell's menu did not change.
 `Web`: `PageCompositionScope.cs`, `PageCompositionState.cs`, `PageLayerRole.cs` and
 `PageWriteAction.cs` new; `PageChain.cs` (the loop, the stack, the caps), `PageEndpoint.cs` (the
 session order, the wrap), `PageRenderer.cs` (the comment projection), `PageLayoutState.cs`,
-`PageLayoutConfiguration.cs` (documentation only), `SimpleContext.cs`, `SimpleResponse.cs`,
+`PageLayoutOptions.cs` (documentation only), `SimpleContext.cs`, `SimpleResponse.cs`,
 `PageWritesScope.cs`, `BodyBudget.cs`, `RenderOptions.cs`, `PageMetrics.cs`, `StatusCatalogue.cs`,
 `appsettings.json`, and the seeds (`_layout`, `_lib/document`, `about`, `editor-mode`, `help`, `pages`,
 `privacy`, `vim-help`). The document library gains the overload that folds a `PageCapture` and the

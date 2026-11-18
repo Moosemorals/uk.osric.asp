@@ -824,3 +824,5 @@ const uk.osric.asp.Core.Assistant.ContextBudget.MinimumPromptTokens = 16384 -> l
 uk.osric.asp.Core.Assistant.BudgetSnapshot.EstimateErrorMagnitude.get -> long
 uk.osric.asp.Core.Assistant.ContextBudget.ContextWindow.get -> long
 static uk.osric.asp.Core.Assistant.MemorySecrets.LooksLikeSecret(string! content) -> string?
+*REMOVED*static uk.osric.asp.Core.Charting.SvgText.SeriesColour(int index) -> string!
+*REMOVED*uk.osric.asp.Core.Charting.SvgText

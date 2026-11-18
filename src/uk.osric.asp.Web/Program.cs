@@ -105,7 +105,7 @@ internal class Program {
         PageContentTypes contentTypes = PageContentTypesConfiguration.FromConfiguration(settings.At("Pages:ContentTypes"));
         PageEditorOptions editor = PageEditorOptions.FromConfiguration(settings.At("Pages:Editor"));
         PageFetchOptions fetch = PageFetchOptions.FromConfiguration(settings.At("Pages:Fetch"));
-        PageLayoutConfiguration layout = PageLayoutConfiguration.FromConfiguration(settings.At("Pages:Layout"));
+        PageLayoutOptions layout = PageLayoutOptions.FromConfiguration(settings.At("Pages:Layout"));
         PageReadOptions read = PageReadOptions.FromConfiguration(settings.At("Pages:Read"));
         PageJobOptions jobOptions = PageJobOptions.FromConfiguration(settings.At("Pages:Jobs"));
         PageSessionOptions session = PageSessionOptions.FromConfiguration(settings.At("Pages:Session"));
@@ -218,7 +218,7 @@ internal class Program {
         builder.Services.AddSingleton(services => new PageEnvironment(
               services.GetRequiredService<ReservedPaths>(),
               services.GetRequiredService<PageEditorOptions>(),
-              services.GetRequiredService<PageLayoutConfiguration>(),
+              services.GetRequiredService<PageLayoutOptions>(),
               services.GetRequiredService<RenderOptions>(),
               services.GetRequiredService<PageContentTypes>(),
               services.GetRequiredService<PageStorageOptions>(),

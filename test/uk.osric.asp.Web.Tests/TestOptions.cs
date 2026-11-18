@@ -77,7 +77,7 @@ internal static class TestOptions {
     public static PageEditorOptions Editor { get; } = PageEditorOptions.FromConfiguration(Configuration);
 
     /// <summary>The layout every code page is wrapped in.</summary>
-    public static PageLayoutConfiguration Layout { get; } = PageLayoutConfiguration.FromConfiguration(Configuration);
+    public static PageLayoutOptions Layout { get; } = PageLayoutOptions.FromConfiguration(Configuration);
 
     /// <summary>The content-type map.</summary>
     public static PageContentTypes ContentTypes { get; } =

@@ -19,7 +19,7 @@ using System.Globalization;
 /// can share a colour and still be told apart without relying on the colour at all.
 /// </para>
 /// </remarks>
-public static class SvgText {
+internal static class SvgText {
 
     /// <summary>How many series colours the palette defines.</summary>
     internal const int SeriesColours = 7;

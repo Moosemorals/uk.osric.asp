@@ -42,7 +42,7 @@ using uk.osric.asp.Web.Work;
 internal sealed record PageEnvironment(
     ReservedPaths Reserved,
     PageEditorOptions Editor,
-    PageLayoutConfiguration Layout,
+    PageLayoutOptions Layout,
     RenderOptions Render,
     PageContentTypes ContentTypes,
     PageStorageOptions Storage,
