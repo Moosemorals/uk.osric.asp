@@ -414,6 +414,10 @@ internal class Program {
         // the proxy, so HSTS emits nothing and IsHttps is always false.
         app.UseForwardedHeaders();
 
+        // The probe and the scrape are the machine asking whether the site is up, not a visit;
+        // leaving them in the request duration histogram makes the panels a reading of the poller.
+        app.Use(MachineTrafficMetrics.SkipAsync);
+
         // Ahead of the exception handler, so the handler's own report of an unhandled exception - and
         // the error page it renders - are written inside the request's scope.
         app.UseRequestLogScope();
@@ -544,7 +548,7 @@ internal class Program {
         app.MapPost("/logout", LoginEndpoint.LogoutAsync)
             .WithMetadata(new RequireAntiforgeryTokenAttribute(true));
 
-        app.MapHealthChecks("/health", new HealthCheckOptions {
+        app.MapHealthChecks(MachineTrafficMetrics.HealthPath, new HealthCheckOptions {
             ResponseWriter = ReportWriter.WriteAsync,
         });
 
@@ -593,7 +597,7 @@ internal class Program {
             .WithMetadata(new RequireAntiforgeryTokenAttribute(true));
         // The scrape target is Prometheus inside the podman network; /metrics is reserved so a page
         // cannot claim the key, and Caddy answers 404 for it on the public origin.
-        app.MapPrometheusScrapingEndpoint("/metrics");
+        app.MapPrometheusScrapingEndpoint(MachineTrafficMetrics.ScrapePath);
         // Pages run for GET, POST and HEAD only; anything else is answered 405 by routing rather than
         // by page code that never expected it.
         app.MapMethods("{**path}", ["GET", "POST", "HEAD"], PageEndpoint.HandleAsync);

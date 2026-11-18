@@ -265,6 +265,13 @@ writes; nothing it reports comes from the app.
   what `MetricNamesTests` and the family test exist to catch. Tag names are sanitised the same way —
   the tag `page.path` is the label `page_path` — and PromQL will not parse the dotted form, so queries
   and legends use the underscore.
+- **Machine traffic is not a visit.** The container's health check asks `/health` every ten seconds
+  and Prometheus scrapes `/metrics` every fifteen, so both requests are left out of the hosting
+  duration histogram: their series would read as traffic and pull every duration bucket toward zero.
+  `MachineTrafficMetrics` sets the framework's own `IHttpMetricsTagsFeature.MetricsDisabled` before
+  either endpoint runs, so the exclusion is the signal the runtime provides rather than a PromQL
+  filter every panel would have to repeat. The active-request gauge still counts them while they
+  run, because that gauge measures the server, not the site.
 - **The buckets are ours, and they reach past the cap.** Each scale's top boundary is larger than the
   cap its series measures, so a sample recorded at its deadline is a real bucket rather than `+Inf`
   (`metrics-one-panel-per-instrument`) — the sample a panel is opened for. The page durations share one scale to 10 s, past the
