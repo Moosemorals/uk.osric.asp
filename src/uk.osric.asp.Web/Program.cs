@@ -484,9 +484,9 @@ internal class Program {
         app.UseAuthorization();
         app.UseAntiforgery();
 
-        app.MapGet("/status", StatusEndpoint.HandleAsync)
+        app.MapGet("/admin/status", StatusEndpoint.HandleAsync)
             .RequireAuthorization(EditorPolicy.Name);
-        app.MapGet("/status/chart", ChartEndpoint.HandleAsync)
+        app.MapGet("/admin/status/chart", ChartEndpoint.HandleAsync)
             .RequireAuthorization(EditorPolicy.Name);
 
         app.MapGet("/admin", AdminIndexEndpoint.HandleAsync);

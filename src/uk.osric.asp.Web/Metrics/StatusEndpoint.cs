@@ -5,6 +5,7 @@ namespace uk.osric.asp.Web.Metrics;
 
 using System.Net;
 using uk.osric.asp.Sdk;
+using uk.osric.asp.Web.Admin;
 using uk.osric.asp.Web.Html;
 
 /// <summary>The owner-only dashboard: queries Prometheus and draws the answer as SVG charts.</summary>
@@ -15,7 +16,7 @@ using uk.osric.asp.Web.Html;
 /// </remarks>
 internal static class StatusEndpoint {
 
-    /// <summary>Answers <c>GET /status</c> for the owner.</summary>
+    /// <summary>Answers <c>GET /admin/status</c> for the owner.</summary>
     /// <param name="context">The response being written.</param>
     /// <param name="dashboard">Builds the drawings for the window.</param>
     /// <param name="time">The clock the window ends at.</param>
@@ -43,6 +44,7 @@ internal static class StatusEndpoint {
             cancellationToken: cancellationToken);
 
         await context.Response.WriteAsync("<h1>Status</h1>", cancellationToken);
+        await context.Response.WriteAsync(AdminNavigation.Nav(context), cancellationToken);
         await WriteNavAsync(context, current, cancellationToken);
         await context.Response.WriteAsync(
             """<p>One of the site's own pages will not load? <a href="/admin/restore">Restore every seed</a> from its bundled source.</p>""",
@@ -87,7 +89,7 @@ internal static class StatusEndpoint {
     private static Task WriteNavAsync(HttpContext context, string current, CancellationToken cancellationToken) {
         // The current window is where you already are, so it is text, not a link to itself.
         NavLink[] links = [.. ChartWindow.Tokens.Select(token => new NavLink(
-            "/status?duration=" + Uri.EscapeDataString(token.Token),
+            "/admin/status?duration=" + Uri.EscapeDataString(token.Token),
             token.Token,
             string.Equals(token.Token, current, StringComparison.Ordinal)))];
 

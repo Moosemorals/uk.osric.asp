@@ -14,6 +14,11 @@ using uk.osric.asp.Sdk;
 /// listing or its source private writes the ordinary <c>ctx.User</c> guard in its own source.
 /// </para>
 /// <para>
+/// The shell links are the list the endpoint built once for this request, so every layer of one
+/// render sees one answer and the sign-in link carries the visitor's way back. A worker's list is
+/// empty: it has no request and no visitor.
+/// </para>
+/// <para>
 /// The only refusals are about the call itself. An argument that cannot name anything is an
 /// <see cref="ArgumentException"/>, because that is a page bug; an abandoned render is an
 /// <see cref="InvalidOperationException"/>; and a cap is an <see cref="InvalidOperationException"/>
@@ -22,6 +27,7 @@ using uk.osric.asp.Sdk;
 /// </remarks>
 internal sealed class PageCatalogScope(
     PagePath path,
+    IReadOnlyList<ShellLink> shellLinks,
     IPageReadStore store,
     PageReadOptions options,
     ReadBudget budget,
@@ -29,6 +35,13 @@ internal sealed class PageCatalogScope(
     PageContentTypes contentTypes,
     PageSeeds seeds,
     string currentRuntimeId) : RenderBoundCapability, IPageCatalog {
+
+    /// <inheritdoc/>
+    public IReadOnlyList<ShellLink> ShellLinks() {
+        ThrowIfEnded();
+
+        return shellLinks;
+    }
 
     /// <inheritdoc/>
     public async Task<IReadOnlyList<PageEntry>> ListAsync(string prefix) {

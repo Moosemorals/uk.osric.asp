@@ -14,6 +14,7 @@ using uk.osric.asp.Web.Editor;
 using uk.osric.asp.Web.Errors;
 using uk.osric.asp.Web.Html;
 using uk.osric.asp.Web.Http;
+using uk.osric.asp.Web.Shell;
 // The page contract has a diagnostic value of its own, so this file names the compiler's.
 using PageDiagnostic = uk.osric.asp.Core.Compilation.PageDiagnostic;
 
@@ -204,6 +205,14 @@ internal sealed class PageEndpoint() {
         // part of the response, so a layout must not be able to buffer, fetch or read beside the
         // page's own budgets.
         PageBodySink bodySink = new(context, environment, session);
+
+        // The shell's links are a render fact: this request's path and query and the editor's
+        // configured key decide them, so they are built once and every layer's catalog answers the same.
+        IReadOnlyList<ShellLink> shellLinks = ShellCatalogue.Links(
+            context.Request.Path.Value ?? "/",
+            context.Request.QueryString.Value ?? string.Empty,
+            EditorPaths.Of(context.RequestServices));
+
         PageChain chain = new(
             environment,
             editor,
@@ -217,6 +226,7 @@ internal sealed class PageEndpoint() {
             new RenderFetchBudget(environment.Fetch.MaxRequestsPerRender),
             new ReadBudget(environment.Read.MaxSourceCharsPerRender),
             assets,
+            shellLinks,
             path.LoginUrl(context.Request.QueryString),
             () => antiforgeryField ??= AntiforgeryField.Hidden(environment.Antiforgery.GetAndStoreTokens(context)),
             render,

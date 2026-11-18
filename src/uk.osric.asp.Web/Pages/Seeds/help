@@ -189,13 +189,21 @@ can hide chrome but cannot prevent a side effect.</p>
 the page in the middle:</p>
 <pre class="source" tabindex="0"><code>&lt;%! using Site.Document; %&gt;
 &lt;% var layout = ctx.Capabilities.GetRequired&lt;IPageLayout&gt;();
-   bool At(string href) =&gt; ctx.Request.Path == href;
-   var links = new System.Collections.Generic.List&lt;NavLink&gt; { new("/", "Home", At("/")) };
+   IPageCatalog catalog = ctx.Capabilities.GetRequired&lt;IPageCatalog&gt;();
+   var links = new System.Collections.Generic.List&lt;NavLink&gt;();
+   foreach (ShellLink link in catalog.ShellLinks()) {
+       if (link.Section != ShellSection.Site) { continue; }
+       if (link.Audience == ShellAudience.Owner &amp;&amp; ctx.User is null) { continue; }
+       links.Add(new NavLink(link.Href, link.Text));
+   }
    Document.Head(ctx, layout, "Site", ctx.AssetUrl);
    Document.Banner(ctx, "Site", links, "site-nav");
    Document.OpenMain(ctx); %&gt;
 &lt;%== layout.Content?.Body ?? "" %&gt;
 &lt;% Document.CloseMain(ctx); Document.End(ctx); %&gt;</code></pre>
+<p>The menu is the shell's own list (<a href="#catalog">the catalog's <code>ShellLinks()</code></a>),
+filtered for this visitor and section; the footer is the layout's own markup. The shell knows its
+routes, and the layout decides what a stored page carries.</p>
 <p>The last argument to <code>Head</code> is the link resolver: <code>ctx.AssetUrl</code> is what lets
 the base sheet and the icon carry a revision hash. The library is an ordinary stored page, so you can
 edit the document itself from the page list, and <code>/admin/restore</code> puts it back.</p>
@@ -567,6 +575,25 @@ key and hash. It never meets an image, a symbol or a write; saving is
     &lt;li&gt;&lt;%= entry.Key %&gt; — &lt;%= entry.IsDeleted ? "deleted" : "live" %&gt;&lt;/li&gt;
 &lt;% } %&gt;
 &lt;/ul&gt;</code></pre>
+<p><a href="/admin/reference/sdk#m-IPageCatalog.ShellLinks"><code>ShellLinks()</code></a> is the
+other read: the links the shell knows, both its site menu and its administration menu, as values.
+Each link carries its href, its label, the section it belongs to, who it is for, and how the shell
+marks it current. The host returns the list; you decide what to render, in what order and how to mark
+it:</p>
+<pre class="source" tabindex="0"><code>&lt;% IPageCatalog catalog = ctx.Capabilities.GetRequired&lt;IPageCatalog&gt;();
+   foreach (ShellLink link in catalog.ShellLinks()) {
+       if (link.Section != ShellSection.Site) { continue; }
+       if (link.Audience == ShellAudience.Owner &amp;&amp; ctx.User is null) { continue; }
+       %&gt;&lt;a href="&lt;%= link.Href %&gt;"&gt;&lt;%= link.Text %&gt;&lt;/a&gt;&lt;%
+   } %&gt;</code></pre>
+<p>The list is the same for every visitor, and the audience is how you filter it with your own
+<code>ctx.User</code>, so your menu agrees with the guard on the page it links to. There is no
+<code>IsCurrent</code> and no rendered string: the answer is values, and the menu is yours. A worker
+has no request and no visitor, so its catalog has no links.</p>
+<p>A shell page is marked: its <code>body</code> carries <code>class="shell"</code> and its banner
+says <strong>Site tools</strong>. It answers when the page store is broken, so its menu is the site's
+routes rather than your pages; a page that wants a page-store menu reads <code>ListAsync</code> as
+well and writes both itself. The seeded <code>/_layout</code> is the working example.</p>
 <p>A prefix is a subtree, not a string prefix: <code>"/blog"</code> lists <code>/blog</code> and
 <code>/blog/post</code>, never <code>/blogroll</code>. The listing returns every head the store
 holds — live pages, tombstones, seeded assets and reserved keys — each marked with

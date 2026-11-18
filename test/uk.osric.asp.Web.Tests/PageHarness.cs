@@ -11,6 +11,7 @@ using uk.osric.asp.Runtime;
 using uk.osric.asp.Sdk;
 using uk.osric.asp.Web.Editor;
 using uk.osric.asp.Web.Pages;
+using uk.osric.asp.Web.Shell;
 using uk.osric.asp.Web.Work;
 
 /// <summary>Builds the page classes over one storage and one counting compiler.</summary>
@@ -271,6 +272,7 @@ internal sealed class PageHarness : IDisposable {
         if (withCatalog) {
             PageCatalogScope catalog = new(
                 path,
+                ShellCatalogue.Links(path.Key, string.Empty, TestOptions.Editor.Key),
                 ReadStore,
                 ReadOptions,
                 readBudget ?? new ReadBudget(ReadOptions.MaxSourceCharsPerRender),

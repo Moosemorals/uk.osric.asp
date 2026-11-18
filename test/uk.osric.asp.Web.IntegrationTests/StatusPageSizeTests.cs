@@ -25,7 +25,7 @@ public sealed class StatusPageSizeTests : IntegrationTest {
     public async Task ThirtyDaysOfSamplesStillFitTheMarkupBudget() {
         using HttpClient client = await CreateSignedInClientAsync();
 
-        HttpResponseMessage response = await client.GetAsync("/status?duration=30d");
+        HttpResponseMessage response = await client.GetAsync("/admin/status?duration=30d");
         string body = await response.Content.ReadAsStringAsync();
 
         Assert.That(response.StatusCode, Is.EqualTo(System.Net.HttpStatusCode.OK));

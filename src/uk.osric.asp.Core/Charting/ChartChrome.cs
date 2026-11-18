@@ -63,7 +63,7 @@ internal static class ChartChrome {
         string explained = frame.Description is { Length: > 0 } ? frame.Description : description;
 
         // The namespace is implied inside an HTML page and required in a standalone document: without
-        // it a browser opening /status/chart on its own shows the markup as a tree, not as a drawing.
+        // it a browser opening /admin/status/chart on its own shows the markup as a tree, not as a drawing.
         // The family is on the root so every label inherits it: served on its own the drawing has no
         // stylesheet to ask, and without it the browser falls back to a serif face the page never uses.
         svg.Append("<svg xmlns=\"http://www.w3.org/2000/svg\" class=\"").Append(cssClass).Append("\" viewBox=\"0 0 ")

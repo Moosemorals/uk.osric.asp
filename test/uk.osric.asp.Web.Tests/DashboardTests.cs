@@ -131,7 +131,7 @@ public sealed class DashboardTests {
         Assert.That(page.Panels, Has.Count.EqualTo(StatusCatalogue.Panels.Count));
         Assert.That(page.Panels.Select(panel => panel.Svg), Is.All.Contain("<svg"));
         Assert.That(page.Panels[0].Svg, Does.Contain(
-            "class=\"chart-title-link\" href=\"/status/chart?panel=page.render.duration&amp;start=2026-11-02T06%3A00%3A00Z&amp;duration=60\""),
+            "class=\"chart-title-link\" href=\"/admin/status/chart?panel=page.render.duration&amp;start=2026-11-02T06%3A00%3A00Z&amp;duration=60\""),
             "the drawing's title links to the same chart on its own");
     }
 

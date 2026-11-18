@@ -467,3 +467,34 @@ virtual uk.osric.asp.Sdk.PageFrame.<Clone>$() -> uk.osric.asp.Sdk.PageFrame!
 virtual uk.osric.asp.Sdk.PageFrame.EqualityContract.get -> System.Type!
 virtual uk.osric.asp.Sdk.PageFrame.Equals(uk.osric.asp.Sdk.PageFrame? other) -> bool
 virtual uk.osric.asp.Sdk.PageFrame.PrintMembers(System.Text.StringBuilder! builder) -> bool
+uk.osric.asp.Sdk.IPageCatalog.ShellLinks() -> System.Collections.Generic.IReadOnlyList<uk.osric.asp.Sdk.ShellLink>!
+uk.osric.asp.Sdk.ShellAudience
+uk.osric.asp.Sdk.ShellAudience.Anonymous = 1 -> uk.osric.asp.Sdk.ShellAudience
+uk.osric.asp.Sdk.ShellAudience.Everyone = 0 -> uk.osric.asp.Sdk.ShellAudience
+uk.osric.asp.Sdk.ShellAudience.Owner = 2 -> uk.osric.asp.Sdk.ShellAudience
+uk.osric.asp.Sdk.ShellLink
+uk.osric.asp.Sdk.ShellLink.Audience.get -> uk.osric.asp.Sdk.ShellAudience
+uk.osric.asp.Sdk.ShellLink.Audience.init -> void
+uk.osric.asp.Sdk.ShellLink.Deconstruct(out string! Href, out string! Text, out uk.osric.asp.Sdk.ShellSection Section, out uk.osric.asp.Sdk.ShellAudience Audience, out uk.osric.asp.Sdk.ShellMatch Match) -> void
+uk.osric.asp.Sdk.ShellLink.Equals(uk.osric.asp.Sdk.ShellLink other) -> bool
+uk.osric.asp.Sdk.ShellLink.Href.get -> string!
+uk.osric.asp.Sdk.ShellLink.Href.init -> void
+uk.osric.asp.Sdk.ShellLink.Match.get -> uk.osric.asp.Sdk.ShellMatch
+uk.osric.asp.Sdk.ShellLink.Match.init -> void
+uk.osric.asp.Sdk.ShellLink.Section.get -> uk.osric.asp.Sdk.ShellSection
+uk.osric.asp.Sdk.ShellLink.Section.init -> void
+uk.osric.asp.Sdk.ShellLink.ShellLink() -> void
+uk.osric.asp.Sdk.ShellLink.ShellLink(string! Href, string! Text, uk.osric.asp.Sdk.ShellSection Section, uk.osric.asp.Sdk.ShellAudience Audience, uk.osric.asp.Sdk.ShellMatch Match = uk.osric.asp.Sdk.ShellMatch.Leaf) -> void
+uk.osric.asp.Sdk.ShellLink.Text.get -> string!
+uk.osric.asp.Sdk.ShellLink.Text.init -> void
+uk.osric.asp.Sdk.ShellMatch
+uk.osric.asp.Sdk.ShellMatch.Leaf = 0 -> uk.osric.asp.Sdk.ShellMatch
+uk.osric.asp.Sdk.ShellMatch.Subtree = 1 -> uk.osric.asp.Sdk.ShellMatch
+uk.osric.asp.Sdk.ShellSection
+uk.osric.asp.Sdk.ShellSection.Administration = 1 -> uk.osric.asp.Sdk.ShellSection
+uk.osric.asp.Sdk.ShellSection.Site = 0 -> uk.osric.asp.Sdk.ShellSection
+override uk.osric.asp.Sdk.ShellLink.GetHashCode() -> int
+static uk.osric.asp.Sdk.ShellLink.operator !=(uk.osric.asp.Sdk.ShellLink left, uk.osric.asp.Sdk.ShellLink right) -> bool
+static uk.osric.asp.Sdk.ShellLink.operator ==(uk.osric.asp.Sdk.ShellLink left, uk.osric.asp.Sdk.ShellLink right) -> bool
+~override uk.osric.asp.Sdk.ShellLink.Equals(object obj) -> bool
+~override uk.osric.asp.Sdk.ShellLink.ToString() -> string

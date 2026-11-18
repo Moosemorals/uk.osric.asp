@@ -10,13 +10,13 @@ using uk.osric.asp.Web.Shell;
 /// <summary>The site menu the shell's own views carry.</summary>
 /// <remarks>
 /// <para>
-/// The seeded <c>/_layout</c> writes the same menu for stored pages, from the same list of tools, so
+/// The seeded <c>/_layout</c> writes the same menu for stored pages, from the same list of links, so
 /// the two copies are deliberate: the shell's document must not depend on a stored page, because the
 /// error, health, sign-in and editor routes have to answer when the page pipeline is broken.
 /// </para>
 /// <para>
-/// The layout links the assistant unconditionally; only the shell knows the raw query a sign-in must
-/// return to, and both land somewhere that carries this menu.
+/// The layout reads the links through <see cref="IPageCatalog.ShellLinks"/>; this filters the same
+/// values for the shell's own document and marks the same current item.
 /// </para>
 /// </remarks>
 internal static class SiteNavigation {
@@ -62,7 +62,7 @@ internal static class SiteNavigation {
         List<NavLink> links = [];
         foreach (ShellLink link in ShellCatalogue.Links(path, query, editorPath)) {
             if (link.Section == ShellSection.Site && ShellCatalogue.IsFor(link, authenticated)) {
-                links.Add(new(link.Href, link.Text, IsCurrent(link, path)));
+                links.Add(new(link.Href, link.Text, ShellCatalogue.IsCurrent(link, path)));
             }
         }
 
@@ -79,14 +79,4 @@ internal static class SiteNavigation {
         new("/about", "About", false),
         new("/privacy", "Privacy policy", false),
     ];
-
-    // The sign-in link carries the way back as a query, so its current check is the path it leads to
-    // rather than the href it was given.
-    private static bool IsCurrent(ShellLink link, string path) {
-        int query = link.Href.IndexOf('?', StringComparison.Ordinal);
-        string target = query >= 0 ? link.Href[..query] : link.Href;
-
-        return string.Equals(path, target, StringComparison.Ordinal)
-            || (link.Match == ShellMatch.Subtree && path.StartsWith(target + "/", StringComparison.Ordinal));
-    }
 }

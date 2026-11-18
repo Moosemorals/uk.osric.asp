@@ -9,7 +9,7 @@ using uk.osric.asp.Web.Shell;
 
 /// <summary>The system prompt and worked examples that teach the model to write a page.</summary>
 internal static class PageAuthorPrompt {
-    public const string Version = "page-author-v37";
+    public const string Version = "page-author-v38";
 
     public static IReadOnlyList<(string Name, string Source)> Examples { get; } = [
         ("query-driven", """
@@ -338,6 +338,15 @@ internal static class PageAuthorPrompt {
         `PageRevisionInfo` rows, including the history of a deleted page, and
         `ReadRevisionAsync(key, hash)` reads one of those revisions. All four
         are awaited.
+
+        `ShellLinks()` is the synchronous half: the links the shell knows, as
+        `ShellLink` values with `Href`, `Text`, `Section` (`Site` or
+        `Administration`), `Audience` (`Everyone`, `Anonymous` or `Owner`) and
+        `Match` (`Leaf` or `Subtree`). The list is the same for every visitor,
+        so filter it with `ctx.User`; it carries no markup and no current flag,
+        so mark the item yourself and write your own menu. The seeded `/_layout`
+        is the working example. A worker has no request and no visitor, so its
+        list is empty.
 
         The read is as public as the page that calls it: there is no host
         gate, so an anonymous visitor gets the same answers as a signed-in

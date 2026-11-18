@@ -21,7 +21,7 @@ public sealed class SiteLayoutRecoveryTests : IntegrationTest {
         Assert.That(deleted.StatusCode, Is.EqualTo(HttpStatusCode.OK));
 
         Assert.That((await client.GetAsync("/pages")).StatusCode, Is.EqualTo(HttpStatusCode.OK));
-        Assert.That((await client.GetAsync("/status")).StatusCode, Is.EqualTo(HttpStatusCode.OK));
+        Assert.That((await client.GetAsync("/admin/status")).StatusCode, Is.EqualTo(HttpStatusCode.OK));
         Assert.That((await client.GetAsync("/logout")).StatusCode, Is.EqualTo(HttpStatusCode.OK));
     }
 

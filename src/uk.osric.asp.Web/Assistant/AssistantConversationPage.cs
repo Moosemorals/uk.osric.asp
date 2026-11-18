@@ -74,11 +74,7 @@ internal static class AssistantConversationPage {
         await ShellDocument.BeginAsync(context, conversation.Title,
             SiteNavigation.For(context), stylesheets: ["/assistant.css"], bodyClass: "assistant-page");
         await context.Response.WriteAsync($"<h1>{Encode(conversation.Title)}</h1>");
-        await context.Response.WriteAsync(ShellDocument.Nav("Assistant navigation", [
-            new("/assistant", "Conversations"),
-            new(AssistantMemoryEndpoint.Path, "Memory"),
-            new(EditorPaths.Of(context.RequestServices), "Page list"),
-        ]));
+        await context.Response.WriteAsync(AssistantNavigation.Nav(context));
 
         await context.Response.WriteAsync($"""
             <div class="assistant-chat" id="assistant-chat" data-conversation-id="{id}" data-active-run="{Encode(activeRun?.Id ?? "")}" data-replay-from="{replayFrom}">

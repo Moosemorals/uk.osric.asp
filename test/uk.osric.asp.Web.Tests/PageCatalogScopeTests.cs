@@ -6,6 +6,7 @@ namespace uk.osric.asp.Web.Tests;
 using uk.osric.asp.Core.Pages;
 using uk.osric.asp.Sdk;
 using uk.osric.asp.Web.Pages;
+using uk.osric.asp.Web.Shell;
 
 /// <summary>The capability a page reads the store through.</summary>
 [TestFixture]
@@ -304,6 +305,22 @@ public sealed class PageCatalogScopeTests {
     }
 
     [Test]
+    public void TheShellLinksAreTheValuesTheChainBuilt() {
+        PageCatalogScope scope = Scope(new FakePageReadStore());
+
+        Assert.That(scope.ShellLinks(), Is.EqualTo(ShellCatalogue.Links("/test", string.Empty, "/pages")));
+    }
+
+    [Test]
+    public void AnAbandonedRenderCannotReadTheShellLinks() {
+        PageCatalogScope scope = Scope(new FakePageReadStore());
+
+        scope.Abandon();
+
+        Assert.Throws<InvalidOperationException>(() => scope.ShellLinks());
+    }
+
+    [Test]
     public async Task AnAbandonedRenderCannotReadAsync() {
         FakePageReadStore store = new();
         store.Save("/blog", "source");
@@ -376,6 +393,7 @@ public sealed class PageCatalogScopeTests {
 
         return new PageCatalogScope(
             PagePath.Normalize("/test"),
+            ShellCatalogue.Links("/test", string.Empty, "/pages"),
             store,
             read,
             budget ?? new ReadBudget(read.MaxSourceCharsPerRender),

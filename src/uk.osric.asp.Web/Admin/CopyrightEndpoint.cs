@@ -38,7 +38,7 @@ internal static class CopyrightEndpoint {
 
         await context.Response.WriteAsync("<h1>Copyright and licences</h1>", cancellationToken);
         await context.Response.WriteAsync(
-            AdminNavigation.Nav("copyright", EditorPaths.Of(context.RequestServices)),
+            AdminNavigation.Nav(context),
             cancellationToken);
         await context.Response.WriteAsync(
             """
