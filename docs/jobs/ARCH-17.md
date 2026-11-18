@@ -42,8 +42,9 @@ index — which is the shape of a fact that has been written down twice.
 2. Two kinds now (`approval`, `continuation`) and a third when the question lands. The store never
    parses a request or a resolution, so a new kind is a payload, not a schema change.
 3. One status, `awaiting_owner`, and one home for the run's seven status names in code.
-4. One coordinator keyed by the run, one `WaitAsync` on the processor, one route family
-   (`…/runs/{runId}/interrupt/{kind}`), one recovery and one fail-closed path.
+4. One coordinator keyed by the run, one `WaitAsync` on the processor, one route
+   (`…/runs/{runId}/interrupt`, whose body is read against the record's kind), one recovery and one
+   fail-closed path.
 5. `Run.PausedBudget` and `RunBudget.Awaiting` go: the continuation's budget is in its request, and the
    store widens the limit from what the owner was shown.
 

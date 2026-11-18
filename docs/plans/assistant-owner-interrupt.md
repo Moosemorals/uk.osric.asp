@@ -8,7 +8,7 @@ SPDX-License-Identifier: MIT
 | | |
 | --- | --- |
 | Status | Proposed 2026-11-18 — waits for the owner. Nothing below is built |
-| Size | Large — one record and its table, one migration, one run status, one coordinator, one route family, one wait, and the two existing cards rendered from the record. No new behaviour |
+| Size | Large — one record and its table, one migration, one run status, one coordinator, one route, one wait, and the two existing cards rendered from the record. No new behaviour |
 | Area | Web (assistant, storage), docs |
 | Spike | None. The shape is LangGraph's `interrupt(value, response_schema)` applied to three waits this codebase already implements; [the ask tool's survey](../spikes/ask-tool-shape.md) is where the shape was met |
 | Backlog | ARCH-17 |
@@ -34,7 +34,7 @@ That is one idea written three ways, and the third one does not exist yet. This 
 **`OwnerInterrupt` — a stored request from a run to its owner, and the resolution they give it.** The
 approval and the continuation move onto it now, because they are two real call sites that prove the
 shape; the question is then the first *new* kind, added by the next plan without touching the record,
-the status, the coordinator, the route family or the wait.
+the status, the coordinator, the route or the wait.
 
 Behaviour does not change. An approval is still a gate that runs or refuses its call, a spent budget
 still pauses with the same sentence and the same window, a restart still fails the wait closed, and
@@ -66,7 +66,7 @@ the route a form posts to, the events the page listens to — and those are the 
    its owner, with at most one pending per run by construction.
 2. One run status, `awaiting_owner`, so a log line, a metric, a query and a reader all say the run is
    the owner's turn without pretending to know what for.
-3. One coordinator, one wait, one route family and one fail-closed path for every kind.
+3. One coordinator, one wait, one route and one fail-closed path for every kind.
 4. The approval and the continuation behave exactly as they do: same cards, same sentences, same
    limits, same refusals, same restart behaviour.
 5. A third kind is added by adding a kind — its payload, its card and its form — and nothing else.
@@ -173,23 +173,39 @@ Three callers, one method:
 exists. `ToolApprovalCoordinator` and `RunContinuationCoordinator` are deleted. Its tests are the old
 approval coordinator's three cases, unchanged in meaning.
 
-### D6 — One route family
+### D6 — One route, and the record says what is being answered
 
 ```
-POST /assistant/{id:long}/runs/{runId}/interrupt/{kind}
+POST /assistant/{id:long}/runs/{runId}/interrupt
 ```
 
-One handler: CSRF, the owner, then the store's answer. The pending record must exist, belong to this
-conversation, be `pending`, and have the kind in the path — a stale form gets `409` with the sentence
-the approval route already uses, an unknown one `404`. The handler then parses that kind's fields,
-resolves the record and signals:
+One route and one handler. **It does not carry the kind.** The run has one pending interrupt, and the
+record is the authority for what kind it is, so a path segment would be a second copy of a fact the row
+already holds — and the copy is what can disagree. The page builds the form's action from the record it
+just rendered, so nothing in a URL can drift from it.
 
-- `approval`: `decision=approve|deny`, plus the tool call id in the form, checked against the record so
-  a form from an earlier call cannot answer a later one;
-- `continuation`: no fields; everything needed is in the request.
+The handler's order is what makes one route safe, and it replaces the check a kind in the path would
+have made:
 
-The approval's and continuation's existing routes go. The page and the two integration suites move to
-the new one; the browser suites click buttons and are already route-agnostic.
+1. The antiforgery token, then the owner.
+2. Read the run's pending interrupt. Absent, or belonging to another owner, is `404` with the sentence
+   the approval route uses; present but not `pending` is `409` for the same reason it is today.
+3. Parse the body **against that record's kind, strictly**: a field the kind does not expect, a missing
+   field it requires, or a tool call id that is not the record's is refused with `409` and the
+   "the run moved on before this arrived" sentence. A field the kind does not expect is the rule that
+   keeps a form from an earlier wait from resolving a later one.
+4. Resolve the record, signal the run, `204`.
+
+| Kind | Body, beyond the antiforgery token |
+| --- | --- |
+| `approval` | `decision=approve\|deny` and the tool call id, checked against the record |
+| `continuation` | nothing |
+| `question` (next plan) | `answer{n}`, `other{n}` and the tool call id, checked against the record |
+
+So a stale approval form arriving during a continuation is refused because a continuation takes no
+fields, and a stale continuation form arriving during an approval is refused because the decision is
+missing. Both are the same refusal a kind in the path would have produced, made against the authority
+rather than against a copy of it.
 
 ### D7 — The page reads a record, not three things
 
@@ -239,7 +255,7 @@ the same results it writes today, because it derives them from the transcript, n
 | `src/uk.osric.asp.Web/Assistant/IConversationStore.cs`, `SqliteConversationStore.cs` | **changed** — open, get, resolve, fail, continue; one status; one recovery |
 | `src/uk.osric.asp.Web/Assistant/RunProcessor.cs` | **changed** — one wait, three callers, one event pair |
 | `src/uk.osric.asp.Web/Assistant/Run.cs`, `RunBudget.cs` | **changed** — `PausedBudget` and `RunBudget.Awaiting` go |
-| `src/uk.osric.asp.Web/Assistant/AssistantEndpoint.cs`, `Program.cs` | **changed** — the route family; two registrations become one |
+| `src/uk.osric.asp.Web/Assistant/AssistantEndpoint.cs`, `Program.cs` | **changed** — the one route; two registrations become one |
 | `src/uk.osric.asp.Web/Assistant/AssistantConversationPage.cs` | **changed** — one read, two renderers from the record |
 | `src/uk.osric.asp.Web/Pages/Seeds/assistant.js` | **changed** — one event pair, keyed cards |
 | `src/uk.osric.asp.Web/Storage/StorageDbContext.cs`, `Migrations/*_AddOwnerInterrupts.cs` | **changed, new** — the entity, the copy, the status rewrite, the dropped column, the index |
@@ -259,7 +275,7 @@ the same results it writes today, because it derives them from the transcript, n
 2. **The wait.** `OwnerInterruptCoordinator`, `WaitAsync`, the approval and continuation callers, the
    event pair, and `RunProcessorTests` updated case by case. No behaviour may change except the event
    names.
-3. **The route family.** The one handler, the two integrations suites, and the removal of the old
+3. **The route.** The one handler, the two integrations suites, and the removal of the old
    routes.
 4. **The page.** One read, two renderers from `request`, the script's one listener pair and keyed cards,
    and the accessibility sweep's assistant fixture still green.
@@ -305,8 +321,11 @@ the same results it writes today, because it derives them from the transcript, n
 
 - `AssistantApprovalFlowTests.RequiredApprovalPausesWritesAndAlwaysApproveExecutesWithoutPromptAsync`
   — the same assertions through the new route and the new event.
-- `AssistantContinuationFlowTests` — the same, through `interrupt/continuation`.
+- `AssistantContinuationFlowTests` — the same, through `…/interrupt`.
 - `AssistantMemoryApprovalTests` — the same, through the new route.
+- `AFormForAKindTheRunIsNotWaitingOnIsRefused` (new) — a decision posted while the run waits on a
+  continuation is `409`, and a continuation posted while it waits on an approval is `409`; neither
+  resolves anything. This is the test the kind in the URL would otherwise have been.
 
 **`Web.BrowserTests`** (unchanged)
 
@@ -325,29 +344,38 @@ the same results it writes today, because it derives them from the transcript, n
   to a database that already holds a conversation, a run and an approval.
 - **A pending interrupt and a status could disagree** if they were written separately, so opening and
   resolving each write both in one transaction.
-- **A stale form answers the wrong wait.** The kind in the path and the tool call id in the form are
-  both checked against the record; a mismatch is `409`, never a resolution.
+- **A stale form answers the wrong wait.** The body is parsed strictly against the pending record's
+  kind — an unexpected field, a missing one, or a tool call id that is not the record's is `409` — so a
+  form from an earlier wait cannot resolve a later one, and the kind needs no second home in the URL.
 - **The approval card loses its mode gate.** That is deliberate: a run blocked on a card is a fact. The
   options form still changes the mode for the *next* call.
 - **LangGraph's shape is not a specification.** It is the clearest statement of "a request and a
   resolution" in the survey; the local justification is the three call sites, not the precedent.
 
-## The questions this plan asks the owner
+## The questions this plan asked the owner
 
-1. **Does the continuation belong in the same record?** Recommended yes: it is the third wait, it is
-   the one with no record today, and leaving it out is what would keep two statuses for one fact. Its
-   resolution changes run state as well as recording a decision, which is why the store owns the
-   widening.
-2. **Should the route be one path with a kind, or three paths?** Recommended one family
-   (`…/interrupt/{kind}`): it is one handler, one set of checks and one stale-form rule.
-3. **Should the status names get a `RunStatus` home?** Recommended yes, because five enumerations
-   drifting is the fault this plan is fixing.
-4. **Should an approval's request be stored, or keep reading the transcript?** Recommended stored: one
-   row renders the card, the endpoint validates against it, and the page stops depending on the shape
-   of a message it did not write.
+Answered 2026-11-18:
+
+1. **Does the continuation belong in the same record?** Yes. It is the third wait, it is the one with no
+   record today, and leaving it out is what would keep two statuses for one fact. Its resolution
+   changes run state as well as recording a decision, which is why the store owns the widening.
+2. **Should the route be one path with a kind, or three paths?** One path, and **the kind stays out of
+   the URL**. The run has one pending interrupt and the record says what kind it is, so a segment would
+   be a second copy that can disagree; the body is parsed strictly against the record instead (D6).
+3. **Should the status names get a `RunStatus` home?** Yes, because five enumerations drifting is the
+   fault this plan is fixing.
+4. **Should an approval's request be stored, or keep reading the transcript?** Stored: one row renders
+   the card, the endpoint validates against it, and the page stops depending on the shape of a message
+   it did not write.
 
 ## Considered and rejected
 
+- **The kind in the route path.** Rejected by the owner: the run has one pending interrupt and the row
+  already says which kind it is, so `…/interrupt/{kind}` is a second copy — and the copy is what can
+  disagree. The mismatch check a path segment would give is replaced by parsing the body strictly
+  against the record (D6), which refuses the same forms for the same reason.
+- **Three routes, one per kind.** That is what exists now in two of the three cases, and it is three
+  handlers repeating the same CSRF, owner and pending checks.
 - **Two kinds (approval and question) and leaving the continuation alone.** That keeps two statuses for
   "the owner must act", which is the incoherence, and leaves the oldest of the three waits as the odd
   one out.

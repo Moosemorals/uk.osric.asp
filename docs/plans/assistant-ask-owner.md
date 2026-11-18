@@ -8,7 +8,7 @@ SPDX-License-Identifier: MIT
 | | |
 | --- | --- |
 | Status | Proposed 2026-11-18 — waits for the owner. Nothing below is built |
-| Size | Medium — one tool, one interrupt kind, a card in two renderers, three configuration values, a prompt version and five suites. The wait, the record, the status and the route family are [the owner interrupt's](assistant-owner-interrupt.md) |
+| Size | Medium — one tool, one interrupt kind, a card in two renderers, three configuration values, a prompt version and five suites. The wait, the record, the status and the route are [the owner interrupt's](assistant-owner-interrupt.md) |
 | Area | Core (Assistant), Web (assistant), docs |
 | Spike | [The ask tool's shape](../spikes/ask-tool-shape.md) read MCP elicitation, Claude Code, VS Code, Cline, Roo Code, OpenAI, DeepSeek, LangGraph and AutoGen; it recommends the schema, the caps and the result shape this plan adopts, and names the two levers — the description and the parameter descriptions — that the evidence says matter most |
 | Backlog | [IDEA-052](../jobs/IDEA-052.md) |
@@ -48,7 +48,7 @@ Three choices are load-bearing:
 
 - **The interrupt.** `AssistantInterrupts` stores `{kind, request, resolution}` with at most one pending
   per run; `awaiting_owner` is the run's status; `OwnerInterruptCoordinator` and one `WaitAsync` in
-  `RunProcessor` serve every kind; `POST …/runs/{runId}/interrupt/{kind}` resolves one.
+  `RunProcessor` serve every kind; `POST …/runs/{runId}/interrupt` resolves the run's pending one.
 - **The tool surface.** Twenty tools in one registry; each carries its name, description, schema and
   flags, and `ToolSpecsTests` pins the count and the invariants.
 - **The bounded schema.** `ToolArgumentSchema.Items` recurses and `ToolArguments.Parse` validates
@@ -135,9 +135,10 @@ The interrupt gains one kind, with no change to the record, the status, the coor
 | `ResolutionJson` | `{answers: [{question, header?, selected: [label], text}]}` — in the order asked |
 | The run does | nothing beyond the call: the answer *is* the tool's result |
 
-The answer endpoint is the same route family with `kind=question`: the form's fields are `answer{n}`
-(repeated for checkboxes) and `other{n}`, so the endpoint needs no JSON from the browser, and the tool
-call id travels in the form as a stale-form guard.
+The answer endpoint is the interrupt route with no kind in the path: the record says the run waits on
+a `question`, and the handler parses the form against it. The form's fields are `answer{n}` (repeated for
+checkboxes) and `other{n}`, so the endpoint needs no JSON from the browser, and the tool call id travels
+in the form as a stale-form guard.
 
 ### D3 — The tool is given the wait, not the run's business
 
