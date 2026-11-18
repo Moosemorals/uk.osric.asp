@@ -511,14 +511,34 @@ live behaviour lives only in the page.
 5. **Should parameter descriptions be added to every tool?** Recommended not in this change: it
    rewrites the provider's cached prefix and deserves its own measurement. The capability lands now so
    the follow-up is a data change.
+6. **Should the run fail both records through one store call?** The processor fails pending
+   approvals in three places (`FailAsync`, the stop path, recovery); the plan adds the same three for
+   questions, which is six call sites that must never drift apart. One `FailPendingOwnerAsksAsync(runId, code)`
+   that fails both tables would be a genuine reduction with no discriminator, at the cost of a store
+   method that knows there are two kinds. Recommended yes, and it is the part of the "one kind of
+   thing" idea that pays.
 
 ## Considered and rejected
 
 - **Reusing `awaiting_approval`.** Saves a migration and makes a log line, a metric and the page lie
   about what the run waits for. The migration is a table and an index filter.
-- **Widening `ToolApproval` with a kind and an answer column.** One table for two vocabularies means a
-  discriminator every query must read, nullable columns, and a status set that has to mean two things;
-  the two records differ in their answer, not only in their name.
+- **Widening `ToolApproval` into one "owner interrupt" with a kind.** The nearest miss, and worth
+  stating at length because the duplication is real. What the two paths share is the *wait*: a record,
+  a coordinator, a status the run sits in, and a fail-closed path on a restart. What they do not share
+  is the *consequence*: an approval decides whether a tool runs and a denial is a completed
+  interaction, while an answer is the result a tool produces and nothing was gated. A unified record
+  is `{kind, request, resolution}` with one status (`awaiting_owner`) and one pending query; that is
+  LangGraph's `interrupt(value, response_schema)` and it is coherent. But here it costs more than it
+  saves: the migration alters a live table rather than adding one; every reader branches anyway,
+  because the record's payload and the page's card and the endpoint's form are all different shapes;
+  one status means renaming `awaiting_approval`, which is enumerated in five code sites and pinned by
+  tests, docs and the page — a bigger diff than adding `awaiting_answer`; and it puts ~150 lines of
+  working, tested approval code in front of a second caller. Measured, the shared plumbing is about
+  120–150 lines beside a feature of roughly 650–700 including tests, so the saving is a fifth of the
+  feature's plumbing and none of its semantics. The framework survey is the tie-breaker: MCP keeps
+  elicitation out of tool-call approval, and Claude Code, VS Code, Cline and Roo Code all ship
+  separate tools. Revisit if a third kind arrives — a confirmation carrying text, say — because that
+  is the evidence the generalisation is real rather than anticipated.
 - **Passing the answer through the coordinator.** The endpoint's signal would carry the words and the
   store would hold a copy. Reading the row makes the record the authority and survives a restart of
   the HTTP request's task.
