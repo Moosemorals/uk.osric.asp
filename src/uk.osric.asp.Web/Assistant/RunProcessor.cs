@@ -228,15 +228,15 @@ internal sealed class RunProcessor(
                         options.ReasoningField);
                     ContextPlan plan = ContextPlanner.Build(request, budget, TokenEstimator.For(calibration));
                     if (plan.Error is not null) {
-                        metrics.RecordBudgetExhausted(AssistantMetrics.Exhausted.Context);
+                        metrics.RecordBudgetExhausted(AssistantMetrics.ExhaustedContext);
                         await FailAsync(queued, stream, "context_too_long", plan.Error, partial, step, runTimeout.Token);
                         return;
                     }
                     if (plan.IsMasked) {
-                        metrics.RecordShaped(AssistantMetrics.Shaped.Masked);
+                        metrics.RecordShaped(AssistantMetrics.ShapedMasked);
                     }
                     if (plan.IsTrimmed) {
-                        metrics.RecordShaped(AssistantMetrics.Shaped.Trimmed);
+                        metrics.RecordShaped(AssistantMetrics.ShapedTrimmed);
                     }
                     if (plan.IsMasked && !maskedWarningSent) {
                         stream.Publish("run.warning", new {
@@ -282,13 +282,13 @@ internal sealed class RunProcessor(
                             // operator's problem rather than this run's: it is named the way a run with no
                             // window is named, and the deploy hears the rest at its next restart.
                             logger.LogError(configuration, "The model list no longer contains {Model}", run.Model);
-                            metrics.RecordBudgetExhausted(AssistantMetrics.Exhausted.Provider);
+                            metrics.RecordBudgetExhausted(AssistantMetrics.ExhaustedProvider);
                             await FailAsync(queued, stream, "model_window_unknown", configuration.Message,
                                 partial, step, runTimeout.Token);
                             return;
                         }
                         if (windows.Budget is not { } updated || refreshed.SameAs(budgetRead)) {
-                            metrics.RecordBudgetExhausted(AssistantMetrics.Exhausted.Provider);
+                            metrics.RecordBudgetExhausted(AssistantMetrics.ExhaustedProvider);
                             await FailAsync(queued, stream, exception.Code, exception.Message, partial, step, runTimeout.Token);
                             return;
                         }
@@ -297,7 +297,7 @@ internal sealed class RunProcessor(
                         budgetRead = refreshed;
                         plan = ContextPlanner.Build(request, budget, TokenEstimator.For(calibration));
                         if (plan.Error is not null) {
-                            metrics.RecordBudgetExhausted(AssistantMetrics.Exhausted.Context);
+                            metrics.RecordBudgetExhausted(AssistantMetrics.ExhaustedContext);
                             await FailAsync(queued, stream, "context_too_long", plan.Error, partial, step, runTimeout.Token);
                             return;
                         }
@@ -362,7 +362,7 @@ internal sealed class RunProcessor(
                     PublishBudgets(stream, budgets, usageTotals, budget, stepLimit, toolCallLimit);
 
                     if (response.FinishReason == "length") {
-                        metrics.RecordBudgetExhausted(AssistantMetrics.Exhausted.Output);
+                        metrics.RecordBudgetExhausted(AssistantMetrics.ExhaustedOutput);
                         // A reply cut through a tool call's arguments is unparsable JSON, which would
                         // surface as a refusal that reads like the model's mistake rather than the
                         // allowance's. The cut is named instead, and the owner is told what to do.
@@ -793,7 +793,7 @@ internal sealed class RunProcessor(
             },
             limits = new Dictionary<string, long>(StringComparer.Ordinal) {
                 ["context"] = budget.PromptBudget,
-                ["window"] = budget.ContextWindow,
+                ["window"] = budgets.Window,
                 ["estimate"] = budget.EstimateMargin,
                 ["output"] = budgets.LastMaxTokens,
                 ["steps"] = stepLimit,

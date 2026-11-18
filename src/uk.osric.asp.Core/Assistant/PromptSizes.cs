@@ -22,9 +22,6 @@ internal sealed class PromptSizes {
         _sizeOf = sizeOf;
     }
 
-    /// <summary>The bytes the body costs with no messages in it.</summary>
-    public long Overhead => _overhead;
-
     /// <summary>Each message's serialized size, in the request's own order.</summary>
     public IReadOnlyList<long> Sizes => _sizes;
 

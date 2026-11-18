@@ -98,18 +98,20 @@ internal sealed class AssistantMetrics : IDisposable {
     /// <summary>The kind tag recorded for a write that had no kind, which includes every refusal.</summary>
     public const string NoKind = "(none)";
 
-    /// <summary>The ways the planner had to change a request so it would fit.</summary>
-    internal static class Shaped {
-        public const string Masked = "masked";
-        public const string Trimmed = "trimmed";
-    }
+    /// <summary>An old payload was masked so the request would fit.</summary>
+    public const string ShapedMasked = "masked";
 
-    /// <summary>The budgets a run can exhaust.</summary>
-    internal static class Exhausted {
-        public const string Context = "context";
-        public const string Provider = "provider";
-        public const string Output = "output";
-    }
+    /// <summary>Whole turns were dropped so the request would fit.</summary>
+    public const string ShapedTrimmed = "trimmed";
+
+    /// <summary>Our own estimate of the request stopped the run before it was sent.</summary>
+    public const string ExhaustedContext = "context";
+
+    /// <summary>The provider's window rejected the request.</summary>
+    public const string ExhaustedProvider = "provider";
+
+    /// <summary>The reply reached the tokens its request left for it.</summary>
+    public const string ExhaustedOutput = "output";
 
     private readonly Meter _meter = new(MeterName, typeof(AssistantMetrics).Assembly.GetName().Version?.ToString() ?? "0.0.0");
     private readonly Histogram<double> _runDuration;
@@ -201,12 +203,12 @@ internal sealed class AssistantMetrics : IDisposable {
     }
 
     /// <summary>Records that the planner had to change a request so it would fit.</summary>
-    /// <param name="kind">One of <see cref="Shaped.Masked"/> or <see cref="Shaped.Trimmed"/>.</param>
+    /// <param name="kind">One of <see cref="ShapedMasked"/> or <see cref="ShapedTrimmed"/>.</param>
     public void RecordShaped(string kind) => _shaped.Add(1, new TagList { { "kind", kind } });
 
     /// <summary>Records that a run stopped on a budget.</summary>
-    /// <param name="cause">One of <see cref="Exhausted.Context"/>, <see cref="Exhausted.Provider"/>
-    /// or <see cref="Exhausted.Output"/>.</param>
+    /// <param name="cause">One of <see cref="ExhaustedContext"/>, <see cref="ExhaustedProvider"/>
+    /// or <see cref="ExhaustedOutput"/>.</param>
     public void RecordBudgetExhausted(string cause) => _exhausted.Add(1, new TagList { { "cause", cause } });
 
     /// <summary>Records that one tool result was truncated at its cap.</summary>

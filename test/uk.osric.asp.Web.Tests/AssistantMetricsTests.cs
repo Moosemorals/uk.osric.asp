@@ -111,11 +111,11 @@ public sealed class AssistantMetricsTests {
         listener.SetMeasurementEventCallback<long>((instrument, _, tags, _) => measurements.Add((instrument.Name, FormatTags(tags))));
         listener.Start();
 
-        metrics.RecordShaped(AssistantMetrics.Shaped.Masked);
-        metrics.RecordShaped(AssistantMetrics.Shaped.Trimmed);
-        metrics.RecordBudgetExhausted(AssistantMetrics.Exhausted.Context);
-        metrics.RecordBudgetExhausted(AssistantMetrics.Exhausted.Provider);
-        metrics.RecordBudgetExhausted(AssistantMetrics.Exhausted.Output);
+        metrics.RecordShaped(AssistantMetrics.ShapedMasked);
+        metrics.RecordShaped(AssistantMetrics.ShapedTrimmed);
+        metrics.RecordBudgetExhausted(AssistantMetrics.ExhaustedContext);
+        metrics.RecordBudgetExhausted(AssistantMetrics.ExhaustedProvider);
+        metrics.RecordBudgetExhausted(AssistantMetrics.ExhaustedOutput);
         metrics.RecordToolTruncated("read_page");
         metrics.RecordToolTruncated(null);
 
