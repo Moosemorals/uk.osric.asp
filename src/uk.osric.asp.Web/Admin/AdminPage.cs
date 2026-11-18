@@ -16,7 +16,7 @@ internal static class AdminPage {
 
     /// <summary>The links back to the shell's own pages, written under the heading.</summary>
     public const string BackLinks =
-        """<p><a href="/admin">Administration</a> · <a href="/status">Status</a></p>""";
+        """<p><a href="/admin">Administration</a> · <a href="/admin/status">Status</a></p>""";
 
     /// <summary>Writes the document's head and opens its main element.</summary>
     /// <param name="context">The request being answered.</param>

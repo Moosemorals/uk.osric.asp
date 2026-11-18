@@ -23,7 +23,7 @@ public sealed class ShellDocumentFragmentTests {
         MarkupReader document = MarkupReader.Parse(head + ShellDocument.OpenMain() + ShellDocument.CloseMain() + ShellDocument.End());
         Assert.That(document.Elements("html").Single().Attribute("lang"), Is.EqualTo("en"));
         Assert.That(document.Elements("head"), Has.Count.EqualTo(1));
-        Assert.That(document.Elements("body").Single().Attribute("class"), Is.EqualTo("editor-page"));
+        Assert.That(document.Elements("body").Single().Attribute("class"), Is.EqualTo("shell editor-page"));
         Assert.That(document.Elements("meta").Select(meta => meta.Attribute("name")), Does.Contain("refresh"));
         Assert.That(document.Elements("link").Any(link => link.Attribute("rel") == "icon"), Is.True);
     }
@@ -96,7 +96,7 @@ public sealed class ShellDocumentFragmentTests {
     }
 
     [Test]
-    public void TheBannerIsTheSkipLinkThenTheHeaderAroundTheNav() {
+    public void TheBannerIsTheSkipLinkThenTheHeaderAroundTheLabelAndTheNav() {
         string nav = ShellDocument.Nav("Site", [new("/", "Home")]);
 
         MarkupReader document = MarkupReader.Parse(ShellDocument.Banner(nav));
@@ -104,7 +104,10 @@ public sealed class ShellDocumentFragmentTests {
         Assert.That(document.Root.Children[0].Name, Is.EqualTo("a"));
         Assert.That(document.Root.Children[0].Attribute("href"), Is.EqualTo("#main"));
         Assert.That(document.Root.Children[1].Name, Is.EqualTo("header"));
-        Assert.That(document.Root.Children[1].Children.Single().Name, Is.EqualTo("nav"));
+        Assert.That(document.Root.Children[1].Children[0].Name, Is.EqualTo("p"));
+        Assert.That(document.Root.Children[1].Children[0].Attribute("class"), Is.EqualTo("shell-label"));
+        Assert.That(document.Root.Children[1].Children[0].Text.Trim(), Is.EqualTo(ShellDocument.ShellLabelText));
+        Assert.That(document.Root.Children[1].Children[1].Name, Is.EqualTo("nav"));
     }
 
     [Test]
@@ -112,7 +115,7 @@ public sealed class ShellDocumentFragmentTests {
         string head = ShellDocument.Head("Title");
         string open = ShellDocument.OpenMain();
 
-        Assert.That(head.TrimEnd(), Does.EndWith("<body>"));
+        Assert.That(head.TrimEnd(), Does.EndWith("<body class=\"shell\">"));
         Assert.That(open, Does.StartWith("<main"));
         Assert.That(head, Does.Not.Contain("id=\"main\""));
     }

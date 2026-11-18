@@ -188,10 +188,13 @@ and what depends on it is asserted by the suites that use it (`SimpleContextTest
   the stack of calls, a page that declares none, the nesting, the depth limit, the cycle, the one
   slot and deadline, the shared budgets, the fallbacks, the wrapper's `Content` and the response the
   content owns; `PageLayerRoleTests` pins what each of the three roles may ask of the response, and
-  `ShellMenusTests` and `SiteNavigationTests` cover the menu the shell draws from its route table. The
-  integration suite's
+  `ShellMenusTests`, `SiteNavigationTests` and `AdminNavigationTests` cover the menu the shell draws
+  from its route table and the item it marks current. `PageCatalogScopeTests` proves
+  `ShellLinks()` returns the chain's list and refuses after the render ends. The integration suite's
   `SiteChromeTests` proves the shipped `Pages:Layout` through the real host: a shell document carries
-  home and, under `/admin`, admin, and the stored layout keeps the full menu. `MarkupReader` is a hand-written reader rather than a parser dependency,
+  home and, under `/admin`, admin, and the stored layout keeps the full menu; the two are compared on
+  their items, their destinations and the current item, a page renders the links itself from
+  `ShellLinks()`, and the shell's document is marked while the layout's is not. `MarkupReader` is a hand-written reader rather than a parser dependency,
   which is sound only because this repository encodes every value at the boundary — and is why it has
   to fail loudly when it meets something it does not expect. `ShellDocumentFragmentTests` covers the
   fragments the shell writes — the title, the encoding, the sheet order and deduplication, the
@@ -217,7 +220,7 @@ and what depends on it is asserted by the suites that use it (`SimpleContextTest
   and every family a query names is accounted for. `Core.Tests` pins the chart markup — title, legend,
   dashes, end labels, heatmap runs — and the tick tables. `Web.IntegrationTests` renders a page and
   reads `/metrics`, proves the catalogue's family names against it (`MetricNamesTests`), pins the
-  page's markup budget with a synthetic wide answer, and asserts that `/status` and `/status/chart`
+  page's markup budget with a synthetic wide answer, and asserts that `/admin/status` and `/admin/status/chart`
   send an anonymous visitor to `/login`; no test needs a running Prometheus.
 - **Integration tests** cover what only exists when the host runs: route matching and ordering, the
   exception-handler branch, sign-in and authorisation, antiforgery rejection, status codes and

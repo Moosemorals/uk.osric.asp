@@ -5,14 +5,16 @@ namespace uk.osric.asp.Web.Shell;
 
 using Microsoft.AspNetCore.WebUtilities;
 using uk.osric.asp.Core.Pages;
+using uk.osric.asp.Sdk;
 
 /// <summary>The site's own routes, and the menus they appear in, in one table.</summary>
 /// <remarks>
 /// <para>
-/// Three things read this list: the key set a page may not claim (<see cref="Reserved"/>), the record
-/// the assistant is given when it reads a shell file (<see cref="Text"/>), and the menus the shell
-/// draws (<see cref="Links"/>). They were three hand-written copies — and the assistant's prompt a
-/// fourth — so the table is the only place a route is described.
+/// Four things read this list: the key set a page may not claim (<see cref="Reserved"/>), the record
+/// the assistant is given when it reads a shell file (<see cref="Text"/>), the menus the shell draws
+/// (<see cref="Links"/>) and the same links given to a page through
+/// <see cref="uk.osric.asp.Sdk.IPageCatalog.ShellLinks"/>. They were three hand-written copies — and
+/// the assistant's prompt a fourth — so the table is the only place a route is described.
 /// </para>
 /// <para>
 /// A route is a key the site's own code answers. A page link is a key a stored page answers — Home,
@@ -45,7 +47,7 @@ internal static class ShellCatalogue {
         new ShellRoute("/admin", "GET", ShellAudience.Everyone,
             "The administration index: every tool the shell offers that this visitor may reach, drawn from one list of shell links.",
             new ShellMenu(ShellSection.Site, ShellAudience.Owner, 50, "Admin", ShellMatch.Subtree),
-            new ShellMenu(ShellSection.Administration, ShellAudience.Everyone, 10, "Administration", ShellMatch.Subtree)),
+            new ShellMenu(ShellSection.Administration, ShellAudience.Everyone, 10, "Administration", ShellMatch.Leaf)),
         new ShellRoute("/logout", "GET, POST", ShellAudience.Owner,
             "The sign-out confirmation, then the POST that deletes the stored ticket and the cookie.",
             new ShellMenu(ShellSection.Site, ShellAudience.Owner, 60, "Sign out", ShellMatch.Leaf)),
@@ -72,7 +74,7 @@ internal static class ShellCatalogue {
         new ShellRoute("/admin/copyright", "GET", ShellAudience.Everyone,
             "The copyright and licence page: the site's licence, the third-party notices and the LICENSES texts, read from the files the image carries.",
             new ShellMenu(ShellSection.Administration, ShellAudience.Everyone, 80, "Copyright and licences", ShellMatch.Leaf)),
-        new ShellRoute("/status", "GET", ShellAudience.Owner,
+        new ShellRoute("/admin/status", "GET", ShellAudience.Owner,
             "The status dashboard: metrics, storage and build, rendered by the server without JavaScript.",
             new ShellMenu(ShellSection.Administration, ShellAudience.Owner, 90, "Status", ShellMatch.Subtree)),
         PageLink(ShellPage.Editor, ShellAudience.Owner, ShellSection.Administration, 100, "Page list", ShellMatch.Subtree),
@@ -109,7 +111,7 @@ internal static class ShellCatalogue {
     /// <summary>The keys no page may claim, in table order.</summary>
     public static IReadOnlyList<string> Reserved { get; } = [.. Routes.Select(route => route.Key)];
 
-    /// <summary>The menu links, the Site menu first and each section in its own reading order.</summary>
+    /// <summary>The shell's links as values, the Site menu first and each section in its reading order.</summary>
     /// <param name="path">The request's path, which the sign-in link returns to.</param>
     /// <param name="query">The request's raw query, carried into the sign-in link.</param>
     /// <param name="editorPath">The editor's own key, which is configuration.</param>
@@ -136,6 +138,24 @@ internal static class ShellCatalogue {
         ShellAudience.Anonymous => !authenticated,
         _ => authenticated,
     };
+
+    /// <summary>Whether the request path is the place this link leads to.</summary>
+    /// <param name="link">The link to test.</param>
+    /// <param name="path">The canonical request path.</param>
+    /// <remarks>
+    /// The sign-in link carries the way back as a query, so its current check is the path it leads to
+    /// rather than the href it was given. The match is the link's own: a tool is current beneath its
+    /// own key, and a view is current only at it.
+    /// </remarks>
+    public static bool IsCurrent(ShellLink link, string path) {
+        ArgumentNullException.ThrowIfNull(path);
+
+        int query = link.Href.IndexOf('?', StringComparison.Ordinal);
+        string target = query >= 0 ? link.Href[..query] : link.Href;
+
+        return string.Equals(path, target, StringComparison.Ordinal)
+            || (link.Match == ShellMatch.Subtree && path.StartsWith(target + "/", StringComparison.Ordinal));
+    }
 
     /// <summary>The record a read of this key returns.</summary>
     /// <param name="path">A canonical key.</param>
@@ -194,36 +214,6 @@ internal static class ShellCatalogue {
         + $"\ndescription: {route.Description}";
 }
 
-/// <summary>Which menu a link belongs to.</summary>
-internal enum ShellSection {
-    /// <summary>The site menu every shell document carries.</summary>
-    Site,
-
-    /// <summary>The administration menu, and the index it belongs to.</summary>
-    Administration,
-}
-
-/// <summary>Who a link is for.</summary>
-internal enum ShellAudience {
-    /// <summary>Every visitor, signed in or not.</summary>
-    Everyone,
-
-    /// <summary>A visitor who has not signed in.</summary>
-    Anonymous,
-
-    /// <summary>A signed-in visitor.</summary>
-    Owner,
-}
-
-/// <summary>How a request path marks a link current.</summary>
-internal enum ShellMatch {
-    /// <summary>The path is the link's own, and nothing below it.</summary>
-    Leaf,
-
-    /// <summary>The path is the link's own, or a page or route beneath it.</summary>
-    Subtree,
-}
-
 /// <summary>One appearance of an entry in a menu.</summary>
 /// <param name="Section">The menu it appears in.</param>
 /// <param name="Audience">Who may follow it, which is not the route's audience: the sign-in form answers
@@ -232,14 +222,6 @@ internal enum ShellMatch {
 /// <param name="Text">What it says, which the menu renders as the link's text.</param>
 /// <param name="Match">How a request path marks it current.</param>
 internal sealed record ShellMenu(ShellSection Section, ShellAudience Audience, int Order, string Text, ShellMatch Match);
-
-/// <summary>One link a menu renders: where it goes, what it says, its menu, its audience and how it matches.</summary>
-/// <param name="Href">Where it goes, which is an entry's path and may carry a query.</param>
-/// <param name="Text">What the menu renders.</param>
-/// <param name="Section">The menu it belongs to.</param>
-/// <param name="Audience">Who may follow it.</param>
-/// <param name="Match">How a request path marks it current.</param>
-internal sealed record ShellLink(string Href, string Text, ShellSection Section, ShellAudience Audience, ShellMatch Match);
 
 /// <summary>Something the shell draws a link to: a route it answers, or a page the store holds.</summary>
 /// <param name="Menus">The menus it appears in, if any.</param>

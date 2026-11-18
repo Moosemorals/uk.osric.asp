@@ -18,7 +18,7 @@ using static uk.osric.asp.Web.Html.Markup;
 
 /// <summary>The owner's page for the assistant's memory: list, edit, pin and forget.</summary>
 /// <remarks>
-/// The page is shell code and one document per response, like the editor and <c>/status</c>: no
+/// The page is shell code and one document per response, like the editor and <c>/admin/status</c>: no
 /// script, every mutating form carrying the antiforgery pair, and every write going through
 /// <see cref="IMemoryStore.EditAsync"/> or <see cref="IMemoryStore.ForgetAsync"/> rather than through
 /// a second set of rules (`assistant-memory-page`). The owner is always the signed-in account, so a wrong owner and a
@@ -210,11 +210,7 @@ internal static class AssistantMemoryEndpoint {
         await ShellDocument.BeginAsync(context, "Memory", SiteNavigation.For(context),
             statusCode: statusCode, stylesheets: ["/assistant.css"], bodyClass: "assistant-page");
         await context.Response.WriteAsync("<h1>Memory</h1>");
-        await context.Response.WriteAsync(ShellDocument.Nav("Assistant navigation", [
-            new("/assistant", "Conversations"),
-            new(Path, "Memory", true),
-            new(EditorPaths.Of(context.RequestServices), "Page list"),
-        ]));
+        await context.Response.WriteAsync(AssistantNavigation.Nav(context));
         await context.Response.WriteAsync(Count(held.Count, options.MaxMemoriesPerOwner));
 
         if (held.Count == 0) {

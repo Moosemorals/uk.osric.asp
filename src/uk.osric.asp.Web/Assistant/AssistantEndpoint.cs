@@ -59,11 +59,7 @@ internal static class AssistantEndpoint {
         await ShellDocument.BeginAsync(context, "Assistant",
             SiteNavigation.For(context), stylesheets: ["/assistant.css"]);
         await context.Response.WriteAsync("<h1>Assistant</h1>");
-        await context.Response.WriteAsync(ShellDocument.Nav("Assistant navigation", [
-            new("/assistant", "Conversations", true),
-            new(AssistantMemoryEndpoint.Path, "Memory"),
-            new(EditorPaths.Of(context.RequestServices), "Page list"),
-        ]));
+        await context.Response.WriteAsync(AssistantNavigation.Nav(context));
         await context.Response.WriteAsync($"""
             <form method="post" action="/assistant">
                 {AntiforgeryField.Hidden(tokens)}

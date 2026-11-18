@@ -12,7 +12,7 @@ SPDX-License-Identifier: MIT
 | Area | Web (html, admin, documentation, pages, seeds, wwwroot), deploy, docs |
 | Spike | None. Every count was read off the working tree on 2026-11-16: 26 files in `Pages/Seeds`, the consumers of each seed, the route table, `ReservedPaths`, `ShellRoutes`, `SecurityHeaders`, `ShellDocument` and the tests that name a retired key |
 | Decisions | Recorded at the merge: `shell-admin-is-a-shell-route`, `shell-admin-assets-are-static-files` and `shell-the-licences-are-read-not-restated` are new, and the first supersedes the retired admin-seed entry; `pages-scratch-saves-itself` and `shell-the-menu-is-written-twice` are edited in place |
-| Backlog | [IDEA-030](../jobs/IDEA-030.md) takes the link list this plan builds; [the shell navigation plan](shell-navigation.md) is the wider programme, and its D4 is superseded here |
+| Backlog | [IDEA-030](../jobs/closed.md) takes the link list this plan builds; [the shell navigation plan](shell-navigation.md) is the wider programme, and its D4 is superseded here |
 
 ## The short version
 
@@ -65,7 +65,7 @@ Each step is independently shippable, and the order below is the order they are 
 | `scratch` | 93 | `/help#writing` and the assistant prompt | **retire** — the editor is the worked example of the same save |
 | `vim-help` | 200 | The editor's menu and hint; `/vim.css` | keep, for now — five of its links are to `/notes` and `/vim`, which this pack does not ship |
 | `admin.css`, `admin.js` | 143 | The import, export, changes and seed-apply views | **move to `wwwroot`** |
-| `status.css` | 92 | `/status` and its chart | **move to `wwwroot`** |
+| `status.css` | 92 | `/admin/status` and its chart | **move to `wwwroot`** |
 | `reference.css` | 111 | `/admin/reference` | **move to `wwwroot`** |
 | `rocket.svg` | 117 | The icon every document links; `make vscode-extension` | **move to `wwwroot`** |
 
@@ -120,9 +120,12 @@ internal static class ShellLinks {
 ```
 
 This is [the shell navigation plan](shell-navigation.md)'s D1 without its `Sdk` half: the values stay
-internal to `Web` because no page reads them yet. [IDEA-030](../jobs/IDEA-030.md) moves them to
+internal to `Web` because no page reads them yet. [IDEA-030](../jobs/closed.md) moves them to
 `Sdk` and puts `ShellLinks()` on `IPageCatalog` when `_layout` and the editor want the list; that is a
 mechanical move, and the seeded layout keeps its hand-written menu until then.
+
+> **Landed 2026-11-18.** The `Sdk` half is in the shell navigation plan: the values are
+> `Sdk/ShellLink.cs` and `IPageCatalog.ShellLinks()`, and the seeded layout reads them.
 
 - **`SiteNavigation`** filters the `Site` section and marks the current item, exactly as it does
   today; the sign-in link carries this request's `returnUrl`, so the list takes the path and query.
@@ -273,7 +276,7 @@ step, or the model keeps teaching a page that is gone.
   and are the obvious next two files to move; the owner kept them in the pack for now.
 - **`/site.css`.** It is the one sheet a page and the shell both link, and `pages-one-base-sheet`
   makes it owner-editable. Moving it is a different decision.
-- **`/status` under `/admin`.** [The shell navigation plan](shell-navigation.md)'s D7 is not part of
+- **`/admin/status` under `/admin`.** [The shell navigation plan](shell-navigation.md)'s D7 is not part of
   this step, so the status dashboard keeps its route and its `/status.css`.
 - **`/privacy`.** Its session, sign-in and logging numbers are literals while `appsettings.json` owns
   them; the owner deferred the fix.

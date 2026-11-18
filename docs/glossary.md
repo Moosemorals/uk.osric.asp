@@ -25,7 +25,7 @@ stylesheet or writes its own whole document, and a library is never one at all. 
 
 ## Bootstrap route
 A shell route that exists so the site can be repaired when a page is what is broken: `/login` and
-`/logout`, `/status` with its chart, and the two recovery routes `/admin/restore` and `/admin/scrub`.
+`/logout`, `/admin/status` with its chart, and the two recovery routes `/admin/restore` and `/admin/scrub`.
 
 **Not** a view that has not been ported yet. A route for a view a page could serve today is a page,
 and a route for one a page cannot serve yet has a job behind it (`pages-page-first`); bootstrap is the reason
@@ -104,12 +104,12 @@ time.
 **Owner:** assistant — `Conversation`, the `AssistantConversations` table and `IConversationStore`.
 
 ## Dashboard
-The owner-only `/status` view that queries Prometheus and draws the answer as charts.
+The owner-only `/admin/status` view that queries Prometheus and draws the answer as charts.
 
 **Not** `/metrics`. The dashboard reads Prometheus with `query_range`; `/metrics` is the exporter's
 scrape surface.
 
-**Owner:** observability — `StatusEndpoint`, `Dashboard`, `StatusPage`; route `/status`.
+**Owner:** observability — `StatusEndpoint`, `Dashboard`, `StatusPage`; route `/admin/status`.
 
 ## Diff
 
@@ -255,7 +255,7 @@ The owner's own view of the assistant's memory: `/assistant/memory`, where every
 kind, corrected, pinned or forgotten.
 
 **Not** a stored page, and not a capability of its own. It is shell code under the reserved
-`/assistant` prefix, server-rendered like the editor and `/status`, so a page cannot claim the key and
+`/assistant` prefix, server-rendered like the editor and `/admin/status`, so a page cannot claim the key and
 the assistant reads it as a shell file it may not save. The view moves with the assistant page
 (IDEA-025) rather than becoming a capability of its own; `assistant-memory-belongs-to-the-assistant`, which proposed one, was withdrawn.
 
@@ -298,7 +298,7 @@ the stored forms it is served from or restored from (`pages-names-follow-the-pip
 **Owner:** pages — `PageEndpoint`, `IPageStore` and the `PageHeads` table.
 
 ## Panel
-One drawing on `/status`, its title and its legend inside the SVG, and exactly one instrument behind
+One drawing on `/admin/status`, its title and its legend inside the SVG, and exactly one instrument behind
 it.
 
 **Not** a metric or a series. A panel may draw several series — the label values of one instrument —
@@ -389,7 +389,7 @@ went in; `TemplateHash` carries the source identity (`pages-compile-on-save`).
 ## Scrape
 One Prometheus pull of the app's `/metrics` endpoint.
 
-**Not** a dashboard query. Prometheus scrapes into its own store; `/status` then queries that store
+**Not** a dashboard query. Prometheus scrapes into its own store; `/admin/status` then queries that store
 with `query_range`.
 
 **Owner:** observability — `app.MapPrometheusScrapingEndpoint("/metrics")` and
@@ -448,8 +448,18 @@ the shell's route table — which the assistant may list and read but never save
 **Not** a page or a seed. A shell file has no stored source, revision or compile state: the assistant
 reads a host-written record of what the route does, because the running image has no source tree.
 
-**Owner:** assistant — `ShellRoutes` for the records, `PagePathPolicy` for the permission, and
+**Owner:** assistant — `ShellCatalogue` for the records, `PagePathPolicy` for the permission, and
 `ReservedPaths` for the list itself.
+
+## Shell page
+A document the site's own code writes: it carries `body.shell` and a visible **Site tools** label, and
+its menu is the shell's routes rather than the pages the store holds.
+
+**Not** a page that cannot be edited. A shell page answers when the page store or the page pipeline is
+what failed, which is why none of them is a stored page; a view the store could serve is a page
+(`pages-page-first`, `shell-the-shell-is-marked`).
+
+**Owner:** shell — `ShellDocument`, `SiteNavigation` and `AdminNavigation`.
 
 ## Series
 One metric at one set of label values, sampled over time.

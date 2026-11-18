@@ -391,6 +391,40 @@ public sealed class PageJobTests {
         });
     }
 
+    // A worker has no request to return to and no visitor to show a menu: the catalog is offered,
+    // but its shell links are empty.
+    [Test]
+    public async Task AWorkerIsOfferedNoShellLinksAsync() {
+        using PageHarness pages = new(new FakePageStore());
+        await StoreAsync(pages, """
+            <%!
+            using System.Threading.Tasks;
+
+            namespace Site.Work {
+                public sealed class LinkCheck : IWorker {
+                    public Task RunAsync(IWorkerContext context) {
+                        context.Publish("links",
+                            context.Capabilities.GetRequired<IPageCatalog>().ShellLinks().Count.ToString());
+
+                        return Task.CompletedTask;
+                    }
+                }
+            }
+            %>
+            """);
+        await pages.StartJobsAsync();
+
+        PageJobStart start = await StartAsync(pages, "/starter", WorkerPath, firstMessage: null);
+        PageJobInfo info = await WaitForEndAsync(pages, start.Id!);
+        PageJobEvents events = await pages.Jobs.ReadEventsAsync(
+            start.Id!, 0, TimeSpan.Zero, Owner, CancellationToken.None);
+
+        Assert.Multiple(() => {
+            Assert.That(info.State, Is.EqualTo(PageJobState.Completed));
+            Assert.That(events.Events.Single().Data, Is.EqualTo("0"), "a job has no visitor and no request");
+        });
+    }
+
     [Test]
     public async Task TheRingDropsTheOldestEventsAndResetsAViewerWhoMissedThemAsync() {
         using PageHarness pages = new(new FakePageStore(), jobOptions: TestOptions.Jobs with { MaxEvents = 3 });

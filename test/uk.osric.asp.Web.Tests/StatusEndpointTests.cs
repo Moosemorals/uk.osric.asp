@@ -8,6 +8,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 using System.Globalization;
 using uk.osric.asp.Core.Charting;
 using uk.osric.asp.Sdk;
+using uk.osric.asp.Web.Admin;
 using uk.osric.asp.Web.Html;
 using uk.osric.asp.Web.Metrics;
 
@@ -27,7 +28,7 @@ public sealed class StatusEndpointTests {
         string body = await RenderAsync("");
 
         string expectedStart = ShellDocument.Head("Status", ["/status.css"])
-            + ShellDocument.Banner(SiteNavigation.Nav(authenticated: false, "/status", string.Empty, "/pages"))
+            + ShellDocument.Banner(SiteNavigation.Nav(authenticated: false, "/admin/status", string.Empty, "/pages"))
             + ShellDocument.OpenMain();
         string expectedEnd = ShellDocument.CloseMain() + ShellDocument.End();
 
@@ -52,8 +53,16 @@ public sealed class StatusEndpointTests {
 
         Assert.That(Count(body, "<figure class=\"panel\">"), Is.EqualTo(StatusCatalogue.Panels.Count));
         Assert.That(Count(body, "class=\"chart-title-link\""), Is.EqualTo(StatusCatalogue.Panels.Count));
-        Assert.That(Count(body, "href=\"/status/chart?panel="), Is.EqualTo(StatusCatalogue.Panels.Count));
+        Assert.That(Count(body, "href=\"/admin/status/chart?panel="), Is.EqualTo(StatusCatalogue.Panels.Count));
         Assert.That(body, Does.Not.Contain("<figcaption>"));
+    }
+
+    [Test]
+    public async Task ThePageCarriesTheAdministrationMenuWithStatusCurrent() {
+        string body = await RenderAsync("");
+
+        Assert.That(body, Does.Contain("aria-label=\"" + AdminNavigation.Label + "\""));
+        Assert.That(body, Does.Contain("<span class=\"current\" aria-current=\"true\">Status</span>"));
     }
 
     [Test]
@@ -71,9 +80,9 @@ public sealed class StatusEndpointTests {
         string body = await RenderAsync("duration=7d");
 
         Assert.That(body, Does.Contain("<span class=\"current\" aria-current=\"true\">7d</span>"));
-        Assert.That(body, Does.Contain("href=\"/status?duration=1h\""));
-        Assert.That(body, Does.Contain("href=\"/status?duration=30d\""));
-        Assert.That(body, Does.Not.Contain("href=\"/status?duration=7d\""));
+        Assert.That(body, Does.Contain("href=\"/admin/status?duration=1h\""));
+        Assert.That(body, Does.Contain("href=\"/admin/status?duration=30d\""));
+        Assert.That(body, Does.Not.Contain("href=\"/admin/status?duration=7d\""));
     }
 
     [Test]
@@ -120,7 +129,7 @@ public sealed class StatusEndpointTests {
             Options,
             NullLogger<Dashboard>.Instance);
 
-        DefaultHttpContext context = TestHttp.CreateContext(null, "GET", "/status");
+        DefaultHttpContext context = TestHttp.CreateContext(null, "GET", "/admin/status");
         context.Request.QueryString = new QueryString(query.Length == 0 ? string.Empty : "?" + query);
 
         await StatusEndpoint.HandleAsync(context, dashboard, new TestClock { Now = Now }, CancellationToken.None);

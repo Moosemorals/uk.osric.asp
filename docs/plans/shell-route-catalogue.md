@@ -145,8 +145,9 @@ public static IReadOnlyList<string> Default { get; } = ShellCatalogue.Reserved;
 
 ### D5 — What this is not
 
-- **Not the `Sdk` half of [IDEA-030](../jobs/IDEA-030.md).** A page still cannot read the links; that
-  needs `IPageCatalog.ShellLinks()` and the values in `Sdk`, and it is a separate step.
+- **Not the `Sdk` half of [IDEA-030](../jobs/closed.md).** A page still cannot read the links; that
+  needs `IPageCatalog.ShellLinks()` and the values in `Sdk`, and it is a separate step. (It landed on
+  2026-11-18 with [the shell navigation plan](shell-navigation.md).)
 - **Not a menu editor.** The table is code. A page can draw its own menu from what it knows; the
   shell's is the shell's.
 - **Not a new route or a moved one.** Every path stays what it is; only the copy of the list goes.

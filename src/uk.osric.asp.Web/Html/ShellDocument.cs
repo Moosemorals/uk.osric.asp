@@ -33,6 +33,12 @@ internal static class ShellDocument {
     /// <summary>The text of the link that skips the chrome.</summary>
     public const string SkipLinkText = "Skip to content";
 
+    /// <summary>The class every shell document's <c>body</c> carries, so a reader can tell it from a page.</summary>
+    public const string ShellClass = "shell";
+
+    /// <summary>The visible label that says a shell document's menu is the site's tools.</summary>
+    public const string ShellLabelText = "Site tools";
+
     /// <summary>The sheets every document links before its own, in this order.</summary>
     /// <remarks><c>/site.css</c> carries the document's shape and the site's look, so a page sheet
     /// overrides a structural rule without a more specific selector.</remarks>
@@ -70,7 +76,7 @@ internal static class ShellDocument {
     /// <see cref="BaseStylesheets"/>. An exact duplicate is linked once.
     /// </param>
     /// <param name="head">Raw markup written into <c>head</c> last, for a document that describes itself.</param>
-    /// <param name="bodyClass">A class for <c>body</c>, when the view styles the document box.</param>
+    /// <param name="bodyClass">A class for <c>body</c>, added after the shell's own marker.</param>
     /// <param name="resolveHref">
     /// Resolves each sheet and the icon before it is written, or <see langword="null"/> to write the
     /// values as given. The caller owns the resolver, so this stays a pure string builder.
@@ -98,7 +104,7 @@ internal static class ShellDocument {
             <link rel="icon" href="{WebUtility.HtmlEncode(Resolve(resolveHref, "/rocket.svg"))}" type="image/svg+xml">
             {head}
             </head>
-            <body{(bodyClass is null ? "" : $" class=\"{WebUtility.HtmlEncode(bodyClass)}\"")}>
+            <body class="{ShellClass}{(bodyClass is null ? "" : " " + WebUtility.HtmlEncode(bodyClass))}">
             """;
     }
 
@@ -106,7 +112,9 @@ internal static class ShellDocument {
     /// <param name="navigation">The nav markup, normally from <see cref="Nav"/>.</param>
     /// <remarks>
     /// The skip link is the first focusable thing in the body and points at the one <c>main</c>, so it
-    /// is a property of the document rather than a habit of each caller.
+    /// is a property of the document rather than a habit of each caller. The label is text rather than
+    /// a style, so a shell page still says what it is with no sheet and to a screen reader: its menu is
+    /// the site's tools, not the pages the store holds.
     /// </remarks>
     public static string Banner(string navigation) {
         ArgumentNullException.ThrowIfNull(navigation);
@@ -114,6 +122,7 @@ internal static class ShellDocument {
         return $"""
             <a class="skip-link" href="#main">{WebUtility.HtmlEncode(SkipLinkText)}</a>
             <header class="site-header">
+            <p class="shell-label">{WebUtility.HtmlEncode(ShellLabelText)}</p>
             {navigation}
             </header>
             """;
@@ -165,7 +174,7 @@ internal static class ShellDocument {
     /// <param name="stylesheets">
     /// The sheets the view needs, after <c>/site.css</c>, in the order given.
     /// </param>
-    /// <param name="bodyClass">A class for <c>body</c>, when the view styles the document box.</param>
+    /// <param name="bodyClass">A class for <c>body</c>, added after the shell's own marker.</param>
     /// <param name="head">
     /// Raw markup written into <c>head</c> after the stylesheets, for a document that describes
     /// itself — a progress page's refresh is the only user. It is the caller's markup, not a value

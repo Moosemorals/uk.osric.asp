@@ -24,7 +24,7 @@ public sealed class StatusPageTests : IntegrationTest {
         string statusStyles = await stylesheet.Content.ReadAsStringAsync();
         string sharedStyles = await client.GetStringAsync("/site.css");
 
-        string status = await client.GetStringAsync("/status");
+        string status = await client.GetStringAsync("/admin/status");
         using HttpClient anonymous = CreateClient();
         string login = await anonymous.GetStringAsync("/login");
         using HttpResponseMessage anonymousStylesheet = await anonymous.GetAsync("/status.css");
@@ -48,7 +48,7 @@ public sealed class StatusPageTests : IntegrationTest {
     public async Task ChartRedirectsAnAnonymousVisitorToSignIn() {
         using HttpClient client = CreateClient();
 
-        HttpResponseMessage response = await client.GetAsync("/status/chart?panel=page.render.duration&duration=1h");
+        HttpResponseMessage response = await client.GetAsync("/admin/status/chart?panel=page.render.duration&duration=1h");
 
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.Redirect));
         Assert.That(response.Headers.Location?.AbsolutePath, Is.EqualTo("/login"));
@@ -58,7 +58,7 @@ public sealed class StatusPageTests : IntegrationTest {
     public async Task TheOwnerFetchesOneChartOnItsOwn() {
         using HttpClient client = await CreateSignedInClientAsync();
 
-        HttpResponseMessage response = await client.GetAsync("/status/chart?panel=page.render.duration&duration=1h");
+        HttpResponseMessage response = await client.GetAsync("/admin/status/chart?panel=page.render.duration&duration=1h");
         string body = await response.Content.ReadAsStringAsync();
 
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
@@ -72,18 +72,18 @@ public sealed class StatusPageTests : IntegrationTest {
     public async Task StatusRedirectsAnAnonymousVisitorToSignIn() {
         using HttpClient client = CreateClient();
 
-        HttpResponseMessage response = await client.GetAsync("/status");
+        HttpResponseMessage response = await client.GetAsync("/admin/status");
 
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.Redirect));
         Assert.That(response.Headers.Location?.AbsolutePath, Is.EqualTo("/login"));
-        Assert.That(response.Headers.Location?.Query, Does.Contain("returnUrl=%2Fstatus"));
+        Assert.That(response.Headers.Location?.Query, Does.Contain("returnUrl=%2Fadmin%2Fstatus"));
     }
 
     [Test]
     public async Task StatusRendersTheShellAndEveryPanelForTheOwner() {
         using HttpClient client = await CreateSignedInClientAsync();
 
-        HttpResponseMessage response = await client.GetAsync("/status");
+        HttpResponseMessage response = await client.GetAsync("/admin/status");
         string body = await response.Content.ReadAsStringAsync();
 
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
@@ -101,19 +101,19 @@ public sealed class StatusPageTests : IntegrationTest {
     public async Task TheDurationParameterMarksTheCurrentWindow() {
         using HttpClient client = await CreateSignedInClientAsync();
 
-        HttpResponseMessage response = await client.GetAsync("/status?duration=7d");
+        HttpResponseMessage response = await client.GetAsync("/admin/status?duration=7d");
         string body = await response.Content.ReadAsStringAsync();
 
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
         Assert.That(body, Does.Contain("<span class=\"current\" aria-current=\"true\">7d</span>"));
-        Assert.That(body, Does.Not.Contain("href=\"/status?duration=7d\""));
+        Assert.That(body, Does.Not.Contain("href=\"/admin/status?duration=7d\""));
     }
 
     [Test]
     public async Task AFortnightOfSamplesStillFitsTheMarkupBudget() {
         using HttpClient client = await CreateSignedInClientAsync();
 
-        HttpResponseMessage response = await client.GetAsync("/status?duration=30d");
+        HttpResponseMessage response = await client.GetAsync("/admin/status?duration=30d");
         string body = await response.Content.ReadAsStringAsync();
 
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));

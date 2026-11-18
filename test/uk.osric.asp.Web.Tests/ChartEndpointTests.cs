@@ -96,7 +96,7 @@ public sealed class ChartEndpointTests {
         FakeMetricsSource? source = null) {
 
         FakeMetricsSource metrics = source ?? Answering();
-        HttpContext context = TestHttp.CreateContext(null, "GET", "/status/chart");
+        HttpContext context = TestHttp.CreateContext(null, "GET", "/admin/status/chart");
         context.Request.QueryString = new QueryString(query);
 
         await ChartEndpoint.HandleAsync(

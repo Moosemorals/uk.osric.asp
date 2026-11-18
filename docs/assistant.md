@@ -275,7 +275,7 @@ error status, a timeout, an unreachable host, or a body that is not the balance 
 provider did not report a balance.", and the provider's body is never logged. The page reloads when
 a run ends, so the figure a reader sees after a turn is the one that turn spent.
 
-The same route feeds the `assistant.balance` gauge on `/status`. `AccountBalanceSampler` reads it once
+The same route feeds the `assistant.balance` gauge on `/admin/status`. `AccountBalanceSampler` reads it once
 at startup and then every `Assistant:BalanceSampleSeconds`, so the chart is a history of the spend
 rather than a diary of the owner's visits. The client returns the balance or a reason and logs nothing;
 the sampler logs when the reason changes, so a provider with no balance route costs one line and an

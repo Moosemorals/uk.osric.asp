@@ -81,15 +81,63 @@ public sealed partial class SiteChromeTests : IntegrationTest {
         });
     }
 
+    // The two menus are written by different documents from one list, so they are compared on
+    // everything a reader sees: where each item goes, what it says, and which one is the place shown.
     [Test]
-    public async Task TheShellAndTheLayoutOfferTheSameItems() {
+    public async Task TheShellAndTheLayoutOfferTheSameItemsAndMarkTheirOwnPlace() {
         await SavePageAsync("/menu-compare", Fragment);
         using HttpClient client = await CreateSignedInClientAsync();
 
-        IReadOnlyList<string> page = await MenuAsync(client, "/menu-compare");
-        IReadOnlyList<string> shell = await MenuAsync(client, "/pages");
+        IReadOnlyList<MenuEntry> page = await MenuItemsAsync(client, "/menu-compare");
+        IReadOnlyList<MenuEntry> shell = await MenuItemsAsync(client, "/admin/status");
 
-        Assert.That(page, Is.EqualTo(shell), "the seeded layout and the shell must not drift");
+        Assert.Multiple(() => {
+            Assert.That(page.Select(item => item.Text), Is.EqualTo(shell.Select(item => item.Text)),
+                "the seeded layout and the shell must not drift, in words or in order");
+            Assert.That(Destinations(page, shell), Is.EqualTo(Destinations(shell, page)),
+                "every item leads to the same place, whichever document marked it current");
+            Assert.That(page.Where(item => item.Current), Is.Empty, "a stored page is no tool");
+            Assert.That(shell.Where(item => item.Current).Select(item => item.Text), Is.EqualTo(["Admin"]));
+        });
+    }
+
+    // The shell writes a different document from the stored layout on purpose, and the marker says
+    // which one a reader is in: the shell's menu is the site's tools, not the pages the store holds.
+    [Test]
+    public async Task TheShellIsMarkedAndTheStoredLayoutIsNot() {
+        using HttpClient client = CreateClient();
+
+        string shell = await BodyAsync(client, "/login");
+        string layout = await BodyAsync(client, "/about");
+
+        Assert.Multiple(() => {
+            Assert.That(shell, Does.Contain("<body class=\"shell\">"));
+            Assert.That(shell, Does.Contain("<p class=\"shell-label\">Site tools</p>"));
+            Assert.That(layout, Does.Not.Contain("<body class=\"shell\">"));
+            Assert.That(layout, Does.Not.Contain("shell-label"));
+        });
+    }
+
+    // A page is not limited to the menu the layout draws: the catalog gives it the links and it
+    // writes whatever markup it likes, with no shell document and no layout around it.
+    [Test]
+    public async Task APageCanRenderTheShellsLinksItself() {
+        await SavePageAsync("/own-menu", """
+            <% var layout = ctx.Capabilities.GetRequired<IPageLayout>();
+               layout.Title = "Own menu";
+               IPageCatalog catalog = ctx.Capabilities.GetRequired<IPageCatalog>();
+               foreach (ShellLink link in catalog.ShellLinks()) { %><a href="<%= link.Href %>"><%= link.Text %></a><% } %>
+            """);
+        using HttpClient client = await CreateSignedInClientAsync();
+
+        string body = await BodyAsync(client, "/own-menu");
+
+        Assert.Multiple(() => {
+            Assert.That(body, Does.Contain("<a href=\"/assistant\">Assistant</a>"));
+            Assert.That(body, Does.Contain("<a href=\"/admin\">Admin</a>"));
+            Assert.That(body, Does.Contain("<a href=\"/help\">Help</a>"), "the administration section is the same list");
+            Assert.That(body, Does.Not.Contain("aria-label=\"Site\""), "the page wrote its own markup");
+        });
     }
 
     // The shell writes its own document and the seeded layout writes the library's, so a change to
@@ -121,7 +169,7 @@ public sealed partial class SiteChromeTests : IntegrationTest {
         Assert.That(body, Does.Contain("<h1>Administration</h1>"));
         Assert.That(body, Does.Contain("href=\"/admin/import\""));
         Assert.That(body, Does.Contain("href=\"/admin/export\""));
-        Assert.That(body, Does.Contain("href=\"/status\""));
+        Assert.That(body, Does.Contain("href=\"/admin/status\""));
     }
 
     [Test]
@@ -210,10 +258,19 @@ public sealed partial class SiteChromeTests : IntegrationTest {
     public async Task TheStatusDashboardIsReachableFromAdmin() {
         using HttpClient client = await CreateSignedInClientAsync();
 
-        HttpResponseMessage response = await client.GetAsync("/status");
+        HttpResponseMessage response = await client.GetAsync("/admin/status");
 
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
         Assert.That(await response.Content.ReadAsStringAsync(), Does.Contain("aria-label=\"Site\""));
+    }
+
+    [Test]
+    public async Task TheOldStatusPathIsNotARoute() {
+        using HttpClient client = await CreateSignedInClientAsync();
+
+        HttpResponseMessage response = await client.GetAsync("/status");
+
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.NotFound));
     }
 
     [Test]
@@ -338,6 +395,25 @@ public sealed partial class SiteChromeTests : IntegrationTest {
     [GeneratedRegex("<(header|nav|main)(?: id=\"([^\"]*)\")?")]
     private static partial Regex Landmark();
 
+    private sealed record MenuEntry(string Href, string Text, bool Current);
+
+    // A current item is text, so its twin in the other document supplies the href it would have had.
+    private static string[] Destinations(IReadOnlyList<MenuEntry> items, IReadOnlyList<MenuEntry> twin) =>
+        [.. items.Select((item, index) => item.Current ? twin[index].Href : item.Href)];
+
+    private static async Task<IReadOnlyList<MenuEntry>> MenuItemsAsync(HttpClient client, string path) {
+        HttpResponseMessage response = await client.GetAsync(path);
+        Assert.That(response.IsSuccessStatusCode, Is.True, $"{path} answered {(int)response.StatusCode}");
+
+        string body = await response.Content.ReadAsStringAsync();
+        Match nav = SiteMenu().Match(body);
+        Assert.That(nav.Success, Is.True, $"{path} carries no site menu");
+
+        return [.. MenuEntryPattern().Matches(nav.Groups[1].Value).Select(match => match.Groups[1].Success
+            ? new MenuEntry(match.Groups[1].Value, WebUtility.HtmlDecode(match.Groups[2].Value), Current: false)
+            : new MenuEntry(string.Empty, WebUtility.HtmlDecode(match.Groups[3].Value), Current: true))];
+    }
+
     private static async Task<IReadOnlyList<string>> MenuAsync(HttpClient client, string path) {
         HttpResponseMessage response = await client.GetAsync(path);
         Assert.That(response.IsSuccessStatusCode, Is.True, $"{path} answered {(int)response.StatusCode}");
@@ -354,4 +430,7 @@ public sealed partial class SiteChromeTests : IntegrationTest {
 
     [GeneratedRegex("(?:<a [^>]*>|<span [^>]*>)([^<]*)<")]
     private static partial Regex MenuItem();
+
+    [GeneratedRegex("(?:<a href=\"([^\"]*)\">([^<]*)</a>|<span class=\"current\" aria-current=\"true\">([^<]*)</span>)")]
+    private static partial Regex MenuEntryPattern();
 }

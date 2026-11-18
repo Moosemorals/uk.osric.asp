@@ -1,16 +1,22 @@
 <%! using Site.Document; %><% var layout = ctx.Capabilities.GetRequired<IPageLayout>();
+   IPageCatalog catalog = ctx.Capabilities.GetRequired<IPageCatalog>();
    bool At(string href) => ctx.Request.Path == href;
    bool Under(string href) => At(href) || ctx.Request.Path.StartsWith(href + "/", System.StringComparison.Ordinal);
-   var links = new System.Collections.Generic.List<NavLink> {
-       new("/", "Home", At("/")),
-   };
-   if (ctx.User is null) {
-       links.Add(new("/login", "Sign in", At("/login")));
-   } else {
-       links.Add(new("/assistant", "Assistant", Under("/assistant")));
-       links.Add(new(ctx.EditorPath, "Pages", Under(ctx.EditorPath)));
-       links.Add(new("/admin", "Admin", Under("/admin")));
-       links.Add(new("/logout", "Sign out", At("/logout")));
+   // The sign-in link carries the way back as a query, so it is current at the path it leads to.
+   static string Target(string href) {
+       int query = href.IndexOf('?', System.StringComparison.Ordinal);
+       return query >= 0 ? href[..query] : href;
+   }
+   // The shell owns the list; this menu only chooses a section, filters it for this visitor and marks
+   // the item being shown. The footer below is the layout's own chrome, not a shell fact.
+   var links = new System.Collections.Generic.List<NavLink>();
+   foreach (ShellLink link in catalog.ShellLinks()) {
+       if (link.Section != ShellSection.Site) { continue; }
+       if (link.Audience == ShellAudience.Anonymous && ctx.User is not null) { continue; }
+       if (link.Audience == ShellAudience.Owner && ctx.User is null) { continue; }
+       string target = Target(link.Href);
+       bool current = At(target) || (link.Match == ShellMatch.Subtree && Under(target));
+       links.Add(new NavLink(link.Href, link.Text, current));
    }
    // The wrapper owns the document, so it folds the page's title, head and sheets itself. Asking for
    // this page directly has no content to fold, which is why the merge names the site's own title.
