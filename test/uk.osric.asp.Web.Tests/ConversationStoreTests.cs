@@ -325,9 +325,9 @@ public sealed class ConversationStoreTests {
         Conversation conversation = await conversations.CreateAsync("owner");
         RunStartResult start = await conversations.StartRunAsync(conversation.Id, "owner", "write", "model", "prompt-v1");
 
-        Assert.That(await conversations.RecordStepAsync(start.RunId!, 1, 4_000,
+        Assert.That(await conversations.RecordStepAsync(start.RunId!, 1, 4_000, 1_100, 100_000,
             new TokenUsage(1_000, 20, 600, 5), CancellationToken.None), Is.True);
-        Assert.That(await conversations.RecordStepAsync(start.RunId!, 2, 5_000,
+        Assert.That(await conversations.RecordStepAsync(start.RunId!, 2, 5_000, 2_100, 90_000,
             new TokenUsage(2_000, 30, 1_200, 7), CancellationToken.None), Is.True);
 
         Run run = await database.Set<Run>().AsNoTracking().SingleAsync();
@@ -341,6 +341,8 @@ public sealed class ConversationStoreTests {
             Assert.That(run.OutputTokens, Is.EqualTo(30), "the output budget counts the last step");
             Assert.That(run.RequestBytes, Is.EqualTo(5_000));
             Assert.That(run.LastPromptTokens, Is.EqualTo(2_000));
+            Assert.That(run.EstimatedTokens, Is.EqualTo(2_100), "the estimate is what the error row is measured from");
+            Assert.That(run.MaxTokens, Is.EqualTo(90_000), "the allowance is what the completion row is read against");
         });
     }
 
@@ -351,7 +353,7 @@ public sealed class ConversationStoreTests {
         Conversation conversation = await conversations.CreateAsync("owner");
         RunStartResult start = await conversations.StartRunAsync(conversation.Id, "owner", "write", "model", "prompt-v1");
 
-        Assert.That(await conversations.RecordStepAsync(start.RunId!, 4, 9_000, null, CancellationToken.None), Is.True);
+        Assert.That(await conversations.RecordStepAsync(start.RunId!, 4, 9_000, 9_100, 80_000, null, CancellationToken.None), Is.True);
 
         Run run = await database.Set<Run>().AsNoTracking().SingleAsync();
         Assert.Multiple(() => {
@@ -360,6 +362,8 @@ public sealed class ConversationStoreTests {
             Assert.That(run.PromptTokens, Is.Null);
             Assert.That(run.CompletionTokens, Is.Null);
             Assert.That(run.RequestBytes, Is.Null);
+            Assert.That(run.EstimatedTokens, Is.EqualTo(9_100));
+            Assert.That(run.MaxTokens, Is.EqualTo(80_000));
         });
     }
 
@@ -369,7 +373,7 @@ public sealed class ConversationStoreTests {
         IConversationStore conversations = NewStore(database);
         Conversation conversation = await conversations.CreateAsync("owner");
         RunStartResult first = await conversations.StartRunAsync(conversation.Id, "owner", "write", "model", "prompt-v1");
-        await conversations.RecordStepAsync(first.RunId!, 0, 4_000, new TokenUsage(1_000, 20), CancellationToken.None);
+        await conversations.RecordStepAsync(first.RunId!, 0, 4_000, 1_100, 100_000, new TokenUsage(1_000, 20), CancellationToken.None);
         await conversations.SetRunStatusAsync(first.RunId!, "completed");
 
         RunStartResult second = await conversations.StartRunAsync(conversation.Id, "owner", "again", "model", "prompt-v1");

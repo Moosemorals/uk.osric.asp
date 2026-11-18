@@ -83,6 +83,10 @@ public sealed class MetricNamesTests : IntegrationTest {
             assistant.RecordMemoryRecall(2, 500);
             assistant.RecordMemoryWrite("remember", MemoryKind.Fact, success: true);
             assistant.RecordBalance([new CurrencyCredit("CNY", 110.00)]);
+            assistant.RecordEstimateError(1_100, 1_000);
+            assistant.RecordShaped(AssistantMetrics.Shaped.Masked);
+            assistant.RecordBudgetExhausted(AssistantMetrics.Exhausted.Context);
+            assistant.RecordToolTruncated("read_page");
         }
     }
 }

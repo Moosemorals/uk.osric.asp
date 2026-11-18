@@ -36,6 +36,8 @@ The design that fits this site is deliberately the least fashionable one in the 
   FTS5 terms, the owner's memories are ranked by BM25, and pinned and already-used ones are added.
   A pure rule in `Core` selects what fits in `Assistant:MaxMemoryCharsPerRun` (4,000 characters)
   and `Assistant:MaxMemoriesPerRun` (12), and `RunProcessor` appends the block to the system prompt.
+  Both of those keys are gone: the count cap was dropped and the character cap is now a thirty-second
+  of the context budget (`assistant-one-budget-decides-what-fits`). The measurements below stand.
 - **The owner can see and delete everything.** A `/assistant/memory` page lists, edits, pins and
   forgets; `forget_memory` deletes the memory and its history in one transaction, and removing an
   account removes its memories.

@@ -27,13 +27,13 @@ internal sealed class AssistantOptionsValidator : IValidateOptions<AssistantOpti
         if (!options.ChatCompletionsPath.StartsWith('/')) {
             failures.Add("Assistant:ChatCompletionsPath must be an absolute path.");
         }
-        if ((long)options.MaxContextTokens + options.MaxOutputTokens > options.ModelContextTokens) {
+        // A page's content travels inside a tool call's arguments, so a cap below the page cap would let
+        // the configuration accept a page no tool could write.
+        if (options.MaxToolArgumentChars <= options.MaxPageChars) {
             failures.Add(
-                $"Assistant:MaxContextTokens plus Assistant:MaxOutputTokens must not exceed Assistant:ModelContextTokens "
-                + $"({options.MaxContextTokens} + {options.MaxOutputTokens} > {options.ModelContextTokens}).");
-        }
-        if (options.MaxMemoryChars > options.MaxMemoryCharsPerRun) {
-            failures.Add("Assistant:MaxMemoryChars must not exceed Assistant:MaxMemoryCharsPerRun.");
+                $"Assistant:MaxToolArgumentChars is {options.MaxToolArgumentChars}, which must exceed "
+                + $"Assistant:MaxPageChars ({options.MaxPageChars}) so a page the store accepts can be written; "
+                + $"{options.MaxPageChars + 8_192} is recommended.");
         }
 
         return failures.Count == 0 ? ValidateOptionsResult.Success : ValidateOptionsResult.Fail(failures);

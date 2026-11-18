@@ -646,7 +646,7 @@ public sealed class PageToolExecutorTests {
     [Test]
     public async Task SearchPagesDoesNotClaimTruncationWhenTheMatchesFitExactlyAsync() {
         FakePageStore storage = new();
-        storage["/many"] = new PageTemplate(PageHarness.Key("/many"), string.Join('\n', Enumerable.Repeat("hit", 100)));
+        storage["/many"] = new PageTemplate(PageHarness.Key("/many"), string.Join('\n', Enumerable.Repeat("hit", 1_000)));
         using PageHarness pages = new(storage);
         using ServiceProvider services = Services(pages.Editor);
         PageToolExecutor tools = CreateTools(services);
@@ -654,14 +654,16 @@ public sealed class PageToolExecutorTests {
         ToolExecutionResult result = await tools.ExecuteAsync(
             "search_pages", "{\"query\":\"hit\"}", Context, CancellationToken.None);
 
-        Assert.That(Data(result).GetProperty("matches").GetArrayLength(), Is.EqualTo(100));
+        Assert.That(Data(result).GetProperty("matches").GetArrayLength(), Is.EqualTo(1_000));
         Assert.That(Data(result).GetProperty("truncated").GetBoolean(), Is.False);
     }
 
     [Test]
-    public async Task SearchPagesClaimsTruncationWhenMoreMatchesExistAsync() {
+    public async Task SearchPagesStopsAtTheSearchMatchLimit() {
+        // The shipped cap is the configuration range's own maximum, so a stop is a real limit rather
+        // than a number the assistant picked; IDEA-038 replaces it with a cursor.
         FakePageStore storage = new();
-        storage["/many"] = new PageTemplate(PageHarness.Key("/many"), string.Join('\n', Enumerable.Repeat("hit", 101)));
+        storage["/many"] = new PageTemplate(PageHarness.Key("/many"), string.Join('\n', Enumerable.Repeat("hit", 1_001)));
         using PageHarness pages = new(storage);
         using ServiceProvider services = Services(pages.Editor);
         PageToolExecutor tools = CreateTools(services);
@@ -669,7 +671,7 @@ public sealed class PageToolExecutorTests {
         ToolExecutionResult result = await tools.ExecuteAsync(
             "search_pages", "{\"query\":\"hit\"}", Context, CancellationToken.None);
 
-        Assert.That(Data(result).GetProperty("matches").GetArrayLength(), Is.EqualTo(100));
+        Assert.That(Data(result).GetProperty("matches").GetArrayLength(), Is.EqualTo(1_000));
         Assert.That(Data(result).GetProperty("truncated").GetBoolean(), Is.True);
     }
 
@@ -973,11 +975,10 @@ public sealed class PageToolExecutorTests {
         }
         using PageHarness pages = new(storage);
         using ServiceProvider services = Services(pages.Editor);
-        PageToolExecutor tools = CreateTools(services, TestOptions.Assistant with {
-            MaxToolArgumentChars = 4096,
-            MaxToolResultChars = 65536,
-            MaxPageChars = 4096,
-        });
+        PageToolExecutor tools = CreateTools(
+            services,
+            TestOptions.Assistant with { MaxToolArgumentChars = 4096, MaxPageChars = 4096 },
+            TestOptions.BudgetOfResultChars(65_536));
 
         ToolExecutionResult result = await tools.ExecuteAsync(
             "shell", "{\"command\":\"ls /\"}", Context, CancellationToken.None);
@@ -1311,7 +1312,10 @@ public sealed class PageToolExecutorTests {
         storage["/long"] = new PageTemplate(PageHarness.Key("/long"), source);
         using PageHarness pages = new(storage);
         using ServiceProvider services = Services(pages.Editor);
-        PageToolExecutor tools = CreateTools(services);
+        PageToolExecutor tools = CreateTools(
+            services,
+            TestOptions.Assistant with { MaxToolArgumentChars = 4096, MaxPageChars = 4096 },
+            TestOptions.BudgetOfResultChars(4_096));
 
         ToolExecutionResult result = await tools.ExecuteAsync(
             "read_page", "{\"path\":\"/long\"}", Context, CancellationToken.None);
@@ -1371,7 +1375,6 @@ public sealed class PageToolExecutorTests {
         using ServiceProvider services = Services(pages.Editor);
         PageToolExecutor tools = CreateTools(services, TestOptions.Assistant with {
             MaxToolArgumentChars = 8192,
-            MaxToolResultChars = 4096,
             MaxPageChars = 1024,
         });
         string arguments = JsonSerializer.Serialize(new { path = "/big", content = new string('x', 2000) });
@@ -1575,17 +1578,16 @@ public sealed class PageToolExecutorTests {
         storage["/long"] = new PageTemplate(PageHarness.Key("/long"), new string('x', 2000));
         using PageHarness pages = new(storage);
         using ServiceProvider services = Services(pages.Editor);
-        PageToolExecutor tools = CreateTools(services, TestOptions.Assistant with {
-            MaxToolArgumentChars = 4096,
-            MaxToolResultChars = 1024,
-            MaxPageChars = 4096,
-        });
+        PageToolExecutor tools = CreateTools(
+            services,
+            TestOptions.Assistant with { MaxToolArgumentChars = 4096, MaxPageChars = 4096 },
+            TestOptions.BudgetOfResultChars(1024));
 
         ToolExecutionResult result = await tools.ExecuteAsync(
             "shell", "{\"command\":\"cat /long\"}", Context, CancellationToken.None);
 
         Assert.That(result.IsSuccess, Is.True, result.Content);
-        Assert.That(Output(result), Does.Contain("the answer was cut at"));
+        Assert.That(Output(result), Does.Contain("the answer was truncated at"));
         Assert.That(Output(result).Length, Is.LessThanOrEqualTo(1024));
     }
 
@@ -1894,10 +1896,14 @@ public sealed class PageToolExecutorTests {
 
     private static readonly ToolContext Context = new("owner", ConversationId: 1, RunId: "run-1");
 
-    private static PageToolExecutor CreateTools(ServiceProvider services, AssistantOptions? options = null) => new(
+    private static PageToolExecutor CreateTools(
+        ServiceProvider services,
+        AssistantOptions? options = null,
+        ContextBudget? budget = null) => new(
         services.GetRequiredService<IServiceScopeFactory>(),
         new PagePathPolicy(new ReservedPaths(ReservedPaths.Default), TestOptions.Assistant),
-        options ?? TestOptions.Assistant with { MaxToolArgumentChars = 4096, MaxToolResultChars = 4096, MaxPageChars = 4096 },
+        options ?? TestOptions.Assistant with { MaxToolArgumentChars = 4096, MaxPageChars = 4096 },
+        ModelWindowSource.Fixed(budget ?? TestOptions.Budget),
         new AssistantMetrics(),
         new FakeAssistantFetcher());
 }

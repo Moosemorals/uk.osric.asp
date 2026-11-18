@@ -49,6 +49,10 @@ the other half of the same question and live in [logging](logging.md).
 | `assistant.memory.chars` | histogram | {char} | `outcome` — what the memory block cost the run's context |
 | `assistant.memory.writes` | counter | {write} | `op` (`remember`, `update`, `forget`), `kind` (one of the four, or `(none)` for a refusal), `outcome` (`ok`, `refused`) |
 | `assistant.balance` | observable gauge | {credit} | `currency` — the provider account's remaining credit, one measurement per readable currency |
+| `assistant.context.estimate.error` | histogram | {token} | `direction` (`over`, `under`) — how far one step's estimate was from the count the provider reported |
+| `assistant.context.shaped` | counter | {step} | `kind` (`masked`, `trimmed`) — how often the planner had to change a request to make it fit |
+| `assistant.budget.exhausted` | counter | {run} | `cause` (`context`, `provider`, `output`) — which budget stopped the run |
+| `assistant.tool.truncated` | counter | {result} | `tool` (a registered name, or `(unknown)`) — how often a result cap actually bites |
 
 A miss is tagged `page.path="(not-found)"`. The requested path is unauthenticated and unbounded, so
 tagging it verbatim would let a scan mint one time series per URL; the real path is in the access log.
@@ -92,9 +96,10 @@ instrument, and the instrument's type decides the chart (`metrics-one-panel-per-
 `StatusCatalogue` holds the list: twenty Pages panels (ten heatmaps for the duration and size
 histograms, stacked areas for the render chain, cache lookups, staleness and asset requests, line
 charts for abandoned renders, layout fallbacks, recursive composition and the three storage gauges),
-eleven Assistant panels
-(eight heatmaps, the token counter as a line chart, memory writes as a stacked area and the account
-balance as a line chart split by currency), and ten Host panels — five from the framework's own
+fifteen Assistant panels
+(nine heatmaps, the token counter, the shaped-request, exhausted-budget and truncated-result counters
+as line charts, memory writes as a stacked area and the account balance as a line chart split by
+currency), and ten Host panels — five from the framework's own
 meters (process memory, process CPU, connections and active requests, request duration and the HTTP
 status mix) and five from fail2ban (banned now, failures counting, bans per second, failures per
 second and the collector's age). Combined panels are allowed where several series answer one
@@ -117,6 +122,17 @@ total: cached tokens are already inside prompt tokens and reasoning tokens insid
 The four lines answer "how many of each did the provider report" without drawing the same token
 twice. `assistant.memory.writes` is the other way round: every write carries one `op` and one
 `outcome`, so the stack's top edge is the writes the run made.
+
+The estimate error's buckets carry the margin as a boundary — `0, 64, 256, 1024, 4096, 16384, 27525,
+65536, 262144` — because 27,525 tokens is three percent of the 917,504-token prompt budget. Whatever
+lands above `le="27525"` is a step that spent more than the estimate allows, which is the same trick
+the step and tool-call buckets use to draw their cap rather than hide it under `+Inf`. The figure is
+also one log line per step, and the panel is read beside it: a chart wants an explanation, not only a
+shape. `assistant.context.shaped` is what the prefix cache pays for, so a rise in it and a fall in
+`assistant.tokens{kind="cached"}` over `kind="prompt"` are the same event; `assistant.tool.truncated`
+is the other side, a cap the model could not read past. Nothing is tagged by conversation, run or
+message id — the same cardinality trap `assistant.tool.duration` avoids by recording `(unknown)`
+rather than a model-supplied name.
 
 The account balance is the one Assistant level. `assistant.balance` is an observable gauge tagged
 `currency`, and the panel reads it as `max by (currency)` so two currencies are two lines rather than

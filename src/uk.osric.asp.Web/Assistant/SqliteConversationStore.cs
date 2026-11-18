@@ -547,19 +547,27 @@ internal sealed class SqliteConversationStore(
         string runId,
         int toolCallCount,
         long requestBytes,
+        long estimatedTokens,
+        int maxTokens,
         TokenUsage? usage,
         CancellationToken cancellationToken = default) {
         ArgumentException.ThrowIfNullOrWhiteSpace(runId);
         ArgumentOutOfRangeException.ThrowIfNegative(toolCallCount);
+        ArgumentOutOfRangeException.ThrowIfNegative(estimatedTokens);
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(maxTokens);
 
         IQueryable<Run> run = database.Set<Run>().Where(item => item.Id == runId);
         int updated = usage is null
             ? await run.ExecuteUpdateAsync(setters => setters
                 .SetProperty(item => item.StepCount, item => item.StepCount + 1)
-                .SetProperty(item => item.ToolCallCount, item => item.ToolCallCount + toolCallCount), cancellationToken)
+                .SetProperty(item => item.ToolCallCount, item => item.ToolCallCount + toolCallCount)
+                .SetProperty(item => item.EstimatedTokens, item => estimatedTokens)
+                .SetProperty(item => item.MaxTokens, item => maxTokens), cancellationToken)
             : await run.ExecuteUpdateAsync(setters => setters
                 .SetProperty(item => item.StepCount, item => item.StepCount + 1)
                 .SetProperty(item => item.ToolCallCount, item => item.ToolCallCount + toolCallCount)
+                .SetProperty(item => item.EstimatedTokens, item => estimatedTokens)
+                .SetProperty(item => item.MaxTokens, item => maxTokens)
                 .SetProperty(item => item.PromptTokens, item => (item.PromptTokens ?? 0) + (usage.PromptTokens ?? 0))
                 .SetProperty(item => item.CompletionTokens, item => (item.CompletionTokens ?? 0) + (usage.CompletionTokens ?? 0))
                 .SetProperty(item => item.CachedTokens, item => (item.CachedTokens ?? 0) + (usage.CachedTokens ?? 0))

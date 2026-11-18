@@ -88,7 +88,7 @@ internal static class StatusCatalogue {
             "Total capacity of the filesystem holding the database; read it against the database size.",
             "bytes"),
 
-        // Assistant: eight histograms, the two counters and the gauge.
+        // Assistant: eleven histograms, the six counters and the gauge.
         Heatmap(Assistant("assistant.run.duration"), "Run duration",
             "How long one assistant run takes, from the request to the final answer.",
             "seconds", "runs/s"),
@@ -122,6 +122,18 @@ internal static class StatusCatalogue {
         Line(Assistant("assistant.balance"), "Account credit",
             "The provider account's remaining credit, one line per currency; a step up is a top-up and the slope is the spend.",
             "credit", by: "currency"),
+        Heatmap(Assistant("assistant.context.estimate.error"), "Estimate error",
+            "How far each step's token estimate was from the count the provider reported, in token buckets; the boundary at 27,525 is the three percent the estimate allows.",
+            "tokens", "steps/s"),
+        Line(Assistant("assistant.context.shaped"), "Shaped requests",
+            "Requests the planner had to mask or trim so they would fit, per second, split by kind; the figure the prefix cache pays for.",
+            "steps/s", topk: "kind"),
+        Line(Assistant("assistant.budget.exhausted"), "Exhausted budgets",
+            "Runs stopped on a budget, per second, split by which one: our context estimate, the provider's window or the reply's allowance.",
+            "runs/s", topk: "cause"),
+        Line(Assistant("assistant.tool.truncated"), "Truncated tool results",
+            "Tool results truncated at their cap, per second, by tool; a result here is one the model could not read whole.",
+            "results/s", topk: "tool"),
 
         // Host: meters this repository does not register. Five are the framework's own; five are
         // fail2ban's, which the host writes to a file and node_exporter serves, so they reach this

@@ -5,6 +5,7 @@ namespace uk.osric.asp.Web.Tests;
 
 using Microsoft.AspNetCore.Http;
 using System.Security.Claims;
+using uk.osric.asp.Core.Assistant;
 using uk.osric.asp.Web.Assistant;
 
 /// <summary>The transcript renders the assistant's Markdown and keeps everything else plain.</summary>
@@ -91,7 +92,35 @@ public sealed class AssistantTranscriptTests {
         CreatedAt = DateTimeOffset.UtcNow,
     };
 
-    private static async Task<string> RenderAsync(params Message[] messages) {
+    [Test]
+    public async Task AnEstimatePastTheMarginTakesTheExceededClassAsync() {
+        // A run whose estimate was far from what the provider counted: the row that says so is the one
+        // the eye should find, the way it finds every other exceeded budget.
+        string html = await RenderAsync(
+            new Run {
+                Id = "run-1",
+                ConversationId = 1,
+                Status = "completed",
+                Model = "test-model",
+                ApprovalMode = ApprovalMode.AlwaysApprove.ToString(),
+                PromptVersion = PageAuthorPrompt.Version,
+                EstimatedTokens = 100_000,
+                LastPromptTokens = 1_000,
+                MaxTokens = 900,
+                OutputTokens = 300,
+            },
+            User("A question", "run-1"),
+            Assistant("An answer", "run-1"));
+
+        Assert.Multiple(() => {
+            Assert.That(html, Does.Contain("<div class=\"assistant-budget assistant-budget-exceeded\" data-budget=\"estimate\">"));
+            Assert.That(html, Does.Contain("<span id=\"assistant-budget-estimate\">99k</span> / <span class=\"assistant-budget-limit\" id=\"assistant-budget-estimate-limit\">28k</span> <span id=\"assistant-budget-estimate-direction\">over</span> tokens</span>"));
+            Assert.That(html, Does.Contain("<span id=\"assistant-budget-output\">300</span> / <span class=\"assistant-budget-limit\" id=\"assistant-budget-output-limit\">900</span> tokens</span>"),
+                "the completion row is read against the allowance that step had, not the model's ceiling");
+        });
+    }
+
+    private static async Task<string> RenderAsync(Run? lastRun, params Message[] messages) {
         DefaultHttpContext context = TestHttp.CreateContext(null, "GET", "/assistant/1");
         context.User = new ClaimsPrincipal(new ClaimsIdentity(
             [new Claim(ClaimTypes.NameIdentifier, "owner")], "test"));
@@ -99,12 +128,16 @@ public sealed class AssistantTranscriptTests {
         await AssistantEndpoint.ConversationAsync(
             context,
             1,
-            new ShellConversationStore(messages),
+            new ShellConversationStore(messages, lastRun: lastRun),
             new TestAntiforgery(),
             new RunRegistry(TestOptions.Assistant, TimeProvider.System),
             TestOptions.Assistant,
+            ModelWindowSource.Fixed(TestOptions.Budget),
             new StubAccountBalanceClient());
 
         return await TestHttp.ReadBodyAsync(context);
     }
+
+    private static Task<string> RenderAsync(params Message[] messages) => RenderAsync(null, messages);
+
 }

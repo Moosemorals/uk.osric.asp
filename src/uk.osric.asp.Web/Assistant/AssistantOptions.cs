@@ -22,10 +22,19 @@ internal sealed record AssistantOptions {
     public required bool AllowInsecureHttp { get; init; }
     public required double Temperature { get; init; }
 
-    /// <summary>The provider completion limit; DeepSeek-V4.1-Flash reports a maximum of 393,216.</summary>
-    public required int MaxOutputTokens { get; init; }
+    /// <summary>The path the provider publishes its model list on, such as <c>/models</c>.</summary>
+    public required string ModelsPath { get; init; }
 
-    public required bool IncludeUsage { get; init; }
+    /// <summary>How long the model list read waits for the provider before it gives up.</summary>
+    public required double ModelsTimeoutSeconds { get; init; }
+
+    /// <summary>
+    /// The floor under a reply, in tokens. The window the provider reports is shared between the
+    /// prompt and the reply, so what the prompt leaves is the reply's allowance, capped at the
+    /// provider's own maximum and never below this.
+    /// </summary>
+    public required int MinOutputTokens { get; init; }
+
     public required int MaxSteps { get; init; }
     public required int MaxToolCalls { get; init; }
     public required int MaxToolCallsPerStep { get; init; }
@@ -42,34 +51,21 @@ internal sealed record AssistantOptions {
     public required int BalanceSampleSeconds { get; init; }
 
     public required int MaxProviderRetries { get; init; }
-    public required int MaxMessageChars { get; init; }
+
+    /// <summary>The most characters a stored page may carry: the page store's bound, not a context rule.</summary>
     public required int MaxPageChars { get; init; }
-    public required int MaxToolArgumentChars { get; init; }
-    public required int MaxToolResultChars { get; init; }
 
     /// <summary>
-    /// How much text one tool may answer with before it is cut: half of <see cref="MaxToolResultChars"/>,
-    /// because the answer still has to fit back inside the JSON envelope with room for escaping.
+    /// The most characters one tool call's arguments may carry. It must exceed <see cref="MaxPageChars"/>
+    /// with room for the envelope, because a page the store accepts must be writable through a tool.
     /// </summary>
-    public int ToolResultBudget => MaxToolResultChars / 2;
-
-    /// <summary>The estimated prompt tokens one request may spend.</summary>
-    public required int MaxContextTokens { get; init; }
-
-    /// <summary>The model's whole context window; DeepSeek-V4.1-Flash reports 1,048,576.</summary>
-    public required int ModelContextTokens { get; init; }
+    public required int MaxToolArgumentChars { get; init; }
 
     /// <summary>The most memories one owner may hold; past this <c>remember</c> refuses.</summary>
     public required int MaxMemoriesPerOwner { get; init; }
 
     /// <summary>The longest memory, in characters. One longer is refused, never truncated.</summary>
     public required int MaxMemoryChars { get; init; }
-
-    /// <summary>The most memories one run may be given.</summary>
-    public required int MaxMemoriesPerRun { get; init; }
-
-    /// <summary>The most characters a run's memory block may cost.</summary>
-    public required int MaxMemoryCharsPerRun { get; init; }
 
     /// <summary>The most candidates a memory search ranks, for recall and for the tool.</summary>
     public required int MaxMemorySearchResults { get; init; }
@@ -129,8 +125,9 @@ internal sealed record AssistantOptions {
             RequireApiKey = requireApiKey,
             AllowInsecureHttp = reader.Switch("AllowInsecureHttp", recommended: false),
             Temperature = reader.Decimal("Temperature", recommended: 0.2, minimum: 0, maximum: 2),
-            MaxOutputTokens = reader.Number("MaxOutputTokens", recommended: 393_216, minimum: 1, maximum: 2_000_000),
-            IncludeUsage = reader.Switch("IncludeUsage", recommended: true),
+            ModelsPath = reader.Text("ModelsPath", "a path such as /models"),
+            ModelsTimeoutSeconds = reader.Decimal("ModelsTimeoutSeconds", recommended: 3, minimum: 1, maximum: 60),
+            MinOutputTokens = reader.Number("MinOutputTokens", recommended: 131_072, minimum: 1_024, maximum: 2_000_000),
             MaxSteps = reader.Number("MaxSteps", recommended: 160, minimum: 1, maximum: 1_000),
             MaxToolCalls = reader.Number("MaxToolCalls", recommended: 128, minimum: 1, maximum: 1_000),
             MaxToolCallsPerStep = reader.Number("MaxToolCallsPerStep", recommended: 64, minimum: 1, maximum: 1_000),
@@ -142,16 +139,10 @@ internal sealed record AssistantOptions {
             BalanceTimeoutSeconds = reader.Decimal("BalanceTimeoutSeconds", recommended: 3, minimum: 1, maximum: 60),
             BalanceSampleSeconds = reader.Number("BalanceSampleSeconds", recommended: 60, minimum: 30, maximum: 3_600),
             MaxProviderRetries = reader.Number("MaxProviderRetries", recommended: 1, minimum: 0, maximum: 10),
-            MaxMessageChars = reader.Number("MaxMessageChars", recommended: 16_384, minimum: 1, maximum: 1_048_576),
             MaxPageChars = reader.Number("MaxPageChars", recommended: 262_144, minimum: 1, maximum: 4_194_304),
-            MaxToolArgumentChars = reader.Number("MaxToolArgumentChars", recommended: 131_072, minimum: 1, maximum: 4_194_304),
-            MaxToolResultChars = reader.Number("MaxToolResultChars", recommended: 131_072, minimum: 1, maximum: 4_194_304),
-            MaxContextTokens = reader.Number("MaxContextTokens", recommended: 500_000, minimum: 16_384, maximum: 4_194_304),
-            ModelContextTokens = reader.Number("ModelContextTokens", recommended: 1_048_576, minimum: 16_384, maximum: 16_777_216),
+            MaxToolArgumentChars = reader.Number("MaxToolArgumentChars", recommended: 270_336, minimum: 1, maximum: 4_194_304),
             MaxMemoriesPerOwner = reader.Number("MaxMemoriesPerOwner", recommended: 200, minimum: 1, maximum: 10_000),
             MaxMemoryChars = reader.Number("MaxMemoryChars", recommended: 1_000, minimum: 1, maximum: 100_000),
-            MaxMemoriesPerRun = reader.Number("MaxMemoriesPerRun", recommended: 12, minimum: 1, maximum: 1_000),
-            MaxMemoryCharsPerRun = reader.Number("MaxMemoryCharsPerRun", recommended: 4_000, minimum: 1, maximum: 1_000_000),
             MaxMemorySearchResults = reader.Number("MaxMemorySearchResults", recommended: 50, minimum: 1, maximum: 1_000),
             MaxMemoryQueryTerms = reader.Number("MaxMemoryQueryTerms", recommended: 12, minimum: 2, maximum: 100),
             HeartbeatSeconds = reader.Number("HeartbeatSeconds", recommended: 15, minimum: 1, maximum: 300),
@@ -160,7 +151,7 @@ internal sealed record AssistantOptions {
             JournalTtlMinutes = reader.Number("JournalTtlMinutes", recommended: 10, minimum: 1, maximum: 1_440),
             WritablePathPrefix = reader.Text("WritablePathPrefix", "a page-key prefix such as /drafts, or a blank string for the whole site",
                 allowEmpty: true),
-            MaxSearchMatches = reader.Number("MaxSearchMatches", recommended: 100, minimum: 1, maximum: 1_000),
+            MaxSearchMatches = reader.Number("MaxSearchMatches", recommended: 1_000, minimum: 1, maximum: 1_000),
             DefaultListLimit = reader.Number("DefaultListLimit", recommended: 50, minimum: 1, maximum: 1_000),
             MaxListLimit = reader.Number("MaxListLimit", recommended: 500, minimum: 1, maximum: 1_000),
             ShellMatchLimit = reader.Number("ShellMatchLimit", recommended: 100, minimum: 1, maximum: 1_000),

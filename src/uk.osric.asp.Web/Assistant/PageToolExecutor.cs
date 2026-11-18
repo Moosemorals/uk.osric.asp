@@ -20,10 +20,9 @@ internal sealed class PageToolExecutor(
     IServiceScopeFactory scopeFactory,
     PagePathPolicy paths,
     AssistantOptions options,
+    ModelWindowSource windows,
     AssistantMetrics metrics,
     IAssistantFetcher fetcher) {
-
-    private readonly ToolResults _results = new(options);
 
     /// <summary>What the model is offered, in declaration order.</summary>
     public static IReadOnlyList<ToolDefinition> Definitions => ToolRegistry.Default.Definitions;
@@ -40,18 +39,26 @@ internal sealed class PageToolExecutor(
         CancellationToken cancellationToken) {
         ArgumentNullException.ThrowIfNull(context);
 
+        // A run cannot start without the model's window, so a call that arrives without one is a call
+        // whose run is already failing; refusing here keeps the budget out of the tools' hands.
+        if (windows.Budget is not { } budget) {
+            return ToolResults.Refusal(
+                "The provider has not reported the model's window, so no tool can run.", "No model window");
+        }
+
+        ToolResults results = new(budget);
         if (ToolRegistry.Default.Find(name) is not { } tool) {
             string unknown = MessageText.Sanitize(name);
-            return _results.Failure($"Unknown tool '{unknown}'.", $"Unknown tool {unknown}");
+            return results.Failure($"Unknown tool '{unknown}'.", $"Unknown tool {unknown}");
         }
 
         ToolArgumentsResult parsed = ToolArguments.Parse(argumentsJson, tool.Spec.Arguments, options.MaxToolArgumentChars);
         if (!parsed.IsSuccess) {
-            return _results.Failure(parsed.Error!, $"Invalid arguments for {name}");
+            return results.Failure(parsed.Error!, $"Invalid arguments for {name}");
         }
 
         await using AsyncServiceScope scope = scopeFactory.CreateAsyncScope();
-        ToolServices services = new(scope.ServiceProvider, context, paths, options, metrics, fetcher);
+        ToolServices services = new(scope.ServiceProvider, context, paths, options, budget, metrics, fetcher);
         return await tool.RunAsync(new ToolValues(parsed.Values), services, cancellationToken);
     }
 
@@ -81,6 +88,6 @@ internal sealed class PageToolExecutor(
         }
 
         PathValidationResult checkedPath = paths.Validate(pathText, write: true);
-        return checkedPath.IsSuccess ? null : _results.Failure(checkedPath.Error!, $"{tool.Spec.Verb} refused");
+        return checkedPath.IsSuccess ? null : ToolResults.Refusal(checkedPath.Error!, $"{tool.Spec.Verb} refused");
     }
 }

@@ -147,6 +147,45 @@ public sealed class AssistantProviderClientTests {
     }
 
     [Test]
+    public async Task ARejectionForContextLengthBecomesTheStaleWindowCodeAsync() {
+        // The provider's own shape for a request over the window. It is the one rejection that says
+        // the cached window is stale, so the run reads the model list again instead of failing.
+        const string Rejection = """
+            {"error":{"message":"This model's maximum context length is 1048576 tokens. However, you requested 2097152 tokens.","type":"invalid_request_error","code":"invalid_request_error"}}
+            """;
+        using HttpClient client = Client(_ => Task.FromResult(Response(HttpStatusCode.BadRequest, Rejection)));
+        OpenAiChatCompletionClient provider = new(client, TestOptions.Assistant with { RequireApiKey = false }, NullLogger<OpenAiChatCompletionClient>.Instance);
+
+        ProviderException exception = (await Assert.ThrowsAsync<ProviderException>(async () => await CollectAsync(provider)))!;
+
+        Assert.Multiple(() => {
+            Assert.That(exception.Code, Is.EqualTo(ProviderException.ContextWindowMismatch));
+            Assert.That(exception.Message, Does.Not.Contain("maximum context length"), "the provider's text is never shown");
+        });
+    }
+
+    [Test]
+    public async Task ARejectionForAnythingElseStaysAGenericProviderErrorAsync() {
+        using HttpClient client = Client(_ => Task.FromResult(
+            Response(HttpStatusCode.BadRequest, """{"error":{"type":"invalid_request_error","message":"messages must not be empty"}}""")));
+        OpenAiChatCompletionClient provider = new(client, TestOptions.Assistant with { RequireApiKey = false }, NullLogger<OpenAiChatCompletionClient>.Instance);
+
+        ProviderException exception = (await Assert.ThrowsAsync<ProviderException>(async () => await CollectAsync(provider)))!;
+
+        Assert.That(exception.Code, Is.EqualTo("provider_error"));
+    }
+
+    [Test]
+    public void ARejectionWithNoBodyFallsBackWithoutThrowing() {
+        Assert.Multiple(() => {
+            Assert.That(OpenAiChatCompletionClient.NamesContextLength("not json"), Is.False);
+            Assert.That(OpenAiChatCompletionClient.NamesContextLength("{}"), Is.False);
+            Assert.That(OpenAiChatCompletionClient.NamesContextLength("""{"error":"plain text"}"""), Is.False);
+            Assert.That(OpenAiChatCompletionClient.NamesContextLength("""{"error":{"code":"context_length_exceeded"}}"""), Is.True);
+        });
+    }
+
+    [Test]
     public async Task AStreamThatKeepsSendingOutlivesTheRequestTimeoutAsync() {
         using HttpClient client = Client(_ => Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK) {
             Content = new TimedContent(
@@ -206,8 +245,7 @@ public sealed class AssistantProviderClientTests {
             [new ToolDefinition("read_page", "Reads a page.", false, """{"type":"object"}""")],
             0.2,
             20,
-            "reasoning_content",
-            IncludeUsage: true);
+            "reasoning_content");
         string? body = null;
         using HttpClient client = Client(async (message, cancellationToken) => {
             body = await message.Content!.ReadAsStringAsync(cancellationToken);
@@ -245,8 +283,7 @@ public sealed class AssistantProviderClientTests {
         [new ToolDefinition("read_page", "Reads a page.", false, """{"type":"object"}""")],
         0.2,
         20,
-        "reasoning_content",
-        IncludeUsage: true);
+        "reasoning_content");
 
     private static HttpClient Client(Func<HttpRequestMessage, Task<HttpResponseMessage>> send) =>
         new(new RecordingHandler((request, _) => send(request))) { Timeout = Timeout.InfiniteTimeSpan };
@@ -259,7 +296,7 @@ public sealed class AssistantProviderClientTests {
     };
 
     private static async Task<List<ChatStreamEvent>> CollectAsync(IChatCompletionClient provider, ChatRequest? request = null) {
-        request ??= new("model", [new ChatMessage("system", "prompt")], [], 0.2, 20, "reasoning_content", true);
+        request ??= new("model", [new ChatMessage("system", "prompt")], [], 0.2, 20, "reasoning_content");
         List<ChatStreamEvent> events = [];
         await foreach (ChatStreamEvent @event in provider.StreamAsync(request, CancellationToken.None)) {
             events.Add(@event);

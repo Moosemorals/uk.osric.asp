@@ -75,6 +75,62 @@ public sealed class AssistantMetricsTests {
 
 
     [Test]
+    public void TheEstimateErrorIsTheMagnitudeWithItsDirection() {
+        using AssistantMetrics metrics = new();
+        List<(double Value, string Tags)> measurements = [];
+        using MeterListener listener = new();
+        listener.InstrumentPublished = (instrument, current) => {
+            if (instrument.Meter.Name == AssistantMetrics.MeterName) {
+                current.EnableMeasurementEvents(instrument);
+            }
+        };
+        listener.SetMeasurementEventCallback<long>((instrument, value, tags, _) => {
+            if (instrument.Name == "assistant.context.estimate.error") {
+                measurements.Add((value, FormatTags(tags)));
+            }
+        });
+        listener.Start();
+
+        metrics.RecordEstimateError(1_100, 1_000);
+        metrics.RecordEstimateError(900, 1_000);
+
+        Assert.That(measurements, Is.EquivalentTo([(100, "direction=over"), (100, "direction=under")]),
+            "the magnitude is the figure and the direction is the label; under is the one that can breach the budget");
+    }
+
+    [Test]
+    public void TheShapedExhaustedAndTruncatedCountersCarryTheirOwnLabels() {
+        using AssistantMetrics metrics = new();
+        List<(string Name, string Tags)> measurements = [];
+        using MeterListener listener = new();
+        listener.InstrumentPublished = (instrument, current) => {
+            if (instrument.Meter.Name == AssistantMetrics.MeterName) {
+                current.EnableMeasurementEvents(instrument);
+            }
+        };
+        listener.SetMeasurementEventCallback<long>((instrument, _, tags, _) => measurements.Add((instrument.Name, FormatTags(tags))));
+        listener.Start();
+
+        metrics.RecordShaped(AssistantMetrics.Shaped.Masked);
+        metrics.RecordShaped(AssistantMetrics.Shaped.Trimmed);
+        metrics.RecordBudgetExhausted(AssistantMetrics.Exhausted.Context);
+        metrics.RecordBudgetExhausted(AssistantMetrics.Exhausted.Provider);
+        metrics.RecordBudgetExhausted(AssistantMetrics.Exhausted.Output);
+        metrics.RecordToolTruncated("read_page");
+        metrics.RecordToolTruncated(null);
+
+        Assert.Multiple(() => {
+            Assert.That(measurements.Where(item => item.Name == "assistant.context.shaped").Select(item => item.Tags),
+                Is.EquivalentTo(["kind=masked", "kind=trimmed"]));
+            Assert.That(measurements.Where(item => item.Name == "assistant.budget.exhausted").Select(item => item.Tags),
+                Is.EquivalentTo(["cause=context", "cause=provider", "cause=output"]));
+            Assert.That(measurements.Where(item => item.Name == "assistant.tool.truncated").Select(item => item.Tags),
+                Is.EquivalentTo(["tool=read_page", $"tool={AssistantMetrics.UnknownTool}"]),
+                "a tool name is model-supplied, so an unknown one is tagged rather than minted");
+        });
+    }
+
+    [Test]
     public void ReportsOneBalanceMeasurementPerCurrencyAndNoneBeforeASample() {
         using AssistantMetrics metrics = new();
         List<(double Value, string Tags)> measurements = [];

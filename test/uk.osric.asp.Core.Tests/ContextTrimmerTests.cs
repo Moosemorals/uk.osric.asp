@@ -183,9 +183,8 @@ public sealed class ContextTrimmerTests {
         messages,
         [],
         0.2,
-        20,
-        "reasoning_content",
-        IncludeUsage: true);
+        1,
+        "reasoning_content");
 
     // One byte is one estimated token, so a budget derived from a byte count keeps the exact
     // arithmetic the masking rules were written around.

@@ -28,7 +28,7 @@ public sealed class RunUsageTests {
             .Add(new TokenUsage(10, 4))
             .Add(new TokenUsage(20, 5));
 
-        Assert.That(usage.OutputTokens, Is.EqualTo(5));
+        Assert.That(usage.LastCompletionTokens, Is.EqualTo(5));
     }
 
     [Test]
@@ -39,7 +39,7 @@ public sealed class RunUsageTests {
 
         Assert.Multiple(() => {
             Assert.That(usage.CompletionTokens, Is.EqualTo(4));
-            Assert.That(usage.OutputTokens, Is.EqualTo(4));
+            Assert.That(usage.LastCompletionTokens, Is.EqualTo(4));
         });
     }
 

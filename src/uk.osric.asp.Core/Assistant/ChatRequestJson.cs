@@ -24,24 +24,7 @@ public static class ChatRequestJson {
     public static string Serialize(ChatRequest request) {
         ArgumentNullException.ThrowIfNull(request);
 
-        List<Dictionary<string, object?>> messages = [];
-        foreach (ChatMessage source in request.Messages) {
-            Dictionary<string, object?> message = new(StringComparer.Ordinal) {
-                ["role"] = source.Role,
-                ["content"] = source.Content,
-            };
-            if (source.ToolCallId is not null) {
-                message["tool_call_id"] = source.ToolCallId;
-            }
-            if (source.ToolName is not null) {
-                message["name"] = source.ToolName;
-            }
-            if (source.ToolCallsJson is not null) {
-                using JsonDocument calls = JsonDocument.Parse(source.ToolCallsJson);
-                message["tool_calls"] = calls.RootElement.Clone();
-            }
-            messages.Add(message);
-        }
+        List<Dictionary<string, object?>> messages = [.. request.Messages.Select(Message)];
 
         object[] tools = [.. request.Tools.Select(tool => {
             using JsonDocument parameters = JsonDocument.Parse(tool.ParametersJson);
@@ -61,13 +44,43 @@ public static class ChatRequestJson {
             ["tools"] = tools,
             ["tool_choice"] = "auto",
             ["temperature"] = request.Temperature,
-            ["max_tokens"] = request.MaxOutputTokens,
+            ["max_tokens"] = request.MaxTokens,
+            // The provider's usage chunk is what anchors every estimate, so it is asked for on every
+            // request rather than left to a setting that could silently switch the budget off.
+            ["stream_options"] = new { include_usage = true },
         };
-        if (request.IncludeUsage) {
-            body["stream_options"] = new { include_usage = true };
-        }
 
         return JsonSerializer.Serialize(body, s_jsonOptions);
+    }
+
+    /// <summary>Measures one message as the body carries it, in UTF-8 bytes.</summary>
+    /// <param name="message">The message to measure.</param>
+    /// <returns>The byte count of the message's own JSON object.</returns>
+    /// <remarks>
+    /// The planner sizes each message once and then adds and subtracts those figures as it masks and
+    /// drops, so this is the one place a message's cost is counted.
+    /// </remarks>
+    internal static long MeasureMessage(ChatMessage message) {
+        ArgumentNullException.ThrowIfNull(message);
+        return Encoding.UTF8.GetByteCount(JsonSerializer.Serialize(Message(message), s_jsonOptions));
+    }
+
+    private static Dictionary<string, object?> Message(ChatMessage source) {
+        Dictionary<string, object?> message = new(StringComparer.Ordinal) {
+            ["role"] = source.Role,
+            ["content"] = source.Content,
+        };
+        if (source.ToolCallId is not null) {
+            message["tool_call_id"] = source.ToolCallId;
+        }
+        if (source.ToolName is not null) {
+            message["name"] = source.ToolName;
+        }
+        if (source.ToolCallsJson is not null) {
+            using JsonDocument calls = JsonDocument.Parse(source.ToolCallsJson);
+            message["tool_calls"] = calls.RootElement.Clone();
+        }
+        return message;
     }
 
     /// <summary>Measures the body the provider receives, in UTF-8 bytes.</summary>

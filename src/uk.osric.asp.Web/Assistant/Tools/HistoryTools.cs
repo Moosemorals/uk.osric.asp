@@ -144,7 +144,7 @@ internal sealed class ReadRevisionTool : AssistantTool {
         }
 
         PageToolData.ProjectedSource? projected = PageToolData.ProjectSource(
-            revision.Template, values.Integer("startLine"), values.Integer("endLine"), services.Options);
+            revision.Template, values.Integer("startLine"), values.Integer("endLine"), services.Budget);
         if (projected is null) {
             return services.Results.Failure("The requested line range is outside the revision.", $"{Spec.Verb} {path.Describe()}: invalid range");
         }

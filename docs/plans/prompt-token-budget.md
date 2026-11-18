@@ -7,7 +7,7 @@ SPDX-License-Identifier: MIT
 
 | | |
 | --- | --- |
-| Status | Proposed 2026-11-17, held by the owner the same day and rewritten the same evening: an anchored estimate replaces the vendored tokenizer this plan first proposed (`product-steps-wait-for-the-owner`). Nothing below is built. |
+| Status | Proposed 2026-11-17, held by the owner the same day and rewritten the same evening: an anchored estimate replaces the vendored tokenizer this plan first proposed (`product-steps-wait-for-the-owner`). Built on `prompt-token-budget` 2026-11-18 in its five phases; awaiting the owner's review and merge, which is when the five names below are taken. |
 | Size | Medium — one estimate in `Core`, the planner's arithmetic, the masker, six option changes, the words, and the docs that explain each |
 | Area | Core (assistant), Web (options, tools, run loop), docs |
 | Spike | [Counting DeepSeek tokens in C#](../spikes/deepseek-token-counting.md) — the exact counter is *not* adopted, but its measurements are the evidence for the ratios here and it remains the fallback |

@@ -39,6 +39,11 @@ public sealed record ContextTrimResult(
 }
 
 /// <summary>Fits a request to a token budget by dropping the oldest whole turns.</summary>
+/// <remarks>
+/// Each message is measured once and the turns are summed from those figures, so building a candidate
+/// is arithmetic rather than a serialization. The whole-turn rule is unchanged: a turn is never split
+/// from its tool calls or results, and the newest turn is the smallest request there is.
+/// </remarks>
 public static class ContextTrimmer {
 
     /// <summary>Keeps the system prompt and the newest whole turns that fit.</summary>
@@ -54,29 +59,41 @@ public static class ContextTrimmer {
             throw new ArgumentNullException(nameof(request), "The request has no messages.");
         }
 
+        PromptSizes sizes = PromptSizes.Measure(request);
         ConversationSplit split = ConversationTurns.Split(request.Messages);
         if (split.Turns.Count == 0) {
             ChatRequest only = request with { Messages = ConversationTurns.Flatten(split.System, []) };
-            long bytes = ChatRequestJson.MeasureBytes(only);
+            long bytes = sizes.Of(only.Messages);
             long tokens = estimator.Estimate(bytes);
             return new ContextTrimResult(only, 0, tokens, bytes, tokens <= maximumTokens ? null : TooLong(tokens, bytes, maximumTokens));
         }
 
+        // The system prompt and the commas between messages are fixed whatever is kept, so a candidate
+        // is the kept turns' sizes added to that fixed part.
+        long systemBytes = split.System is null ? 0 : sizes.SizeOf(split.System);
         List<IReadOnlyList<ChatMessage>> kept = [];
+        int keptCount = 0;
+        long keptBytes = 0;
         for (int index = split.Turns.Count - 1; index >= 0; index--) {
-            List<IReadOnlyList<ChatMessage>> candidate = [split.Turns[index], .. kept];
-            ChatRequest candidateRequest = request with {
-                Messages = ConversationTurns.Flatten(split.System, candidate),
-            };
-            long bytes = ChatRequestJson.MeasureBytes(candidateRequest);
+            long turnBytes = 0;
+            foreach (ChatMessage message in split.Turns[index]) {
+                turnBytes += sizes.SizeOf(message);
+            }
+
+            long bytes = sizes.Body(
+                systemBytes + keptBytes + turnBytes,
+                (split.System is null ? 0 : 1) + keptCount + split.Turns[index].Count);
             long tokens = estimator.Estimate(bytes);
             if (tokens > maximumTokens) {
                 // The newest turn is the smallest request there is; once it does not fit, an older turn
                 // would only make the request larger, and dropping it is not an option.
                 if (kept.Count == 0) {
+                    ChatRequest newest = request with {
+                        Messages = ConversationTurns.Flatten(split.System, [split.Turns[index]]),
+                    };
                     return new ContextTrimResult(
-                        candidateRequest,
-                        request.Messages.Count - candidateRequest.Messages.Count,
+                        newest,
+                        request.Messages.Count - newest.Messages.Count,
                         tokens,
                         bytes,
                         TooLong(tokens, bytes, maximumTokens));
@@ -84,11 +101,13 @@ public static class ContextTrimmer {
                 break;
             }
 
-            kept = candidate;
+            kept = [split.Turns[index], .. kept];
+            keptCount += split.Turns[index].Count;
+            keptBytes += turnBytes;
         }
 
         ChatRequest trimmed = request with { Messages = ConversationTurns.Flatten(split.System, kept) };
-        long sentBytes = ChatRequestJson.MeasureBytes(trimmed);
+        long sentBytes = sizes.Of(trimmed.Messages);
         long sentTokens = estimator.Estimate(sentBytes);
         return new ContextTrimResult(
             trimmed,

@@ -24,8 +24,12 @@ internal sealed class Run {
     public int? CachedTokens { get; set; }
     /// <summary>Every step's reasoning tokens added together.</summary>
     public int? ReasoningTokens { get; set; }
-    /// <summary>The most recent step's completion tokens, which the output budget counts.</summary>
+    /// <summary>The most recent step's completion tokens, which the completion budget counts.</summary>
     public int? OutputTokens { get; set; }
+    /// <summary>The most recent request's estimated prompt tokens, which the estimate's error is measured from.</summary>
+    public long? EstimatedTokens { get; set; }
+    /// <summary>The most recent request's <c>max_tokens</c>, which is the allowance that step had.</summary>
+    public int? MaxTokens { get; set; }
     /// <summary>The UTF-8 bytes of the last request this run sent, for calibrating the token estimate.</summary>
     public long? RequestBytes { get; set; }
     /// <summary>The last request's provider-reported prompt tokens, for calibrating the token estimate.</summary>

@@ -7,30 +7,27 @@ using System.Text.Json;
 using uk.osric.asp.Core.Assistant;
 
 [TestFixture]
-public sealed class ObservationMaskerTests {
+public sealed class ToolResultMaskerTests {
 
     [Test]
-    public void TheNewestEightResultsAreKept() {
+    public void EveryToolResultIsMaskableOldestFirst() {
         ChatMessage[] messages = [.. Enumerable.Range(0, 9).Select(index => Result(120, $"call-{index}"))];
 
-        IReadOnlyList<int> maskable = ObservationMasker.MaskableMessages(messages);
-
-        Assert.Multiple(() => {
-            Assert.That(maskable, Is.EqualTo([0]), "only the ninth-newest result is outside the window");
-            Assert.That(ObservationMasker.MaskableMessages(messages[1..]), Is.Empty,
-                "the eight newest results are kept");
-        });
+        Assert.That(ToolResultMasker.MaskableMessages(messages), Is.EqualTo([0, 1, 2, 3, 4, 5, 6, 7, 8]),
+            "nothing is exempt, so the newest result is maskable too");
     }
 
     [Test]
-    public void TheNewestTwoCallsKeepTheirArguments() {
-        ChatMessage[] messages = [
-            Call("call-1", LongArguments(1200)),
-            Call("call-2", LongArguments(1200)),
-            Call("call-3", LongArguments(1200)),
-        ];
+    public void ACallBurstIsMaskableOldestFirst() {
+        ChatMessage[] messages = [.. Enumerable.Range(0, 64).Select(index => Call($"call-{index}", LongArguments(1200)))];
 
-        Assert.That(ObservationMasker.MaskableMessages(messages), Is.EqualTo([0]));
+        IReadOnlyList<int> maskable = ToolResultMasker.MaskableMessages(messages);
+
+        Assert.Multiple(() => {
+            Assert.That(maskable, Has.Count.EqualTo(64), "a 64-call burst leaves nothing exempt");
+            Assert.That(maskable[0], Is.Zero);
+            Assert.That(maskable[^1], Is.EqualTo(63));
+        });
     }
 
     [Test]
@@ -49,13 +46,9 @@ public sealed class ObservationMaskerTests {
 
     [Test]
     public void AnOldCallKeepsItsNameAndLosesItsLongArgument() {
-        ChatMessage[] messages = [
-            Call("call-1", """{"path":"/blog","content":"CONTENT"}""".Replace("CONTENT", new string('x', 1200), StringComparison.Ordinal)),
-            Call("call-2", LongArguments(1200)),
-            Call("call-3", LongArguments(1200)),
-        ];
+        ChatMessage message = Call("call-1", LongArguments(1200));
 
-        MaskOutcome outcome = messages[ObservationMasker.MaskableMessages(messages)[0]].Mask();
+        MaskOutcome outcome = message.Mask();
 
         using JsonDocument calls = JsonDocument.Parse(outcome.Message.ToolCallsJson!);
         JsonElement call = calls.RootElement[0];
@@ -114,7 +107,7 @@ public sealed class ObservationMaskerTests {
 
     [Test]
     public void AnArgumentAtTheLimitIsKept() {
-        string content = new('x', ObservationMasker.MaximumArgumentLength);
+        string content = new('x', ToolResultMasker.MaximumArgumentLength);
 
         MaskOutcome outcome = Call("call-1", $$"""{"content":"{{content}}"}""").Mask();
 
@@ -141,7 +134,7 @@ public sealed class ObservationMaskerTests {
 
         Assert.Multiple(() => {
             Assert.That(outcome.Changed, Is.False);
-            Assert.That(ObservationMasker.MaskableMessages(messages), Is.Empty);
+            Assert.That(ToolResultMasker.MaskableMessages(messages), Is.Empty);
         });
     }
 

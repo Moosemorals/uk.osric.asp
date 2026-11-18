@@ -67,8 +67,11 @@ internal sealed class StubProvider : IAsyncDisposable {
     private readonly Task _loop;
     private readonly Lock _gate = new();
 
-    public StubProvider(int port) {
+    public StubProvider(int port, string model = "stub-model", long contextWindow = 1_048_576, int maxOutputTokens = 4_096) {
         Port = port;
+        Model = model;
+        ContextWindow = contextWindow;
+        MaximumOutputTokens = maxOutputTokens;
         _listener.Prefixes.Add($"http://127.0.0.1:{port}/");
         _listener.Start();
         _loop = AcceptAsync(_stopping.Token);
@@ -76,6 +79,15 @@ internal sealed class StubProvider : IAsyncDisposable {
 
     /// <summary>The port the provider listens on.</summary>
     public int Port { get; }
+
+    /// <summary>The one model the model list offers, which is the configured one.</summary>
+    public string Model { get; }
+
+    /// <summary>The window the model list reports for it.</summary>
+    public long ContextWindow { get; }
+
+    /// <summary>The output limit the model list reports for it.</summary>
+    public int MaximumOutputTokens { get; }
 
     /// <summary>Where an OpenAI-compatible client should send its requests.</summary>
     public string BaseUrl => $"http://127.0.0.1:{Port}";
@@ -123,6 +135,25 @@ internal sealed class StubProvider : IAsyncDisposable {
         try {
             // The conversation page asks for the account balance before a run starts. It is not a
             // chat completion, so it must not take the next scripted response.
+            // The model's window is where the assistant's whole budget comes from, and the host reads
+            // it before anything can run, so the list is answered like the provider's own.
+            if (string.Equals(context.Request.HttpMethod, "GET", StringComparison.Ordinal)
+                && string.Equals(context.Request.Url?.AbsolutePath, "/models", StringComparison.Ordinal)) {
+                byte[] models = Encoding.UTF8.GetBytes($$"""
+                    {
+                        "object": "list",
+                        "data": [
+                            { "id": "{{Model}}", "object": "model", "context_window": {{ContextWindow}}, "max_output_tokens": {{MaximumOutputTokens}} }
+                        ]
+                    }
+                    """);
+                context.Response.StatusCode = 200;
+                context.Response.ContentType = "application/json";
+                await context.Response.OutputStream.WriteAsync(models, cancellationToken);
+                context.Response.Close();
+                return;
+            }
+
             if (string.Equals(context.Request.HttpMethod, "GET", StringComparison.Ordinal)
                 && string.Equals(context.Request.Url?.AbsolutePath, "/user/balance", StringComparison.Ordinal)) {
                 byte[] balance = Encoding.UTF8.GetBytes("""

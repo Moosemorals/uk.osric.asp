@@ -73,7 +73,7 @@ internal sealed class SqliteMemoryStore(
             command => {
                 command.AddParameter("$owner", owner);
                 command.AddParameter("$conversation", conversationId);
-                command.AddParameter("$limit", options.MaxMemoriesPerRun);
+                command.AddParameter("$limit", options.MaxMemorySearchResults);
             },
             cancellationToken);
     }

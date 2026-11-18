@@ -29,19 +29,16 @@ public static class MemoryRecall {
     /// <param name="pinned">The owner's pinned memories, newest change first.</param>
     /// <param name="used">The memories this conversation has already used, most recently used first.</param>
     /// <param name="query">The query's best matches, best first.</param>
-    /// <param name="maximumMemories">The most memories one run may carry.</param>
-    /// <param name="maximumChars">The most characters the block may cost.</param>
+    /// <param name="maximumChars">The most characters the block may cost, a fraction of the context budget.</param>
     /// <returns>The chosen memories, their cost, and whether anything was left out.</returns>
     public static MemorySelection Select(
         IReadOnlyList<MemoryCandidate> pinned,
         IReadOnlyList<MemoryCandidate> used,
         IReadOnlyList<MemoryCandidate> query,
-        int maximumMemories,
         int maximumChars) {
         ArgumentNullException.ThrowIfNull(pinned);
         ArgumentNullException.ThrowIfNull(used);
         ArgumentNullException.ThrowIfNull(query);
-        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(maximumMemories);
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(maximumChars);
 
         List<MemoryCandidate> chosen = [];
@@ -55,7 +52,7 @@ public static class MemoryRecall {
             }
 
             int cost = candidate.Content.Length + TagAllowance;
-            if (chosen.Count == maximumMemories || characters + cost > maximumChars) {
+            if (characters + cost > maximumChars) {
                 truncated = true;
                 break;
             }

@@ -99,6 +99,7 @@ public sealed class ToolPathsTests {
         new ToolContext("owner", ConversationId: 1, RunId: "run-1"),
         new PagePathPolicy(new ReservedPaths(ReservedPaths.Default), TestOptions.Assistant),
         TestOptions.Assistant,
+        TestOptions.Budget,
         new AssistantMetrics(),
         new FakeAssistantFetcher());
 }

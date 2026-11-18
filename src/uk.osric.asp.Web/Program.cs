@@ -181,6 +181,10 @@ internal class Program {
         builder.Services.AddHttpClient<IChatCompletionClient, OpenAiChatCompletionClient>(client => {
             client.Timeout = Timeout.InfiniteTimeSpan;
         }).ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler { AllowAutoRedirect = false });
+        builder.Services.AddHttpClient<IProviderModelsClient, ProviderModelsClient>(client => {
+            client.Timeout = Timeout.InfiniteTimeSpan;
+        }).ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler { AllowAutoRedirect = false })
+            .RemoveAllLoggers();
         builder.Services.AddHttpClient<IAccountBalanceClient, AccountBalanceClient>(client => {
             client.Timeout = Timeout.InfiniteTimeSpan;
         }).ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler { AllowAutoRedirect = false })
@@ -236,6 +240,8 @@ internal class Program {
         builder.Services.AddSingleton(services => new PageHealth(services.GetRequiredService<RenderOptions>().AbandonedLimit));
 
         builder.Services.AddSingleton<AssistantMetrics>();
+        builder.Services.AddSingleton<ModelWindowSource>();
+        builder.Services.AddSingleton<ModelWindowSampler>();
         builder.Services.AddSingleton<ChartRenderer>();
         builder.Services.AddSingleton<Dashboard>();
         builder.Services.AddSingleton<DiffRenderer>();
@@ -331,6 +337,7 @@ internal class Program {
             .AddMeter("System.Runtime")
             .AddMeter(AssistantMetrics.MeterName)
             .AddMeter(PageMetrics.MeterName)
+            .AddView("assistant.context.estimate.error", new ExplicitBucketHistogramConfiguration { Boundaries = AssistantMetrics.EstimateErrorBuckets })
             .AddView("assistant.memory.chars", new ExplicitBucketHistogramConfiguration { Boundaries = AssistantMetrics.MemoryCharBuckets })
             .AddView("assistant.memory.recalled", new ExplicitBucketHistogramConfiguration { Boundaries = AssistantMetrics.MemoryCountBuckets })
             .AddView("assistant.provider.first_token.duration", new ExplicitBucketHistogramConfiguration { Boundaries = AssistantMetrics.ProviderBuckets })
@@ -390,6 +397,13 @@ internal class Program {
         // The compiler's reference set comes from the runtime, so resolve it before the host listens:
         // a runtime that cannot supply one must fail the deploy, not the first page that gets saved.
         _ = app.Services.GetRequiredService<IPageCompiler>();
+
+        // The model's window is where the assistant's whole budget comes from, and it is read before
+        // anything can run. A provider that does not answer leaves the budget unset and every page
+        // still serves; a provider that answers without the configured model stops the deploy, because
+        // that answer is authoritative and the owner should hear it now rather than from a failed run.
+        await app.Services.GetRequiredService<ModelWindowSampler>()
+            .RefreshAsync(app.Lifetime.ApplicationStopping);
 
         // The map is read and validated above with the rest of configuration; the journal line that
         // says what pages will serve is written now that the logger exists.
