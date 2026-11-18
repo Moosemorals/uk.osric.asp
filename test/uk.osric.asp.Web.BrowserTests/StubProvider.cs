@@ -48,9 +48,6 @@ internal sealed class StubResponse {
     /// <summary>Truncates an answer at the provider's token limit, which is what a long think does.</summary>
     public static StubResponse Truncated(string text, TimeSpan perChunk) =>
         new() { Chunks = Words(text, perChunk).Chunks, FinishReason = "length" };
-
-    /// <summary>Accepts the request and then answers nothing until the server gives up on it.</summary>
-    public static StubResponse Stall(TimeSpan delay) => new() { Delay = delay };
 }
 
 /// <summary>

@@ -22,7 +22,4 @@ internal static class TestContentTypes {
             [".svg"] = new("image/svg+xml; charset=utf-8"),
             [".txt"] = new("text/plain; charset=utf-8"),
         });
-
-    /// <summary>A map with no rows: every key takes the HTML fallback.</summary>
-    public static PageContentTypes HtmlOnly { get; } = PageContentTypes.Create(s_html, []);
 }

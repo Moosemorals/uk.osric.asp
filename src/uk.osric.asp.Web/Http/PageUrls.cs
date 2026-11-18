@@ -28,19 +28,6 @@ internal static class PageUrls {
     public static string EditorCommand(this PagePath path, string command, string editorPath) =>
         path.Editor(editorPath) + "&cmd=" + Uri.EscapeDataString(command);
 
-    /// <summary>The editor page's URL that installs a bundled seed over the page at <paramref name="path"/>.</summary>
-    /// <param name="path">The page to install over.</param>
-    /// <param name="editorPath">The editor's own key.</param>
-    public static string EditorInstall(this PagePath path, string editorPath) =>
-        path.EditorCommand("install", editorPath);
-
-    /// <summary>The editor page's URL that restores one saved revision of the page at <paramref name="path"/>.</summary>
-    /// <param name="path">The page to restore.</param>
-    /// <param name="hash">The revision to restore.</param>
-    /// <param name="editorPath">The editor's own key.</param>
-    public static string EditorRestore(this PagePath path, string hash, string editorPath) =>
-        path.EditorCommand("restore", editorPath) + "&hash=" + Uri.EscapeDataString(hash);
-
     /// <summary>The editor page's URL for one saved revision of the page at <paramref name="path"/>.</summary>
     /// <param name="path">The page to read.</param>
     /// <param name="hash">The revision to show.</param>

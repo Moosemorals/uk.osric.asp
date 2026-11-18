@@ -219,12 +219,6 @@ internal sealed class FakePageSessionStore(PageSessionOptions? options = null) :
         return json is null ? null : System.Text.Json.JsonSerializer.Deserialize<string>(json);
     }
 
-    /// <summary>The one string any session holds under <paramref name="pagePath"/> and <paramref name="key"/>.</summary>
-    public string? OnlyText(string pagePath, string key) =>
-        _sessions.Keys
-            .Select(id => Text(id, pagePath, key))
-            .SingleOrDefault(text => text is not null);
-
     /// <summary>Reads the raw JSON one key holds.</summary>
     public string? Raw(string sessionId, string pagePath, string key) =>
         _sessions.TryGetValue(sessionId, out Row? row) ? row.Values.GetValueOrDefault((pagePath, key)) : null;

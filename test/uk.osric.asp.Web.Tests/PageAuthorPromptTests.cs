@@ -386,6 +386,7 @@ public sealed class PageAuthorPromptTests {
         });
     }
 
+    [Test]
     public void TheWriteSectionSaysTheWriteNeedsASignedInVisitor() {
         string prompt = PageAuthorPrompt.Build();
 
@@ -398,7 +399,7 @@ public sealed class PageAuthorPromptTests {
             Assert.That(prompt, Does.Contain("needs a signed-in visitor"));
             Assert.That(prompt, Does.Contain("belongs to the next request"));
             Assert.That(prompt, Does.Contain("never during a `HEAD`"));
-            Assert.That(prompt, Does.Contain("layout is offered the read and not"));
+            Assert.That(prompt, Does.Contain("a layout is offered none of it"));
         });
     }
 
