@@ -7,10 +7,10 @@ SPDX-License-Identifier: MIT
 
 | | |
 | --- | --- |
-| Status | Proposed 2026-11-18 — waits for the owner. Nothing below is built |
+| Status | Revised 2026-11-18 — the owner answered the five questions; this revision carries those answers and waits for a yes. Nothing below is built |
 | Size | Medium — one tool, one interrupt kind, a card in two renderers, three configuration values, a prompt version and five suites. The wait, the record, the status and the route are [the owner interrupt's](assistant-owner-interrupt.md) |
 | Area | Core (Assistant), Web (assistant), docs |
-| Spike | [The ask tool's shape](../spikes/ask-tool-shape.md) read MCP elicitation, Claude Code, VS Code, Cline, Roo Code, OpenAI, DeepSeek, LangGraph and AutoGen; it recommends the schema, the caps and the result shape this plan adopts, and names the two levers — the description and the parameter descriptions — that the evidence says matter most |
+| Spike | [The ask tool's shape](../spikes/ask-tool-shape.md) read MCP elicitation, Claude Code, VS Code, Cline, Roo Code, OpenAI, DeepSeek, LangGraph and AutoGen; it recommends the schema and the caps this plan adopts, and names the two levers — the description and the parameter descriptions — that the evidence says matter most. The plan adds one thing it would not: a question the owner may skip (D4) |
 | Backlog | [IDEA-052](../jobs/IDEA-052.md) |
 | Depends on | [The owner interrupt](assistant-owner-interrupt.md) (ARCH-17), landed 2026-11-18 |
 | Decisions | New name proposed: **assistant-a-question-is-a-tool-call**. Relies on `assistant-a-run-waits-on-one-owner-interrupt` and `assistant-a-tool-is-one-type`; edits nothing |
@@ -22,11 +22,11 @@ at a gate. A run that needs one fact only the owner holds — which of two page 
 should say, whether a section is still wanted — has no way to ask. It guesses, or it ends its turn
 with the question in prose and loses the work it had queued behind the answer.
 
-This adds the missing turn: a tool, `ask_owner`, whose **result is the owner's answer**. It is the third
+This adds the missing turn: a tool, `ask_user`, whose **result is the owner's answer**. It is the third
 kind of [owner interrupt](assistant-owner-interrupt.md), so the wait already exists: the run opens a
 question interrupt, the owner's card is rendered from the stored request, their answer is the stored
 resolution, and the run carries on in the same step. What this plan adds is the kind, the tool, the
-card, the prompt and three limits.
+card, the prompt and three limits. The owner chose the name `ask_user` and no alias for it (D1).
 
 The survey found no cross-vendor standard, but a strong convergence — one tool, one to four question
 objects, options of a label and a description, free text always allowed, hard caps — and two levers
@@ -34,7 +34,7 @@ the vendor documentation agrees on more strongly than any schema: a description 
 it and when not*, and a description on each parameter. This site's tool schema emits no parameter
 descriptions at all, so the plan adds the first one, for this tool's arguments only.
 
-Three choices are load-bearing:
+Four choices are load-bearing:
 
 1. **A question is not an approval.** It is not gated by `RequireApproval`, it has no yes/no, and its
    resolution is content rather than a decision. Only the wait is shared.
@@ -43,6 +43,9 @@ Three choices are load-bearing:
    question closed like any other interrupt.
 3. **The wait is the owner's, so no clock judges it.** The tool timeout does not apply, the silence
    clock is already stopped by the shared wait, and the question's wait is not counted as tool time.
+4. **A question may be left blank.** The card is one form holding every question, so the owner can read
+   the whole set before answering any of it, and a question they skip is carried to the model as an
+   empty answer rather than refused or flagged (D4).
 
 ## What exists when this starts
 
@@ -59,15 +62,17 @@ Three choices are load-bearing:
 
 ## Goals
 
-1. `ask_owner` answers the owner's reply as this call's result, in the order asked, so the run continues
+1. `ask_user` answers the owner's reply as this call's result, in the order asked, so the run continues
    in the same step with nothing to reconstruct.
 2. The card asks every question the model sent, with the options it offered, and always offers the
    owner's own words. It is usable from the keyboard and readable by a screen reader.
-3. The question, its options and the answer are bounded by configuration, and every cap names itself in
+3. The owner reads the whole card before answering any of it and may leave any question blank; a blank
+   answer is carried to the model as the answer it is, with no second state to interpret.
+4. The question, its options and the answer are bounded by configuration, and every cap names itself in
    its refusal.
-4. The model is told when to ask, when not to, what the result means, and that the answer is the owner
+5. The model is told when to ask, when not to, what the result means, and that the answer is the owner
    speaking. The prompt says so too, and its version moves.
-5. Nothing else moves: no page capability, no `/help` edit, no provider change, no new status, route
+6. Nothing else moves: no page capability, no `/help` edit, no provider change, no new status, route
    family, coordinator or table.
 
 ## Non-goals
@@ -81,13 +86,14 @@ Three choices are load-bearing:
   and a false positive would block a legitimate reply with no override. The description and the prompt
   say not to ask for secrets instead.
 - **Per-parameter descriptions for the other twenty tools.** The capability lands in `Core`; using it
-  everywhere rewrites the provider's cached prefix and is a separate job with a measurement.
+  everywhere rewrites the provider's cached prefix and is a separate job with a measurement —
+  [IDEA-053](../jobs/IDEA-053.md).
 
 ## The design
 
-### D1 — One tool, named for the person it asks
+### D1 — One tool, named the way the other frameworks name it
 
-`ask_owner`, described in full, with this schema:
+`ask_user`, described in full, with this schema:
 
 ```
 questions: array (required)
@@ -111,18 +117,25 @@ Why this shape, from the survey:
   provider; two is the risk this plan measures (R1), and the alternative — a separate `ask_one` tool —
   doubles the tool count to solve a problem the description can prevent.
 
-The name is `ask_owner` rather than `ask` or `ask_user` because the prompt, the memory section and the
-interrupt prose all call the human *the owner*; the word in the name is then the word in the system
-prompt. `ask_owner` is legal under DeepSeek's name rule (`a-z`, `_`, at most 128 characters).
+The name is `ask_user`, the owner's choice on 2026-11-18 against the survey's recommendation of
+`ask_owner` (which matched the word the prompt, the memory section and the interrupt prose all use for
+the human). It is the name most other frameworks give this tool, and so the one the owner has already
+answered under. The description's first sentence still calls the human *the owner*, so the model reads
+one word for the person and the other appears only in the name. **There is no alias.** A second name is
+either a second tool — twenty-two, for a choice the model makes once — or an indirection that hides
+which name the model was actually offered; nothing on this side reads the name, and the description is
+where the model is told who it is asking. `ask_user` is legal under DeepSeek's name rule (`a-z`, `_`,
+at most 128 characters).
 
 The description is a paragraph, not a phrase: Anthropic's guidance is at least three or four sentences,
 and this tool needs every one. It says what the tool does, **when to use it** (a decision that is the
 owner's and changes what happens next, or a fact only they hold), **when not to** (permission, which
 the approval setting already covers; anything a tool can read), that the run stops until they answer so
 the call belongs alone in its step, and what the result is — their answer, in the order asked, in their
-words, and the one tool result that is *not* untrusted data because it is the owner speaking. It ends
-by forbidding the one thing this tool must never collect: a password, key or token, because the answer
-is stored and sent to the provider.
+words, and the one tool result that is *not* untrusted data because it is the owner speaking. It says
+that a question left blank is the owner leaving it to the model, so the model decides and says what it
+assumed rather than asking again. It ends by forbidding the one thing this tool must never collect: a
+password, key or token, because the answer is stored and sent to the provider.
 
 ### D2 — The question kind
 
@@ -132,13 +145,14 @@ The interrupt gains one kind, with no change to the record, the status, the coor
 | --- | --- |
 | Kind | `question` |
 | `RequestJson` | `{questions: [{question, header?, options?: [{label, description?}], multiSelect?}]}` — exactly what was validated |
-| `ResolutionJson` | `{answers: [{question, header?, selected: [label], text}]}` — in the order asked |
+| `ResolutionJson` | `{answers: [{question, header?, selected: [label], text}]}` — one entry per question, in the order asked, empty where the owner skipped it |
 | The run does | nothing beyond the call: the answer *is* the tool's result |
 
 The answer endpoint is the interrupt route with no kind in the path: the record says the run waits on
 a `question`, and the handler parses the form against it. The form's fields are `answer{n}` (repeated for
 checkboxes) and `other{n}`, so the endpoint needs no JSON from the browser, and the tool call id travels
-in the form as a stale-form guard.
+in the form as a stale-form guard. A question with neither field set is stored as an empty answer rather
+than refused, so a form with no field set at all is a form in which every question was skipped.
 
 ### D3 — The tool is given the wait, not the run's business
 
@@ -150,7 +164,7 @@ in the form as a stale-form guard.
 - `ExecuteToolAsync` skips its `ToolTimeoutSeconds` deadline for a call whose spec waits for the owner.
   The run's own token still cancels it, so Stop and a restart work.
 
-Naming `ask_owner` in `RunProcessor` would put a tool's name in a second place, which is the fault
+Naming `ask_user` in `RunProcessor` would put a tool's name in a second place, which is the fault
 `assistant-a-tool-is-one-type` was written to end. Everything else about the call is the tool's: it
 validates its arguments, refuses a bad set and formats the result.
 
@@ -168,8 +182,17 @@ a long run needs no count-back; `selected` carries the option labels chosen; `te
 own words, empty when they picked instead. The envelope, its bound and its truncation are
 `ToolResults.Success`'s, so the answer cannot bypass the one result budget.
 
-An answer that gives nothing for a question is refused at the endpoint rather than stored as an empty
-string: an empty answer is indistinguishable from the owner never having been asked.
+**The owner may skip.** A question with nothing selected and nothing typed is stored as an empty answer
+— `selected: []`, `text: ""` — and a submission in which every question is empty is an answer like any
+other. There is no `skipped` flag (the owner's answer, 2026-11-18): the empty answer *is* the answer,
+it is what the owner did, and a second state would be one more thing the model has to interpret and the
+record has to keep in step. What an empty answer means is said in the description and the prompt — the
+owner left the decision with you, so decide, say what you assumed, and do not ask it again — because
+that is a reading of the answer, not a field of it.
+
+This is the one place the plan departs from the survey, which would have refused the empty answer because
+it could not tell it from a question never asked. It can: the run waited, the card was shown, and the
+entry exists.
 
 The answer is stored as a `tool` message with this call's id, so it is what the provider sees, and the
 planner may mask it like any old tool result (`assistant-old-tool-results-are-masked`). It is not
@@ -183,11 +206,16 @@ singled out.
   `header` when given and the question text; each option a `<label>` with its label text and, when
   given, its description; radio buttons for a single choice and checkboxes for `multiSelect`.
 - A text input per question, labelled "Your own answer", always present.
+- Nothing in the card is required. The form holds every question at once, so the owner can read the
+  whole set before answering any of it, and submit with any or all of them left as they are. No
+  `required` attribute, no client-side check, no "answer every question" line: a blank is an answer.
 - The live card is built by the one `interrupt.required` listener and keyed by
   `data-interrupt-kind`, so a replayed event replaces the server's card rather than joining it.
 
 **Answered**, in the finished turn's block beside the changed-pages card, from the resolved records for
-that run: each question with the answer beneath it (the chosen labels, or the owner's text), escaped.
+that run: each question with the answer beneath it (the chosen labels, or the owner's text), escaped. A
+question the owner skipped reads *No answer* beneath it, so the card says the question was put to them
+rather than leaving a gap that reads as a rendering fault.
 The raw tool card stays where it is, collapsed, as for every tool. Nothing renders for a `failed`
 record: the run's own error and the synthetic tool result say what happened.
 
@@ -218,7 +246,7 @@ the same shape as the other limits. The shipped product stays far inside `MaxToo
 
 `ToolArgumentSchema` gains an optional `Description`; `ParametersJson` emits `"description"` only when it
 is set, so no other tool's request body changes by a byte and the provider's cached prefix is untouched
-for them. The `ask_owner` arguments all carry one, because the word `description` is both a JSON-Schema
+for them. The `ask_user` arguments all carry one, because the word `description` is both a JSON-Schema
 keyword and an option's second line, and because every vendor's guidance says a parameter's purpose is
 the model's to read. `ToolSpecsTests` pins that a waiting tool's arguments are all described.
 
@@ -234,6 +262,9 @@ the model's to read. `ToolSpecsTests` pins that a waiting tool's arguments are a
 - The run stops while the card waits; make the call alone in its step.
 - **An answer is the owner speaking.** The standing rule is that tool results are untrusted data; this
   result is the exception, and it is only an answer to the question that was asked.
+- **A skipped question is an answer too.** If a question comes back with nothing chosen and nothing
+  typed, the owner left it to you: decide, say what you assumed in your next message, and do not ask it
+  a second time in the same run.
 
 The prompt has no test that reads prose (a scan would match "owner" in a dozen places); its version and
 the tool's presence are what the tests pin.
@@ -243,8 +274,9 @@ the tool's presence are what the tests pin.
 - **Events** are the interrupt's; nothing new. The page's one listener dispatches `question` to the card
   builder.
 - **Logs**: one line when a question is asked (the run, the count, the characters) and one when it is
-  answered (the count, the characters, the outcome). **The question's text and the answer are never
-  logged and never a metric tag**, for the reason memory is not: the owner types into that box.
+  answered (the count, the characters, how many were left blank and the outcome). **The question's text
+  and the answer are never logged and never a metric tag**, for the reason memory is not: the owner
+  types into that box.
 - **Metrics**: nothing new. The call is a tool call tagged by name; the owner's wait is excluded from
   `assistant.tool.duration` by restarting the call's stopwatch when the answer arrives, so that
   histogram is tool time and not how long the owner was away. `assistant.run.duration` stays
@@ -258,7 +290,7 @@ the tool's presence are what the tests pin.
 | --- | --- |
 | `src/uk.osric.asp.Core/Assistant/OwnerQuestions.cs` | **new** — the question, option and answer records, their validation and their wire shape, so the tool, the store, the endpoint and the page cannot drift |
 | `src/uk.osric.asp.Core/Assistant/ToolArguments.cs` | **changed** — `ToolArgumentSchema.Description` |
-| `src/uk.osric.asp.Web/Assistant/Tools/AskOwnerTool.cs` | **new** — the tool, its description and its arguments |
+| `src/uk.osric.asp.Web/Assistant/Tools/AskUserTool.cs` | **new** — the tool, its description and its arguments |
 | `src/uk.osric.asp.Web/Assistant/Tools/ToolSpec.cs`, `ToolRegistry.cs`, `ToolServices.cs` | **changed** — `WaitsForOwner`, the emit-when-set description, the registration, the seam |
 | `src/uk.osric.asp.Web/Assistant/PageToolExecutor.cs` | **changed** — pass the seam |
 | `src/uk.osric.asp.Web/Assistant/IOwnerQuestions.cs` | **new** — the seam the run supplies |
@@ -273,6 +305,7 @@ the tool's presence are what the tests pin.
 | `test/…` | **new/changed** — the suites below |
 | `docs/assistant.md`, `docs/glossary.md`, `docs/testing.md` | **changed** — the tool, the glossary's "Question", the suites |
 | `docs/decisions.md` | **changed at the merge** — **assistant-a-question-is-a-tool-call** written |
+| `docs/jobs/IDEA-053.md`, `docs/jobs/README.md` | **new/changed** — the per-argument descriptions the survey wants and this change does not make |
 
 ## Phases
 
@@ -280,7 +313,7 @@ the tool's presence are what the tests pin.
    proving the caps, the refusals and the round trip.
 2. **The argument description.** `ToolArgumentSchema.Description`, the registry emitting it only when
    set, and the test that another tool's schema is byte-identical.
-3. **The tool.** `AskOwnerTool`, `WaitsForOwner`, the `Questions` seam and a fake asker in `Web.Tests`;
+3. **The tool.** `AskUserTool`, `WaitsForOwner`, the `Questions` seam and a fake asker in `Web.Tests`;
    the three configuration values, the shipped file and the options tests.
 4. **The kind.** The `question` value, its request and resolution, the answer resolver's validation and
    the store read for the page, with the store's cases.
@@ -289,7 +322,7 @@ the tool's presence are what the tests pin.
 6. **The card.** The server's renderer, the answered card, the script's builder and the stylesheet;
    transcript tests, then the browser suite.
 7. **The words.** The prompt and its version, `assistant.md`, the glossary, `testing.md`, the shell
-   catalogue and the decision entry at the merge.
+   catalogue, the `IDEA-053` job and the decision entry at the merge.
 
 ## Tests
 
@@ -301,7 +334,8 @@ the tool's presence are what the tests pin.
 - `AnOptionWithNoLabelIsRefused`
 - `TwoOptionsOfOneQuestionWithTheSameLabelAreRefused`
 - `TheAnswersAreReadBackInTheOrderTheyWereAsked`
-- `AnAnswerThatChoosesNothingAndSaysNothingIsRefused`
+- `AQuestionLeftBlankIsCarriedAsAnEmptyAnswer`
+- `AnAnswerSetInWhichEveryQuestionWasSkippedIsCarried`
 - `TheWireShapeRoundTripsThroughItsOwnParser`
 
 **`Web.Tests` — `ToolSpecsTests`** (changed)
@@ -312,11 +346,12 @@ the tool's presence are what the tests pin.
 - `EveryArgumentOfAWaitingToolIsDescribed`
 - `AToolWithNoArgumentDescriptionsIsUnchangedOnTheWire` — `read_page`'s schema is the same JSON.
 
-**`Web.Tests` — `AskOwnerToolTests`** (new)
+**`Web.Tests` — `AskUserToolTests`** (new)
 
 - `TheAnswerIsTheToolResult`
 - `AQuestionSetWithNoQuestionsIsRefused`
 - `TheQuestionsTheToolAsksAreTheOnesItValidated`
+- `ASkippedQuestionIsAnEmptyEntryInTheResult`
 
 **`Web.Tests` — `ConversationStoreTests`** (changed)
 
@@ -339,6 +374,7 @@ the tool's presence are what the tests pin.
 
 - `APendingQuestionRendersOneFieldsetPerQuestionWithALabelForEveryOption`
 - `AnAnsweredQuestionReadsAsTheQuestionAndTheOwnersAnswer`
+- `ASkippedQuestionReadsAsNoAnswer`
 - `TheOwnersAnswerIsEscaped`
 
 **`Web.IntegrationTests` — `AssistantQuestionFlowTests`** (new)
@@ -347,6 +383,7 @@ the tool's presence are what the tests pin.
   request carrying it, `run.completed`.
 - `TheQuestionCardSurvivesAReloadWhileTheRunWaits`
 - `AnAnswerToASettledQuestionIsRefused`
+- `AnOwnerMaySkipEveryQuestionAndTheRunContinues`
 - `AnotherAccountsAnswerIsNotFound`
 - `AnAnswerOverTheMessageBudgetIsRefused`
 
@@ -371,7 +408,7 @@ behaviour lives only in the page.
   per question if it fails. The live test is the measurement, not an assumption.
 - **R2 — The twenty-first tool.** OpenAI's guidance is to keep the initial set under twenty; the registry
   crosses that line. The description and the prompt's section are the mitigation, and the cost of
-  getting it wrong is visible: `ask_owner` called where a tool should have read, or a tool call the
+  getting it wrong is visible: `ask_user` called where a tool should have read, or a tool call the
   model no longer chooses.
 - **R3 — A run that waits forever.** Deliberate, and the same as every interrupt: Stop, delete the
   conversation, or restart. The card sits beside the Stop button and the status line says it is waiting.
@@ -380,25 +417,28 @@ behaviour lives only in the page.
   carries the answer.
 - **R5 — A long answer is masked later.** It is a tool result, so the planner may elide it in an old turn.
   The record keeps it for the page; the model may have to rely on what it wrote down.
+- **R6 — A skipped answer reads as an answer the model ignores.** The contract is prose, not schema: a
+  model that treats `selected: []` and `text: ""` as "no answer yet" may ask again, and the run pays a
+  second wait. The description, the prompt's bullet and the live test are the measures; the alternative
+  was a flag, which is the state the owner ruled out.
 
-## The questions this plan asks the owner
+## The owner's answers
 
-1. **Is `ask_owner` the right name?** Recommended yes: "owner" is the word the prompt already uses for the
-   human. `ask` is shorter and `ask_user` is the name most other frameworks use; if either is preferred,
-   now is the time.
-2. **Batch or one question at a time?** Recommended: up to four in one call, with the card asking them
-   together (Claude Code and VS Code both do; Cline insists on one). Batching saves a provider round
-   trip per question but makes a four-question card.
-3. **Should an unanswered question be skippable?** Recommended no: every question must get a selection or
-   text, and the owner can stop the run or type "I don't know". A `skipped` flag is a second state the
-   model must interpret.
-4. **Should the wait be excluded from `assistant.tool.duration`?** Recommended yes, for this tool; the
-   approval path gets the same rule from the interrupt plan if the owner asks for it there.
-5. **Should parameter descriptions be added to every tool?** Recommended not in this change: it rewrites
-   the provider's cached prefix and deserves its own measurement. The capability lands now so the
-   follow-up is a data change.
+The plan asked five questions on 2026-11-18; these are the answers, and this revision carries them.
+
+| # | Question | Answer |
+| --- | --- | --- |
+| 1 | Is `ask_owner` the right name? | `ask_user`, and no alias. The owner prefers the name the other frameworks use; the alias was weighed and dropped, for the reasons D1 gives. |
+| 2 | Batch or one at a time? | Batch, up to four in one call. The owner has met seven or eight questions at a time before, so four is not a long card; the accepted range reaches eight. |
+| 3 | Should an unanswered question be skippable? | Yes, without a flag: the owner wants to read the whole set before answering any of it, and to be able to leave a question. An empty answer is an answer (D4). |
+| 4 | Should the wait be excluded from `assistant.tool.duration`? | Yes — "waiting for the user is not the assistant's budget" (D9). |
+| 5 | Should parameter descriptions be added to every tool? | Not in this change, and it is written down: [IDEA-053](../jobs/IDEA-053.md). |
 
 ## Considered and rejected
+
+- **An alias for `ask_owner`.** A second name is either a second tool — twenty-two, for one choice the
+  model makes once — or a translation step that hides which name the model was offered. Nothing here
+  reads the name, and the description is where the model is told who it is asking.
 
 - **A second wait mechanism for questions.** That is what this plan would have been before the interrupt;
   the third copy of a coordinator, a status, a table and a recovery.
