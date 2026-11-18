@@ -170,6 +170,8 @@ public sealed class PageEditorPageTests {
             Assert.That(_storage["/about"]?.Template, Is.EqualTo("<% var x = ; %>"), "the edit is never lost");
             Assert.That(rendered.Body, Does.Contain("does not compile"));
             Assert.That(rendered.Body, Does.Contain("class=\"diagnostics\""));
+            Assert.That(rendered.Body, Does.Contain("<a href=\"#L1\">line 1, columns 12-13</a>"),
+                "the diagnostic names the run it covers and links to the line it starts on");
         });
     }
 

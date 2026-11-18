@@ -92,6 +92,10 @@ uk.osric.asp.Sdk.PageDiagnostic.Code.init -> void
 uk.osric.asp.Sdk.PageDiagnostic.Column.get -> int?
 uk.osric.asp.Sdk.PageDiagnostic.Column.init -> void
 uk.osric.asp.Sdk.PageDiagnostic.Deconstruct(out uk.osric.asp.Sdk.PageDiagnosticSeverity Severity, out int? Line, out int? Column, out string! Code, out string! Message) -> void
+uk.osric.asp.Sdk.PageDiagnostic.EndColumn.get -> int?
+uk.osric.asp.Sdk.PageDiagnostic.EndColumn.init -> void
+uk.osric.asp.Sdk.PageDiagnostic.EndLine.get -> int?
+uk.osric.asp.Sdk.PageDiagnostic.EndLine.init -> void
 uk.osric.asp.Sdk.PageDiagnostic.Equals(uk.osric.asp.Sdk.PageDiagnostic other) -> bool
 uk.osric.asp.Sdk.PageDiagnostic.Line.get -> int?
 uk.osric.asp.Sdk.PageDiagnostic.Line.init -> void
@@ -101,6 +105,8 @@ uk.osric.asp.Sdk.PageDiagnostic.PageDiagnostic() -> void
 uk.osric.asp.Sdk.PageDiagnostic.PageDiagnostic(uk.osric.asp.Sdk.PageDiagnosticSeverity Severity, int? Line, int? Column, string! Code, string! Message) -> void
 uk.osric.asp.Sdk.PageDiagnostic.Severity.get -> uk.osric.asp.Sdk.PageDiagnosticSeverity
 uk.osric.asp.Sdk.PageDiagnostic.Severity.init -> void
+uk.osric.asp.Sdk.PageDiagnostic.Source.get -> string?
+uk.osric.asp.Sdk.PageDiagnostic.Source.init -> void
 uk.osric.asp.Sdk.PageDiagnosticSeverity
 uk.osric.asp.Sdk.PageDiagnosticSeverity.Error = 1 -> uk.osric.asp.Sdk.PageDiagnosticSeverity
 uk.osric.asp.Sdk.PageDiagnosticSeverity.Warning = 0 -> uk.osric.asp.Sdk.PageDiagnosticSeverity

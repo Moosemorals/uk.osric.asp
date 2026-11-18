@@ -70,6 +70,24 @@ using Site.Editor;
     static string DiagnosticText(PageDiagnostic diagnostic) =>
         (diagnostic.Code.Length > 0 ? diagnostic.Code + ": " : "") + diagnostic.Message;
 
+    // Where a diagnostic is: the key of the library when the problem is in one this page names, then
+    // the line and the columns it covers. A diagnostic that names one spot has no columns to show.
+    static string DiagnosticWhere(PageDiagnostic diagnostic) {
+        if (diagnostic.Line is not int line) {
+            return diagnostic.Source is null ? "" : diagnostic.Source;
+        }
+
+        string place = diagnostic.Column is not int column
+            ? string.Create(System.Globalization.CultureInfo.InvariantCulture, $"line {line}")
+            : diagnostic.EndLine is int endLine && diagnostic.EndColumn is int endColumn
+                ? endLine == line
+                    ? string.Create(System.Globalization.CultureInfo.InvariantCulture, $"line {line}, columns {column}-{endColumn}")
+                    : string.Create(System.Globalization.CultureInfo.InvariantCulture, $"line {line}, column {column} to line {endLine}, column {endColumn}")
+                : string.Create(System.Globalization.CultureInfo.InvariantCulture, $"line {line}, column {column}");
+
+        return diagnostic.Source is string source ? source + ", " + place : place;
+    }
+
     bool deleted = false;
     bool hasKey = false;
     bool post = string.Equals(ctx.Request.Method, "POST", System.StringComparison.Ordinal);
@@ -573,13 +591,16 @@ back and continues that history. Until you save, links to <%= key %> answer &quo
             %><ul class="diagnostics" role="list"><%
             foreach (PageDiagnostic diagnostic in diagnostics) {
                 string severity = diagnostic.Severity == PageDiagnosticSeverity.Error ? "error" : "warning";
+                string where = DiagnosticWhere(diagnostic);
                 %><li class="diagnostic-<%= severity %>"><%
-                if (diagnostic.Line is int line) {
-                    %><a href="#L<%= line.ToString(System.Globalization.CultureInfo.InvariantCulture) %>"><%= DiagnosticText(diagnostic) %></a><%
-                } else {
-                    %><%= DiagnosticText(diagnostic) %><%
+                // A diagnostic in this page links to its line's gutter number; one in a library names
+                // the library instead, because the gutter holds this page and not that one.
+                if (diagnostic.Source is null && diagnostic.Line is int line) {
+                    %><a href="#L<%= line.ToString(System.Globalization.CultureInfo.InvariantCulture) %>"><%= where %></a> <%
+                } else if (where.Length > 0) {
+                    %><%= where %>: <%
                 }
-                %></li><%
+                %><%= DiagnosticText(diagnostic) %></li><%
             }
             %></ul><%
         }

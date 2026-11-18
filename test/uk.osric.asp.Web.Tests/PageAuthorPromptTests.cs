@@ -83,7 +83,7 @@ public sealed class PageAuthorPromptTests {
         Assert.Multiple(() => {
             Assert.That(prompt, Does.Contain("type=\"IPageStorage\""));
             Assert.That(prompt, Does.Contain("query=\"cookie\""));
-            Assert.That(prompt, Does.Contain("page-author-v38"));
+            Assert.That(prompt, Does.Contain("page-author-v39"));
         });
     }
 
@@ -279,7 +279,7 @@ public sealed class PageAuthorPromptTests {
     [Test]
     public void ThePromptIsVersionedForNullablePages() {
         Assert.Multiple(() => {
-            Assert.That(PageAuthorPrompt.Version, Is.EqualTo("page-author-v38"));
+            Assert.That(PageAuthorPrompt.Version, Is.EqualTo("page-author-v39"));
             Assert.That(PageAuthorPrompt.Build(), Does.Contain("## Nullable page code"));
         });
     }
@@ -463,7 +463,7 @@ public sealed class PageAuthorPromptTests {
             Assert.That(prompt, Does.Contain("check_script` with the page's path"));
             Assert.That(prompt, Does.Contain("valid: false"));
             Assert.That(prompt, Does.Contain("SCRIPT002"));
-            Assert.That(PageAuthorPrompt.Version, Is.EqualTo("page-author-v38"));
+            Assert.That(PageAuthorPrompt.Version, Is.EqualTo("page-author-v39"));
         });
     }
 

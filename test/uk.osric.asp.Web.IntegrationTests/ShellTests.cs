@@ -135,7 +135,7 @@ public sealed class ShellTests : IntegrationTest {
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.InternalServerError));
         Assert.That(await response.Content.ReadAsStringAsync(),
             Does.Contain("Handler failed to compile.")
-                .And.Contain("line 1, column 16: error CS1525"));
+                .And.Contain("line 1, columns 16-17: error CS1525"));
     }
 
     [Test]
