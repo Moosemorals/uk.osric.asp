@@ -7,7 +7,7 @@ SPDX-License-Identifier: MIT
 
 | | |
 | --- | --- |
-| Status | Proposed 2026-11-18 — waits for the owner. Nothing below is built |
+| Status | Approved on *idea-051* and built on *assistant-live-figures* 2026-11-18 — waits for the merge |
 | Size | Medium — the page's projection and its mark, a small server change to what the Tool calls row counts and when it is published, the store method behind it, five tests and the words in three docs. No event type, no migration, no configuration |
 | Area | Web (assistant, storage), docs |
 | Spike | [DeepSeek token counting](../spikes/deepseek-token-counting.md) measured the prose ratio the projection leans on; nothing new is measured |

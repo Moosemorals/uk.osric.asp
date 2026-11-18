@@ -845,6 +845,49 @@ public sealed class RunProcessorTests {
     }
 
     [Test]
+    public async Task TheToolCallsFigureTicksAsEachCallStartsAsync() {
+        SteppedClient client = new(
+            [
+                new ToolCallDelta(0, "call-1", "read_page", """{"path":"/missing"}"""),
+                new ToolCallDelta(1, "call-2", "read_page", """{"path":"/missing-too"}"""),
+                new UsageEvent(new TokenUsage(1_000, 20)),
+                new Finished("tool_calls"),
+            ],
+            [
+                new ContentDelta("Done."),
+                new UsageEvent(new TokenUsage(2_000, 30)),
+                new Finished("stop"),
+            ]);
+        (Conversation conversation, RunStartResult started, RunStream stream, RunProcessor processor) =
+            await StartRunAsync(client);
+
+        await processor.RunAsync(new QueuedRun(conversation.Id, started.RunId!, "owner"), CancellationToken.None);
+
+        RunEvent[] events = await CollectAsync(stream);
+        int[] updated = [.. events.Select((item, index) => (Event: item, Index: index))
+            .Where(item => item.Event.Type == "budget.updated").Select(item => item.Index)];
+        int[] finished = [.. events.Select((item, index) => (Event: item, Index: index))
+            .Where(item => item.Event.Type == "tool.finished").Select(item => item.Index)];
+        long[] figures = [.. updated.Select(index =>
+            JsonElement.Parse(events[index].DataJson).GetProperty("budgets").GetProperty("tool-calls").GetInt64())];
+        Run stored = await RunAsync(conversation);
+        int firstTick = Array.IndexOf(figures, 1L);
+        int secondTick = Array.IndexOf(figures, 2L);
+
+        Assert.Multiple(() => {
+            Assert.That(figures.Take(2), Is.EqualTo([0L, 0L]), "the row must not jump to the whole step's request");
+            Assert.That(firstTick, Is.GreaterThanOrEqualTo(0), "the first call did not tick the row");
+            Assert.That(secondTick, Is.GreaterThan(firstTick), "the second call did not tick the row");
+            Assert.That(figures[^1], Is.EqualTo(2), "the finished run counts both attempts");
+            Assert.That(stored.ToolCallCount, Is.EqualTo(2), "the stored count is the attempts the row showed");
+        });
+        Assert.Multiple(() => {
+            Assert.That(updated[firstTick], Is.LessThan(finished[0]), "the first tick is published before its call finishes");
+            Assert.That(updated[secondTick], Is.LessThan(finished[1]), "the second tick is published before its call finishes");
+        });
+    }
+
+    [Test]
     public async Task ARunThatUsesItsToolCallsPausesBeforeTheCallItCannotMakeAsync() {
         SteppedClient client = new(
             [

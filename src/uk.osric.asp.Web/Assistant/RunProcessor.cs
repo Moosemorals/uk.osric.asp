@@ -193,7 +193,6 @@ internal sealed class RunProcessor(
             lastMaxTokens = run.MaxTokens ?? 0;
 
             int toolCallCount = 0;
-            int toolCallsRecorded = 0;
             RunUsage usageTotals = run.ToUsage();
             TokenCalibration? calibration = run.RequestBytes is { } calibratedBytes && run.LastPromptTokens is { } calibratedPrompt
                 ? new TokenCalibration(calibratedBytes, calibratedPrompt)
@@ -263,7 +262,7 @@ internal sealed class RunProcessor(
                     // The budget row counts the request the planner built, and the counters are what the
                     // loop has already spent, so the live figure is the one the page will reload.
                     budgets = BudgetSnapshot.Measure(
-                        plan, messages, step, toolCallsRecorded, usageTotals.LastCompletionTokens, lastMaxTokens,
+                        plan, messages, step, toolCallCount, usageTotals.LastCompletionTokens, lastMaxTokens,
                         budget, estimateError);
                     stream.Publish("message.started", new { step });
                     PublishBudgets(stream, budgets, usageTotals, budget, stepLimit, toolCallLimit);
@@ -337,9 +336,8 @@ internal sealed class RunProcessor(
                         }
                     }
                     await StoreAsync(store => store.RecordStepAsync(
-                        queued.RunId, response.ToolCalls.Count, plan.RequestBytes, plan.EstimatedTokens, plan.MaxTokens,
+                        queued.RunId, plan.RequestBytes, plan.EstimatedTokens, plan.MaxTokens,
                         response.Usage, runTimeout.Token));
-                    toolCallsRecorded += response.ToolCalls.Count;
                     if (response.FinishReason == "content_filter") {
                         await PersistAssistantAsync(queued, stream, step, response, "failed", includeToolCalls: false, CancellationToken.None);
                         await FailAsync(queued, stream, "content_filter", "The assistant refused to continue.", null, step, runTimeout.Token);
@@ -355,7 +353,7 @@ internal sealed class RunProcessor(
                     lastMaxTokens = plan.MaxTokens;
                     budgets = budgets with {
                         Steps = step,
-                        ToolCalls = toolCallsRecorded,
+                        ToolCalls = toolCallCount,
                         LastCompletionTokens = usageTotals.LastCompletionTokens,
                         LastMaxTokens = lastMaxTokens,
                         EstimateError = estimateError,
@@ -422,12 +420,14 @@ internal sealed class RunProcessor(
                             summary = $"Using {call.DisplayName}",
                         });
 
-                        // The cost of a call is known before it runs, which matters because an approval
-                        // can wait a long time and a slow tool would otherwise hide it.
+                        // The row counts the calls the run has attempted, which is what the cap spends,
+                        // and it moves as the card appears rather than when the step is recorded. The cost
+                        // of the call is known before it runs, so it is published in the same snapshot.
+                        budgets = budgets with { ToolCalls = toolCallCount + 1 };
                         if (call.Arguments.Length > budgets.LongestArguments) {
                             budgets = budgets with { LongestArguments = call.Arguments.Length };
-                            PublishBudgets(stream, budgets, usageTotals, budget, stepLimit, toolCallLimit);
                         }
+                        PublishBudgets(stream, budgets, usageTotals, budget, stepLimit, toolCallLimit);
 
                         long toolStart = Stopwatch.GetTimestamp();
                         // An approval the path policy has already refused is one the owner could only
@@ -446,6 +446,7 @@ internal sealed class RunProcessor(
                         }
 
                         toolCallCount++;
+                        await StoreAsync(store => store.RecordToolCallAsync(queued.RunId, runTimeout.Token));
                         metrics.RecordTool(definition, result.IsSuccess, Stopwatch.GetElapsedTime(toolStart));
                         await StoreAsync(store => store.AppendMessageAsync(
                             queued.ConversationId,

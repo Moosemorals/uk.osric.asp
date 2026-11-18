@@ -30,11 +30,12 @@ internal interface IConversationStore {
     Task<int> FailPendingApprovalsAsync(string runId, string failureCode, CancellationToken cancellationToken = default);
     Task<bool> RecordStepAsync(
         string runId,
-        int toolCallCount,
         long requestBytes,
         long estimatedTokens,
         int maxTokens,
         TokenUsage? usage,
         CancellationToken cancellationToken = default);
+    /// <summary>Counts one tool call against the run when it is attempted, which is what the cap spends.</summary>
+    Task<bool> RecordToolCallAsync(string runId, CancellationToken cancellationToken = default);
     Task<int> RecoverInterruptedRunsAsync(CancellationToken cancellationToken = default);
 }
