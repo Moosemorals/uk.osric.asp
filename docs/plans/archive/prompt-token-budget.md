@@ -7,10 +7,10 @@ SPDX-License-Identifier: MIT
 
 | | |
 | --- | --- |
-| Status | Proposed 2026-11-17, held by the owner the same day and rewritten the same evening: an anchored estimate replaces the vendored tokenizer this plan first proposed (`product-steps-wait-for-the-owner`). Built on `prompt-token-budget` 2026-11-18 in its five phases; awaiting the owner's review and merge, which is when the five names below are taken. |
+| Status | Implemented 2026-11-18 and merged into trunk the same day; written 2026-11-17 and held by the owner that evening, when an anchored estimate replaced the vendored tokenizer the first draft proposed (`product-steps-wait-for-the-owner`). This is now the record of what was built, which is when the five names it proposed were taken. |
 | Size | Medium — one estimate in `Core`, the planner's arithmetic, the masker, six option changes, the words, and the docs that explain each |
 | Area | Core (assistant), Web (options, tools, run loop), docs |
-| Spike | [Counting DeepSeek tokens in C#](../spikes/deepseek-token-counting.md) — the exact counter is *not* adopted, but its measurements are the evidence for the ratios here and it remains the fallback |
+| Spike | [Counting DeepSeek tokens in C#](../../spikes/deepseek-token-counting.md) — the exact counter is *not* adopted, but its measurements are the evidence for the ratios here and it remains the fallback |
 | Decisions | Five names intended and two entries edited in place, below; taken at the merge (`product-plan-before-building`) |
 
 ## The short version
@@ -270,9 +270,9 @@ a limit that throws context away.
 | `MaxMemoriesPerRun` | 12 | the memory block is cut by rank | **Drop.** Relevance already ranks; the budget bounds |
 | `MaxMemoryCharsPerRun` | 4,000 | the memory block never exceeds 0.8% of the context | **One budget.** 4,000 characters beside a 917,504-token request is a rounding error |
 | `MaxMemoryChars` | 1,000 | a memory write is refused | Keep: one memory is an entry, not a document |
-| `MaxSearchMatches` | 100 | the hundred-and-first match is unreachable: no cursor, only a narrower query | **Raise** to the range's own maximum, as a stopgap: [IDEA-038](../jobs/IDEA-038.md) replaces the number with a key-then-line cursor and moves it onto the page contract as `Pages:Search:MaxMatches` |
-| `MaxListLimit`, `DefaultListLimit` | 500, 50 | the assistant's listings stop and say so | Keep: `list_pages` already has an `after` cursor, and [IDEA-039](../jobs/IDEA-039.md) gives the page contract the same one |
-| `ShellMatchLimit`, `ShellDefaultLines` | 100, 10 | `grep` stops and says "narrow the query"; `head` and `tail` default to ten | Keep for now. Narrowing is the only recourse today; the cursor arrives with [IDEA-038](../jobs/IDEA-038.md), which names this cap beside the search one |
+| `MaxSearchMatches` | 100 | the hundred-and-first match is unreachable: no cursor, only a narrower query | **Raise** to the range's own maximum, as a stopgap: [IDEA-038](../../jobs/IDEA-038.md) replaces the number with a key-then-line cursor and moves it onto the page contract as `Pages:Search:MaxMatches` |
+| `MaxListLimit`, `DefaultListLimit` | 500, 50 | the assistant's listings stop and say so | Keep: `list_pages` already has an `after` cursor, and [IDEA-039](../../jobs/IDEA-039.md) gives the page contract the same one |
+| `ShellMatchLimit`, `ShellDefaultLines` | 100, 10 | `grep` stops and says "narrow the query"; `head` and `tail` default to ten | Keep for now. Narrowing is the only recourse today; the cursor arrives with [IDEA-038](../../jobs/IDEA-038.md), which names this cap beside the search one |
 | `ObservationMasker` | 8 results, 2 calls, 1,024 chars | old payloads become placeholders | **No window**, above |
 | `TokenEstimator` | 10% margin on the whole request | the budget is a guess with a tax on it | Replaced above by the anchor and a 3% delta margin |
 | `MaxSteps`, `MaxToolCalls`, `MaxToolCallsPerStep` | 160, 128, 64 | the run pauses and asks whether to continue | Keep: they bound work, not context, and the owner can grant another window |
@@ -587,8 +587,8 @@ override of either removed key to clear.
   **assistant-tokens-anchor-on-the-last-report**, **assistant-one-budget-decides-what-fits**,
   **assistant-tool-results-are-cut-not-refused**, **assistant-the-budget-is-window-minus-reply** and
   **assistant-the-vocabulary-is-the-providers**; and two edited in place,
-  [`assistant-the-request-budget-is-tokens`](../decisions.md#assistant-the-request-budget-is-tokens)
-  and [`assistant-old-tool-results-are-masked`](../decisions.md#assistant-old-tool-results-are-masked).
+  [`assistant-the-request-budget-is-tokens`](../../decisions.md#assistant-the-request-budget-is-tokens)
+  and [`assistant-old-tool-results-are-masked`](../../decisions.md#assistant-old-tool-results-are-masked).
   That entry's *Recorded in* line names `ObservationMasker`, so it moves to `ToolResultMasker` in the
   same merge.
 - `/help` is unchanged: this adds no page-authoring capability.

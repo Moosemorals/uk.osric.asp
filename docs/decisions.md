@@ -1940,7 +1940,7 @@ move the anchor by their own size and nothing else. The prompt's share of the bu
 reported window less the configured reply floor, and `max_tokens` is what that estimate leaves
 ([assistant-the-budget-is-window-minus-reply](#assistant-the-budget-is-window-minus-reply)).
 
-*Recorded in [TokenEstimator](../src/uk.osric.asp.Core/Assistant/TokenEstimator.cs), [ContextBudget](../src/uk.osric.asp.Core/Assistant/ContextBudget.cs), [prompt-token-budget](plans/prompt-token-budget.md).*
+*Recorded in [TokenEstimator](../src/uk.osric.asp.Core/Assistant/TokenEstimator.cs), [ContextBudget](../src/uk.osric.asp.Core/Assistant/ContextBudget.cs), [prompt-token-budget](plans/archive/prompt-token-budget.md).*
 
 ### assistant-old-tool-results-are-masked
 
