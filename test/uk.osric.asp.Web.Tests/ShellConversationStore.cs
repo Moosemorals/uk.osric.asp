@@ -9,13 +9,15 @@ using uk.osric.asp.Web.Assistant;
 internal sealed class ShellConversationStore(
     IReadOnlyList<Message>? messages = null,
     Run? lastRun = null,
-    Run? activeRun = null) : IConversationStore {
-    private static Conversation Conversation => new() {
+    Run? activeRun = null,
+    OwnerInterrupt? pendingInterrupt = null,
+    ApprovalMode approvalMode = ApprovalMode.RequireApproval) : IConversationStore {
+    private Conversation Conversation => new() {
         Id = 1,
         Owner = "owner",
         Title = "Test conversation",
         HasGeneratedTitle = false,
-        ApprovalMode = ApprovalMode.RequireApproval.ToString(),
+        ApprovalMode = approvalMode.ToString(),
         CreatedAt = DateTimeOffset.UtcNow,
         UpdatedAt = DateTimeOffset.UtcNow,
     };
@@ -66,22 +68,29 @@ internal sealed class ShellConversationStore(
     public Task<bool> SetRunStatusAsync(string runId, string status, string? errorCode = null, string? errorMessage = null, CancellationToken cancellationToken = default) =>
         Task.FromResult(true);
 
-    public Task<bool> PauseRunAsync(string runId, string budget, CancellationToken cancellationToken = default) =>
+    public Task<bool> OpenInterruptAsync(string runId, string kind, string? toolCallId, string requestJson, CancellationToken cancellationToken = default) =>
         Task.FromResult(true);
 
-    public Task<bool> ContinueRunAsync(long conversationId, string owner, string runId, int stepWindow, int toolCallWindow, CancellationToken cancellationToken = default) =>
+    public Task<OwnerInterrupt?> GetInterruptAsync(string runId, CancellationToken cancellationToken = default) =>
+        Task.FromResult<OwnerInterrupt?>(null);
+
+    public Task<OwnerInterrupt?> GetPendingInterruptAsync(long conversationId, string owner, CancellationToken cancellationToken = default) =>
+        Task.FromResult(conversationId == 1 && owner == "owner" ? pendingInterrupt : null);
+
+    public Task<InterruptResolutionResult> ResolveInterruptAsync(
+        long conversationId,
+        string owner,
+        string runId,
+        string kind,
+        string? toolCallId,
+        string resolutionJson,
+        CancellationToken cancellationToken = default) =>
+        Task.FromResult(InterruptResolutionResult.Resolved);
+
+    public Task<bool> ContinueRunAsync(long conversationId, string owner, string runId, CancellationToken cancellationToken = default) =>
         Task.FromResult(true);
 
-    public Task<bool> CreateApprovalAsync(string runId, string toolCallId, CancellationToken cancellationToken = default) =>
-        Task.FromResult(true);
-
-    public Task<ApprovalResolutionResult> ResolveApprovalAsync(long conversationId, string owner, string runId, string toolCallId, string decision, CancellationToken cancellationToken = default) =>
-        Task.FromResult(ApprovalResolutionResult.Approved);
-
-    public Task<IReadOnlyList<ToolApproval>> GetPendingApprovalsAsync(long conversationId, string owner, CancellationToken cancellationToken = default) =>
-        Task.FromResult<IReadOnlyList<ToolApproval>>([]);
-
-    public Task<int> FailPendingApprovalsAsync(string runId, string failureCode, CancellationToken cancellationToken = default) =>
+    public Task<int> FailPendingInterruptAsync(string runId, string failureCode, CancellationToken cancellationToken = default) =>
         Task.FromResult(0);
 
     public Task<bool> RecordStepAsync(

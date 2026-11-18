@@ -72,6 +72,97 @@ public sealed class AssistantTranscriptTests {
         });
     }
 
+    [Test]
+    public async Task APendingApprovalIsRenderedFromTheRecordAsync() {
+        OwnerInterrupt pending = new() {
+            RunId = "run-1",
+            Kind = OwnerInterruptKind.Approval,
+            Status = OwnerInterruptStatus.Pending,
+            ToolCallId = "call-1",
+            RequestJson = InterruptPayloads.Write(new ApprovalRequest("write_page", "Writes a page.", """{"path":"/gone"}""")),
+            CreatedAt = DateTimeOffset.UtcNow,
+        };
+
+        string html = await RenderPendingAsync(pending);
+
+        Assert.Multiple(() => {
+            Assert.That(html, Does.Contain("section class=\"assistant-approvals\""));
+            Assert.That(html, Does.Contain("<h3>write_page</h3>"));
+            Assert.That(html, Does.Contain("Writes a page."));
+            Assert.That(html, Does.Contain("&quot;path&quot;:&quot;/gone&quot;"), "the arguments are escaped");
+            Assert.That(html, Does.Contain("action=\"/assistant/1/runs/run-1/interrupt\""));
+            Assert.That(html, Does.Contain("name=\"toolCallId\" value=\"call-1\""));
+        });
+    }
+
+    [Test]
+    public async Task APendingContinuationIsRenderedFromTheRecordAsync() {
+        OwnerInterrupt pending = new() {
+            RunId = "run-1",
+            Kind = OwnerInterruptKind.Continuation,
+            Status = OwnerInterruptStatus.Pending,
+            RequestJson = InterruptPayloads.Write(new ContinuationRequest(
+                RunBudget.Steps, 160, 160, RunBudget.Sentence(RunBudget.Steps, 160, 160))),
+            CreatedAt = DateTimeOffset.UtcNow,
+        };
+
+        string html = await RenderPendingAsync(pending);
+
+        Assert.Multiple(() => {
+            Assert.That(html, Does.Contain("section class=\"assistant-continuation\""));
+            Assert.That(html, Does.Contain("Do you want to continue?"));
+            Assert.That(html, Does.Contain("used all 160 of its steps"));
+            Assert.That(html, Does.Contain("action=\"/assistant/1/runs/run-1/interrupt\""));
+        });
+    }
+
+    // A card on the page is a fact about the run, so it is shown whatever the conversation's approval
+    // mode says now: the mode decides whether the next call is gated, not whether this one is.
+    [Test]
+    public async Task APendingCardIsRenderedWhateverTheApprovalModeIsAsync() {
+        OwnerInterrupt pending = new() {
+            RunId = "run-1",
+            Kind = OwnerInterruptKind.Approval,
+            Status = OwnerInterruptStatus.Pending,
+            ToolCallId = "call-1",
+            RequestJson = InterruptPayloads.Write(new ApprovalRequest("write_page", "Writes a page.", "{}")),
+            CreatedAt = DateTimeOffset.UtcNow,
+        };
+
+        string html = await RenderPendingAsync(pending, ApprovalMode.AlwaysApprove);
+
+        Assert.That(html, Does.Contain("section class=\"assistant-approvals\""));
+    }
+
+    private static async Task<string> RenderPendingAsync(OwnerInterrupt pending, ApprovalMode mode = ApprovalMode.RequireApproval) {
+        DefaultHttpContext context = TestHttp.CreateContext(null, "GET", "/assistant/1");
+        context.User = new ClaimsPrincipal(new ClaimsIdentity(
+            [new Claim(ClaimTypes.NameIdentifier, "owner")], "test"));
+
+        await AssistantConversationPage.ConversationAsync(
+            context,
+            1,
+            new ShellConversationStore(
+                [User("Write a page")],
+                activeRun: new Run {
+                    Id = "run-1",
+                    ConversationId = 1,
+                    Status = RunStatus.AwaitingOwner,
+                    Model = "test-model",
+                    ApprovalMode = mode.ToString(),
+                    PromptVersion = PageAuthorPrompt.Version,
+                },
+                pendingInterrupt: pending,
+                approvalMode: mode),
+            new TestAntiforgery(),
+            new RunRegistry(TestOptions.Assistant, TimeProvider.System),
+            TestOptions.Assistant,
+            ModelWindowSource.Fixed(TestOptions.Budget),
+            new StubAccountBalanceClient());
+
+        return await TestHttp.ReadBodyAsync(context);
+    }
+
     private static Message Assistant(string content, string runId = "run-1") => new() {
         Id = 2,
         ConversationId = 1,

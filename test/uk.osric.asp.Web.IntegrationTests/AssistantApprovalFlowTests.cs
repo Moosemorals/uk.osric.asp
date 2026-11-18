@@ -41,7 +41,7 @@ public sealed class AssistantApprovalFlowTests : IntegrationTest {
         Assert.That(eventResponse.StatusCode, Is.EqualTo(HttpStatusCode.OK));
         using Stream eventStream = await eventResponse.Content.ReadAsStreamAsync();
         using StreamReader reader = new(eventStream, Encoding.UTF8);
-        string approvalEvent = await ReadUntilEventAsync(reader, "approval.required");
+        string approvalEvent = await ReadUntilEventAsync(reader, "interrupt.required");
         Assert.That(approvalEvent, Does.Contain("/gated-page"));
         Assert.That(await ReadPageAsync("/gated-page"), Is.Null, "the write must wait for the owner");
 
@@ -51,9 +51,18 @@ public sealed class AssistantApprovalFlowTests : IntegrationTest {
         Assert.That(pendingBody, Does.Contain("write_page"));
         Assert.That(pendingBody, Does.Contain("&lt;h1&gt;Gated&lt;/h1&gt;"));
 
-        string approvalPath = $"{gatedConversation}/runs/{runId}/tool-calls/gated-call/approval";
+        // The route names no kind, so a form from another kind of wait must be refused on its body
+        // rather than accepted because it reached the right address.
+        string staleToken = await GetAntiforgeryTokenAsync(client, gatedConversation);
+        using HttpResponseMessage wrongKind = await client.PostAsync(
+            $"{gatedConversation}/runs/{runId}/interrupt", Form(("__RequestVerificationToken", staleToken)));
+        Assert.That(wrongKind.StatusCode, Is.EqualTo(HttpStatusCode.Conflict));
+        Assert.That(await ReadPageAsync("/gated-page"), Is.Null, "a refused form must not run the call");
+
+        string approvalPath = $"{gatedConversation}/runs/{runId}/interrupt";
         using HttpResponseMessage approved = await client.PostAsync(approvalPath, Form(
             ("__RequestVerificationToken", pendingToken),
+            ("toolCallId", "gated-call"),
             ("decision", "approve")));
         Assert.That(approved.StatusCode, Is.EqualTo(HttpStatusCode.NoContent));
         string completedEvents = await ReadUntilEventAsync(reader, "run.completed");
@@ -82,7 +91,7 @@ public sealed class AssistantApprovalFlowTests : IntegrationTest {
         string automaticBody = await automaticEvents.Content.ReadAsStringAsync();
 
         Assert.That(automaticStarted.StatusCode, Is.EqualTo(HttpStatusCode.Accepted));
-        Assert.That(automaticBody, Does.Not.Contain("event: approval.required"));
+        Assert.That(automaticBody, Does.Not.Contain("event: interrupt.required"));
         Assert.That(automaticBody, Does.Contain("event: run.completed"));
         Assert.That((await ReadPageAsync("/automatic-page"))?.Template, Is.EqualTo("<h1>Automatic</h1>"));
     }

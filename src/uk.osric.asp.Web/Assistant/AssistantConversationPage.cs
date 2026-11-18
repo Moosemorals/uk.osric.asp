@@ -64,10 +64,11 @@ internal static class AssistantConversationPage {
         long replayFrom = replaying ? 0 : activeStream?.LastSequence ?? 0;
         IEnumerable<Message> visibleMessages = messages.Where(message =>
             !replaying || message.RunId != activeRun!.Id || message.Role == "user");
-        IReadOnlyList<ToolApproval> pending = conversation.ApprovalMode == ApprovalMode.RequireApproval.ToString()
-            && activeRun is not null
-                ? await conversations.GetPendingApprovalsAsync(id, owner!, context.RequestAborted)
-                : [];
+        // A pending interrupt is a fact about the run, not a setting: a conversation whose mode changed
+        // after the card appeared still has a run blocked on it.
+        OwnerInterrupt? pending = activeRun is null
+            ? null
+            : await conversations.GetPendingInterruptAsync(id, owner!, context.RequestAborted);
         AntiforgeryTokenSet tokens = antiforgery.GetAndStoreTokens(context);
         AccountBalance? balance = (await balanceTask).Balance;
         SecurityHeaders.AllowScripts(context);
@@ -103,8 +104,7 @@ internal static class AssistantConversationPage {
         // run still going has not changed anything yet as far as a reader is concerned, and the card
         // that says what a finished turn changed leads that turn's block.
         await WriteStoppedRunAsync(context, lastRun);
-        await WriteContinuationAsync(context, activeRun, tokens, id, options);
-        await WritePendingApprovalsAsync(context, calls, pending, tokens, id);
+        await WriteInterruptAsync(context, pending, tokens, id);
         foreach (IGrouping<string, Message> turn in visibleMessages.Reverse().GroupBy(message => message.RunId)) {
             if (!string.Equals(turn.Key, activeRun?.Id, StringComparison.Ordinal)) {
                 await WriteChangedPagesAsync(context, turn);
@@ -247,63 +247,78 @@ internal static class AssistantConversationPage {
         await context.Response.WriteAsync("</ul></section>");
     }
 
-    private static async Task WritePendingApprovalsAsync(
+    /// <summary>Writes the card a run is stopped on, by the kind the record names.</summary>
+    /// <remarks>
+    /// Rendered from the record rather than from the event stream, so a reload or another device shows
+    /// the same card, and the words are the ones the live event carried. The record says what kind the
+    /// run waits on, which is why the route needs no kind of its own.
+    /// </remarks>
+    private static async Task WriteInterruptAsync(
         HttpContext context,
-        IReadOnlyDictionary<string, (string Name, string Arguments)> calls,
-        IReadOnlyList<ToolApproval> pending,
+        OwnerInterrupt? interrupt,
         AntiforgeryTokenSet tokens,
         long conversationId) {
-        if (pending.Count == 0) {
+        if (interrupt is null) {
             return;
         }
-        await context.Response.WriteAsync("<section class=\"assistant-approvals\" aria-label=\"Pending tool approvals\"><h2>Approval required</h2>");
-        foreach (ToolApproval approval in pending) {
-            if (!calls.TryGetValue(approval.ToolCallId, out (string Name, string Arguments) call)) {
-                continue;
-            }
-            ToolDefinition? definition = PageToolExecutor.Definitions.SingleOrDefault(tool => tool.Name == call.Name);
-            string description = definition?.Description ?? "Review this tool call.";
-            string action = $"/assistant/{conversationId}/runs/{Encode(approval.RunId)}/tool-calls/{Encode(approval.ToolCallId)}/approval";
-            await context.Response.WriteAsync($"<article><h3>{Encode(MessageText.Sanitize(call.Name))}</h3><p>{Encode(description)}</p><pre>{Encode(call.Arguments)}</pre>");
-            foreach ((string decision, string label) in new[] { ("approve", "Approve"), ("deny", "Deny") }) {
-                await context.Response.WriteAsync($"<form method=\"post\" action=\"{action}\">{AntiforgeryField.Hidden(tokens)}<input type=\"hidden\" name=\"decision\" value=\"{decision}\"><button type=\"submit\">{label}</button></form>");
-            }
-            await context.Response.WriteAsync("</article>");
+
+        switch (interrupt.Kind) {
+            case OwnerInterruptKind.Approval when InterruptPayloads.Approval(interrupt.RequestJson) is { } approval:
+                await WriteApprovalAsync(context, interrupt, approval, tokens, conversationId);
+                break;
+            case OwnerInterruptKind.Continuation when InterruptPayloads.Continuation(interrupt.RequestJson) is { } continuation:
+                await WriteContinuationAsync(context, interrupt, continuation, tokens, conversationId);
+                break;
+            default:
+                // A request this build cannot read still leaves a run blocked, so the owner is told
+                // that and offered the one thing that ends it.
+                await context.Response.WriteAsync($"""
+                    <section class="assistant-interrupt" aria-label="Run waiting" data-interrupt-kind="{Encode(interrupt.Kind)}">
+                        <h2>The run is waiting for you</h2>
+                        <p>This card could not be read. Stopping the run ends it; the transcript is kept.</p>
+                    </section>
+                    """);
+                break;
         }
-        await context.Response.WriteAsync("</section>");
+    }
+
+    private static async Task WriteApprovalAsync(
+        HttpContext context,
+        OwnerInterrupt interrupt,
+        ApprovalRequest approval,
+        AntiforgeryTokenSet tokens,
+        long conversationId) {
+        string action = $"/assistant/{conversationId}/runs/{Encode(interrupt.RunId)}/interrupt";
+        await context.Response.WriteAsync(
+            $"<section class=\"assistant-approvals\" aria-label=\"Pending tool approvals\" data-interrupt-kind=\"{Encode(interrupt.Kind)}\"><h2>Approval required</h2>");
+        await context.Response.WriteAsync(
+            $"<article data-tool-call-id=\"{Encode(interrupt.ToolCallId ?? string.Empty)}\"><h3>{Encode(MessageText.Sanitize(approval.Name))}</h3><p>{Encode(approval.Description)}</p><pre>{Encode(approval.Arguments)}</pre>");
+        foreach ((string decision, string label) in new[] { ("approve", "Approve"), ("deny", "Deny") }) {
+            await context.Response.WriteAsync($"""
+                <form method="post" action="{action}">
+                    {AntiforgeryField.Hidden(tokens)}
+                    <input type="hidden" name="toolCallId" value="{Encode(interrupt.ToolCallId ?? string.Empty)}">
+                    <input type="hidden" name="decision" value="{decision}">
+                    <button type="submit">{label}</button>
+                </form>
+                """);
+        }
+        await context.Response.WriteAsync("</article></section>");
     }
 
     /// <summary>Writes the question a run that ran out of a budget asked the owner.</summary>
-    /// <param name="context">The response being written.</param>
-    /// <param name="run">The conversation's active run, which is the only run that can be paused.</param>
-    /// <param name="tokens">The antiforgery pair the Continue form carries.</param>
-    /// <param name="conversationId">The conversation the form posts to.</param>
-    /// <param name="options">The configured windows, so the sentence names what continuing buys.</param>
-    /// <remarks>
-    /// Rendered from the run's stored status rather than from the event stream, so a reload or another
-    /// device shows the same question, and the sentence is the one the live event carried.
-    /// </remarks>
     private static async Task WriteContinuationAsync(
         HttpContext context,
-        Run? run,
+        OwnerInterrupt interrupt,
+        ContinuationRequest continuation,
         AntiforgeryTokenSet tokens,
-        long conversationId,
-        AssistantOptions options) {
-        if (run?.Status != RunBudget.Awaiting || run.PausedBudget is not { } budget) {
-            return;
-        }
-
-        (int limit, int window) = budget switch {
-            RunBudget.Steps => (run.StepLimit ?? options.MaxSteps, options.MaxSteps),
-            RunBudget.ToolCalls => (run.ToolCallLimit ?? options.MaxToolCalls, options.MaxToolCalls),
-            _ => (options.MaxToolCallsPerStep, options.MaxToolCallsPerStep),
-        };
-        string action = $"/assistant/{conversationId}/runs/{Encode(run.Id)}/continue";
+        long conversationId) {
+        string action = $"/assistant/{conversationId}/runs/{Encode(interrupt.RunId)}/interrupt";
 
         await context.Response.WriteAsync($"""
-            <section class="assistant-continuation" aria-label="Run paused" data-budget="{Encode(budget)}">
+            <section class="assistant-continuation" aria-label="Run paused" data-budget="{Encode(continuation.Budget)}" data-interrupt-kind="{Encode(interrupt.Kind)}">
                 <h2>Do you want to continue?</h2>
-                <p>{Encode(RunBudget.Sentence(budget, limit, window))}</p>
+                <p>{Encode(continuation.Message)}</p>
                 <form method="post" action="{action}">
                     {AntiforgeryField.Hidden(tokens)}
                     <button type="submit">Continue</button>

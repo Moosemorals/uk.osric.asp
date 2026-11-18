@@ -289,6 +289,17 @@ Prometheus sees; a series is one metric at one set of label values. A histogram 
 **Owner:** observability — OpenTelemetry's Prometheus exporter; names and labels are fixed in
 `PageMetrics` and `AssistantMetrics`, and a tag such as `page.path` becomes the label `page_path`.
 
+## Owner interrupt
+One time a run stopped and asked its owner for something: a stored request, the resolution they gave,
+and the run waiting in `awaiting_owner` until they did.
+
+**Not** an approval. An approval is one kind of interrupt; a spent budget's continuation is the
+other, and a kind is a request and a card rather than a new status, table or route.
+
+**Owner:** assistant — `OwnerInterrupt`, the `AssistantInterrupts` table,
+`OwnerInterruptCoordinator`, `RunStatus.AwaitingOwner` and
+`POST /assistant/{id}/runs/{runId}/interrupt`.
+
 ## Page
 The HTTP resource served at a key: the current revision's image run against a request.
 
@@ -541,13 +552,14 @@ the head and revisions.
 it.
 
 ## Tool approval
-The durable owner decision that a flagged tool call waits for before it executes.
+The owner interrupt a flagged tool call waits for before it executes: the request names the call, and
+the resolution allows or refuses it.
 
 **Not** a tool call. The approval records whether one call may run; the call is the assistant's
 request to run it.
 
-**Owner:** assistant — `ToolApproval`, the `AssistantToolApprovals` table,
-`ToolApprovalCoordinator` and the per-conversation `ApprovalMode`.
+**Owner:** assistant — the `approval` kind of `OwnerInterrupt` and the per-conversation
+`ApprovalMode`.
 
 ## Tool call
 A call the assistant emits in a message and the run executes once, stored back as a `tool` message.

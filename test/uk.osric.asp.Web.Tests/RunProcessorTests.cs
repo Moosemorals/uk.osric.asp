@@ -31,9 +31,7 @@ public sealed class RunProcessorTests {
     // The window the run is given. A test that is about the request budget passes a smaller one.
     private readonly ModelWindowSource _windows = ModelWindowSource.Fixed(TestOptions.Budget);
 
-    private readonly ToolApprovalCoordinator _approvals = new();
-
-    private readonly RunContinuationCoordinator _continuation = new();
+    private readonly OwnerInterruptCoordinator _interrupts = new();
 
     private readonly RecordingLoggerFactory _logs = new();
 
@@ -389,10 +387,15 @@ public sealed class RunProcessorTests {
             await StartRunAsync(client, RunTimeout(seconds: 1, toolSeconds: 5), ApprovalMode.RequireApproval);
 
         Task run = processor.RunAsync(new QueuedRun(conversation.Id, started.RunId!, "owner"), CancellationToken.None);
-        await WaitForPendingApprovalAsync(conversation);
+        OwnerInterrupt pending = await WaitForPendingInterruptAsync(conversation);
         await Task.Delay(TimeSpan.FromSeconds(1.5));
 
-        Assert.That(_approvals.Signal(started.RunId!, "call-1", ApprovalResolutionResult.Approved), Is.True);
+        Assert.Multiple(() => {
+            Assert.That(pending.Kind, Is.EqualTo(OwnerInterruptKind.Approval));
+            Assert.That(pending.ToolCallId, Is.EqualTo("call-1"));
+            Assert.That(InterruptPayloads.Approval(pending.RequestJson)?.Name, Is.EqualTo("delete_page"));
+        });
+        await AnswerAsync(conversation, pending, "approve");
         await run;
 
         await using AsyncServiceScope scope = _services!.CreateAsyncScope();
@@ -401,6 +404,34 @@ public sealed class RunProcessorTests {
         Assert.Multiple(() => {
             Assert.That(finished?.Status, Is.EqualTo("completed"), $"{finished?.ErrorCode}: {finished?.ErrorMessage}");
             Assert.That(finished?.ErrorCode, Is.Null);
+        });
+    }
+
+    [Test]
+    public async Task ADeniedApprovalIsAToolResultAndTheRunCarriesOnAsync() {
+        SteppedClient client = new([
+            new ToolCallDelta(0, "call-1", "delete_page", """{"path":"/gone"}"""),
+            new Finished("tool_calls"),
+        ], [
+            new ContentDelta("I left it alone."),
+            new Finished("stop"),
+        ]);
+        (Conversation conversation, RunStartResult started, _, RunProcessor processor) =
+            await StartRunAsync(client, RunTimeout(seconds: 20, toolSeconds: 5), ApprovalMode.RequireApproval);
+
+        Task run = processor.RunAsync(new QueuedRun(conversation.Id, started.RunId!, "owner"), CancellationToken.None);
+        OwnerInterrupt pending = await WaitForPendingInterruptAsync(conversation);
+        await AnswerAsync(conversation, pending, "deny");
+        await run;
+
+        IReadOnlyList<Message> messages = await MessagesAsync(conversation);
+        Run finished = await RunAsync(conversation);
+        Message refusal = messages.Single(message => message.Role == "tool");
+        Assert.Multiple(() => {
+            Assert.That(finished.Status, Is.EqualTo(RunStatus.Completed), "a denied call is an answer, not a failure");
+            Assert.That(refusal.ToolCallId, Is.EqualTo("call-1"));
+            Assert.That(refusal.Content, Does.Contain("The owner denied this tool call."));
+            Assert.That(messages[^1].Content, Is.EqualTo("I left it alone."));
         });
     }
 
@@ -424,11 +455,11 @@ public sealed class RunProcessorTests {
         await using AsyncServiceScope scope = _services!.CreateAsyncScope();
         IConversationStore store = scope.ServiceProvider.GetRequiredService<IConversationStore>();
         Run? finished = await store.GetLastRunAsync(conversation.Id, "owner");
-        IReadOnlyList<ToolApproval> pending = await store.GetPendingApprovalsAsync(conversation.Id, "owner");
+        OwnerInterrupt? pending = await store.GetPendingInterruptAsync(conversation.Id, "owner");
 
         Assert.Multiple(() => {
             Assert.That(finished?.Status, Is.EqualTo("completed"), $"{finished?.ErrorCode}: {finished?.ErrorMessage}");
-            Assert.That(pending, Is.Empty, "an approval the policy has refused is one the owner could only deny");
+            Assert.That(pending, Is.Null, "an approval the policy has refused is one the owner could only deny");
         });
     }
 
@@ -726,16 +757,26 @@ public sealed class RunProcessorTests {
             MaxToolCallsPerStep = callsPerStep,
         };
 
-    private async Task WaitForPendingApprovalAsync(Conversation conversation) {
+    private async Task<OwnerInterrupt> WaitForPendingInterruptAsync(Conversation conversation) {
         await using AsyncServiceScope scope = _services!.CreateAsyncScope();
         IConversationStore store = scope.ServiceProvider.GetRequiredService<IConversationStore>();
         for (int attempt = 0; attempt < 100; attempt++) {
-            if ((await store.GetPendingApprovalsAsync(conversation.Id, "owner")).Count > 0) {
-                return;
+            if (await store.GetPendingInterruptAsync(conversation.Id, "owner") is { } pending) {
+                return pending;
             }
             await Task.Delay(50);
         }
-        Assert.Fail("The run never asked for approval.");
+        Assert.Fail("The run never asked its owner.");
+        return null!;
+    }
+
+    private async Task AnswerAsync(Conversation conversation, OwnerInterrupt pending, string decision) {
+        await using AsyncServiceScope scope = _services!.CreateAsyncScope();
+        IConversationStore store = scope.ServiceProvider.GetRequiredService<IConversationStore>();
+        Assert.That(await store.ResolveInterruptAsync(
+            conversation.Id, "owner", pending.RunId, pending.Kind, pending.ToolCallId,
+            InterruptPayloads.Write(new OwnerResolution(decision))), Is.EqualTo(InterruptResolutionResult.Resolved));
+        Assert.That(_interrupts.Signal(pending.RunId), Is.True, "the processor was not waiting for the owner");
     }
 
     private Task<(Conversation Conversation, RunStartResult Started, RunStream Stream, RunProcessor Processor)> StartRunAsync(
@@ -781,8 +822,7 @@ public sealed class RunProcessorTests {
             client,
             tools,
             registry,
-            _approvals,
-            _continuation,
+            _interrupts,
             new AssistantMetrics(),
             options,
             new ModelWindowSampler(
@@ -817,14 +857,13 @@ public sealed class RunProcessorTests {
         Run paused = await RunAsync(conversation);
         IReadOnlyList<Message> before = await MessagesAsync(conversation);
         Assert.Multiple(() => {
-            Assert.That(paused.Status, Is.EqualTo(RunBudget.Awaiting));
-            Assert.That(paused.PausedBudget, Is.EqualTo(RunBudget.Steps));
+            Assert.That(paused.Status, Is.EqualTo(RunStatus.AwaitingOwner));
             Assert.That(paused.ErrorCode, Is.Null, "running out of steps is not a failure");
             Assert.That(before.Select(message => message.Role), Is.EqualTo(["user", "assistant", "tool"]),
                 "the pause writes nothing to the transcript");
         });
 
-        await ContinueAsync(conversation, started.RunId!, options);
+        await ContinueAsync(conversation, started.RunId!);
         Assert.That(await Task.WhenAny(run, Task.Delay(TimeSpan.FromSeconds(10))), Is.SameAs(run),
             "continuing resumes the run");
         await run;
@@ -838,8 +877,8 @@ public sealed class RunProcessorTests {
             Assert.That(finished.ToolCallLimit, Is.Null, "the tool-call budget was not the one that ran out");
             Assert.That(after.Select(message => message.Role), Is.EqualTo(["user", "assistant", "tool", "assistant"]));
             Assert.That(after[^1].Content, Is.EqualTo("Done."), "the model answered the step it was about to make");
-            Assert.That(events.Select(item => item.Type), Does.Contain("run.paused"));
-            Assert.That(events.Select(item => item.Type), Does.Contain("run.resumed"));
+            Assert.That(events.Select(item => item.Type), Does.Contain("interrupt.required"));
+            Assert.That(events.Select(item => item.Type), Does.Contain("interrupt.resolved"));
             Assert.That(events.Select(item => item.Type), Does.Not.Contain("run.failed"));
         });
     }
@@ -906,7 +945,7 @@ public sealed class RunProcessorTests {
         Task run = processor.RunAsync(new QueuedRun(conversation.Id, started.RunId!, "owner"), CancellationToken.None);
         await WaitForPauseAsync(started.RunId!);
 
-        string? pausedOn = await PausedBudgetAsync(started.RunId!);
+        string? pausedOn = await PausedOnAsync(started.RunId!);
         IReadOnlyList<Message> before = await MessagesAsync(conversation);
         Assert.Multiple(() => {
             Assert.That(pausedOn, Is.EqualTo(RunBudget.ToolCalls));
@@ -914,7 +953,7 @@ public sealed class RunProcessorTests {
                 "the call the budget forbids has not run");
         });
 
-        await ContinueAsync(conversation, started.RunId!, options);
+        await ContinueAsync(conversation, started.RunId!);
         await run;
 
         Run finished = await RunAsync(conversation);
@@ -946,9 +985,9 @@ public sealed class RunProcessorTests {
         Task run = processor.RunAsync(new QueuedRun(conversation.Id, started.RunId!, "owner"), CancellationToken.None);
         await WaitForPauseAsync(started.RunId!);
 
-        Assert.That(await PausedBudgetAsync(started.RunId!), Is.EqualTo(RunBudget.ToolCallsPerStep));
+        Assert.That(await PausedOnAsync(started.RunId!), Is.EqualTo(RunBudget.ToolCallsPerStep));
 
-        await ContinueAsync(conversation, started.RunId!, options);
+        await ContinueAsync(conversation, started.RunId!);
         await run;
 
         Run finished = await RunAsync(conversation);
@@ -990,7 +1029,7 @@ public sealed class RunProcessorTests {
         StorageDbContext database = scope.ServiceProvider.GetRequiredService<StorageDbContext>();
         for (int attempt = 0; attempt < 200; attempt++) {
             Run? run = await database.Set<Run>().AsNoTracking().SingleOrDefaultAsync(item => item.Id == runId);
-            if (run?.Status == RunBudget.Awaiting) {
+            if (run?.Status == RunStatus.AwaitingOwner) {
                 return;
             }
             await Task.Delay(20);
@@ -998,18 +1037,19 @@ public sealed class RunProcessorTests {
         Assert.Fail("The run never paused for the owner.");
     }
 
-    private async Task<string?> PausedBudgetAsync(string runId) {
-        await using AsyncServiceScope scope = _services!.CreateAsyncScope();
-        StorageDbContext database = scope.ServiceProvider.GetRequiredService<StorageDbContext>();
-        return (await database.Set<Run>().AsNoTracking().SingleAsync(item => item.Id == runId)).PausedBudget;
-    }
-
-    private async Task ContinueAsync(Conversation conversation, string runId, AssistantOptions options) {
+    private async Task<string?> PausedOnAsync(string runId) {
         await using AsyncServiceScope scope = _services!.CreateAsyncScope();
         IConversationStore store = scope.ServiceProvider.GetRequiredService<IConversationStore>();
-        Assert.That(await store.ContinueRunAsync(conversation.Id, "owner", runId, options.MaxSteps, options.MaxToolCalls),
+        OwnerInterrupt? pending = await store.GetInterruptAsync(runId);
+        return pending is null ? null : InterruptPayloads.Continuation(pending.RequestJson)?.Budget;
+    }
+
+    private async Task ContinueAsync(Conversation conversation, string runId) {
+        await using AsyncServiceScope scope = _services!.CreateAsyncScope();
+        IConversationStore store = scope.ServiceProvider.GetRequiredService<IConversationStore>();
+        Assert.That(await store.ContinueRunAsync(conversation.Id, "owner", runId),
             Is.True, "the run was not waiting to continue");
-        Assert.That(_continuation.Signal(runId), Is.True, "the processor was not waiting for the decision");
+        Assert.That(_interrupts.Signal(runId), Is.True, "the processor was not waiting for the owner");
     }
 
     private async Task<IReadOnlyList<Message>> MessagesAsync(Conversation conversation) {

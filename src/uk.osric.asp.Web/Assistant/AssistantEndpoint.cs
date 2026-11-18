@@ -200,7 +200,7 @@ internal static class AssistantEndpoint {
         }
 
         _ = registry.Stop(active.Id);
-        await conversations.FailPendingApprovalsAsync(active.Id, "stop", CancellationToken.None);
+        await conversations.FailPendingInterruptAsync(active.Id, "stop", CancellationToken.None);
         context.Response.StatusCode = StatusCodes.Status204NoContent;
     }
 
@@ -322,93 +322,121 @@ internal static class AssistantEndpoint {
         context.Response.StatusCode = StatusCodes.Status204NoContent;
     }
 
-    public static async Task ApprovalAsync(
+    /// <summary>Resolves the run's pending interrupt from whichever form the owner submitted.</summary>
+    /// <remarks>
+    /// The route does not name the kind: the run waits on one thing at a time and the record says what
+    /// it is, so the body is parsed against the record rather than against a second copy in the URL.
+    /// A field the kind does not expect, a field it needs and did not get, or a tool call id that is
+    /// not the record's is a stale form, and it is refused before anything is written.
+    /// </remarks>
+    public static async Task InterruptAsync(
         HttpContext context,
         long id,
         string runId,
-        string toolCallId,
         IConversationStore conversations,
-        ToolApprovalCoordinator coordinator) {
+        OwnerInterruptCoordinator coordinator) {
         ArgumentNullException.ThrowIfNull(context);
 
         SecurityHeaders.NoStore(context);
         if (!IsPostValid(context)) {
             await WriteJsonErrorAsync(context, StatusCodes.Status400BadRequest,
-                "assistant.form_expired", "The decision could not be recorded",
+                "assistant.form_expired", "The answer could not be recorded",
                 "The form could not be verified. Reload the conversation and try again.");
             return;
         }
         string? owner = SignedInOwner.Of(context);
-        if (owner is null || !context.Request.HasFormContentType
-            || !context.Request.Form.TryGetValue("decision", out Microsoft.Extensions.Primitives.StringValues decision)
-            || decision.Count != 1 || decision[0] is not ("approve" or "deny")) {
-            if (owner is null) {
-                await WriteJsonErrorAsync(context, StatusCodes.Status404NotFound,
-                    "assistant.conversation_not_found", "That conversation does not exist",
-                    "It may have been deleted, or it belongs to another account.");
-            } else {
-                await WriteJsonErrorAsync(context, StatusCodes.Status400BadRequest,
-                    "assistant.decision_invalid", "The decision could not be recorded",
-                    "Choose approve or deny, then try again.");
-            }
-            return;
-        }
-
-        ApprovalResolutionResult result = await conversations.ResolveApprovalAsync(
-            id, owner, runId, toolCallId, decision[0]!, context.RequestAborted);
-        if (result is ApprovalResolutionResult.Approved or ApprovalResolutionResult.Denied) {
-            _ = coordinator.Signal(runId, toolCallId, result);
-            context.Response.StatusCode = StatusCodes.Status204NoContent;
-        } else if (result == ApprovalResolutionResult.NotFound) {
-            await WriteJsonErrorAsync(context, StatusCodes.Status404NotFound,
-                "assistant.approval_not_found", "That approval is no longer waiting",
-                "The run moved on before the decision arrived. Reload the conversation to see its state.");
-        } else {
-            await WriteJsonErrorAsync(context, StatusCodes.Status409Conflict,
-                "assistant.approval_conflict", "That approval could not be recorded",
-                "The run is no longer waiting for it. Reload the conversation to see its state.");
-        }
-    }
-
-    public static async Task ContinueAsync(
-        HttpContext context,
-        long id,
-        string runId,
-        IConversationStore conversations,
-        RunContinuationCoordinator continuation,
-        AssistantOptions options) {
-        ArgumentNullException.ThrowIfNull(context);
-
-        SecurityHeaders.NoStore(context);
-        if (!IsPostValid(context)) {
-            await WriteJsonErrorAsync(context, StatusCodes.Status400BadRequest,
-                "assistant.form_expired", "The run could not be continued",
-                "The form could not be verified. Reload the conversation and try again.");
-            return;
-        }
-        string? owner = SignedInOwner.Of(context);
-        Conversation? conversation = owner is null ? null : await conversations.GetAsync(id, owner, context.RequestAborted);
-        if (conversation is null) {
+        if (owner is null) {
             await WriteJsonErrorAsync(context, StatusCodes.Status404NotFound,
                 "assistant.conversation_not_found", "That conversation does not exist",
                 "It may have been deleted, or it belongs to another account.");
             return;
         }
-
-        // The store is the arbiter: only a run that is still paused can be continued, and it widens
-        // the budget that ran out by one window of that budget alone.
-        bool continued = await conversations.ContinueRunAsync(
-            id, owner!, runId, options.MaxSteps, options.MaxToolCalls, context.RequestAborted);
-        if (!continued) {
-            await WriteJsonErrorAsync(context, StatusCodes.Status409Conflict,
-                "assistant.run_not_paused", "The run is not waiting to continue",
-                "It may have finished, been stopped, or already been continued. Reload the conversation to see its state.");
+        if (!context.Request.HasFormContentType) {
+            await WriteInterruptConflictAsync(context);
             return;
         }
 
-        _ = continuation.Signal(runId);
-        context.Response.StatusCode = StatusCodes.Status204NoContent;
+        // A run that is not this owner's is not there at all; a run of this owner's that is not waiting
+        // on a card is a form that arrived too late, which is a conflict rather than a stranger.
+        if (await conversations.GetRunAsync(id, owner, runId, context.RequestAborted) is null) {
+            await WriteJsonErrorAsync(context, StatusCodes.Status404NotFound,
+                "assistant.interrupt_not_found", "That run is not there",
+                "It may have been deleted, or it belongs to another account.");
+            return;
+        }
+        OwnerInterrupt? pending = await conversations.GetPendingInterruptAsync(id, owner, context.RequestAborted);
+        if (pending is null || !string.Equals(pending.RunId, runId, StringComparison.Ordinal)) {
+            await WriteInterruptConflictAsync(context);
+            return;
+        }
+
+        InterruptResolutionResult result;
+        switch (pending.Kind) {
+            case OwnerInterruptKind.Approval: {
+                    // The shape is judged before the answer is: a form with the wrong fields is one built
+                    // for another wait, and telling its owner to "choose approve or deny" would be wrong.
+                    if (!HasOnlyFields(context, "decision", "toolCallId")
+                        || !string.Equals(OneField(context, "toolCallId"), pending.ToolCallId, StringComparison.Ordinal)) {
+                        await WriteInterruptConflictAsync(context);
+                        return;
+                    }
+                    string? decision = OneField(context, "decision");
+                    if (decision is not ("approve" or "deny")) {
+                        await WriteJsonErrorAsync(context, StatusCodes.Status400BadRequest,
+                            "assistant.decision_invalid", "The decision could not be recorded",
+                            "Choose approve or deny, then try again.");
+                        return;
+                    }
+                    result = await conversations.ResolveInterruptAsync(
+                        id, owner, runId, pending.Kind, pending.ToolCallId,
+                        InterruptPayloads.Write(new OwnerResolution(decision)), context.RequestAborted);
+                    break;
+                }
+            case OwnerInterruptKind.Continuation:
+                if (!HasOnlyFields(context)) {
+                    await WriteInterruptConflictAsync(context);
+                    return;
+                }
+                result = await conversations.ContinueRunAsync(id, owner, runId, context.RequestAborted)
+                    ? InterruptResolutionResult.Resolved
+                    : InterruptResolutionResult.Conflict;
+                break;
+            default:
+                // A kind this build does not answer: a record written by a newer deploy, or a form
+                // for a wait that has already gone.
+                await WriteInterruptConflictAsync(context);
+                return;
+        }
+
+        if (result == InterruptResolutionResult.Resolved) {
+            _ = coordinator.Signal(runId);
+            context.Response.StatusCode = StatusCodes.Status204NoContent;
+        } else if (result == InterruptResolutionResult.NotFound) {
+            await WriteJsonErrorAsync(context, StatusCodes.Status404NotFound,
+                "assistant.interrupt_not_found", "The run is no longer waiting for you",
+                "It moved on before this arrived. Reload the conversation to see its state.");
+        } else {
+            await WriteInterruptConflictAsync(context);
+        }
     }
+
+    private static Task WriteInterruptConflictAsync(HttpContext context) =>
+        WriteJsonErrorAsync(context, StatusCodes.Status409Conflict,
+            "assistant.interrupt_conflict", "That answer could not be recorded",
+            "The run is no longer waiting for it. Reload the conversation to see its state.");
+
+    // A repeated field is as stale as a missing one: the form was built for a different card.
+    private static string? OneField(HttpContext context, string name) =>
+        context.Request.Form.TryGetValue(name, out Microsoft.Extensions.Primitives.StringValues values)
+            && values.Count == 1
+            ? values[0]
+            : null;
+
+    // The framework's own fields start with `__`, so the antiforgery token is the only name this does
+    // not have to know; everything else must be a field the kind asked for.
+    private static bool HasOnlyFields(HttpContext context, params string[] allowed) =>
+        context.Request.Form.Keys.All(key => key.StartsWith("__", StringComparison.Ordinal)
+            || allowed.Contains(key, StringComparer.Ordinal));
 
     public static async Task DeleteConfirmationAsync(
         HttpContext context,
@@ -453,7 +481,7 @@ internal static class AssistantEndpoint {
         Run? active = await conversations.GetActiveRunAsync(id, owner, context.RequestAborted);
         if (active is not null) {
             _ = registry.Stop(active.Id);
-            await conversations.FailPendingApprovalsAsync(active.Id, "conversation_deleted", CancellationToken.None);
+            await conversations.FailPendingInterruptAsync(active.Id, "conversation_deleted", CancellationToken.None);
         }
         if (!await conversations.DeleteAsync(id, owner, context.RequestAborted)) {
             await ErrorResponses.WriteAsync(context, StatusCodes.Status404NotFound, new ErrorMessage(
