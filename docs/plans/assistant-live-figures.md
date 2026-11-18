@@ -7,12 +7,12 @@ SPDX-License-Identifier: MIT
 
 | | |
 | --- | --- |
-| Status | Approved on *idea-051* and built on *assistant-live-figures* 2026-11-18 — waits for the merge |
+| Status | Merged 2026-11-18 — built on *assistant-live-figures* and merged into trunk with `make check` and `make test-browser` green |
 | Size | Medium — the page's projection and its mark, a small server change to what the Tool calls row counts and when it is published, the store method behind it, five tests and the words in three docs. No event type, no migration, no configuration |
 | Area | Web (assistant, storage), docs |
 | Spike | [DeepSeek token counting](../spikes/deepseek-token-counting.md) measured the prose ratio the projection leans on; nothing new is measured |
 | Backlog | [IDEA-051](../jobs/IDEA-051.md) |
-| Decisions | Two new names proposed: **assistant-tool-calls-count-attempts** and **assistant-live-figures-are-marked**. Edits `assistant-budgets-are-one-snapshot`. Relies on `assistant-the-request-budget-is-tokens` |
+| Decisions | Recorded at the merge: `assistant-tool-calls-count-attempts` and `assistant-live-figures-are-marked`. Edits `assistant-budgets-are-one-snapshot`. Relies on `assistant-the-request-budget-is-tokens` |
 
 ## The short version
 

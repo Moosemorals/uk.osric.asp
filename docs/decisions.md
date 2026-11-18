@@ -1947,28 +1947,57 @@ keep failing, because neither is a budget the owner can grant.
 
 *Recorded in [the assistant](assistant.md#ai-page-assistant), [RunProcessor](../src/uk.osric.asp.Web/Assistant/RunProcessor.cs).*
 
+### assistant-tool-calls-count-attempts
+
+The assistant's Tool calls row counts the calls a run has attempted, because that is what the tool-call
+budget spends and what a pause names; the response's call count is not used for it, because it describes
+the whole step and lands before any of those calls has run, so it would read past the limit while the run
+was still working and a step that stopped early would reload to a count it never reached. The figure is
+published as each `tool.started` is handled, so the row ticks with the card rather than at the step's
+edge, and `RecordToolCallAsync` stores each attempt so the reload agrees. A denied or refused call counts
+once, as the cap counts it. A reload taken while a call is in flight lags by that one call, the same way
+Steps lags by the step in flight.
+
+*Recorded in [RunProcessor](../src/uk.osric.asp.Web/Assistant/RunProcessor.cs), [the assistant](assistant.md#ai-page-assistant), [assistant live figures](plans/assistant-live-figures.md).*
+
 ### assistant-budgets-are-one-snapshot
 
-Every assistant budget figure is one pure `BudgetSnapshot` in `Core.Assistant`, measured by the trimmer's
-own rule and the transcript's own tool calls and results, and read by both the page render and the run
-stream, so a live figure and a reloaded one cannot disagree. The conversation page shows every budget
-that can stop a run as a used/available pair drawn with a `<meter>`, because a run that failed on a budget
-should have shown how close to it the conversation already was; HTML has no `<gauge>`, and the number is
-spelled out beside the meter so the picture is not the only reading. The panel is compact — seven rows in
-two columns, each a label and a meter with its figure drawn over it, at most three digits plus a unit
-letter, which replaces the count line beside the meter — and the amount is one formatting rule the live
-script mirrors, so a figure updated live and the same figure after a reload read alike.
+Every assistant budget figure the server reports is one pure `BudgetSnapshot` in `Core.Assistant`,
+measured by the trimmer's own rule and the stored transcript's tool calls and results, and read by both
+the page render and the run stream, so a reported live figure and a reloaded one cannot disagree. The
+conversation page shows every budget that can stop a run as a used/available pair drawn with a `<meter>`,
+because a run that failed on a budget should have shown how close to it the conversation already was;
+HTML has no `<gauge>`, and the number is spelled out beside the meter so the picture is not the only
+reading. The panel is compact — ten rows in two columns, each a label and a meter with its figure drawn
+over it, at most three digits plus a unit letter, which replaces the count line beside the meter — and
+the amount is one formatting rule the live script mirrors, so a figure updated live and the same figure
+after a reload read alike.
 
 The figures move while a run runs, over the journal the page already listens to: the loop publishes a
-budget update when it learns something — as a step starts, after that step's usage is stored, and around
-each tool call — and never on a timer. There is no budgets endpoint, because polling would be a second
-mechanism beside an open stream with no replay and no ordering against the deltas it would arrive
-between. A terminal event reloads the page and the reload is authoritative. An update changes the count
-text, the meter's `value` and the exceeded class, and nothing else: the meter stays hidden from assistive
-technology and the list is not a live region, because six counts moving several times a run are noise
-read aloud.
+budget update when it learns something — as a step starts, after that step's usage is stored, as each
+tool call starts and once before `run.completed` — and never on a timer. There is no budgets endpoint,
+because polling would be a second mechanism beside an open stream with no replay and no ordering against
+the deltas it would arrive between. A terminal event reloads the page and the reload is authoritative. An
+update changes the count text, the meter's `value` and the exceeded class, and nothing else: the meter
+stays hidden from assistive technology and the list is not a live region, because ten counts moving
+several times a run are noise read aloud.
 
 *Recorded in [BudgetSnapshot](../src/uk.osric.asp.Core/Assistant/BudgetSnapshot.cs), [assistant.js](../src/uk.osric.asp.Web/Pages/Seeds/assistant.js), [assistant live budgets](plans/archive/assistant-live-budgets.md).*
+
+### assistant-live-figures-are-marked
+
+A figure the conversation page projects between snapshots is marked, because the panel's promise is that
+a reported figure a reader watches is the figure a reload shows and a projection is not that figure. The
+projection is made from bytes the page already receives — the streamed answer and the tool-call arguments
+divided by the token spike's prose ratio, about 3.8 characters per token, never the request's own bytes
+per prompt token — and it covers Completion, Context and Window only: those three are tokens, and every
+other row is the reader's own input, a reported count, or already exact on the event that carries it. The
+mark is a `~` for the eye and a visually-hidden "estimated" for a screen reader, cleared by the
+next snapshot that supplies the row, and a projection never takes the exceeded class, which is reserved
+for a figure the server measured. Each replayed snapshot resets the characters counted, so a reload
+rebuilds the projection rather than doubling it, and the reload after a run renders reported figures only.
+
+*Recorded in [assistant.js](../src/uk.osric.asp.Web/Pages/Seeds/assistant.js), [the assistant](assistant.md#ai-page-assistant), [assistant live figures](plans/assistant-live-figures.md).*
 
 ### assistant-the-request-budget-is-tokens
 
