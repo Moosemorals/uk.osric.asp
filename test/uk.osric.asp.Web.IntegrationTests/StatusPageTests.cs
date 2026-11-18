@@ -89,9 +89,11 @@ public sealed class StatusPageTests : IntegrationTest {
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
         Assert.That(body, Does.Contain("<h1>Status</h1>"));
         Assert.That(body, Does.Contain("<nav class=\"status-nav\" aria-label=\"Time window\">"));
-        Assert.That(body, Does.Contain("<section class=\"status-group\"><h2>Pages</h2>"));
-        Assert.That(body, Does.Contain("<section class=\"status-group\"><h2>Assistant</h2>"));
-        Assert.That(body, Does.Contain("<section class=\"status-group\"><h2>Host</h2>"));
+        Assert.That(body, Does.Contain("<p class=\"status-host\">An arm64 VM hosted by <a href=\"https://www.hetzner.com/\">Hetzner</a>"));
+        Assert.That(body, Does.Contain("<nav class=\"status-toc\" aria-label=\"Groups\">"));
+        Assert.That(body, Does.Contain("<details class=\"status-group\" name=\"status-group\" open><summary><h2>Pages</h2>"));
+        Assert.That(body, Does.Contain("<summary><h2>Assistant</h2>"));
+        Assert.That(body, Does.Contain("<summary><h2>Host</h2>"));
         Assert.That(body.Split("<figure class=\"panel\">").Length - 1, Is.EqualTo(StatusCatalogue.Panels.Count));
         Assert.That(body, Does.Contain("<svg xmlns=\"http://www.w3.org/2000/svg\" class=\"chart\""));
         Assert.That(body, Does.Contain("<svg xmlns=\"http://www.w3.org/2000/svg\" class=\"heatmap\""));

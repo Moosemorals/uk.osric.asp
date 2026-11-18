@@ -42,9 +42,62 @@ public sealed class StatusEndpointTests {
 
         Assert.That(body, Does.Contain("<h1>Status</h1>"));
         Assert.That(body, Does.Contain("<nav class=\"status-nav\" aria-label=\"Time window\">"));
-        Assert.That(body, Does.Contain("<section class=\"status-group\"><h2>Pages</h2>"));
-        Assert.That(body, Does.Contain("<section class=\"status-group\"><h2>Assistant</h2>"));
-        Assert.That(body, Does.Contain("<section class=\"status-group\"><h2>Host</h2>"));
+        Assert.That(body, Does.Contain("<summary><h2>Pages</h2>"));
+        Assert.That(body, Does.Contain("<summary><h2>Assistant</h2>"));
+        Assert.That(body, Does.Contain("<summary><h2>Host</h2>"));
+    }
+
+    [Test]
+    public async Task ThePageDescribesTheHostRatherThanPointingAtARestore() {
+        string body = await RenderAsync("");
+
+        Assert.That(body, Does.Contain("<p class=\"status-host\">An arm64 VM hosted by <a href=\"https://www.hetzner.com/\">Hetzner</a>"));
+        Assert.That(body, Does.Not.Contain("will not load"));
+    }
+
+    [Test]
+    public async Task TheHostLineLinksEachPieceItNames() {
+        string body = await RenderAsync("");
+
+        string[] hrefs = [
+            "https://www.hetzner.com/",
+            "https://www.debian.org/",
+            "https://prometheus.io/",
+            "https://podman.io/",
+            "https://caddyserver.com/",
+        ];
+
+        foreach (string href in hrefs) {
+            Assert.That(body, Does.Contain($"<a href=\"{href}\">"), $"the host line does not link {href}");
+        }
+    }
+
+    [Test]
+    public async Task TheGroupsAreOneExclusiveAccordionWithTheFirstOpen() {
+        string body = await RenderAsync("");
+
+        Assert.That(Count(body, "<details class=\"status-group\" name=\"status-group\""),
+            Is.EqualTo(StatusCatalogue.Groups.Count));
+        Assert.That(Count(body, "<details class=\"status-group\" name=\"status-group\" open>"), Is.EqualTo(1));
+        Assert.That(body, Does.Contain("<details class=\"status-group\" name=\"status-group\" open><summary><h2>Pages</h2>"),
+            "the first group is the one left open");
+    }
+
+    [Test]
+    public async Task TheJumpBarLinksEveryGroupItDrewAndSaysHowManyPanelsEachHolds() {
+        string body = await RenderAsync("");
+
+        Assert.That(body, Does.Contain("<nav class=\"status-toc\" aria-label=\"Groups\">"));
+        Assert.That(body, Does.Contain("href=\"#status-pages\">Pages "));
+        Assert.That(body, Does.Contain("href=\"#status-assistant\">Assistant "));
+        Assert.That(body, Does.Contain("href=\"#status-host\">Host "));
+        Assert.That(body, Does.Contain("<div class=\"status-panels\" id=\"status-pages\">"), "a jump lands in the group it names");
+
+        int pages = StatusCatalogue.Panels.Count(panel => panel.Group == "Pages");
+        Assert.That(body, Does.Contain(
+            $"href=\"#status-pages\">Pages <span class=\"status-toc-count\">{pages}<span class=\"visually-hidden\"> panels</span></span></a>"));
+        Assert.That(body, Does.Contain(
+            $"<span class=\"status-count\">{pages} panels</span></summary>"));
     }
 
     [Test]

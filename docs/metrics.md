@@ -304,6 +304,14 @@ writes; nothing it reports comes from the app.
   is `Metrics:QueryTimeoutSeconds` (two seconds shipped), the map holds
   `Metrics:MaxCachedWindows` windows, and the URL and time zone come from the same section. Every
   value is required ([configuration](architecture.md#configuration)).
+
+**The page is read a group at a time.** A line under the heading says what the numbers describe, each
+name linked to its project — an arm64 Hetzner CAX21 on Debian 13, with the app and Prometheus rootless
+under podman and Caddy in front — then a jump bar lists the groups with their panel counts, and each
+group is a `<details name="status-group">`: an exclusive accordion, first group open on load, where a
+jump-bar link opens the group it names. The accordion, the jump bar and the series pinning are HTML
+and CSS alone, so the page stays JavaScript-free (`metrics-prometheus-only`).
+
 - **The image carries tzdata.** Only the axis labels are local; the positions, queries and samples are
   UTC. The base is `aspnet:11.0-alpine-extra` (`deploy-the-image`) because plain alpine has no
   `/usr/share/zoneinfo` and resolving `Europe/London` inside it throws.

@@ -41,9 +41,10 @@ view to the next.
   rules first. The view's own sheet is linked last, so it can override a structural rule without a
   more specific selector. The owner restores a stale seeded sheet from the page list.
 - `/admin/status` writes body content only — its heading, the administration landmark, its window
-  nav, banner and figures — and its document is the builder's, like every other view's. A chart it
-  draws can also be requested on its own at `/admin/status/chart`, which is a drawing rather than a
-  document and so does not go through this builder.
+  nav, host line, banner, jump bar and its groups of figures — and its document is the builder's,
+  like every other view's. A chart it draws can also be requested on its own at
+  `/admin/status/chart`, which is a drawing rather than a document and so does not go through this
+  builder.
 - `PageLayout` keeps the fragments a shell view writes: `Gutter` and `Diagnostics` (a `ul` with `role="list"`,
   `shell-the-markup-is-semantic`). Everything the shell's own document needs — the head with its base sheets and icon, the
   banner with the skip link, `Nav`, `OpenMain`/`CloseMain` and the close — is
