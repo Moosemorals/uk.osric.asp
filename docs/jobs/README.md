@@ -23,7 +23,6 @@ and shares one file, [WHIMS.md](WHIMS.md); a resolved job moves to [closed.md](c
 | [IDEA-025](IDEA-025.md) | L | — | [page-apps](../plans/archive/page-apps.md) | The assistant's conversation is a stream and a set of host actions, not a page |
 | [IDEA-027](IDEA-027.md) | S | — | — | A page cannot leave a message for a page it sends a visitor to |
 | [IDEA-029](IDEA-029.md) | L | — | — | VS Code cannot check a page as it is typed |
-| [IDEA-030](IDEA-030.md) | M | — | [shell-navigation](../plans/shell-navigation.md) | Every view writes its own navigation |
 | [IDEA-031](IDEA-031.md) | S | — | — | Some policy is still a constant in code |
 | [IDEA-033](IDEA-033.md) | L | — | [account-store](../plans/account-store.md) | A page has no persistent per-account store |
 | [IDEA-037](IDEA-037.md) | M | — | [ide-host](../plans/ide-host.md) | A page cannot check a template without saving it |
@@ -55,17 +54,16 @@ moves as it is worked — and each is one unit of work, on one branch in one wor
 | 8 | [IDEA-037](IDEA-037.md) | M | Stops "check my work" storing a revision, so no history carries a test save. |
 | 9 | [IDEA-038](IDEA-038.md) | M | Lifts the assistant's own search into the contract rather than inventing anything. |
 | 10 | [OPS-05](OPS-05.md) | M | Useful, but one owner and a unit that restarts already notice most outages. |
-| 11 | [IDEA-030](IDEA-030.md) | M | Removes duplication in views that several later jobs rewrite anyway. |
-| 12 | [IDEA-020](IDEA-020.md) | M | A destructive reset has to be designed carefully; the additive import is the safe default until it is. |
-| 13 | [IDEA-033](IDEA-033.md) | L | The most useful large job, with a plan and a first customer, and a plan's yes is the only thing it waits on. |
-| 14 | [IDEA-001](IDEA-001.md) | L | High use and high cost; the gutter, the diagnostics and the row state already cover the worst of it. |
-| 15 | [IDEA-025](IDEA-025.md) | L | The assistant's conversation as a page needs the account store beneath it, and that is IDEA-033. |
-| 16 | [IDEA-024](IDEA-024.md) | L | The two admin routes already work; making them pages buys consistency, not capability. |
-| 17 | [SEC-03](SEC-03.md) | L | Medium severity and a redesign of how a page runs; the trimmed API policy and the sign-in guard already carry much of it. |
-| 18 | [IDEA-047](IDEA-047.md) | L | Only matters once something writes several pages at once, so it follows IDEA-042 and IDEA-038. |
-| 19 | [IDEA-044](IDEA-044.md) | L | A spike, a sidecar and a capability for a question the server's own answer often settles. |
-| 20 | [IDEA-029](IDEA-029.md) | L | Developer-only, and `make check-pages` already compiles the seeds. |
-| 21 | [IDEA-050](IDEA-050.md) | S | Waits for a release: the alias has to have been out long enough that nothing in the store reports `PAGE009` before it is deleted. |
+| 11 | [IDEA-020](IDEA-020.md) | M | A destructive reset has to be designed carefully; the additive import is the safe default until it is. |
+| 12 | [IDEA-033](IDEA-033.md) | L | The most useful large job, with a plan and a first customer, and a plan's yes is the only thing it waits on. |
+| 13 | [IDEA-001](IDEA-001.md) | L | High use and high cost; the gutter, the diagnostics and the row state already cover the worst of it. |
+| 14 | [IDEA-025](IDEA-025.md) | L | The assistant's conversation as a page needs the account store beneath it, and that is IDEA-033. |
+| 15 | [IDEA-024](IDEA-024.md) | L | The two admin routes already work; making them pages buys consistency, not capability. |
+| 16 | [SEC-03](SEC-03.md) | L | Medium severity and a redesign of how a page runs; the trimmed API policy and the sign-in guard already carry much of it. |
+| 17 | [IDEA-047](IDEA-047.md) | L | Only matters once something writes several pages at once, so it follows IDEA-042 and IDEA-038. |
+| 18 | [IDEA-044](IDEA-044.md) | L | A spike, a sidecar and a capability for a question the server's own answer often settles. |
+| 19 | [IDEA-029](IDEA-029.md) | L | Developer-only, and `make check-pages` already compiles the seeds. |
+| 20 | [IDEA-050](IDEA-050.md) | S | Waits for a release: the alias has to have been out long enough that nothing in the store reports `PAGE009` before it is deleted. |
 
 ### A step stops, and the owner answers
 

@@ -5,7 +5,7 @@ SPDX-License-Identifier: MIT
 
 # Metrics and the dashboard
 
-What the site measures, how the instruments are named, and how `/status` reads them back. Logs are
+What the site measures, how the instruments are named, and how `/admin/status` reads them back. Logs are
 the other half of the same question and live in [logging](logging.md).
 
 ## Instrumentation
@@ -213,7 +213,7 @@ series' own anchor, so hovering or clicking the entry does what hovering or clic
 Hovering or focusing a series dims the others, and clicking it pins that highlight by SVG fragment
 target (`metrics-a-series-is-identified-without-colour`). A heatmap behaves the same way with rows instead of series: hovering a row dims the
 rest and clicking pins it, and every run names its shade, its total and its time span on hover.
-The interaction is CSS only, because `/status` is script-free (`metrics-prometheus-only`), and the at-rest cues — the
+The interaction is CSS only, because `/admin/status` is script-free (`metrics-prometheus-only`), and the at-rest cues — the
 end-of-line label, the dash and the legend — are the accessible ones. The series and row anchors are
 pointer-only; a keyboard or screen-reader reader gets the label, the legend and the drawing's own
 `<title>`.
@@ -227,7 +227,7 @@ holds only the grid, the caption and the hover and pinned states.
 Any panel can be linked directly (`metrics-a-chart-stands-alone`):
 
 ```
-GET /status/chart?panel=page.render.duration&start=2026-11-09T12:00:00Z&duration=1h
+GET /admin/status/chart?panel=page.render.duration&start=2026-11-09T12:00:00Z&duration=1h
 ```
 
 - `panel` is a catalogue id: the instrument's name, or a `host.` id for a Host panel.
@@ -236,7 +236,7 @@ GET /status/chart?panel=page.render.duration&start=2026-11-09T12:00:00Z&duration
 - The window is snapped to the sample step, so the same start and duration draw the same picture and
   a link reproduces what it showed.
 - The response is `image/svg+xml; charset=utf-8` with `Cache-Control: no-store`, under the same owner
-  policy as `/status` and the global security headers. It is the owner's data, and the fifteen-second
+  policy as `/admin/status` and the global security headers. It is the owner's data, and the fifteen-second
   cache is the server's rather than a proxy's. The drawing declares its own SVG namespace, which an
   inline drawing inherits and a standalone document does not, so a browser opening the link draws it
   rather than showing its markup.
@@ -245,7 +245,7 @@ GET /status/chart?panel=page.render.duration&start=2026-11-09T12:00:00Z&duration
   pasted link; the page's banner is where the reason is read in full.
 
 The page embeds the same renderer and never fetches this route, so the endpoint can be removed
-without touching the page. The route is already covered by the reserved `/status` prefix, so no stored
+without touching the page. The route is already covered by the reserved `/admin/status` prefix, so no stored
 page can claim it.
 
 ## Export and the status page
@@ -282,8 +282,10 @@ writes; nothing it reports comes from the app.
   Caddy answers `404` for `/metrics` on the public origin; node_exporter publishes nothing at all, so
   only a container on the podman network can reach it. See
   [deployment](../deploy/operations.md#metrics-and-the-status-page).
-- **`/status` is a shell endpoint.** It writes body markup inside `ShellDocument`, so its head, sheet
-  list, menu and footer are the shell's (see [the shell](shell.md)). It queries Prometheus over the
+- **`/admin/status` is a shell endpoint.** It writes body markup inside `ShellDocument`, so its head, sheet
+  list, menu and footer are the shell's (see [the shell](shell.md)), and it carries the administration
+  landmark with Status current. It lives under the shell root with the other tools
+  (`shell-the-tools-live-under-admin`). It queries Prometheus over the
   shared network and draws SVG from pure `Core` functions (`LineChart`, `Heatmap`, `StackedAreaChart`,
   `NiceTicks`); it is owner-only, cached for fifteen seconds (`Metrics:CacheSeconds`), and a Prometheus failure is a banner
   rather than a `500`, because the page is what gets opened when something is broken. The window is

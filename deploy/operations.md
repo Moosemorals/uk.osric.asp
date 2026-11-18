@@ -333,7 +333,7 @@ its files are owned by mapped subordinate IDs, so offline access needs `podman u
 
 Prometheus scrapes `app:8080/metrics` and `node-exporter:9100/metrics` every 15 s over the shared
 network and keeps 30 days or 4 GB, whichever comes first; the container is capped at 512 MB of RAM so
-runaway cardinality fails a scrape instead of the host. `/status` is owner-only and queries
+runaway cardinality fails a scrape instead of the host. `/admin/status` is owner-only and queries
 Prometheus by name, so neither service is reachable from the internet.
 
 - **One gate on `/metrics`, one network for the other.** The app publishes on the loopback only (the
@@ -353,8 +353,8 @@ Prometheus by name, so neither service is reachable from the internet.
   the panels go flat while the collector's age climbs, the timer or fail2ban has stopped: start with
   `systemctl status uk.osric.asp-fail2ban-metrics.timer` and `cat` the file.
 - **No data is a banner, not a failure.** A stopped Prometheus, a slow query, or an unreadable reply
-  makes `/status` say so and still render; only a bug in the page itself is a `500`.
-- **One chart can be linked on its own.** `/status/chart?panel=<id>&start=<ISO-8601>&duration=<token>`
+  makes `/admin/status` say so and still render; only a bug in the page itself is a `500`.
+- **One chart can be linked on its own.** `/admin/status/chart?panel=<id>&start=<ISO-8601>&duration=<token>`
   draws one panel for one window, under the same owner policy: a bridge or a bookmark for the owner,
   not a public embed. `duration` is a window token (`1h`, `3h`, `8h`, `1d`, `7d`, `30d`) or a whole
   number of minutes. A malformed window is a `400`, an unknown panel a `404`, and a Prometheus that
@@ -379,7 +379,7 @@ Prometheus by name, so neither service is reachable from the internet.
   definitions and the sampling rule. Review retention manually when payload exceeds half the volume
   capacity: revisions are not pruned automatically.
 - **Container DNS.** `cloud-init.yaml` installs `aardvark-dns`, which resolves `app` and `prometheus`
-  by name on the shared network. A host without it shows `/status` saying Prometheus "did not
+  by name on the shared network. A host without it shows `/admin/status` saying Prometheus "did not
   answer" and a down scrape target: `sudo apt-get install -y aardvark-dns`, then restart both units.
   `make deploy` refuses to run on such a host.
 
@@ -454,7 +454,7 @@ port — its own table, hooked at the input ahead of ufw's chains — so it does
 firewall, it adds to it. ufw stays the allow-list and is unchanged.
 
 A ban is an address, so a client behind a shared address bans its neighbours with it. That is the
-cost of the rule, and the reason the threshold is ten rather than one. `/status` draws the numbers
+cost of the rule, and the reason the threshold is ten rather than one. `/admin/status` draws the numbers
 under Host — how many are banned now, how many failures each jail is counting, and how old the numbers
 are — and [metrics and the status page](#metrics-and-the-status-page) says where they come from.
 

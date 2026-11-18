@@ -1080,6 +1080,19 @@ layer of the chain, charged by the reads and refused rather than clamped.
 
 *Recorded in [page store read](plans/archive/page-store-read.md#d3--everything-marked), [PageStoreReader](../src/uk.osric.asp.Web/Assistant/PageStoreReader.cs).*
 
+### pages-the-catalog-knows-the-shell
+
+`IPageCatalog` answers what the shell can do as well as what the store holds: `ShellLinks()` returns
+the shell's links as `ShellLink` values, each with an href, a label, a section, an audience and the
+match the shell uses to mark it current. It is synchronous because it is a value, not a read, and
+refuses after the render ends as the other members do. The host returns facts; the page filters with
+its own `ctx.User`, orders, relabels, marks the current item and draws. There is no rendered menu, no
+`IsCurrent` and no new capability: the catalog is already the page's one read seam, and a footer is
+the layout's chrome rather than a shell fact. A worker has no request or visitor, so its list is
+empty.
+
+*Recorded in [pages](pages.md#page-contract), [the shell](shell.md#layouts), [IPageCatalog](../src/uk.osric.asp.Sdk/IPageCatalog.cs) and [shell-navigation](plans/shell-navigation.md#d2--the-page-catalog-knows-what-the-shell-can-do).*
+
 ### pages-the-store-is-a-tree
 
 The store's tree rule is one statement in `Core`: `PageTree` is "below", "directly below" and "the folder
@@ -1574,13 +1587,26 @@ pass whose findings are recorded with the plan.
 ### shell-the-menu-is-written-twice
 
 The site menu is written twice on purpose: composed by `SiteNavigation` for the shell's own views, and
-written in the seeded `/_layout` for stored pages. The shell's copy and the administration menu both
-filter one list of `ShellLink` values, so a route cannot appear in one and not the other. Both render
-through one nav builder, and an integration test compares the two item lists. The shell's document is
-deliberately not the stored layout, because the error, health, sign-in and editor routes must answer
-when the page pipeline is broken.
+written in the seeded `/_layout` for stored pages. Both render one list of `ShellLink` values — the
+shell's own copy and the administration menu filter it, and the layout reads the same values through
+`IPageCatalog.ShellLinks()` — so a route cannot appear in one and not the other. Each document still
+writes its own markup, through the shell's nav builder or the seeded library, and an integration test
+compares the items, their destinations and the current item. The footer is the layout's own chrome and
+is not in the list. The shell's document is deliberately not the stored layout, because the error,
+health, sign-in and editor routes must answer when the page pipeline is broken.
 
 *Recorded in [site navigation](plans/archive/site-navigation.md#d5--the-menu-lives-in-the-layout-and-in-the-shell-through-the-same-builder).*
+
+### shell-the-shell-is-marked
+
+A shell document carries `class="shell"` on its `body` and a visible **Site tools** label in its
+banner; the stored layout carries neither. Both marks are text and structure rather than colour, so a
+shell page says what it is with no sheet and to a screen reader. The label is the honest statement of
+a property: a shell page cannot show stored pages in its menu because its menu is the site's tools,
+and it must answer when the page store is broken, so it never reads the store to draw its chrome. A
+page that wants a page-store menu reads `IPageCatalog.ListAsync` beside `ShellLinks()` and writes both.
+
+*Recorded in [the shell](shell.md#the-document-shell), [site.css](../src/uk.osric.asp.Web/Pages/Seeds/site.css) and [shell-navigation](plans/shell-navigation.md#d5--the-shell-is-marked-as-the-shell).*
 
 ### shell-admin-is-a-shell-route
 
@@ -1590,9 +1616,25 @@ public tools and a line saying a sign-in reaches the rest. It is a route because
 the page pipeline is broken — the same reason every other administration view is one — and because a
 page cannot draw the shell's own link list. The key is reserved, so a stored page cannot take it. The
 administrative index is the one view the earlier seeded page was right about in spirit: one list of
-tools rather than a second one.
+tools rather than a second one. The root holds every tool the audit keeps: the administration views
+and the status dashboard, which answers at `/admin/status` with its chart at `/admin/status/chart`
+(`shell-the-tools-live-under-admin`).
 
 *Recorded in [the seed trim](plans/seed-trimming.md#d3---admin-is-a-shell-route), [the shell](shell.md#the-administration-index), [AdminIndexEndpoint](../src/uk.osric.asp.Web/Admin/AdminIndexEndpoint.cs).*
+
+### shell-the-tools-live-under-admin
+
+Every shell **tool** the audit keeps lives under `/admin`: the administration views and the status
+dashboard, whose chart is `/admin/status/chart`. The routes outside it are not tools — `/login` and
+`/logout` bootstrap identity, the assistant is a page in waiting, `/health`, `/metrics` and
+`/favicon.ico` are the wire, and `{**path}` is the page runtime — so the root is a statement about
+what a tool is rather than a second namespace. `/status` was the only permanent tool outside it and
+became `/admin/status` with no redirect: the dashboard is owner-only and the old name would be a
+reserved key kept alive for a bookmark. The root is not configuration: it is the route identity and
+the boundary the `Editor` policy is written against, so a value that could move it could let a page
+claim a shell route.
+
+*Recorded in [the shell](shell.md), [architecture](architecture.md#where-a-view-lives) and [shell-navigation](plans/shell-navigation.md#d7--the-shells-tools-live-under-admin).*
 
 ### shell-admin-assets-are-static-files
 
@@ -2425,7 +2467,7 @@ Metrics are exported by OpenTelemetry's Prometheus exporter, metrics only: no tr
 instrumentation packages. Instrument names, tags and bucket scales are a dashboard contract, so they live
 beside the code that records them rather than in a library's defaults. Prometheus runs rootless beside the
 app on a shared network and scrapes the app's loopback-facing port; it is never proxied. `/metrics` keeps
-two gates — the loopback-only publish and a proxy-level 404 on the public origin — and `/status` is
+two gates — the loopback-only publish and a proxy-level 404 on the public origin — and `/admin/status` is
 owner-only, server-rendered and JavaScript-free.
 
 *Recorded in [metrics](metrics.md#export-and-the-status-page), [operations](../deploy/operations.md#metrics-and-the-status-page).*
@@ -2444,7 +2486,7 @@ account, filled in as they become known rather than left out.
 
 ### metrics-one-panel-per-instrument
 
-`/status` draws one panel per instrument, and the instrument's type decides the chart: a histogram is a
+`/admin/status` draws one panel per instrument, and the instrument's type decides the chart: a histogram is a
 heatmap, a gauge a line chart, and a counter a line chart unless its labels partition one total, when it
 is a stacked area. A question that spans instruments may add a composed panel that names its sources and
 owns none. The catalogue is the only source of panels, the dashboard holds no queries, and a test fails
@@ -2467,13 +2509,13 @@ carries its own title and legend inside its SVG, so a panel adds no heading, no 
 the drawing's title is the link that opens the same chart on its own. A series is identified without
 colour: a colour-blind-safe palette, a dash pattern per series, a direct label at the end of every line, a
 hover or focus that dims the others and a click that pins one by fragment target, all in CSS because
-`/status` stays JavaScript-free. A series' legend entry sits inside the series' anchor, so the legend
+`/admin/status` stays JavaScript-free. A series' legend entry sits inside the series' anchor, so the legend
 behaves the same way, and a heatmap's row is its series. Each drawing is self-contained: colour, dash, fill
 and type size are presentation attributes from a palette in `Core.Charting`, not rules in a stylesheet, so
 the same SVG is legible with no stylesheet, and the page's sheet keeps only the grid, the caption and the
 hover and pinned states, which are properties of the page rather than of the picture.
 
-*Recorded in [metrics](metrics.md#the-panels), [status page rebuild](plans/archive/status-page-rebuild.md#identifying-a-series-without-colour).*
+*Recorded in [metrics](metrics.md#the-panels), [status page rebuild](plans/archive/admin/status-page-rebuild.md#identifying-a-series-without-colour).*
 
 ### metrics-a-chart-stands-alone
 

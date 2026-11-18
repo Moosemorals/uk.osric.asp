@@ -7,16 +7,23 @@ SPDX-License-Identifier: MIT
 
 | | |
 | --- | --- |
-| Status | Proposed 2026-11-16 — waits for the owner. Nothing below is built |
-| Size | Large as a programme, Medium as each step — one `Sdk` value (with two enums) and one method on the existing catalog, the seeded layout and admin page, one route moved, shell chrome, the assistant's own menu, and the manual/prompt/document sweep. No migration, no new configuration key, no build change |
+| Status | Built 2026-11-18 on the shell-navigation branch — waits for the owner at the merge |
+| Size | Large as a programme, Medium as each step — one `Sdk` value (with three enums) and one method on the existing catalog, the seeded layout and admin page, one route moved, shell chrome, the assistant's own menu, and the manual/prompt/document sweep. No migration, no new configuration key, no build change |
 | Area | Sdk, Web (html, admin, assistant, metrics, pages, seeds), docs |
 | Spike | None. Every claim below was read off the working tree on 2026-11-16: the two menu lists, the admin index, the shell routes, the reserved paths and the tests that pin them |
-| Backlog | [IDEA-030](../jobs/IDEA-030.md) |
-| Decisions | Keeps and edits `shell-the-menu-is-written-twice` and `shell-admin-is-a-shell-route`; new names proposed below: **pages-the-catalog-knows-the-shell**, **shell-the-shell-is-marked**, **shell-the-tools-live-under-admin**. Existing names it relies on: `pages-capabilities-are-one-seam`, `pages-a-layout-is-a-capability`, `pages-the-document-is-the-shells`, `pages-page-first`, `code-policy-values-are-configuration` |
+| Backlog | [IDEA-030](../jobs/closed.md) — closed by this plan |
+| Decisions | Edits `shell-the-menu-is-written-twice` and `shell-admin-is-a-shell-route`; records **pages-the-catalog-knows-the-shell**, **shell-the-shell-is-marked** and **shell-the-tools-live-under-admin**. Existing names it relies on: `pages-capabilities-are-one-seam`, `pages-a-layout-is-a-capability`, `pages-the-document-is-the-shells`, `pages-page-first`, `code-policy-values-are-configuration` |
+
+> **Built 2026-11-18.** The route table and the `/admin` shell route had already landed by the time
+> this plan was built, so D4 is the seed-trimming plan's and the remaining five steps are on a
+> branch of the same name. The owner answered the questions below: all five steps in one branch,
+> `/admin/status` with no redirect, and the visible **Site tools** label. One deviation from D2: the
+> public `ShellLink` also carries `ShellMatch`, so a page's own menu can mark the same current item
+> the shell does rather than guessing which links are subtrees.
 
 ## The short version
 
-[IDEA-030](../jobs/IDEA-030.md) is right: the same handful of links is written by hand in a dozen
+[IDEA-030](../jobs/closed.md) is right: the same handful of links is written by hand in a dozen
 places, and every route change is a sweep. The shape that fixes it is three changes, and they are
 deliberately separate steps:
 
@@ -530,7 +537,7 @@ the accessibility sweep still finds one label per landmark.
 - Update `/help`: `IPageCatalog.ShellLinks()`, the marked shell page, the moved route, and a layout
   example that renders the list itself rather than writing the links.
 - Update `PageAuthorPrompt` and the shell-file list.
-- Write the decisions, edit the two existing entries, close [IDEA-030](../jobs/IDEA-030.md) and
+- Write the decisions, edit the two existing entries, close [IDEA-030](../jobs/closed.md) and
   update its row in [the job list](../jobs/README.md), including the Size it turned out to be.
 - Sweep the live docs; leave the archives.
 

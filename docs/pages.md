@@ -91,9 +91,10 @@ pure renderers, and one that is a fact about the build:
   so another account's job is an unknown one rather than a refusal that says it exists (`pages-a-page-may-save-itself`). A
   `HEAD` is offered the reads and not the start, send or cancel, and a layout is offered nothing.
   See [jobs](#jobs).
-- `IPageCatalog` reads the page store: `ListAsync(prefix)` lists the heads under a subtree,
-  `ReadAsync(key)` reads a live page's template, `RevisionsAsync(key)` lists a page's history and
-  `ReadRevisionAsync(key, hash)` reads one retained revision. Each `PageEntry` marks the head
+- `IPageCatalog` reads the page store and answers what the shell can do: `ListAsync(prefix)` lists the
+  heads under a subtree, `ReadAsync(key)` reads a live page's template, `RevisionsAsync(key)` lists a
+  page's history, `ReadRevisionAsync(key, hash)` reads one retained revision, and `ShellLinks()` returns
+  the shell's links as values. Each `PageEntry` marks the head
   `IsDeleted`, `IsReserved`, `IsHtml` and `IsAsset`, so a view filters rather than re-deriving the
   host's rules, and carries the head's image state in `State` — the host's own words, judged against
   the running build — so a page's listing says what the editor's says without reading source
@@ -102,6 +103,14 @@ pure renderers, and one that is a fact about the build:
   as public as the page that calls it — there is no gate, and a page that wants privacy writes the
   ordinary `ctx.User` guard — and the render's deadline, abandonment and the shared chain budgets
   bound it (`pages-the-store-is-read-through-one-seam`, `pages-reading-the-store-is-public`, `pages-a-listing-carries-facts`, `product-manual-is-a-page`, `pages-delete-install-and-restore`, `pages-page-first`). See [source storage](storage.md#source-storage).
+- `ShellLinks()` is the one synchronous member: a `ShellLink` carries an `Href`, a `Text`, the
+  `ShellSection` it belongs to, the `ShellAudience` it is for and the `ShellMatch` the shell uses to
+  mark it current. The host returns the whole list — both sections, every audience, the sign-in link
+  carrying this request's way back — and the page filters, orders, relabels, marks current and writes
+  its own markup. There is no rendered menu, no `IsCurrent` and no footer: the seeded `/_layout`
+  draws the site's menu from the same values, and the footer stays the layout's own chrome
+  (`pages-the-catalog-knows-the-shell`). A worker has no request and no visitor, so its list is
+  empty.
 - `IPageWrites` is the store's write capability, and every page that is not a layout is offered it:
   the authority is the signed-in visitor's, not the page's (`pages-any-page-may-write-the-store`).
   It has two saves. `SaveAsync(template)` saves the calling page's own source, bound to `ctx.Path`, and
