@@ -7,8 +7,8 @@ SPDX-License-Identifier: MIT
 
 | | |
 | --- | --- |
-| Status | Proposed 2026-11-16 — waits for the owner. Nothing below is built |
-| Size | M — one member and one outcome on the write capability, one store transaction, the seeded editor's action, and the tests, manual and prompt for each. No migration: the owner's answer of 2026-11-16 leaves nothing at the old key, which removes the column the job expected |
+| Status | Building 2026-11-19 on `idea/page-cannot-move`. Proposed 2026-11-16, and the owner approved it with four answers below |
+| Size | M — one member and one outcome on the write capability, one store transaction, the seeded editor's action, an assistant tool and a shell applet, and the tests, manual and prompt for each. No migration: the owner's answer of 2026-11-16 leaves nothing at the old key, which removes the column the job expected |
 | Spike | None. Every claim about what exists was read off `trunk` on 2026-11-16: `IPageWrites`, `PageWritesScope`, `PageEditor`, `PageSaver`, `SqlitePageStore`, `PageHead`, `PageRevision`, `PageTemplate`, `PageSeedInstaller`, `ApplySeedsEndpoint`, `RestoreEndpoint`, `PageTree`, `RevisionHash`, `ToolRegistry` and the migrations |
 | Decisions | At the merge: **pages-a-key-moves-with-its-history** is new, and `pages-any-page-may-write-the-store` is edited in place to name the new member |
 | Backlog | [`page-cannot-move`](../backlog/page-cannot-move.md) is this step; [`library-edit-cost-is-invisible`](../backlog/closed.md), [`cannot-search-the-store`](../backlog/cannot-search-the-store.md), [`listing-has-no-cursor`](../backlog/closed.md), [IDEA-041](../backlog/closed.md), [`check-without-storing`](../backlog/check-without-storing.md), [IDEA-043](../backlog/closed.md) and [`one-write-per-render`](../backlog/one-write-per-render.md) are its neighbours in [the IDE plan](ide-host.md) |
@@ -53,11 +53,15 @@ Two things follow from that table and they are the whole of the design.
 | Question | Answer | What it settles here |
 | --- | --- | --- |
 | What is left at the old key after a move? | **Nothing**: "after moving `/a` to `/b`, `/a` should 404" (2026-11-16) | No marker row and no `MovedTo` column, so no migration, no copy of the head, and the whole history moves — §2 and §3 |
+| Is `expectedHash` required? | **Yes** (2026-11-19) | One member, no nullable expectation: a move cannot race an edit the caller did not read — §1 |
+| Does the assistant get a `move_page` tool? | **Yes, and the shell gets `mv`** (2026-11-19) | Both are shipped callers over the same capability, so the model renames as a move rather than a write-and-delete — §8 |
+| Is a page with children refused? | **Yes**, naming them (2026-11-19) | `FolderNotEmpty`; a folder is a batch of moves, and [`one-write-per-render`](../backlog/one-write-per-render.md) is told to include bulk move — §4 |
+| Does the editor get a Move action? | **Yes**, as a link that opens a page asking for the destination (2026-11-19) | `?edit=<key>&cmd=move` renders a confirmation page with a new-key field, like Delete's confirmation — §7 |
 
-The alternative — a deleted head row that says where the page went — would *also* have answered `404`,
-because a tombstone already reads as absent; it was a fact for the store and the listing, not a
-response. The owner declined it, so nothing at the old key is remembered and a link that names it is
-simply not found.
+The alternative to leaving nothing — a deleted head row that says where the page went — would *also*
+have answered `404`, because a tombstone already reads as absent; it was a fact for the store and the
+listing, not a response. The owner declined it, so nothing at the old key is remembered and a link
+that names it is simply not found.
 
 ## The design
 
@@ -211,16 +215,29 @@ library; no revision's `TemplateHash` changes, because no source did.
 ### 7. The seeded editor gets the action
 
 The capability needs a shipped caller, and the editor is where an author meets it: a **Move** action
-beside Delete, a confirmation like delete, install and restore (`?edit=<key>&cmd=move`), a field for
-the new key, and the head hash the form was drawn from. The page renders the outcome — *moved* with a
-link to the new key, *stale* with the read it must redo, *target exists*, *folder not empty* naming its
-children — and the confirmation says the one thing an author must know: the old key stops answering.
-The action is hidden on the editor's own row, as Delete is, because the capability refuses a page
-moving itself.
+beside Delete that is a link to `?edit=<key>&cmd=move`. That renders a confirmation page, like delete,
+install and restore, with a field for the destination key and the head hash the form was drawn from.
+The page renders the outcome — *moved* with a link to the new key, *stale* with the read it must redo,
+*target exists*, *folder not empty* naming its children — and the confirmation says the one thing an
+author must know: the old key stops answering. The action is hidden on the editor's own row, as Delete
+is, because the capability refuses a page moving itself.
 
-The assistant's route to the same thing is a page: it writes pages, and a page may move one. Its tools
-do not gain a `move_page` in this branch (see open question 3); its prompt gains the sentence that
-stops it doing a save-and-delete instead.
+### 8. The assistant and the shell move too
+
+Two more callers, because both are places the workaround lives today.
+
+- **`move_page`** is an `AssistantTool` beside `write_page` and `delete_page`: `from`, `to`, and the
+  `expectedHash` the model read. It is approval-gated, path-policy-checked at both ends, and answers
+  the outcome as data — never a silent save-and-delete. Both paths are validated with `ToolPaths`
+  before anything moves, and a refusal is the tool's own sentence.
+- **`mv`** is a shell applet beside `cat` and `stat`: `mv <from> <to>`. It is the first applet that
+  writes, so `ShellTool` stops calling itself read-only, its `Spec.Writes` becomes true, and the tool's
+  description says a move is the one command that changes the store. `mv` reads the source's head
+  through the store seam to learn the `expectedHash` the capability wants, and answers the move's
+  outcome in the shell's own words. A reserved key, a library, a page with children and a target that
+  exists are refusals with the capability's sentence.
+- **The prompt** gains both: the paragraph says rename by moving, never by writing the new key and
+  deleting the old, and names `move_page` and `mv` (`page-author-v36`).
 
 ## The contract
 
@@ -263,11 +280,16 @@ Task<PageMoveResult> MoveAsync(string from, string to, string expectedHash);
 | `src/uk.osric.asp.Web/Pages/IPageStore.cs`, `SqlitePageStore.cs` | `MovePageAsync`, the transaction of §2, and the store's own result value |
 | `src/uk.osric.asp.Web/Pages/PageEditor.cs` | `MoveAsync`, a straight call: no compile, no saver |
 | `src/uk.osric.asp.Web/Pages/PageWritesScope.cs` | `MoveAsync`: the checks and the mapping of the store's answer to `PageMoveResult`, then `Acted()` |
-| `src/uk.osric.asp.Web/Pages/Seeds/pages` | The Move action, its confirmation, and the own-row hiding |
+| `src/uk.osric.asp.Web/Pages/Seeds/pages` | The Move action, its confirmation page, and the own-row hiding |
 | `src/uk.osric.asp.Web/Pages/Seeds/help` | The write section, and one sentence in the editor section |
 | `src/uk.osric.asp.Web/Assistant/PageAuthorPrompt.cs` | The move paragraph, and `Version` → `page-author-v36` |
+| `src/uk.osric.asp.Web/Assistant/Tools/PageTools.cs` | `MovePageTool`, beside write and delete |
+| `src/uk.osric.asp.Web/Assistant/Tools/ToolRegistry.cs` | One row for `move_page` |
+| `src/uk.osric.asp.Web/Assistant/Tools/ShellTool.cs` | No longer read-only: `Writes` true, and the description says `mv` changes the store |
+| `src/uk.osric.asp.Web/Assistant/Shell/Applets/MvApplet.cs`, `ShellRunner.cs` | The `mv` applet and its registry row |
 | `docs/pages.md`, `docs/storage.md` | The capability; the move's transaction and what it leaves behind |
-| `docs/jobs/`page-cannot-move`.md`, `docs/plans/ide-host.md` | The plan pointer and the intended name |
+| `docs/assistant.md` | `move_page`, and the shell's one writing applet |
+| `docs/backlog/`page-cannot-move`.md`, `docs/backlog/one-write-per-render.md`, `docs/plans/ide-host.md` | The plan pointer, the intended name, and bulk move on the batch |
 | `docs/decisions.md` | At the merge only (below) |
 | `test/…/FakePageStore.cs` | `MovePageAsync`, so the scope's checks stay testable without a database |
 
@@ -320,6 +342,15 @@ transaction is proved):
 assertion moves to `page-author-v36`, the prompt contains `MoveAsync`, and every `/help` link still
 names a documented member — the new anchor is `#m-IPageWrites.MoveAsync`.
 
+**The assistant** (`PageToolExecutorTests`, beside the other write tools): a move answers the new key
+and the old one 404s; a missing page, a live target, a stale hash and a page with children are
+refusals that name the outcome; a shell file at either end is refused by the path policy; and a
+reserved key is refused before anything moves.
+
+**The shell** (`MvAppletTests`, beside `CatAndStatAppletTests`): `mv /a /b` moves and answers with the
+new key; `mv` of a missing page, onto a live page, of a page with children and of a shell file are
+refused with the capability's sentence; `help mv` names the command.
+
 **Over the real host** (`Web.IntegrationTests`, a new `PageMoveTests` beside `PageWritesTests`): a
 stored page POSTs a move, the response is the outcome, the next request serves the new key, and the
 old key answers `404` with no page. Nothing in a browser test: every behaviour here is provable by a
@@ -364,16 +395,18 @@ branch is bold: `make decisions` fails on a cited name the record does not have.
 
 ## Slices
 
-One branch, one gate, five commits, each readable on its own.
+One branch, one gate, six commits, each readable on its own.
 
 1. **The store.** `IPageStore.MovePageAsync`, the transaction, and the store's tests.
 2. **The capability.** `PageMoveOutcome`, `PageMoveResult`, `IPageWrites.MoveAsync`, the public API,
    `PageEditor`, `PageWritesScope`, `FakePageStore`, and the scope's tests.
-3. **The editor.** The Move action, its confirmation, and the editor and integration tests.
-4. **The manual and the prompt.** `/help`'s two sections, `PageAuthorPrompt` and `page-author-v36`, and
+3. **The editor.** The Move action, its confirmation page, and the editor and integration tests.
+4. **The assistant and the shell.** `move_page`, `mv`, `ShellTool`, and their tests.
+5. **The manual and the prompt.** `/help`'s two sections, `PageAuthorPrompt` and `page-author-v36`, and
    their tests.
-5. **The docs.** [pages](../pages.md), [storage](../storage.md), [`page-cannot-move`](../backlog/page-cannot-move.md), and
-   the slice-6 pointer in [the IDE plan](ide-host.md).
+6. **The docs.** [pages](../pages.md), [storage](../storage.md), [assistant](../assistant.md),
+   [`page-cannot-move`](../backlog/page-cannot-move.md), [`one-write-per-render`](../backlog/one-write-per-render.md)'s
+   bulk-move note, and the slice-6 pointer in [the IDE plan](ide-host.md).
 
 `make check` is the gate: format, licence, audit, decisions, `check-pages` (the seeds compile, so the
 editor's new action is compile-proved), the tests and the publish. The merge is the owner's, and the
@@ -400,29 +433,29 @@ record is written there.
   keeps it whole; but it is the operation to re-read when the schema is next changed.
 - **The store cannot say a page moved.** Nothing records it, so no view can offer "moved to …" and a
   trail cannot be reconstructed from the database. That is the accepted cost of §3.
+- **The shell stops being read-only.** `mv` is the first applet that writes, so `ShellTool`'s
+  description, its `Writes` flag and the changed-pages card now say a shell call can change the store.
+  Only `mv` writes; every other command is a read, and the applet is the one place that says so.
 
 ## Open questions
 
-The first is answered; the rest are the details the plan has already chosen, stated so the owner can
-overrule them cheaply.
+All answered by the owner on 2026-11-19; recorded so the answers and their costs stay one place.
 
 1. **~~A marker at the old key, or nothing?~~ Answered 2026-11-16: nothing.** `/a` answers `404` after
    `/a` moves to `/b`, so no row, no column and no migration. §3 records what it costs.
-2. **`expectedHash` required?** Recommend required. A move of a head the caller did not read is a
-   rename racing an edit, and the caller that can name `from` can name the hash.
-3. **Does the assistant get a `move_page` tool here?** Recommend not in this branch: the job's location
-   line stops at the prompt, the seeded editor is the shipped caller, and a page is the assistant's
-   route to everything the host adds (`pages-page-first`). A tool is a small follow-on — one
-   `AssistantTool`, a registry row, the changed-pages card learning `from` and `to`.
-4. **A page with children is refused?** Recommend refused with the children named: a folder is a batch
-   of moves, and a move that left a subtree behind would split it silently. The owner's note that `/a`
-   should answer `404` settles the old key's fate rather than this one — a move that left `/a/child`
-   behind would still leave `/a` with no page, and with an orphaned subtree under it. Moving the
-   children first and the folder's own page last renames a folder by hand, which is the order the rule
-   teaches.
-5. **The editor's own Move action, and its own row.** Recommend the action, hidden on the editor's own
-   row for the reason Delete is: the capability refuses the call, and a form that offers a refusal is a
-   form that teaches the wrong thing.
+2. **~~`expectedHash` required?~~ Answered 2026-11-19: yes.** A move of a head the caller did not read
+   is a rename racing an edit, and the caller that can name `from` can name the hash.
+3. **~~Does the assistant get a `move_page` tool here?~~ Answered 2026-11-19: yes, and the shell gets
+   `mv`.** Both ship as callers over the same capability (§8), and the prompt names them so the model
+   never renames by writing and deleting. The changed-pages card learns `from` and `to`.
+4. **~~A page with children is refused?~~ Answered 2026-11-19: yes, with the children named**
+   (`FolderNotEmpty`). A folder is a batch of moves, and a move that left a subtree behind would split
+   it silently. Moving the children first and the folder's own page last renames a folder by hand.
+   [`one-write-per-render`](../backlog/one-write-per-render.md) is told that a batch must be able to move
+   as well as save.
+5. **~~The editor's own Move action, and its own row.~~ Answered 2026-11-19: the action, as a link to
+   a page.** Clicking Move opens `?edit=<key>&cmd=move`, which asks for the destination key and shows
+   the outcome; and it is hidden on the editor's own row for the reason Delete is.
 
 ## Not in scope
 
@@ -438,5 +471,6 @@ overrule them cheaply.
 - **Moving a tombstone.** A tombstone is history, not a page; it is scrubbed or saved over, not moved.
 - **A rename in the release's own seed pack.** [IDEA-036](archive/seed-provenance.md)'s harvest and
   adopt round trip — and the reason §3's third cost has a way out.
-- **The assistant's `move_page` tool, and the IDE's tree and tabs.** See open question 3; a page that
-  moved one knows the new key, and that is what its own view shows.
+- **The IDE's tree and tabs.** A page that moved one knows the new key, and that is what its own view
+  shows; the IDE's tree and open tabs are its plan's work.
+
