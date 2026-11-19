@@ -120,7 +120,7 @@ against the empty string and passes — the kind of defect no gate here would ca
 the first thing the diff is read for.
 
 One block names a Make variable inside a remote script that is otherwise single-quoted: the CI status
-seed, where `CI_STATUS_DIR` appears four times and no remote `$` does. It becomes a concatenation —
+seed, where `CI_STATUS_DIR` appears seven times and no remote `$` does. It becomes a concatenation —
 single-quoted text, `"$ci_status_dir"`, single-quoted text — so the directory is the caller's value
 and the remote text stays literal.
 
@@ -135,6 +135,11 @@ where to look, and the rest rely on ssh printing the remote command's own error.
 `set -euo pipefail` at the top, as in every other script under `deploy/`: unset variables and a
 failure anywhere in a pipe are failures, which is stricter than a make recipe and is what the waits
 want — a `grep -q` that cannot read the file must not read as "not yet".
+
+The commands themselves stop appearing in the deploy's output: make echoed every line it was not told
+to keep quiet, and the script prints only what each block says. Nothing a reader needs is lost — the
+commands are lines in `deploy/deploy-host`, and each block's own sentence is what says which one was
+running.
 
 ### 6. The target as it would be
 

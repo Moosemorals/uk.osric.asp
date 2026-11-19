@@ -501,159 +501,20 @@ image-check: changelist
 	fi; \
 	echo "reproducible: $$a"
 
-# Pushes the image, installs the quadlets (the source of truth), and restarts. The app and Prometheus
-# run rootless as HOST's user on a shared network; Caddy is the only rootful unit and is installed
-# with sudo. The quadlet's Image= line is rewritten on the way, so REGISTRY and the commit tag reach
-# the host. Every quadlet is written before the single daemon-reload that reads them, and both
-# services are restarted in one command afterwards: a reload or a restart each costs a round trip,
-# and neither has anything to do until the last file is in place. Restarting rather than starting is
-# what makes a Caddyfile edit take effect on a redeploy, and a restart is a reason to run this target
-# on its own. There is no enable step: quadlet units are transient, so systemctl refuses to enable
-# them, and the generator already applies each quadlet's [Install] section on daemon-reload.
-#
-# The whole gate runs before the image is built, and therefore long before anything is pushed: a tag
-# that has been pulled by the server cannot be withdrawn, and a broken suite is cheaper to meet here
-# than on the running site. The browser suite is part of this gate and not of `check` (`code-browser-suite-is-opt-in`): two
-# minutes is cheap for a deploy and expensive for the gate a change is run against all day, and a
-# deploy is the moment it matters that the site serves a page in a browser at all. Do not run this
-# target with -j; the order is the point.
+# The gate, the socket it needs and one call: the release itself is deploy/deploy-host, beside the
+# files it installs, so the reason for a step sits with the step and `bash -n` reads it without a
+# host. The whole gate runs before the image is built, and therefore long before anything is pushed:
+# a tag that has been pulled by the server cannot be withdrawn, and a broken suite is cheaper to meet
+# here than on the running site. The browser suite is part of this gate and not of `check`
+# (`code-browser-suite-is-opt-in`): two minutes is cheap for a deploy and expensive for the gate a
+# change is run against all day, and a deploy is the moment it matters that the site serves a page in
+# a browser at all. Do not run this target with -j; the order is the point.
 deploy: deploy-guard check test-browser image | $(SSH_CONTROL_DIR)
-	@$(SSH) $(HOST) 'dpkg -s aardvark-dns >/dev/null 2>&1 || { \
-		echo "the host is missing aardvark-dns: container names will not resolve"; \
-		echo "run: sudo apt-get install -y aardvark-dns"; \
-		exit 1; }'
-	@# The backup host pulls with rsync, which runs a copy on this host as the remote side.
-	@$(SSH) $(HOST) 'command -v rsync >/dev/null 2>&1 || { \
-		echo "the host is missing rsync: the backup host cannot copy its snapshots"; \
-		echo "run: sudo apt-get install -y rsync"; \
-		exit 1; }'
-	@# cloud-init installs the ban once, when the host is created; a host that predates it needs the
-	@# packages before the jail below has anything to run in. nft is the ban action's own command and
-	@# lives in /usr/sbin, which is not on the PATH an ssh command runs with, so it is named in full
-	@# rather than looked up: a jail without it installs, starts and silently fails to ban. Each
-	@# missing piece is named, because "missing fail2ban or nftables" sends an operator to apt for
-	@# packages that are already there.
-	@$(SSH) $(HOST) 'missing=; \
-		dpkg -s fail2ban >/dev/null 2>&1 || missing="$$missing fail2ban"; \
-		dpkg -s nftables >/dev/null 2>&1 || missing="$$missing nftables"; \
-		test -x /usr/sbin/nft || missing="$$missing /usr/sbin/nft"; \
-		if [ -n "$$missing" ]; then \
-			echo "the host is missing$${missing}: nothing will ban an address that keeps failing to sign in"; \
-			echo "run: sudo apt-get install -y fail2ban nftables jq"; \
-			exit 1; \
-		fi'
-	podman tag $(LOCAL_IMAGE) $(IMAGE_REF)
-	podman tag $(LOCAL_IMAGE) $(IMAGE_SHA_REF)
-	podman push --authfile $(AUTHFILE) $(IMAGE_REF)
-	podman push --authfile $(AUTHFILE) $(IMAGE_SHA_REF)
-	$(SSH) $(HOST) podman pull --authfile $(REMOTE_AUTHFILE) $(IMAGE_SHA_REF)
-	@# The assistant's EnvironmentFile has no optional form in podman: quadlet turns it into
-	@# `podman run --env-file`, which has no `-` form and fails the container when the path is
-	@# absent. Seed it once so the path exists; it must hold Assistant__ApiKey, because the host
-	@# refuses to start without one. `test -e` leaves the secret alone.
-	$(SSH) $(HOST) 'install -d -m 0700 .config/uk.osric.asp; test -e .config/uk.osric.asp/assistant.env || install -m 0600 /dev/null .config/uk.osric.asp/assistant.env'
-	@# The host's settings override is the same shape of problem: a single-file bind of a missing
-	@# path becomes a directory and the app cannot read it. Seed it once with an empty object, which
-	@# merges over the shipped section and changes nothing, and leave a host's own file alone.
-	$(SSH) $(HOST) 'test -e .config/uk.osric.asp/appsettings.Production.json || echo "{}" > .config/uk.osric.asp/appsettings.Production.json'
-	$(SSH) $(HOST) install -d .config/prometheus
-	$(SSH) $(HOST) 'cat > .config/containers/systemd/uk.osric.asp.network' < deploy/uk.osric.asp.network
-	sed 's|^Image=.*|Image=$(IMAGE_SHA_REF)|' deploy/uk.osric.asp.container | $(SSH) $(HOST) 'cat > .config/containers/systemd/uk.osric.asp.container'
-	$(SSH) $(HOST) 'cat > .config/prometheus/prometheus.yml' < deploy/prometheus.yml
-	$(SSH) $(HOST) 'cat > .config/containers/systemd/prometheus.container' < deploy/prometheus.container
-	$(SSH) $(HOST) 'cat > .config/containers/systemd/node-exporter.container' < deploy/node-exporter.container
-	@# node_exporter serves this directory and nothing else; the root timer below fills it. It has to
-	@# exist before the container starts, and the files in it are 0644 so the image's nobody can read
-	@# them from inside a rootless container.
-	$(SSH) $(HOST) sudo install -d -o root -g root -m 0755 /var/lib/node-exporter/textfile
-	@# The snapshot script and its clock live on the host like the quadlets do. The pull is the backup
-	@# host's job and runs from its own copy of deploy/pull-backups.sh, so nothing here reaches it.
-	$(SSH) $(HOST) install -d bin
-	$(SSH) $(HOST) 'cat > bin/backup-snapshot.sh' < deploy/backup-snapshot.sh
-	$(SSH) $(HOST) chmod 0755 bin/backup-snapshot.sh
-	$(SSH) $(HOST) install -d .config/systemd/user
-	$(SSH) $(HOST) 'cat > .config/systemd/user/uk.osric.asp-backup.service' < deploy/uk.osric.asp-backup.service
-	$(SSH) $(HOST) 'cat > .config/systemd/user/uk.osric.asp-backup.timer' < deploy/uk.osric.asp-backup.timer
-	$(SSH) $(HOST) systemctl --user daemon-reload
-	$(SSH) $(HOST) systemctl --user restart uk.osric.asp.service prometheus.service node-exporter.service
-	$(SSH) $(HOST) systemctl --user enable --now uk.osric.asp-backup.timer
-	@$(SSH) $(HOST) 'i=0; until podman exec prometheus wget -qO- -T 3 http://app:8080/health >/dev/null 2>&1; do \
-		i=$$((i+1)); \
-		if [ $$i -ge 10 ]; then \
-			echo "Prometheus cannot reach the app at app:8080: check podman network inspect uk.osric.asp"; \
-			exit 1; \
-		fi; \
-		sleep 2; \
-	done'
-	@# The CI status is Caddy's, not the app's: the caddy container mounts this directory, so it must
-	@# exist before that unit starts. Seed a valid never-run body rather than a 404; ci-install owns it
-	@# and leaves an existing result alone.
-	$(SSH) $(HOST) 'sudo install -d -m 0755 $(CI_STATUS_DIR); \
-		if id ci >/dev/null 2>&1; then sudo chown ci:ci $(CI_STATUS_DIR); fi; \
-		if [ ! -e $(CI_STATUS_DIR)/status.json ]; then \
-			if id ci >/dev/null 2>&1; then \
-				sudo -H -u ci tee $(CI_STATUS_DIR)/status.json >/dev/null; \
-			else \
-				sudo tee $(CI_STATUS_DIR)/status.json >/dev/null; \
-			fi; \
-			sudo chmod 0644 $(CI_STATUS_DIR)/status.json; \
-		fi; \
-		if id ci >/dev/null 2>&1; then sudo chown ci:ci $(CI_STATUS_DIR)/status.json; fi' < deploy/ci/status-never-run.json
-	$(SSH) $(HOST) sudo install -d -o root -g root -m 0755 /etc/caddy
-	$(SSH) $(HOST) 'sudo tee /etc/caddy/Caddyfile > /dev/null' < deploy/Caddyfile
-	$(SSH) $(HOST) 'sudo tee /etc/containers/systemd/caddy.container' < deploy/caddy.container > /dev/null
-	$(SSH) $(HOST) sudo systemctl daemon-reload
-	$(SSH) $(HOST) sudo systemctl restart caddy.service
-	@# The ban's one jail and its filter live here like the quadlets and the Caddyfile do. Installing
-	@# them beside the app's restart keeps the words the app logs and the words fail2ban matches in
-	@# one commit; the reload re-reads both without losing the rest of the host's state.
-	$(SSH) $(HOST) 'sudo tee /etc/fail2ban/filter.d/uk.osric.asp.conf > /dev/null' < deploy/fail2ban/filter.d/uk.osric.asp.conf
-	$(SSH) $(HOST) 'sudo tee /etc/fail2ban/jail.local > /dev/null' < deploy/fail2ban/jail.local
-	$(SSH) $(HOST) sudo systemctl enable fail2ban.service
-	$(SSH) $(HOST) sudo systemctl reload-or-restart fail2ban.service
-	@# fail2ban's numbers, for the status page's Host group. The collector is root's because the socket
-	@# is; node_exporter was restarted above and picks the file up on its next scrape. The service is
-	@# started once here as well as by the timer, so a fresh host has numbers before the first tick.
-	$(SSH) $(HOST) 'sudo tee /usr/local/sbin/uk.osric.asp-fail2ban-metrics > /dev/null' < deploy/fail2ban-metrics.sh
-	$(SSH) $(HOST) sudo chmod 0755 /usr/local/sbin/uk.osric.asp-fail2ban-metrics
-	$(SSH) $(HOST) 'sudo tee /etc/systemd/system/uk.osric.asp-fail2ban-metrics.service > /dev/null' < deploy/uk.osric.asp-fail2ban-metrics.service
-	$(SSH) $(HOST) 'sudo tee /etc/systemd/system/uk.osric.asp-fail2ban-metrics.timer > /dev/null' < deploy/uk.osric.asp-fail2ban-metrics.timer
-	$(SSH) $(HOST) sudo systemctl daemon-reload
-	$(SSH) $(HOST) sudo systemctl start uk.osric.asp-fail2ban-metrics.service
-	$(SSH) $(HOST) sudo systemctl enable --now uk.osric.asp-fail2ban-metrics.timer
-	@# The scrape path end to end: the container must resolve by name on the network and the file must
-	@# parse, or the Host panels are silently empty.
-	@$(SSH) $(HOST) 'i=0; until podman exec prometheus wget -qO- -T 3 http://node-exporter:9100/metrics 2>/dev/null | grep -q "^fail2ban_jail_banned_current"; do \
-		i=$$((i+1)); \
-		if [ $$i -ge 15 ]; then \
-			echo "Prometheus cannot read the fail2ban metrics from node-exporter:9100: check systemctl status uk.osric.asp-fail2ban-metrics.service and /var/lib/node-exporter/textfile"; \
-			exit 1; \
-		fi; \
-		sleep 2; \
-	done'
-	@echo "waiting for /health"
-	@$(SSH) $(HOST) 'i=0; until curl -fsS -o /dev/null http://127.0.0.1:8080/health; do \
-		i=$$((i+1)); \
-		if [ $$i -ge 30 ]; then \
-			echo "the site is not healthy 60s after the restart: journalctl --user -u uk.osric.asp.service"; \
-			exit 1; \
-		fi; \
-		sleep 2; \
-	done'
-	@echo "deployed $(GIT_SHA)"
-	@# The image is tagged with the commit, so a commit that reached the registry but never reached
-	@# the remote leaves the running site with no source anyone else can fetch, review, or rebuild a
-	@# rollback from. A note rather than a gate: the push has already happened and cannot be
-	@# withdrawn, so failing here would only make a successful deploy look like a failed one.
-	@if up=$$(git rev-parse --abbrev-ref --symbolic-full-name '@{u}' 2>/dev/null); then \
-		ahead=$$(git rev-list --count "$$up..HEAD"); \
-		if [ "$$ahead" -gt 0 ]; then \
-			echo "but $$up is missing $$ahead commit(s): git push"; \
-			git --no-pager log --oneline "$$up..HEAD"; \
-		fi; \
-	else \
-		echo "but this checkout has no upstream to compare $(GIT_SHA) with: is the commit on the remote?"; \
-	fi
+	@HOST='$(HOST)' SSH='$(SSH)' \
+		LOCAL_IMAGE='$(LOCAL_IMAGE)' IMAGE_REF='$(IMAGE_REF)' IMAGE_SHA_REF='$(IMAGE_SHA_REF)' \
+		AUTHFILE='$(AUTHFILE)' REMOTE_AUTHFILE='$(REMOTE_AUTHFILE)' \
+		CI_STATUS_DIR='$(CI_STATUS_DIR)' GIT_SHA='$(GIT_SHA)' \
+		deploy/deploy-host
 
 # The other half of the backup, installed where it belongs: the host that keeps the copies, not the
 # site. It is HOST=osric@<backuphost> rather than the deploy user because that machine owns the key
