@@ -54,7 +54,7 @@ merge writes the entry and points the plan at it; nothing is recorded here for w
 landed, and nothing is added for a change that decided nothing.
 
 **The merge also closes the plan.** The same step that writes the entry sets the plan's Status to
-merged and moves the plan to [`plans/archive/`](plans/archive/), so the live plans are the ones still
+merged and moves the plan to [`plans/archive/`](plans/archive), so the live plans are the ones still
 being worked and every link into the plan is retargeted in that change. A plan left behind is a
 finished step still asking to be read.
 
@@ -126,12 +126,35 @@ GitHub Issues and Pull Requests tabs are off.
 
 ### product-work-is-jobs
 
-Work is tracked as jobs: one file per job, `IDEA-` for something the site could become and `SEC-`,
-`BUG-`, `OPS-` or `ARCH-` for something it gets wrong. **Size** is the scheduling column, and small
-self-contained work goes first because it never gets scheduled otherwise. Speculative product work is
-backlog, not a licence to widen the task in hand.
+Work is tracked in the backlog: one file per item in `docs/backlog`, named by a `kind-subject` slug
+whose kind is `idea` for something the site could become and `bug`, `sec`, `ops` or `arch` for
+something it gets wrong. An item's title is its H1, its header carries Difficulty on the animal scale,
+Utility, Status, Blocked by and Plan, and the one order table is the priority — small, high-utility
+work first because it never gets scheduled otherwise. A job is the host's `PageJob`; the record does
+not use the word for an item. Speculative product work is an item, not a licence to widen the task in
+hand. The name is kept though the record moved on, because a name is permanent.
 
-*Recorded in [jobs](backlog/README.md).*
+*Recorded in [the backlog](backlog/README.md), [the plan](plans/archive/backlog-record.md).*
+
+### product-a-difficulty-is-not-a-duration
+
+An item's difficulty is a level on the animal scale — sleepy hamster to tiger with a toothache — and
+never a guess at the calendar. No document in the record estimates hours or days: a time estimate
+ignores who is doing the work, what interrupts them and what they already know, and it reads as a
+promise nobody can keep. Whether an item wants a plan is the `Plan` field's business, not difficulty's,
+because a plan is about coordination rather than size.
+
+*Recorded in [the backlog](backlog/README.md#difficulty-is-a-level-not-a-duration), [the plan](plans/archive/backlog-record.md).*
+
+### product-a-merged-plan-is-archived
+
+A plan is finished when the work merges, and it leaves `docs/plans/` for `docs/plans/archive/` in that
+same merge: the merge that writes the decision also sets the plan's Status to merged and moves it,
+retargeting every link into it. The live plans are then the ones still being worked. A finished plan
+that stays live asks to be read and is not — eight had merged for days, three of them still saying
+proposed or waiting — and the stale Status line is what a reader trusts.
+
+*Recorded in [CONTRIBUTING](../CONTRIBUTING.md#working-on-it), [the record](#taking-a-name), [the plan](plans/archive/backlog-record.md).*
 
 ### product-plan-before-building
 
@@ -368,6 +391,18 @@ and is the moment it matters that the site serves a page in a browser at all. Th
 locally; the fixtures that use the real provider are `[Explicit]` and cost tokens.
 
 *Recorded in [testing](testing.md#the-browser-suite), [assistant browser tests](plans/archive/assistant-browser-tests.md).*
+
+### code-the-gate-checks-the-backlog
+
+`make check` runs `make backlog`, a tool over `docs/backlog` in the shape of `check-decisions`: a slug
+outside the shape or used twice, a missing or malformed field, a Status the blockers and the plan do
+not say, an item missing from the order or listed twice, a row whose difficulty, utility or status
+disagrees with the item, a planned row that links the wrong plan, an order that puts an item above its
+blocker, a cycle, a plan that does not link back, and a citation of an item that is not in the record
+all fail it. The lists it reads — the difficulty scale, the decision areas — are read out of their own
+documents, so each has one home. A scheme nobody verifies is a scheme that drifts.
+
+*Recorded in [the backlog](backlog/README.md#the-check), [the Makefile](../Makefile), [the plan](plans/archive/backlog-record.md).*
 
 ### code-licence-is-mit
 

@@ -39,7 +39,7 @@ deleted; nothing is pushed to `origin` until asked. A decision is named rather t
 name is taken when the work merges
 ([the record](docs/decisions.md)), so a branch states the name it intends until then and the merge
 writes the entry. The merge also closes the plan: its Status becomes merged and it moves to
-[docs/plans/archive](docs/plans/archive/), with every link into it retargeted in the same change.
+[docs/plans/archive](docs/plans/archive), with every link into it retargeted in the same change.
 
 **The owner merges, not the agent.** A branch is a proposal. When its work is done and its gate is
 run, the agent stops and says what changed, what proved it and what it is unsure of; the owner answers.

@@ -7,12 +7,12 @@ SPDX-License-Identifier: MIT
 
 | | |
 | --- | --- |
-| Status | Built 2026-11-19 — waits for the merge. The folder, the 26 slugs, the fields, the one table and `make backlog` are all in place; the eight completed plans are archived and the merge step now says so. The gate is green |
+| Status | Merged 2026-11-19 — the folder, the 26 slugs, the fields, the one table and `make backlog` are in trunk, the eight completed plans are archived, and the merge step now says so |
 | Difficulty | Determined Mountain Goat 🐐💪 — a folder rename and a slug sweep over 26 open items, one new checker, one Makefile target, and the index's two tables becoming one, with care needed where a frozen document's links move |
 | Area | `docs/jobs` → `docs/backlog`, `docs/plans`, the live documents that cite an item, `CONTRIBUTING.md`, `.github/copilot-instructions.md`, `Makefile`, `uk.osric.asp.slnx`, a new `tools/check-backlog` |
-| Spike | None. Every claim about what exists was read off `trunk` on 2026-11-18: the 26 item files and the two tables in [the index](../backlog/README.md), [the closed list](../backlog/closed.md), [the whims](../backlog/WHIMS.md), the `Backlog` rows of the live plans, and the citations the live documents and comments carry |
-| Decisions | At the merge: **product-backlog-items-are-slugs**, **product-a-difficulty-is-not-a-duration**, **product-a-merged-plan-is-archived** and **code-the-gate-checks-the-backlog** |
-| Backlog | This plan is the whole of the work. Nothing about the site is wrong, so there is no item file: the record is what changes. [`whim-backlog-on-the-site`](../backlog/WHIMS.md) is adjacent and stays a whim |
+| Spike | None. Every claim about what exists was read off `trunk` on 2026-11-18: the 26 item files and the two tables in [the index](../../backlog/README.md), [the closed list](../../backlog/closed.md), [the whims](../../backlog/WHIMS.md), the `Backlog` rows of the live plans, and the citations the live documents and comments carry |
+| Decisions | At the merge: `product-work-is-jobs` is revised in place — the name is kept and its text becomes the backlog's — and `product-a-difficulty-is-not-a-duration`, `product-a-merged-plan-is-archived` and `code-the-gate-checks-the-backlog` are taken. *product-backlog-items-are-slugs* was proposed and folded into `product-work-is-jobs`, because one rule in two entries is the clash the record's own rule forbids |
+| Backlog | This plan is the whole of the work. Nothing about the site is wrong, so there is no item file: the record is what changes. [`whim-backlog-on-the-site`](../../backlog/WHIMS.md) is adjacent and stays a whim |
 
 ## The short version
 
@@ -23,7 +23,7 @@ sentences in prose, so nothing can check them and the owner has to hold them in 
 This plan gives the record **its own word**, gives an item **a slug** in place of a number, gives its
 header **the facts it is ordered by**, reduces the index to **one table that is the order**, and adds
 **`make backlog`** to prove the record is consistent. It is the move [the decision
-record](../decisions.md) already made, applied to the other record in the repository.
+record](../../decisions.md) already made, applied to the other record in the repository.
 
 - **The folder is `docs/backlog`, the entries are items, and `make backlog` is the check.** `job` is
   the host's word — `PageJob`, `PageJobRunner`, `PageJobsScope`, the assistant's runs — and the
@@ -36,14 +36,14 @@ record](../decisions.md) already made, applied to the other record in the reposi
   with a reason per row; `make backlog` refuses an order that puts an item above something that
   blocks it.
 - `closed.md` is frozen: an `IDEA-` number written before the sweep keeps meaning what it meant, the
-  way [`docs/archive/decisions.md`](../archive/decisions.md) does.
+  way [`docs/archive/decisions.md`](../../archive/decisions.md) does.
 
 ## What exists today
 
 | | |
 | --- | --- |
 | The open items | 26 files, each with a header table of Size, Area, Location, Spike (and sometimes a Link or a Status) and an H1 of `IDEA-nnn — title` |
-| The index | Two tables in [the README](../backlog/README.md): an inventory of `ID`, Size, Severity, Plan and title, and an order of `#`, item, Size and "Why here" |
+| The index | Two tables in [the README](../../backlog/README.md): an inventory of `ID`, Size, Severity, Plan and title, and an order of `#`, item, Size and "Why here" |
 | Duplication | Size is in the file header and in both tables, so one judgement is written in three places and can disagree with itself |
 | What Size measures | Duration: `S` is "a sitting", `M` "a day or so", `L` "big enough to want a plan of its own". That is a guess about the calendar dressed as a judgement about the work, and the owner asked for difficulty |
 | Priority | The order table's `#`, which is a good total order with a written reason — and nothing else |
@@ -54,7 +54,7 @@ record](../decisions.md) already made, applied to the other record in the reposi
 | Links, plan → item | The `Backlog` row of a live plan, sometimes as links and sometimes as plain text: `assistant-owner-interrupt.md` says ARCH-17, and `page-response.md` says (IDEA-050) with no link |
 | Two things called a job | The record's unit of work, and the host's `PageJob`/`PageJobRunner`/`PageJobsScope`/`IWorkerContext` and the assistant's runs. IDEA-056 is about the host's job and sits in a folder whose README calls everything a job |
 | Citations that do not resolve | `docs/testing.md` cites `BUG-11`, which is a closed row; two code comments cite IDEA-023 and BUG-17, and neither is in the record at all |
-| The working precedent | [The decision record](../decisions.md) is identified by a slug, cited in backticks, and checked by [check-decisions](../../tools/check-decisions/Program.cs) — 281 lines that print `file:line` problems and run in `make check` |
+| The working precedent | [The decision record](../../decisions.md) is identified by a slug, cited in backticks, and checked by [check-decisions](../../../tools/check-decisions/Program.cs) — 281 lines that print `file:line` problems and run in `make check` |
 
 The numbers fail for the reason the decision record already wrote down: a number tells a reader
 nothing, and two people counting alone can take the same one. One owner counting alone still cannot
@@ -140,7 +140,7 @@ already the block an item read alone carries.
 | Severity | a defect only, and kept as it was: the reviewer's risk assessment |
 | Status | `open` / `blocked` / `parked` |
 | Blocked by | `` `idea-check-without-storing` ``, comma-separated, or `—` |
-| Plan | [ide-host](ide-host.md), or `—` |
+| Plan | [ide-host](../ide-host.md), or `—` |
 | Area | as today |
 | Location | as today |
 | Spike | as today |
@@ -256,7 +256,7 @@ branch. Nothing is written about either.
   an item by writing the file and removing its line, and it keeps the slug it had. The checker
   enforces the shape and the uniqueness.
 - **Closed items stay numbered.** `closed.md` is frozen in the sense that
-  [`docs/archive/decisions.md`](../archive/decisions.md) is: a reader, a plan or a commit written
+  [`docs/archive/decisions.md`](../../archive/decisions.md) is: a reader, a plan or a commit written
   before the sweep still means what it meant. New rows carry slugs; old rows do not move.
 
 ### 6. The sweep
@@ -287,11 +287,11 @@ The owner asked for this beside the record: a plan whose work has merged leaves 
 `docs/plans/archive/`, in the same merge that writes its decision. A finished plan that stays live asks
 to be read and is not; eight had been merged for days and still sat beside the ones being worked.
 
-- **The merge step does it.** [The instructions](../../.github/copilot-instructions.md), [the
-  record](../decisions.md#taking-a-name) and [how to work](../../CONTRIBUTING.md#working-on-it) now say
+- **The merge step does it.** [The instructions](../../../.github/copilot-instructions.md), [the
+  record](../../decisions.md#taking-a-name) and [how to work](../../../CONTRIBUTING.md#working-on-it) now say
   the merge writes the entry, points the plan at it, marks the plan's Status merged and moves it.
 - **The evidence is the item's.** A plan is completed when the item that carries it is in
-  [closed.md](../backlog/closed.md); three of the eight had a Status line that still said proposed or
+  [closed.md](../../backlog/closed.md); three of the eight had a Status line that still said proposed or
   waiting for a merge, and the move is where that was found. Their Status now says merged and names
   the decision and the closed row.
 - **Every link moves with it.** A link into a moved plan is recomputed against the plan's new
@@ -342,7 +342,7 @@ The titles are unchanged apart from the dropped number.
 | Retargeted | The `Backlog` rows of the live plans; the ten live documents above; the archived plans' and `archive/decisions.md`'s links; this plan's own links |
 | Added | `tools/check-backlog/check-backlog.csproj`, `Program.cs`; a `backlog` target in the `Makefile`; a line in `uk.osric.asp.slnx` and in `make check` |
 | Updated | `CONTRIBUTING.md` (a branch is `kind/filename`; an item is a slug) and `.github/copilot-instructions.md` (the citation rule and `docs/backlog/`) |
-| Archived | [assistant-live-figures](archive/assistant-live-figures.md), [assistant-owner-interrupt](archive/assistant-owner-interrupt.md), [page-composition](archive/page-composition.md), [page-response](archive/page-response.md), [seed-trimming](archive/seed-trimming.md), [shell-navigation](archive/shell-navigation.md), [shell-route-catalogue](archive/shell-route-catalogue.md) and [simple-context](archive/simple-context.md), with every link into them recomputed |
+| Archived | [assistant-live-figures](assistant-live-figures.md), [assistant-owner-interrupt](assistant-owner-interrupt.md), [page-composition](page-composition.md), [page-response](page-response.md), [seed-trimming](seed-trimming.md), [shell-navigation](shell-navigation.md), [shell-route-catalogue](shell-route-catalogue.md) and [simple-context](simple-context.md), with every link into them recomputed |
 | Untouched | The rows and numbers in `closed.md`, the host's `PageJob` vocabulary, the product assemblies, `/help` |
 
 ## Tests
@@ -392,33 +392,30 @@ No product test changes: nothing under `src/` or `test/` changes behaviour.
 
 ## Documentation
 
-- [The index](../backlog/README.md) states the scheme once: the slug and the title, the header's fields,
+- [The index](../../backlog/README.md) states the scheme once: the slug and the title, the header's fields,
   the difficulty scale with its ten animals, the one table, and what `make backlog` proves.
-- [CONTRIBUTING.md](../../CONTRIBUTING.md) says a branch is `kind/filename` and an item is a slug;
+- [CONTRIBUTING.md](../../../CONTRIBUTING.md) says a branch is `kind/filename` and an item is a slug;
   the `arch-15`/`idea-026` examples become `arch/…` and `idea/…`.
-- [.github/copilot-instructions.md](../../.github/copilot-instructions.md) cites the policy item by
+- [.github/copilot-instructions.md](../../../.github/copilot-instructions.md) cites the policy item by
   its slug, says a job is now the host's job, and sends a new idea to `docs/backlog/`.
-- [decisions.md](../decisions.md) has its item links retargeted; no entry changes meaning.
+- [decisions.md](../../decisions.md) has its item links retargeted; no entry changes meaning.
 - **`/help` is unchanged.** This plan adds no context member, capability, layout slot, editor action,
   content type or response rule, so there is nothing a page author does differently.
 
 ## The record at the merge
 
-- **product-backlog-items-are-slugs** — the record is `docs/backlog`, its entries are items, an item
-  is identified by a `kind-subject` slug and has a title as its H1, the header carries Difficulty,
-  Utility, Status, Blocked by and Plan, the order table is the priority, and `closed.md` is frozen.
-  Recorded
-  in this plan and [the index](../backlog/README.md).
-- **product-a-difficulty-is-not-a-duration** — difficulty is a level on the animal scale, never a
-  guess at the calendar: the header and the row carry an animal and its condition, and no document
-  in the record estimates hours or days. Recorded in this plan and [the index](../backlog/README.md).
-- **product-a-merged-plan-is-archived** — the merge that writes a plan's decision also sets the
-  plan's Status to merged and moves it to `docs/plans/archive/`, retargeting every link into it, so
-  the live plans are the ones still being worked. Recorded in this plan,
-  [the record](../decisions.md#taking-a-name) and [how to work](../../CONTRIBUTING.md#working-on-it).
-- **code-the-gate-checks-the-backlog** — `make check` runs `make backlog`, which proves the slugs,
-  the fields, the order against the dependency graph and both directions of the plan link. Recorded
-  in this plan, [the index](../backlog/README.md) and the `Makefile`.
+- **`product-work-is-jobs` is revised**, not replaced: the name says *jobs* and is kept because a name
+  is permanent, and its text now states the backlog's rule — a slug and a title, the header's fields,
+  the one table as the priority. The name this plan proposed, *product-backlog-items-are-slugs*, was
+  folded into it at the merge: two entries about how work is recorded is one entry too many
+  ([the clash rule](../../decisions.md#taking-a-name)).
+- **`product-a-difficulty-is-not-a-duration`** — difficulty is a level on the animal scale, never a
+  guess at the calendar.
+- **`product-a-merged-plan-is-archived`** — the merge that writes the decision sets the plan's Status
+  and moves it to the archive, retargeting every link into it.
+- **`code-the-gate-checks-the-backlog`** — `make check` runs `make backlog`, which proves the slugs,
+  the fields, the order against the dependency graph, the plan link in both directions and every
+  citation.
 
 ## Slices
 
@@ -467,7 +464,7 @@ owner would rather merge the folder and the slugs first, slice 1 stands alone an
 
 - **GitHub Issues, Projects or Azure DevOps.** They model every field above and do it well; they move
   the record out of the repository, out of the diff and out of the gate, and that is the property
-  this plan is keeping. A board is a view, and a view can be generated later ([`whim-backlog-on-the-site`](../backlog/WHIMS.md)).
+  this plan is keeping. A board is a view, and a view can be generated later ([`whim-backlog-on-the-site`](../../backlog/WHIMS.md)).
 - **A tracker tool.** A checker is a pure function over a folder of text; a tracker with transitions,
   filters and a UI is a second product.
 - **A computed priority score.** The order with a reason per row is the decision; a score is a
