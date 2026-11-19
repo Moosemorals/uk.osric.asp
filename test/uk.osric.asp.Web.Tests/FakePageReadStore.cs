@@ -81,13 +81,14 @@ internal sealed class FakePageReadStore : IPageReadStore {
     }
 
     /// <inheritdoc/>
-    public async Task<IReadOnlyList<PageReadHead>> ListAsync(string prefix, int limit, CancellationToken cancellationToken = default) {
+    public async Task<IReadOnlyList<PageReadHead>> ListAsync(string prefix, string? after, int limit, CancellationToken cancellationToken = default) {
         LastCancellationToken = cancellationToken;
         ReadCount++;
         await Task.Delay(ReadDelay, cancellationToken);
 
         return [.. _pages
             .Where(item => InSubtree(item.Key, prefix))
+            .Where(item => after is null || string.CompareOrdinal(item.Key, after) > 0)
             .OrderBy(item => item.Key, StringComparer.Ordinal)
             .Take(limit)
             .Select(item => {

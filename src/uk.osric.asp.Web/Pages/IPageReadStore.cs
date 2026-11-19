@@ -67,12 +67,13 @@ internal interface IPageReadStore {
     /// <returns>Every live library head, in ordinal key order.</returns>
     Task<IReadOnlyList<PageReadHead>> ListLibrariesAsync(CancellationToken cancellationToken = default);
 
-    /// <summary>Lists the heads under a prefix, ordered by key.</summary>
+    /// <summary>Lists the heads under a prefix, ordered by key, from a cursor.</summary>
     /// <param name="prefix">The canonical subtree prefix; <c>/</c> is the whole store.</param>
+    /// <param name="after">The canonical key to resume after, or <see langword="null"/> for the first row.</param>
     /// <param name="limit">The most rows to select, as a limit in the statement.</param>
     /// <param name="cancellationToken">Cancels the read.</param>
-    /// <returns>At most <paramref name="limit"/> heads, in ordinal key order.</returns>
-    Task<IReadOnlyList<PageReadHead>> ListAsync(string prefix, int limit, CancellationToken cancellationToken = default);
+    /// <returns>At most <paramref name="limit"/> heads with a key past the cursor, in ordinal key order.</returns>
+    Task<IReadOnlyList<PageReadHead>> ListAsync(string prefix, string? after, int limit, CancellationToken cancellationToken = default);
 
     /// <summary>Reads one head, which is how a caller learns what a key holds.</summary>
     /// <param name="key">The canonical key to read.</param>

@@ -40,7 +40,7 @@ internal sealed class SqlitePageStore(
         return revision is null ? null : ToPage(revision);
     }
 
-    public async Task<IReadOnlyList<PageListing>> ListPagesAsync(CancellationToken cancellationToken = default) {
+    public async Task<IReadOnlyList<PageListRow>> ListPagesAsync(CancellationToken cancellationToken = default) {
         // The head's current revision is joined the way ListRevisionsAsync joins it, and the state is
         // decided client-side because PageImageState cannot be translated into SQL.
         var rows = await database.Set<PageHead>().AsNoTracking()
@@ -58,7 +58,7 @@ internal sealed class SqlitePageStore(
             .ToArrayAsync(cancellationToken);
 
         return [.. rows.OrderBy(row => row.Path, StringComparer.Ordinal)
-            .Select(row => new PageListing(
+            .Select(row => new PageListRow(
                 PagePath.Normalize(row.Path),
                 row.IsDeleted,
                 PageImageStatus.Describe(row.RuntimeId, row.HasImage, row.HasDiagnostics, currentRuntimeId, row.TemplateKind)))];

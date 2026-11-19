@@ -1138,11 +1138,25 @@ shell file or a tombstone, whether a save would be accepted and the page's image
 permission column and the state are formatted by whoever shows them, with `PageMode` and
 `PageImageStatus`, so `ls -l`, `stat`, `list_pages` and `read_page` cannot spell one fact two ways.
 
-`Pages:Read:MaxRowsPerList` is selected for as a limit of one more than the cap and refused when the
-extra row arrives; `Pages:Read:MaxSourceCharsPerRender` is one `ReadBudget` per request, shared by every
-layer of the chain, charged by the reads and refused rather than clamped.
+A listing is one slice of a store that may hold more, which is `pages-a-listing-resumes-from-a-key`:
+`Pages:Read:MaxRowsPerList` bounds a slice rather than refusing past it.
+`Pages:Read:MaxSourceCharsPerRender` is one `ReadBudget` per request, shared by every layer of the
+chain, charged by the reads and refused rather than clamped.
 
 *Recorded in [page store read](plans/archive/page-store-read.md#d3--everything-marked), [PageStoreReader](../src/uk.osric.asp.Web/Assistant/PageStoreReader.cs).*
+
+### pages-a-listing-resumes-from-a-key
+
+A listing is one slice, asked for by a prefix, a cursor and a limit, and answered with its rows and
+whether more stand after them. The cursor is the last key the caller was given rather than a count,
+because a page saved between two calls would make an offset skip or repeat a row and a key cannot; it
+is normalised as a page key, so a trailing slash resumes in the same place. The configured cap is the
+largest limit a caller may ask for, not a wall — a listing that refuses past its cap makes the 501st
+page an outage of the tree where a slice makes it the next request — and a limit above it is refused
+with the setting's name rather than trimmed. A cursor past the last key is an empty answer, not an
+error.
+
+*Recorded in [pages](pages.md), [IPageCatalog](../src/uk.osric.asp.Sdk/IPageCatalog.cs), [the plan](plans/ide-host.md).*
 
 ### pages-the-catalog-knows-the-shell
 

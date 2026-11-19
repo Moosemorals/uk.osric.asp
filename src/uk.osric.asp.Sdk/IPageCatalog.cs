@@ -54,25 +54,26 @@ public interface IPageCatalog {
     /// <exception cref="InvalidOperationException">The render was abandoned.</exception>
     public IReadOnlyList<ShellLink> ShellLinks();
 
-    /// <summary>Lists the heads of the store, under a prefix.</summary>
-    /// <param name="prefix">
-    /// The subtree to list. <c>""</c> and <c>"/"</c> are the whole store; any other value is
-    /// normalised as a page key, so <c>/Blog/</c> and <c>/blog</c> are the same request. A prefix
-    /// lists the key itself and the keys beneath it, never a key that merely starts with the same
-    /// text: <c>/blog</c> lists <c>/blog</c> and <c>/blog/post</c>, never <c>/blogroll</c>.
-    /// </param>
+    /// <summary>Lists the heads of the store, one slice at a time.</summary>
+    /// <param name="request">The subtree, the cursor to resume from and the limit to answer.</param>
     /// <returns>
-    /// Every head under the prefix, including tombstones, seeded assets and reserved keys, ordered
-    /// by key and marked so a view can pick what it wants.
+    /// The heads under the prefix, including tombstones, seeded assets and reserved keys, ordered by
+    /// key and marked so a view can pick what it wants, and whether more stand after the last one.
     /// </returns>
+    /// <remarks>
+    /// A slice is a keyset, not an offset: <see cref="PageListingRequest.After"/> is the last key the
+    /// caller was given, so a page saved between two calls neither skips nor repeats a row. A cursor
+    /// past the last key answers an empty page with <see cref="PageListing.Truncated"/> false.
+    /// </remarks>
     /// <exception cref="ArgumentException">
-    /// The prefix cannot name a key, for example one containing <c>?</c> or <c>#</c>.
+    /// The prefix or the cursor cannot name a key, for example one containing <c>?</c> or <c>#</c>.
     /// </exception>
-    /// <exception cref="InvalidOperationException">
-    /// The render was abandoned, or the prefix holds more rows than the host's listing cap; the
-    /// message names the cap and suggests a prefix.
+    /// <exception cref="ArgumentOutOfRangeException">
+    /// The limit is smaller than one row or larger than the host's listing cap; the message names the
+    /// setting to raise.
     /// </exception>
-    public Task<IReadOnlyList<PageEntry>> ListAsync(string prefix);
+    /// <exception cref="InvalidOperationException">The render was abandoned.</exception>
+    public Task<PageListing> ListAsync(PageListingRequest request);
 
     /// <summary>Reads a live page's template.</summary>
     /// <param name="key">The page's key; normalised before it is read.</param>

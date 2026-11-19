@@ -51,7 +51,7 @@ internal sealed class SqlitePageReadStore(IDbContextFactory<StorageDbContext> co
     }
 
     /// <inheritdoc/>
-    public async Task<IReadOnlyList<PageReadHead>> ListAsync(string prefix, int limit, CancellationToken cancellationToken = default) {
+    public async Task<IReadOnlyList<PageReadHead>> ListAsync(string prefix, string? after, int limit, CancellationToken cancellationToken = default) {
         ArgumentNullException.ThrowIfNull(prefix);
         ArgumentOutOfRangeException.ThrowIfLessThan(limit, 1);
 
@@ -62,9 +62,16 @@ internal sealed class SqlitePageReadStore(IDbContextFactory<StorageDbContext> co
         await using StorageDbContext database = contexts.CreateDbContext();
 
         // The shape and the limit are fixed in the statement, because the row cap needs the order to
-        // be decided before the limit is applied.
-        var rows = await database.Set<PageHead>().AsNoTracking()
-            .Where(head => head.Path == prefix || EF.Functions.Like(head.Path, like, "\\"))
+        // be decided before the limit is applied. The cursor is a key rather than a count, so a save
+        // between two calls cannot make the next one skip a row or repeat one.
+        IQueryable<PageHead> heads = database.Set<PageHead>().AsNoTracking()
+            .Where(head => head.Path == prefix || EF.Functions.Like(head.Path, like, "\\"));
+
+        if (after is not null) {
+            heads = heads.Where(head => head.Path.CompareTo(after) > 0);
+        }
+
+        var rows = await heads
             .Join(database.Set<PageRevision>().AsNoTracking(),
                 head => new { head.RevisionId, head.Path },
                 revision => new { revision.RevisionId, revision.Path },

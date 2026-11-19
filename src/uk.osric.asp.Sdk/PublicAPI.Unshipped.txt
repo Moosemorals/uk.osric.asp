@@ -1,91 +1,236 @@
 #nullable enable
+
+*REMOVED*const uk.osric.asp.Sdk.PageDocument.SkipLinkText = "Skip to content" -> string!
+*REMOVED*static uk.osric.asp.Sdk.PageDocument.Banner(string! navigation) -> string!
+*REMOVED*static uk.osric.asp.Sdk.PageDocument.BaseStylesheets.get -> System.Collections.Generic.IReadOnlyList<string!>!
+*REMOVED*static uk.osric.asp.Sdk.PageDocument.CloseMain() -> string!
+*REMOVED*static uk.osric.asp.Sdk.PageDocument.End() -> string!
+*REMOVED*static uk.osric.asp.Sdk.PageDocument.Head(string! title, System.Collections.Generic.IReadOnlyList<string!>? stylesheets = null, string? head = null, string? bodyClass = null) -> string!
+*REMOVED*static uk.osric.asp.Sdk.PageDocument.IsSiteRelative(string? href) -> bool
+*REMOVED*static uk.osric.asp.Sdk.PageDocument.Nav(string! label, System.Collections.Generic.IReadOnlyList<uk.osric.asp.Sdk.NavLink>! links, string? className = null) -> string!
+*REMOVED*static uk.osric.asp.Sdk.PageDocument.OpenMain() -> string!
 *REMOVED*uk.osric.asp.Sdk.HttpFetchFailure.NotAllowed = 2 -> uk.osric.asp.Sdk.HttpFetchFailure
-override uk.osric.asp.Sdk.PageEntry.GetHashCode() -> int
-override uk.osric.asp.Sdk.PageRevisionInfo.GetHashCode() -> int
-override uk.osric.asp.Sdk.PageSource.Equals(object? obj) -> bool
-override uk.osric.asp.Sdk.PageSource.GetHashCode() -> int
-override uk.osric.asp.Sdk.PageSource.ToString() -> string!
-static uk.osric.asp.Sdk.PageEntry.operator !=(uk.osric.asp.Sdk.PageEntry left, uk.osric.asp.Sdk.PageEntry right) -> bool
-static uk.osric.asp.Sdk.PageEntry.operator ==(uk.osric.asp.Sdk.PageEntry left, uk.osric.asp.Sdk.PageEntry right) -> bool
-static uk.osric.asp.Sdk.PageRevisionInfo.operator !=(uk.osric.asp.Sdk.PageRevisionInfo left, uk.osric.asp.Sdk.PageRevisionInfo right) -> bool
-static uk.osric.asp.Sdk.PageRevisionInfo.operator ==(uk.osric.asp.Sdk.PageRevisionInfo left, uk.osric.asp.Sdk.PageRevisionInfo right) -> bool
-static uk.osric.asp.Sdk.PageSource.operator !=(uk.osric.asp.Sdk.PageSource? left, uk.osric.asp.Sdk.PageSource? right) -> bool
-static uk.osric.asp.Sdk.PageSource.operator ==(uk.osric.asp.Sdk.PageSource? left, uk.osric.asp.Sdk.PageSource? right) -> bool
-uk.osric.asp.Sdk.HttpFetchRequest.Credential.get -> string?
-uk.osric.asp.Sdk.HttpFetchRequest.Credential.init -> void
-uk.osric.asp.Sdk.HttpFetchStream
+*REMOVED*uk.osric.asp.Sdk.IContext.Features.get -> uk.osric.asp.Sdk.IPageFeatures!
+*REMOVED*uk.osric.asp.Sdk.IPageFeatures
+*REMOVED*uk.osric.asp.Sdk.IPageFeatures.Get<T>() -> T?
+*REMOVED*uk.osric.asp.Sdk.IPageFeatures.GetRequired<T>() -> T!
+*REMOVED*uk.osric.asp.Sdk.IPageFeatures.TryGet<T>(out T? feature) -> bool
+*REMOVED*uk.osric.asp.Sdk.IPageLayout.Body.get -> string!
+*REMOVED*uk.osric.asp.Sdk.IPageLayout.Layout.get -> string?
+*REMOVED*uk.osric.asp.Sdk.IPageLayout.Layout.set -> void
+*REMOVED*uk.osric.asp.Sdk.IPageLayout.Title.get -> string!
+*REMOVED*uk.osric.asp.Sdk.PageDocument
+*REMOVED*uk.osric.asp.Sdk.PageRequest.Deconstruct(out string! Method, out string! Path, out System.Collections.Generic.IReadOnlyDictionary<string!, string!>! Query, out System.Collections.Generic.IReadOnlyDictionary<string!, string!>! Form, out System.Collections.Generic.IReadOnlyDictionary<string!, string!>! Headers, out System.Collections.Generic.IReadOnlyDictionary<string!, string!>! Cookies) -> void
+*REMOVED*uk.osric.asp.Sdk.PageRequest.PageRequest(string! Method, string! Path, System.Collections.Generic.IReadOnlyDictionary<string!, string!>! Query, System.Collections.Generic.IReadOnlyDictionary<string!, string!>! Form, System.Collections.Generic.IReadOnlyDictionary<string!, string!>! Headers, System.Collections.Generic.IReadOnlyDictionary<string!, string!>! Cookies) -> void
 abstract uk.osric.asp.Sdk.HttpFetchStream.CloseAsync() -> System.Threading.Tasks.Task!
 abstract uk.osric.asp.Sdk.HttpFetchStream.Failure.get -> uk.osric.asp.Sdk.HttpFetchFailure
 abstract uk.osric.asp.Sdk.HttpFetchStream.Headers.get -> System.Collections.Generic.IReadOnlyDictionary<string!, string!>!
 abstract uk.osric.asp.Sdk.HttpFetchStream.ReadLineAsync() -> System.Threading.Tasks.Task<string?>!
 abstract uk.osric.asp.Sdk.HttpFetchStream.Status.get -> int
 abstract uk.osric.asp.Sdk.HttpFetchStream.Truncated.get -> bool
-uk.osric.asp.Sdk.HttpFetchStream.HttpFetchStream() -> void
-uk.osric.asp.Sdk.IHttpFetch.StreamAsync(uk.osric.asp.Sdk.HttpFetchRequest! request) -> System.Threading.Tasks.Task<uk.osric.asp.Sdk.HttpFetchStream!>!
-uk.osric.asp.Sdk.IBuildInfo
-uk.osric.asp.Sdk.IBuildInfo.Commit.get -> string?
-uk.osric.asp.Sdk.IPageCatalog
-uk.osric.asp.Sdk.IPageCatalog.ListAsync(string! prefix) -> System.Threading.Tasks.Task<System.Collections.Generic.IReadOnlyList<uk.osric.asp.Sdk.PageEntry>!>!
-uk.osric.asp.Sdk.IPageCatalog.ReadAsync(string! key) -> System.Threading.Tasks.Task<uk.osric.asp.Sdk.PageSource?>!
-uk.osric.asp.Sdk.IPageCatalog.ReadRevisionAsync(string! key, string! hash) -> System.Threading.Tasks.Task<uk.osric.asp.Sdk.PageSource?>!
-uk.osric.asp.Sdk.IPageCatalog.RevisionsAsync(string! key) -> System.Threading.Tasks.Task<System.Collections.Generic.IReadOnlyList<uk.osric.asp.Sdk.PageRevisionInfo>!>!
-uk.osric.asp.Sdk.PageEntry
-uk.osric.asp.Sdk.PageEntry.Deconstruct(out string! Key, out System.DateTimeOffset SavedAt, out string! Hash, out bool IsDeleted, out bool IsReserved, out bool IsHtml) -> void
-uk.osric.asp.Sdk.PageEntry.Equals(uk.osric.asp.Sdk.PageEntry other) -> bool
-uk.osric.asp.Sdk.PageEntry.Hash.get -> string!
-uk.osric.asp.Sdk.PageEntry.Hash.init -> void
-uk.osric.asp.Sdk.PageEntry.IsDeleted.get -> bool
-uk.osric.asp.Sdk.PageEntry.IsDeleted.init -> void
-uk.osric.asp.Sdk.PageEntry.IsHtml.get -> bool
-uk.osric.asp.Sdk.PageEntry.IsAsset.get -> bool
-uk.osric.asp.Sdk.PageEntry.IsAsset.init -> void
-uk.osric.asp.Sdk.PageEntry.IsHtml.init -> void
-uk.osric.asp.Sdk.PageEntry.IsLibrary.get -> bool
-uk.osric.asp.Sdk.PageEntry.IsLibrary.init -> void
-uk.osric.asp.Sdk.PageEntry.IsReserved.get -> bool
-uk.osric.asp.Sdk.PageEntry.IsReserved.init -> void
-uk.osric.asp.Sdk.PageEntry.Key.get -> string!
-uk.osric.asp.Sdk.PageEntry.Key.init -> void
-uk.osric.asp.Sdk.PageEntry.PageEntry() -> void
-uk.osric.asp.Sdk.PageEntry.PageEntry(string! Key, System.DateTimeOffset SavedAt, string! Hash, bool IsDeleted, bool IsReserved, bool IsHtml) -> void
-uk.osric.asp.Sdk.PageEntry.SavedAt.get -> System.DateTimeOffset
-uk.osric.asp.Sdk.PageEntry.SavedAt.init -> void
-uk.osric.asp.Sdk.PageRevisionInfo
-uk.osric.asp.Sdk.PageRevisionInfo.Deconstruct(out string! Hash, out System.DateTimeOffset SavedAt, out bool IsCurrent) -> void
-uk.osric.asp.Sdk.PageRevisionInfo.Equals(uk.osric.asp.Sdk.PageRevisionInfo other) -> bool
-uk.osric.asp.Sdk.PageRevisionInfo.Hash.get -> string!
-uk.osric.asp.Sdk.PageRevisionInfo.Hash.init -> void
-uk.osric.asp.Sdk.PageRevisionInfo.IsCurrent.get -> bool
-uk.osric.asp.Sdk.PageRevisionInfo.IsCurrent.init -> void
-uk.osric.asp.Sdk.PageRevisionInfo.PageRevisionInfo() -> void
-uk.osric.asp.Sdk.PageRevisionInfo.PageRevisionInfo(string! Hash, System.DateTimeOffset SavedAt, bool IsCurrent) -> void
-uk.osric.asp.Sdk.PageRevisionInfo.SavedAt.get -> System.DateTimeOffset
-uk.osric.asp.Sdk.PageRevisionInfo.SavedAt.init -> void
-uk.osric.asp.Sdk.PageSource
-uk.osric.asp.Sdk.PageSource.<Clone>$() -> uk.osric.asp.Sdk.PageSource!
-uk.osric.asp.Sdk.PageSource.Deconstruct(out string! Key, out string! Hash, out System.DateTimeOffset SavedAt, out string! Source) -> void
-uk.osric.asp.Sdk.PageSource.Equals(uk.osric.asp.Sdk.PageSource? other) -> bool
-uk.osric.asp.Sdk.PageSource.Hash.get -> string!
-uk.osric.asp.Sdk.PageSource.Hash.init -> void
-uk.osric.asp.Sdk.PageSource.Key.get -> string!
-uk.osric.asp.Sdk.PageSource.Key.init -> void
-uk.osric.asp.Sdk.PageSource.PageSource(string! Key, string! Hash, System.DateTimeOffset SavedAt, string! Source) -> void
-uk.osric.asp.Sdk.PageSource.SavedAt.get -> System.DateTimeOffset
-uk.osric.asp.Sdk.PageSource.SavedAt.init -> void
-uk.osric.asp.Sdk.PageSource.Source.get -> string!
-uk.osric.asp.Sdk.PageSource.Source.init -> void
-~override uk.osric.asp.Sdk.PageEntry.Equals(object obj) -> bool
-~override uk.osric.asp.Sdk.PageEntry.ToString() -> string
-~override uk.osric.asp.Sdk.PageRevisionInfo.Equals(object obj) -> bool
-~override uk.osric.asp.Sdk.PageRevisionInfo.ToString() -> string
+override sealed uk.osric.asp.Sdk.PageCapture.Equals(uk.osric.asp.Sdk.PageFrame? other) -> bool
+override uk.osric.asp.Sdk.MarkdownOptions.Equals(object? obj) -> bool
+override uk.osric.asp.Sdk.MarkdownOptions.GetHashCode() -> int
+override uk.osric.asp.Sdk.MarkdownOptions.ToString() -> string!
+override uk.osric.asp.Sdk.PageCapture.<Clone>$() -> uk.osric.asp.Sdk.PageCapture!
+override uk.osric.asp.Sdk.PageCapture.Equals(object? obj) -> bool
+override uk.osric.asp.Sdk.PageCapture.GetHashCode() -> int
+override uk.osric.asp.Sdk.PageCapture.ToString() -> string!
+override uk.osric.asp.Sdk.PageDeleteResult.Equals(object? obj) -> bool
+override uk.osric.asp.Sdk.PageDeleteResult.GetHashCode() -> int
+override uk.osric.asp.Sdk.PageDeleteResult.ToString() -> string!
 override uk.osric.asp.Sdk.PageDiagnostic.GetHashCode() -> int
+override uk.osric.asp.Sdk.PageEditResult.Equals(object? obj) -> bool
+override uk.osric.asp.Sdk.PageEditResult.GetHashCode() -> int
+override uk.osric.asp.Sdk.PageEditResult.ToString() -> string!
+override uk.osric.asp.Sdk.PageEntry.GetHashCode() -> int
+override uk.osric.asp.Sdk.PageFrame.Equals(object? obj) -> bool
+override uk.osric.asp.Sdk.PageFrame.GetHashCode() -> int
+override uk.osric.asp.Sdk.PageFrame.ToString() -> string!
+override uk.osric.asp.Sdk.PageJobEvent.Equals(object? obj) -> bool
+override uk.osric.asp.Sdk.PageJobEvent.GetHashCode() -> int
+override uk.osric.asp.Sdk.PageJobEvent.ToString() -> string!
+override uk.osric.asp.Sdk.PageJobEvents.Equals(object? obj) -> bool
+override uk.osric.asp.Sdk.PageJobEvents.GetHashCode() -> int
+override uk.osric.asp.Sdk.PageJobEvents.ToString() -> string!
+override uk.osric.asp.Sdk.PageJobInfo.Equals(object? obj) -> bool
+override uk.osric.asp.Sdk.PageJobInfo.GetHashCode() -> int
+override uk.osric.asp.Sdk.PageJobInfo.ToString() -> string!
+override uk.osric.asp.Sdk.PageJobSendResult.GetHashCode() -> int
+override uk.osric.asp.Sdk.PageJobStart.GetHashCode() -> int
+override uk.osric.asp.Sdk.PageKeyResolution.Equals(object? obj) -> bool
+override uk.osric.asp.Sdk.PageKeyResolution.GetHashCode() -> int
+override uk.osric.asp.Sdk.PageKeyResolution.ToString() -> string!
+override uk.osric.asp.Sdk.PageListing.Equals(object? obj) -> bool
+override uk.osric.asp.Sdk.PageListing.GetHashCode() -> int
+override uk.osric.asp.Sdk.PageListing.ToString() -> string!
+override uk.osric.asp.Sdk.PageListingRequest.Equals(object? obj) -> bool
+override uk.osric.asp.Sdk.PageListingRequest.GetHashCode() -> int
+override uk.osric.asp.Sdk.PageListingRequest.ToString() -> string!
+override uk.osric.asp.Sdk.PageRevisionInfo.GetHashCode() -> int
 override uk.osric.asp.Sdk.PageSaveResult.Equals(object? obj) -> bool
 override uk.osric.asp.Sdk.PageSaveResult.GetHashCode() -> int
 override uk.osric.asp.Sdk.PageSaveResult.ToString() -> string!
+override uk.osric.asp.Sdk.PageSeedSummary.Equals(object? obj) -> bool
+override uk.osric.asp.Sdk.PageSeedSummary.GetHashCode() -> int
+override uk.osric.asp.Sdk.PageSeedSummary.ToString() -> string!
+override uk.osric.asp.Sdk.PageSessionKey.GetHashCode() -> int
+override uk.osric.asp.Sdk.PageSource.Equals(object? obj) -> bool
+override uk.osric.asp.Sdk.PageSource.GetHashCode() -> int
+override uk.osric.asp.Sdk.PageSource.ToString() -> string!
+override uk.osric.asp.Sdk.ShellLink.GetHashCode() -> int
+static uk.osric.asp.Sdk.MarkdownOptions.Default.get -> uk.osric.asp.Sdk.MarkdownOptions!
+static uk.osric.asp.Sdk.MarkdownOptions.operator !=(uk.osric.asp.Sdk.MarkdownOptions? left, uk.osric.asp.Sdk.MarkdownOptions? right) -> bool
+static uk.osric.asp.Sdk.MarkdownOptions.operator ==(uk.osric.asp.Sdk.MarkdownOptions? left, uk.osric.asp.Sdk.MarkdownOptions? right) -> bool
+static uk.osric.asp.Sdk.PageCapture.operator !=(uk.osric.asp.Sdk.PageCapture? left, uk.osric.asp.Sdk.PageCapture? right) -> bool
+static uk.osric.asp.Sdk.PageCapture.operator ==(uk.osric.asp.Sdk.PageCapture? left, uk.osric.asp.Sdk.PageCapture? right) -> bool
+static uk.osric.asp.Sdk.PageDeleteResult.operator !=(uk.osric.asp.Sdk.PageDeleteResult? left, uk.osric.asp.Sdk.PageDeleteResult? right) -> bool
+static uk.osric.asp.Sdk.PageDeleteResult.operator ==(uk.osric.asp.Sdk.PageDeleteResult? left, uk.osric.asp.Sdk.PageDeleteResult? right) -> bool
 static uk.osric.asp.Sdk.PageDiagnostic.operator !=(uk.osric.asp.Sdk.PageDiagnostic left, uk.osric.asp.Sdk.PageDiagnostic right) -> bool
 static uk.osric.asp.Sdk.PageDiagnostic.operator ==(uk.osric.asp.Sdk.PageDiagnostic left, uk.osric.asp.Sdk.PageDiagnostic right) -> bool
+static uk.osric.asp.Sdk.PageEditResult.operator !=(uk.osric.asp.Sdk.PageEditResult? left, uk.osric.asp.Sdk.PageEditResult? right) -> bool
+static uk.osric.asp.Sdk.PageEditResult.operator ==(uk.osric.asp.Sdk.PageEditResult? left, uk.osric.asp.Sdk.PageEditResult? right) -> bool
+static uk.osric.asp.Sdk.PageEntry.operator !=(uk.osric.asp.Sdk.PageEntry left, uk.osric.asp.Sdk.PageEntry right) -> bool
+static uk.osric.asp.Sdk.PageEntry.operator ==(uk.osric.asp.Sdk.PageEntry left, uk.osric.asp.Sdk.PageEntry right) -> bool
+static uk.osric.asp.Sdk.PageFrame.operator !=(uk.osric.asp.Sdk.PageFrame? left, uk.osric.asp.Sdk.PageFrame? right) -> bool
+static uk.osric.asp.Sdk.PageFrame.operator ==(uk.osric.asp.Sdk.PageFrame? left, uk.osric.asp.Sdk.PageFrame? right) -> bool
+static uk.osric.asp.Sdk.PageJobEvent.operator !=(uk.osric.asp.Sdk.PageJobEvent? left, uk.osric.asp.Sdk.PageJobEvent? right) -> bool
+static uk.osric.asp.Sdk.PageJobEvent.operator ==(uk.osric.asp.Sdk.PageJobEvent? left, uk.osric.asp.Sdk.PageJobEvent? right) -> bool
+static uk.osric.asp.Sdk.PageJobEvents.operator !=(uk.osric.asp.Sdk.PageJobEvents? left, uk.osric.asp.Sdk.PageJobEvents? right) -> bool
+static uk.osric.asp.Sdk.PageJobEvents.operator ==(uk.osric.asp.Sdk.PageJobEvents? left, uk.osric.asp.Sdk.PageJobEvents? right) -> bool
+static uk.osric.asp.Sdk.PageJobInfo.operator !=(uk.osric.asp.Sdk.PageJobInfo? left, uk.osric.asp.Sdk.PageJobInfo? right) -> bool
+static uk.osric.asp.Sdk.PageJobInfo.operator ==(uk.osric.asp.Sdk.PageJobInfo? left, uk.osric.asp.Sdk.PageJobInfo? right) -> bool
+static uk.osric.asp.Sdk.PageJobSendResult.operator !=(uk.osric.asp.Sdk.PageJobSendResult left, uk.osric.asp.Sdk.PageJobSendResult right) -> bool
+static uk.osric.asp.Sdk.PageJobSendResult.operator ==(uk.osric.asp.Sdk.PageJobSendResult left, uk.osric.asp.Sdk.PageJobSendResult right) -> bool
+static uk.osric.asp.Sdk.PageJobStart.operator !=(uk.osric.asp.Sdk.PageJobStart left, uk.osric.asp.Sdk.PageJobStart right) -> bool
+static uk.osric.asp.Sdk.PageJobStart.operator ==(uk.osric.asp.Sdk.PageJobStart left, uk.osric.asp.Sdk.PageJobStart right) -> bool
+static uk.osric.asp.Sdk.PageKeyResolution.operator !=(uk.osric.asp.Sdk.PageKeyResolution? left, uk.osric.asp.Sdk.PageKeyResolution? right) -> bool
+static uk.osric.asp.Sdk.PageKeyResolution.operator ==(uk.osric.asp.Sdk.PageKeyResolution? left, uk.osric.asp.Sdk.PageKeyResolution? right) -> bool
+static uk.osric.asp.Sdk.PageListing.operator !=(uk.osric.asp.Sdk.PageListing? left, uk.osric.asp.Sdk.PageListing? right) -> bool
+static uk.osric.asp.Sdk.PageListing.operator ==(uk.osric.asp.Sdk.PageListing? left, uk.osric.asp.Sdk.PageListing? right) -> bool
+static uk.osric.asp.Sdk.PageListingRequest.operator !=(uk.osric.asp.Sdk.PageListingRequest? left, uk.osric.asp.Sdk.PageListingRequest? right) -> bool
+static uk.osric.asp.Sdk.PageListingRequest.operator ==(uk.osric.asp.Sdk.PageListingRequest? left, uk.osric.asp.Sdk.PageListingRequest? right) -> bool
+static uk.osric.asp.Sdk.PageRequestExtensions.WithAnotherQuery(this uk.osric.asp.Sdk.PageRequest! request, string! name, string! value) -> uk.osric.asp.Sdk.PageRequest!
+static uk.osric.asp.Sdk.PageRequestExtensions.WithQuery(this uk.osric.asp.Sdk.PageRequest! request, System.Collections.Generic.IReadOnlyList<System.Collections.Generic.KeyValuePair<string!, string!>>! query) -> uk.osric.asp.Sdk.PageRequest!
+static uk.osric.asp.Sdk.PageRequestExtensions.WithQuery(this uk.osric.asp.Sdk.PageRequest! request, string! name, string! value) -> uk.osric.asp.Sdk.PageRequest!
+static uk.osric.asp.Sdk.PageRequestExtensions.WithoutQuery(this uk.osric.asp.Sdk.PageRequest! request) -> uk.osric.asp.Sdk.PageRequest!
+static uk.osric.asp.Sdk.PageRequestExtensions.WithoutQuery(this uk.osric.asp.Sdk.PageRequest! request, string! name) -> uk.osric.asp.Sdk.PageRequest!
+static uk.osric.asp.Sdk.PageRevisionInfo.operator !=(uk.osric.asp.Sdk.PageRevisionInfo left, uk.osric.asp.Sdk.PageRevisionInfo right) -> bool
+static uk.osric.asp.Sdk.PageRevisionInfo.operator ==(uk.osric.asp.Sdk.PageRevisionInfo left, uk.osric.asp.Sdk.PageRevisionInfo right) -> bool
 static uk.osric.asp.Sdk.PageSaveResult.operator !=(uk.osric.asp.Sdk.PageSaveResult? left, uk.osric.asp.Sdk.PageSaveResult? right) -> bool
 static uk.osric.asp.Sdk.PageSaveResult.operator ==(uk.osric.asp.Sdk.PageSaveResult? left, uk.osric.asp.Sdk.PageSaveResult? right) -> bool
+static uk.osric.asp.Sdk.PageSeedSummary.operator !=(uk.osric.asp.Sdk.PageSeedSummary? left, uk.osric.asp.Sdk.PageSeedSummary? right) -> bool
+static uk.osric.asp.Sdk.PageSeedSummary.operator ==(uk.osric.asp.Sdk.PageSeedSummary? left, uk.osric.asp.Sdk.PageSeedSummary? right) -> bool
+static uk.osric.asp.Sdk.PageSessionKey.operator !=(uk.osric.asp.Sdk.PageSessionKey left, uk.osric.asp.Sdk.PageSessionKey right) -> bool
+static uk.osric.asp.Sdk.PageSessionKey.operator ==(uk.osric.asp.Sdk.PageSessionKey left, uk.osric.asp.Sdk.PageSessionKey right) -> bool
+static uk.osric.asp.Sdk.PageSource.operator !=(uk.osric.asp.Sdk.PageSource? left, uk.osric.asp.Sdk.PageSource? right) -> bool
+static uk.osric.asp.Sdk.PageSource.operator ==(uk.osric.asp.Sdk.PageSource? left, uk.osric.asp.Sdk.PageSource? right) -> bool
+static uk.osric.asp.Sdk.ShellLink.operator !=(uk.osric.asp.Sdk.ShellLink left, uk.osric.asp.Sdk.ShellLink right) -> bool
+static uk.osric.asp.Sdk.ShellLink.operator ==(uk.osric.asp.Sdk.ShellLink left, uk.osric.asp.Sdk.ShellLink right) -> bool
+uk.osric.asp.Sdk.HttpFetchRequest.Credential.get -> string?
+uk.osric.asp.Sdk.HttpFetchRequest.Credential.init -> void
+uk.osric.asp.Sdk.HttpFetchStream
+uk.osric.asp.Sdk.HttpFetchStream.HttpFetchStream() -> void
+uk.osric.asp.Sdk.IBuildInfo
+uk.osric.asp.Sdk.IBuildInfo.Commit.get -> string?
+uk.osric.asp.Sdk.IContext.AssetUrl(string! href) -> string!
+uk.osric.asp.Sdk.IContext.Capabilities.get -> uk.osric.asp.Sdk.IPageCapabilities!
+uk.osric.asp.Sdk.IContext.EditorPath.get -> string!
+uk.osric.asp.Sdk.IContext.FlushAsync() -> System.Threading.Tasks.Task!
+uk.osric.asp.Sdk.IContext.Response.get -> uk.osric.asp.Sdk.IPageResponse!
+uk.osric.asp.Sdk.IDiffRenderer
+uk.osric.asp.Sdk.IDiffRenderer.ToHtml(string! before, string! after) -> string!
+uk.osric.asp.Sdk.IHttpFetch.StreamAsync(uk.osric.asp.Sdk.HttpFetchRequest! request) -> System.Threading.Tasks.Task<uk.osric.asp.Sdk.HttpFetchStream!>!
+uk.osric.asp.Sdk.IMarkdownRenderer.ToHtml(string! markdown, uk.osric.asp.Sdk.MarkdownOptions! options) -> string!
+uk.osric.asp.Sdk.IPageCapabilities
+uk.osric.asp.Sdk.IPageCapabilities.Get<T>() -> T?
+uk.osric.asp.Sdk.IPageCapabilities.GetRequired<T>() -> T!
+uk.osric.asp.Sdk.IPageCapabilities.TryGet<T>(out T? capability) -> bool
+uk.osric.asp.Sdk.IPageCatalog
+uk.osric.asp.Sdk.IPageCatalog.ListAsync(uk.osric.asp.Sdk.PageListingRequest! request) -> System.Threading.Tasks.Task<uk.osric.asp.Sdk.PageListing!>!
+uk.osric.asp.Sdk.IPageCatalog.ReadAsync(string! key) -> System.Threading.Tasks.Task<uk.osric.asp.Sdk.PageSource?>!
+uk.osric.asp.Sdk.IPageCatalog.ReadRevisionAsync(string! key, string! hash) -> System.Threading.Tasks.Task<uk.osric.asp.Sdk.PageSource?>!
+uk.osric.asp.Sdk.IPageCatalog.RevisionsAsync(string! key) -> System.Threading.Tasks.Task<System.Collections.Generic.IReadOnlyList<uk.osric.asp.Sdk.PageRevisionInfo>!>!
+uk.osric.asp.Sdk.IPageCatalog.ShellLinks() -> System.Collections.Generic.IReadOnlyList<uk.osric.asp.Sdk.ShellLink>!
+uk.osric.asp.Sdk.IPageComposition
+uk.osric.asp.Sdk.IPageComposition.CaptureAsync(string! key, uk.osric.asp.Sdk.PageRequest? request = null) -> System.Threading.Tasks.Task<uk.osric.asp.Sdk.PageCapture!>!
+uk.osric.asp.Sdk.IPageComposition.EmbedAsync(string! key, uk.osric.asp.Sdk.PageRequest? request = null) -> System.Threading.Tasks.Task<uk.osric.asp.Sdk.PageFrame!>!
+uk.osric.asp.Sdk.IPageComposition.Wrap() -> void
+uk.osric.asp.Sdk.IPageComposition.Wrap(string! key, uk.osric.asp.Sdk.PageRequest? request = null) -> void
+uk.osric.asp.Sdk.IPageJobs
+uk.osric.asp.Sdk.IPageJobs.CancelAsync(string! jobId) -> System.Threading.Tasks.Task<bool>!
+uk.osric.asp.Sdk.IPageJobs.GetAsync(string! jobId) -> System.Threading.Tasks.Task<uk.osric.asp.Sdk.PageJobInfo?>!
+uk.osric.asp.Sdk.IPageJobs.ListAsync() -> System.Threading.Tasks.Task<System.Collections.Generic.IReadOnlyList<uk.osric.asp.Sdk.PageJobInfo!>!>!
+uk.osric.asp.Sdk.IPageJobs.ReadEventsAsync(string! jobId, long after = 0, double? waitSeconds = null) -> System.Threading.Tasks.Task<uk.osric.asp.Sdk.PageJobEvents!>!
+uk.osric.asp.Sdk.IPageJobs.SendAsync(string! jobId, string! message) -> System.Threading.Tasks.Task<uk.osric.asp.Sdk.PageJobSendResult>!
+uk.osric.asp.Sdk.IPageJobs.StartAsync(string! workerKey, string? firstMessage) -> System.Threading.Tasks.Task<uk.osric.asp.Sdk.PageJobStart>!
+uk.osric.asp.Sdk.IPageLayout.Content.get -> uk.osric.asp.Sdk.PageCapture?
+uk.osric.asp.Sdk.IPageLayout.Title.get -> string?
+uk.osric.asp.Sdk.IPageResponse
+uk.osric.asp.Sdk.IPageResponse.AllowScripts() -> void
+uk.osric.asp.Sdk.IPageResponse.AntiforgeryField.get -> string!
+uk.osric.asp.Sdk.IPageResponse.FlushAsync() -> System.Threading.Tasks.Task!
+uk.osric.asp.Sdk.IPageResponse.Redirect(string! location, int status = 302) -> void
+uk.osric.asp.Sdk.IPageResponse.RedirectToLogin() -> void
+uk.osric.asp.Sdk.IPageResponse.SetContentType(string! contentType) -> void
+uk.osric.asp.Sdk.IPageResponse.SetHeader(string! name, string! value) -> void
+uk.osric.asp.Sdk.IPageResponse.SetStatus(int status) -> void
+uk.osric.asp.Sdk.IPageResponse.Write(string! message) -> void
+uk.osric.asp.Sdk.IPageResponse.WriteRaw(string! message) -> void
+uk.osric.asp.Sdk.IPageSession
+uk.osric.asp.Sdk.IPageSession.AllKeysAsync() -> System.Threading.Tasks.Task<System.Collections.Generic.IReadOnlyList<uk.osric.asp.Sdk.PageSessionKey>!>!
+uk.osric.asp.Sdk.IPageSession.DeleteAsync(string! key) -> System.Threading.Tasks.Task<bool>!
+uk.osric.asp.Sdk.IPageSession.KeysAsync() -> System.Threading.Tasks.Task<System.Collections.Generic.IReadOnlyList<string!>!>!
+uk.osric.asp.Sdk.IPageSession.SetAsync<T>(string! key, T value) -> System.Threading.Tasks.Task!
+uk.osric.asp.Sdk.IPageSession.TryGetValueAsync<T>(string! key) -> System.Threading.Tasks.Task<uk.osric.asp.Sdk.PageValue<T>>!
+uk.osric.asp.Sdk.IPageSession.TryGetValueAsync<T>(string! pagePath, string! key) -> System.Threading.Tasks.Task<uk.osric.asp.Sdk.PageValue<T>>!
+uk.osric.asp.Sdk.IPageWrites
+uk.osric.asp.Sdk.IPageWrites.AdoptSeedAsync(string! key) -> System.Threading.Tasks.Task<uk.osric.asp.Sdk.PageEditResult?>!
+uk.osric.asp.Sdk.IPageWrites.DeleteAsync(string! key) -> System.Threading.Tasks.Task<uk.osric.asp.Sdk.PageDeleteResult!>!
+uk.osric.asp.Sdk.IPageWrites.InstallSeedAsync(string! key, string? expectedHash) -> System.Threading.Tasks.Task<uk.osric.asp.Sdk.PageEditResult?>!
+uk.osric.asp.Sdk.IPageWrites.Resolve(string! key) -> uk.osric.asp.Sdk.PageKeyResolution!
+uk.osric.asp.Sdk.IPageWrites.RestoreRevisionAsync(string! key, string! hash, string? expectedHash) -> System.Threading.Tasks.Task<uk.osric.asp.Sdk.PageEditResult?>!
+uk.osric.asp.Sdk.IPageWrites.SaveAsync(string! key, string! template, string? expectedHash) -> System.Threading.Tasks.Task<uk.osric.asp.Sdk.PageEditResult!>!
+uk.osric.asp.Sdk.IPageWrites.SaveAsync(string! template) -> System.Threading.Tasks.Task<uk.osric.asp.Sdk.PageSaveResult!>!
+uk.osric.asp.Sdk.IPageWrites.SeedSourceAsync(string! key) -> System.Threading.Tasks.Task<string?>!
+uk.osric.asp.Sdk.IWorker
+uk.osric.asp.Sdk.IWorker.RunAsync(uk.osric.asp.Sdk.IWorkerContext! context) -> System.Threading.Tasks.Task!
+uk.osric.asp.Sdk.IWorkerContext
+uk.osric.asp.Sdk.IWorkerContext.Aborted.get -> System.Threading.CancellationToken
+uk.osric.asp.Sdk.IWorkerContext.Capabilities.get -> uk.osric.asp.Sdk.IPageCapabilities!
+uk.osric.asp.Sdk.IWorkerContext.Id.get -> string!
+uk.osric.asp.Sdk.IWorkerContext.Input.get -> string?
+uk.osric.asp.Sdk.IWorkerContext.Log(string! message) -> void
+uk.osric.asp.Sdk.IWorkerContext.LogError(string! message) -> void
+uk.osric.asp.Sdk.IWorkerContext.LogWarning(string! message) -> void
+uk.osric.asp.Sdk.IWorkerContext.Path.get -> string!
+uk.osric.asp.Sdk.IWorkerContext.Publish(string! type, string! dataJson) -> void
+uk.osric.asp.Sdk.IWorkerContext.ReceiveAsync(double? waitSeconds = null) -> System.Threading.Tasks.Task<string?>!
+uk.osric.asp.Sdk.IWorkerContext.User.get -> uk.osric.asp.Sdk.PageUser!
+uk.osric.asp.Sdk.IWorkerContext.Worker.get -> string!
+uk.osric.asp.Sdk.MarkdownOptions
+uk.osric.asp.Sdk.MarkdownOptions.<Clone>$() -> uk.osric.asp.Sdk.MarkdownOptions!
+uk.osric.asp.Sdk.MarkdownOptions.AutoLinks.get -> bool
+uk.osric.asp.Sdk.MarkdownOptions.AutoLinks.init -> void
+uk.osric.asp.Sdk.MarkdownOptions.Equals(uk.osric.asp.Sdk.MarkdownOptions? other) -> bool
+uk.osric.asp.Sdk.MarkdownOptions.HeadingAnchors.get -> bool
+uk.osric.asp.Sdk.MarkdownOptions.HeadingAnchors.init -> void
+uk.osric.asp.Sdk.MarkdownOptions.MarkdownOptions() -> void
+uk.osric.asp.Sdk.MarkdownOptions.PipeTables.get -> bool
+uk.osric.asp.Sdk.MarkdownOptions.PipeTables.init -> void
+uk.osric.asp.Sdk.PageCapture
+uk.osric.asp.Sdk.PageCapture.Body.get -> string!
+uk.osric.asp.Sdk.PageCapture.Equals(uk.osric.asp.Sdk.PageCapture? other) -> bool
+uk.osric.asp.Sdk.PageCapture.PageCapture(string! body, uk.osric.asp.Sdk.PageFrame! frame) -> void
+uk.osric.asp.Sdk.PageDeleteResult
+uk.osric.asp.Sdk.PageDeleteResult.<Clone>$() -> uk.osric.asp.Sdk.PageDeleteResult!
+uk.osric.asp.Sdk.PageDeleteResult.Deconstruct(out bool Deleted, out bool WasLive) -> void
+uk.osric.asp.Sdk.PageDeleteResult.Deleted.get -> bool
+uk.osric.asp.Sdk.PageDeleteResult.Deleted.init -> void
+uk.osric.asp.Sdk.PageDeleteResult.Equals(uk.osric.asp.Sdk.PageDeleteResult? other) -> bool
+uk.osric.asp.Sdk.PageDeleteResult.PageDeleteResult(bool Deleted, bool WasLive) -> void
+uk.osric.asp.Sdk.PageDeleteResult.WasLive.get -> bool
+uk.osric.asp.Sdk.PageDeleteResult.WasLive.init -> void
 uk.osric.asp.Sdk.PageDiagnostic
 uk.osric.asp.Sdk.PageDiagnostic.Code.get -> string!
 uk.osric.asp.Sdk.PageDiagnostic.Code.init -> void
@@ -110,90 +255,6 @@ uk.osric.asp.Sdk.PageDiagnostic.Source.init -> void
 uk.osric.asp.Sdk.PageDiagnosticSeverity
 uk.osric.asp.Sdk.PageDiagnosticSeverity.Error = 1 -> uk.osric.asp.Sdk.PageDiagnosticSeverity
 uk.osric.asp.Sdk.PageDiagnosticSeverity.Warning = 0 -> uk.osric.asp.Sdk.PageDiagnosticSeverity
-uk.osric.asp.Sdk.PageSaveResult
-uk.osric.asp.Sdk.PageSaveResult.<Clone>$() -> uk.osric.asp.Sdk.PageSaveResult!
-uk.osric.asp.Sdk.PageSaveResult.Deconstruct(out string! Hash, out System.Collections.Generic.IReadOnlyList<uk.osric.asp.Sdk.PageDiagnostic>! Diagnostics) -> void
-uk.osric.asp.Sdk.PageSaveResult.Diagnostics.get -> System.Collections.Generic.IReadOnlyList<uk.osric.asp.Sdk.PageDiagnostic>!
-uk.osric.asp.Sdk.PageSaveResult.Diagnostics.init -> void
-uk.osric.asp.Sdk.PageSaveResult.Equals(uk.osric.asp.Sdk.PageSaveResult? other) -> bool
-uk.osric.asp.Sdk.PageSaveResult.HasErrors.get -> bool
-uk.osric.asp.Sdk.PageSaveResult.HasWarnings.get -> bool
-uk.osric.asp.Sdk.PageSaveResult.Hash.get -> string!
-uk.osric.asp.Sdk.PageSaveResult.Hash.init -> void
-uk.osric.asp.Sdk.PageSaveResult.PageSaveResult(string! Hash, System.Collections.Generic.IReadOnlyList<uk.osric.asp.Sdk.PageDiagnostic>! Diagnostics) -> void
-~override uk.osric.asp.Sdk.PageDiagnostic.Equals(object obj) -> bool
-~override uk.osric.asp.Sdk.PageDiagnostic.ToString() -> string
-
-uk.osric.asp.Sdk.IDiffRenderer
-uk.osric.asp.Sdk.IDiffRenderer.ToHtml(string! before, string! after) -> string!
-uk.osric.asp.Sdk.IContext.Capabilities.get -> uk.osric.asp.Sdk.IPageCapabilities!
-uk.osric.asp.Sdk.IContext.FlushAsync() -> System.Threading.Tasks.Task!
-uk.osric.asp.Sdk.IPageCapabilities
-uk.osric.asp.Sdk.IPageCapabilities.Get<T>() -> T?
-uk.osric.asp.Sdk.IPageCapabilities.GetRequired<T>() -> T!
-uk.osric.asp.Sdk.IPageCapabilities.TryGet<T>(out T? capability) -> bool
-*REMOVED*uk.osric.asp.Sdk.IPageFeatures.Get<T>() -> T?
-*REMOVED*uk.osric.asp.Sdk.IPageFeatures.GetRequired<T>() -> T!
-*REMOVED*uk.osric.asp.Sdk.IPageFeatures.TryGet<T>(out T? feature) -> bool
-*REMOVED*uk.osric.asp.Sdk.IPageFeatures
-*REMOVED*uk.osric.asp.Sdk.IContext.Features.get -> uk.osric.asp.Sdk.IPageFeatures!
-uk.osric.asp.Sdk.IPageSession
-uk.osric.asp.Sdk.IPageSession.AllKeysAsync() -> System.Threading.Tasks.Task<System.Collections.Generic.IReadOnlyList<uk.osric.asp.Sdk.PageSessionKey>!>!
-uk.osric.asp.Sdk.IPageSession.DeleteAsync(string! key) -> System.Threading.Tasks.Task<bool>!
-uk.osric.asp.Sdk.IPageSession.KeysAsync() -> System.Threading.Tasks.Task<System.Collections.Generic.IReadOnlyList<string!>!>!
-uk.osric.asp.Sdk.IPageSession.SetAsync<T>(string! key, T value) -> System.Threading.Tasks.Task!
-uk.osric.asp.Sdk.IPageSession.TryGetValueAsync<T>(string! key) -> System.Threading.Tasks.Task<uk.osric.asp.Sdk.PageValue<T>>!
-uk.osric.asp.Sdk.IPageSession.TryGetValueAsync<T>(string! pagePath, string! key) -> System.Threading.Tasks.Task<uk.osric.asp.Sdk.PageValue<T>>!
-uk.osric.asp.Sdk.PageSessionKey
-uk.osric.asp.Sdk.PageSessionKey.Deconstruct(out string! Page, out string! Key) -> void
-uk.osric.asp.Sdk.PageSessionKey.Equals(uk.osric.asp.Sdk.PageSessionKey other) -> bool
-uk.osric.asp.Sdk.PageSessionKey.Key.get -> string!
-uk.osric.asp.Sdk.PageSessionKey.Key.init -> void
-uk.osric.asp.Sdk.PageSessionKey.Page.get -> string!
-uk.osric.asp.Sdk.PageSessionKey.Page.init -> void
-uk.osric.asp.Sdk.PageSessionKey.PageSessionKey() -> void
-uk.osric.asp.Sdk.PageSessionKey.PageSessionKey(string! Page, string! Key) -> void
-override uk.osric.asp.Sdk.PageSessionKey.GetHashCode() -> int
-~override uk.osric.asp.Sdk.PageSessionKey.ToString() -> string
-static uk.osric.asp.Sdk.PageSessionKey.operator !=(uk.osric.asp.Sdk.PageSessionKey left, uk.osric.asp.Sdk.PageSessionKey right) -> bool
-static uk.osric.asp.Sdk.PageSessionKey.operator ==(uk.osric.asp.Sdk.PageSessionKey left, uk.osric.asp.Sdk.PageSessionKey right) -> bool
-~override uk.osric.asp.Sdk.PageSessionKey.Equals(object obj) -> bool
-uk.osric.asp.Sdk.IContext.AssetUrl(string! href) -> string!
-*REMOVED*static uk.osric.asp.Sdk.PageDocument.Head(string! title, System.Collections.Generic.IReadOnlyList<string!>? stylesheets = null, string? head = null, string? bodyClass = null) -> string!
-*REMOVED*uk.osric.asp.Sdk.PageRequest.Deconstruct(out string! Method, out string! Path, out System.Collections.Generic.IReadOnlyDictionary<string!, string!>! Query, out System.Collections.Generic.IReadOnlyDictionary<string!, string!>! Form, out System.Collections.Generic.IReadOnlyDictionary<string!, string!>! Headers, out System.Collections.Generic.IReadOnlyDictionary<string!, string!>! Cookies) -> void
-*REMOVED*uk.osric.asp.Sdk.PageRequest.PageRequest(string! Method, string! Path, System.Collections.Generic.IReadOnlyDictionary<string!, string!>! Query, System.Collections.Generic.IReadOnlyDictionary<string!, string!>! Form, System.Collections.Generic.IReadOnlyDictionary<string!, string!>! Headers, System.Collections.Generic.IReadOnlyDictionary<string!, string!>! Cookies) -> void
-uk.osric.asp.Sdk.PageRequest.Deconstruct(out string! Method, out string! Path, out System.Collections.Generic.IReadOnlyDictionary<string!, string!>! Query, out System.Collections.Generic.IReadOnlyDictionary<string!, string!>! Form, out System.Collections.Generic.IReadOnlyDictionary<string!, string!>! Headers, out System.Collections.Generic.IReadOnlyDictionary<string!, string!>! Cookies, out System.Collections.Generic.IReadOnlyDictionary<string!, System.Collections.Generic.IReadOnlyList<string!>!>! QueryValues, out System.Collections.Generic.IReadOnlyDictionary<string!, System.Collections.Generic.IReadOnlyList<string!>!>! FormValues) -> void
-uk.osric.asp.Sdk.PageRequest.PageRequest(string! Method, string! Path, System.Collections.Generic.IReadOnlyDictionary<string!, string!>! Query, System.Collections.Generic.IReadOnlyDictionary<string!, string!>! Form, System.Collections.Generic.IReadOnlyDictionary<string!, string!>! Headers, System.Collections.Generic.IReadOnlyDictionary<string!, string!>! Cookies, System.Collections.Generic.IReadOnlyDictionary<string!, System.Collections.Generic.IReadOnlyList<string!>!>! QueryValues, System.Collections.Generic.IReadOnlyDictionary<string!, System.Collections.Generic.IReadOnlyList<string!>!>! FormValues) -> void
-uk.osric.asp.Sdk.PageRequest.QueryValues.get -> System.Collections.Generic.IReadOnlyDictionary<string!, System.Collections.Generic.IReadOnlyList<string!>!>!
-uk.osric.asp.Sdk.PageRequest.QueryValues.init -> void
-uk.osric.asp.Sdk.PageRequest.FormValues.get -> System.Collections.Generic.IReadOnlyDictionary<string!, System.Collections.Generic.IReadOnlyList<string!>!>!
-uk.osric.asp.Sdk.PageRequest.FormValues.init -> void
-uk.osric.asp.Sdk.PageEntry.State.get -> string!
-uk.osric.asp.Sdk.PageEntry.State.init -> void
-override uk.osric.asp.Sdk.PageDeleteResult.Equals(object? obj) -> bool
-override uk.osric.asp.Sdk.PageDeleteResult.GetHashCode() -> int
-override uk.osric.asp.Sdk.PageDeleteResult.ToString() -> string!
-override uk.osric.asp.Sdk.PageEditResult.Equals(object? obj) -> bool
-override uk.osric.asp.Sdk.PageEditResult.GetHashCode() -> int
-override uk.osric.asp.Sdk.PageEditResult.ToString() -> string!
-override uk.osric.asp.Sdk.PageKeyResolution.Equals(object? obj) -> bool
-override uk.osric.asp.Sdk.PageKeyResolution.GetHashCode() -> int
-override uk.osric.asp.Sdk.PageKeyResolution.ToString() -> string!
-static uk.osric.asp.Sdk.PageDeleteResult.operator !=(uk.osric.asp.Sdk.PageDeleteResult? left, uk.osric.asp.Sdk.PageDeleteResult? right) -> bool
-static uk.osric.asp.Sdk.PageDeleteResult.operator ==(uk.osric.asp.Sdk.PageDeleteResult? left, uk.osric.asp.Sdk.PageDeleteResult? right) -> bool
-static uk.osric.asp.Sdk.PageEditResult.operator !=(uk.osric.asp.Sdk.PageEditResult? left, uk.osric.asp.Sdk.PageEditResult? right) -> bool
-static uk.osric.asp.Sdk.PageEditResult.operator ==(uk.osric.asp.Sdk.PageEditResult? left, uk.osric.asp.Sdk.PageEditResult? right) -> bool
-static uk.osric.asp.Sdk.PageKeyResolution.operator !=(uk.osric.asp.Sdk.PageKeyResolution? left, uk.osric.asp.Sdk.PageKeyResolution? right) -> bool
-static uk.osric.asp.Sdk.PageKeyResolution.operator ==(uk.osric.asp.Sdk.PageKeyResolution? left, uk.osric.asp.Sdk.PageKeyResolution? right) -> bool
-uk.osric.asp.Sdk.PageDeleteResult
-uk.osric.asp.Sdk.PageDeleteResult.<Clone>$() -> uk.osric.asp.Sdk.PageDeleteResult!
-uk.osric.asp.Sdk.PageDeleteResult.Deconstruct(out bool Deleted, out bool WasLive) -> void
-uk.osric.asp.Sdk.PageDeleteResult.Deleted.get -> bool
-uk.osric.asp.Sdk.PageDeleteResult.Deleted.init -> void
-uk.osric.asp.Sdk.PageDeleteResult.Equals(uk.osric.asp.Sdk.PageDeleteResult? other) -> bool
-uk.osric.asp.Sdk.PageDeleteResult.PageDeleteResult(bool Deleted, bool WasLive) -> void
-uk.osric.asp.Sdk.PageDeleteResult.WasLive.get -> bool
-uk.osric.asp.Sdk.PageDeleteResult.WasLive.init -> void
 uk.osric.asp.Sdk.PageEditOutcome
 uk.osric.asp.Sdk.PageEditOutcome.Saved = 0 -> uk.osric.asp.Sdk.PageEditOutcome
 uk.osric.asp.Sdk.PageEditOutcome.Stale = 1 -> uk.osric.asp.Sdk.PageEditOutcome
@@ -205,90 +266,51 @@ uk.osric.asp.Sdk.PageEditResult.Diagnostics.get -> System.Collections.Generic.IR
 uk.osric.asp.Sdk.PageEditResult.Diagnostics.init -> void
 uk.osric.asp.Sdk.PageEditResult.Equals(uk.osric.asp.Sdk.PageEditResult? other) -> bool
 uk.osric.asp.Sdk.PageEditResult.HasErrors.get -> bool
+uk.osric.asp.Sdk.PageEditResult.HasWarnings.get -> bool
 uk.osric.asp.Sdk.PageEditResult.Hash.get -> string?
 uk.osric.asp.Sdk.PageEditResult.Hash.init -> void
-uk.osric.asp.Sdk.PageEditResult.HasWarnings.get -> bool
 uk.osric.asp.Sdk.PageEditResult.Outcome.get -> uk.osric.asp.Sdk.PageEditOutcome
 uk.osric.asp.Sdk.PageEditResult.Outcome.init -> void
 uk.osric.asp.Sdk.PageEditResult.PageEditResult(uk.osric.asp.Sdk.PageEditOutcome Outcome, string? Hash, System.Collections.Generic.IReadOnlyList<uk.osric.asp.Sdk.PageDiagnostic>! Diagnostics) -> void
-uk.osric.asp.Sdk.PageKeyResolution
-uk.osric.asp.Sdk.PageKeyResolution.<Clone>$() -> uk.osric.asp.Sdk.PageKeyResolution!
-uk.osric.asp.Sdk.PageKeyResolution.Deconstruct(out string? Key, out bool IsReserved, out string? Error) -> void
-uk.osric.asp.Sdk.PageKeyResolution.Equals(uk.osric.asp.Sdk.PageKeyResolution? other) -> bool
-uk.osric.asp.Sdk.PageKeyResolution.Error.get -> string?
-uk.osric.asp.Sdk.PageKeyResolution.Error.init -> void
-uk.osric.asp.Sdk.PageKeyResolution.IsReserved.get -> bool
-uk.osric.asp.Sdk.PageKeyResolution.IsReserved.init -> void
-uk.osric.asp.Sdk.PageKeyResolution.IsSuccess.get -> bool
-uk.osric.asp.Sdk.PageKeyResolution.Key.get -> string?
-uk.osric.asp.Sdk.PageKeyResolution.Key.init -> void
-uk.osric.asp.Sdk.PageKeyResolution.PageKeyResolution(string? Key, bool IsReserved, string? Error) -> void
-uk.osric.asp.Sdk.IContext.EditorPath.get -> string!
-*REMOVED*const uk.osric.asp.Sdk.PageDocument.SkipLinkText = "Skip to content" -> string!
-*REMOVED*static uk.osric.asp.Sdk.PageDocument.Banner(string! navigation) -> string!
-*REMOVED*static uk.osric.asp.Sdk.PageDocument.BaseStylesheets.get -> System.Collections.Generic.IReadOnlyList<string!>!
-*REMOVED*static uk.osric.asp.Sdk.PageDocument.CloseMain() -> string!
-*REMOVED*static uk.osric.asp.Sdk.PageDocument.End() -> string!
-*REMOVED*static uk.osric.asp.Sdk.PageDocument.IsSiteRelative(string? href) -> bool
-*REMOVED*static uk.osric.asp.Sdk.PageDocument.Nav(string! label, System.Collections.Generic.IReadOnlyList<uk.osric.asp.Sdk.NavLink>! links, string? className = null) -> string!
-*REMOVED*static uk.osric.asp.Sdk.PageDocument.OpenMain() -> string!
-*REMOVED*uk.osric.asp.Sdk.PageDocument
-uk.osric.asp.Sdk.PageStreamRefusedException
-uk.osric.asp.Sdk.PageStreamRefusedException.PageStreamRefusedException(string! message) -> void
-uk.osric.asp.Sdk.IWorker
-uk.osric.asp.Sdk.IWorker.RunAsync(uk.osric.asp.Sdk.IWorkerContext! context) -> System.Threading.Tasks.Task!
-uk.osric.asp.Sdk.IWorkerContext
-uk.osric.asp.Sdk.IWorkerContext.User.get -> uk.osric.asp.Sdk.PageUser!
-uk.osric.asp.Sdk.IWorkerContext.Worker.get -> string!
+uk.osric.asp.Sdk.PageEntry
+uk.osric.asp.Sdk.PageEntry.Deconstruct(out string! Key, out System.DateTimeOffset SavedAt, out string! Hash, out bool IsDeleted, out bool IsReserved, out bool IsHtml) -> void
+uk.osric.asp.Sdk.PageEntry.Equals(uk.osric.asp.Sdk.PageEntry other) -> bool
+uk.osric.asp.Sdk.PageEntry.Hash.get -> string!
+uk.osric.asp.Sdk.PageEntry.Hash.init -> void
+uk.osric.asp.Sdk.PageEntry.IsAsset.get -> bool
+uk.osric.asp.Sdk.PageEntry.IsAsset.init -> void
+uk.osric.asp.Sdk.PageEntry.IsDeleted.get -> bool
+uk.osric.asp.Sdk.PageEntry.IsDeleted.init -> void
+uk.osric.asp.Sdk.PageEntry.IsHtml.get -> bool
+uk.osric.asp.Sdk.PageEntry.IsHtml.init -> void
+uk.osric.asp.Sdk.PageEntry.IsLibrary.get -> bool
+uk.osric.asp.Sdk.PageEntry.IsLibrary.init -> void
+uk.osric.asp.Sdk.PageEntry.IsReserved.get -> bool
+uk.osric.asp.Sdk.PageEntry.IsReserved.init -> void
 uk.osric.asp.Sdk.PageEntry.IsWorker.get -> bool
 uk.osric.asp.Sdk.PageEntry.IsWorker.init -> void
-override uk.osric.asp.Sdk.PageJobEvent.Equals(object? obj) -> bool
-override uk.osric.asp.Sdk.PageJobEvent.GetHashCode() -> int
-override uk.osric.asp.Sdk.PageJobEvent.ToString() -> string!
-override uk.osric.asp.Sdk.PageJobEvents.Equals(object? obj) -> bool
-override uk.osric.asp.Sdk.PageJobEvents.GetHashCode() -> int
-override uk.osric.asp.Sdk.PageJobEvents.ToString() -> string!
-override uk.osric.asp.Sdk.PageJobInfo.Equals(object? obj) -> bool
-override uk.osric.asp.Sdk.PageJobInfo.GetHashCode() -> int
-override uk.osric.asp.Sdk.PageJobInfo.ToString() -> string!
-override uk.osric.asp.Sdk.PageJobSendResult.GetHashCode() -> int
-override uk.osric.asp.Sdk.PageJobStart.GetHashCode() -> int
-static uk.osric.asp.Sdk.PageJobEvent.operator !=(uk.osric.asp.Sdk.PageJobEvent? left, uk.osric.asp.Sdk.PageJobEvent? right) -> bool
-static uk.osric.asp.Sdk.PageJobEvent.operator ==(uk.osric.asp.Sdk.PageJobEvent? left, uk.osric.asp.Sdk.PageJobEvent? right) -> bool
-static uk.osric.asp.Sdk.PageJobEvents.operator !=(uk.osric.asp.Sdk.PageJobEvents? left, uk.osric.asp.Sdk.PageJobEvents? right) -> bool
-static uk.osric.asp.Sdk.PageJobEvents.operator ==(uk.osric.asp.Sdk.PageJobEvents? left, uk.osric.asp.Sdk.PageJobEvents? right) -> bool
-static uk.osric.asp.Sdk.PageJobInfo.operator !=(uk.osric.asp.Sdk.PageJobInfo? left, uk.osric.asp.Sdk.PageJobInfo? right) -> bool
-static uk.osric.asp.Sdk.PageJobInfo.operator ==(uk.osric.asp.Sdk.PageJobInfo? left, uk.osric.asp.Sdk.PageJobInfo? right) -> bool
-static uk.osric.asp.Sdk.PageJobSendResult.operator !=(uk.osric.asp.Sdk.PageJobSendResult left, uk.osric.asp.Sdk.PageJobSendResult right) -> bool
-static uk.osric.asp.Sdk.PageJobSendResult.operator ==(uk.osric.asp.Sdk.PageJobSendResult left, uk.osric.asp.Sdk.PageJobSendResult right) -> bool
-static uk.osric.asp.Sdk.PageJobStart.operator !=(uk.osric.asp.Sdk.PageJobStart left, uk.osric.asp.Sdk.PageJobStart right) -> bool
-static uk.osric.asp.Sdk.PageJobStart.operator ==(uk.osric.asp.Sdk.PageJobStart left, uk.osric.asp.Sdk.PageJobStart right) -> bool
-uk.osric.asp.Sdk.IPageWrites
-uk.osric.asp.Sdk.IPageWrites.AdoptSeedAsync(string! key) -> System.Threading.Tasks.Task<uk.osric.asp.Sdk.PageEditResult?>!
-uk.osric.asp.Sdk.IPageWrites.DeleteAsync(string! key) -> System.Threading.Tasks.Task<uk.osric.asp.Sdk.PageDeleteResult!>!
-uk.osric.asp.Sdk.IPageWrites.InstallSeedAsync(string! key, string? expectedHash) -> System.Threading.Tasks.Task<uk.osric.asp.Sdk.PageEditResult?>!
-uk.osric.asp.Sdk.IPageWrites.Resolve(string! key) -> uk.osric.asp.Sdk.PageKeyResolution!
-uk.osric.asp.Sdk.IPageWrites.RestoreRevisionAsync(string! key, string! hash, string? expectedHash) -> System.Threading.Tasks.Task<uk.osric.asp.Sdk.PageEditResult?>!
-uk.osric.asp.Sdk.IPageWrites.SaveAsync(string! key, string! template, string? expectedHash) -> System.Threading.Tasks.Task<uk.osric.asp.Sdk.PageEditResult!>!
-uk.osric.asp.Sdk.IPageWrites.SaveAsync(string! template) -> System.Threading.Tasks.Task<uk.osric.asp.Sdk.PageSaveResult!>!
-uk.osric.asp.Sdk.IPageWrites.SeedSourceAsync(string! key) -> System.Threading.Tasks.Task<string?>!
-uk.osric.asp.Sdk.IPageJobs
-uk.osric.asp.Sdk.IPageJobs.CancelAsync(string! jobId) -> System.Threading.Tasks.Task<bool>!
-uk.osric.asp.Sdk.IPageJobs.GetAsync(string! jobId) -> System.Threading.Tasks.Task<uk.osric.asp.Sdk.PageJobInfo?>!
-uk.osric.asp.Sdk.IPageJobs.ListAsync() -> System.Threading.Tasks.Task<System.Collections.Generic.IReadOnlyList<uk.osric.asp.Sdk.PageJobInfo!>!>!
-uk.osric.asp.Sdk.IPageJobs.ReadEventsAsync(string! jobId, long after = 0, double? waitSeconds = null) -> System.Threading.Tasks.Task<uk.osric.asp.Sdk.PageJobEvents!>!
-uk.osric.asp.Sdk.IPageJobs.SendAsync(string! jobId, string! message) -> System.Threading.Tasks.Task<uk.osric.asp.Sdk.PageJobSendResult>!
-uk.osric.asp.Sdk.IPageJobs.StartAsync(string! workerKey, string? firstMessage) -> System.Threading.Tasks.Task<uk.osric.asp.Sdk.PageJobStart>!
-uk.osric.asp.Sdk.IWorkerContext.Aborted.get -> System.Threading.CancellationToken
-uk.osric.asp.Sdk.IWorkerContext.Capabilities.get -> uk.osric.asp.Sdk.IPageCapabilities!
-uk.osric.asp.Sdk.IWorkerContext.Id.get -> string!
-uk.osric.asp.Sdk.IWorkerContext.Input.get -> string?
-uk.osric.asp.Sdk.IWorkerContext.Log(string! message) -> void
-uk.osric.asp.Sdk.IWorkerContext.LogError(string! message) -> void
-uk.osric.asp.Sdk.IWorkerContext.LogWarning(string! message) -> void
-uk.osric.asp.Sdk.IWorkerContext.Path.get -> string!
-uk.osric.asp.Sdk.IWorkerContext.Publish(string! type, string! dataJson) -> void
-uk.osric.asp.Sdk.IWorkerContext.ReceiveAsync(double? waitSeconds = null) -> System.Threading.Tasks.Task<string?>!
+uk.osric.asp.Sdk.PageEntry.Key.get -> string!
+uk.osric.asp.Sdk.PageEntry.Key.init -> void
+uk.osric.asp.Sdk.PageEntry.PageEntry() -> void
+uk.osric.asp.Sdk.PageEntry.PageEntry(string! Key, System.DateTimeOffset SavedAt, string! Hash, bool IsDeleted, bool IsReserved, bool IsHtml) -> void
+uk.osric.asp.Sdk.PageEntry.SavedAt.get -> System.DateTimeOffset
+uk.osric.asp.Sdk.PageEntry.SavedAt.init -> void
+uk.osric.asp.Sdk.PageEntry.Seed.get -> uk.osric.asp.Sdk.PageSeedSummary?
+uk.osric.asp.Sdk.PageEntry.Seed.init -> void
+uk.osric.asp.Sdk.PageEntry.State.get -> string!
+uk.osric.asp.Sdk.PageEntry.State.init -> void
+uk.osric.asp.Sdk.PageFrame
+uk.osric.asp.Sdk.PageFrame.AllowsScripts.get -> bool
+uk.osric.asp.Sdk.PageFrame.AllowsScripts.init -> void
+uk.osric.asp.Sdk.PageFrame.Deconstruct(out string? Title, out string! Head, out System.Collections.Generic.IReadOnlyList<string!>! Stylesheets, out bool AllowsScripts) -> void
+uk.osric.asp.Sdk.PageFrame.Head.get -> string!
+uk.osric.asp.Sdk.PageFrame.Head.init -> void
+uk.osric.asp.Sdk.PageFrame.PageFrame(string? Title, string! Head, System.Collections.Generic.IReadOnlyList<string!>! Stylesheets, bool AllowsScripts) -> void
+uk.osric.asp.Sdk.PageFrame.PageFrame(uk.osric.asp.Sdk.PageFrame! original) -> void
+uk.osric.asp.Sdk.PageFrame.Stylesheets.get -> System.Collections.Generic.IReadOnlyList<string!>!
+uk.osric.asp.Sdk.PageFrame.Stylesheets.init -> void
+uk.osric.asp.Sdk.PageFrame.Title.get -> string?
+uk.osric.asp.Sdk.PageFrame.Title.init -> void
 uk.osric.asp.Sdk.PageJobEvent
 uk.osric.asp.Sdk.PageJobEvent.<Clone>$() -> uk.osric.asp.Sdk.PageJobEvent!
 uk.osric.asp.Sdk.PageJobEvent.Data.get -> string!
@@ -341,9 +363,9 @@ uk.osric.asp.Sdk.PageJobRefusal.InvalidKey = 3 -> uk.osric.asp.Sdk.PageJobRefusa
 uk.osric.asp.Sdk.PageJobRefusal.MessageTooLarge = 11 -> uk.osric.asp.Sdk.PageJobRefusal
 uk.osric.asp.Sdk.PageJobRefusal.None = 0 -> uk.osric.asp.Sdk.PageJobRefusal
 uk.osric.asp.Sdk.PageJobRefusal.NotAWorker = 6 -> uk.osric.asp.Sdk.PageJobRefusal
+uk.osric.asp.Sdk.PageJobRefusal.OwnedBySite = 4 -> uk.osric.asp.Sdk.PageJobRefusal
 uk.osric.asp.Sdk.PageJobRefusal.QueueFull = 7 -> uk.osric.asp.Sdk.PageJobRefusal
 uk.osric.asp.Sdk.PageJobRefusal.ReadOnly = 2 -> uk.osric.asp.Sdk.PageJobRefusal
-uk.osric.asp.Sdk.PageJobRefusal.OwnedBySite = 4 -> uk.osric.asp.Sdk.PageJobRefusal
 uk.osric.asp.Sdk.PageJobRefusal.TooManyMessages = 10 -> uk.osric.asp.Sdk.PageJobRefusal
 uk.osric.asp.Sdk.PageJobRefusal.UnknownJob = 8 -> uk.osric.asp.Sdk.PageJobRefusal
 uk.osric.asp.Sdk.PageJobRefusal.UnknownWorker = 5 -> uk.osric.asp.Sdk.PageJobRefusal
@@ -371,13 +393,69 @@ uk.osric.asp.Sdk.PageJobState.Completed = 2 -> uk.osric.asp.Sdk.PageJobState
 uk.osric.asp.Sdk.PageJobState.Failed = 3 -> uk.osric.asp.Sdk.PageJobState
 uk.osric.asp.Sdk.PageJobState.Queued = 0 -> uk.osric.asp.Sdk.PageJobState
 uk.osric.asp.Sdk.PageJobState.Running = 1 -> uk.osric.asp.Sdk.PageJobState
-~override uk.osric.asp.Sdk.PageJobSendResult.Equals(object obj) -> bool
-~override uk.osric.asp.Sdk.PageJobSendResult.ToString() -> string
-~override uk.osric.asp.Sdk.PageJobStart.Equals(object obj) -> bool
-~override uk.osric.asp.Sdk.PageJobStart.ToString() -> string
-uk.osric.asp.Sdk.PageEntry.Seed.get -> uk.osric.asp.Sdk.PageSeedSummary?
-uk.osric.asp.Sdk.PageEntry.Seed.init -> void
+uk.osric.asp.Sdk.PageKeyResolution
+uk.osric.asp.Sdk.PageKeyResolution.<Clone>$() -> uk.osric.asp.Sdk.PageKeyResolution!
+uk.osric.asp.Sdk.PageKeyResolution.Deconstruct(out string? Key, out bool IsReserved, out string? Error) -> void
+uk.osric.asp.Sdk.PageKeyResolution.Equals(uk.osric.asp.Sdk.PageKeyResolution? other) -> bool
+uk.osric.asp.Sdk.PageKeyResolution.Error.get -> string?
+uk.osric.asp.Sdk.PageKeyResolution.Error.init -> void
+uk.osric.asp.Sdk.PageKeyResolution.IsReserved.get -> bool
+uk.osric.asp.Sdk.PageKeyResolution.IsReserved.init -> void
+uk.osric.asp.Sdk.PageKeyResolution.IsSuccess.get -> bool
+uk.osric.asp.Sdk.PageKeyResolution.Key.get -> string?
+uk.osric.asp.Sdk.PageKeyResolution.Key.init -> void
+uk.osric.asp.Sdk.PageKeyResolution.PageKeyResolution(string? Key, bool IsReserved, string? Error) -> void
+uk.osric.asp.Sdk.PageListing
+uk.osric.asp.Sdk.PageListing.<Clone>$() -> uk.osric.asp.Sdk.PageListing!
+uk.osric.asp.Sdk.PageListing.Deconstruct(out System.Collections.Generic.IReadOnlyList<uk.osric.asp.Sdk.PageEntry>! Entries, out bool Truncated) -> void
+uk.osric.asp.Sdk.PageListing.Entries.get -> System.Collections.Generic.IReadOnlyList<uk.osric.asp.Sdk.PageEntry>!
+uk.osric.asp.Sdk.PageListing.Entries.init -> void
+uk.osric.asp.Sdk.PageListing.Equals(uk.osric.asp.Sdk.PageListing? other) -> bool
+uk.osric.asp.Sdk.PageListing.PageListing(System.Collections.Generic.IReadOnlyList<uk.osric.asp.Sdk.PageEntry>! Entries, bool Truncated) -> void
+uk.osric.asp.Sdk.PageListing.Truncated.get -> bool
+uk.osric.asp.Sdk.PageListing.Truncated.init -> void
+uk.osric.asp.Sdk.PageListingRequest
+uk.osric.asp.Sdk.PageListingRequest.<Clone>$() -> uk.osric.asp.Sdk.PageListingRequest!
+uk.osric.asp.Sdk.PageListingRequest.After.get -> string?
+uk.osric.asp.Sdk.PageListingRequest.After.init -> void
+uk.osric.asp.Sdk.PageListingRequest.Deconstruct(out string! Prefix, out string? After, out int? Limit) -> void
+uk.osric.asp.Sdk.PageListingRequest.Equals(uk.osric.asp.Sdk.PageListingRequest? other) -> bool
+uk.osric.asp.Sdk.PageListingRequest.Limit.get -> int?
+uk.osric.asp.Sdk.PageListingRequest.Limit.init -> void
+uk.osric.asp.Sdk.PageListingRequest.PageListingRequest(string! Prefix = "", string? After = null, int? Limit = null) -> void
+uk.osric.asp.Sdk.PageListingRequest.Prefix.get -> string!
+uk.osric.asp.Sdk.PageListingRequest.Prefix.init -> void
+uk.osric.asp.Sdk.PageRequest.Deconstruct(out string! Method, out string! Path, out System.Collections.Generic.IReadOnlyDictionary<string!, string!>! Query, out System.Collections.Generic.IReadOnlyDictionary<string!, string!>! Form, out System.Collections.Generic.IReadOnlyDictionary<string!, string!>! Headers, out System.Collections.Generic.IReadOnlyDictionary<string!, string!>! Cookies, out System.Collections.Generic.IReadOnlyDictionary<string!, System.Collections.Generic.IReadOnlyList<string!>!>! QueryValues, out System.Collections.Generic.IReadOnlyDictionary<string!, System.Collections.Generic.IReadOnlyList<string!>!>! FormValues) -> void
+uk.osric.asp.Sdk.PageRequest.FormValues.get -> System.Collections.Generic.IReadOnlyDictionary<string!, System.Collections.Generic.IReadOnlyList<string!>!>!
+uk.osric.asp.Sdk.PageRequest.FormValues.init -> void
+uk.osric.asp.Sdk.PageRequest.PageRequest(string! Method, string! Path, System.Collections.Generic.IReadOnlyDictionary<string!, string!>! Query, System.Collections.Generic.IReadOnlyDictionary<string!, string!>! Form, System.Collections.Generic.IReadOnlyDictionary<string!, string!>! Headers, System.Collections.Generic.IReadOnlyDictionary<string!, string!>! Cookies, System.Collections.Generic.IReadOnlyDictionary<string!, System.Collections.Generic.IReadOnlyList<string!>!>! QueryValues, System.Collections.Generic.IReadOnlyDictionary<string!, System.Collections.Generic.IReadOnlyList<string!>!>! FormValues) -> void
+uk.osric.asp.Sdk.PageRequest.QueryValues.get -> System.Collections.Generic.IReadOnlyDictionary<string!, System.Collections.Generic.IReadOnlyList<string!>!>!
+uk.osric.asp.Sdk.PageRequest.QueryValues.init -> void
+uk.osric.asp.Sdk.PageRequestExtensions
+uk.osric.asp.Sdk.PageRevisionInfo
+uk.osric.asp.Sdk.PageRevisionInfo.Deconstruct(out string! Hash, out System.DateTimeOffset SavedAt, out bool IsCurrent) -> void
+uk.osric.asp.Sdk.PageRevisionInfo.Equals(uk.osric.asp.Sdk.PageRevisionInfo other) -> bool
+uk.osric.asp.Sdk.PageRevisionInfo.Hash.get -> string!
+uk.osric.asp.Sdk.PageRevisionInfo.Hash.init -> void
+uk.osric.asp.Sdk.PageRevisionInfo.IsCurrent.get -> bool
+uk.osric.asp.Sdk.PageRevisionInfo.IsCurrent.init -> void
+uk.osric.asp.Sdk.PageRevisionInfo.PageRevisionInfo() -> void
+uk.osric.asp.Sdk.PageRevisionInfo.PageRevisionInfo(string! Hash, System.DateTimeOffset SavedAt, bool IsCurrent) -> void
+uk.osric.asp.Sdk.PageRevisionInfo.SavedAt.get -> System.DateTimeOffset
+uk.osric.asp.Sdk.PageRevisionInfo.SavedAt.init -> void
+uk.osric.asp.Sdk.PageSaveResult
+uk.osric.asp.Sdk.PageSaveResult.<Clone>$() -> uk.osric.asp.Sdk.PageSaveResult!
+uk.osric.asp.Sdk.PageSaveResult.Deconstruct(out string! Hash, out System.Collections.Generic.IReadOnlyList<uk.osric.asp.Sdk.PageDiagnostic>! Diagnostics) -> void
+uk.osric.asp.Sdk.PageSaveResult.Diagnostics.get -> System.Collections.Generic.IReadOnlyList<uk.osric.asp.Sdk.PageDiagnostic>!
+uk.osric.asp.Sdk.PageSaveResult.Diagnostics.init -> void
+uk.osric.asp.Sdk.PageSaveResult.Equals(uk.osric.asp.Sdk.PageSaveResult? other) -> bool
+uk.osric.asp.Sdk.PageSaveResult.HasErrors.get -> bool
+uk.osric.asp.Sdk.PageSaveResult.HasWarnings.get -> bool
+uk.osric.asp.Sdk.PageSaveResult.Hash.get -> string!
+uk.osric.asp.Sdk.PageSaveResult.Hash.init -> void
+uk.osric.asp.Sdk.PageSaveResult.PageSaveResult(string! Hash, System.Collections.Generic.IReadOnlyList<uk.osric.asp.Sdk.PageDiagnostic>! Diagnostics) -> void
 uk.osric.asp.Sdk.PageSeedSummary
+uk.osric.asp.Sdk.PageSeedSummary.<Clone>$() -> uk.osric.asp.Sdk.PageSeedSummary!
 uk.osric.asp.Sdk.PageSeedSummary.CanAdopt.get -> bool
 uk.osric.asp.Sdk.PageSeedSummary.CanAdopt.init -> void
 uk.osric.asp.Sdk.PageSeedSummary.CanApply.get -> bool
@@ -389,91 +467,30 @@ uk.osric.asp.Sdk.PageSeedSummary.Sentence.get -> string!
 uk.osric.asp.Sdk.PageSeedSummary.Sentence.init -> void
 uk.osric.asp.Sdk.PageSeedSummary.Verdict.get -> string!
 uk.osric.asp.Sdk.PageSeedSummary.Verdict.init -> void
-override uk.osric.asp.Sdk.PageSeedSummary.Equals(object? obj) -> bool
-override uk.osric.asp.Sdk.PageSeedSummary.ToString() -> string!
-static uk.osric.asp.Sdk.PageSeedSummary.operator !=(uk.osric.asp.Sdk.PageSeedSummary? left, uk.osric.asp.Sdk.PageSeedSummary? right) -> bool
-static uk.osric.asp.Sdk.PageSeedSummary.operator ==(uk.osric.asp.Sdk.PageSeedSummary? left, uk.osric.asp.Sdk.PageSeedSummary? right) -> bool
-override uk.osric.asp.Sdk.PageSeedSummary.GetHashCode() -> int
-uk.osric.asp.Sdk.PageSeedSummary.<Clone>$() -> uk.osric.asp.Sdk.PageSeedSummary!
-override uk.osric.asp.Sdk.MarkdownOptions.Equals(object? obj) -> bool
-override uk.osric.asp.Sdk.MarkdownOptions.GetHashCode() -> int
-override uk.osric.asp.Sdk.MarkdownOptions.ToString() -> string!
-static uk.osric.asp.Sdk.MarkdownOptions.operator !=(uk.osric.asp.Sdk.MarkdownOptions? left, uk.osric.asp.Sdk.MarkdownOptions? right) -> bool
-static uk.osric.asp.Sdk.MarkdownOptions.operator ==(uk.osric.asp.Sdk.MarkdownOptions? left, uk.osric.asp.Sdk.MarkdownOptions? right) -> bool
-uk.osric.asp.Sdk.IMarkdownRenderer.ToHtml(string! markdown, uk.osric.asp.Sdk.MarkdownOptions! options) -> string!
-uk.osric.asp.Sdk.MarkdownOptions
-uk.osric.asp.Sdk.MarkdownOptions.<Clone>$() -> uk.osric.asp.Sdk.MarkdownOptions!
-uk.osric.asp.Sdk.MarkdownOptions.AutoLinks.get -> bool
-uk.osric.asp.Sdk.MarkdownOptions.AutoLinks.init -> void
-static uk.osric.asp.Sdk.MarkdownOptions.Default.get -> uk.osric.asp.Sdk.MarkdownOptions!
-uk.osric.asp.Sdk.MarkdownOptions.Equals(uk.osric.asp.Sdk.MarkdownOptions? other) -> bool
-uk.osric.asp.Sdk.MarkdownOptions.HeadingAnchors.get -> bool
-uk.osric.asp.Sdk.MarkdownOptions.HeadingAnchors.init -> void
-uk.osric.asp.Sdk.MarkdownOptions.MarkdownOptions() -> void
-uk.osric.asp.Sdk.MarkdownOptions.PipeTables.get -> bool
-uk.osric.asp.Sdk.MarkdownOptions.PipeTables.init -> void
-uk.osric.asp.Sdk.IContext.Response.get -> uk.osric.asp.Sdk.IPageResponse!
-uk.osric.asp.Sdk.IPageResponse
-uk.osric.asp.Sdk.IPageResponse.AllowScripts() -> void
-uk.osric.asp.Sdk.IPageResponse.AntiforgeryField.get -> string!
-uk.osric.asp.Sdk.IPageResponse.FlushAsync() -> System.Threading.Tasks.Task!
-uk.osric.asp.Sdk.IPageResponse.Redirect(string! location, int status = 302) -> void
-uk.osric.asp.Sdk.IPageResponse.RedirectToLogin() -> void
-uk.osric.asp.Sdk.IPageResponse.SetContentType(string! contentType) -> void
-uk.osric.asp.Sdk.IPageResponse.SetHeader(string! name, string! value) -> void
-uk.osric.asp.Sdk.IPageResponse.SetStatus(int status) -> void
-uk.osric.asp.Sdk.IPageResponse.Write(string! message) -> void
-uk.osric.asp.Sdk.IPageResponse.WriteRaw(string! message) -> void
-*REMOVED*uk.osric.asp.Sdk.IPageLayout.Body.get -> string!
-*REMOVED*uk.osric.asp.Sdk.IPageLayout.Layout.get -> string?
-*REMOVED*uk.osric.asp.Sdk.IPageLayout.Layout.set -> void
-*REMOVED*uk.osric.asp.Sdk.IPageLayout.Title.get -> string!
-override sealed uk.osric.asp.Sdk.PageCapture.Equals(uk.osric.asp.Sdk.PageFrame? other) -> bool
-override uk.osric.asp.Sdk.PageCapture.<Clone>$() -> uk.osric.asp.Sdk.PageCapture!
-override uk.osric.asp.Sdk.PageCapture.Equals(object? obj) -> bool
-override uk.osric.asp.Sdk.PageCapture.GetHashCode() -> int
-override uk.osric.asp.Sdk.PageCapture.ToString() -> string!
-override uk.osric.asp.Sdk.PageFrame.Equals(object? obj) -> bool
-override uk.osric.asp.Sdk.PageFrame.GetHashCode() -> int
-override uk.osric.asp.Sdk.PageFrame.ToString() -> string!
-static uk.osric.asp.Sdk.PageCapture.operator !=(uk.osric.asp.Sdk.PageCapture? left, uk.osric.asp.Sdk.PageCapture? right) -> bool
-static uk.osric.asp.Sdk.PageCapture.operator ==(uk.osric.asp.Sdk.PageCapture? left, uk.osric.asp.Sdk.PageCapture? right) -> bool
-static uk.osric.asp.Sdk.PageFrame.operator !=(uk.osric.asp.Sdk.PageFrame? left, uk.osric.asp.Sdk.PageFrame? right) -> bool
-static uk.osric.asp.Sdk.PageFrame.operator ==(uk.osric.asp.Sdk.PageFrame? left, uk.osric.asp.Sdk.PageFrame? right) -> bool
-static uk.osric.asp.Sdk.PageRequestExtensions.WithAnotherQuery(this uk.osric.asp.Sdk.PageRequest! request, string! name, string! value) -> uk.osric.asp.Sdk.PageRequest!
-static uk.osric.asp.Sdk.PageRequestExtensions.WithQuery(this uk.osric.asp.Sdk.PageRequest! request, System.Collections.Generic.IReadOnlyList<System.Collections.Generic.KeyValuePair<string!, string!>>! query) -> uk.osric.asp.Sdk.PageRequest!
-static uk.osric.asp.Sdk.PageRequestExtensions.WithQuery(this uk.osric.asp.Sdk.PageRequest! request, string! name, string! value) -> uk.osric.asp.Sdk.PageRequest!
-static uk.osric.asp.Sdk.PageRequestExtensions.WithoutQuery(this uk.osric.asp.Sdk.PageRequest! request) -> uk.osric.asp.Sdk.PageRequest!
-static uk.osric.asp.Sdk.PageRequestExtensions.WithoutQuery(this uk.osric.asp.Sdk.PageRequest! request, string! name) -> uk.osric.asp.Sdk.PageRequest!
-uk.osric.asp.Sdk.IPageComposition
-uk.osric.asp.Sdk.IPageComposition.CaptureAsync(string! key, uk.osric.asp.Sdk.PageRequest? request = null) -> System.Threading.Tasks.Task<uk.osric.asp.Sdk.PageCapture!>!
-uk.osric.asp.Sdk.IPageComposition.EmbedAsync(string! key, uk.osric.asp.Sdk.PageRequest? request = null) -> System.Threading.Tasks.Task<uk.osric.asp.Sdk.PageFrame!>!
-uk.osric.asp.Sdk.IPageComposition.Wrap() -> void
-uk.osric.asp.Sdk.IPageComposition.Wrap(string! key, uk.osric.asp.Sdk.PageRequest? request = null) -> void
-uk.osric.asp.Sdk.IPageLayout.Content.get -> uk.osric.asp.Sdk.PageCapture?
-uk.osric.asp.Sdk.IPageLayout.Title.get -> string?
-uk.osric.asp.Sdk.PageCapture
-uk.osric.asp.Sdk.PageCapture.Body.get -> string!
-uk.osric.asp.Sdk.PageCapture.Equals(uk.osric.asp.Sdk.PageCapture? other) -> bool
-uk.osric.asp.Sdk.PageCapture.PageCapture(string! body, uk.osric.asp.Sdk.PageFrame! frame) -> void
-uk.osric.asp.Sdk.PageFrame
-uk.osric.asp.Sdk.PageFrame.AllowsScripts.get -> bool
-uk.osric.asp.Sdk.PageFrame.AllowsScripts.init -> void
-uk.osric.asp.Sdk.PageFrame.Deconstruct(out string? Title, out string! Head, out System.Collections.Generic.IReadOnlyList<string!>! Stylesheets, out bool AllowsScripts) -> void
-uk.osric.asp.Sdk.PageFrame.Head.get -> string!
-uk.osric.asp.Sdk.PageFrame.Head.init -> void
-uk.osric.asp.Sdk.PageFrame.PageFrame(string? Title, string! Head, System.Collections.Generic.IReadOnlyList<string!>! Stylesheets, bool AllowsScripts) -> void
-uk.osric.asp.Sdk.PageFrame.PageFrame(uk.osric.asp.Sdk.PageFrame! original) -> void
-uk.osric.asp.Sdk.PageFrame.Stylesheets.get -> System.Collections.Generic.IReadOnlyList<string!>!
-uk.osric.asp.Sdk.PageFrame.Stylesheets.init -> void
-uk.osric.asp.Sdk.PageFrame.Title.get -> string?
-uk.osric.asp.Sdk.PageFrame.Title.init -> void
-uk.osric.asp.Sdk.PageRequestExtensions
-virtual uk.osric.asp.Sdk.PageFrame.<Clone>$() -> uk.osric.asp.Sdk.PageFrame!
-virtual uk.osric.asp.Sdk.PageFrame.EqualityContract.get -> System.Type!
-virtual uk.osric.asp.Sdk.PageFrame.Equals(uk.osric.asp.Sdk.PageFrame? other) -> bool
-virtual uk.osric.asp.Sdk.PageFrame.PrintMembers(System.Text.StringBuilder! builder) -> bool
-uk.osric.asp.Sdk.IPageCatalog.ShellLinks() -> System.Collections.Generic.IReadOnlyList<uk.osric.asp.Sdk.ShellLink>!
+uk.osric.asp.Sdk.PageSessionKey
+uk.osric.asp.Sdk.PageSessionKey.Deconstruct(out string! Page, out string! Key) -> void
+uk.osric.asp.Sdk.PageSessionKey.Equals(uk.osric.asp.Sdk.PageSessionKey other) -> bool
+uk.osric.asp.Sdk.PageSessionKey.Key.get -> string!
+uk.osric.asp.Sdk.PageSessionKey.Key.init -> void
+uk.osric.asp.Sdk.PageSessionKey.Page.get -> string!
+uk.osric.asp.Sdk.PageSessionKey.Page.init -> void
+uk.osric.asp.Sdk.PageSessionKey.PageSessionKey() -> void
+uk.osric.asp.Sdk.PageSessionKey.PageSessionKey(string! Page, string! Key) -> void
+uk.osric.asp.Sdk.PageSource
+uk.osric.asp.Sdk.PageSource.<Clone>$() -> uk.osric.asp.Sdk.PageSource!
+uk.osric.asp.Sdk.PageSource.Deconstruct(out string! Key, out string! Hash, out System.DateTimeOffset SavedAt, out string! Source) -> void
+uk.osric.asp.Sdk.PageSource.Equals(uk.osric.asp.Sdk.PageSource? other) -> bool
+uk.osric.asp.Sdk.PageSource.Hash.get -> string!
+uk.osric.asp.Sdk.PageSource.Hash.init -> void
+uk.osric.asp.Sdk.PageSource.Key.get -> string!
+uk.osric.asp.Sdk.PageSource.Key.init -> void
+uk.osric.asp.Sdk.PageSource.PageSource(string! Key, string! Hash, System.DateTimeOffset SavedAt, string! Source) -> void
+uk.osric.asp.Sdk.PageSource.SavedAt.get -> System.DateTimeOffset
+uk.osric.asp.Sdk.PageSource.SavedAt.init -> void
+uk.osric.asp.Sdk.PageSource.Source.get -> string!
+uk.osric.asp.Sdk.PageSource.Source.init -> void
+uk.osric.asp.Sdk.PageStreamRefusedException
+uk.osric.asp.Sdk.PageStreamRefusedException.PageStreamRefusedException(string! message) -> void
 uk.osric.asp.Sdk.ShellAudience
 uk.osric.asp.Sdk.ShellAudience.Anonymous = 1 -> uk.osric.asp.Sdk.ShellAudience
 uk.osric.asp.Sdk.ShellAudience.Everyone = 0 -> uk.osric.asp.Sdk.ShellAudience
@@ -499,8 +516,21 @@ uk.osric.asp.Sdk.ShellMatch.Subtree = 1 -> uk.osric.asp.Sdk.ShellMatch
 uk.osric.asp.Sdk.ShellSection
 uk.osric.asp.Sdk.ShellSection.Administration = 1 -> uk.osric.asp.Sdk.ShellSection
 uk.osric.asp.Sdk.ShellSection.Site = 0 -> uk.osric.asp.Sdk.ShellSection
-override uk.osric.asp.Sdk.ShellLink.GetHashCode() -> int
-static uk.osric.asp.Sdk.ShellLink.operator !=(uk.osric.asp.Sdk.ShellLink left, uk.osric.asp.Sdk.ShellLink right) -> bool
-static uk.osric.asp.Sdk.ShellLink.operator ==(uk.osric.asp.Sdk.ShellLink left, uk.osric.asp.Sdk.ShellLink right) -> bool
+virtual uk.osric.asp.Sdk.PageFrame.<Clone>$() -> uk.osric.asp.Sdk.PageFrame!
+virtual uk.osric.asp.Sdk.PageFrame.EqualityContract.get -> System.Type!
+virtual uk.osric.asp.Sdk.PageFrame.Equals(uk.osric.asp.Sdk.PageFrame? other) -> bool
+virtual uk.osric.asp.Sdk.PageFrame.PrintMembers(System.Text.StringBuilder! builder) -> bool
+~override uk.osric.asp.Sdk.PageDiagnostic.Equals(object obj) -> bool
+~override uk.osric.asp.Sdk.PageDiagnostic.ToString() -> string
+~override uk.osric.asp.Sdk.PageEntry.Equals(object obj) -> bool
+~override uk.osric.asp.Sdk.PageEntry.ToString() -> string
+~override uk.osric.asp.Sdk.PageJobSendResult.Equals(object obj) -> bool
+~override uk.osric.asp.Sdk.PageJobSendResult.ToString() -> string
+~override uk.osric.asp.Sdk.PageJobStart.Equals(object obj) -> bool
+~override uk.osric.asp.Sdk.PageJobStart.ToString() -> string
+~override uk.osric.asp.Sdk.PageRevisionInfo.Equals(object obj) -> bool
+~override uk.osric.asp.Sdk.PageRevisionInfo.ToString() -> string
+~override uk.osric.asp.Sdk.PageSessionKey.Equals(object obj) -> bool
+~override uk.osric.asp.Sdk.PageSessionKey.ToString() -> string
 ~override uk.osric.asp.Sdk.ShellLink.Equals(object obj) -> bool
 ~override uk.osric.asp.Sdk.ShellLink.ToString() -> string

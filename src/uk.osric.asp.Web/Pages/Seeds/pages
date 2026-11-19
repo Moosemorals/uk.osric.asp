@@ -116,6 +116,7 @@ using Site.Editor;
 
     IReadOnlyList<PageDiagnostic> diagnostics = [];
     IReadOnlyList<PageEntry> entries = [];
+    bool truncated = false;
     IReadOnlyList<PageRevisionInfo> revisions = [];
 
     PageSource? live = null;
@@ -443,7 +444,9 @@ using Site.Editor;
     }
 
     if (stage == "listing") {
-        entries = await catalog.ListAsync("");
+        PageListing listing = await catalog.ListAsync(new());
+        entries = listing.Entries;
+        truncated = listing.Truncated;
     }
 
     if (status != 200) {
@@ -487,6 +490,9 @@ using Site.Editor;
         %><h1>Pages</h1><%
         if (notice is not null) {
             %><p><%= notice %></p><%
+        }
+        if (truncated) {
+            %><p>There are more pages than this listing shows. List a prefix, or resume from the last key.</p><%
         }
         %><p>Signed in as <%= user.Name %>. This page reads and writes the page store. Every value below is
 written with <code>ctx.Response.Write</code>, because page source is exactly what a view like this must not
@@ -561,7 +567,7 @@ run.</p>
         if (!isEditorItself) {
             menu.Add(new(DeleteUrl(key), "Delete"));
         }
-        PageEntry? row = (await catalog.ListAsync(key)).FirstOrDefault(item => string.Equals(item.Key, key, System.StringComparison.Ordinal));
+        PageEntry? row = (await catalog.ListAsync(new(key))).Entries.FirstOrDefault(item => string.Equals(item.Key, key, System.StringComparison.Ordinal));
         if (row?.Seed?.CanApply == true) {
             menu.Add(new(InstallUrl(key), "Install from seed"));
         }

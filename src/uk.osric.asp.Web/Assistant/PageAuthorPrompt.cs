@@ -9,7 +9,7 @@ using uk.osric.asp.Web.Shell;
 
 /// <summary>The system prompt and worked examples that teach the model to write a page.</summary>
 internal static class PageAuthorPrompt {
-    public const string Version = "page-author-v39";
+    public const string Version = "page-author-v40";
 
     public static IReadOnlyList<(string Name, string Source)> Examples { get; } = [
         ("query-driven", """
@@ -56,10 +56,10 @@ internal static class PageAuthorPrompt {
             """),
         ("catalog-listing", """
             <% IPageCatalog catalog = ctx.Capabilities.GetRequired<IPageCatalog>();
-               System.Collections.Generic.IReadOnlyList<PageEntry> pages = await catalog.ListAsync("/blog"); %>
+               PageListing listing = await catalog.ListAsync(new PageListingRequest("/blog")); %>
             <h1>Pages under /blog</h1>
             <ul>
-            <% foreach (PageEntry entry in pages) { %>
+            <% foreach (PageEntry entry in listing.Entries) { %>
                 <li><%= entry.Key %> — <%= entry.IsDeleted ? "deleted" : "live" %></li>
             <% } %>
             </ul>
@@ -326,10 +326,18 @@ internal static class PageAuthorPrompt {
 
         ## Page store read
         `ctx.Capabilities.GetRequired<IPageCatalog>()` reads the site's page store
-        and never writes. `ListAsync(prefix)` lists the heads under a subtree
-        and returns `PageEntry` rows with `Key`, `SavedAt`, `Hash` and five
-        marks: `IsDeleted`, `IsReserved`, `IsHtml`, `IsAsset`, `IsLibrary` and
-        `IsWorker`. A prefix is a subtree,
+        and never writes. `ListAsync(new PageListingRequest(prefix, after, limit))`
+        lists one slice of the heads under a subtree and returns a `PageListing`:
+        `Entries` with `Key`, `SavedAt`, `Hash` and seven marks — `IsDeleted`,
+        `IsReserved`, `IsHtml`, `IsAsset`, `IsLibrary`, `IsWorker` and `State` —
+        and `Truncated`, which says something stands after the last row.
+        `after` is the last key you were given and is exclusive, so a loop that
+        passes the last key and asks again while `Truncated` is true walks a
+        store of any size without skipping or repeating a row; a cursor past the
+        last key answers empty with `Truncated` false, which is not an error.
+        `limit` is how many rows you want, or null for the host's cap; asking for
+        more than the cap is refused with the setting's name, not trimmed.
+        A prefix is a subtree,
         not a string prefix: `/blog` lists `/blog` and `/blog/post`, never
         `/blogroll`; `""` and `/` are the whole store. `ReadAsync(key)` reads a
         live page's template as a `PageSource`, or null when there is none;

@@ -56,7 +56,7 @@ public sealed class SqlitePageReadStoreTests {
         await DatabaseTemplate.SavePageAsync(_options, "/gone", "deleted source");
         await DeleteAsync("/gone");
 
-        IReadOnlyList<PageReadHead> rows = await ReadStore().ListAsync("/", 10);
+        IReadOnlyList<PageReadHead> rows = await ReadStore().ListAsync("/", after: null, 10);
 
         Assert.That(rows.Select(row => row.Key), Is.EqualTo(["/gone", "/site.css"]));
         Assert.That(rows.Single(row => row.Key == "/gone").IsDeleted, Is.True);
@@ -74,7 +74,7 @@ public sealed class SqlitePageReadStoreTests {
             await database.SaveChangesAsync();
         }
 
-        PageReadHead row = (await ReadStore().ListAsync("/", 10)).Single();
+        PageReadHead row = (await ReadStore().ListAsync("/", after: null, 10)).Single();
 
         Assert.Multiple(() => {
             Assert.That(row.RuntimeId, Is.EqualTo("build-7"));
@@ -89,9 +89,24 @@ public sealed class SqlitePageReadStoreTests {
         await DatabaseTemplate.SavePageAsync(_options, "/two");
         await DatabaseTemplate.SavePageAsync(_options, "/three");
 
-        IReadOnlyList<PageReadHead> rows = await ReadStore().ListAsync("/", 2);
+        IReadOnlyList<PageReadHead> rows = await ReadStore().ListAsync("/", after: null, 2);
 
         Assert.That(rows.Select(row => row.Key), Is.EqualTo(["/one", "/three"]));
+    }
+
+    [Test]
+    public async Task TheCursorIsExclusiveAndPastTheLastKeyAnswersNothingAsync() {
+        await DatabaseTemplate.SavePageAsync(_options, "/a");
+        await DatabaseTemplate.SavePageAsync(_options, "/b");
+        await DatabaseTemplate.SavePageAsync(_options, "/c");
+
+        IReadOnlyList<PageReadHead> rows = await ReadStore().ListAsync("/", after: "/a", 10);
+        IReadOnlyList<PageReadHead> past = await ReadStore().ListAsync("/", after: "/zzz", 10);
+
+        Assert.Multiple(() => {
+            Assert.That(rows.Select(row => row.Key), Is.EqualTo(["/b", "/c"]));
+            Assert.That(past, Is.Empty);
+        });
     }
 
     [Test]
@@ -100,7 +115,7 @@ public sealed class SqlitePageReadStoreTests {
         await DatabaseTemplate.SavePageAsync(_options, "/100x", "letter");
         await DatabaseTemplate.SavePageAsync(_options, "/100_", "underscore");
 
-        IReadOnlyList<PageReadHead> rows = await ReadStore().ListAsync("/100%", 10);
+        IReadOnlyList<PageReadHead> rows = await ReadStore().ListAsync("/100%", after: null, 10);
 
         Assert.That(rows.Select(row => row.Key), Is.EqualTo(["/100%"]));
     }
@@ -111,7 +126,7 @@ public sealed class SqlitePageReadStoreTests {
         await DatabaseTemplate.SavePageAsync(_options, "/blog/post", "post");
         await DatabaseTemplate.SavePageAsync(_options, "/blogroll", "not a child");
 
-        IReadOnlyList<PageReadHead> rows = await ReadStore().ListAsync("/blog", 10);
+        IReadOnlyList<PageReadHead> rows = await ReadStore().ListAsync("/blog", after: null, 10);
 
         Assert.That(rows.Select(row => row.Key), Is.EqualTo(["/blog", "/blog/post"]));
     }
@@ -124,7 +139,7 @@ public sealed class SqlitePageReadStoreTests {
         IPageStore pages = new SqlitePageStore(database, NullLogger<SqlitePageStore>.Instance);
         PageTemplate current = (await pages.GetPageAsync(PagePath.Normalize("/blog")))!;
 
-        PageReadHead row = (await ReadStore().ListAsync("/blog", 10)).Single();
+        PageReadHead row = (await ReadStore().ListAsync("/blog", after: null, 10)).Single();
 
         Assert.That(row.Hash, Is.EqualTo(current.Hash));
         Assert.That(row.SavedAt, Is.EqualTo(current.SavedAt));
@@ -162,7 +177,7 @@ public sealed class SqlitePageReadStoreTests {
         (int Heads, int Revisions, string Hash, DateTimeOffset SavedAt) before = await SnapshotAsync();
         string hash = before.Hash;
 
-        _ = await ReadStore().ListAsync("/", 10);
+        _ = await ReadStore().ListAsync("/", after: null, 10);
         _ = await ReadStore().GetSourceAsync("/blog");
         _ = await ReadStore().ListRevisionsAsync("/blog");
         _ = await ReadStore().GetRevisionSourceAsync("/blog", hash);
