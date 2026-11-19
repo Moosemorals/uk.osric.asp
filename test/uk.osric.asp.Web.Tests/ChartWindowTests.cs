@@ -44,14 +44,26 @@ public sealed class ChartWindowTests {
     [Test]
     public void ALongWindowSamplesMoreSparsely() {
         Assert.That(ChartWindow.StepFor(TimeSpan.FromHours(1)), Is.EqualTo(TimeSpan.FromMinutes(1)));
-        Assert.That(ChartWindow.StepFor(TimeSpan.FromDays(1)), Is.EqualTo(TimeSpan.FromMinutes(3)));
+        Assert.That(ChartWindow.StepFor(TimeSpan.FromHours(3)), Is.EqualTo(TimeSpan.FromMinutes(5)));
+        Assert.That(ChartWindow.StepFor(TimeSpan.FromHours(8)), Is.EqualTo(TimeSpan.FromMinutes(10)));
+        Assert.That(ChartWindow.StepFor(TimeSpan.FromDays(1)), Is.EqualTo(TimeSpan.FromMinutes(30)));
+        Assert.That(ChartWindow.StepFor(TimeSpan.FromDays(7)), Is.EqualTo(TimeSpan.FromHours(3)));
+        Assert.That(ChartWindow.StepFor(TimeSpan.FromDays(30)), Is.EqualTo(TimeSpan.FromHours(12)));
 
         foreach (ChartWindow.WindowToken window in ChartWindow.Tokens) {
             Assert.That(
                 window.Length / ChartWindow.StepFor(window.Length),
-                Is.LessThanOrEqualTo(500),
+                Is.LessThanOrEqualTo(60),
                 $"{window.Token} asks for more samples than the chart can draw");
         }
+    }
+
+    [Test]
+    public void ARateAveragesOverTheStepItIsDrawnAt() {
+        Assert.That(ChartWindow.At(Now, TimeSpan.FromHours(1)).RateRange, Is.EqualTo("1m"));
+        Assert.That(ChartWindow.At(Now, TimeSpan.FromDays(1)).RateRange, Is.EqualTo("30m"));
+        Assert.That(ChartWindow.At(Now, TimeSpan.FromDays(7)).RateRange, Is.EqualTo("3h"));
+        Assert.That(ChartWindow.At(Now, TimeSpan.FromDays(30)).RateRange, Is.EqualTo("12h"));
     }
 
     [Test]

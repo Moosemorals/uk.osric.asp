@@ -15,7 +15,7 @@ partial class StorageDbContextModelSnapshot : ModelSnapshot
     // If you encounter a merge conflict in the line below, it means you need to
     // discard one of the migration branches and recreate its migrations on top of
     // the other branch. See https://aka.ms/efcore-docs-migrations-conflicts for more info.
-    public override string LastMigrationId => "20261115155944_AddPageHeadSeedProvenance";
+    public override string LastMigrationId => "20261118151514_AddOwnerInterrupts";
 
     protected override void BuildModel(ModelBuilder modelBuilder)
     {
@@ -211,6 +211,54 @@ partial class StorageDbContextModelSnapshot : ModelSnapshot
                 b.ToTable("AssistantMessages");
             });
 
+        modelBuilder.Entity("uk.osric.asp.Web.Assistant.OwnerInterrupt", b =>
+            {
+                b.Property<string>("RunId")
+                    .HasMaxLength(32)
+                    .HasColumnType("TEXT")
+                    .UseCollation("BINARY");
+
+                b.Property<DateTimeOffset>("CreatedAt")
+                    .HasColumnType("TEXT");
+
+                b.Property<string>("FailureCode")
+                    .HasMaxLength(100)
+                    .HasColumnType("TEXT");
+
+                b.Property<string>("Kind")
+                    .IsRequired()
+                    .HasMaxLength(32)
+                    .HasColumnType("TEXT");
+
+                b.Property<string>("RequestJson")
+                    .IsRequired()
+                    .HasColumnType("TEXT");
+
+                b.Property<string>("ResolutionJson")
+                    .HasColumnType("TEXT");
+
+                b.Property<DateTimeOffset?>("ResolvedAt")
+                    .HasColumnType("TEXT");
+
+                b.Property<string>("ResolvedBy")
+                    .HasMaxLength(64)
+                    .HasColumnType("TEXT")
+                    .UseCollation("BINARY");
+
+                b.Property<string>("Status")
+                    .IsRequired()
+                    .HasMaxLength(16)
+                    .HasColumnType("TEXT");
+
+                b.Property<string>("ToolCallId")
+                    .HasColumnType("TEXT")
+                    .UseCollation("BINARY");
+
+                b.HasKey("RunId");
+
+                b.ToTable("AssistantInterrupts");
+            });
+
         modelBuilder.Entity("uk.osric.asp.Web.Assistant.Run", b =>
             {
                 b.Property<string>("Id")
@@ -245,7 +293,13 @@ partial class StorageDbContextModelSnapshot : ModelSnapshot
                 b.Property<string>("ErrorMessage")
                     .HasColumnType("TEXT");
 
+                b.Property<long?>("EstimatedTokens")
+                    .HasColumnType("INTEGER");
+
                 b.Property<int?>("LastPromptTokens")
+                    .HasColumnType("INTEGER");
+
+                b.Property<int?>("MaxTokens")
                     .HasColumnType("INTEGER");
 
                 b.Property<string>("Model")
@@ -255,10 +309,6 @@ partial class StorageDbContextModelSnapshot : ModelSnapshot
 
                 b.Property<int?>("OutputTokens")
                     .HasColumnType("INTEGER");
-
-                b.Property<string>("PausedBudget")
-                    .HasMaxLength(32)
-                    .HasColumnType("TEXT");
 
                 b.Property<int?>("PromptTokens")
                     .HasColumnType("INTEGER");
@@ -298,45 +348,9 @@ partial class StorageDbContextModelSnapshot : ModelSnapshot
 
                 b.HasIndex("ConversationId")
                     .IsUnique()
-                    .HasFilter("\"Status\" IN ('queued', 'running', 'awaiting_approval', 'awaiting_continuation')");
+                    .HasFilter("\"Status\" IN ('queued', 'running', 'awaiting_owner')");
 
                 b.ToTable("AssistantRuns");
-            });
-
-        modelBuilder.Entity("uk.osric.asp.Web.Assistant.ToolApproval", b =>
-            {
-                b.Property<string>("RunId")
-                    .HasMaxLength(32)
-                    .HasColumnType("TEXT")
-                    .UseCollation("BINARY");
-
-                b.Property<string>("ToolCallId")
-                    .HasColumnType("TEXT")
-                    .UseCollation("BINARY");
-
-                b.Property<DateTimeOffset>("CreatedAt")
-                    .HasColumnType("TEXT");
-
-                b.Property<string>("FailureCode")
-                    .HasMaxLength(100)
-                    .HasColumnType("TEXT");
-
-                b.Property<DateTimeOffset?>("ResolvedAt")
-                    .HasColumnType("TEXT");
-
-                b.Property<string>("ResolvedBy")
-                    .HasMaxLength(64)
-                    .HasColumnType("TEXT")
-                    .UseCollation("BINARY");
-
-                b.Property<string>("Status")
-                    .IsRequired()
-                    .HasMaxLength(16)
-                    .HasColumnType("TEXT");
-
-                b.HasKey("RunId", "ToolCallId");
-
-                b.ToTable("AssistantToolApprovals");
             });
 
         modelBuilder.Entity("uk.osric.asp.Web.Authentication.AuthTicket", b =>
@@ -573,20 +587,20 @@ partial class StorageDbContextModelSnapshot : ModelSnapshot
                     .IsRequired();
             });
 
+        modelBuilder.Entity("uk.osric.asp.Web.Assistant.OwnerInterrupt", b =>
+            {
+                b.HasOne("uk.osric.asp.Web.Assistant.Run", null)
+                    .WithMany()
+                    .HasForeignKey("RunId")
+                    .OnDelete(DeleteBehavior.Cascade)
+                    .IsRequired();
+            });
+
         modelBuilder.Entity("uk.osric.asp.Web.Assistant.Run", b =>
             {
                 b.HasOne("uk.osric.asp.Web.Assistant.Conversation", null)
                     .WithMany()
                     .HasForeignKey("ConversationId")
-                    .OnDelete(DeleteBehavior.Cascade)
-                    .IsRequired();
-            });
-
-        modelBuilder.Entity("uk.osric.asp.Web.Assistant.ToolApproval", b =>
-            {
-                b.HasOne("uk.osric.asp.Web.Assistant.Run", null)
-                    .WithMany()
-                    .HasForeignKey("RunId")
                     .OnDelete(DeleteBehavior.Cascade)
                     .IsRequired();
             });

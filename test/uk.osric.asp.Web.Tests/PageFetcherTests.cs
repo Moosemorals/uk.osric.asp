@@ -161,7 +161,7 @@ public sealed class PageFetcherTests {
     [Test]
     public async Task ThePageUserAgentIsSentAsync() {
         StubHttpMessageHandler handler = new(request => {
-            Assert.That(request.Headers.UserAgent.ToString(), Is.EqualTo("moosemorals.com (page)"));
+            Assert.That(request.Headers.UserAgent.ToString(), Is.EqualTo("moosemorals.com (page) fetchmoose@fluffypeople.com"));
 
             return Respond(HttpStatusCode.OK, "ok")(request);
         });
@@ -174,7 +174,7 @@ public sealed class PageFetcherTests {
     [Test]
     public async Task APageCannotReplaceTheUserAgentAsync() {
         StubHttpMessageHandler handler = new(request => {
-            Assert.That(request.Headers.UserAgent.ToString(), Is.EqualTo("moosemorals.com (page)"));
+            Assert.That(request.Headers.UserAgent.ToString(), Is.EqualTo("moosemorals.com (page) fetchmoose@fluffypeople.com"));
 
             return Respond(HttpStatusCode.OK, "ok")(request);
         });

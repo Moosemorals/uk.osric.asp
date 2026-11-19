@@ -130,6 +130,10 @@ save, delete and restore any page the shell does not route. A worker is offered 
 (`pages-a-worker-gets-no-response`). What the assistant's page tools do beyond that — the diff, the
 search, the batch — is the rest of this job.
 
+**Split off 2026-11-18.** The writer a worker needs is [IDEA-056](IDEA-056.md): it acts with the
+credential its starter presented, so logging out or changing a password ends it, and it waits on
+[IDEA-047](IDEA-047.md)'s batch. This job keeps the port; the authority is recorded there.
+
 ### 5. The restricted Markdown profile is shell-only
 
 `IMarkdownRenderer.ToHtml` is the **author** profile: CommonMark plus pipe tables and auto-links, with

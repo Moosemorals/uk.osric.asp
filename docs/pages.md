@@ -70,8 +70,8 @@ pure renderers, and one that is a fact about the build:
   and the caps are `pages-the-session`; see [storage](storage.md#page-sessions).
 - `IHttpFetch` makes one outbound HTTP request from the host, not the browser, to any `http` or
   `https` host the URL names: there is no host allow-list (`pages-outbound-fetch`). Every request carries
-  `moosemorals.com (page)` as its `User-Agent`, set by the host after the page's own headers, so a
-  page cannot claim to be another client. `GetAsync` and `PostAsync` sit over
+  `moosemorals.com (page) fetchmoose@fluffypeople.com` as its `User-Agent`, set by the host after the
+  page's own headers, so a page cannot claim to be another client. `GetAsync` and `PostAsync` sit over
   `SendAsync(HttpFetchRequest)`; `StreamAsync` opens the same request rules and returns an
   `HttpFetchStream` that reads decoded text lines with `ReadLineAsync()`, exposes response metadata
   and failure values, and can be closed explicitly. Open streams close when the render ends or is
@@ -91,9 +91,10 @@ pure renderers, and one that is a fact about the build:
   so another account's job is an unknown one rather than a refusal that says it exists (`pages-a-page-may-save-itself`). A
   `HEAD` is offered the reads and not the start, send or cancel, and a layout is offered nothing.
   See [jobs](#jobs).
-- `IPageCatalog` reads the page store: `ListAsync(prefix)` lists the heads under a subtree,
-  `ReadAsync(key)` reads a live page's template, `RevisionsAsync(key)` lists a page's history and
-  `ReadRevisionAsync(key, hash)` reads one retained revision. Each `PageEntry` marks the head
+- `IPageCatalog` reads the page store and answers what the shell can do: `ListAsync(prefix)` lists the
+  heads under a subtree, `ReadAsync(key)` reads a live page's template, `RevisionsAsync(key)` lists a
+  page's history, `ReadRevisionAsync(key, hash)` reads one retained revision, and `ShellLinks()` returns
+  the shell's links as values. Each `PageEntry` marks the head
   `IsDeleted`, `IsReserved`, `IsHtml` and `IsAsset`, so a view filters rather than re-deriving the
   host's rules, and carries the head's image state in `State` — the host's own words, judged against
   the running build — so a page's listing says what the editor's says without reading source
@@ -102,6 +103,14 @@ pure renderers, and one that is a fact about the build:
   as public as the page that calls it — there is no gate, and a page that wants privacy writes the
   ordinary `ctx.User` guard — and the render's deadline, abandonment and the shared chain budgets
   bound it (`pages-the-store-is-read-through-one-seam`, `pages-reading-the-store-is-public`, `pages-a-listing-carries-facts`, `product-manual-is-a-page`, `pages-delete-install-and-restore`, `pages-page-first`). See [source storage](storage.md#source-storage).
+- `ShellLinks()` is the one synchronous member: a `ShellLink` carries an `Href`, a `Text`, the
+  `ShellSection` it belongs to, the `ShellAudience` it is for and the `ShellMatch` the shell uses to
+  mark it current. The host returns the whole list — both sections, every audience, the sign-in link
+  carrying this request's way back — and the page filters, orders, relabels, marks current and writes
+  its own markup. There is no rendered menu, no `IsCurrent` and no footer: the seeded `/_layout`
+  draws the site's menu from the same values, and the footer stays the layout's own chrome
+  (`pages-the-catalog-knows-the-shell`). A worker has no request and no visitor, so its list is
+  empty.
 - `IPageWrites` is the store's write capability, and every page that is not a layout is offered it:
   the authority is the signed-in visitor's, not the page's (`pages-any-page-may-write-the-store`).
   It has two saves. `SaveAsync(template)` saves the calling page's own source, bound to `ctx.Path`, and
@@ -339,9 +348,9 @@ A **library** is a template whose only tokens are declaration blocks, plus any c
 whitespace between them. It has nothing to render, so it
 is never served: its key answers `404` and it is never an asset, never pinned with `?v=` and never
 wrapped. It is checked when it is saved — Roslyn analyses it and the diagnostics are stored beside the
-source, with no assembly — and a page API violation inside it is reported at the library's own line
-and key. A library declares at least one type in a namespace, which is how a page names it; a page
-may not declare a namespace.
+source, with no assembly — and a page API violation inside it is reported at the library's own line,
+columns and key. A library declares at least one type in a namespace, which is how a page names it; a
+page may not declare a namespace.
 
 A **worker** is a library that declares one entry point: a public type implementing `IWorker` with a
 parameterless constructor. It is compiled to an assembly when it is saved, so its image is stored
@@ -418,7 +427,9 @@ write, or every row after an upgrade that touched `Sdk` or `Core` — is compile
 stored. That is the only compile outside a save: there is no startup warm-up, so the first visitor
 after a deploy pays one compile per page. A failure is stored too, so a broken page serves its
 diagnostics without recompiling, and the editor shows them after the save instead of losing the
-edit. `Diagnostics` is a JSON array of positioned, severity-tagged `PageDiagnostic` values; a
+edit. `Diagnostics` is a JSON array of positioned, severity-tagged `PageDiagnostic` values, each with
+the run it covers and the key of the library it is in when the problem is not in the page itself
+(`pages-a-diagnostic-names-its-source`); a
 warning-only page stores its image and reports "Saved with warnings." A compiler fault stores only
 the source, so the author's edit survives and the next request retries.
 

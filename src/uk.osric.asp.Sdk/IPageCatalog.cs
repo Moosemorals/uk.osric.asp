@@ -3,12 +3,12 @@
 
 namespace uk.osric.asp.Sdk;
 
-/// <summary>A read-only view of the site's page store.</summary>
+/// <summary>A read-only view of the site's page store, and of the links the shell knows.</summary>
 /// <remarks>
 /// <para>
-/// Four reads and no writes: a page can list the store, read a live page's template, read a page's
-/// history and read one retained revision. It never meets an image, a symbol or a writable member;
-/// saving is a separate capability.
+/// Four store reads, one list of shell links and no writes: a page can list the store, read a live
+/// page's template, read a page's history, read one retained revision and ask what the shell can do.
+/// It never meets an image, a symbol or a writable member; saving is a separate capability.
 /// </para>
 /// <para>
 /// The read is as public as the page that calls it. There is no gate in the host, so an anonymous
@@ -19,10 +19,11 @@ namespace uk.osric.asp.Sdk;
 /// source it reads to whoever can reach that page.
 /// </para>
 /// <para>
-/// Every member returns a <see cref="Task"/> and takes no cancellation token, as
+/// Every store read returns a <see cref="Task"/> and takes no cancellation token, as
 /// <see cref="IPageStorage"/> and <see cref="IHttpFetch"/> do: the render owns
 /// <see cref="IContext.Aborted"/> and the deadline, and the implementation links them per call. A
 /// render that was abandoned, or a deadline that passed, throws when the returned task is awaited.
+/// <see cref="ShellLinks"/> is a value rather than a read, and refuses the same way.
 /// </para>
 /// <para>
 /// The read is bounded. One listing returns at most the host's row cap and refuses rather than
@@ -31,6 +32,27 @@ namespace uk.osric.asp.Sdk;
 /// </para>
 /// </remarks>
 public interface IPageCatalog {
+
+    /// <summary>The links the shell knows, as values a page may render.</summary>
+    /// <returns>
+    /// Every link the shell can draw, both the site menu and the administration menu, each with the
+    /// section it belongs to and the audience it is for. The order is the shell's reading order.
+    /// </returns>
+    /// <remarks>
+    /// <para>
+    /// It answers what the shell can do, not what the store holds: the links name shell routes and
+    /// the editor's configured key, so a page cannot build them itself. The host returns the whole
+    /// list and the page decides — it filters on <see cref="ShellAudience"/> with its own
+    /// <see cref="IContext.User"/>, picks the section, orders, relabels, marks the current one and
+    /// writes its own markup.
+    /// </para>
+    /// <para>
+    /// The sign-in link carries this request's way back, so a layout and the page it wraps see one
+    /// answer. A worker's catalog has no request and no visitor, so it has no links.
+    /// </para>
+    /// </remarks>
+    /// <exception cref="InvalidOperationException">The render was abandoned.</exception>
+    public IReadOnlyList<ShellLink> ShellLinks();
 
     /// <summary>Lists the heads of the store, under a prefix.</summary>
     /// <param name="prefix">

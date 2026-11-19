@@ -11,6 +11,7 @@ using uk.osric.asp.Runtime;
 using uk.osric.asp.Sdk;
 using uk.osric.asp.Web.Editor;
 using uk.osric.asp.Web.Pages;
+using uk.osric.asp.Web.Shell;
 using uk.osric.asp.Web.Work;
 
 /// <summary>Builds the page classes over one storage and one counting compiler.</summary>
@@ -174,9 +175,6 @@ internal sealed class PageHarness : IDisposable {
     /// <summary>Starts the runner, as the host's hosted service would.</summary>
     public Task StartJobsAsync() => JobRunner.StartAsync(CancellationToken.None);
 
-    /// <summary>Stops the runner, which cancels the jobs it is running.</summary>
-    public Task StopJobsAsync() => JobRunner.StopAsync(CancellationToken.None);
-
     public static PagePath Key(string path) {
         return PagePath.Normalize(path);
     }
@@ -274,6 +272,7 @@ internal sealed class PageHarness : IDisposable {
         if (withCatalog) {
             PageCatalogScope catalog = new(
                 path,
+                ShellCatalogue.Links(path.Key, string.Empty, TestOptions.Editor.Key),
                 ReadStore,
                 ReadOptions,
                 readBudget ?? new ReadBudget(ReadOptions.MaxSourceCharsPerRender),

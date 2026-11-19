@@ -14,19 +14,22 @@ internal enum OutboundOrigin {
 
 /// <summary>Builds the short <c>User-Agent</c> every outbound request carries.</summary>
 /// <remarks>
-/// The host and the origin let a remote service see who is calling without a version, a contact URL or
-/// anything ambient. The host sets it after a page's own headers, so a page cannot claim to be a
-/// different client.
+/// The host, the origin and the contact address let a remote service see who is calling and how to
+/// reach the owner, without a version or anything ambient. The host sets it after a page's own
+/// headers, so a page cannot claim to be a different client.
 /// </remarks>
 internal static class OutboundUserAgent {
 
     /// <summary>The site's hostname, which identifies the caller.</summary>
     public const string Host = "moosemorals.com";
 
+    /// <summary>The owner's address, which a remote service can use to make contact.</summary>
+    public const string Contact = "fetchmoose@fluffypeople.com";
+
     /// <summary>The value sent for one origin.</summary>
     /// <param name="origin">Whether page code or the assistant asked.</param>
     public static string UserAgent(this OutboundOrigin origin) => origin switch {
-        OutboundOrigin.Assistant => $"{Host} (assistant)",
-        _ => $"{Host} (page)",
+        OutboundOrigin.Assistant => $"{Host} (assistant) {Contact}",
+        _ => $"{Host} (page) {Contact}",
     };
 }

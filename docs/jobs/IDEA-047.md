@@ -11,6 +11,11 @@ SPDX-License-Identifier: MIT
 | Area | Sdk, Web (pages, editor, work), docs, assistant |
 | Location | `src/uk.osric.asp.Sdk/IPageWrites.cs`, `src/uk.osric.asp.Web/Pages/PageWritesScope.cs`, `src/uk.osric.asp.Web/Editor/PageSaver.cs`, `src/uk.osric.asp.Web/Pages/IPageRevisionStore.cs`, `src/uk.osric.asp.Web/Pages/Seeds/pages`, `src/uk.osric.asp.Web/Pages/Seeds/help`, `src/uk.osric.asp.Web/Assistant/PageAuthorPrompt.cs` |
 
+> **Re-prioritised 2026-11-18** by the owner. The rule is the friction the assistant meets on every
+> multi-file edit, and it is the gate in front of a job writer ([IDEA-056](IDEA-056.md)), so it moves
+> from the bottom of the order to just after [IDEA-037](IDEA-037.md), whose compile-without-store its
+> `All` policy borrows. Its own terms are unchanged.
+
 ## Idea
 
 `pages-a-page-may-save-itself` says "one render makes at most one save", which makes Save all a

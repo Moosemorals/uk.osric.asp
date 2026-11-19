@@ -120,20 +120,28 @@ and what depends on it is asserted by the suites that use it (`SimpleContextTest
   ids — and `RunProcessorTests` proves a provider failure is logged at Warning with its exception and
   the run's scope. `Web.IntegrationTests/ErrorHandlingTests` proves the framework's own
   unhandled-exception line carries the request scope, which is what fixes the order of the middleware.
-- **The assistant** is covered at the same boundaries: `Core.Tests` checks request planning — observation
-  masking, whole-turn trimming, token estimation and the byte measure the estimator calibrates —
-  stream accumulation, usage accumulation, strict tool arguments, virtual-shell parsing, title
-  generation, authored template-source line edits, the page store's tree and scope (`PageTreeTests`,
-  `PageScopeRuleTests`) and the `BudgetSnapshot` the page and the stream both read.
+- **The assistant** is covered at the same boundaries: `Core.Tests` checks request planning — tool-result
+  masking, whole-turn trimming, the anchored token estimate (a report's exact count plus the delta,
+  and a masked payload subtracted from the anchor), the byte measure the estimate anchors on, the
+  one budget's fractions and the reply allowance that follows the prompt — stream accumulation, usage
+  accumulation, strict tool arguments, virtual-shell parsing, title generation, authored
+  template-source line edits, the page store's tree and scope (`PageTreeTests`, `PageScopeRuleTests`)
+  and the `BudgetSnapshot` the page and the stream both read, including the signed estimate error.
   `Web.Tests` pins the one read seam the tools and the virtual shell share in `PageStoreReaderTests`
   — reserved rows, tombstone visibility, key order, scope, history order and a revision's path — so
   those rules are proved once rather than through a tool and an applet each. It also uses migrated
-  SQLite files for conversations, sequence allocation, approvals and restart repair; fake HTTP
-  handlers for provider SSE; and scripted model streams for the run processor. `Web.IntegrationTests` runs the real authenticated host with a
-  scripted provider to verify disabled routing, conversation streaming, approval gating and writes,
-  and compares the last `budget.updated` a run published — its budgets and its usage — with the page
-  the reload renders. The browser suite watches a budget figure and the usage list move while the run
-  is still busy, and watches a scripted Markdown reply become formatted when its step completes.
+  SQLite files for conversations, sequence allocation, the owner interrupt and restart repair; fake HTTP
+  handlers for provider SSE; the model list parsed from the provider's own documented example, and a
+  `400` named as a context-length rejection rather than a generic fault; and scripted model streams
+  for the run processor, including a reply cut through a tool call, a run with no reported window, a
+  tool-call row that ticks as each call starts and the cache warning said once.
+  `Web.IntegrationTests` runs the real authenticated host with a scripted provider to verify disabled
+  routing, conversation streaming, the interrupt route's refusals, approval gating and writes,
+  and compares the last `budget.updated` a run published — its ten budget rows, their limits and its
+  usage — with the page the reload renders. The browser suite watches a projected budget figure and
+  the usage list move while the run is still busy, watches the projection give way to the reported
+  figure after the reload, and watches a scripted Markdown reply become formatted when its step
+  completes.
   Memory is covered at the same boundaries:
   `Core.Tests` pins the query terms, the selection rule and the block, content normalisation and the
   secret rules; `Web.Tests` runs `SqliteMemoryStore` against a migrated file for owner scope, the
@@ -183,10 +191,13 @@ and what depends on it is asserted by the suites that use it (`SimpleContextTest
   the stack of calls, a page that declares none, the nesting, the depth limit, the cycle, the one
   slot and deadline, the shared budgets, the fallbacks, the wrapper's `Content` and the response the
   content owns; `PageLayerRoleTests` pins what each of the three roles may ask of the response, and
-  `ShellMenusTests` and `SiteNavigationTests` cover the menu the shell draws from its route table. The
-  integration suite's
+  `ShellMenusTests`, `SiteNavigationTests` and `AdminNavigationTests` cover the menu the shell draws
+  from its route table and the item it marks current. `PageCatalogScopeTests` proves
+  `ShellLinks()` returns the chain's list and refuses after the render ends. The integration suite's
   `SiteChromeTests` proves the shipped `Pages:Layout` through the real host: a shell document carries
-  home and, under `/admin`, admin, and the stored layout keeps the full menu. `MarkupReader` is a hand-written reader rather than a parser dependency,
+  home and, under `/admin`, admin, and the stored layout keeps the full menu; the two are compared on
+  their items, their destinations and the current item, a page renders the links itself from
+  `ShellLinks()`, and the shell's document is marked while the layout's is not. `MarkupReader` is a hand-written reader rather than a parser dependency,
   which is sound only because this repository encodes every value at the boundary — and is why it has
   to fail loudly when it meets something it does not expect. `ShellDocumentFragmentTests` covers the
   fragments the shell writes — the title, the encoding, the sheet order and deduplication, the
@@ -212,7 +223,7 @@ and what depends on it is asserted by the suites that use it (`SimpleContextTest
   and every family a query names is accounted for. `Core.Tests` pins the chart markup — title, legend,
   dashes, end labels, heatmap runs — and the tick tables. `Web.IntegrationTests` renders a page and
   reads `/metrics`, proves the catalogue's family names against it (`MetricNamesTests`), pins the
-  page's markup budget with a synthetic wide answer, and asserts that `/status` and `/status/chart`
+  page's markup budget with a synthetic wide answer, and asserts that `/admin/status` and `/admin/status/chart`
   send an anonymous visitor to `/login`; no test needs a running Prometheus.
 - **Integration tests** cover what only exists when the host runs: route matching and ordering, the
   exception-handler branch, sign-in and authorisation, antiforgery rejection, status codes and

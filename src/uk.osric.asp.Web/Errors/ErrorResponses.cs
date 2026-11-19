@@ -8,6 +8,7 @@ using System.Net;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using uk.osric.asp.Core.Pages;
+using uk.osric.asp.Core.Text;
 using uk.osric.asp.Sdk;
 using uk.osric.asp.Web.Html;
 using uk.osric.asp.Web.Http;
@@ -28,7 +29,7 @@ using uk.osric.asp.Web.Pages;
 /// </remarks>
 internal static class ErrorResponses {
 
-    private static readonly JsonSerializerOptions s_jsonOptions = new(JsonSerializerDefaults.Web) {
+    private static readonly JsonSerializerOptions s_jsonOptions = new(JsonSerialization.Options) {
         DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
     };
 

@@ -10,8 +10,8 @@ SPDX-License-Identifier: MIT
 | Question | Should the assistant budget the context in tokens rather than characters, and what is the cheapest exact way for a C# process to count DeepSeek tokens? |
 | Answered | 2026-11-09 |
 | Version measured | DeepSeek `tokenizer.json` (128,000-token byte-level BPE, 127,741 merges, 1,283 added tokens, format `1.0`), `Microsoft.ML.Tokenizers` 2.0.1, `Tokenizers.DotNet` 1.4.1, HuggingFace `tokenizers` 0.21.4 as the reference |
-| Verdict | Exact counting is cheap and needs no conversion: `Tokenizers.DotNet` reads `tokenizer.json` unchanged, a managed counter is about 300 lines, and the file reduces to a 1 MB merge table. `Microsoft.ML.Tokenizers` cannot do it. The character budget is wrong by up to 4× either way |
-| Recorded | `assistant-the-request-budget-is-tokens` (2026-11-09) adopted a calibrated estimate rather than a vendored tokeniser: `ChatRequestJson` measures the exact UTF-8 body, and `TokenEstimator` divides it by the bytes-per-token ratio the provider's last `prompt_tokens` report calibrated. The exact counter measured here remains the fallback if the estimate proves too coarse; the tokeniser data was not vendored |
+| Verdict | Measured, not adopted. Exact counting works and needs no conversion — `Tokenizers.DotNet` reads `tokenizer.json` unchanged, a managed counter is about 300 lines, and the file reduces to a 1 MB merge table — but it was not vendored: the anchor below gets the same accuracy for none of the weight. `Microsoft.ML.Tokenizers` cannot do it at all, and the character budget this measured against is wrong by up to 4× either way |
+| Recorded | `assistant-the-request-budget-is-tokens` (2026-11-09, edited 2026-11-18) budgets estimated tokens, and `assistant-tokens-anchor-on-the-last-report` (2026-11-18) anchors the estimate on the provider's own `prompt_tokens` rather than dividing a whole request by a ratio. **The trigger to come back:** `assistant.context.estimate.error` spending its three-percent margin — a step landing above `le="27525"` — or a figure on the page that has to be true rather than close. Every measurement below stays valid for that day |
 
 ## The answer
 

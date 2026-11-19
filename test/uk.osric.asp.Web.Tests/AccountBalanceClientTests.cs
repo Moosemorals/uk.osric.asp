@@ -37,7 +37,7 @@ public sealed class AccountBalanceClientTests {
             Assert.That(request!.Method, Is.EqualTo(HttpMethod.Get));
             Assert.That(request.RequestUri!.AbsoluteUri, Is.EqualTo("https://api.deepseek.com/user/balance"));
             Assert.That(request.Headers.Accept, Does.Contain(new MediaTypeWithQualityHeaderValue("application/json")));
-            Assert.That(request.Headers.UserAgent.ToString(), Is.EqualTo("moosemorals.com (assistant)"));
+            Assert.That(request.Headers.UserAgent.ToString(), Is.EqualTo("moosemorals.com (assistant) fetchmoose@fluffypeople.com"));
             Assert.That(request.Headers.Authorization, Is.EqualTo(new AuthenticationHeaderValue("Bearer", "private-key")));
             Assert.That(result.Reason, Is.EqualTo(AccountBalanceReason.Ok));
             Assert.That(read.IsAvailable, Is.True);

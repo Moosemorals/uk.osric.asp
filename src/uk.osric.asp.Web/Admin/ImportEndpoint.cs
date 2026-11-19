@@ -47,7 +47,7 @@ internal sealed class ImportEndpoint {
         await ShellDocument.BeginAsync(context, "Import pages",
             SiteNavigation.For(context), stylesheets: ["/admin.css"]);
         await context.Response.WriteAsync("<h1>Import pages</h1>");
-        await context.Response.WriteAsync(AdminNavigation.Nav("import", EditorPaths.Of(context.RequestServices)));
+        await context.Response.WriteAsync(AdminNavigation.Nav(context));
         await context.Response.WriteAsync($"""
             <fieldset>
                 <legend>Page archive</legend>
@@ -172,7 +172,7 @@ internal sealed class ImportEndpoint {
         await ShellDocument.BeginAsync(context, "Review import",
             SiteNavigation.For(context), stylesheets: ["/admin.css"]);
         await context.Response.WriteAsync($"<h1>Import {DescribeCount(stage.Pages.Count, "page")}</h1>");
-        await context.Response.WriteAsync(AdminNavigation.Nav("import", EditorPaths.Of(context.RequestServices)));
+        await context.Response.WriteAsync(AdminNavigation.Nav(context));
         await context.Response.WriteAsync("""
             <p>The selected pages are applied in one step. If that step fails, none of them change.</p>
             """);
@@ -320,7 +320,7 @@ internal sealed class ImportEndpoint {
             stylesheets: ["/admin.css"],
             head: running ? """<meta http-equiv="refresh" content="2">""" : null);
         await context.Response.WriteAsync("<h1>Import progress</h1>");
-        await context.Response.WriteAsync(AdminNavigation.Nav("import", EditorPaths.Of(context.RequestServices)));
+        await context.Response.WriteAsync(AdminNavigation.Nav(context));
         await context.Response.WriteAsync($"<p id=\"import-status\">{WebUtility.HtmlEncode(Summary(snapshot))}</p>");
 
         if (snapshot.Results.Count > 0) {
@@ -479,7 +479,7 @@ internal sealed class ImportEndpoint {
         await ShellDocument.BeginAsync(context, "Import failed",
             SiteNavigation.For(context), StatusCodes.Status400BadRequest, stylesheets: ["/admin.css"]);
         await context.Response.WriteAsync("<h1>That archive could not be imported</h1>");
-        await context.Response.WriteAsync(AdminNavigation.Nav("import", EditorPaths.Of(context.RequestServices)));
+        await context.Response.WriteAsync(AdminNavigation.Nav(context));
         await context.Response.WriteAsync(PageLayout.Diagnostics(
             [.. problems.Select(problem => new DiagnosticLine(problem, PageDiagnosticSeverity.Error, null))]));
         await context.Response.WriteAsync("<p>Nothing was staged or saved.</p>");

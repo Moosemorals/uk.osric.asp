@@ -25,24 +25,143 @@
     color: #555;
 }
 
+/* The host line says what the numbers are the numbers of, so it reads as a caption under the
+   heading rather than as another paragraph of the page. */
+.status-host {
+    max-width: 70ch;
+    margin-block: 0.5rem 0;
+    color: #4a4a4a;
+}
+
+/* The jump bar rides above the groups: the page is long, and the bar is the way back without a
+   scroll. It stays put, so its background has to cover the drawings that pass under it. */
+.status-toc {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 0.25rem 1.25rem;
+    margin-block: 1rem 0;
+    padding-block: 0.5rem;
+    background-color: #fff;
+    border-block-end: 1px solid #ddd;
+}
+
+.status-toc-label {
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: #4a4a4a;
+}
+
+.status-toc a {
+    display: inline-flex;
+    align-items: baseline;
+    gap: 0.35rem;
+    text-decoration: none;
+}
+
+.status-toc a:hover,
+.status-toc a:focus-visible {
+    text-decoration: underline;
+}
+
+/* The count is a pill rather than a word, so a group's size reads at a glance. */
+.status-toc-count {
+    padding-inline: 0.4rem;
+    border-radius: 1rem;
+    background-color: #eef4fa;
+    color: #005fa3;
+    font-size: 0.75rem;
+    font-variant-numeric: tabular-nums;
+}
+
+/* A group is an exclusive accordion: <details name="status-group"> closes the one that was open,
+   and the frame makes a closed group read as a row rather than as a heading with nothing under it. */
 .status-group {
-    margin-block: 1.5rem;
+    margin-block: 0.75rem;
+    border: 1px solid #e3e3e3;
+    border-radius: 0.5rem;
+    background-color: #fcfcfc;
+}
+
+/* The heading is the summary, so the whole line is the control. The marker is drawn rather than
+   left to the browser, which drops its triangle as soon as the summary is a flex box. */
+.status-group > summary {
+    display: flex;
+    align-items: baseline;
+    gap: 0.75rem;
+    padding: 0.5rem 0.75rem;
+    border-radius: 0.5rem;
+    list-style: none;
+    cursor: pointer;
+}
+
+.status-group > summary::-webkit-details-marker {
+    display: none;
+}
+
+.status-group > summary:hover {
+    background-color: #f0f6fc;
+}
+
+.status-group > summary:focus-visible {
+    outline: 2px solid #005fa3;
+    outline-offset: -2px;
+}
+
+.status-group > summary::after {
+    content: "+";
+    margin-inline-start: auto;
+    font-weight: 600;
+    color: #005fa3;
+}
+
+.status-group[open] > summary::after {
+    content: "−";
+}
+
+/* The group a jump landed in keeps its edge, so a reader can see where the bar put them. */
+.status-group:has(.status-panels:target) {
+    border-color: #9cc3e5;
 }
 
 .status-group h2 {
-    margin-block: 0 0.5rem;
+    margin: 0;
     font-size: 1.05rem;
 }
 
-/* Three or four columns on a laptop, two on a tablet, one on a phone. */
+.status-count {
+    font-size: 0.8125rem;
+    color: #595959;
+    font-variant-numeric: tabular-nums;
+}
+
+.status-group > .status-panels {
+    padding: 0.25rem 0.75rem 0.75rem;
+    /* A jump opens the group and then stops with its heading below the sticky jump bar: the bar's
+       height, the summary's, and a little air, measured at the shipped type size. */
+    scroll-margin-top: 5.75rem;
+}
+
+/* Three or four columns on a laptop, two on a tablet, one on a phone. The floor gives way to the
+   container: a fixed 19rem floor would push a phone's single column off the side of the screen. */
 .status-panels {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(19rem, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(min(19rem, 100%), 1fr));
     gap: 0.5rem 0.75rem;
 }
 
+/* A panel is a card, so a group reads as a set of drawings rather than as one wall of lines. */
 .panel {
     margin: 0;
+    padding: 0.5rem;
+    border: 1px solid #e8e8e8;
+    border-radius: 0.375rem;
+    background-color: #fff;
 }
 
 .chart,

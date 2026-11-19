@@ -26,10 +26,13 @@ deploy/
   uk.osric.asp.network      user network: the app and Prometheus talking by name
   prometheus.container      user quadlet: Prometheus, rootless, publishing 127.0.0.1:9090
   prometheus.yml            scrape config, installed to ~/.config/prometheus/prometheus.yml
+  node-exporter.container   user quadlet: node_exporter serving the host's textfile metrics
+  fail2ban-metrics.sh       root collector: fail2ban's counters as Prometheus text
   caddy.container           system quadlet: Caddy, host network, terminating TLS
   Caddyfile                 site config, installed to /etc/caddy/Caddyfile
-  fail2ban/jail.local       the host's only jail: an address that keeps failing auth is banned
-  fail2ban/filter.d/        the app's refusal line, which that jail matches
+  fail2ban/jail.local       the jails: Debian's sshd, and the site's own
+  fail2ban/filter.d/        the app's refusal line, which the site's jail matches
+  uk.osric.asp-fail2ban-metrics.service, .timer   the collector's clock, system units
 ```
 
 The quadlets, the Caddyfile and the fail2ban configuration are the source of truth for the server:
@@ -130,11 +133,17 @@ The quadlets, the Caddyfile and the fail2ban configuration are the source of tru
   `Assistant:ApiKey is not set.`, and the deploy never overwrites an existing file. The configured
   provider must speak OpenAI-compatible streaming chat completions with tool calls. Local HTTP is
   allowed only for a loopback provider or when explicitly enabled.
-  **Upgrading the context budget:** `Assistant__MaxContextChars` and `Assistant__MaxRequestBytes` are
-  both now `Assistant__MaxContextTokens`, and the old keys are not aliased. The shipped 500,000 tokens
-  plus the 393,216 output limit fits the default `Assistant__ModelContextTokens` of 1,048,576, which is
-  what DeepSeek-V4.1-Flash reports for `deepseek-flash`; set both numbers if the provider's window
-  differs.
+  **The context budget is the provider's:** the model's window and output ceiling are read from the
+  provider's model list (`Assistant:ModelsPath`, `/models` by default) at startup, so there is no
+  `Assistant__MaxContextTokens`, `Assistant__ModelContextTokens`, `Assistant__MaxOutputTokens` or
+  `Assistant__IncludeUsage` to set; a leftover override of one is not read, because a configured
+  figure beside a fetched one is two answers. The prompt's share is that window less
+  `Assistant__MinOutputTokens`, and a reply's allowance is computed per request. If the provider is
+  unreachable when the host starts, every page still serves and the assistant refuses runs with
+  `model_window_unknown` until the model list can be read; if the provider answers without the
+  configured model, the deploy stops and says so. `Assistant__MaxMessageChars`,
+  `Assistant__MaxToolResultChars`, `Assistant__MaxMemoryCharsPerRun` and `Assistant__MaxMemoriesPerRun`
+  are gone too: those caps are now fractions of the one budget.
   The host sends the system prompt, conversation transcript, and any page source read by the assistant to
   that provider. Do not store content there that the provider must not receive. Prompts, page source,
   reasoning, credentials, and provider error bodies are not logged. The default provider is DeepSeek;
@@ -165,7 +174,8 @@ The quadlets, the Caddyfile and the fail2ban configuration are the source of tru
   and internal network are not otherwise restricted, and the assistant's `fetch` tool uses the same
   path, so a stored page or an approved tool call can reach anything the container can. That is the
   single-owner trust boundary, not a sandbox (SEC-03). Every request carries
-  `moosemorals.com (page)` or `moosemorals.com (assistant)` as its `User-Agent`, set by the host.
+  `moosemorals.com (page)` or `moosemorals.com (assistant)`, followed by
+  `fetchmoose@fluffypeople.com`, as its `User-Agent`, set by the host.
   The site's own origin is reachable too: the quadlet's `AddHost=moosemorals.com:host-gateway` stops
   podman writing the host's hostname into `/etc/hosts` as `127.0.1.1`, which would otherwise point a
   page's fetch at the container's own loopback and refuse it. The entry sends the name to Caddy over
@@ -226,9 +236,10 @@ The quadlets, the Caddyfile and the fail2ban configuration are the source of tru
   single-line JSON object with its scopes as fields; [the logging notes](../docs/logging.md#working-with-the-journal)
   have the levels and the `jq` recipes for reading one run or every warning.
 - **Status:** `ssh deploy@<server-ip> systemctl --user status uk.osric.asp.service`
-- **Bans:** the host runs one fail2ban jail, `uk.osric.asp`, and it bans for an hour an address that
-  fails authentication ten times inside a minute — a sign-in, a stale view token, a page's redirect
-  to the sign-in form ([bans](operations.md#bans)). Read and undo it from the host:
+- **Bans:** the host runs two fail2ban jails: Debian's `sshd`, and `uk.osric.asp`, which bans for an
+  hour an address that fails authentication ten times inside a minute — a sign-in, a stale view
+  token, a page's redirect to the sign-in form ([bans](operations.md#bans)). Read and undo it from
+  the host:
   `sudo fail2ban-client status uk.osric.asp` and
   `sudo fail2ban-client set uk.osric.asp unbanip 203.0.113.7`.
 - **Edge:** `ssh deploy@<server-ip> sudo systemctl status caddy`

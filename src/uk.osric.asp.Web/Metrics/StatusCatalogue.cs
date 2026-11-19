@@ -88,7 +88,7 @@ internal static class StatusCatalogue {
             "Total capacity of the filesystem holding the database; read it against the database size.",
             "bytes"),
 
-        // Assistant: eight histograms, the two counters and the gauge.
+        // Assistant: eleven histograms, the six counters and the gauge.
         Heatmap(Assistant("assistant.run.duration"), "Run duration",
             "How long one assistant run takes, from the request to the final answer.",
             "seconds", "runs/s"),
@@ -122,8 +122,22 @@ internal static class StatusCatalogue {
         Line(Assistant("assistant.balance"), "Account credit",
             "The provider account's remaining credit, one line per currency; a step up is a top-up and the slope is the spend.",
             "credit", by: "currency"),
+        Heatmap(Assistant("assistant.context.estimate.error"), "Estimate error",
+            "How far each step's token estimate was from the count the provider reported, in token buckets; the boundary at 27,525 is the three percent the estimate allows.",
+            "tokens", "steps/s"),
+        Line(Assistant("assistant.context.shaped"), "Shaped requests",
+            "Requests the planner had to mask or trim so they would fit, per second, split by kind; the figure the prefix cache pays for.",
+            "steps/s", topk: "kind"),
+        Line(Assistant("assistant.budget.exhausted"), "Exhausted budgets",
+            "Runs stopped on a budget, per second, split by which one: our context estimate, the provider's window or the reply's allowance.",
+            "runs/s", topk: "cause"),
+        Line(Assistant("assistant.tool.truncated"), "Truncated tool results",
+            "Tool results truncated at their cap, per second, by tool; a result here is one the model could not read whole.",
+            "results/s", topk: "tool"),
 
-        // Host: the framework's meters, which are not instruments this repository registers.
+        // Host: meters this repository does not register. Five are the framework's own; five are
+        // fail2ban's, which the host writes to a file and node_exporter serves, so they reach this
+        // page the same way an instrument does - through Prometheus.
         new Panel {
             Id = "host.memory",
             Group = "Host",
@@ -141,7 +155,7 @@ internal static class StatusCatalogue {
             Description = "CPU time the process is using, expressed as a number of cores.",
             YTitle = "cores",
             Chart = PanelChart.Line,
-            Queries = [new PanelQuery("sum(rate(dotnet_process_cpu_time_seconds_total[5m]))", "cpu")],
+            Queries = [new PanelQuery($"sum(rate(dotnet_process_cpu_time_seconds_total[{PanelQuery.Range}]))", "cpu")],
             HostFamilies = ["dotnet_process_cpu_time_seconds_total"],
         },
         new Panel {
@@ -166,7 +180,7 @@ internal static class StatusCatalogue {
             YTitle = "seconds",
             CellUnit = "requests/s",
             Chart = PanelChart.Heatmap,
-            Queries = [new PanelQuery("sum by (le) (rate(http_server_request_duration_seconds_bucket[5m]))", string.Empty)],
+            Queries = [new PanelQuery($"sum by (le) (rate(http_server_request_duration_seconds_bucket[{PanelQuery.Range}]))", string.Empty)],
             HostFamilies = ["http_server_request_duration_seconds"],
         },
         new Panel {
@@ -176,9 +190,61 @@ internal static class StatusCatalogue {
             Description = "Requests per second, stacked by response status code.",
             YTitle = "requests/s",
             Chart = PanelChart.StackedArea,
-            Queries = [new PanelQuery("sum by (http_response_status_code) (rate(http_server_request_duration_seconds_count[5m]))", string.Empty)],
+            Queries = [new PanelQuery($"sum by (http_response_status_code) (rate(http_server_request_duration_seconds_count[{PanelQuery.Range}]))", string.Empty)],
             HostFamilies = ["http_server_request_duration_seconds"],
             PartsOfAWhole = "http_response_status_code",
+        },
+        new Panel {
+            Id = "host.fail2ban.banned",
+            Group = "Host",
+            Title = "Banned addresses",
+            Description = "Addresses fail2ban is holding off right now, one line per jail.",
+            YTitle = "addresses",
+            Chart = PanelChart.Line,
+            Queries = [new PanelQuery("max by (jail) (fail2ban_jail_banned_current)", string.Empty)],
+            HostFamilies = ["fail2ban_jail_banned_current"],
+        },
+        new Panel {
+            Id = "host.fail2ban.failed",
+            Group = "Host",
+            Title = "Failures counting",
+            Description = "Failures each jail is counting inside its window; ten inside a minute is what the site's jail bans on.",
+            YTitle = "failures",
+            Chart = PanelChart.Line,
+            Queries = [new PanelQuery("max by (jail) (fail2ban_jail_failed_current)", string.Empty)],
+            HostFamilies = ["fail2ban_jail_failed_current"],
+        },
+        new Panel {
+            Id = "host.fail2ban.bans",
+            Group = "Host",
+            Title = "Bans",
+            Description = "Bans per second, stacked by jail.",
+            YTitle = "bans/s",
+            Chart = PanelChart.StackedArea,
+            Queries = [new PanelQuery($"sum by (jail) (rate(fail2ban_jail_banned_total[{PanelQuery.Range}]))", string.Empty)],
+            HostFamilies = ["fail2ban_jail_banned_total"],
+            PartsOfAWhole = "jail",
+        },
+        new Panel {
+            Id = "host.fail2ban.failures",
+            Group = "Host",
+            Title = "Failures",
+            Description = "Failures per second, stacked by jail.",
+            YTitle = "failures/s",
+            Chart = PanelChart.StackedArea,
+            Queries = [new PanelQuery($"sum by (jail) (rate(fail2ban_jail_failed_total[{PanelQuery.Range}]))", string.Empty)],
+            HostFamilies = ["fail2ban_jail_failed_total"],
+            PartsOfAWhole = "jail",
+        },
+        new Panel {
+            Id = "host.fail2ban.age",
+            Group = "Host",
+            Title = "Fail2ban collector age",
+            Description = "Seconds since the host last wrote these numbers; a rising line means its timer or fail2ban has stopped.",
+            YTitle = "seconds",
+            Chart = PanelChart.Line,
+            Queries = [new PanelQuery("time() - max(fail2ban_collected_timestamp_seconds)", "collector age")],
+            HostFamilies = ["fail2ban_collected_timestamp_seconds"],
         },
     ];
 
@@ -203,7 +269,7 @@ internal static class StatusCatalogue {
         Description = description,
         YTitle = yTitle,
         Chart = PanelChart.Heatmap,
-        Queries = [new PanelQuery($"sum by (le) (rate({instrument.Buckets()}[5m]))", string.Empty)],
+        Queries = [new PanelQuery($"sum by (le) (rate({instrument.Buckets()}[{PanelQuery.Range}]))", string.Empty)],
         InstrumentName = instrument.Name,
         CellUnit = cellUnit,
     };
@@ -217,8 +283,8 @@ internal static class StatusCatalogue {
                 ? $"max({instrument.Family()})"
                 : $"max by ({by}) ({instrument.Family()})"
             : topk is null
-                ? $"sum(rate({instrument.Total()}[5m]))"
-                : $"topk(8, sum by ({topk}) (rate({instrument.Total()}[5m])))";
+                ? $"sum(rate({instrument.Total()}[{PanelQuery.Range}]))"
+                : $"topk(8, sum by ({topk}) (rate({instrument.Total()}[{PanelQuery.Range}])))";
 
         return new Panel {
             Id = instrument.Name,
@@ -239,7 +305,7 @@ internal static class StatusCatalogue {
         Description = description,
         YTitle = yTitle,
         Chart = PanelChart.StackedArea,
-        Queries = [new PanelQuery($"sum by ({split}) (rate({instrument.Total()}[5m]))", string.Empty)],
+        Queries = [new PanelQuery($"sum by ({split}) (rate({instrument.Total()}[{PanelQuery.Range}]))", string.Empty)],
         InstrumentName = instrument.Name,
         PartsOfAWhole = split,
     };
@@ -258,10 +324,10 @@ internal static class StatusCatalogue {
 
         string query =
             "sum by (stage) (" +
-            $"label_replace(rate({wait.Sum()}[5m]), \"stage\", \"wait\", \"__name__\", \".*\")" +
-            $" or label_replace(rate({compile.Sum()}{{reason=\"lazy\"}}[5m]), \"stage\", \"load/compile\", \"__name__\", \".*\")" +
-            $" or label_replace(rate({load.Sum()}[5m]), \"stage\", \"load/compile\", \"__name__\", \".*\")" +
-            $" or label_replace(rate({invoke.Sum()}[5m]), \"stage\", \"render\", \"__name__\", \".*\")" +
+            $"label_replace(rate({wait.Sum()}[{PanelQuery.Range}]), \"stage\", \"wait\", \"__name__\", \".*\")" +
+            $" or label_replace(rate({compile.Sum()}{{reason=\"lazy\"}}[{PanelQuery.Range}]), \"stage\", \"load/compile\", \"__name__\", \".*\")" +
+            $" or label_replace(rate({load.Sum()}[{PanelQuery.Range}]), \"stage\", \"load/compile\", \"__name__\", \".*\")" +
+            $" or label_replace(rate({invoke.Sum()}[{PanelQuery.Range}]), \"stage\", \"render\", \"__name__\", \".*\")" +
             ")";
 
         return new Panel {
@@ -326,7 +392,14 @@ internal sealed record Panel {
 /// <summary>One PromQL expression a panel runs, and the name to give an anonymous series.</summary>
 /// <param name="Query">The expression.</param>
 /// <param name="Label">The label a series without one takes.</param>
-internal sealed record PanelQuery(string Query, string Label);
+internal sealed record PanelQuery(string Query, string Label) {
+
+    /// <summary>
+    /// Where a rate names its averaging window. The renderer replaces it with the drawn window's step,
+    /// so a sample averages over the same slice of time it stands for at any duration.
+    /// </summary>
+    public const string Range = "{range}";
+}
 
 /// <summary>How a panel is drawn.</summary>
 internal enum PanelChart {

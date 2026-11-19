@@ -5,6 +5,7 @@ namespace uk.osric.asp.Web.Tests;
 
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging.Abstractions;
+using uk.osric.asp.Core.Assistant;
 using uk.osric.asp.Core.Pages;
 using uk.osric.asp.Web.Admin;
 using uk.osric.asp.Web.Assistant;
@@ -76,7 +77,7 @@ internal static class TestOptions {
     public static PageEditorOptions Editor { get; } = PageEditorOptions.FromConfiguration(Configuration);
 
     /// <summary>The layout every code page is wrapped in.</summary>
-    public static PageLayoutConfiguration Layout { get; } = PageLayoutConfiguration.FromConfiguration(Configuration);
+    public static PageLayoutOptions Layout { get; } = PageLayoutOptions.FromConfiguration(Configuration);
 
     /// <summary>The content-type map.</summary>
     public static PageContentTypes ContentTypes { get; } =
@@ -98,6 +99,21 @@ internal static class TestOptions {
     /// </remarks>
     public static AssistantOptions Assistant { get; } =
         AssistantOptions.FromConfiguration(ShippedConfiguration.Read(("Assistant:ApiKey", "test-key")));
+
+    /// <summary>The content budget the provider's own documented example supports.</summary>
+    /// <remarks>
+    /// One model's window, reported by the provider's model list: deepseek-flash, 1,048,576 tokens of
+    /// window and 393,216 of output. A test that is about a content cap asks for
+    /// <see cref="BudgetOfResultChars"/> instead, because the cap is a fraction of this and not a
+    /// setting of its own.
+    /// </remarks>
+    public static ContextBudget Budget { get; } = ContextBudget.Create(1_048_576, 393_216, 131_072);
+
+    /// <summary>A budget whose one tool result is exactly <paramref name="characters"/> characters.</summary>
+    /// <param name="characters">The result cap the fixture is about.</param>
+    /// <returns>The budget that produces it.</returns>
+    public static ContextBudget BudgetOfResultChars(long characters) =>
+        ContextBudget.ForPromptShare(characters * 5, maximumOutputTokens: 393_216);
 
     /// <summary>The sign-in policy.</summary>
     public static AuthenticationOptions Authentication { get; } = AuthenticationOptions.FromConfiguration(Configuration);

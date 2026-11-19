@@ -5,7 +5,7 @@ SPDX-License-Identifier: MIT
 
 # Metrics and the dashboard
 
-What the site measures, how the instruments are named, and how `/status` reads them back. Logs are
+What the site measures, how the instruments are named, and how `/admin/status` reads them back. Logs are
 the other half of the same question and live in [logging](logging.md).
 
 ## Instrumentation
@@ -49,6 +49,10 @@ the other half of the same question and live in [logging](logging.md).
 | `assistant.memory.chars` | histogram | {char} | `outcome` — what the memory block cost the run's context |
 | `assistant.memory.writes` | counter | {write} | `op` (`remember`, `update`, `forget`), `kind` (one of the four, or `(none)` for a refusal), `outcome` (`ok`, `refused`) |
 | `assistant.balance` | observable gauge | {credit} | `currency` — the provider account's remaining credit, one measurement per readable currency |
+| `assistant.context.estimate.error` | histogram | {token} | `direction` (`over`, `under`) — how far one step's estimate was from the count the provider reported |
+| `assistant.context.shaped` | counter | {step} | `kind` (`masked`, `trimmed`) — how often the planner had to change a request to make it fit |
+| `assistant.budget.exhausted` | counter | {run} | `cause` (`context`, `provider`, `output`) — which budget stopped the run |
+| `assistant.tool.truncated` | counter | {result} | `tool` (a registered name, or `(unknown)`) — how often a result cap actually bites |
 
 A miss is tagged `page.path="(not-found)"`. The requested path is unauthenticated and unbounded, so
 tagging it verbatim would let a scan mint one time series per URL; the real path is in the access log.
@@ -60,7 +64,7 @@ add a request-duration metric of our own. A streamed render is measured twice on
 `page.render.duration` ends at the commit, where the visitor stopped waiting for the page, and
 `page.stream.duration` covers the committed lifetime that follows, so the two are adjacent rather than
 nested. A run's duration is wall-clock, so it includes the time an
-approval or a continuation waited for its owner, as `assistant.run.duration` always has. On a cache
+the owner was being asked — an approval, a continuation or an answer — as `assistant.run.duration` always has. On a cache
 miss `page.compile.duration` is a subset of
 `page.render.duration`; never add the two together. `page.path` is bounded by the number of stored
 pages, which is small — if that ever stops being true, drop the tag and keep the path in logs.
@@ -92,18 +96,43 @@ instrument, and the instrument's type decides the chart (`metrics-one-panel-per-
 `StatusCatalogue` holds the list: twenty Pages panels (ten heatmaps for the duration and size
 histograms, stacked areas for the render chain, cache lookups, staleness and asset requests, line
 charts for abandoned renders, layout fallbacks, recursive composition and the three storage gauges),
-eleven Assistant panels
-(eight heatmaps, the token counter as a line chart, memory writes as a stacked area and the account
-balance as a line chart split by currency), and five Host panels from the framework's own meters
-— process memory, process CPU, connections and active requests, request duration and the HTTP status
-mix. Combined panels are allowed where several series answer one question: the Host panels read
-meters this repository does not register, and the Pages render chain composes four that it does.
+fifteen Assistant panels
+(nine heatmaps, the token counter, the shaped-request, exhausted-budget and truncated-result counters
+as line charts, memory writes as a stacked area and the account balance as a line chart split by
+currency), and ten Host panels — five from the framework's own
+meters (process memory, process CPU, connections and active requests, request duration and the HTTP
+status mix) and five from fail2ban (banned now, failures counting, bans per second, failures per
+second and the collector's age). Combined panels are allowed where several series answer one
+question: the Host panels read meters this repository does not register, and the Pages render chain
+composes four that it does.
+
+The fail2ban panels are the one group whose numbers are not the app's at all. A root timer on the
+host writes `fail2ban_jail_banned_current{jail}` and `fail2ban_jail_failed_current` as gauges and
+`fail2ban_jail_banned_total` and `fail2ban_jail_failed_total` as counters, plus
+`fail2ban_collected_timestamp_seconds`; node_exporter serves the file and Prometheus scrapes it as the
+`host` job. So the current counts are queried as levels, the totals as rates stacked by `jail`, and
+the age is `time()` less the last write. Two consequences are the panel's, not the app's: a jail name
+appears and disappears with `deploy/fail2ban/jail.local`, and the totals reset whenever fail2ban
+reloads — every deploy — so a rate across a deploy dips rather than lying. Addresses are deliberately
+not exported: one label per address is unbounded cardinality, and it would put a visitor's address in
+the time-series store.
 
 `assistant.tokens` is a line chart, not a stacked area, because its labels do not partition one
 total: cached tokens are already inside prompt tokens and reasoning tokens inside completion tokens.
 The four lines answer "how many of each did the provider report" without drawing the same token
 twice. `assistant.memory.writes` is the other way round: every write carries one `op` and one
 `outcome`, so the stack's top edge is the writes the run made.
+
+The estimate error's buckets carry the margin as a boundary — `0, 64, 256, 1024, 4096, 16384, 27525,
+65536, 262144` — because 27,525 tokens is three percent of the 917,504-token prompt budget. Whatever
+lands above `le="27525"` is a step that spent more than the estimate allows, which is the same trick
+the step and tool-call buckets use to draw their cap rather than hide it under `+Inf`. The figure is
+also one log line per step, and the panel is read beside it: a chart wants an explanation, not only a
+shape. `assistant.context.shaped` is what the prefix cache pays for, so a rise in it and a fall in
+`assistant.tokens{kind="cached"}` over `kind="prompt"` are the same event; `assistant.tool.truncated`
+is the other side, a cap the model could not read past. Nothing is tagged by conversation, run or
+message id — the same cardinality trap `assistant.tool.duration` avoids by recording `(unknown)`
+rather than a model-supplied name.
 
 The account balance is the one Assistant level. `assistant.balance` is an observable gauge tagged
 `currency`, and the panel reads it as `max by (currency)` so two currencies are two lines rather than
@@ -141,7 +170,9 @@ answer. A panel whose answer was empty still draws its axes and its
 frame and says "No data" over them, rather than becoming a gap in the grid or a blank rectangle; that
 is a different statement from the banner that says Prometheus itself is unwell. Every drawing is the
 same size, so the small multiples line up, and the title, the legend and the value axis all start at
-the same x, so the band reads as one column rather than a label strip beside a chart.
+the same x, so the band reads as one column rather than a label strip beside a chart. Every label is
+written in the site's `system-ui` stack at its body size, as presentation attributes, so a drawing
+served on its own reads like the page rather than like the browser's serif fallback.
 
 Every plot is framed — a line at each edge of the drawn area — and its value axis is labelled with
 `BudgetAmount.Format`, the same three-significant-figures-and-SI-suffix code the assistant's budget
@@ -171,7 +202,8 @@ emptying a panel.
 **A heatmap draws runs, not cells.** Neighbouring samples of the same shade merge into one `rect` with
 one hover title, and an answer with more samples than the cap allows is folded into at most sixty
 columns before it is drawn. Seventeen heatmaps of a busy thirty-day window then fit in the page's
-markup budget, which `StatusPageSizeTests` pins.
+markup budget, which `StatusPageSizeTests` pins for the whole catalogue — every panel answered with
+eight series of five hundred samples — so a panel is a deliberate edit to that ceiling.
 
 ### Identifying a series without colour
 
@@ -181,7 +213,7 @@ series' own anchor, so hovering or clicking the entry does what hovering or clic
 Hovering or focusing a series dims the others, and clicking it pins that highlight by SVG fragment
 target (`metrics-a-series-is-identified-without-colour`). A heatmap behaves the same way with rows instead of series: hovering a row dims the
 rest and clicking pins it, and every run names its shade, its total and its time span on hover.
-The interaction is CSS only, because `/status` is script-free (`metrics-prometheus-only`), and the at-rest cues — the
+The interaction is CSS only, because `/admin/status` is script-free (`metrics-prometheus-only`), and the at-rest cues — the
 end-of-line label, the dash and the legend — are the accessible ones. The series and row anchors are
 pointer-only; a keyboard or screen-reader reader gets the label, the legend and the drawing's own
 `<title>`.
@@ -195,7 +227,7 @@ holds only the grid, the caption and the hover and pinned states.
 Any panel can be linked directly (`metrics-a-chart-stands-alone`):
 
 ```
-GET /status/chart?panel=page.render.duration&start=2026-11-09T12:00:00Z&duration=1h
+GET /admin/status/chart?panel=page.render.duration&start=2026-11-09T12:00:00Z&duration=1h
 ```
 
 - `panel` is a catalogue id: the instrument's name, or a `host.` id for a Host panel.
@@ -204,7 +236,7 @@ GET /status/chart?panel=page.render.duration&start=2026-11-09T12:00:00Z&duration
 - The window is snapped to the sample step, so the same start and duration draw the same picture and
   a link reproduces what it showed.
 - The response is `image/svg+xml; charset=utf-8` with `Cache-Control: no-store`, under the same owner
-  policy as `/status` and the global security headers. It is the owner's data, and the fifteen-second
+  policy as `/admin/status` and the global security headers. It is the owner's data, and the fifteen-second
   cache is the server's rather than a proxy's. The drawing declares its own SVG namespace, which an
   inline drawing inherits and a standalone document does not, so a browser opening the link draws it
   rather than showing its markup.
@@ -213,15 +245,16 @@ GET /status/chart?panel=page.render.duration&start=2026-11-09T12:00:00Z&duration
   pasted link; the page's banner is where the reason is read in full.
 
 The page embeds the same renderer and never fetches this route, so the endpoint can be removed
-without touching the page. The route is already covered by the reserved `/status` prefix, so no stored
+without touching the page. The route is already covered by the reserved `/admin/status` prefix, so no stored
 page can claim it.
 
 ## Export and the status page
 
-One exporter listens: OpenTelemetry's Prometheus exporter, registered for metrics only — no tracer
+The app exports through OpenTelemetry's Prometheus exporter, registered for metrics only — no tracer
 provider, no logger provider, and no instrumentation packages, because the framework's own meters are
 already there (`Microsoft.AspNetCore.Hosting`, `Microsoft.AspNetCore.Server.Kestrel`,
-`System.Runtime`).
+`System.Runtime`). The only other exporter on the host is node_exporter, and it serves a file the host
+writes; nothing it reports comes from the app.
 
 - **A gauge is a level, not a counter.** The storage gauges are queried with `max(<family>)` rather
   than `rate(<family>_total[5m])`: a gauge has no `_total` family, so a rate over one is a query that
@@ -232,6 +265,13 @@ already there (`Microsoft.AspNetCore.Hosting`, `Microsoft.AspNetCore.Server.Kest
   what `MetricNamesTests` and the family test exist to catch. Tag names are sanitised the same way —
   the tag `page.path` is the label `page_path` — and PromQL will not parse the dotted form, so queries
   and legends use the underscore.
+- **Machine traffic is not a visit.** The container's health check asks `/health` every ten seconds
+  and Prometheus scrapes `/metrics` every fifteen, so both requests are left out of the hosting
+  duration histogram: their series would read as traffic and pull every duration bucket toward zero.
+  `MachineTrafficMetrics` sets the framework's own `IHttpMetricsTagsFeature.MetricsDisabled` before
+  either endpoint runs, so the exclusion is the signal the runtime provides rather than a PromQL
+  filter every panel would have to repeat. The active-request gauge still counts them while they
+  run, because that gauge measures the server, not the site.
 - **The buckets are ours, and they reach past the cap.** Each scale's top boundary is larger than the
   cap its series measures, so a sample recorded at its deadline is a real bucket rather than `+Inf`
   (`metrics-one-panel-per-instrument`) — the sample a panel is opened for. The page durations share one scale to 10 s, past the
@@ -244,24 +284,41 @@ already there (`Microsoft.AspNetCore.Hosting`, `Microsoft.AspNetCore.Server.Kest
   up to an hour.
   `page.image.size` has its own byte scale. The SDK's default starts at 0–5 s for a seconds
   instrument, which would make every render one column and every percentile meaningless.
-- **Two gates on `/metrics`.** The app publishes on the loopback only (`deploy-loopback-and-caddy`), and Caddy answers
-  `404` for the path on the public origin. Prometheus scrapes `app:8080` over the shared rootless
-  network; see [deployment](../deploy/operations.md#metrics-and-the-status-page).
-- **`/status` is a shell endpoint.** It writes body markup inside `ShellDocument`, so its head, sheet
-  list, menu and footer are the shell's (see [the shell](shell.md)). It queries Prometheus over the
+- **Two targets, one gate each.** Prometheus scrapes `app:8080` and `node-exporter:9100` over the
+  shared rootless network. The app publishes on the loopback only (`deploy-loopback-and-caddy`), and
+  Caddy answers `404` for `/metrics` on the public origin; node_exporter publishes nothing at all, so
+  only a container on the podman network can reach it. See
+  [deployment](../deploy/operations.md#metrics-and-the-status-page).
+- **`/admin/status` is a shell endpoint.** It writes body markup inside `ShellDocument`, so its head, sheet
+  list, menu and footer are the shell's (see [the shell](shell.md)), and it carries the administration
+  landmark with Status current. It lives under the shell root with the other tools
+  (`shell-the-tools-live-under-admin`). It queries Prometheus over the
   shared network and draws SVG from pure `Core` functions (`LineChart`, `Heatmap`, `StackedAreaChart`,
   `NiceTicks`); it is owner-only, cached for fifteen seconds (`Metrics:CacheSeconds`), and a Prometheus failure is a banner
   rather than a `500`, because the page is what gets opened when something is broken. The window is
   chosen by a `duration` token — `1h`, `3h`, `8h`, `1d`, `7d` or `30d`; the token is matched against
   that list, never parsed as a length of time, and anything unrecognised is the default day. The nav
-  shows every token, with the current one as text rather than a link to itself. A token sets two
-  things: how far back the queries reach and the sample step, which widens in whole minutes so a
-  thirty-day view asks for a few hundred points rather than the 43,200 a minute step would, because
-  Prometheus refuses a range query over 11,000 points. Each window is cached separately, in a bounded
+  shows every token, with the current one as text rather than a link to itself. A token sets three
+  things: how far back the queries reach, the sample step, and the window each rate averages over. The
+  step follows the length — a day is drawn every half hour, a week every three hours, a month every
+  twelve — so every view has about sixty samples rather than the 43,200 a minute step would ask for
+  over thirty days, and Prometheus never sees a range query past its 11,000-point ceiling. A rate
+  averages over the same step, so a drawn sample is the whole slice it stands for rather than a narrow
+  reading of it; a one-minute spike cannot dominate a day's chart. Time ticks get coarser when their
+  labels would not fit the plot, and a tick that lands on a whole day carries the date without a clock
+  time. Each window is cached separately, in a bounded
   map, so switching back does not re-query and a link cannot grow it without limit. A query's deadline
   is `Metrics:QueryTimeoutSeconds` (two seconds shipped), the map holds
   `Metrics:MaxCachedWindows` windows, and the URL and time zone come from the same section. Every
   value is required ([configuration](architecture.md#configuration)).
+
+**The page is read a group at a time.** A line under the heading says what the numbers describe, each
+name linked to its project — an arm64 Hetzner CAX21 on Debian 13, with the app and Prometheus rootless
+under podman and Caddy in front — then a jump bar lists the groups with their panel counts, and each
+group is a `<details name="status-group">`: an exclusive accordion, first group open on load, where a
+jump-bar link opens the group it names. The accordion, the jump bar and the series pinning are HTML
+and CSS alone, so the page stays JavaScript-free (`metrics-prometheus-only`).
+
 - **The image carries tzdata.** Only the axis labels are local; the positions, queries and samples are
   UTC. The base is `aspnet:11.0-alpine-extra` (`deploy-the-image`) because plain alpine has no
   `/usr/share/zoneinfo` and resolving `Europe/London` inside it throws.

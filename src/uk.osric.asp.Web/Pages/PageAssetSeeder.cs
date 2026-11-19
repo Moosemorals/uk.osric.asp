@@ -34,15 +34,6 @@ internal static class PageAssetSeeder {
     /// <summary>The page keys of the pack this build carries, in seeding order.</summary>
     public static IReadOnlyList<PagePath> SeedPaths() => s_pack.Paths;
 
-    /// <summary>The source this build ships for a key, or null when it ships none.</summary>
-    /// <param name="path">The canonical key.</param>
-    /// <param name="cancellationToken">Unused: the pack is in memory.</param>
-    public static Task<string?> ReadSeedTemplateAsync(PagePath path, CancellationToken cancellationToken = default) {
-        _ = cancellationToken;
-
-        return Task.FromResult(s_pack.Source(path));
-    }
-
     // The kind is generated here rather than derived from a compile: a seeded library has to be known
     // as one before any page that names it is compiled, and only the tokens say so.
     private static PageTemplate Stored(SeedFile seed) =>

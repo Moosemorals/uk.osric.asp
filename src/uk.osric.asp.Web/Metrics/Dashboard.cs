@@ -66,7 +66,7 @@ internal sealed class Dashboard(
             .ToString("yyyy-MM-ddTHH:mm:ssZ", CultureInfo.InvariantCulture);
         string duration = ((long)window.Length.TotalMinutes).ToString(CultureInfo.InvariantCulture);
 
-        return $"/status/chart?panel={Uri.EscapeDataString(panel.Id)}&start={Uri.EscapeDataString(start)}&duration={duration}";
+        return $"/admin/status/chart?panel={Uri.EscapeDataString(panel.Id)}&start={Uri.EscapeDataString(start)}&duration={duration}";
     }
 
     private async Task<StatusPage> BuildAsync(ChartWindow window, CancellationToken cancellationToken) {

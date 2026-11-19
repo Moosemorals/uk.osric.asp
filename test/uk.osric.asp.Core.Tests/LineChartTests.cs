@@ -112,8 +112,14 @@ public sealed class LineChartTests {
         (double X, double Y)[] points = [.. PolylinePoints(svg)];
 
         Assert.That(points, Has.Length.EqualTo(2));
-        Assert.That(points[0].X, Is.EqualTo(146.5).Within(0.01), "a quarter of the 322-wide plot after its 66 left edge");
-        Assert.That(points[1].X, Is.EqualTo(227).Within(0.01), "and half way across");
+        Assert.That(
+            points[0].X,
+            Is.EqualTo(ChartChrome.LeftMargin + (Size.PlotWidth / 4)).Within(0.01),
+            "a quarter of the plot after its left edge");
+        Assert.That(
+            points[1].X,
+            Is.EqualTo(ChartChrome.LeftMargin + (Size.PlotWidth / 2)).Within(0.01),
+            "and half way across");
     }
 
     [Test]
@@ -251,13 +257,15 @@ public sealed class LineChartTests {
     }
 
     [Test]
-    public void TheTypeIsTenPerCentLargerThanTheFirstDraft() {
+    public void TheTypeMatchesTheSiteBodySize() {
         string svg = Render(Series("ok", (0, 0), (600, 1)));
 
         Assert.That(
             svg,
-            Does.Contain("class=\"chart-title\" x=\"66\" y=\"15.4\" font-size=\"13.2\""),
-            "the title is twelve pixels plus a tenth, in a band that grew with it");
-        Assert.That(svg, Does.Contain("\" font-size=\"12.1\""), "the axis labels are eleven pixels plus a tenth");
+            Does.Contain("class=\"chart-title\" x=\"87.27\" y=\"18.91\" font-size=\"16\" font-weight=\"600\""),
+            "the title is the page's body size, in a band that grew with it");
+        Assert.That(svg, Does.Contain("\" font-size=\"16\""), "the labels are the page's body size");
+        Assert.That(svg, Does.Contain("font-family=\"system-ui, sans-serif\""),
+            "a standalone drawing uses the site's font rather than the browser's fallback");
     }
 }

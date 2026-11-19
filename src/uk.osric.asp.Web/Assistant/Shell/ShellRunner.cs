@@ -3,6 +3,7 @@
 
 namespace uk.osric.asp.Web.Assistant.Shell;
 
+using uk.osric.asp.Core.Assistant;
 using uk.osric.asp.Core.Shell;
 using uk.osric.asp.Core.Text;
 using uk.osric.asp.Web.Assistant.Shell.Applets;
@@ -37,13 +38,15 @@ internal static class ShellRunner {
     /// <param name="text">The command text.</param>
     /// <param name="pages">The editor behind the store.</param>
     /// <param name="paths">The path policy.</param>
-    /// <param name="options">The assistant's options, for the result budget.</param>
+    /// <param name="options">The assistant's options, for the applets' own limits.</param>
+    /// <param name="budget">The content budget the answer is measured against.</param>
     /// <param name="cancellationToken">The run's token.</param>
     public static async Task<ShellOutcome> RunAsync(
         string text,
         PageEditor pages,
         PagePathPolicy paths,
         AssistantOptions options,
+        ContextBudget budget,
         CancellationToken cancellationToken) {
         ShellLexResult lexed = ShellLine.Lex(text);
         if (lexed.Error is not null) {
@@ -91,9 +94,12 @@ internal static class ShellRunner {
         string answer = output.Text;
         bool truncated = output.Truncated;
 
-        int budget = options.ToolResultBudget;
-        if (answer.Length > budget) {
-            answer = answer[..budget] + $"\n[the answer was cut at {budget} characters; ask for less]";
+        int cap = (int)Math.Min(budget.ToolResultChars, int.MaxValue);
+        if (answer.Length > cap) {
+            // The note is inside the cap rather than beside it, so the answer a tool hands back is
+            // never larger than the share of the budget it was given.
+            string note = $"\n[the answer was truncated at {cap} characters; ask for less]";
+            answer = answer[..Math.Max(0, cap - note.Length)] + note;
             truncated = true;
         }
 

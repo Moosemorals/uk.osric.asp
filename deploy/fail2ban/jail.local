@@ -1,13 +1,15 @@
 # SPDX-FileCopyrightText: Copyright 2026 Osric Wilkinson <osric@fluffypeople.com>
 # SPDX-License-Identifier: MIT
 #
-# The host's only fail2ban jail. `make deploy` installs this file to /etc/fail2ban/jail.local and
-# the filter beside it; deploy/ is the source of truth for the host, never the copy on it.
+# fail2ban's two jobs here, and no others. `make deploy` installs this file to
+# /etc/fail2ban/jail.local and the filter beside it; deploy/ is the source of truth for the host,
+# never the copy on it.
 #
-# Debian ships dozens of jails and enables sshd's, and none of the rest is wanted here: this host is
-# reached through Caddy, and a scanner that reads logs nobody writes is a service pretending to
-# work. The one thing worth banning is an address that keeps failing this site's authentication,
-# which is what the jail below does and the only jail that is on.
+# Debian ships dozens of jails and enables sshd's. sshd's stays on, because this host answers SSH
+# and the scanners that try it are worth costing ten minutes; everything else stays off, because
+# this host is reached through Caddy and a scanner that reads a log nobody writes is a service
+# pretending to work. The second jail is this site's own: an address that keeps failing its
+# authentication.
 
 [DEFAULT]
 # Every port, not the one a jail names: the address is being stopped, not reasoned with. Debian's
@@ -18,16 +20,22 @@ banaction = nftables[type=allports]
 # The host's own addresses are never banned, including the loopback the app is published on.
 ignoreip = 127.0.0.1/8 ::1
 
+# Debian's defaults-debian.conf supplies this jail's backend and journal match, and its stock rule -
+# five failures in ten minutes, a ten-minute ban - is left alone. Only its state is decided here.
 [sshd]
-enabled = false
+enabled = true
 
 [uk.osric.asp]
 enabled = true
 filter = uk.osric.asp
-# The app is a user unit, and the container's output is the unit's: its lines are in the journal,
-# not in a file. The container name is matched too, so an entry is found whichever way podman
-# attaches it to the journal - the two lines are alternatives, not a requirement for both.
-backend = systemd
+# The app is a user unit, and the container's output is the unit's, so its lines are in the user
+# journal and not in a file. The backend has to be told where the journal is: its default opens the
+# system journal alone, and journald keeps a user's entries in user-<uid>.journal, so the app is
+# invisible to it and the jail counts nothing but looks healthy. The directory is the journal root
+# rather than a file, so rotation and a new boot's files are picked up, and the matches below narrow
+# it back to this unit, since the path opens every user's journal too. The container name is matched
+# as well, so an entry is found whichever way podman attaches it.
+backend = systemd[journalpath="/var/log/journal"]
 journalmatch = _SYSTEMD_USER_UNIT=uk.osric.asp.service
               CONTAINER_NAME=uk.osric.asp
 # Ten refusals inside a minute is a client that is not going to succeed, and an hour is long enough

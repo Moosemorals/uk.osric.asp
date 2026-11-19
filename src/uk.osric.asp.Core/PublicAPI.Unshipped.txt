@@ -87,8 +87,6 @@ static uk.osric.asp.Core.Assistant.MemoryKinds.TryParse(string? text, out uk.osr
 static uk.osric.asp.Core.Assistant.MemoryListing.Group(System.Collections.Generic.IReadOnlyList<uk.osric.asp.Core.Assistant.MemoryCandidate!>! memories) -> System.Collections.Generic.IReadOnlyList<uk.osric.asp.Core.Assistant.MemoryGroup!>!
 static uk.osric.asp.Core.Assistant.MemoryQuery.Terms(string! message, int maximum) -> string!
 static uk.osric.asp.Core.Assistant.MemoryRecall.Build(uk.osric.asp.Core.Assistant.MemorySelection! selection) -> string!
-static uk.osric.asp.Core.Assistant.MemoryRecall.Select(System.Collections.Generic.IReadOnlyList<uk.osric.asp.Core.Assistant.MemoryCandidate!>! pinned, System.Collections.Generic.IReadOnlyList<uk.osric.asp.Core.Assistant.MemoryCandidate!>! used, System.Collections.Generic.IReadOnlyList<uk.osric.asp.Core.Assistant.MemoryCandidate!>! query, int maximumMemories, int maximumChars) -> uk.osric.asp.Core.Assistant.MemorySelection!
-static uk.osric.asp.Core.Assistant.MemorySecrets.LooksLikeSecret(string! content) -> string?
 static uk.osric.asp.Core.Assistant.MemorySelection.operator !=(uk.osric.asp.Core.Assistant.MemorySelection? left, uk.osric.asp.Core.Assistant.MemorySelection? right) -> bool
 static uk.osric.asp.Core.Assistant.MemorySelection.operator ==(uk.osric.asp.Core.Assistant.MemorySelection? left, uk.osric.asp.Core.Assistant.MemorySelection? right) -> bool
 static uk.osric.asp.Core.Charting.ChartFrame.operator !=(uk.osric.asp.Core.Charting.ChartFrame? left, uk.osric.asp.Core.Charting.ChartFrame? right) -> bool
@@ -303,19 +301,11 @@ uk.osric.asp.Core.Markdown.LinkPolicy
 override uk.osric.asp.Core.Assistant.ContextPlan.Equals(object? obj) -> bool
 override uk.osric.asp.Core.Assistant.ContextPlan.GetHashCode() -> int
 override uk.osric.asp.Core.Assistant.ContextPlan.ToString() -> string!
-static uk.osric.asp.Core.Assistant.BudgetSnapshot.Measure(uk.osric.asp.Core.Assistant.ContextPlan! plan, System.Collections.Generic.IReadOnlyList<uk.osric.asp.Core.Assistant.ChatMessage!>! stored, int steps, int toolCalls, int? outputTokens) -> uk.osric.asp.Core.Assistant.BudgetSnapshot!
-*REMOVED*static uk.osric.asp.Core.Assistant.BudgetSnapshot.Measure(System.Collections.Generic.IReadOnlyList<uk.osric.asp.Core.Assistant.ChatMessage!>! messages, int steps, int toolCalls, int? completionTokens) -> uk.osric.asp.Core.Assistant.BudgetSnapshot!
 static uk.osric.asp.Core.Assistant.ChatRequestJson.MeasureBytes(uk.osric.asp.Core.Assistant.ChatRequest! request) -> long
 static uk.osric.asp.Core.Assistant.ChatRequestJson.Serialize(uk.osric.asp.Core.Assistant.ChatRequest! request) -> string!
-static uk.osric.asp.Core.Assistant.ContextPlanner.Build(uk.osric.asp.Core.Assistant.ChatRequest! request, long maximumTokens, uk.osric.asp.Core.Assistant.TokenEstimator! estimator) -> uk.osric.asp.Core.Assistant.ContextPlan!
-static uk.osric.asp.Core.Assistant.ContextPlan.operator !=(uk.osric.asp.Core.Assistant.ContextPlan? left, uk.osric.asp.Core.Assistant.ContextPlan? right) -> bool
 static uk.osric.asp.Core.Assistant.ContextPlan.operator ==(uk.osric.asp.Core.Assistant.ContextPlan? left, uk.osric.asp.Core.Assistant.ContextPlan? right) -> bool
 static uk.osric.asp.Core.Assistant.ContextTrimmer.Trim(uk.osric.asp.Core.Assistant.ChatRequest! request, long maximumTokens, uk.osric.asp.Core.Assistant.TokenEstimator! estimator) -> uk.osric.asp.Core.Assistant.ContextTrimResult!
 *REMOVED*static uk.osric.asp.Core.Assistant.ContextTrimmer.Trim(System.Collections.Generic.IReadOnlyList<uk.osric.asp.Core.Assistant.ChatMessage!>! messages, int maximumChars) -> uk.osric.asp.Core.Assistant.ContextTrimResult!
-uk.osric.asp.Core.Assistant.BudgetSnapshot.BudgetSnapshot(long ContextTokens, int Steps, int ToolCalls, int LongestArguments, int LongestResult, int OutputTokens) -> void
-*REMOVED*uk.osric.asp.Core.Assistant.BudgetSnapshot.BudgetSnapshot(long ContextChars, int Steps, int ToolCalls, int LongestArguments, int LongestResult, int CompletionTokens) -> void
-uk.osric.asp.Core.Assistant.BudgetSnapshot.Deconstruct(out long ContextTokens, out int Steps, out int ToolCalls, out int LongestArguments, out int LongestResult, out int OutputTokens) -> void
-*REMOVED*uk.osric.asp.Core.Assistant.BudgetSnapshot.Deconstruct(out long ContextChars, out int Steps, out int ToolCalls, out int LongestArguments, out int LongestResult, out int CompletionTokens) -> void
 *REMOVED*uk.osric.asp.Core.Assistant.BudgetSnapshot.ContextChars.get -> long
 *REMOVED*uk.osric.asp.Core.Assistant.BudgetSnapshot.ContextChars.init -> void
 *REMOVED*uk.osric.asp.Core.Assistant.BudgetSnapshot.SentBytes.get -> long
@@ -324,10 +314,6 @@ uk.osric.asp.Core.Assistant.BudgetSnapshot.Deconstruct(out long ContextTokens, o
 *REMOVED*uk.osric.asp.Core.Assistant.BudgetSnapshot.CompletionTokens.init -> void
 uk.osric.asp.Core.Assistant.BudgetSnapshot.ContextTokens.get -> long
 uk.osric.asp.Core.Assistant.BudgetSnapshot.ContextTokens.init -> void
-uk.osric.asp.Core.Assistant.BudgetSnapshot.OutputTokens.get -> int
-uk.osric.asp.Core.Assistant.BudgetSnapshot.OutputTokens.init -> void
-uk.osric.asp.Core.Assistant.ChatRequestJson
-uk.osric.asp.Core.Assistant.ContextPlan
 uk.osric.asp.Core.Assistant.ContextPlan.<Clone>$() -> uk.osric.asp.Core.Assistant.ContextPlan!
 uk.osric.asp.Core.Assistant.ContextPlan.ContextPlan(uk.osric.asp.Core.Assistant.ChatRequest! Request, int MaskedToolResults, int MaskedArguments, int DroppedMessages, long OriginalTokens, long EstimatedTokens, long RequestBytes, string? Error) -> void
 uk.osric.asp.Core.Assistant.ContextPlan.Deconstruct(out uk.osric.asp.Core.Assistant.ChatRequest! Request, out int MaskedToolResults, out int MaskedArguments, out int DroppedMessages, out long OriginalTokens, out long EstimatedTokens, out long RequestBytes, out string? Error) -> void
@@ -402,20 +388,12 @@ uk.osric.asp.Core.Assistant.TokenUsage.Deconstruct(out int? PromptTokens, out in
 uk.osric.asp.Core.Assistant.TokenUsage.TokenUsage(int? PromptTokens, int? CompletionTokens, int? CachedTokens = null, int? ReasoningTokens = null) -> void
 uk.osric.asp.Core.Assistant.RunUsage
 uk.osric.asp.Core.Assistant.RunUsage.<Clone>$() -> uk.osric.asp.Core.Assistant.RunUsage!
-uk.osric.asp.Core.Assistant.RunUsage.RunUsage(int PromptTokens, int CompletionTokens, int CachedTokens, int ReasoningTokens, int OutputTokens) -> void
-uk.osric.asp.Core.Assistant.RunUsage.Deconstruct(out int PromptTokens, out int CompletionTokens, out int CachedTokens, out int ReasoningTokens, out int OutputTokens) -> void
-uk.osric.asp.Core.Assistant.RunUsage.PromptTokens.get -> int
-uk.osric.asp.Core.Assistant.RunUsage.PromptTokens.init -> void
 uk.osric.asp.Core.Assistant.RunUsage.CompletionTokens.get -> int
 uk.osric.asp.Core.Assistant.RunUsage.CompletionTokens.init -> void
 uk.osric.asp.Core.Assistant.RunUsage.CachedTokens.get -> int
 uk.osric.asp.Core.Assistant.RunUsage.CachedTokens.init -> void
 uk.osric.asp.Core.Assistant.RunUsage.ReasoningTokens.get -> int
 uk.osric.asp.Core.Assistant.RunUsage.ReasoningTokens.init -> void
-uk.osric.asp.Core.Assistant.RunUsage.OutputTokens.get -> int
-uk.osric.asp.Core.Assistant.RunUsage.OutputTokens.init -> void
-uk.osric.asp.Core.Assistant.RunUsage.Equals(uk.osric.asp.Core.Assistant.RunUsage? other) -> bool
-override uk.osric.asp.Core.Assistant.RunUsage.Equals(object? obj) -> bool
 override uk.osric.asp.Core.Assistant.RunUsage.GetHashCode() -> int
 override uk.osric.asp.Core.Assistant.RunUsage.ToString() -> string!
 static uk.osric.asp.Core.Assistant.RunUsage.operator !=(uk.osric.asp.Core.Assistant.RunUsage? left, uk.osric.asp.Core.Assistant.RunUsage? right) -> bool
@@ -440,10 +418,6 @@ override uk.osric.asp.Core.Assistant.TokenCalibration.ToString() -> string!
 static uk.osric.asp.Core.Assistant.TokenCalibration.operator !=(uk.osric.asp.Core.Assistant.TokenCalibration? left, uk.osric.asp.Core.Assistant.TokenCalibration? right) -> bool
 static uk.osric.asp.Core.Assistant.TokenCalibration.operator ==(uk.osric.asp.Core.Assistant.TokenCalibration? left, uk.osric.asp.Core.Assistant.TokenCalibration? right) -> bool
 uk.osric.asp.Core.Assistant.TokenEstimator
-uk.osric.asp.Core.Assistant.TokenEstimator.TokenEstimator(double bytesPerToken, double margin = 1.1) -> void
-const uk.osric.asp.Core.Assistant.TokenEstimator.DefaultBytesPerToken = 1.6 -> double
-const uk.osric.asp.Core.Assistant.TokenEstimator.EstimateMargin = 1.1 -> double
-const uk.osric.asp.Core.Assistant.TokenEstimator.MinimumBytesPerToken = 1 -> double
 const uk.osric.asp.Core.Assistant.TokenEstimator.MaximumBytesPerToken = 6 -> double
 uk.osric.asp.Core.Assistant.TokenEstimator.BytesPerToken.get -> double
 uk.osric.asp.Core.Assistant.TokenEstimator.Margin.get -> double
@@ -715,6 +689,8 @@ static uk.osric.asp.Core.Pages.PageTree.IsBelow(this uk.osric.asp.Core.Pages.Pag
 static uk.osric.asp.Core.Pages.PageTree.IsDirectlyBelow(this uk.osric.asp.Core.Pages.PagePath! key, uk.osric.asp.Core.Pages.PagePath! folder) -> bool
 static uk.osric.asp.Core.Pages.PageTree.FolderOf(string! key) -> string?
 static uk.osric.asp.Core.Pages.PageTree.FoldersAbove(string! key) -> System.Collections.Generic.IReadOnlyList<string!>!
+uk.osric.asp.Core.Compilation.PageDiagnostic.End.get -> uk.osric.asp.Core.Compilation.TemplatePosition?
+uk.osric.asp.Core.Compilation.PageDiagnostic.End.init -> void
 uk.osric.asp.Core.Compilation.PageDiagnostic.Source.get -> string?
 uk.osric.asp.Core.Compilation.PageDiagnostic.Source.init -> void
 uk.osric.asp.Core.Pages.PageKind.Worker = 3 -> uk.osric.asp.Core.Pages.PageKind
@@ -768,3 +744,90 @@ uk.osric.asp.Core.Assistant.AccountBalanceRead.<Clone>$() -> uk.osric.asp.Core.A
 uk.osric.asp.Core.Assistant.AccountBalanceRead.Equals(uk.osric.asp.Core.Assistant.AccountBalanceRead? other) -> bool
 static uk.osric.asp.Core.Pages.PageQueryFingerprint.Fingerprint(this System.Collections.Generic.IEnumerable<System.Collections.Generic.KeyValuePair<string!, System.Collections.Generic.IReadOnlyList<string!>!>>! query) -> string!
 uk.osric.asp.Core.Pages.PageQueryFingerprint
+*REMOVED*static uk.osric.asp.Core.Charting.NiceTicks.ForTime(System.DateTimeOffset from, System.DateTimeOffset to, System.TimeZoneInfo! zone) -> System.Collections.Generic.IReadOnlyList<uk.osric.asp.Core.Charting.ChartTick>!
+static uk.osric.asp.Core.Charting.NiceTicks.ForTime(System.DateTimeOffset from, System.DateTimeOffset to, System.TimeZoneInfo! zone, double availableWidth = Infinity) -> System.Collections.Generic.IReadOnlyList<uk.osric.asp.Core.Charting.ChartTick>!
+uk.osric.asp.Core.Charting.ChartSize.PlotWidth.get -> double
+
+uk.osric.asp.Core.Assistant.ChatRequest.MaxTokens.get -> int
+uk.osric.asp.Core.Assistant.ChatRequest.MaxTokens.init -> void
+uk.osric.asp.Core.Assistant.ChatRequest.Deconstruct(out string! Model, out System.Collections.Generic.IReadOnlyList<uk.osric.asp.Core.Assistant.ChatMessage!>! Messages, out System.Collections.Generic.IReadOnlyList<uk.osric.asp.Core.Assistant.ToolDefinition!>! Tools, out double Temperature, out int MaxTokens, out string! ReasoningField) -> void
+uk.osric.asp.Core.Assistant.BudgetSnapshot.MaxTokens.get -> int
+uk.osric.asp.Core.Assistant.BudgetSnapshot.LastCompletionTokens.get -> int
+uk.osric.asp.Core.Assistant.BudgetSnapshot.Window.get -> long
+uk.osric.asp.Core.Assistant.BudgetSnapshot.EstimateError.get -> long
+uk.osric.asp.Core.Assistant.BudgetSnapshot.MaxTokens.init -> void
+uk.osric.asp.Core.Assistant.BudgetSnapshot.LastCompletionTokens.init -> void
+uk.osric.asp.Core.Assistant.BudgetSnapshot.Window.init -> void
+uk.osric.asp.Core.Assistant.BudgetSnapshot.EstimateError.init -> void
+const uk.osric.asp.Core.Assistant.ContextBudget.BytesPerToken = 1.6 -> double
+uk.osric.asp.Core.Assistant.ContextBudget
+override uk.osric.asp.Core.Assistant.ContextBudget.ToString() -> string!
+static uk.osric.asp.Core.Assistant.ContextBudget.operator !=(uk.osric.asp.Core.Assistant.ContextBudget? left, uk.osric.asp.Core.Assistant.ContextBudget? right) -> bool
+static uk.osric.asp.Core.Assistant.ContextBudget.operator ==(uk.osric.asp.Core.Assistant.ContextBudget? left, uk.osric.asp.Core.Assistant.ContextBudget? right) -> bool
+override uk.osric.asp.Core.Assistant.ContextBudget.GetHashCode() -> int
+override uk.osric.asp.Core.Assistant.ContextBudget.Equals(object? obj) -> bool
+uk.osric.asp.Core.Assistant.ContextBudget.Equals(uk.osric.asp.Core.Assistant.ContextBudget? other) -> bool
+uk.osric.asp.Core.Assistant.ContextBudget.<Clone>$() -> uk.osric.asp.Core.Assistant.ContextBudget!
+const uk.osric.asp.Core.Assistant.TokenEstimator.DeltaMargin = 1.03 -> double
+uk.osric.asp.Core.Assistant.RunUsage.LastCompletionTokens.get -> int
+uk.osric.asp.Core.Assistant.RunUsage.Deconstruct(out int PromptTokens, out int CompletionTokens, out int CachedTokens, out int ReasoningTokens, out int LastCompletionTokens) -> void
+uk.osric.asp.Core.Assistant.RunUsage.LastCompletionTokens.init -> void
+uk.osric.asp.Core.Assistant.BudgetSnapshot.EstimateDirection.get -> string!
+uk.osric.asp.Core.Assistant.BudgetSnapshot.WindowUsed.get -> long
+uk.osric.asp.Core.Assistant.ChatRequest.ChatRequest(string! Model, System.Collections.Generic.IReadOnlyList<uk.osric.asp.Core.Assistant.ChatMessage!>! Messages, System.Collections.Generic.IReadOnlyList<uk.osric.asp.Core.Assistant.ToolDefinition!>! Tools, double Temperature, int MaxTokens, string! ReasoningField) -> void
+uk.osric.asp.Core.Assistant.ContextBudget.MaximumOutputTokens.get -> int
+uk.osric.asp.Core.Assistant.ContextBudget.PromptBudget.get -> long
+uk.osric.asp.Core.Assistant.ContextBudget.MinimumOutputTokens.get -> int
+uk.osric.asp.Core.Assistant.ContextBudget.ToolResultChars.get -> long
+uk.osric.asp.Core.Assistant.ContextBudget.MessageChars.get -> long
+uk.osric.asp.Core.Assistant.ContextBudget.MemoryCharsPerRun.get -> long
+uk.osric.asp.Core.Assistant.ContextPlan.MaxTokens.get -> int
+static uk.osric.asp.Core.Assistant.ContextBudget.Create(long contextWindow, int maximumOutputTokens, int minimumOutputTokens) -> uk.osric.asp.Core.Assistant.ContextBudget!
+static uk.osric.asp.Core.Assistant.ContextPlanner.Build(uk.osric.asp.Core.Assistant.ChatRequest! request, uk.osric.asp.Core.Assistant.ContextBudget! budget, uk.osric.asp.Core.Assistant.TokenEstimator! estimator) -> uk.osric.asp.Core.Assistant.ContextPlan!
+uk.osric.asp.Core.Assistant.ContextBudget.MaxTokens(long estimatedPrompt) -> int
+uk.osric.asp.Core.Assistant.ContextBudget.EstimateMargin.get -> long
+uk.osric.asp.Core.Assistant.RunUsage.RunUsage(int PromptTokens, int CompletionTokens, int CachedTokens, int ReasoningTokens, int LastCompletionTokens) -> void
+uk.osric.asp.Core.Assistant.TokenEstimator.TokenEstimator(double bytesPerToken, double margin = 1.03) -> void
+uk.osric.asp.Core.Assistant.TokenEstimator.Anchor.get -> uk.osric.asp.Core.Assistant.TokenCalibration?
+*REMOVED*uk.osric.asp.Core.Assistant.ChatRequest.ChatRequest(string! Model, System.Collections.Generic.IReadOnlyList<uk.osric.asp.Core.Assistant.ChatMessage!>! Messages, System.Collections.Generic.IReadOnlyList<uk.osric.asp.Core.Assistant.ToolDefinition!>! Tools, double Temperature, int MaxOutputTokens, string! ReasoningField, bool IncludeUsage) -> void
+*REMOVED*uk.osric.asp.Core.Assistant.ChatRequest.Deconstruct(out string! Model, out System.Collections.Generic.IReadOnlyList<uk.osric.asp.Core.Assistant.ChatMessage!>! Messages, out System.Collections.Generic.IReadOnlyList<uk.osric.asp.Core.Assistant.ToolDefinition!>! Tools, out double Temperature, out int MaxOutputTokens, out string! ReasoningField, out bool IncludeUsage) -> void
+*REMOVED*uk.osric.asp.Core.Assistant.ChatRequest.IncludeUsage.get -> bool
+*REMOVED*uk.osric.asp.Core.Assistant.ChatRequest.IncludeUsage.init -> void
+*REMOVED*uk.osric.asp.Core.Assistant.ChatRequest.MaxOutputTokens.get -> int
+*REMOVED*uk.osric.asp.Core.Assistant.ChatRequest.MaxOutputTokens.init -> void
+*REMOVED*uk.osric.asp.Core.Assistant.ChatRequest.ChatRequest(string! Model, System.Collections.Generic.IReadOnlyList<uk.osric.asp.Core.Assistant.ChatMessage!>! Messages, System.Collections.Generic.IReadOnlyList<uk.osric.asp.Core.Assistant.ToolDefinition!>! Tools, double Temperature, int MaxOutputTokens, string! ReasoningField, bool IncludeUsage) -> void
+*REMOVED*uk.osric.asp.Core.Assistant.ChatRequest.Deconstruct(out string! Model, out System.Collections.Generic.IReadOnlyList<uk.osric.asp.Core.Assistant.ChatMessage!>! Messages, out System.Collections.Generic.IReadOnlyList<uk.osric.asp.Core.Assistant.ToolDefinition!>! Tools, out double Temperature, out int MaxOutputTokens, out string! ReasoningField, out bool IncludeUsage) -> void
+*REMOVED*uk.osric.asp.Core.Assistant.ChatRequest.IncludeUsage.get -> bool
+*REMOVED*uk.osric.asp.Core.Assistant.ChatRequest.IncludeUsage.init -> void
+*REMOVED*uk.osric.asp.Core.Assistant.ChatRequest.MaxOutputTokens.get -> int
+*REMOVED*uk.osric.asp.Core.Assistant.ChatRequest.MaxOutputTokens.init -> void
+uk.osric.asp.Core.Assistant.ChatRequestJson
+uk.osric.asp.Core.Assistant.RunUsage.PromptTokens.get -> int
+override uk.osric.asp.Core.Assistant.RunUsage.Equals(object? obj) -> bool
+uk.osric.asp.Core.Assistant.RunUsage.PromptTokens.init -> void
+uk.osric.asp.Core.Assistant.RunUsage.Equals(uk.osric.asp.Core.Assistant.RunUsage? other) -> bool
+const uk.osric.asp.Core.Assistant.TokenEstimator.DefaultBytesPerToken = 1.6 -> double
+const uk.osric.asp.Core.Assistant.TokenEstimator.MinimumBytesPerToken = 1 -> double
+uk.osric.asp.Core.Assistant.ContextPlan
+static uk.osric.asp.Core.Assistant.ContextPlan.operator !=(uk.osric.asp.Core.Assistant.ContextPlan? left, uk.osric.asp.Core.Assistant.ContextPlan? right) -> bool
+*REMOVED*static uk.osric.asp.Core.Assistant.BudgetSnapshot.Measure(System.Collections.Generic.IReadOnlyList<uk.osric.asp.Core.Assistant.ChatMessage!>! messages, int steps, int toolCalls, int? completionTokens) -> uk.osric.asp.Core.Assistant.BudgetSnapshot!
+*REMOVED*uk.osric.asp.Core.Assistant.BudgetSnapshot.BudgetSnapshot(long ContextChars, int Steps, int ToolCalls, int LongestArguments, int LongestResult, int CompletionTokens) -> void
+*REMOVED*uk.osric.asp.Core.Assistant.BudgetSnapshot.Deconstruct(out long ContextChars, out int Steps, out int ToolCalls, out int LongestArguments, out int LongestResult, out int CompletionTokens) -> void
+*REMOVED*static uk.osric.asp.Core.Assistant.BudgetSnapshot.Measure(System.Collections.Generic.IReadOnlyList<uk.osric.asp.Core.Assistant.ChatMessage!>! messages, int steps, int toolCalls, int? completionTokens) -> uk.osric.asp.Core.Assistant.BudgetSnapshot!
+*REMOVED*uk.osric.asp.Core.Assistant.BudgetSnapshot.BudgetSnapshot(long ContextChars, int Steps, int ToolCalls, int LongestArguments, int LongestResult, int CompletionTokens) -> void
+*REMOVED*uk.osric.asp.Core.Assistant.BudgetSnapshot.Deconstruct(out long ContextChars, out int Steps, out int ToolCalls, out int LongestArguments, out int LongestResult, out int CompletionTokens) -> void
+uk.osric.asp.Core.Assistant.BudgetSnapshot.Deconstruct(out long ContextTokens, out int Steps, out int ToolCalls, out int LongestArguments, out int LongestResult, out int LastCompletionTokens, out long Window, out int MaxTokens, out int LastMaxTokens, out long EstimateError) -> void
+uk.osric.asp.Core.Assistant.BudgetSnapshot.LastMaxTokens.get -> int
+uk.osric.asp.Core.Assistant.BudgetSnapshot.LastMaxTokens.init -> void
+uk.osric.asp.Core.Assistant.BudgetSnapshot.BudgetSnapshot(long ContextTokens, int Steps, int ToolCalls, int LongestArguments, int LongestResult, int LastCompletionTokens, long Window, int MaxTokens, int LastMaxTokens, long EstimateError) -> void
+static uk.osric.asp.Core.Assistant.BudgetSnapshot.Measure(uk.osric.asp.Core.Assistant.ContextPlan! plan, System.Collections.Generic.IReadOnlyList<uk.osric.asp.Core.Assistant.ChatMessage!>! stored, int steps, int toolCalls, int? lastCompletionTokens, int? lastMaxTokens, uk.osric.asp.Core.Assistant.ContextBudget! budget, long estimateError) -> uk.osric.asp.Core.Assistant.BudgetSnapshot!
+static uk.osric.asp.Core.Assistant.MemoryRecall.Select(System.Collections.Generic.IReadOnlyList<uk.osric.asp.Core.Assistant.MemoryCandidate!>! pinned, System.Collections.Generic.IReadOnlyList<uk.osric.asp.Core.Assistant.MemoryCandidate!>! used, System.Collections.Generic.IReadOnlyList<uk.osric.asp.Core.Assistant.MemoryCandidate!>! query, int maximumChars) -> uk.osric.asp.Core.Assistant.MemorySelection!
+const uk.osric.asp.Core.Assistant.ContextBudget.MinimumPromptTokens = 16384 -> long
+uk.osric.asp.Core.Assistant.BudgetSnapshot.EstimateErrorMagnitude.get -> long
+uk.osric.asp.Core.Assistant.ContextBudget.ContextWindow.get -> long
+static uk.osric.asp.Core.Assistant.MemorySecrets.LooksLikeSecret(string! content) -> string?
+*REMOVED*static uk.osric.asp.Core.Charting.SvgText.SeriesColour(int index) -> string!
+*REMOVED*uk.osric.asp.Core.Charting.SvgText
+uk.osric.asp.Core.Text.JsonSerialization
+static uk.osric.asp.Core.Text.JsonSerialization.Encoder.get -> System.Text.Encodings.Web.JavaScriptEncoder!
+static uk.osric.asp.Core.Text.JsonSerialization.Options.get -> System.Text.Json.JsonSerializerOptions!

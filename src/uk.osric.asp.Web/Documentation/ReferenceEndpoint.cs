@@ -138,7 +138,7 @@ internal static class ReferenceEndpoint {
     }
 
     private static string AdminMenu(HttpContext context) =>
-        AdminNavigation.Nav("reference", EditorPaths.Of(context.RequestServices));
+        AdminNavigation.Nav(context);
 
     // "entry" does not pluralise with an "s", so the caller names both forms.
     private static string Count(int count, string singular, string plural) =>

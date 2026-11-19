@@ -17,9 +17,11 @@ using uk.osric.asp.Core.Charting;
 /// </remarks>
 internal sealed class PrometheusSource : IMetricsSource {
 
-    // The exporter sanitises tag names: the tag `page.path` is the label `page_path`.
+    // The exporter sanitises tag names: the tag `page.path` is the label `page_path`. A label a panel
+    // groups by has to be named here or its series arrives anonymous and the legend has nothing to say.
     private static readonly string[] LabelKeys = [
-        "page_path", "outcome", "result", "reason", "kind", "model", "tool", "http_response_status_code", "le",
+        "page_path", "outcome", "result", "reason", "kind", "model", "tool", "jail", "stage", "currency",
+        "http_response_status_code", "le",
     ];
 
     private readonly HttpClient _http;

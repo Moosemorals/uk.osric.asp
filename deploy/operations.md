@@ -331,18 +331,30 @@ its files are owned by mapped subordinate IDs, so offline access needs `podman u
 
 ## Metrics and the status page
 
-Prometheus scrapes `app:8080/metrics` every 15 s over the shared network and keeps 30 days or 4 GB,
-whichever comes first; the container is capped at 512 MB of RAM so runaway cardinality fails a scrape
-instead of the host. `/status` is owner-only and queries Prometheus by name, so neither service is
-reachable from the internet.
+Prometheus scrapes `app:8080/metrics` and `node-exporter:9100/metrics` every 15 s over the shared
+network and keeps 30 days or 4 GB, whichever comes first; the container is capped at 512 MB of RAM so
+runaway cardinality fails a scrape instead of the host. `/admin/status` is owner-only and queries
+Prometheus by name, so neither service is reachable from the internet.
 
-- **Two gates on `/metrics`.** The app publishes on the loopback only (the control `deploy-loopback-and-caddy` describes),
-  and Caddy answers `404` for the path on the public origin. Keep both.
+- **One gate on `/metrics`, one network for the other.** The app publishes on the loopback only (the
+  control `deploy-loopback-and-caddy` describes), and Caddy answers `404` for the path on the public
+  origin: keep both. node-exporter publishes nothing at all, so the only thing that can reach it is a
+  container on `uk.osric.asp.network`.
 - **Prometheus is never proxied.** It has no authentication; reach it with
   `ssh -L 9090:127.0.0.1:9090 deploy@<server-ip>` and open `http://localhost:9090`.
+- **The Host group's fail2ban panels come from the host, not the app.**
+  `uk.osric.asp-fail2ban-metrics.timer` runs `deploy/fail2ban-metrics.sh` as root every 30 s, because
+  the fail2ban socket is root-only; it writes each jail's current and total counts to
+  `/var/lib/node-exporter/textfile/fail2ban.prom`, the rootless `node-exporter` container serves that
+  directory, and Prometheus scrapes it as the `host` job. Nothing is published. Addresses are never
+  labels: one series per address is unbounded, and it would put a visitor's address in the store. The
+  two totals reset when fail2ban reloads — every deploy — so a rate across a deploy dips; the current
+  counts and `fail2ban_collected_timestamp_seconds` are the signals that do not move on their own. If
+  the panels go flat while the collector's age climbs, the timer or fail2ban has stopped: start with
+  `systemctl status uk.osric.asp-fail2ban-metrics.timer` and `cat` the file.
 - **No data is a banner, not a failure.** A stopped Prometheus, a slow query, or an unreadable reply
-  makes `/status` say so and still render; only a bug in the page itself is a `500`.
-- **One chart can be linked on its own.** `/status/chart?panel=<id>&start=<ISO-8601>&duration=<token>`
+  makes `/admin/status` say so and still render; only a bug in the page itself is a `500`.
+- **One chart can be linked on its own.** `/admin/status/chart?panel=<id>&start=<ISO-8601>&duration=<token>`
   draws one panel for one window, under the same owner policy: a bridge or a bookmark for the owner,
   not a public embed. `duration` is a window token (`1h`, `3h`, `8h`, `1d`, `7d`, `30d`) or a whole
   number of minutes. A malformed window is a `400`, an unknown panel a `404`, and a Prometheus that
@@ -367,7 +379,7 @@ reachable from the internet.
   definitions and the sampling rule. Review retention manually when payload exceeds half the volume
   capacity: revisions are not pruned automatically.
 - **Container DNS.** `cloud-init.yaml` installs `aardvark-dns`, which resolves `app` and `prometheus`
-  by name on the shared network. A host without it shows `/status` saying Prometheus "did not
+  by name on the shared network. A host without it shows `/admin/status` saying Prometheus "did not
   answer" and a down scrape target: `sudo apt-get install -y aardvark-dns`, then restart both units.
   `make deploy` refuses to run on such a host.
 
@@ -401,10 +413,13 @@ every peer.
 
 ## Bans
 
-The host runs **one** fail2ban jail, `uk.osric.asp`, and no other. Debian's package arrives with
-sshd's jail enabled and dozens more configured; `deploy/fail2ban/jail.local` turns sshd's off, and
-nothing here enables a scanner that reads a log this site does not write. Adding a jail is an edit to
-that file and a `make deploy`, not a command on the host.
+The host runs **two** fail2ban jails and no others: `sshd`, which comes with Debian and is left on
+because the host answers SSH and the scanners that try it should cost something, and
+`uk.osric.asp`, which is this site's own. Debian ships dozens more and every one of them is off:
+nothing here enables a scanner that reads a log this site does not write. Adding a jail is an edit
+to `deploy/fail2ban/jail.local` and a `make deploy`, not a command on the host. `sshd` keeps
+fail2ban's stock rule — five failures in ten minutes, a ten-minute ban — while the site's own jail is
+the ten-a-minute, one-hour rule below.
 
 **What counts as a failure.** Every request that ends unauthenticated and is refused, whoever refused
 it: the view guard's `401`, the cookie's challenge, a page's own `ctx.Response.RedirectToLogin()`,
@@ -424,6 +439,13 @@ failed:` and the address straight after it; [the logging notes](../docs/logging.
 wording. An authenticated
 request is never one of these lines, so a `403` and a view token that tries to write do not count.
 
+**Where the jail reads.** `deploy/fail2ban/jail.local` names the journal root
+(`backend = systemd[journalpath="/var/log/journal"]`) rather than leaving the backend on its default.
+The app is a user unit, so journald writes its output to `user-<uid>.journal`, and the default opens
+the system journal only: the jail starts, reports no failures and bans nobody. The directory is named
+rather than a file so rotation and each boot's journal are followed, and the journal matches narrow it
+back to this unit.
+
 **What a ban is.** Ten of those lines inside a minute, and the address is banned for an hour. The
 sign-in throttle permits ten attempts in the same minute, so a password guesser meets the ban at the
 throttle's own limit; a page's sign-in redirect and a stale token are not throttled at all, so a
@@ -432,7 +454,9 @@ port — its own table, hooked at the input ahead of ufw's chains — so it does
 firewall, it adds to it. ufw stays the allow-list and is unchanged.
 
 A ban is an address, so a client behind a shared address bans its neighbours with it. That is the
-cost of the rule, and the reason the threshold is ten rather than one.
+cost of the rule, and the reason the threshold is ten rather than one. `/admin/status` draws the numbers
+under Host — how many are banned now, how many failures each jail is counting, and how old the numbers
+are — and [metrics and the status page](#metrics-and-the-status-page) says where they come from.
 
 ```bash
 ssh deploy@<server-ip> sudo fail2ban-client status uk.osric.asp     # currently banned, and why

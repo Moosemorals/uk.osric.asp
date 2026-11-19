@@ -46,7 +46,7 @@ public sealed partial class AssistantChatLayoutTests : IntegrationTest {
         string body = await reloaded.Content.ReadAsStringAsync();
 
         int options = body.IndexOf("<legend>Page options</legend>", StringComparison.Ordinal);
-        int compose = body.IndexOf("<legend><label for=\"assistant-message\">Prompt</label></legend>", StringComparison.Ordinal);
+        int compose = body.IndexOf("<legend><label for=\"assistant-message\">Message</label></legend>", StringComparison.Ordinal);
         int status = body.IndexOf("<p id=\"assistant-status\"", StringComparison.Ordinal);
         int transcript = body.IndexOf("<legend>Assistant messages</legend>", StringComparison.Ordinal);
         int budgets = body.IndexOf("<legend>Budgets</legend>", StringComparison.Ordinal);
@@ -55,9 +55,9 @@ public sealed partial class AssistantChatLayoutTests : IntegrationTest {
         Assert.That(budgets, Is.GreaterThanOrEqualTo(0), "the budgets fieldset is missing");
         Assert.That(usage, Is.GreaterThan(budgets), "usage must follow the budgets");
         Assert.That(options, Is.GreaterThanOrEqualTo(0), "the page options fieldset is missing");
-        Assert.That(compose, Is.GreaterThanOrEqualTo(0), "the prompt fieldset is missing");
-        Assert.That(status, Is.InRange(compose, transcript), "the status line must sit between the prompt and the transcript");
-        Assert.That(transcript, Is.GreaterThan(compose), "the assistant messages must follow the prompt");
+        Assert.That(compose, Is.GreaterThanOrEqualTo(0), "the message fieldset is missing");
+        Assert.That(status, Is.InRange(compose, transcript), "the status line must sit between the message and the transcript");
+        Assert.That(transcript, Is.GreaterThan(compose), "the assistant messages must follow the message box");
         Assert.That(budgets, Is.GreaterThan(transcript), "budgets must follow the transcript");
         Assert.That(options, Is.GreaterThan(usage), "page options must follow the usage");
 
@@ -87,29 +87,52 @@ public sealed partial class AssistantChatLayoutTests : IntegrationTest {
         using HttpClient client = await CreateSignedInClientAsync();
         string conversation = await CreateConversationAsync(client);
 
-        string body = await RunAndReloadAsync(client, conversation);
+        string eventStream = await RunAsync(client, conversation);
+        JsonElement limits = ParseEvents(eventStream)
+            .Last(item => item.Type == "budget.updated").Data.GetProperty("limits");
+        using HttpResponseMessage reloaded = await client.GetAsync(conversation);
+        string body = await reloaded.Content.ReadAsStringAsync();
         AssistantOptions options = await WithServicesAsync(services =>
             Task.FromResult(services.GetRequiredService<AssistantOptions>()));
 
-        Assert.That(body, Does.Contain("<dt>Message</dt>"));
-        Assert.That(body, Does.Contain("<dt>Request</dt>"));
-        Assert.That(body, Does.Contain("<span id=\"assistant-budget-message\">0</span> / <span class=\"assistant-budget-limit\" id=\"assistant-budget-message-limit\">16k</span> chars</span>"));
-        Assert.That(body, Does.Contain($"id=\"assistant-budget-context-limit\">{BudgetAmount.Format(options.MaxContextTokens)}</span>"), "the request budget is missing");
-        Assert.That(body, Does.Contain($"id=\"assistant-budget-steps-limit\">{options.MaxSteps}</span>"), "the step budget is missing");
-        Assert.That(body, Does.Contain($"id=\"assistant-budget-tool-calls-limit\">{options.MaxToolCalls}</span>"), "the tool-call budget is missing");
-        Assert.That(body, Does.Contain($"id=\"assistant-budget-output-limit\">{BudgetAmount.Format(options.MaxOutputTokens)}</span>"), "the output budget is missing");
+        Assert.Multiple(() => {
+            Assert.That(body, Does.Contain("<dt>Message</dt>"));
+            Assert.That(body, Does.Contain("<dt>Context</dt>"));
+            Assert.That(body, Does.Contain("<dt>Reply</dt>"));
+            Assert.That(body, Does.Contain("<dt>Window</dt>"));
+            Assert.That(body, Does.Contain("<dt>Estimate</dt>"));
+            Assert.That(body, Does.Contain("<dt>Completion</dt>"));
+            Assert.That(body, Does.Contain($"id=\"assistant-budget-context-limit\">{BudgetAmount.Format(limits.GetProperty("context").GetInt64())}</span>"),
+                "the context row is measured against the prompt's share of the window");
+            Assert.That(body, Does.Contain($"id=\"assistant-budget-window-limit\">{BudgetAmount.Format(limits.GetProperty("window").GetInt64())}</span>"),
+                "the window row is measured against the reported window");
+            Assert.That(body, Does.Contain($"id=\"assistant-budget-estimate-limit\">{BudgetAmount.Format(limits.GetProperty("estimate").GetInt64())}</span>"),
+                "the estimate row is measured against the margin");
+            Assert.That(body, Does.Contain($"id=\"assistant-budget-steps-limit\">{options.MaxSteps}</span>"), "the step budget is missing");
+            Assert.That(body, Does.Contain($"id=\"assistant-budget-tool-calls-limit\">{options.MaxToolCalls}</span>"), "the tool-call budget is missing");
+        });
 
         // The system prompt and tool definitions alone are already spent, and the run's own steps are
         // counted from the store.
-        Assert.That(body, Does.Match($"<meter id=\"assistant-budget-context-meter\" aria-hidden=\"true\" min=\"0\" max=\"{options.MaxContextTokens}\" value=\"[1-9][0-9]*\""));
+        Assert.That(body, Does.Match($"<meter id=\"assistant-budget-context-meter\" aria-hidden=\"true\" min=\"0\" max=\"{limits.GetProperty("context").GetInt64()}\" value=\"[1-9][0-9]*\""),
+            "the request the next step would send is already some of the budget");
         Assert.That(body, Does.Contain($"<span class=\"assistant-budget-count\"><span id=\"assistant-budget-steps\">2</span> / <span class=\"assistant-budget-limit\" id=\"assistant-budget-steps-limit\">{options.MaxSteps}</span> steps</span>"),
             "the answered run took two steps: the tool call and the answer");
         Assert.That(body, Does.Contain($"<span class=\"assistant-budget-count\"><span id=\"assistant-budget-tool-calls\">1</span> / <span class=\"assistant-budget-limit\" id=\"assistant-budget-tool-calls-limit\">{options.MaxToolCalls}</span> calls</span>"));
 
         // Every row carries the name the page's script looks it up by.
-        foreach (string row in new[] { "message", "context", "steps", "tool-calls", "tool-arguments", "tool-result", "output" }) {
+        foreach (string row in new[] {
+            "message", "context", "reply", "window", "estimate", "steps", "tool-calls", "tool-arguments", "tool-result", "output" }) {
             Assert.That(body, Does.Contain($"data-budget=\"{row}\""), $"the {row} row is missing its hook");
         }
+
+        // The second step is anchored on the count the provider reported for the first, so its error is
+        // the delta's and nowhere near the margin: a healthy conversation does not take the class.
+        Assert.Multiple(() => {
+            Assert.That(body, Does.Contain("<div class=\"assistant-budget\" data-budget=\"estimate\">"),
+                "the estimate row is drawn");
+            Assert.That(body, Does.Contain("<span id=\"assistant-budget-estimate-direction\">"));
+        });
     }
 
     [Test]
@@ -208,7 +231,8 @@ public sealed partial class AssistantChatLayoutTests : IntegrationTest {
         using HttpResponseMessage reloaded = await client.GetAsync(conversation);
         IReadOnlyDictionary<string, string> shown = RenderedBudgets(await reloaded.Content.ReadAsStringAsync());
 
-        foreach (string row in new[] { "context", "steps", "tool-calls", "tool-arguments", "tool-result", "output" }) {
+        foreach (string row in new[] {
+            "context", "reply", "window", "estimate", "steps", "tool-calls", "tool-arguments", "tool-result", "output" }) {
             Assert.That(shown[row], Is.EqualTo(BudgetAmount.Format(budgets.GetProperty(row).GetInt64())),
                 $"the {row} row disagrees with the last figure the run published");
         }
@@ -248,6 +272,27 @@ public sealed partial class AssistantChatLayoutTests : IntegrationTest {
             Assert.That(html, Does.Contain("<th scope=\"col\">Name</th>"));
             Assert.That(html, Does.Not.Contain("style="));
         });
+    }
+
+    [Test]
+    public async Task ACompletedStepIsAvailableWhenItsSequenceHasDriftedFromItsIdAsync() {
+        using HttpClient client = await CreateSignedInClientAsync();
+        // A fresh conversation keeps ids and sequences in step, so an earlier conversation is what
+        // puts an id ahead of the sequence the live event used to carry instead.
+        await RunAsync(client, await CreateConversationAsync(client));
+        string conversation = await CreateConversationAsync(client);
+        string eventStream = await RunAsync(client, conversation);
+
+        long messageId = ParseEvents(eventStream)
+            .Last(item => item.Type == "message.completed"
+                && item.Data.GetProperty("status").GetString() == "complete")
+            .Data.GetProperty("messageId").GetInt64();
+
+        using HttpResponseMessage content = await client.GetAsync(
+            $"{conversation}/messages/{messageId}/content");
+
+        Assert.That(content.StatusCode, Is.EqualTo(HttpStatusCode.OK),
+            "the completed step's content route serves the id the event reported");
     }
 
     private static async Task<string> RunAndReloadAsync(HttpClient client, string conversation) {

@@ -165,6 +165,23 @@ public sealed class PageLibraryTests {
     }
 
     [Test]
+    public void ALibrarysErrorCarriesTheLibrariesKeyAndExtent() {
+        CompileResult result = CompilePage(
+            "<%! using Site; %><% ctx.Response.Write(Document.Read()); %>",
+            ("/_lib/document",
+                "<%! namespace Site { public static class Document { public static string Read() => Missing(); } } %>"));
+
+        PageDiagnostic error = result.Diagnostics.Single(diagnostic =>
+            diagnostic.Message.StartsWith("CS0103:", StringComparison.Ordinal));
+
+        Assert.Multiple(() => {
+            Assert.That(error.Source, Is.EqualTo("/_lib/document"));
+            Assert.That(error.Position, Is.EqualTo(new TemplatePosition(1, 84)));
+            Assert.That(error.End, Is.EqualTo(new TemplatePosition(1, 91)));
+        });
+    }
+
+    [Test]
     public void AMissingNamespaceIsRoslynsOwnError() {
         CompileResult result = CompilePage(
             "<%! using Site.Missing; %><% ctx.Response.Write(\"x\"); %>",

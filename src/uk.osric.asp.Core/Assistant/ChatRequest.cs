@@ -19,14 +19,12 @@ public sealed record ToolDefinition(
 /// <param name="Messages">The ordered transcript for this step.</param>
 /// <param name="Tools">The available functions.</param>
 /// <param name="Temperature">The configured sampling temperature.</param>
-/// <param name="MaxOutputTokens">The provider completion limit.</param>
+/// <param name="MaxTokens">The provider's own <c>max_tokens</c>, computed for this request.</param>
 /// <param name="ReasoningField">The provider field name used for optional reasoning deltas.</param>
-/// <param name="IncludeUsage">Whether the provider should include a final usage chunk.</param>
 public sealed record ChatRequest(
     string Model,
     IReadOnlyList<ChatMessage> Messages,
     IReadOnlyList<ToolDefinition> Tools,
     double Temperature,
-    int MaxOutputTokens,
-    string ReasoningField,
-    bool IncludeUsage);
+    int MaxTokens,
+    string ReasoningField);

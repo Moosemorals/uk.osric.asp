@@ -150,6 +150,8 @@ internal sealed class PageJobRunner(
             loggerFactory.CreateLogger(SimpleContext.PageCategory));
         PageCatalogScope catalog = new(
             job.Worker,
+            // A worker has no request to return to and no visitor to show a menu: it has no links.
+            [],
             environment.ReadStore,
             environment.Read,
             new ReadBudget(environment.Read.MaxSourceCharsPerRender),

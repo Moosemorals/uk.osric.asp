@@ -16,21 +16,17 @@ internal sealed record MaskOutcome(ChatMessage Message, int MaskedResults, int M
     public bool Changed => MaskedResults > 0 || MaskedArguments > 0;
 }
 
-/// <summary>Replaces old observations and old argument payloads in a request with placeholders.</summary>
+/// <summary>Replaces old tool results and old argument payloads in a request with placeholders.</summary>
 /// <remarks>
-/// This is a derived, per-request rule: the stored transcript is never rewritten. The newest observations
-/// keep their payloads because the model may still be reasoning about them; everything older trades its
-/// payload for a deterministic placeholder that says how much was there.
+/// This is a derived, per-request rule: the stored transcript is never rewritten. Nothing is exempt:
+/// masking walks oldest first, so the newest payloads are the last to be given up, and it stops the
+/// moment the request fits. A count would add an exemption that can bite back — eight protected
+/// results are more tokens than the whole budget — and the order already says what matters
+/// (<c>assistant-old-tool-results-are-masked</c>).
 /// </remarks>
-internal static class ObservationMasker {
+internal static class ToolResultMasker {
 
-    /// <summary>How many of the newest tool results keep their content.</summary>
-    public const int KeptResults = 8;
-
-    /// <summary>How many of the newest tool-call messages keep their argument payloads.</summary>
-    public const int KeptCalls = 2;
-
-    /// <summary>The longest argument string a request may carry once a call has fallen out of the window.</summary>
+    /// <summary>The longest argument string a request may carry once a call has been masked.</summary>
     public const int MaximumArgumentLength = 1_024;
 
     /// <summary>How far into a nested argument object the masker walks.</summary>
@@ -44,23 +40,9 @@ internal static class ObservationMasker {
     public static IReadOnlyList<int> MaskableMessages(IReadOnlyList<ChatMessage> messages) {
         ArgumentNullException.ThrowIfNull(messages);
 
-        bool[] kept = new bool[messages.Count];
-        int results = 0;
-        int calls = 0;
-        for (int index = messages.Count - 1; index >= 0; index--) {
-            ChatMessage message = messages[index];
-            if (message.Role == "tool") {
-                results++;
-                kept[index] = results <= KeptResults;
-            } else if (message.Role == "assistant" && message.ToolCallsJson is not null) {
-                calls++;
-                kept[index] = calls <= KeptCalls;
-            }
-        }
-
         List<int> indices = [];
         for (int index = 0; index < messages.Count; index++) {
-            if (!kept[index] && messages[index].Mask().Changed) {
+            if (messages[index].Mask().Changed) {
                 indices.Add(index);
             }
         }

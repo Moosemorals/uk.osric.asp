@@ -7,7 +7,9 @@ using System.Diagnostics;
 using System.Text.Json;
 using uk.osric.asp.Core.Assistant;
 using uk.osric.asp.Core.Text;
+using uk.osric.asp.Web.Assistant.Tools;
 using uk.osric.asp.Web.Authentication;
+using uk.osric.asp.Web.Configuration;
 using uk.osric.asp.Web.Logging;
 using uk.osric.asp.Web.Users;
 
@@ -17,15 +19,15 @@ internal sealed class RunProcessor(
     IChatCompletionClient client,
     PageToolExecutor tools,
     RunRegistry registry,
-    ToolApprovalCoordinator approvals,
-    RunContinuationCoordinator continuation,
+    OwnerInterruptCoordinator interrupts,
     AssistantMetrics metrics,
     AssistantOptions options,
+    ModelWindowSampler windows,
     IUserStore users,
     ViewTokenStore views,
     ILogger<RunProcessor> logger) {
 
-    private static readonly JsonSerializerOptions s_jsonOptions = new(JsonSerializerDefaults.Web);
+    private static readonly JsonSerializerOptions s_jsonOptions = new(JsonSerialization.Options);
 
     public async Task RunAsync(QueuedRun queued, CancellationToken hostStopping) {
         // The run's ids are the worker's scope: it is open before the processor is resolved and
@@ -38,7 +40,7 @@ internal sealed class RunProcessor(
         long runStart = Stopwatch.GetTimestamp();
         RunStream? stream = registry.Find(queued.RunId);
         if (stream is null) {
-            await StoreAsync(store => store.SetRunStatusAsync(queued.RunId, "interrupted", "missing_journal", "The run could not be resumed."));
+            await StoreAsync(store => store.SetRunStatusAsync(queued.RunId, RunStatus.Interrupted, "missing_journal", "The run could not be resumed."));
             return;
         }
 
@@ -69,27 +71,83 @@ internal sealed class RunProcessor(
         Task<int> PauseAsync(
             QueuedRun queued,
             RunStream stream,
+            int step,
             string budget,
             int used,
             int limit,
             int window,
             CancellationToken cancellationToken) => WhilePaused(async () => {
                 string message = RunBudget.Sentence(budget, limit, window);
-                await StoreAsync(store => store.PauseRunAsync(queued.RunId, budget, cancellationToken));
-                stream.Publish("run.paused", new { runId = queued.RunId, budget, used, limit, window, message });
-                logger.LogInformation("Assistant run {RunId} paused on its {Budget} budget after {Used} of {Limit}",
-                    queued.RunId, budget, used, limit);
-
-                await continuation.WaitAsync(queued.RunId, cancellationToken);
+                OwnerInterrupt? interrupt = await WaitAsync(
+                    queued, stream, step, OwnerInterruptKind.Continuation, toolCallId: null,
+                    new ContinuationRequest(budget, limit, window, message), cancellationToken);
+                if (interrupt is null) {
+                    // The run was not running when the ask was opened, which only happens when it has
+                    // already been stopped; the loop's own cancellation ends it.
+                    throw new InvalidOperationException("The run stopped before it could wait on its owner.");
+                }
 
                 int next = limit + window;
-                stream.Publish("run.resumed", new { runId = queued.RunId, budget, limit = next });
                 logger.LogInformation("Assistant run {RunId} continued with {Budget} limit {Limit}", queued.RunId, budget, next);
 
                 return next;
             });
 
         ChatStreamAccumulator? partial = null;
+
+        // One request, streamed into the accumulator the transcript and the page both read. It is a
+        // function rather than inline so a rejected request can be planned again and sent once more.
+        async Task<ChatResponse> StreamStepAsync(ChatRequest stepRequest, int stepNumber) {
+            ChatStreamAccumulator accumulator = new();
+            partial = accumulator;
+
+            long providerStart = Stopwatch.GetTimestamp();
+            bool firstTokenRecorded = false;
+            string providerOutcome = "ok";
+            try {
+                await foreach (ChatStreamEvent @event in client.StreamAsync(stepRequest, runTimeout.Token)) {
+                    // The run deadline is an inactivity limit, not a duration: an event the provider
+                    // actually streamed re-arms it. The SSE parser drops keep-alive comments, so a
+                    // heartbeat cannot keep a stalled run alive.
+                    runTimeout.CancelAfter(runInactivity);
+                    accumulator.Add(@event);
+                    if (!firstTokenRecorded && @event is ContentDelta or ReasoningDelta or ToolCallDelta) {
+                        metrics.RecordProviderFirstToken(stepRequest.Model, Stopwatch.GetElapsedTime(providerStart));
+                        firstTokenRecorded = true;
+                    }
+                    switch (@event) {
+                        case ContentDelta content:
+                            stream.Publish("content.delta", new { step = stepNumber, text = content.Text });
+                            break;
+                        case ReasoningDelta reasoning:
+                            stream.Publish("reasoning.delta", new { step = stepNumber, text = reasoning.Text });
+                            break;
+                    }
+                }
+            } catch (ProviderException exception) {
+                providerOutcome = exception.Code;
+                throw;
+            } catch (OperationCanceledException) {
+                providerOutcome = "cancelled";
+                throw;
+            } catch (HttpRequestException exception) {
+                providerOutcome = "provider_unreachable";
+                throw new ProviderException(providerOutcome, "The configured provider could not be reached.", exception);
+            } catch (IOException exception) {
+                providerOutcome = "provider_unreachable";
+                throw new ProviderException(providerOutcome, "The configured provider could not be reached.", exception);
+            } finally {
+                metrics.RecordProviderRequest(stepRequest.Model, providerOutcome, Stopwatch.GetElapsedTime(providerStart));
+            }
+
+            return accumulator.Complete();
+        }
+
+        // The estimate's error is remembered across steps: it is what the panel's Estimate row and the
+        // error gauge both read, and a reload rebuilds it from the run's stored figures.
+        long estimateError = 0;
+        int lastMaxTokens = 0;
+        bool cacheMissReported = false;
         int step = 1;
         string? activeToolCallId = null;
         string? activeToolName = null;
@@ -112,14 +170,30 @@ internal sealed class RunProcessor(
 
             stream.StopToken.ThrowIfCancellationRequested();
 
-            await StoreAsync(store => store.SetRunStatusAsync(queued.RunId, "running", cancellationToken: runTimeout.Token));
+            await StoreAsync(store => store.SetRunStatusAsync(queued.RunId, RunStatus.Running, cancellationToken: runTimeout.Token));
             stream.Publish("run.started", new { runId = queued.RunId, model = run.Model, promptVersion = run.PromptVersion });
             modelScope.Set("Model", run.Model);
             logger.LogInformation("Assistant run {RunId} in conversation {ConversationId} started with model {Model}",
                 queued.RunId, queued.ConversationId, run.Model);
 
+            // The window is the whole budget, and a guessed one is what the budget's decision refuses:
+            // a run without it says so rather than planning against a number nobody reported.
+            ModelWindowRead budgetRead = windows.Read;
+            if (windows.Budget is not { } budget) {
+                await FailAsync(queued, stream, "model_window_unknown",
+                    "The provider has not reported this model's context window, so the run cannot be planned.",
+                    null, 1, CancellationToken.None);
+                return;
+            }
+
+            // A reloaded page rebuilds the last step's error from the figures the run stored, so the row
+            // says the same thing before and after a refresh.
+            if (run.EstimatedTokens is { } storedEstimate && run.LastPromptTokens is { } storedPrompt) {
+                estimateError = storedEstimate - storedPrompt;
+            }
+            lastMaxTokens = run.MaxTokens ?? 0;
+
             int toolCallCount = 0;
-            int toolCallsRecorded = 0;
             RunUsage usageTotals = run.ToUsage();
             TokenCalibration? calibration = run.RequestBytes is { } calibratedBytes && run.LastPromptTokens is { } calibratedPrompt
                 ? new TokenCalibration(calibratedBytes, calibratedPrompt)
@@ -140,7 +214,7 @@ internal sealed class RunProcessor(
                     IReadOnlyList<Message> transcript = await StoreAsync(
                         store => store.GetMessagesAsync(queued.ConversationId, queued.Owner, runTimeout.Token));
                     if (step == 1) {
-                        memoryBlock = await RecallMemoryAsync(queued, stream, transcript, runTimeout.Token);
+                        memoryBlock = await RecallMemoryAsync(queued, stream, transcript, budget, runTimeout.Token);
                     }
                     string prompt = PageAuthorPrompt.Build();
                     string systemPrompt = memoryBlock.Length == 0 ? prompt : $"{prompt}\n\n{memoryBlock}";
@@ -151,13 +225,19 @@ internal sealed class RunProcessor(
                         messages,
                         PageToolExecutor.Definitions,
                         options.Temperature,
-                        options.MaxOutputTokens,
-                        options.ReasoningField,
-                        options.IncludeUsage);
-                    ContextPlan plan = ContextPlanner.Build(request, options.MaxContextTokens, TokenEstimator.For(calibration));
+                        budget.MinimumOutputTokens,
+                        options.ReasoningField);
+                    ContextPlan plan = ContextPlanner.Build(request, budget, TokenEstimator.For(calibration));
                     if (plan.Error is not null) {
+                        metrics.RecordBudgetExhausted(AssistantMetrics.ExhaustedContext);
                         await FailAsync(queued, stream, "context_too_long", plan.Error, partial, step, runTimeout.Token);
                         return;
+                    }
+                    if (plan.IsMasked) {
+                        metrics.RecordShaped(AssistantMetrics.ShapedMasked);
+                    }
+                    if (plan.IsTrimmed) {
+                        metrics.RecordShaped(AssistantMetrics.ShapedTrimmed);
                     }
                     if (plan.IsMasked && !maskedWarningSent) {
                         stream.Publish("run.warning", new {
@@ -175,68 +255,90 @@ internal sealed class RunProcessor(
                     }
                     if (plan.IsMasked || plan.IsTrimmed) {
                         logger.LogInformation(
-                            "Assistant step {Step} shaped the request: {MaskedResults} results and {MaskedArguments} arguments elided, {DroppedMessages} messages dropped, {OriginalTokens} estimated tokens became {EstimatedTokens} ({RequestBytes} bytes)",
+                            "Assistant step {Step} shaped the request: {MaskedResults} tool results and {MaskedArguments} arguments elided, {DroppedMessages} messages dropped, {OriginalTokens} estimated tokens became {EstimatedTokens} ({RequestBytes} bytes)",
                             step, plan.MaskedToolResults, plan.MaskedArguments, plan.DroppedMessages,
                             plan.OriginalTokens, plan.EstimatedTokens, plan.RequestBytes);
                     }
 
                     // The budget row counts the request the planner built, and the counters are what the
                     // loop has already spent, so the live figure is the one the page will reload.
-                    budgets = BudgetSnapshot.Measure(plan, messages, step, toolCallsRecorded, usageTotals.OutputTokens);
+                    budgets = BudgetSnapshot.Measure(
+                        plan, messages, step, toolCallCount, usageTotals.LastCompletionTokens, lastMaxTokens,
+                        budget, estimateError);
                     stream.Publish("message.started", new { step });
-                    PublishBudgets(stream, budgets, usageTotals, stepLimit, toolCallLimit);
-                    partial = new ChatStreamAccumulator();
+                    PublishBudgets(stream, budgets, usageTotals, budget, stepLimit, toolCallLimit);
 
-                    long providerStart = Stopwatch.GetTimestamp();
-                    bool firstTokenRecorded = false;
-                    string providerOutcome = "ok";
+                    ChatResponse response;
                     try {
-                        await foreach (ChatStreamEvent @event in client.StreamAsync(plan.Request, runTimeout.Token)) {
-                            // The run deadline is an inactivity limit, not a duration: an event the
-                            // provider actually streamed re-arms it. The SSE parser drops keep-alive
-                            // comments, so a heartbeat cannot keep a stalled run alive.
-                            runTimeout.CancelAfter(runInactivity);
-                            partial.Add(@event);
-                            if (!firstTokenRecorded && @event is ContentDelta or ReasoningDelta or ToolCallDelta) {
-                                metrics.RecordProviderFirstToken(run.Model, Stopwatch.GetElapsedTime(providerStart));
-                                firstTokenRecorded = true;
-                            }
-                            switch (@event) {
-                                case ContentDelta content:
-                                    stream.Publish("content.delta", new { step, text = content.Text });
-                                    break;
-                                case ReasoningDelta reasoning:
-                                    stream.Publish("reasoning.delta", new { step, text = reasoning.Text });
-                                    break;
-                            }
+                        response = await StreamStepAsync(plan.Request, step);
+                    } catch (ProviderException exception) when (exception.Code == ProviderException.ContextWindowMismatch) {
+                        // A rejection for length is the one signal that the cached window is stale, so the
+                        // list is read again. Nothing was generated and no tool ran, so a retry costs one
+                        // request; a window that has not moved means the model really cannot take it.
+                        ModelWindowRead refreshed;
+                        try {
+                            refreshed = await windows.RefreshAsync(runTimeout.Token);
+                        } catch (ConfigurationException configuration) {
+                            // The provider has just said the configured model does not exist, which is an
+                            // operator's problem rather than this run's: it is named the way a run with no
+                            // window is named, and the deploy hears the rest at its next restart.
+                            logger.LogError(configuration, "The model list no longer contains {Model}", run.Model);
+                            metrics.RecordBudgetExhausted(AssistantMetrics.ExhaustedProvider);
+                            await FailAsync(queued, stream, "model_window_unknown", configuration.Message,
+                                partial, step, runTimeout.Token);
+                            return;
                         }
-                    } catch (ProviderException exception) {
-                        providerOutcome = exception.Code;
-                        throw;
-                    } catch (OperationCanceledException) {
-                        providerOutcome = "cancelled";
-                        throw;
-                    } catch (HttpRequestException exception) {
-                        providerOutcome = "provider_unreachable";
-                        throw new ProviderException(providerOutcome, "The configured provider could not be reached.", exception);
-                    } catch (IOException exception) {
-                        providerOutcome = "provider_unreachable";
-                        throw new ProviderException(providerOutcome, "The configured provider could not be reached.", exception);
-                    } finally {
-                        metrics.RecordProviderRequest(run.Model, providerOutcome, Stopwatch.GetElapsedTime(providerStart));
+                        if (windows.Budget is not { } updated || refreshed.SameAs(budgetRead)) {
+                            metrics.RecordBudgetExhausted(AssistantMetrics.ExhaustedProvider);
+                            await FailAsync(queued, stream, exception.Code, exception.Message, partial, step, runTimeout.Token);
+                            return;
+                        }
+
+                        budget = updated;
+                        budgetRead = refreshed;
+                        plan = ContextPlanner.Build(request, budget, TokenEstimator.For(calibration));
+                        if (plan.Error is not null) {
+                            metrics.RecordBudgetExhausted(AssistantMetrics.ExhaustedContext);
+                            await FailAsync(queued, stream, "context_too_long", plan.Error, partial, step, runTimeout.Token);
+                            return;
+                        }
+                        logger.LogInformation(
+                            "The provider reports a new {ContextWindow} token window for {Model}, so step {Step} was planned again",
+                            budget.ContextWindow, run.Model, step);
+                        response = await StreamStepAsync(plan.Request, step);
                     }
 
-                    ChatResponse response = partial.Complete();
                     if (response.Usage is { } usage) {
                         metrics.RecordUsage(usage);
                         usageTotals = usageTotals.Add(usage);
                         if (usage.PromptTokens is > 0) {
                             calibration = new TokenCalibration(plan.RequestBytes, usage.PromptTokens.Value);
+                            estimateError = plan.EstimatedTokens - usage.PromptTokens.Value;
+                            metrics.RecordEstimateError(plan.EstimatedTokens, usage.PromptTokens.Value);
+                            logger.LogInformation(
+                                "Assistant step {Step}: estimated {Estimate} tokens, the provider counted {Actual} ({Delta} {Direction}); the request was {Shape}",
+                                step, plan.EstimatedTokens, usage.PromptTokens.Value, Math.Abs(estimateError),
+                                estimateError < 0 ? "under" : "over",
+                                plan.IsMasked || plan.IsTrimmed ? "shaped" : "untouched");
+                        }
+
+                        // The system prompt and the memory block are constants from the second step on,
+                        // so an untouched request the provider has already seen should report most of
+                        // its prompt as cached. No cache hit means something moved that should not have.
+                        if (!cacheMissReported
+                            && step > 1
+                            && !plan.IsMasked
+                            && !plan.IsTrimmed
+                            && (usage.CachedTokens ?? 0) == 0) {
+                            cacheMissReported = true;
+                            logger.LogWarning(
+                                "Assistant step {Step} sent an unchanged request and the provider reported no cached tokens; the prompt prefix is moving between steps",
+                                step);
                         }
                     }
                     await StoreAsync(store => store.RecordStepAsync(
-                        queued.RunId, response.ToolCalls.Count, plan.RequestBytes, response.Usage, runTimeout.Token));
-                    toolCallsRecorded += response.ToolCalls.Count;
+                        queued.RunId, plan.RequestBytes, plan.EstimatedTokens, plan.MaxTokens,
+                        response.Usage, runTimeout.Token));
                     if (response.FinishReason == "content_filter") {
                         await PersistAssistantAsync(queued, stream, step, response, "failed", includeToolCalls: false, CancellationToken.None);
                         await FailAsync(queued, stream, "content_filter", "The assistant refused to continue.", null, step, runTimeout.Token);
@@ -249,15 +351,29 @@ internal sealed class RunProcessor(
 
                     // The provider reports usage once per step, so this is the only point the output row
                     // can move, and the stored counters are what the reload after the run will show.
+                    lastMaxTokens = plan.MaxTokens;
                     budgets = budgets with {
                         Steps = step,
-                        ToolCalls = toolCallsRecorded,
-                        OutputTokens = usageTotals.OutputTokens,
+                        ToolCalls = toolCallCount,
+                        LastCompletionTokens = usageTotals.LastCompletionTokens,
+                        LastMaxTokens = lastMaxTokens,
+                        EstimateError = estimateError,
                     };
-                    PublishBudgets(stream, budgets, usageTotals, stepLimit, toolCallLimit);
+                    PublishBudgets(stream, budgets, usageTotals, budget, stepLimit, toolCallLimit);
 
                     if (response.FinishReason == "length") {
-                        stream.Publish("run.warning", new { code = "length", message = "The response reached the provider token limit." });
+                        metrics.RecordBudgetExhausted(AssistantMetrics.ExhaustedOutput);
+                        // A reply cut through a tool call's arguments is unparsable JSON, which would
+                        // surface as a refusal that reads like the model's mistake rather than the
+                        // allowance's. The cut is named instead, and the owner is told what to do.
+                        if (response.ToolCalls.Count > 0) {
+                            await FailAsync(queued, stream, "reply_truncated",
+                                "The reply reached the tokens this request left for it, cutting a tool call in half. "
+                                + "Ask for a smaller change, or start a new conversation.",
+                                null, step, runTimeout.Token);
+                            return;
+                        }
+                        stream.Publish("run.warning", new { code = "length", message = "The response reached the tokens this request left for it." });
                     }
 
                     if (response.ToolCalls.Count == 0) {
@@ -266,7 +382,8 @@ internal sealed class RunProcessor(
                         string status = response.FinishReason == "length" ? "truncated" : "complete";
                         await PersistAssistantAsync(queued, stream, step, response, status, includeToolCalls: false, runTimeout.Token);
                         partial = null;
-                        await CompleteAsync(queued, stream, step, budgets, usageTotals, run.Model, systemPrompt, calibration, stepLimit, toolCallLimit);
+                        await CompleteAsync(queued, stream, step, budgets, usageTotals, run.Model, systemPrompt,
+                            calibration, budget, estimateError, lastMaxTokens, stepLimit, toolCallLimit);
                         return;
                     }
 
@@ -283,12 +400,12 @@ internal sealed class RunProcessor(
                         // shows a tool working that the run was not allowed to make.
                         if (callsThisStep > perStepLimit) {
                             perStepLimit = await PauseAsync(
-                                queued, stream, RunBudget.ToolCallsPerStep, callsThisStep - 1, perStepLimit,
+                                queued, stream, step, RunBudget.ToolCallsPerStep, callsThisStep - 1, perStepLimit,
                                 options.MaxToolCallsPerStep, runTimeout.Token);
                         }
                         if (toolCallCount >= toolCallLimit) {
                             toolCallLimit = await PauseAsync(
-                                queued, stream, RunBudget.ToolCalls, toolCallCount, toolCallLimit,
+                                queued, stream, step, RunBudget.ToolCalls, toolCallCount, toolCallLimit,
                                 options.MaxToolCalls, runTimeout.Token);
                         }
 
@@ -304,12 +421,14 @@ internal sealed class RunProcessor(
                             summary = $"Using {call.DisplayName}",
                         });
 
-                        // The cost of a call is known before it runs, which matters because an approval
-                        // can wait a long time and a slow tool would otherwise hide it.
+                        // The row counts the calls the run has attempted, which is what the cap spends,
+                        // and it moves as the card appears rather than when the step is recorded. The cost
+                        // of the call is known before it runs, so it is published in the same snapshot.
+                        budgets = budgets with { ToolCalls = toolCallCount + 1 };
                         if (call.Arguments.Length > budgets.LongestArguments) {
                             budgets = budgets with { LongestArguments = call.Arguments.Length };
-                            PublishBudgets(stream, budgets, usageTotals, stepLimit, toolCallLimit);
                         }
+                        PublishBudgets(stream, budgets, usageTotals, budget, stepLimit, toolCallLimit);
 
                         long toolStart = Stopwatch.GetTimestamp();
                         // An approval the path policy has already refused is one the owner could only
@@ -328,6 +447,7 @@ internal sealed class RunProcessor(
                         }
 
                         toolCallCount++;
+                        await StoreAsync(store => store.RecordToolCallAsync(queued.RunId, runTimeout.Token));
                         metrics.RecordTool(definition, result.IsSuccess, Stopwatch.GetElapsedTime(toolStart));
                         await StoreAsync(store => store.AppendMessageAsync(
                             queued.ConversationId,
@@ -348,7 +468,7 @@ internal sealed class RunProcessor(
                         // The stored result is what the page measures, so a longer one moves the row now.
                         if (result.Content.Length > budgets.LongestResult) {
                             budgets = budgets with { LongestResult = result.Content.Length };
-                            PublishBudgets(stream, budgets, usageTotals, stepLimit, toolCallLimit);
+                            PublishBudgets(stream, budgets, usageTotals, budget, stepLimit, toolCallLimit);
                         }
                         activeToolCallId = null;
                         activeToolName = null;
@@ -358,8 +478,8 @@ internal sealed class RunProcessor(
                 // The steps are spent. Waiting for the owner is not the provider going quiet, so the
                 // run's silence clock stops while the question is on the page.
                 stepLimit = await PauseAsync(
-                    queued, stream, RunBudget.Steps, step - 1, stepLimit, options.MaxSteps, runTimeout.Token);
-                PublishBudgets(stream, budgets, usageTotals, stepLimit, toolCallLimit);
+                    queued, stream, step - 1, RunBudget.Steps, step - 1, stepLimit, options.MaxSteps, runTimeout.Token);
+                PublishBudgets(stream, budgets, usageTotals, budget, stepLimit, toolCallLimit);
             }
         } catch (ProviderException exception) {
             // The exception, not just its code: the inner exception is the socket, TLS or parse
@@ -367,24 +487,24 @@ internal sealed class RunProcessor(
             logger.LogWarning(exception, "Assistant provider request for run {RunId} failed with {ErrorCode}", queued.RunId, exception.Code);
             await FailAsync(queued, stream, exception.Code, exception.Message, partial, step, CancellationToken.None);
         } catch (OperationCanceledException) {
-            string status = hostStopping.IsCancellationRequested ? "interrupted"
-                : stream.StopToken.IsCancellationRequested ? "cancelled" : "failed";
+            string status = hostStopping.IsCancellationRequested ? RunStatus.Interrupted
+                : stream.StopToken.IsCancellationRequested ? RunStatus.Cancelled : RunStatus.Failed;
             string code = status switch {
-                "interrupted" => "restart",
-                "cancelled" => "stop",
+                RunStatus.Interrupted => "restart",
+                RunStatus.Cancelled => "stop",
                 _ => "run_timeout",
             };
             string message = status switch {
-                "interrupted" => "The host stopped before the run completed.",
-                "cancelled" => "The run was stopped.",
+                RunStatus.Interrupted => "The host stopped before the run completed.",
+                RunStatus.Cancelled => "The run was stopped.",
                 _ => "The run stopped responding for longer than its configured time limit.",
             };
 
             // A stop and a restart are the site working as told; a run that fell silent is the
             // provider, which we cannot fix and should still hear about.
-            if (status == "interrupted") {
+            if (status == RunStatus.Interrupted) {
                 logger.LogInformation("Assistant run {RunId} was interrupted by the host stopping", queued.RunId);
-            } else if (status == "cancelled") {
+            } else if (status == RunStatus.Cancelled) {
                 logger.LogInformation("Assistant run {RunId} was stopped by its owner", queued.RunId);
             } else {
                 logger.LogWarning("Assistant run {RunId} fell silent for more than {TimeoutSeconds} s and was given up on",
@@ -396,12 +516,12 @@ internal sealed class RunProcessor(
                 await StoreAsync(store => store.AppendMessageAsync(
                     queued.ConversationId,
                     queued.RunId,
-                    new MessageInput("tool", ToolFailure(message, MessageText.Sanitize(activeToolName ?? "tool")).Content,
+                    new MessageInput("tool", ToolResults.Refusal(message, MessageText.Sanitize(activeToolName ?? "tool")).Content,
                         ToolCallId: activeToolCallId, ToolName: activeToolName),
                     CancellationToken.None));
             }
-            await StoreAsync(store => store.FailPendingApprovalsAsync(queued.RunId, code, CancellationToken.None));
-            if (status == "cancelled") {
+            await StoreAsync(store => store.FailPendingInterruptAsync(queued.RunId, code, CancellationToken.None));
+            if (status == RunStatus.Cancelled) {
                 await StoreAsync(store => store.SetRunStatusAsync(queued.RunId, status, cancellationToken: CancellationToken.None));
                 stream.Publish("run.cancelled", new { runId = queued.RunId });
             } else {
@@ -438,6 +558,7 @@ internal sealed class RunProcessor(
         QueuedRun queued,
         RunStream stream,
         IReadOnlyList<Message> transcript,
+        ContextBudget budget,
         CancellationToken cancellationToken) {
         Message? newest = transcript.LastOrDefault(message => message.Role == "user");
         string terms = newest is null ? string.Empty : MemoryQuery.Terms(newest.Content, options.MaxMemoryQueryTerms);
@@ -452,8 +573,10 @@ internal sealed class RunProcessor(
             IReadOnlyList<MemoryCandidate> used = await memories.StickyAsync(queued.Owner, queued.ConversationId, cancellationToken);
             IReadOnlyList<MemoryCandidate> pinned = await memories.PinnedAsync(queued.Owner, cancellationToken);
 
-            MemorySelection selection = MemoryRecall.Select(
-                pinned, used, matched, options.MaxMemoriesPerRun, options.MaxMemoryCharsPerRun);
+            // Recall is bounded by the memory block's share of the budget rather than a count: relevance
+            // already ranks, and the budget is what decides how much of it the model may read.
+            int memoryChars = (int)Math.Min(budget.MemoryCharsPerRun, int.MaxValue);
+            MemorySelection selection = MemoryRecall.Select(pinned, used, matched, memoryChars);
             metrics.RecordMemoryRecall(selection.Memories.Count, selection.Characters);
             if (selection.IsEmpty) {
                 return string.Empty;
@@ -488,35 +611,58 @@ internal sealed class RunProcessor(
         ToolDefinition definition,
         ToolContext context,
         CancellationToken cancellationToken) {
-        using CancellationTokenSource waiterCancellation = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-        Task<ApprovalResolutionResult> wait = approvals.WaitAsync(queued.RunId, call.Id, waiterCancellation.Token);
-        bool created = await StoreAsync(store => store.CreateApprovalAsync(queued.RunId, call.Id, cancellationToken));
-        if (!created) {
-            await waiterCancellation.CancelAsync();
-            try {
-                await wait;
-            } catch (OperationCanceledException) {
-            }
-            return ToolFailure("This tool call already has an approval record.", $"{call.DisplayName}: approval conflict");
+        OwnerInterrupt? interrupt = await WaitAsync(
+            queued, stream, step, OwnerInterruptKind.Approval, call.Id,
+            new ApprovalRequest(call.Name, definition.Description, call.Arguments), cancellationToken);
+        if (interrupt is null) {
+            return ToolResults.Refusal("This tool call already has an interrupt record.", $"{call.DisplayName}: approval conflict");
         }
 
-        await StoreAsync(store => store.SetRunStatusAsync(queued.RunId, "awaiting_approval", cancellationToken: cancellationToken));
-        stream.Publish("approval.required", new {
-            step,
-            toolCallId = call.Id,
-            runId = queued.RunId,
-            name = call.Name,
-            description = definition.Description,
-            arguments = call.Arguments,
-        });
-
-        ApprovalResolutionResult decision = await wait;
-        await StoreAsync(store => store.SetRunStatusAsync(queued.RunId, "running", cancellationToken: cancellationToken));
-        stream.Publish("approval.resolved", new { step, toolCallId = call.Id, decision = decision == ApprovalResolutionResult.Approved ? "approved" : "denied" });
-
-        return decision == ApprovalResolutionResult.Approved
+        bool approved = InterruptPayloads.Resolution(interrupt.ResolutionJson)?.Decision == "approve";
+        return approved
             ? await ExecuteToolAsync(call, context, stream, cancellationToken)
-            : ToolFailure("The owner denied this tool call.", $"{call.DisplayName}: denied");
+            : ToolResults.Refusal("The owner denied this tool call.", $"{call.DisplayName}: denied");
+    }
+
+    /// <summary>Stops the run until its owner resolves the interrupt this opens.</summary>
+    /// <returns>The resolved interrupt, or null when the run could not be stopped for the ask.</returns>
+    private async Task<OwnerInterrupt?> WaitAsync(
+        QueuedRun queued,
+        RunStream stream,
+        int step,
+        string kind,
+        string? toolCallId,
+        object request,
+        CancellationToken cancellationToken) {
+        string requestJson = InterruptPayloads.Write(request);
+        bool opened = await StoreAsync(store => store.OpenInterruptAsync(queued.RunId, kind, toolCallId, requestJson, cancellationToken));
+        if (!opened) {
+            return null;
+        }
+
+        stream.Publish("interrupt.required", new {
+            step,
+            runId = queued.RunId,
+            kind,
+            toolCallId,
+            request,
+        });
+        logger.LogInformation("Assistant run {RunId} waits on its owner for a {Kind}", queued.RunId, kind);
+
+        await interrupts.WaitAsync(queued.RunId, cancellationToken);
+
+        OwnerInterrupt? interrupt = await StoreAsync(store => store.GetInterruptAsync(queued.RunId, cancellationToken));
+        JsonElement? resolution = interrupt?.ResolutionJson is { } json
+            ? JsonSerializer.Deserialize<JsonElement>(json)
+            : null;
+        stream.Publish("interrupt.resolved", new {
+            step,
+            runId = queued.RunId,
+            kind,
+            toolCallId,
+            resolution,
+        });
+        return interrupt;
     }
 
     private async Task<ToolExecutionResult> ExecuteToolAsync(
@@ -529,12 +675,12 @@ internal sealed class RunProcessor(
         try {
             return await tools.ExecuteAsync(call.Name, call.Arguments, context, timeout.Token);
         } catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested) {
-            return ToolFailure("The tool exceeded its configured time limit.", $"{call.DisplayName}: timeout");
+            return ToolResults.Refusal("The tool exceeded its configured time limit.", $"{call.DisplayName}: timeout");
         } catch (OperationCanceledException) {
             throw;
         } catch (Exception exception) {
             logger.LogWarning(exception, "Assistant tool {ToolName} in run {RunId} failed", call.Name, stream.RunId);
-            return ToolFailure("The tool could not complete this operation.", $"{call.DisplayName}: failed");
+            return ToolResults.Refusal("The tool could not complete this operation.", $"{call.DisplayName}: failed");
         }
     }
 
@@ -546,14 +692,14 @@ internal sealed class RunProcessor(
         string status,
         bool includeToolCalls,
         CancellationToken cancellationToken) {
-        long? sequence = await StoreAsync(store => store.AppendMessageAsync(
+        long? messageId = await StoreAsync(store => store.AppendMessageAsync(
             queued.ConversationId,
             queued.RunId,
             new MessageInput("assistant", response.Content, response.Reasoning,
                 includeToolCalls ? SerializeToolCalls(response.ToolCalls) : null, Status: status),
             cancellationToken));
-        if (sequence is { } messageSequence) {
-            stream.Publish("message.completed", new { step, messageId = messageSequence, status, finishReason = response.FinishReason });
+        if (messageId is { } stored) {
+            stream.Publish("message.completed", new { step, messageId = stored, status, finishReason = response.FinishReason });
         }
     }
 
@@ -564,13 +710,13 @@ internal sealed class RunProcessor(
         ChatResponse response,
         IReadOnlyList<PreparedToolCall> calls,
         CancellationToken cancellationToken) {
-        long? sequence = await StoreAsync(store => store.AppendMessageAsync(
+        long? messageId = await StoreAsync(store => store.AppendMessageAsync(
             queued.ConversationId,
             queued.RunId,
             new MessageInput("assistant", response.Content, response.Reasoning, SerializePreparedToolCalls(calls)),
             cancellationToken));
-        if (sequence is { } messageSequence) {
-            stream.Publish("message.completed", new { step, messageId = messageSequence, status = "complete", finishReason = response.FinishReason });
+        if (messageId is { } stored) {
+            stream.Publish("message.completed", new { step, messageId = stored, status = "complete", finishReason = response.FinishReason });
         }
     }
 
@@ -600,8 +746,8 @@ internal sealed class RunProcessor(
         int step,
         CancellationToken cancellationToken) {
         await PersistPartialAsync(queued, stream, step, partial, "failed", cancellationToken);
-        await StoreAsync(store => store.FailPendingApprovalsAsync(queued.RunId, code, cancellationToken));
-        await StoreAsync(store => store.SetRunStatusAsync(queued.RunId, "failed", code, message, cancellationToken));
+        await StoreAsync(store => store.FailPendingInterruptAsync(queued.RunId, code, cancellationToken));
+        await StoreAsync(store => store.SetRunStatusAsync(queued.RunId, RunStatus.Failed, code, message, cancellationToken));
         stream.Publish("run.failed", new { runId = queued.RunId, code, message });
     }
 
@@ -614,9 +760,12 @@ internal sealed class RunProcessor(
         string model,
         string systemPrompt,
         TokenCalibration? calibration,
+        ContextBudget budget,
+        long estimateError,
+        int lastMaxTokens,
         int stepLimit,
         int toolCallLimit) {
-        await StoreAsync(store => store.SetRunStatusAsync(queued.RunId, "completed"));
+        await StoreAsync(store => store.SetRunStatusAsync(queued.RunId, RunStatus.Completed));
         // The last live figure is the request the next step would send, built from the transcript as
         // stored. The reload builds the same plan the same way, so it cannot correct what a reader
         // just watched. `Publish` throws once the stream is complete, so nothing may follow
@@ -630,14 +779,15 @@ internal sealed class RunProcessor(
             messages,
             PageToolExecutor.Definitions,
             options.Temperature,
-            options.MaxOutputTokens,
-            options.ReasoningField,
-            options.IncludeUsage);
-        ContextPlan plan = ContextPlanner.Build(request, options.MaxContextTokens, TokenEstimator.For(calibration));
+            budget.MinimumOutputTokens,
+            options.ReasoningField);
+        ContextPlan plan = ContextPlanner.Build(request, budget, TokenEstimator.For(calibration));
         PublishBudgets(
             stream,
-            BudgetSnapshot.Measure(plan, messages, steps, budgets.ToolCalls, usage.OutputTokens),
+            BudgetSnapshot.Measure(
+                plan, messages, steps, budgets.ToolCalls, usage.LastCompletionTokens, lastMaxTokens, budget, estimateError),
             usage,
+            budget,
             stepLimit,
             toolCallLimit);
         stream.Publish("run.completed", new {
@@ -653,19 +803,30 @@ internal sealed class RunProcessor(
         RunStream stream,
         BudgetSnapshot budgets,
         RunUsage usage,
+        ContextBudget budget,
         int stepLimit,
         int toolCallLimit) => stream.Publish("budget.updated", new {
             budgets = new Dictionary<string, long>(StringComparer.Ordinal) {
                 ["context"] = budgets.ContextTokens,
+                ["reply"] = budgets.MaxTokens,
+                ["window"] = budgets.WindowUsed,
+                ["estimate"] = budgets.EstimateErrorMagnitude,
                 ["steps"] = budgets.Steps,
                 ["tool-calls"] = budgets.ToolCalls,
                 ["tool-arguments"] = budgets.LongestArguments,
                 ["tool-result"] = budgets.LongestResult,
-                ["output"] = budgets.OutputTokens,
+                ["output"] = budgets.LastCompletionTokens,
             },
             limits = new Dictionary<string, long>(StringComparer.Ordinal) {
+                ["context"] = budget.PromptBudget,
+                ["window"] = budgets.Window,
+                ["estimate"] = budget.EstimateMargin,
+                ["output"] = budgets.LastMaxTokens,
                 ["steps"] = stepLimit,
                 ["tool-calls"] = toolCallLimit,
+            },
+            estimate = new {
+                direction = budgets.EstimateDirection,
             },
             usage = new {
                 prompt = usage.PromptTokens,
@@ -696,11 +857,6 @@ internal sealed class RunProcessor(
             type = "function",
             function = new { name = call.Name, arguments = call.Arguments },
         }), s_jsonOptions);
-
-    private static ToolExecutionResult ToolFailure(string error, string summary) => new(
-        false,
-        JsonSerializer.Serialize(new { ok = false, data = (object?)null, error }, s_jsonOptions),
-        summary);
 
     private sealed record PreparedToolCall(string Id, string Name, string Arguments) {
 

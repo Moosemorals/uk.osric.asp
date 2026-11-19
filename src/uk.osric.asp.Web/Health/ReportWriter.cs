@@ -5,11 +5,12 @@ namespace uk.osric.asp.Web.Health;
 
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using System.Text.Json;
+using uk.osric.asp.Core.Text;
 
 /// <summary>Renders a health report as the JSON body of the <c>/health</c> response.</summary>
 internal static class ReportWriter {
 
-    private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web) {
+    private static readonly JsonSerializerOptions JsonOptions = new(JsonSerialization.Options) {
         WriteIndented = true,
     };
 

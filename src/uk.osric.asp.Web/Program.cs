@@ -15,6 +15,7 @@ using OpenTelemetry.Metrics;
 using System.Net;
 using System.Text.Json;
 using uk.osric.asp.Core.Pages;
+using uk.osric.asp.Core.Text;
 using uk.osric.asp.Runtime;
 using uk.osric.asp.Web.Admin;
 using uk.osric.asp.Web.Assistant;
@@ -67,7 +68,10 @@ internal class Program {
             options.IncludeScopes = true;
             options.UseUtcTimestamp = true;
             options.TimestampFormat = "yyyy-MM-dd'T'HH:mm:ss.fff'Z'";
-            options.JsonWriterOptions = new JsonWriterOptions { Indented = false };
+            options.JsonWriterOptions = new JsonWriterOptions {
+                Indented = false,
+                Encoder = JsonSerialization.Encoder,
+            };
         });
 
         if (isSeedsCommand) {
@@ -105,7 +109,7 @@ internal class Program {
         PageContentTypes contentTypes = PageContentTypesConfiguration.FromConfiguration(settings.At("Pages:ContentTypes"));
         PageEditorOptions editor = PageEditorOptions.FromConfiguration(settings.At("Pages:Editor"));
         PageFetchOptions fetch = PageFetchOptions.FromConfiguration(settings.At("Pages:Fetch"));
-        PageLayoutConfiguration layout = PageLayoutConfiguration.FromConfiguration(settings.At("Pages:Layout"));
+        PageLayoutOptions layout = PageLayoutOptions.FromConfiguration(settings.At("Pages:Layout"));
         PageReadOptions read = PageReadOptions.FromConfiguration(settings.At("Pages:Read"));
         PageJobOptions jobOptions = PageJobOptions.FromConfiguration(settings.At("Pages:Jobs"));
         PageSessionOptions session = PageSessionOptions.FromConfiguration(settings.At("Pages:Session"));
@@ -181,6 +185,10 @@ internal class Program {
         builder.Services.AddHttpClient<IChatCompletionClient, OpenAiChatCompletionClient>(client => {
             client.Timeout = Timeout.InfiniteTimeSpan;
         }).ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler { AllowAutoRedirect = false });
+        builder.Services.AddHttpClient<IProviderModelsClient, ProviderModelsClient>(client => {
+            client.Timeout = Timeout.InfiniteTimeSpan;
+        }).ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler { AllowAutoRedirect = false })
+            .RemoveAllLoggers();
         builder.Services.AddHttpClient<IAccountBalanceClient, AccountBalanceClient>(client => {
             client.Timeout = Timeout.InfiniteTimeSpan;
         }).ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler { AllowAutoRedirect = false })
@@ -214,7 +222,7 @@ internal class Program {
         builder.Services.AddSingleton(services => new PageEnvironment(
               services.GetRequiredService<ReservedPaths>(),
               services.GetRequiredService<PageEditorOptions>(),
-              services.GetRequiredService<PageLayoutConfiguration>(),
+              services.GetRequiredService<PageLayoutOptions>(),
               services.GetRequiredService<RenderOptions>(),
               services.GetRequiredService<PageContentTypes>(),
               services.GetRequiredService<PageStorageOptions>(),
@@ -236,6 +244,8 @@ internal class Program {
         builder.Services.AddSingleton(services => new PageHealth(services.GetRequiredService<RenderOptions>().AbandonedLimit));
 
         builder.Services.AddSingleton<AssistantMetrics>();
+        builder.Services.AddSingleton<ModelWindowSource>();
+        builder.Services.AddSingleton<ModelWindowSampler>();
         builder.Services.AddSingleton<ChartRenderer>();
         builder.Services.AddSingleton<Dashboard>();
         builder.Services.AddSingleton<DiffRenderer>();
@@ -286,10 +296,9 @@ internal class Program {
         builder.Services.AddSingleton(services => new ReferenceLibrary(
             AppContext.BaseDirectory,
             services.GetRequiredService<ILogger<ReferenceLibrary>>()));
-        builder.Services.AddSingleton<RunContinuationCoordinator>();
         builder.Services.AddSingleton<RunQueue>();
         builder.Services.AddSingleton<RunRegistry>();
-        builder.Services.AddSingleton<ToolApprovalCoordinator>();
+        builder.Services.AddSingleton<OwnerInterruptCoordinator>();
         builder.Services.AddSingleton<ViewTokenStore>();
 
         builder.Services.AddScoped<IConversationStore, SqliteConversationStore>();
@@ -331,6 +340,7 @@ internal class Program {
             .AddMeter("System.Runtime")
             .AddMeter(AssistantMetrics.MeterName)
             .AddMeter(PageMetrics.MeterName)
+            .AddView("assistant.context.estimate.error", new ExplicitBucketHistogramConfiguration { Boundaries = AssistantMetrics.EstimateErrorBuckets })
             .AddView("assistant.memory.chars", new ExplicitBucketHistogramConfiguration { Boundaries = AssistantMetrics.MemoryCharBuckets })
             .AddView("assistant.memory.recalled", new ExplicitBucketHistogramConfiguration { Boundaries = AssistantMetrics.MemoryCountBuckets })
             .AddView("assistant.provider.first_token.duration", new ExplicitBucketHistogramConfiguration { Boundaries = AssistantMetrics.ProviderBuckets })
@@ -391,6 +401,13 @@ internal class Program {
         // a runtime that cannot supply one must fail the deploy, not the first page that gets saved.
         _ = app.Services.GetRequiredService<IPageCompiler>();
 
+        // The model's window is where the assistant's whole budget comes from, and it is read before
+        // anything can run. A provider that does not answer leaves the budget unset and every page
+        // still serves; a provider that answers without the configured model stops the deploy, because
+        // that answer is authoritative and the owner should hear it now rather than from a failed run.
+        await app.Services.GetRequiredService<ModelWindowSampler>()
+            .RefreshAsync(app.Lifetime.ApplicationStopping);
+
         // The map is read and validated above with the rest of configuration; the journal line that
         // says what pages will serve is written now that the logger exists.
         PageContentTypesConfiguration.Log(
@@ -399,6 +416,10 @@ internal class Program {
         // Before anything that reads the scheme. Without it every request arrives as plain HTTP from
         // the proxy, so HSTS emits nothing and IsHttps is always false.
         app.UseForwardedHeaders();
+
+        // The probe and the scrape are the machine asking whether the site is up, not a visit;
+        // leaving them in the request duration histogram makes the panels a reading of the poller.
+        app.Use(MachineTrafficMetrics.SkipAsync);
 
         // Ahead of the exception handler, so the handler's own report of an unhandled exception - and
         // the error page it renders - are written inside the request's scope.
@@ -470,9 +491,9 @@ internal class Program {
         app.UseAuthorization();
         app.UseAntiforgery();
 
-        app.MapGet("/status", StatusEndpoint.HandleAsync)
+        app.MapGet("/admin/status", StatusEndpoint.HandleAsync)
             .RequireAuthorization(EditorPolicy.Name);
-        app.MapGet("/status/chart", ChartEndpoint.HandleAsync)
+        app.MapGet("/admin/status/chart", ChartEndpoint.HandleAsync)
             .RequireAuthorization(EditorPolicy.Name);
 
         app.MapGet("/admin", AdminIndexEndpoint.HandleAsync);
@@ -530,7 +551,7 @@ internal class Program {
         app.MapPost("/logout", LoginEndpoint.LogoutAsync)
             .WithMetadata(new RequireAntiforgeryTokenAttribute(true));
 
-        app.MapHealthChecks("/health", new HealthCheckOptions {
+        app.MapHealthChecks(MachineTrafficMetrics.HealthPath, new HealthCheckOptions {
             ResponseWriter = ReportWriter.WriteAsync,
         });
 
@@ -539,7 +560,7 @@ internal class Program {
         app.MapPost("/assistant", AssistantEndpoint.ListAsync)
             .RequireAuthorization(EditorPolicy.Name)
             .WithMetadata(new RequireAntiforgeryTokenAttribute(true));
-        app.MapGet("/assistant/{id:long}", AssistantEndpoint.ConversationAsync)
+        app.MapGet("/assistant/{id:long}", AssistantConversationPage.ConversationAsync)
             .RequireAuthorization(EditorPolicy.Name);
         app.MapPost("/assistant/{id:long}/messages", AssistantEndpoint.MessagesAsync)
             .RequireAuthorization(EditorPolicy.Name)
@@ -551,10 +572,7 @@ internal class Program {
         app.MapPost("/assistant/{id:long}/stop", AssistantEndpoint.StopAsync)
             .RequireAuthorization(EditorPolicy.Name)
             .WithMetadata(new RequireAntiforgeryTokenAttribute(true));
-        app.MapPost("/assistant/{id:long}/runs/{runId}/tool-calls/{toolCallId}/approval", AssistantEndpoint.ApprovalAsync)
-            .RequireAuthorization(EditorPolicy.Name)
-            .WithMetadata(new RequireAntiforgeryTokenAttribute(true));
-        app.MapPost("/assistant/{id:long}/runs/{runId}/continue", AssistantEndpoint.ContinueAsync)
+        app.MapPost("/assistant/{id:long}/runs/{runId}/interrupt", AssistantEndpoint.InterruptAsync)
             .RequireAuthorization(EditorPolicy.Name)
             .WithMetadata(new RequireAntiforgeryTokenAttribute(true));
         app.MapPost("/assistant/{id:long}/options", AssistantEndpoint.OptionsAsync)
@@ -579,7 +597,7 @@ internal class Program {
             .WithMetadata(new RequireAntiforgeryTokenAttribute(true));
         // The scrape target is Prometheus inside the podman network; /metrics is reserved so a page
         // cannot claim the key, and Caddy answers 404 for it on the public origin.
-        app.MapPrometheusScrapingEndpoint("/metrics");
+        app.MapPrometheusScrapingEndpoint(MachineTrafficMetrics.ScrapePath);
         // Pages run for GET, POST and HEAD only; anything else is answered 405 by routing rather than
         // by page code that never expected it.
         app.MapMethods("{**path}", ["GET", "POST", "HEAD"], PageEndpoint.HandleAsync);

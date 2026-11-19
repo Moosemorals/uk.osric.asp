@@ -131,8 +131,25 @@ public sealed class DashboardTests {
         Assert.That(page.Panels, Has.Count.EqualTo(StatusCatalogue.Panels.Count));
         Assert.That(page.Panels.Select(panel => panel.Svg), Is.All.Contain("<svg"));
         Assert.That(page.Panels[0].Svg, Does.Contain(
-            "class=\"chart-title-link\" href=\"/status/chart?panel=page.render.duration&amp;start=2026-11-02T06%3A00%3A00Z&amp;duration=60\""),
+            "class=\"chart-title-link\" href=\"/admin/status/chart?panel=page.render.duration&amp;start=2026-11-02T06%3A00%3A00Z&amp;duration=60\""),
             "the drawing's title links to the same chart on its own");
+    }
+
+    [Test]
+    public async Task EveryRateAveragesOverTheDrawnStep() {
+        List<string> queries = [];
+        Dashboard dashboard = New(
+            new FakeMetricsSource(query => {
+                queries.Add(query);
+                return Answer();
+            }),
+            new TestClock { Now = Now });
+
+        await dashboard.GetAsync(ChartWindow.At(Now, TimeSpan.FromDays(1)), CancellationToken.None);
+
+        Assert.That(queries, Has.Some.Contain("[30m]"), "a day is drawn every half hour, so a rate covers half an hour");
+        Assert.That(queries.Where(query => query.Contains("rate(", StringComparison.Ordinal)),
+            Is.All.Not.Contain(PanelQuery.Range), "every placeholder is replaced before the query is sent");
     }
 
     [Test]

@@ -124,7 +124,7 @@ public sealed class PageToolExecutorViewTests {
         FakeAssistantFetcher fetcher = new() {
             ViewResponse = _ => Response(body: big),
         };
-        PageToolExecutor tools = CreateTools(fetcher, WithToken(), maxToolResultChars: 4000);
+        PageToolExecutor tools = CreateTools(fetcher, WithToken(), budget: TestOptions.BudgetOfResultChars(2000));
 
         ToolExecutionResult result = await tools.ExecuteAsync(
             "view", "{\"path\":\"/big\"}", Context, CancellationToken.None);
@@ -211,7 +211,7 @@ public sealed class PageToolExecutorViewTests {
     private static PageToolExecutor CreateTools(
         FakeAssistantFetcher fetcher,
         ViewTokenStore store,
-        int maxToolResultChars = 4096) {
+        ContextBudget? budget = null) {
         ServiceProvider services = new ServiceCollection()
             .AddSingleton(TestOptions.Editor)
             .AddSingleton(store)
@@ -221,7 +221,8 @@ public sealed class PageToolExecutorViewTests {
         return new PageToolExecutor(
             services.GetRequiredService<IServiceScopeFactory>(),
             new PagePathPolicy(new ReservedPaths(ReservedPaths.Default), TestOptions.Assistant),
-            TestOptions.Assistant with { MaxToolArgumentChars = 4096, MaxToolResultChars = maxToolResultChars, MaxPageChars = 4096 },
+            TestOptions.Assistant with { MaxToolArgumentChars = 4096, MaxPageChars = 4096 },
+            ModelWindowSource.Fixed(budget ?? TestOptions.Budget),
             new AssistantMetrics(),
             fetcher);
     }

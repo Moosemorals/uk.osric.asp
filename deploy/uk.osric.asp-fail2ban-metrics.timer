@@ -1,0 +1,15 @@
+# SPDX-FileCopyrightText: Copyright 2026 Osric Wilkinson <osric@fluffypeople.com>
+# SPDX-License-Identifier: MIT
+
+[Unit]
+Description=Refresh fail2ban's numbers for Prometheus
+
+[Timer]
+# Thirty seconds is half a scrape interval: Prometheus reads the file every fifteen seconds, so a
+# ban shows up on the next scrape at worst one interval stale.
+OnBootSec=30s
+OnUnitActiveSec=30s
+AccuracySec=1s
+
+[Install]
+WantedBy=timers.target

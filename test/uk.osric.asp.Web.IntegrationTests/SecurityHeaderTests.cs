@@ -37,7 +37,7 @@ public sealed class SecurityHeaderTests : IntegrationTest {
     public async Task TheStatusPageAndANotFoundForbidScripts() {
         using HttpClient client = await CreateSignedInClientAsync();
 
-        HttpResponseMessage status = await client.GetAsync("/status");
+        HttpResponseMessage status = await client.GetAsync("/admin/status");
         Assert.That(status.StatusCode, Is.EqualTo(HttpStatusCode.OK));
         AssertEveryHeader(status);
         Assert.That(Policy(status), Is.EqualTo(SecurityHeaders.Default));

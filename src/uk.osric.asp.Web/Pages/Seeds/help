@@ -40,8 +40,10 @@ confirms a delete, <code>?edit=&lt;path&gt;&amp;cmd=install</code> confirms a se
     A page that does not compile is still stored, so you do not lose your work.</li>
     <li><strong>Save and view</strong> saves, then opens the page. If it does not compile, you stay
     in the editor with the diagnostics instead.</li>
-    <li><strong>Diagnostics</strong> name the line and column in your template. A diagnostic that
-    has a position is a link to the matching number in the line gutter.</li>
+    <li><strong>Diagnostics</strong> name the line and the columns in your template: one about a
+    token covers it, from its first column to just past its last. A diagnostic that has a position is
+    a link to the matching number in the line gutter. One from a library names the library's key
+    instead, because the gutter holds this page and not that one.</li>
     <li><strong>State</strong> is what the page's stored image amounts to: <em>Compiled</em>,
     <em>Compiled with warnings</em>, <em>Compile failed</em>, <em>Not compiled</em>, or <em>Stale</em>
     when the image was built by an earlier deploy. A page compiled elsewhere says <em>Stale</em>
@@ -125,8 +127,8 @@ namespace Site.Document {
 &lt;% Document.Head(ctx); %&gt;</code></pre>
 <p>A page is compiled with every library its <code>using</code> directives reach, and with the
 libraries those reach in turn, so one library may build on another. Editing a library recompiles the
-pages that name it, and nothing else. A diagnostic from library code names the library and the line in
-it, rather than pointing at your page.</p>
+pages that name it, and nothing else. A diagnostic from library code names the library and the line
+and columns in it, rather than pointing at your page.</p>
 <p>A library's <code>static</code> fields are one copy for each page that names it, not one copy for
 the site: do not use them to share a value between pages. A library that does not compile stops the
 pages that name it from compiling until it is fixed &mdash; and the editor page names the document
@@ -189,13 +191,21 @@ can hide chrome but cannot prevent a side effect.</p>
 the page in the middle:</p>
 <pre class="source" tabindex="0"><code>&lt;%! using Site.Document; %&gt;
 &lt;% var layout = ctx.Capabilities.GetRequired&lt;IPageLayout&gt;();
-   bool At(string href) =&gt; ctx.Request.Path == href;
-   var links = new System.Collections.Generic.List&lt;NavLink&gt; { new("/", "Home", At("/")) };
+   IPageCatalog catalog = ctx.Capabilities.GetRequired&lt;IPageCatalog&gt;();
+   var links = new System.Collections.Generic.List&lt;NavLink&gt;();
+   foreach (ShellLink link in catalog.ShellLinks()) {
+       if (link.Section != ShellSection.Site) { continue; }
+       if (link.Audience == ShellAudience.Owner &amp;&amp; ctx.User is null) { continue; }
+       links.Add(new NavLink(link.Href, link.Text));
+   }
    Document.Head(ctx, layout, "Site", ctx.AssetUrl);
    Document.Banner(ctx, "Site", links, "site-nav");
    Document.OpenMain(ctx); %&gt;
 &lt;%== layout.Content?.Body ?? "" %&gt;
 &lt;% Document.CloseMain(ctx); Document.End(ctx); %&gt;</code></pre>
+<p>The menu is the shell's own list (<a href="#catalog">the catalog's <code>ShellLinks()</code></a>),
+filtered for this visitor and section; the footer is the layout's own markup. The shell knows its
+routes, and the layout decides what a stored page carries.</p>
 <p>The last argument to <code>Head</code> is the link resolver: <code>ctx.AssetUrl</code> is what lets
 the base sheet and the icon carry a revision hash. The library is an ordinary stored page, so you can
 edit the document itself from the page list, and <code>/admin/restore</code> puts it back.</p>
@@ -567,6 +577,25 @@ key and hash. It never meets an image, a symbol or a write; saving is
     &lt;li&gt;&lt;%= entry.Key %&gt; — &lt;%= entry.IsDeleted ? "deleted" : "live" %&gt;&lt;/li&gt;
 &lt;% } %&gt;
 &lt;/ul&gt;</code></pre>
+<p><a href="/admin/reference/sdk#m-IPageCatalog.ShellLinks"><code>ShellLinks()</code></a> is the
+other read: the links the shell knows, both its site menu and its administration menu, as values.
+Each link carries its href, its label, the section it belongs to, who it is for, and how the shell
+marks it current. The host returns the list; you decide what to render, in what order and how to mark
+it:</p>
+<pre class="source" tabindex="0"><code>&lt;% IPageCatalog catalog = ctx.Capabilities.GetRequired&lt;IPageCatalog&gt;();
+   foreach (ShellLink link in catalog.ShellLinks()) {
+       if (link.Section != ShellSection.Site) { continue; }
+       if (link.Audience == ShellAudience.Owner &amp;&amp; ctx.User is null) { continue; }
+       %&gt;&lt;a href="&lt;%= link.Href %&gt;"&gt;&lt;%= link.Text %&gt;&lt;/a&gt;&lt;%
+   } %&gt;</code></pre>
+<p>The list is the same for every visitor, and the audience is how you filter it with your own
+<code>ctx.User</code>, so your menu agrees with the guard on the page it links to. There is no
+<code>IsCurrent</code> and no rendered string: the answer is values, and the menu is yours. A worker
+has no request and no visitor, so its catalog has no links.</p>
+<p>A shell page is marked: its <code>body</code> carries <code>class="shell"</code> and its banner
+says <strong>Site tools</strong>. It answers when the page store is broken, so its menu is the site's
+routes rather than your pages; a page that wants a page-store menu reads <code>ListAsync</code> as
+well and writes both itself. The seeded <code>/_layout</code> is the working example.</p>
 <p>A prefix is a subtree, not a string prefix: <code>"/blog"</code> lists <code>/blog</code> and
 <code>/blog/post</code>, never <code>/blogroll</code>. The listing returns every head the store
 holds — live pages, tombstones, seeded assets and reserved keys — each marked with
@@ -606,8 +635,9 @@ signed-in visitor's rather than the page's. There are two saves.</p>
 <p>It answers a <a href="/admin/reference/sdk#t-PageSaveResult"><code>PageSaveResult</code></a>: the new
 revision's hash, and the compiler's diagnostics as
 <a href="/admin/reference/sdk#t-PageDiagnostic"><code>PageDiagnostic</code></a> values — severity, the
-template line and column when there is one, the code (<code>PAGE001</code>, <code>CS1002</code>) and its
-text.</p>
+key of the library a diagnostic is in (<code>null</code> when it is in this page), the template line
+and column it starts at, the line and column just past where it ends when it covers a token, the code
+(<code>PAGE001</code>, <code>CS1002</code>) and its text.</p>
 <p><code>SaveAsync(key, template, expectedHash)</code> stores <em>any</em> key the site's own routes do
 not answer, and only while that page still has the head hash the form was drawn from. It answers a
 <a href="/admin/reference/sdk#t-PageEditResult"><code>PageEditResult</code></a>: <code>Outcome</code> is

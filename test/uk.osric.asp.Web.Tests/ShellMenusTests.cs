@@ -3,6 +3,7 @@
 
 namespace uk.osric.asp.Web.Tests;
 
+using Microsoft.AspNetCore.WebUtilities;
 using uk.osric.asp.Core.Pages;
 using uk.osric.asp.Sdk;
 using uk.osric.asp.Web.Html;
@@ -72,6 +73,27 @@ public sealed class ShellMenusTests {
             Assert.That(ShellCatalogue.IsFor(Link("Help", ShellAudience.Everyone), authenticated: false), Is.True);
             Assert.That(ShellCatalogue.IsFor(Link("Help", ShellAudience.Everyone), authenticated: true), Is.True);
         });
+    }
+
+    // The sign-in link is the one href that is not an entry's key: it carries the way back, with
+    // every value a repeated query sent rather than only the first.
+    [Test]
+    public void TheSignInLinkCarriesEveryQueryValueItWasGiven() {
+        ShellLink signIn = ShellCatalogue.Links("/search", "?q=a&q=b", EditorPath)
+            .Single(link => link.Text == "Sign in");
+
+        string returnUrl = QueryHelpers
+            .ParseQuery(new Uri("https://site.example" + signIn.Href).Query)["returnUrl"].ToString();
+
+        Assert.That(returnUrl, Is.EqualTo("/search?q=a&q=b"));
+    }
+
+    [Test]
+    public void TheListIsStableForTheSameRequest() {
+        IReadOnlyList<ShellLink> first = ShellCatalogue.Links("/blog", "?page=2", EditorPath);
+        IReadOnlyList<ShellLink> second = ShellCatalogue.Links("/blog", "?page=2", EditorPath);
+
+        Assert.That(first, Is.EqualTo(second));
     }
 
     [Test]

@@ -1,7 +1,7 @@
 # SPDX-FileCopyrightText: Copyright 2026 Osric Wilkinson <osric@fluffypeople.com>
 # SPDX-License-Identifier: MIT
 
-# One target, scraped over the shared rootless network. The name comes from the app quadlet's
+# Two targets, both scraped over the shared rootless network. The names come from the quadlets'
 # NetworkAlias=, not from the host, and Caddy answers 404 for /metrics on the public origin.
 global:
   scrape_interval: 15s
@@ -11,3 +11,8 @@ scrape_configs:
     metrics_path: /metrics
     static_configs:
       - targets: ["app:8080"]
+  # The host's own numbers: a root timer writes fail2ban's counters to a file, and node_exporter
+  # serves the directory. The app reads them back through this Prometheus, never from fail2ban.
+  - job_name: host
+    static_configs:
+      - targets: ["node-exporter:9100"]

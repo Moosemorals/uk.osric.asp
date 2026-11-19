@@ -100,7 +100,7 @@ public sealed class PageToolExecutorFetchTests {
     }
 
     [Test]
-    public async Task FetchTruncatesALongBodyToHalfTheResultBudgetAsync() {
+    public async Task FetchTruncatesALongBodyToTheResultBudgetAsync() {
         string body = new('x', 10_000);
         FakeAssistantFetcher fetcher = new(_ => new HttpFetchResponse(
             200,
@@ -108,11 +108,9 @@ public sealed class PageToolExecutorFetchTests {
             body,
             HttpFetchFailure.None,
             false));
-        PageToolExecutor tools = CreateTools(fetcher, TestOptions.Assistant with {
-            MaxToolArgumentChars = 4096,
-            MaxToolResultChars = 4096,
-            MaxPageChars = 4096,
-        });
+        PageToolExecutor tools = CreateTools(fetcher,
+            TestOptions.Assistant with { MaxToolArgumentChars = 4096, MaxPageChars = 4096 },
+            TestOptions.BudgetOfResultChars(2048));
 
         ToolExecutionResult result = await tools.ExecuteAsync(
             "fetch", "{\"url\":\"https://example.com/\"}", Context, CancellationToken.None);
@@ -173,7 +171,10 @@ public sealed class PageToolExecutorFetchTests {
         return document.RootElement.GetProperty("data").Clone();
     }
 
-    private static PageToolExecutor CreateTools(FakeAssistantFetcher fetcher, AssistantOptions? options = null) {
+    private static PageToolExecutor CreateTools(
+        FakeAssistantFetcher fetcher,
+        AssistantOptions? options = null,
+        ContextBudget? budget = null) {
         ServiceProvider services = new ServiceCollection()
             .AddSingleton(TestOptions.Editor)
             .BuildServiceProvider();
@@ -181,7 +182,8 @@ public sealed class PageToolExecutorFetchTests {
         return new PageToolExecutor(
             services.GetRequiredService<IServiceScopeFactory>(),
             new PagePathPolicy(new ReservedPaths(ReservedPaths.Default), TestOptions.Assistant),
-            options ?? TestOptions.Assistant with { MaxToolArgumentChars = 4096, MaxToolResultChars = 4096, MaxPageChars = 4096 },
+            options ?? TestOptions.Assistant with { MaxToolArgumentChars = 4096, MaxPageChars = 4096 },
+            ModelWindowSource.Fixed(budget ?? TestOptions.Budget),
             new AssistantMetrics(),
             fetcher);
     }

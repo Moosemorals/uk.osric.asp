@@ -4,6 +4,7 @@
 namespace uk.osric.asp.Web.Assistant.Tools;
 
 using Microsoft.Extensions.DependencyInjection;
+using uk.osric.asp.Core.Assistant;
 using uk.osric.asp.Web.Authentication;
 using uk.osric.asp.Web.Documentation;
 using uk.osric.asp.Web.Editor;
@@ -19,6 +20,7 @@ using uk.osric.asp.Web.Pages;
 /// <param name="context">The owner, conversation and run the call belongs to.</param>
 /// <param name="paths">The path policy.</param>
 /// <param name="options">The assistant's configured limits.</param>
+/// <param name="budget">The content budget a tool's answer is measured against.</param>
 /// <param name="metrics">Where the run's counters go.</param>
 /// <param name="fetcher">The HTTP fetch behind <c>fetch</c>.</param>
 internal sealed class ToolServices(
@@ -26,6 +28,7 @@ internal sealed class ToolServices(
     ToolContext context,
     PagePathPolicy paths,
     AssistantOptions options,
+    ContextBudget budget,
     AssistantMetrics metrics,
     IAssistantFetcher fetcher) {
 
@@ -37,6 +40,9 @@ internal sealed class ToolServices(
 
     /// <summary>The assistant's configured limits.</summary>
     public AssistantOptions Options { get; } = options;
+
+    /// <summary>The model's window and the reply's floor, which every content cap is a fraction of.</summary>
+    public ContextBudget Budget { get; } = budget;
 
     /// <summary>Where the run's counters go.</summary>
     public AssistantMetrics Metrics { get; } = metrics;
@@ -63,7 +69,7 @@ internal sealed class ToolServices(
     public SiteOptions Site => scope.GetRequiredService<SiteOptions>();
 
     /// <summary>Shapes and bounds what a tool answers with.</summary>
-    public ToolResults Results { get; } = new(options);
+    public ToolResults Results { get; } = new(budget);
 
     /// <summary>The documentation this build carries, read only when a tool asks for it.</summary>
     public ReferenceLibrary Reference => _reference ??= scope.GetRequiredService<ReferenceLibrary>();

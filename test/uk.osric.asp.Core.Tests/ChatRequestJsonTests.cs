@@ -42,10 +42,33 @@ public sealed class ChatRequestJsonTests {
     }
 
     [Test]
-    public void TheBodyOmitsUsageWhenItIsNotRequested() {
-        using JsonDocument document = JsonDocument.Parse(ChatRequestJson.Serialize(Request([], []) with { IncludeUsage = false }));
+    public void EveryBodyAsksForTheUsageChunk() {
+        // The provider's usage is what anchors the token estimate, so it is not a setting: a body that
+        // omitted it would switch the budget off without saying so.
+        using JsonDocument document = JsonDocument.Parse(ChatRequestJson.Serialize(Request([], [])));
 
-        Assert.That(document.RootElement.TryGetProperty("stream_options", out _), Is.False);
+        Assert.That(document.RootElement.GetProperty("stream_options").GetProperty("include_usage").GetBoolean(), Is.True);
+    }
+
+    [Test]
+    public void TheMessageSizesAddUpToTheWholeBody() {
+        ChatRequest request = Request([new("system", "prompt"), new("user", "a question")], [Tool]);
+
+        PromptSizes sizes = PromptSizes.Measure(request);
+
+        Assert.Multiple(() => {
+            Assert.That(sizes.Sizes, Has.Count.EqualTo(2));
+            Assert.That(sizes.Total, Is.EqualTo(ChatRequestJson.MeasureBytes(request)));
+            Assert.That(sizes.Of(request.Messages), Is.EqualTo(sizes.Total));
+            Assert.That(sizes.Of([request.Messages[0]]), Is.LessThan(sizes.Total));
+        });
+    }
+
+    [Test]
+    public void MarkupInAMessageCrossesTheWireAsWritten() {
+        ChatRequest request = Request([new("user", "<div class=\"page\">&</div>")], []);
+
+        Assert.That(ChatRequestJson.Serialize(request), Does.Contain("""<div class=\"page\">&</div>"""));
     }
 
     [Test]
@@ -57,7 +80,7 @@ public sealed class ChatRequestJsonTests {
         Assert.Multiple(() => {
             Assert.That(measured, Is.EqualTo(Encoding.UTF8.GetByteCount(ChatRequestJson.Serialize(request))));
             Assert.That(measured, Is.GreaterThan(Encoding.UTF8.GetByteCount("🙂")),
-                "the escaped body is larger than the message's own text");
+                "the body carries more than the message's own text");
         });
     }
 
@@ -111,6 +134,5 @@ public sealed class ChatRequestJsonTests {
         tools,
         0.2,
         20,
-        "reasoning_content",
-        IncludeUsage: true);
+        "reasoning_content");
 }

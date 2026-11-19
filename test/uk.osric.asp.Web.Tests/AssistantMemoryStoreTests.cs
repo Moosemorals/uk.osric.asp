@@ -423,8 +423,6 @@ public sealed class AssistantMemoryStoreTests {
         new(database, TestOptions.Assistant with {
             MaxMemoriesPerOwner = maximumMemoriesPerOwner,
             MaxMemoryChars = maximumMemoryChars,
-            MaxMemoriesPerRun = 12,
-            MaxMemoryCharsPerRun = 4_000,
             MaxMemorySearchResults = 50,
             MaxMemoryQueryTerms = 12,
         }, _clock);

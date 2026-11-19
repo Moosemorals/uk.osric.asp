@@ -56,8 +56,10 @@ gives those durations a history **in a service that is not the site**:
 
 - **A general metrics receiver.** The collector accepts one record shape and stores one gauge. It is
   not a Pushgateway and not a remote-write endpoint.
-- **Host metrics.** Free memory, swap and disk are node_exporter's job and a separate decision; the
-  collector's only numbers are the build's.
+- **Host resource metrics.** node_exporter is installed, but the quadlet runs with
+  `--collector.disable-defaults`, so it serves only the textfile directory and reports no CPU,
+  memory or disk. Turning those on is a separate decision; the collector's only numbers are the
+  build's.
 - **Per-machine, per-branch or per-commit labels.** There is one builder. A `host` label would
   separate machines that should not be compared and multiply the series. A branch or commit label
   would make every build a new series.
@@ -78,7 +80,8 @@ gives those durations a history **in a service that is not the site**:
 | The page meter | `Web/Pages/PageMetrics` | A `Meter`, an inventory and the observable-gauge shape |
 | The status catalogue | `Web/Metrics/StatusCatalogue` | One panel per instrument, Host panels for families this repository does not register, and the drift tests |
 | `/metrics` | `Web/Program` | OpenTelemetry's Prometheus exporter, scraped at `app:8080`; Caddy answers 404 on the public origin |
-| Prometheus | `deploy/prometheus.yml` | One job, `app:8080`, on the rootless network |
+| Prometheus | `deploy/prometheus.yml` | Two jobs on the rootless network: the app at `app:8080`, and `node-exporter:9100` as `host` |
+| node_exporter | `deploy/node-exporter.container` | Rootless beside the app and Prometheus; publishes nothing; every default collector off, so it serves only `/var/lib/node-exporter/textfile`, which the root `fail2ban-metrics.sh` timer fills |
 | The web quadlet | `deploy/uk.osric.asp.container` | Rootless; publishes `127.0.0.1:8080`; `EnvironmentFile` for the assistant's key; the pattern a collector quadlet copies |
 | The image build | `Makefile` | One project, one `dotnet publish -t:PublishContainer`, one tag per commit, a reproducibility check |
 | `ConfigurationReader` | `Web/Configuration` | The house shape for options; in `Web`, so the collector cannot reference it without dragging the site in |
@@ -95,8 +98,8 @@ deploys outside this early work are the ones a breakage causes. The app cannot b
 | **A separate collector (chosen)** | One tiny app, one image, one quadlet, one DNS name, one Caddy block, one scrape job | It is up when the site is down, which is exactly when the gate's numbers are wanted. The site is not in the push path at all |
 | The site's own route | One route, one meter, one token | Rejected by the failure mode: the gate and the image are measured while the site is broken, so those pushes would be lost, and a failed deploy leaves nothing to push to |
 | Prometheus remote-write receiver | `--web.enable-remote-write-receiver`, a snappy-compressed protobuf payload and no authentication on the receiver | Prometheus is up when the site is down, so the failure domain is right, but the wire format needs a new encoder and the receiver would accept any series from anything on the network; a token proxy in front of it is the collector again |
-| Pushgateway | A third container, a volume, a retention rule and last-push-per-group semantics | The deployment deliberately has two rootless containers; a store whose semantics differ from Prometheus's is a new thing to operate for one gauge |
-| node_exporter's textfile collector | A host exporter plus a `.prom` file written on the server | A fourth service and an ssh file drop; the build would have to reach the host, which is the network-position auth the plan rejected for the push |
+| Pushgateway | A fourth container, a volume, a retention rule and last-push-per-group semantics | The deployment deliberately has three rootless containers; a store whose semantics differ from Prometheus's is a new thing to operate for one gauge |
+| node_exporter's textfile collector | A `.prom` file in a directory node_exporter already serves | Rejected by the clock, not by the service. node_exporter drops a textfile line's timestamp — `Ignoring unsupported custom timestamp on textfile collector metric` — so a sample is dated at the scrape that reads the file, and `node_textfile_mtime_seconds` is when the file was written. A record that waited for a deploy or a reachable host would land as a point on the day it was sent. This build pushes at the moment it measures, so its receiver has to be up then |
 | Network position: loopback only, Caddy `404`, push over ssh | The host's ssh key | Genuinely simple, but every measured target would need a host (or a separate push step), a local `make check` would depend on the deploy host, and a future CI would need the key |
 
 The collector is the smallest thing that keeps the failure domain right: a process with no storage, no
@@ -486,7 +489,7 @@ already says the order is the point).
 | `deploy/prometheus.yml` | The `build` job |
 | `deploy/README.md`, `deploy/operations.md` | The collector's image, token, DNS, health, restart and what 404/401 mean |
 | `docs/collector.md` | New: what the collector is, why it is separate, its routes, token and deployment |
-| `docs/architecture.md`, `docs/metrics.md`, `docs/testing.md`, `docs/glossary.md` | The new project and its dependency; the Build panel and the second scrape; the new suite; the term |
+| `docs/architecture.md`, `docs/metrics.md`, `docs/testing.md`, `docs/glossary.md` | The new project and its dependency; the Build panel and the third scrape; the new suite; the term |
 | `README.md` | One line naming the collector beside the site, and the link to its document |
 | `tools/check-decisions/ignore.txt` | `deploy-ssh` beside `deploy-guard`, both make targets shaped like decision names |
 | `docs/jobs/WHIMS.md` | WHIM-04's line goes at the merge |
@@ -578,7 +581,7 @@ deploy` brings both units up with the collector first.
 - `docs/collector.md` — the new service: why it is not the site, the three routes, the token (required
   there, optional in the build), the two caps, the store's lifetime, the meter and exporter, the image
   and quadlet, and the build wrapper's push and end warning.
-- `docs/metrics.md` — the Build panel and its external family, the second scrape target, the two
+- `docs/metrics.md` — the Build panel and its external family, the third scrape target, the two
   internal `/metrics` paths, the exporter's family name, the relay lifetime and the last-good-run
   rule, and the panel count (nineteen Pages, ten Assistant, one Build, five Host).
 - `docs/architecture.md` — `Collector` in the project list, `Collector → Core` in the dependency
@@ -603,7 +606,7 @@ deploy` brings both units up with the collector first.
 
 | Risk | Answer |
 | --- | --- |
-| A second service to run, update and roll back | It is a single process with no storage. Its own image and quadlet are small; the deploy restarts it first and waits for its health, and an app-only change never touches it |
+| A fourth container to run, update and roll back | It is a single process with no storage. Its own image and quadlet are small; the deploy restarts it first and waits for its health, and an app-only change never touches it |
 | The collector is down when a build runs | The wrapper spools the record and prints one warning at the end; `make build-metrics-push` re-sends. The failure is a line lost from a chart, never a failed build |
 | The build has no token | Every duration is spooled and one warning is printed at the end; nothing fails. `make build-metrics-push` re-sends once the token is set |
 | The collector is down when Prometheus scrapes | The series goes stale; the previous samples stay in Prometheus. The next scrape after a restart resumes |

@@ -57,9 +57,9 @@ hundredths of a millisecond and a warm compile is 30–70 ms (`Pages:Compile:Slo
    default is to share, because `n` is small and a check that waits is a check that lies about the
    queue.
 
-5. **The diagnostics are IDEA-041's value.** A check is the second consumer of a diagnostic that needs
-   an extent and a source key, and shipping the two together is cheaper than teaching every consumer
-   the point-shaped one first.
+5. **The diagnostics are the value [IDEA-041](closed.md) shipped.** A check is the second consumer of
+   a diagnostic that carries an extent and a source key (`pages-a-diagnostic-names-its-source`), so it
+   answers with the page's own `PageDiagnostic` and teaches nothing new.
 
 6. **The documentation** is a capability section in `/help` (`product-manual-is-a-page`), a paragraph
    in `PageAuthorPrompt` with its `Version` bumped so the assistant knows it can check before writing,
@@ -100,4 +100,4 @@ workaround — save, read, accept the noise — is what every caller does today.
 already named in [IDEA-029](IDEA-029.md) for VS Code; this job is the page side of the same compiler.
 
 The plan that places it is [host support for the IDE](../plans/ide-host.md); this is slice 3 there, because a
-check needs the diagnostic value [IDEA-041](IDEA-041.md) answers with.
+check needs the diagnostic value [IDEA-041](closed.md) answers with.

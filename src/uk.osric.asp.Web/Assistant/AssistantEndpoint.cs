@@ -5,25 +5,27 @@ namespace uk.osric.asp.Web.Assistant;
 
 using Microsoft.AspNetCore.Antiforgery;
 using Microsoft.Extensions.Options;
+using System.Globalization;
 using System.Net;
 using System.Net.ServerSentEvents;
 using System.Runtime.CompilerServices;
-using System.Security.Claims;
 using System.Text.Json;
 using uk.osric.asp.Core.Assistant;
 using uk.osric.asp.Core.Pages;
 using uk.osric.asp.Core.Text;
 using uk.osric.asp.Runtime;
 using uk.osric.asp.Sdk;
+using uk.osric.asp.Web.Authentication;
 using uk.osric.asp.Web.Errors;
 using uk.osric.asp.Web.Html;
 using uk.osric.asp.Web.Http;
 using uk.osric.asp.Web.Pages;
+using static uk.osric.asp.Web.Html.Markup;
 
 /// <summary>Serves the assistant page and the JSON endpoints its stream and approvals use.</summary>
 internal static class AssistantEndpoint {
 
-    private static readonly JsonSerializerOptions s_jsonOptions = new(JsonSerializerDefaults.Web);
+    private static readonly JsonSerializerOptions s_jsonOptions = new(JsonSerialization.Options);
 
     public static async Task ListAsync(
         HttpContext context,
@@ -31,7 +33,7 @@ internal static class AssistantEndpoint {
         IAntiforgery antiforgery) {
         ArgumentNullException.ThrowIfNull(context);
 
-        string? owner = Owner(context);
+        string? owner = SignedInOwner.Of(context);
         if (owner is null) {
             await WriteConversationNotFoundAsync(context);
             return;
@@ -57,11 +59,7 @@ internal static class AssistantEndpoint {
         await ShellDocument.BeginAsync(context, "Assistant",
             SiteNavigation.For(context), stylesheets: ["/assistant.css"]);
         await context.Response.WriteAsync("<h1>Assistant</h1>");
-        await context.Response.WriteAsync(ShellDocument.Nav("Assistant navigation", [
-            new("/assistant", "Conversations", true),
-            new(AssistantMemoryEndpoint.Path, "Memory"),
-            new(EditorPaths.Of(context.RequestServices), "Page list"),
-        ]));
+        await context.Response.WriteAsync(AssistantNavigation.Nav(context));
         await context.Response.WriteAsync($"""
             <form method="post" action="/assistant">
                 {AntiforgeryField.Hidden(tokens)}
@@ -89,157 +87,14 @@ internal static class AssistantEndpoint {
         await ShellDocument.EndAsync(context);
     }
 
-    public static async Task ConversationAsync(
-        HttpContext context,
-        long id,
-        IConversationStore conversations,
-        IAntiforgery antiforgery,
-        RunRegistry registry,
-        AssistantOptions options,
-        IAccountBalanceClient balanceClient) {
-        ArgumentNullException.ThrowIfNull(context);
-
-        string? owner = Owner(context);
-        Conversation? conversation = owner is null ? null : await conversations.GetAsync(id, owner, context.RequestAborted);
-        if (conversation is null) {
-            await WriteConversationNotFoundAsync(context);
-            return;
-        }
-
-        // The balance is the page's one outbound call, so it runs while the transcript is read and
-        // is awaited before the document starts: a slow provider costs the page its own deadline,
-        // and a failure is still a page rather than a half-written response.
-        Task<AccountBalanceRead> balanceTask = balanceClient.GetAsync(context.RequestAborted);
-        IReadOnlyList<Message> messages = await conversations.GetMessagesAsync(id, owner!, context.RequestAborted);
-        string alwaysApprove = nameof(ApprovalMode.AlwaysApprove);
-        string requireApproval = nameof(ApprovalMode.RequireApproval);
-        Run? activeRun = await conversations.GetActiveRunAsync(id, owner!, context.RequestAborted);
-        Run? lastRun = activeRun ?? await conversations.GetLastRunAsync(id, owner!, context.RequestAborted);
-        RunStream? activeStream = activeRun is null ? null : registry.Find(activeRun.Id);
-        bool replaying = activeStream?.CanReplayFrom(0) == true;
-        long replayFrom = replaying ? 0 : activeStream?.LastSequence ?? 0;
-        IEnumerable<Message> visibleMessages = messages.Where(message =>
-            !replaying || message.RunId != activeRun!.Id || message.Role == "user");
-        IReadOnlyList<ToolApproval> pending = conversation.ApprovalMode == ApprovalMode.RequireApproval.ToString()
-            && activeRun is not null
-                ? await conversations.GetPendingApprovalsAsync(id, owner!, context.RequestAborted)
-                : [];
-        AntiforgeryTokenSet tokens = antiforgery.GetAndStoreTokens(context);
-        AccountBalance? balance = (await balanceTask).Balance;
-        SecurityHeaders.AllowScripts(context);
-        await ShellDocument.BeginAsync(context, conversation.Title,
-            SiteNavigation.For(context), stylesheets: ["/assistant.css"], bodyClass: "assistant-page");
-        await context.Response.WriteAsync($"<h1>{Encode(conversation.Title)}</h1>");
-        await context.Response.WriteAsync(ShellDocument.Nav("Assistant navigation", [
-            new("/assistant", "Conversations"),
-            new(AssistantMemoryEndpoint.Path, "Memory"),
-            new(EditorPaths.Of(context.RequestServices), "Page list"),
-        ]));
-
-        await context.Response.WriteAsync($"""
-            <div class="assistant-chat" id="assistant-chat" data-conversation-id="{id}" data-active-run="{Encode(activeRun?.Id ?? "")}" data-replay-from="{replayFrom}">
-                <fieldset class="assistant-compose">
-                    <legend><label for="assistant-message">Prompt</label></legend>
-                    <form id="assistant-message-form" method="post" action="/assistant/{id}/messages">
-                        {AntiforgeryField.Hidden(tokens)}
-                        <textarea id="assistant-message" name="content" rows="5" maxlength="{options.MaxMessageChars}" required></textarea>
-                        <div class="assistant-compose-actions">
-                            <button type="submit" id="assistant-send">Send</button>
-                            <!-- Stopping is its own action, and formnovalidate lets an empty box still stop the run. -->
-                            <button type="submit" id="assistant-stop" formaction="/assistant/{id}/stop" formnovalidate{(activeRun is null ? " hidden" : "")}>Stop</button>
-                            <p class="assistant-char-count" aria-hidden="true"><span id="assistant-char-count">0</span> / {options.MaxMessageChars}</p>
-                        </div>
-                    </form>
-                </fieldset>
-
-                <p id="assistant-status" role="status" aria-live="polite"></p>
-                <fieldset>
-                    <legend>Assistant messages</legend>
-                    <section id="assistant-transcript" aria-label="Conversation">
-            """);
-
-        Dictionary<string, (string Name, string Arguments)> calls = ReadToolCalls(messages);
-        // The transcript reads newest first, so the latest run sits directly under the prompt box. A
-        // run still going has not changed anything yet as far as a reader is concerned, and the card
-        // that says what a finished turn changed leads that turn's block.
-        await WriteStoppedRunAsync(context, lastRun);
-        await WriteContinuationAsync(context, activeRun, tokens, id, options);
-        await WritePendingApprovalsAsync(context, calls, pending, tokens, id);
-        foreach (IGrouping<string, Message> turn in visibleMessages.Reverse().GroupBy(message => message.RunId)) {
-            if (!string.Equals(turn.Key, activeRun?.Id, StringComparison.Ordinal)) {
-                await WriteChangedPagesAsync(context, turn);
-            }
-            foreach (Message message in turn) {
-                await WriteMessageAsync(context, message, calls);
-            }
-        }
-        await context.Response.WriteAsync("""
-                    </section>
-                </fieldset>
-            """);
-        // The page builds the plan the next step would send, from the same stored transcript and the
-        // same options the run uses, so the figure a reader reloads is the one the run just published.
-        List<ChatMessage> stored = [new ChatMessage("system", PageAuthorPrompt.Build()), .. messages.Select(message => message.ToChatMessage())];
-        ChatRequest request = new(
-            lastRun?.Model ?? options.Model,
-            stored,
-            PageToolExecutor.Definitions,
-            options.Temperature,
-            options.MaxOutputTokens,
-            options.ReasoningField,
-            options.IncludeUsage);
-        TokenEstimator estimator = TokenEstimator.For(
-            lastRun?.RequestBytes is { } calibratedBytes && lastRun?.LastPromptTokens is { } calibratedPrompt
-                ? new TokenCalibration(calibratedBytes, calibratedPrompt)
-                : null);
-        ContextPlan plan = ContextPlanner.Build(request, options.MaxContextTokens, estimator);
-        BudgetSnapshot budgets = BudgetSnapshot.Measure(
-            plan,
-            stored,
-            lastRun?.StepCount ?? 0,
-            lastRun?.ToolCallCount ?? 0,
-            lastRun?.OutputTokens);
-        await WriteBudgetsAsync(context, budgets, options, lastRun);
-        await WriteUsageAsync(context, lastRun?.ToUsage() ?? RunUsage.Empty);
-        await WriteAccountBalanceAsync(context, balance);
-        await context.Response.WriteAsync($"""
-                <fieldset>
-                    <legend>Page options</legend>
-                    <form id="assistant-options-form" method="post" action="/assistant/{id}/options" class="assistant-options form">
-                        {AntiforgeryField.Hidden(tokens)}
-                        <dl>
-                            <dt><label for="conversation-title">Conversation title</label></dt>
-                            <dd><input id="conversation-title" name="title" maxlength="200" value="{Encode(conversation.Title)}" required></dd>
-                            <dt><label for="approval-mode">Tool approval</label></dt>
-                            <dd>
-                                <select id="approval-mode" name="mode">
-                                    <option value="{alwaysApprove}"{Selected(conversation.ApprovalMode == alwaysApprove)}>Always approve</option>
-                                    <option value="{requireApproval}"{Selected(conversation.ApprovalMode == requireApproval)}>Require approval</option>
-                                </select>
-                            </dd>
-                        </dl>
-                        <div class="assistant-option-actions form-actions">
-                            <button type="submit">Save</button>
-                            <p id="assistant-options-status" role="status" aria-live="polite"></p>
-                        </div>
-                    </form>
-                </fieldset>
-
-                <p><a href="/assistant/{id}/delete">Delete conversation</a></p>
-                <noscript><p>JavaScript is disabled. Your prompt will still start a run; refresh this page to see the response.</p></noscript>
-            </div>
-            <script type="module" src="{WebUtility.HtmlEncode(await ShellDocument.AssetUrlAsync(context, "/assistant.js", context.RequestAborted))}"></script>
-            """);
-        await ShellDocument.EndAsync(context);
-    }
-
     public static async Task MessagesAsync(
         HttpContext context,
         long id,
         IConversationStore conversations,
         RunQueue queue,
         RunRegistry registry,
-        AssistantOptions options) {
+        AssistantOptions options,
+        ModelWindowSource windows) {
         ArgumentNullException.ThrowIfNull(context);
 
         string? owner = await ValidatedOwnerAsync(context, id, conversations, "The message could not be sent");
@@ -247,14 +102,24 @@ internal static class AssistantEndpoint {
             return;
         }
 
+        // The owner's message is bounded by its share of the model's window rather than by a count of
+        // its own: an owner pasting a specification is not an attack, and the newest turn is the one
+        // thing trimming cannot touch.
+        if (windows.Budget is not { } budget) {
+            await WriteJsonErrorAsync(context, StatusCodes.Status409Conflict,
+                "assistant.model_window_unknown", "The model's window is not reported",
+                "The provider has not reported this model's context window, so the assistant cannot run yet.");
+            return;
+        }
+
         if (!context.Request.HasFormContentType
             || !context.Request.Form.TryGetValue("content", out Microsoft.Extensions.Primitives.StringValues contentValues)
             || contentValues.Count != 1
             || string.IsNullOrWhiteSpace(contentValues[0])
-            || contentValues[0]!.Length > options.MaxMessageChars) {
+            || contentValues[0]!.Length > budget.MessageChars) {
             await WriteJsonErrorAsync(context, StatusCodes.Status400BadRequest,
                 "assistant.message_invalid", "The message is empty or too long",
-                $"A message needs one value no longer than {options.MaxMessageChars} characters.");
+                $"A message needs one value no longer than {budget.MessageChars.ToString(CultureInfo.InvariantCulture)} characters.");
             return;
         }
         if (await conversations.GetActiveRunAsync(id, owner, context.RequestAborted) is not null) {
@@ -335,7 +200,7 @@ internal static class AssistantEndpoint {
         }
 
         _ = registry.Stop(active.Id);
-        await conversations.FailPendingApprovalsAsync(active.Id, "stop", CancellationToken.None);
+        await conversations.FailPendingInterruptAsync(active.Id, "stop", CancellationToken.None);
         context.Response.StatusCode = StatusCodes.Status204NoContent;
     }
 
@@ -349,7 +214,7 @@ internal static class AssistantEndpoint {
 
         SecurityHeaders.NoStore(context);
         context.Response.Headers["X-Accel-Buffering"] = "no";
-        string? owner = Owner(context);
+        string? owner = SignedInOwner.Of(context);
         if (owner is null) {
             return ErrorResponses.Problem(StatusCodes.Status401Unauthorized, new ErrorMessage(
                 "auth.required",
@@ -405,7 +270,7 @@ internal static class AssistantEndpoint {
                 "The form could not be verified. Reload the conversation and try again.");
             return;
         }
-        string? owner = Owner(context);
+        string? owner = SignedInOwner.Of(context);
         if (owner is null) {
             await WriteJsonErrorAsync(context, StatusCodes.Status404NotFound,
                 "assistant.conversation_not_found", "That conversation does not exist",
@@ -457,93 +322,121 @@ internal static class AssistantEndpoint {
         context.Response.StatusCode = StatusCodes.Status204NoContent;
     }
 
-    public static async Task ApprovalAsync(
+    /// <summary>Resolves the run's pending interrupt from whichever form the owner submitted.</summary>
+    /// <remarks>
+    /// The route does not name the kind: the run waits on one thing at a time and the record says what
+    /// it is, so the body is parsed against the record rather than against a second copy in the URL.
+    /// A field the kind does not expect, a field it needs and did not get, or a tool call id that is
+    /// not the record's is a stale form, and it is refused before anything is written.
+    /// </remarks>
+    public static async Task InterruptAsync(
         HttpContext context,
         long id,
         string runId,
-        string toolCallId,
         IConversationStore conversations,
-        ToolApprovalCoordinator coordinator) {
+        OwnerInterruptCoordinator coordinator) {
         ArgumentNullException.ThrowIfNull(context);
 
         SecurityHeaders.NoStore(context);
         if (!IsPostValid(context)) {
             await WriteJsonErrorAsync(context, StatusCodes.Status400BadRequest,
-                "assistant.form_expired", "The decision could not be recorded",
+                "assistant.form_expired", "The answer could not be recorded",
                 "The form could not be verified. Reload the conversation and try again.");
             return;
         }
-        string? owner = Owner(context);
-        if (owner is null || !context.Request.HasFormContentType
-            || !context.Request.Form.TryGetValue("decision", out Microsoft.Extensions.Primitives.StringValues decision)
-            || decision.Count != 1 || decision[0] is not ("approve" or "deny")) {
-            if (owner is null) {
-                await WriteJsonErrorAsync(context, StatusCodes.Status404NotFound,
-                    "assistant.conversation_not_found", "That conversation does not exist",
-                    "It may have been deleted, or it belongs to another account.");
-            } else {
-                await WriteJsonErrorAsync(context, StatusCodes.Status400BadRequest,
-                    "assistant.decision_invalid", "The decision could not be recorded",
-                    "Choose approve or deny, then try again.");
-            }
-            return;
-        }
-
-        ApprovalResolutionResult result = await conversations.ResolveApprovalAsync(
-            id, owner, runId, toolCallId, decision[0]!, context.RequestAborted);
-        if (result is ApprovalResolutionResult.Approved or ApprovalResolutionResult.Denied) {
-            _ = coordinator.Signal(runId, toolCallId, result);
-            context.Response.StatusCode = StatusCodes.Status204NoContent;
-        } else if (result == ApprovalResolutionResult.NotFound) {
-            await WriteJsonErrorAsync(context, StatusCodes.Status404NotFound,
-                "assistant.approval_not_found", "That approval is no longer waiting",
-                "The run moved on before the decision arrived. Reload the conversation to see its state.");
-        } else {
-            await WriteJsonErrorAsync(context, StatusCodes.Status409Conflict,
-                "assistant.approval_conflict", "That approval could not be recorded",
-                "The run is no longer waiting for it. Reload the conversation to see its state.");
-        }
-    }
-
-    public static async Task ContinueAsync(
-        HttpContext context,
-        long id,
-        string runId,
-        IConversationStore conversations,
-        RunContinuationCoordinator continuation,
-        AssistantOptions options) {
-        ArgumentNullException.ThrowIfNull(context);
-
-        SecurityHeaders.NoStore(context);
-        if (!IsPostValid(context)) {
-            await WriteJsonErrorAsync(context, StatusCodes.Status400BadRequest,
-                "assistant.form_expired", "The run could not be continued",
-                "The form could not be verified. Reload the conversation and try again.");
-            return;
-        }
-        string? owner = Owner(context);
-        Conversation? conversation = owner is null ? null : await conversations.GetAsync(id, owner, context.RequestAborted);
-        if (conversation is null) {
+        string? owner = SignedInOwner.Of(context);
+        if (owner is null) {
             await WriteJsonErrorAsync(context, StatusCodes.Status404NotFound,
                 "assistant.conversation_not_found", "That conversation does not exist",
                 "It may have been deleted, or it belongs to another account.");
             return;
         }
-
-        // The store is the arbiter: only a run that is still paused can be continued, and it widens
-        // the budget that ran out by one window of that budget alone.
-        bool continued = await conversations.ContinueRunAsync(
-            id, owner!, runId, options.MaxSteps, options.MaxToolCalls, context.RequestAborted);
-        if (!continued) {
-            await WriteJsonErrorAsync(context, StatusCodes.Status409Conflict,
-                "assistant.run_not_paused", "The run is not waiting to continue",
-                "It may have finished, been stopped, or already been continued. Reload the conversation to see its state.");
+        if (!context.Request.HasFormContentType) {
+            await WriteInterruptConflictAsync(context);
             return;
         }
 
-        _ = continuation.Signal(runId);
-        context.Response.StatusCode = StatusCodes.Status204NoContent;
+        // A run that is not this owner's is not there at all; a run of this owner's that is not waiting
+        // on a card is a form that arrived too late, which is a conflict rather than a stranger.
+        if (await conversations.GetRunAsync(id, owner, runId, context.RequestAborted) is null) {
+            await WriteJsonErrorAsync(context, StatusCodes.Status404NotFound,
+                "assistant.interrupt_not_found", "That run is not there",
+                "It may have been deleted, or it belongs to another account.");
+            return;
+        }
+        OwnerInterrupt? pending = await conversations.GetPendingInterruptAsync(id, owner, context.RequestAborted);
+        if (pending is null || !string.Equals(pending.RunId, runId, StringComparison.Ordinal)) {
+            await WriteInterruptConflictAsync(context);
+            return;
+        }
+
+        InterruptResolutionResult result;
+        switch (pending.Kind) {
+            case OwnerInterruptKind.Approval: {
+                    // The shape is judged before the answer is: a form with the wrong fields is one built
+                    // for another wait, and telling its owner to "choose approve or deny" would be wrong.
+                    if (!HasOnlyFields(context, "decision", "toolCallId")
+                        || !string.Equals(OneField(context, "toolCallId"), pending.ToolCallId, StringComparison.Ordinal)) {
+                        await WriteInterruptConflictAsync(context);
+                        return;
+                    }
+                    string? decision = OneField(context, "decision");
+                    if (decision is not ("approve" or "deny")) {
+                        await WriteJsonErrorAsync(context, StatusCodes.Status400BadRequest,
+                            "assistant.decision_invalid", "The decision could not be recorded",
+                            "Choose approve or deny, then try again.");
+                        return;
+                    }
+                    result = await conversations.ResolveInterruptAsync(
+                        id, owner, runId, pending.Kind, pending.ToolCallId,
+                        InterruptPayloads.Write(new OwnerResolution(decision)), context.RequestAborted);
+                    break;
+                }
+            case OwnerInterruptKind.Continuation:
+                if (!HasOnlyFields(context)) {
+                    await WriteInterruptConflictAsync(context);
+                    return;
+                }
+                result = await conversations.ContinueRunAsync(id, owner, runId, context.RequestAborted)
+                    ? InterruptResolutionResult.Resolved
+                    : InterruptResolutionResult.Conflict;
+                break;
+            default:
+                // A kind this build does not answer: a record written by a newer deploy, or a form
+                // for a wait that has already gone.
+                await WriteInterruptConflictAsync(context);
+                return;
+        }
+
+        if (result == InterruptResolutionResult.Resolved) {
+            _ = coordinator.Signal(runId);
+            context.Response.StatusCode = StatusCodes.Status204NoContent;
+        } else if (result == InterruptResolutionResult.NotFound) {
+            await WriteJsonErrorAsync(context, StatusCodes.Status404NotFound,
+                "assistant.interrupt_not_found", "The run is no longer waiting for you",
+                "It moved on before this arrived. Reload the conversation to see its state.");
+        } else {
+            await WriteInterruptConflictAsync(context);
+        }
     }
+
+    private static Task WriteInterruptConflictAsync(HttpContext context) =>
+        WriteJsonErrorAsync(context, StatusCodes.Status409Conflict,
+            "assistant.interrupt_conflict", "That answer could not be recorded",
+            "The run is no longer waiting for it. Reload the conversation to see its state.");
+
+    // A repeated field is as stale as a missing one: the form was built for a different card.
+    private static string? OneField(HttpContext context, string name) =>
+        context.Request.Form.TryGetValue(name, out Microsoft.Extensions.Primitives.StringValues values)
+            && values.Count == 1
+            ? values[0]
+            : null;
+
+    // The framework's own fields start with `__`, so the antiforgery token is the only name this does
+    // not have to know; everything else must be a field the kind asked for.
+    private static bool HasOnlyFields(HttpContext context, params string[] allowed) =>
+        context.Request.Form.Keys.All(key => key.StartsWith("__", StringComparison.Ordinal)
+            || allowed.Contains(key, StringComparer.Ordinal));
 
     public static async Task DeleteConfirmationAsync(
         HttpContext context,
@@ -552,7 +445,7 @@ internal static class AssistantEndpoint {
         IAntiforgery antiforgery) {
         ArgumentNullException.ThrowIfNull(context);
 
-        string? owner = Owner(context);
+        string? owner = SignedInOwner.Of(context);
         Conversation? conversation = owner is null ? null : await conversations.GetAsync(id, owner, context.RequestAborted);
         if (conversation is null) {
             await WriteConversationNotFoundAsync(context);
@@ -588,7 +481,7 @@ internal static class AssistantEndpoint {
         Run? active = await conversations.GetActiveRunAsync(id, owner, context.RequestAborted);
         if (active is not null) {
             _ = registry.Stop(active.Id);
-            await conversations.FailPendingApprovalsAsync(active.Id, "conversation_deleted", CancellationToken.None);
+            await conversations.FailPendingInterruptAsync(active.Id, "conversation_deleted", CancellationToken.None);
         }
         if (!await conversations.DeleteAsync(id, owner, context.RequestAborted)) {
             await ErrorResponses.WriteAsync(context, StatusCodes.Status404NotFound, new ErrorMessage(
@@ -612,7 +505,7 @@ internal static class AssistantEndpoint {
         long id,
         long messageId,
         IConversationStore conversations) {
-        string? owner = Owner(context);
+        string? owner = SignedInOwner.Of(context);
         Message? message = owner is null
             ? null
             : await conversations.GetMessageAsync(id, owner, messageId, context.RequestAborted);
@@ -628,294 +521,6 @@ internal static class AssistantEndpoint {
         SecurityHeaders.NoStore(context);
         context.Response.ContentType = "text/html; charset=utf-8";
         await context.Response.WriteAsync(MarkdownRenderer.ToRestrictedHtml(message.Content));
-    }
-
-    private static async Task WriteMessageAsync(
-        HttpContext context,
-        Message message,
-        IReadOnlyDictionary<string, (string Name, string Arguments)> calls) {
-        if (message.Role == "user") {
-            await context.Response.WriteAsync($"<article class=\"assistant-message user-message\"><h2 class=\"visually-hidden\">You</h2><pre>{Encode(message.Content)}</pre></article>");
-            return;
-        }
-        if (message.Role == "assistant") {
-            // A step that only calls tools has nothing to show, but its message row still carries
-            // the call arguments the tool details need.
-            if (string.IsNullOrEmpty(message.Content) && string.IsNullOrEmpty(message.Reasoning) && message.Status == "complete") {
-                return;
-            }
-            await context.Response.WriteAsync("<article class=\"assistant-message\"><h2 class=\"visually-hidden\">Assistant</h2>");
-            if (!string.IsNullOrEmpty(message.Reasoning)) {
-                await context.Response.WriteAsync($"<details class=\"assistant-reasoning\"><summary>Thinking</summary><pre>{Encode(message.Reasoning)}</pre></details>");
-            }
-            if (!string.IsNullOrEmpty(message.Content)) {
-                await context.Response.WriteAsync(
-                    $"<div class=\"assistant-content\">{MarkdownRenderer.ToRestrictedHtml(message.Content)}</div>");
-            }
-            if (message.Status != "complete") {
-                await context.Response.WriteAsync($"<p class=\"assistant-incomplete\">{Encode(Describe(message.Status))}</p>");
-            }
-            await context.Response.WriteAsync("</article>");
-            return;
-        }
-        if (message.Role == "tool") {
-            string name = Encode(MessageText.Sanitize(message.ToolName ?? "Tool"));
-            string arguments = message.ToolCallId is not null && calls.TryGetValue(message.ToolCallId, out (string Name, string Arguments) call)
-                ? call.Arguments
-                : "";
-            string summary = string.IsNullOrEmpty(arguments) ? name : $"{name} {Encode(MessageText.Sanitize(arguments))}";
-            await context.Response.WriteAsync($"<details class=\"assistant-tool\"><summary>{summary}</summary>");
-            if (!string.IsNullOrEmpty(arguments)) {
-                await context.Response.WriteAsync($"<p class=\"assistant-tool-label\">Arguments</p><pre class=\"assistant-tool-arguments\">{Encode(arguments)}</pre>");
-            }
-            await context.Response.WriteAsync($"<p class=\"assistant-tool-label\">Response</p><pre class=\"assistant-tool-response\">{Encode(message.Content)}</pre></details>");
-        }
-    }
-
-    // The card is read from the stored tool results rather than published live: the page reloads on
-    // the terminal event, and a result the run reported is what the reload would show anyway.
-    private static async Task WriteChangedPagesAsync(HttpContext context, IEnumerable<Message> turn) {
-        List<PagePath> changed = [];
-        foreach (Message message in turn) {
-            if (message.Role == "tool"
-                && PageWrites.Written(PageToolExecutor.ChangesPages(message.ToolName), message.Content) is { } path
-                && !changed.Contains(path)) {
-                changed.Add(path);
-            }
-        }
-        if (changed.Count == 0) {
-            return;
-        }
-
-        await context.Response.WriteAsync("<section class=\"assistant-changed-pages\"><h2>Changed pages</h2><ul>");
-        foreach (PagePath path in changed) {
-            string key = Encode(path.Key);
-            await context.Response.WriteAsync(
-                $"<li><a href=\"{Encode(PageUrls.Page(path))}\">{key}</a> <a href=\"{Encode(path.Editor(EditorPaths.Of(context.RequestServices)))}\">Edit<span class=\"visually-hidden\"> {key}</span></a></li>");
-        }
-        await context.Response.WriteAsync("</ul></section>");
-    }
-
-    private static async Task WritePendingApprovalsAsync(
-        HttpContext context,
-        IReadOnlyDictionary<string, (string Name, string Arguments)> calls,
-        IReadOnlyList<ToolApproval> pending,
-        AntiforgeryTokenSet tokens,
-        long conversationId) {
-        if (pending.Count == 0) {
-            return;
-        }
-        await context.Response.WriteAsync("<section class=\"assistant-approvals\" aria-label=\"Pending tool approvals\"><h2>Approval required</h2>");
-        foreach (ToolApproval approval in pending) {
-            if (!calls.TryGetValue(approval.ToolCallId, out (string Name, string Arguments) call)) {
-                continue;
-            }
-            ToolDefinition? definition = PageToolExecutor.Definitions.SingleOrDefault(tool => tool.Name == call.Name);
-            string description = definition?.Description ?? "Review this tool call.";
-            string action = $"/assistant/{conversationId}/runs/{Encode(approval.RunId)}/tool-calls/{Encode(approval.ToolCallId)}/approval";
-            await context.Response.WriteAsync($"<article><h3>{Encode(MessageText.Sanitize(call.Name))}</h3><p>{Encode(description)}</p><pre>{Encode(call.Arguments)}</pre>");
-            foreach ((string decision, string label) in new[] { ("approve", "Approve"), ("deny", "Deny") }) {
-                await context.Response.WriteAsync($"<form method=\"post\" action=\"{action}\">{AntiforgeryField.Hidden(tokens)}<input type=\"hidden\" name=\"decision\" value=\"{decision}\"><button type=\"submit\">{label}</button></form>");
-            }
-            await context.Response.WriteAsync("</article>");
-        }
-        await context.Response.WriteAsync("</section>");
-    }
-
-    /// <summary>Writes the question a run that ran out of a budget asked the owner.</summary>
-    /// <param name="context">The response being written.</param>
-    /// <param name="run">The conversation's active run, which is the only run that can be paused.</param>
-    /// <param name="tokens">The antiforgery pair the Continue form carries.</param>
-    /// <param name="conversationId">The conversation the form posts to.</param>
-    /// <param name="options">The configured windows, so the sentence names what continuing buys.</param>
-    /// <remarks>
-    /// Rendered from the run's stored status rather than from the event stream, so a reload or another
-    /// device shows the same question, and the sentence is the one the live event carried.
-    /// </remarks>
-    private static async Task WriteContinuationAsync(
-        HttpContext context,
-        Run? run,
-        AntiforgeryTokenSet tokens,
-        long conversationId,
-        AssistantOptions options) {
-        if (run?.Status != RunBudget.Awaiting || run.PausedBudget is not { } budget) {
-            return;
-        }
-
-        (int limit, int window) = budget switch {
-            RunBudget.Steps => (run.StepLimit ?? options.MaxSteps, options.MaxSteps),
-            RunBudget.ToolCalls => (run.ToolCallLimit ?? options.MaxToolCalls, options.MaxToolCalls),
-            _ => (options.MaxToolCallsPerStep, options.MaxToolCallsPerStep),
-        };
-        string action = $"/assistant/{conversationId}/runs/{Encode(run.Id)}/continue";
-
-        await context.Response.WriteAsync($"""
-            <section class="assistant-continuation" aria-label="Run paused" data-budget="{Encode(budget)}">
-                <h2>Do you want to continue?</h2>
-                <p>{Encode(RunBudget.Sentence(budget, limit, window))}</p>
-                <form method="post" action="{action}">
-                    {AntiforgeryField.Hidden(tokens)}
-                    <button type="submit">Continue</button>
-                </form>
-                <p class="assistant-continuation-note">Stopping ends the run; the transcript is kept.</p>
-            </section>
-            """);
-    }
-
-    // Every budget a reader can run into is shown with what has been spent on it, so a run that
-    // stops on one names it before it stops. The figures come from the same snapshot the run
-    // publishes, so a live one and a reloaded one cannot disagree.
-    private static async Task WriteBudgetsAsync(
-        HttpContext context,
-        BudgetSnapshot snapshot,
-        AssistantOptions options,
-        Run? run) {
-        await context.Response.WriteAsync("""
-            <fieldset class="assistant-budgets">
-                <legend>Budgets</legend>
-                <dl class="assistant-budget-list">
-            """);
-        await WriteBudgetAsync(context, "message", "Message", 0, options.MaxMessageChars, "chars");
-        await WriteBudgetAsync(context, "context", "Request", snapshot.ContextTokens, options.MaxContextTokens, "tokens");
-        await WriteBudgetAsync(context, "steps", "Steps", snapshot.Steps, run?.StepLimit ?? options.MaxSteps, "steps");
-        await WriteBudgetAsync(context, "tool-calls", "Tool calls", snapshot.ToolCalls, run?.ToolCallLimit ?? options.MaxToolCalls, "calls");
-        await WriteBudgetAsync(context, "tool-arguments", "Tool arguments", snapshot.LongestArguments, options.MaxToolArgumentChars, "chars");
-        await WriteBudgetAsync(context, "tool-result", "Tool result", snapshot.LongestResult, options.MaxToolResultChars, "chars");
-        await WriteBudgetAsync(context, "output", "Output", snapshot.OutputTokens, options.MaxOutputTokens, "tokens");
-        await context.Response.WriteAsync("""
-                </dl>
-                <p class="assistant-budget-note">Request is the provider request as sent: the system prompt, the tool definitions and the messages after masking and trimming, estimated in tokens from the exact body and the last provider report. The transcript above is complete. Steps, tool calls and output count the current or most recent run.</p>
-            </fieldset>
-            """);
-    }
-
-    private static async Task WriteUsageAsync(HttpContext context, RunUsage usage) {
-        int share = usage.PromptTokens == 0
-            ? 0
-            : Math.Clamp((int)Math.Round(100.0 * usage.CachedTokens / usage.PromptTokens), 0, 100);
-        await context.Response.WriteAsync($"""
-            <fieldset class="assistant-usage">
-                <legend>Tokens this run</legend>
-                <dl class="assistant-usage-list">
-                    <div data-usage="prompt"><dt>Prompt</dt><dd><span id="assistant-usage-prompt">{BudgetAmount.Format(usage.PromptTokens)}</span></dd></div>
-                    <div data-usage="cached"><dt>Cached</dt><dd><span id="assistant-usage-cached">{BudgetAmount.Format(usage.CachedTokens)}</span> <span id="assistant-usage-cached-share">({share}%)</span></dd></div>
-                    <div data-usage="completion"><dt>Completion</dt><dd><span id="assistant-usage-completion">{BudgetAmount.Format(usage.CompletionTokens)}</span></dd></div>
-                    <div data-usage="reasoning"><dt>Reasoning</dt><dd><span id="assistant-usage-reasoning">{BudgetAmount.Format(usage.ReasoningTokens)}</span></dd></div>
-                    <div data-usage="total"><dt>Total</dt><dd><span id="assistant-usage-total">{BudgetAmount.Format(usage.TotalTokens)}</span></dd></div>
-                </dl>
-                <p class="assistant-usage-note">Cached is part of prompt; reasoning is part of completion. Total is prompt + completion. The provider reports usage once per step.</p>
-            </fieldset>
-            """);
-    }
-
-    // The balance is the provider account's, not this site's, and it is read afresh on every page
-    // load because a run has just spent some of it. It is an aside: a provider that does not answer
-    // costs the panel its figure and nothing else.
-    private static async Task WriteAccountBalanceAsync(HttpContext context, AccountBalance? balance) {
-        await context.Response.WriteAsync("""
-            <fieldset class="assistant-balance">
-                <legend>Account balance</legend>
-            """);
-
-        if (balance is null || balance.Currencies.Count == 0) {
-            string reason = balance is null
-                ? "The provider did not report a balance."
-                : "The provider did not report a currency balance.";
-            await context.Response.WriteAsync($"<p class=\"assistant-balance-note\">{Encode(reason)}</p>");
-        } else {
-            await context.Response.WriteAsync("<dl class=\"assistant-balance-list\">");
-            foreach (CurrencyBalance currency in balance.Currencies) {
-                List<string> parts = [];
-                if (!string.IsNullOrEmpty(currency.Granted)) {
-                    parts.Add($"{currency.Granted} granted");
-                }
-                if (!string.IsNullOrEmpty(currency.ToppedUp)) {
-                    parts.Add($"{currency.ToppedUp} topped up");
-                }
-                string total = string.IsNullOrEmpty(currency.Total) ? "not reported" : currency.Total;
-                string detail = parts.Count == 0
-                    ? string.Empty
-                    : $" <span class=\"assistant-balance-detail\">{Encode(string.Join(", ", parts))}</span>";
-                await context.Response.WriteAsync($"""
-                    <div><dt>{Encode(currency.Currency)}</dt><dd><span class="assistant-balance-total">{Encode(total)}</span>{detail}</dd></div>
-                    """);
-            }
-            await context.Response.WriteAsync("</dl>");
-            string note = balance.IsAvailable
-                ? "The provider's total includes granted and topped-up credit, and is read when this page loads."
-                : "The provider says this balance is not enough for API calls.";
-            string css = balance.IsAvailable ? "assistant-balance-note" : "assistant-balance-warning";
-            await context.Response.WriteAsync($"<p class=\"{css}\">{Encode(note)}</p>");
-        }
-
-        await context.Response.WriteAsync("</fieldset>");
-    }
-
-    private static async Task WriteBudgetAsync(
-        HttpContext context,
-        string row,
-        string label,
-        long used,
-        long available,
-        string unit) {
-        // A meter past its own maximum is invalid markup, so only the number is allowed to exceed it.
-        long shown = Math.Clamp(used, 0, available);
-        string exceeded = used > available ? " assistant-budget-exceeded" : "";
-        string usedText = BudgetAmount.Format(used);
-        string limit = BudgetAmount.Format(available);
-
-        // The row's name is what the page's script looks it up by, and both ids follow from it, so a
-        // live figure and a reloaded one address the same elements. The meter is the picture of a
-        // number that is already spelled out over it, so it is hidden from assistive technology
-        // rather than announced twice with no name.
-        await context.Response.WriteAsync($"""
-            <div class="assistant-budget{exceeded}" data-budget="{Encode(row)}">
-                <dt>{Encode(label)}</dt>
-                <dd class="assistant-budget-gauge">
-                    <meter id="assistant-budget-{Encode(row)}-meter" aria-hidden="true" min="0" max="{available}" value="{shown}" low="{available * 3 / 5}" high="{available * 17 / 20}" optimum="0"></meter>
-                    <span class="assistant-budget-count"><span id="assistant-budget-{Encode(row)}">{usedText}</span> / <span class="assistant-budget-limit" id="assistant-budget-{Encode(row)}-limit">{limit}</span> {Encode(unit)}</span>
-                </dd>
-            </div>
-            """);
-    }
-
-    // The run's own message is written by the host and is safe to show; a bare status word is not
-    // an explanation, and a reader who reloads otherwise has no way to know why an answer stopped.
-    private static async Task WriteStoppedRunAsync(HttpContext context, Run? run) {
-        if (run is null || run.ErrorMessage is null) {
-            return;
-        }
-        if (run.Status is not ("failed" or "interrupted")) {
-            return;
-        }
-
-        // The message is a sentence this host wrote, never provider text, so it is quoted whole.
-        await context.Response.WriteAsync($"<p class=\"assistant-run-error\">{Encode(run.ErrorMessage)}</p>");
-    }
-
-    private static string Describe(string status) => status switch {
-        "truncated" => "This answer reached the provider's token limit, so it is incomplete.",
-        "failed" => "This answer stopped before it finished.",
-        "cancelled" => "This answer was stopped.",
-        "interrupted" => "The host restarted before this answer finished.",
-        _ => status,
-    };
-
-    internal static Dictionary<string, (string Name, string Arguments)> ReadToolCalls(IEnumerable<Message> messages) {
-        Dictionary<string, (string Name, string Arguments)> calls = [];
-        foreach (Message message in messages.Where(message => message.ToolCallsJson is not null)) {
-            using JsonDocument document = JsonDocument.Parse(message.ToolCallsJson!);
-            foreach (JsonElement call in document.RootElement.EnumerateArray()) {
-                string? id = call.TryGetProperty("id", out JsonElement idValue) ? idValue.GetString() : null;
-                JsonElement function = call.GetProperty("function");
-                string name = function.GetProperty("name").GetString() ?? "tool";
-                string arguments = function.GetProperty("arguments").GetString() ?? "{}";
-                if (id is not null) {
-                    calls[id] = (name, arguments);
-                }
-            }
-        }
-        return calls;
     }
 
     private static async IAsyncEnumerable<SseItem<string>> ReadEventsAsync(
@@ -979,7 +584,7 @@ internal static class AssistantEndpoint {
             return null;
         }
 
-        string? owner = Owner(context);
+        string? owner = SignedInOwner.Of(context);
         if (owner is null || await conversations.GetAsync(id, owner, context.RequestAborted) is null) {
             await WriteConversationNotFoundAsync(context);
             return null;
@@ -988,12 +593,11 @@ internal static class AssistantEndpoint {
         return owner;
     }
 
-    private static string? Owner(HttpContext context) => context.User.FindFirstValue(ClaimTypes.NameIdentifier);
 
     private static bool IsPostValid(HttpContext context) =>
         context.Features.Get<IAntiforgeryValidationFeature>() is not { IsValid: false };
 
-    private static Task WriteConversationNotFoundAsync(HttpContext context) =>
+    internal static Task WriteConversationNotFoundAsync(HttpContext context) =>
         ErrorResponses.WriteAsync(context, StatusCodes.Status404NotFound, new ErrorMessage(
             "assistant.conversation_not_found",
             "That conversation does not exist",
@@ -1003,7 +607,5 @@ internal static class AssistantEndpoint {
     private static Task WriteJsonErrorAsync(HttpContext context, int statusCode, string code, string title, string summary) =>
         ErrorResponses.WriteJsonAsync(context, statusCode, new ErrorMessage(code, title, summary, []));
 
-    private static string Encode(string value) => WebUtility.HtmlEncode(value);
 
-    private static string Selected(bool selected) => selected ? " selected" : "";
 }

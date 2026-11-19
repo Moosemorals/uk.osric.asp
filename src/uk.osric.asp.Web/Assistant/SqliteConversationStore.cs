@@ -49,8 +49,7 @@ internal sealed class SqliteConversationStore(
                 conversation.ApprovalMode,
                 conversation.UpdatedAt,
                 database.Set<Run>().Where(run => run.ConversationId == conversation.Id
-                        && (run.Status == "queued" || run.Status == "running" || run.Status == "awaiting_approval"
-                            || run.Status == RunBudget.Awaiting))
+                        && (run.Status == RunStatus.Queued || run.Status == RunStatus.Running || run.Status == RunStatus.AwaitingOwner))
                     .Select(run => run.Id)
                     .FirstOrDefault()))
             .ToArrayAsync(cancellationToken);
@@ -123,6 +122,9 @@ internal sealed class SqliteConversationStore(
         return true;
     }
 
+    // A completion time is written only when a run stops; a run waiting on its owner has not completed.
+    private static bool IsRunning(string status) => RunStatus.IsActive(status);
+
     public async Task<RunStartResult> StartRunAsync(
         long id,
         string owner,
@@ -177,7 +179,7 @@ internal sealed class SqliteConversationStore(
         Run run = new() {
             Id = runId,
             ConversationId = id,
-            Status = "queued",
+            Status = RunStatus.Queued,
             Model = model,
             ApprovalMode = approvalMode,
             PromptVersion = promptVersion,
@@ -257,7 +259,8 @@ internal sealed class SqliteConversationStore(
         database.Add(message);
         await database.SaveChangesAsync(cancellationToken);
         await transaction.CommitAsync(cancellationToken);
-        return message.Sequence;
+        // The row's id, not its sequence: the live transcript fetches the stored message by id.
+        return message.Id;
     }
 
     public async Task<IReadOnlyList<Message>> GetMessagesAsync(long id, string owner, CancellationToken cancellationToken = default) {
@@ -297,8 +300,7 @@ internal sealed class SqliteConversationStore(
         return owned
             ? await database.Set<Run>().AsNoTracking()
                 .Where(run => run.ConversationId == id
-                && (run.Status == "queued" || run.Status == "running" || run.Status == "awaiting_approval"
-                    || run.Status == RunBudget.Awaiting))
+                && (run.Status == RunStatus.Queued || run.Status == RunStatus.Running || run.Status == RunStatus.AwaitingOwner))
                 .SingleOrDefaultAsync(cancellationToken)
             : null;
     }
@@ -349,15 +351,13 @@ internal sealed class SqliteConversationStore(
             return false;
         }
 
-        string? noBudget = null;
         int updated = await database.Set<Run>()
             .Where(run => run.Id == runId)
             .ExecuteUpdateAsync(setters => setters
                 .SetProperty(run => run.Status, status)
                 .SetProperty(run => run.ErrorCode, errorCode)
                 .SetProperty(run => run.ErrorMessage, errorMessage)
-                .SetProperty(run => run.PausedBudget, noBudget)
-                .SetProperty(run => run.StartedAt, run => run.StartedAt ?? (status == "running" ? now : null))
+                .SetProperty(run => run.StartedAt, run => run.StartedAt ?? (status == RunStatus.Running ? now : null))
                 .SetProperty(run => run.CompletedAt, IsRunning(status) ? null : now), cancellationToken);
         if (updated > 0) {
             await database.Set<Conversation>()
@@ -367,198 +367,253 @@ internal sealed class SqliteConversationStore(
         return updated > 0;
     }
 
-    public async Task<bool> PauseRunAsync(string runId, string budget, CancellationToken cancellationToken = default) {
+    public async Task<bool> OpenInterruptAsync(
+        string runId,
+        string kind,
+        string? toolCallId,
+        string requestJson,
+        CancellationToken cancellationToken = default) {
         ArgumentException.ThrowIfNullOrWhiteSpace(runId);
-        ArgumentException.ThrowIfNullOrWhiteSpace(budget);
+        ArgumentException.ThrowIfNullOrWhiteSpace(kind);
+        ArgumentNullException.ThrowIfNull(requestJson);
+
         DateTimeOffset now = clock.GetUtcNow();
+        await using IDbContextTransaction transaction = await database.Database.BeginTransactionAsync(cancellationToken);
         long? conversationId = await database.Set<Run>()
             .Where(run => run.Id == runId)
             .Select(run => (long?)run.ConversationId)
             .SingleOrDefaultAsync(cancellationToken);
         if (conversationId is null) {
+            await transaction.RollbackAsync(cancellationToken);
             return false;
         }
 
+        // The status moves with the record, in one transaction: a run whose interrupt is open is a run
+        // the owner is being waited on, and there is no state in between for a reload to find.
         int updated = await database.Set<Run>()
-            .Where(run => run.Id == runId && run.Status == "running")
+            .Where(run => run.Id == runId && run.Status == RunStatus.Running)
             .ExecuteUpdateAsync(setters => setters
-                .SetProperty(run => run.Status, RunBudget.Awaiting)
-                .SetProperty(run => run.PausedBudget, budget)
+                .SetProperty(run => run.Status, RunStatus.AwaitingOwner)
                 .SetProperty(run => run.ErrorCode, (string?)null)
                 .SetProperty(run => run.ErrorMessage, (string?)null)
                 .SetProperty(run => run.CompletedAt, (DateTimeOffset?)null), cancellationToken);
-        if (updated > 0) {
-            await database.Set<Conversation>()
-                .Where(conversation => conversation.Id == conversationId)
-                .ExecuteUpdateAsync(setters => setters.SetProperty(conversation => conversation.UpdatedAt, now), cancellationToken);
+        if (updated == 0) {
+            await transaction.RollbackAsync(cancellationToken);
+            return false;
         }
-        return updated > 0;
+
+        OwnerInterrupt interrupt = new() {
+            RunId = runId,
+            Kind = kind,
+            Status = OwnerInterruptStatus.Pending,
+            ToolCallId = toolCallId,
+            RequestJson = requestJson,
+            CreatedAt = now,
+        };
+        database.Add(interrupt);
+        try {
+            await database.SaveChangesAsync(cancellationToken);
+        } catch (DbUpdateException exception) when (SqliteErrors.IsUniqueViolation(exception)) {
+            // A run waits on one thing at a time, so a second interrupt for it is the caller's defect,
+            // not a second question: the key refuses it and the run is left as it was.
+            logger.LogDebug("Run {RunId} already has an interrupt", runId);
+            database.Entry(interrupt).State = EntityState.Detached;
+            await transaction.RollbackAsync(cancellationToken);
+            return false;
+        }
+
+        await database.Set<Conversation>()
+            .Where(conversation => conversation.Id == conversationId)
+            .ExecuteUpdateAsync(setters => setters.SetProperty(conversation => conversation.UpdatedAt, now), cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
+        return true;
+    }
+
+    public Task<OwnerInterrupt?> GetInterruptAsync(string runId, CancellationToken cancellationToken = default) {
+        ArgumentException.ThrowIfNullOrWhiteSpace(runId);
+
+        return database.Set<OwnerInterrupt>().AsNoTracking()
+            .SingleOrDefaultAsync(interrupt => interrupt.RunId == runId, cancellationToken);
+    }
+
+    public async Task<OwnerInterrupt?> GetPendingInterruptAsync(
+        long conversationId,
+        string owner,
+        CancellationToken cancellationToken = default) {
+        ArgumentException.ThrowIfNullOrWhiteSpace(owner);
+        if (!await OwnsConversationAsync(conversationId, owner, cancellationToken)) {
+            return null;
+        }
+
+        return await database.Set<OwnerInterrupt>().AsNoTracking()
+            .Where(interrupt => interrupt.Status == OwnerInterruptStatus.Pending
+                && database.Set<Run>().Any(run => run.Id == interrupt.RunId && run.ConversationId == conversationId))
+            .FirstOrDefaultAsync(cancellationToken);
+    }
+
+    public async Task<InterruptResolutionResult> ResolveInterruptAsync(
+        long conversationId,
+        string owner,
+        string runId,
+        string kind,
+        string? toolCallId,
+        string resolutionJson,
+        CancellationToken cancellationToken = default) {
+        ArgumentException.ThrowIfNullOrWhiteSpace(owner);
+        ArgumentException.ThrowIfNullOrWhiteSpace(runId);
+        ArgumentException.ThrowIfNullOrWhiteSpace(kind);
+        ArgumentNullException.ThrowIfNull(resolutionJson);
+
+        if (!await OwnsConversationAsync(conversationId, owner, cancellationToken)) {
+            return InterruptResolutionResult.NotFound;
+        }
+
+        DateTimeOffset now = clock.GetUtcNow();
+        await using IDbContextTransaction transaction = await database.Database.BeginTransactionAsync(cancellationToken);
+        // The kind and the call the caller read are part of the condition, so a form built for one
+        // wait cannot resolve another that happens to be pending on the same run.
+        int resolved = await database.Database.ExecuteSqlAsync($"""
+                UPDATE "AssistantInterrupts"
+                SET "Status" = {OwnerInterruptStatus.Resolved}, "ResolutionJson" = {resolutionJson},
+                    "ResolvedAt" = {now}, "ResolvedBy" = {owner}
+                WHERE "RunId" = {runId} AND "Status" = {OwnerInterruptStatus.Pending}
+                    AND "Kind" = {kind}
+                    AND "ToolCallId" IS {toolCallId}
+                    AND EXISTS (
+                        SELECT 1 FROM "AssistantRuns" AS run
+                        WHERE run."Id" = "AssistantInterrupts"."RunId"
+                            AND run."ConversationId" = {conversationId}
+                            AND run."Status" = {RunStatus.AwaitingOwner})
+                """, cancellationToken);
+        if (resolved == 0) {
+            await transaction.RollbackAsync(cancellationToken);
+            OwnerInterrupt? existing = await database.Set<OwnerInterrupt>().AsNoTracking()
+                .SingleOrDefaultAsync(interrupt => interrupt.RunId == runId
+                    && database.Set<Run>().Any(run => run.Id == interrupt.RunId && run.ConversationId == conversationId),
+                    cancellationToken);
+            if (existing is null) {
+                return InterruptResolutionResult.NotFound;
+            }
+
+            // The same answer arriving twice is one answer: a double click is not a conflict. A
+            // different answer to a settled question is.
+            return existing.Kind == kind
+                && string.Equals(existing.ToolCallId, toolCallId, StringComparison.Ordinal)
+                && existing.Status == OwnerInterruptStatus.Resolved
+                && string.Equals(existing.ResolutionJson, resolutionJson, StringComparison.Ordinal)
+                ? InterruptResolutionResult.Resolved
+                : InterruptResolutionResult.Conflict;
+        }
+
+        _ = await database.Set<Run>()
+            .Where(run => run.Id == runId && run.ConversationId == conversationId && run.Status == RunStatus.AwaitingOwner)
+            .ExecuteUpdateAsync(setters => setters
+                .SetProperty(run => run.Status, RunStatus.Running)
+                .SetProperty(run => run.CompletedAt, (DateTimeOffset?)null), cancellationToken);
+        _ = await database.Set<Conversation>()
+            .Where(conversation => conversation.Id == conversationId)
+            .ExecuteUpdateAsync(setters => setters.SetProperty(conversation => conversation.UpdatedAt, now), cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
+        return InterruptResolutionResult.Resolved;
     }
 
     public async Task<bool> ContinueRunAsync(
         long conversationId,
         string owner,
         string runId,
-        int stepWindow,
-        int toolCallWindow,
         CancellationToken cancellationToken = default) {
         ArgumentException.ThrowIfNullOrWhiteSpace(owner);
         ArgumentException.ThrowIfNullOrWhiteSpace(runId);
-        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(stepWindow);
-        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(toolCallWindow);
-
         if (!await OwnsConversationAsync(conversationId, owner, cancellationToken)) {
             return false;
         }
 
+        // What continuing buys is what the owner was shown, not what the configuration says now: a
+        // deploy between the pause and the answer cannot change an answer already on the page.
+        OwnerInterrupt? pending = await database.Set<OwnerInterrupt>().AsNoTracking()
+            .SingleOrDefaultAsync(interrupt => interrupt.RunId == runId
+                && interrupt.Status == OwnerInterruptStatus.Pending
+                && interrupt.Kind == OwnerInterruptKind.Continuation, cancellationToken);
+        if (pending is null || InterruptPayloads.Continuation(pending.RequestJson) is not { } request) {
+            return false;
+        }
+
         DateTimeOffset now = clock.GetUtcNow();
-        string? noBudget = null;
-        // Every right-hand side reads the row as it was, so the budget that ran out is widened by one
-        // window and the other keeps its value, whichever order the columns are set in.
+        string resolution = InterruptPayloads.Write(new OwnerResolution("continue"));
+        await using IDbContextTransaction transaction = await database.Database.BeginTransactionAsync(cancellationToken);
+        int resolved = await database.Database.ExecuteSqlAsync($"""
+                UPDATE "AssistantInterrupts"
+                SET "Status" = {OwnerInterruptStatus.Resolved}, "ResolutionJson" = {resolution},
+                    "ResolvedAt" = {now}, "ResolvedBy" = {owner}
+                WHERE "RunId" = {runId} AND "Status" = {OwnerInterruptStatus.Pending}
+                    AND "Kind" = {OwnerInterruptKind.Continuation}
+                """, cancellationToken);
+        if (resolved == 0) {
+            await transaction.RollbackAsync(cancellationToken);
+            return false;
+        }
+
+        // Every right-hand side reads the row as it was, so the budget that ran out is widened by the
+        // window the owner was shown and the other keeps its value, whichever order the columns are
+        // set in. The per-step budget is not widened: a continuation cannot make one step larger.
         int updated = await database.Set<Run>()
             .Where(run => run.Id == runId
                 && run.ConversationId == conversationId
-                && run.Status == RunBudget.Awaiting)
+                && run.Status == RunStatus.AwaitingOwner)
             .ExecuteUpdateAsync(setters => setters
-                .SetProperty(run => run.Status, "running")
-                .SetProperty(run => run.PausedBudget, noBudget)
-                .SetProperty(run => run.StepLimit, run => run.PausedBudget == RunBudget.Steps
-                    ? (run.StepLimit ?? stepWindow) + stepWindow
+                .SetProperty(run => run.Status, RunStatus.Running)
+                .SetProperty(run => run.StepLimit, run => request.Budget == RunBudget.Steps
+                    ? (run.StepLimit ?? request.Window) + request.Window
                     : run.StepLimit)
-                .SetProperty(run => run.ToolCallLimit, run => run.PausedBudget == RunBudget.ToolCalls
-                    ? (run.ToolCallLimit ?? toolCallWindow) + toolCallWindow
+                .SetProperty(run => run.ToolCallLimit, run => request.Budget == RunBudget.ToolCalls
+                    ? (run.ToolCallLimit ?? request.Window) + request.Window
                     : run.ToolCallLimit)
                 .SetProperty(run => run.CompletedAt, (DateTimeOffset?)null), cancellationToken);
-        if (updated > 0) {
-            await database.Set<Conversation>()
-                .Where(conversation => conversation.Id == conversationId)
-                .ExecuteUpdateAsync(setters => setters.SetProperty(conversation => conversation.UpdatedAt, now), cancellationToken);
-        }
-        return updated > 0;
-    }
-
-    // A run that is still going has no completion time; a paused one has not completed either.
-    private static bool IsRunning(string status) =>
-        status is "queued" or "running" or "awaiting_approval" or RunBudget.Awaiting;
-
-    public async Task<bool> CreateApprovalAsync(string runId, string toolCallId, CancellationToken cancellationToken = default) {
-        ArgumentException.ThrowIfNullOrWhiteSpace(runId);
-        ArgumentException.ThrowIfNullOrWhiteSpace(toolCallId);
-        ToolApproval approval = new() {
-            RunId = runId,
-            ToolCallId = toolCallId,
-            Status = "pending",
-            CreatedAt = clock.GetUtcNow(),
-        };
-        database.Add(approval);
-        try {
-            await database.SaveChangesAsync(cancellationToken);
-            return true;
-        } catch (DbUpdateException exception) when (SqliteErrors.IsUniqueViolation(exception)) {
-            // The same approval asked for twice: the first request already opened the record.
-            logger.LogDebug("Approval {ToolCallId} for run {RunId} already exists", toolCallId, runId);
-            database.Entry(approval).State = EntityState.Detached;
+        if (updated == 0) {
+            await transaction.RollbackAsync(cancellationToken);
             return false;
         }
+
+        _ = await database.Set<Conversation>()
+            .Where(conversation => conversation.Id == conversationId)
+            .ExecuteUpdateAsync(setters => setters.SetProperty(conversation => conversation.UpdatedAt, now), cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
+        return true;
     }
 
-    public async Task<ApprovalResolutionResult> ResolveApprovalAsync(
-        long conversationId,
-        string owner,
-        string runId,
-        string toolCallId,
-        string decision,
-        CancellationToken cancellationToken = default) {
-        ArgumentException.ThrowIfNullOrWhiteSpace(owner);
-        ArgumentException.ThrowIfNullOrWhiteSpace(runId);
-        ArgumentException.ThrowIfNullOrWhiteSpace(toolCallId);
-        if (decision is not ("approve" or "deny")) {
-            return ApprovalResolutionResult.Conflict;
-        }
-
-        string status = decision == "approve" ? "approved" : "denied";
-        DateTimeOffset now = clock.GetUtcNow();
-        int updated = await database.Database.ExecuteSqlAsync($"""
-                UPDATE "AssistantToolApprovals"
-                SET "Status" = {status}, "ResolvedAt" = {now}, "ResolvedBy" = {owner}
-                WHERE "RunId" = {runId} AND "ToolCallId" = {toolCallId} AND "Status" = 'pending'
-                    AND EXISTS (
-                        SELECT 1 FROM "AssistantRuns" AS run
-                        JOIN "AssistantConversations" AS conversation ON conversation."Id" = run."ConversationId"
-                        WHERE run."Id" = "AssistantToolApprovals"."RunId"
-                            AND run."ConversationId" = {conversationId}
-                            AND run."Status" = 'awaiting_approval'
-                            AND conversation."Owner" = {owner})
-                """, cancellationToken);
-        if (updated > 0) {
-            return decision == "approve" ? ApprovalResolutionResult.Approved : ApprovalResolutionResult.Denied;
-        }
-
-        string? existing = await database.Set<ToolApproval>().AsNoTracking()
-            .Where(approval => approval.RunId == runId && approval.ToolCallId == toolCallId
-                && database.Set<Run>().Any(run => run.Id == approval.RunId
-                    && run.ConversationId == conversationId
-                    && database.Set<Conversation>().Any(conversation => conversation.Id == run.ConversationId
-                        && conversation.Owner == owner)))
-            .Select(approval => approval.Status)
-            .SingleOrDefaultAsync(cancellationToken);
-        if (existing is null) {
-            return ApprovalResolutionResult.NotFound;
-        }
-        if (existing == status) {
-            return decision == "approve" ? ApprovalResolutionResult.Approved : ApprovalResolutionResult.Denied;
-        }
-        return ApprovalResolutionResult.Conflict;
-    }
-
-    public async Task<IReadOnlyList<ToolApproval>> GetPendingApprovalsAsync(
-        long conversationId,
-        string owner,
-        CancellationToken cancellationToken = default) {
-        ArgumentException.ThrowIfNullOrWhiteSpace(owner);
-        string[] runIds = await database.Set<Run>().AsNoTracking()
-            .Where(run => run.ConversationId == conversationId
-                && database.Set<Conversation>().Any(conversation => conversation.Id == conversationId && conversation.Owner == owner))
-            .Select(run => run.Id)
-            .ToArrayAsync(cancellationToken);
-        if (runIds.Length == 0) {
-            return [];
-        }
-
-        return await database.Set<ToolApproval>().AsNoTracking()
-            .Where(approval => runIds.Contains(approval.RunId) && approval.Status == "pending")
-            .ToArrayAsync(cancellationToken);
-    }
-
-    public Task<int> FailPendingApprovalsAsync(string runId, string failureCode, CancellationToken cancellationToken = default) {
+    public Task<int> FailPendingInterruptAsync(string runId, string failureCode, CancellationToken cancellationToken = default) {
         ArgumentException.ThrowIfNullOrWhiteSpace(runId);
         ArgumentException.ThrowIfNullOrWhiteSpace(failureCode);
         DateTimeOffset now = clock.GetUtcNow();
-        return database.Set<ToolApproval>()
-            .Where(approval => approval.RunId == runId && approval.Status == "pending")
+        return database.Set<OwnerInterrupt>()
+            .Where(interrupt => interrupt.RunId == runId && interrupt.Status == OwnerInterruptStatus.Pending)
             .ExecuteUpdateAsync(setters => setters
-                .SetProperty(approval => approval.Status, "failed")
-                .SetProperty(approval => approval.ResolvedAt, now)
-                .SetProperty(approval => approval.FailureCode, failureCode), cancellationToken);
+                .SetProperty(interrupt => interrupt.Status, OwnerInterruptStatus.Failed)
+                .SetProperty(interrupt => interrupt.ResolvedAt, now)
+                .SetProperty(interrupt => interrupt.FailureCode, failureCode), cancellationToken);
     }
 
     public async Task<bool> RecordStepAsync(
         string runId,
-        int toolCallCount,
         long requestBytes,
+        long estimatedTokens,
+        int maxTokens,
         TokenUsage? usage,
         CancellationToken cancellationToken = default) {
         ArgumentException.ThrowIfNullOrWhiteSpace(runId);
-        ArgumentOutOfRangeException.ThrowIfNegative(toolCallCount);
+        ArgumentOutOfRangeException.ThrowIfNegative(estimatedTokens);
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(maxTokens);
 
         IQueryable<Run> run = database.Set<Run>().Where(item => item.Id == runId);
         int updated = usage is null
             ? await run.ExecuteUpdateAsync(setters => setters
                 .SetProperty(item => item.StepCount, item => item.StepCount + 1)
-                .SetProperty(item => item.ToolCallCount, item => item.ToolCallCount + toolCallCount), cancellationToken)
+                .SetProperty(item => item.EstimatedTokens, item => estimatedTokens)
+                .SetProperty(item => item.MaxTokens, item => maxTokens), cancellationToken)
             : await run.ExecuteUpdateAsync(setters => setters
                 .SetProperty(item => item.StepCount, item => item.StepCount + 1)
-                .SetProperty(item => item.ToolCallCount, item => item.ToolCallCount + toolCallCount)
+                .SetProperty(item => item.EstimatedTokens, item => estimatedTokens)
+                .SetProperty(item => item.MaxTokens, item => maxTokens)
                 .SetProperty(item => item.PromptTokens, item => (item.PromptTokens ?? 0) + (usage.PromptTokens ?? 0))
                 .SetProperty(item => item.CompletionTokens, item => (item.CompletionTokens ?? 0) + (usage.CompletionTokens ?? 0))
                 .SetProperty(item => item.CachedTokens, item => (item.CachedTokens ?? 0) + (usage.CachedTokens ?? 0))
@@ -569,15 +624,25 @@ internal sealed class SqliteConversationStore(
         return updated > 0;
     }
 
+    public async Task<bool> RecordToolCallAsync(string runId, CancellationToken cancellationToken = default) {
+        ArgumentException.ThrowIfNullOrWhiteSpace(runId);
+
+        int updated = await database.Set<Run>()
+            .Where(item => item.Id == runId)
+            .ExecuteUpdateAsync(
+                setters => setters.SetProperty(item => item.ToolCallCount, item => item.ToolCallCount + 1),
+                cancellationToken);
+        return updated > 0;
+    }
+
     public async Task<int> RecoverInterruptedRunsAsync(CancellationToken cancellationToken = default) {
         Run[] interrupted = await database.Set<Run>().AsNoTracking()
-            .Where(run => run.Status == "queued" || run.Status == "running" || run.Status == "awaiting_approval"
-                || run.Status == RunBudget.Awaiting)
+            .Where(run => run.Status == RunStatus.Queued || run.Status == RunStatus.Running || run.Status == RunStatus.AwaitingOwner)
             .ToArrayAsync(cancellationToken);
 
         foreach (Run run in interrupted) {
-            await SetRunStatusAsync(run.Id, "interrupted", "restart", "The host restarted before the run completed.", cancellationToken);
-            await FailPendingApprovalsAsync(run.Id, "restart", cancellationToken);
+            await SetRunStatusAsync(run.Id, RunStatus.Interrupted, "restart", "The host restarted before the run completed.", cancellationToken);
+            await FailPendingInterruptAsync(run.Id, "restart", cancellationToken);
 
             Message[] assistantCalls = await database.Set<Message>().AsNoTracking()
                 .Where(message => message.RunId == run.Id && message.Role == "assistant" && message.ToolCallsJson != null)

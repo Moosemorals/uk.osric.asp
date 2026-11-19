@@ -60,7 +60,7 @@ public sealed class AssistantFetcherTests {
     [Test]
     public async Task TheAssistantUserAgentIsSentAsync() {
         StubHttpMessageHandler handler = new(request => {
-            Assert.That(request.Headers.UserAgent.ToString(), Is.EqualTo("moosemorals.com (assistant)"));
+            Assert.That(request.Headers.UserAgent.ToString(), Is.EqualTo("moosemorals.com (assistant) fetchmoose@fluffypeople.com"));
 
             return Respond(HttpStatusCode.OK, "ok")(request);
         });

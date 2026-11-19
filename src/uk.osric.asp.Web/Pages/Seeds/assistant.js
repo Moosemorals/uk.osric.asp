@@ -16,13 +16,45 @@ if (root) {
     const count = document.getElementById('assistant-char-count');
     const messageBudget = document.getElementById('assistant-budget-message');
     const messageMeter = document.getElementById('assistant-budget-message-meter');
-    // Keyed by the name the server writes, so an update needs no table of its own.
+    // Keyed by the name the server writes, so an update needs no table of its own. A row the provider
+    // has not reported a limit for has no meter: it is a figure rather than a share, and it stays one.
+    // `reported` is the last snapshot's figure and `pending` the characters seen since, so a row that
+    // can be projected needs no second source of truth.
     const budgetRows = new Map(Array.from(document.querySelectorAll('[data-budget]'), row => [row.dataset.budget, {
         row,
         count: row.querySelector('.assistant-budget-count > span'),
         limit: row.querySelector('.assistant-budget-limit'),
         meter: row.querySelector('meter'),
+        direction: row.querySelector('#assistant-budget-estimate-direction'),
+        reported: null,
+        pending: 0,
+        mark: null,
+        word: null,
     }]));
+    // The rows the page can project while a step streams, and the mark each carries while its figure
+    // is a guess. The glyph is for the eye and the word is for a screen reader, because a bare `~` is
+    // not an explanation; the attribute is what the stylesheet reads.
+    const projectedRows = ['context', 'window', 'output'];
+    for (const name of projectedRows) {
+        const budget = budgetRows.get(name);
+        if (!budget) {
+            continue;
+        }
+        budget.mark = document.createElement('span');
+        budget.mark.className = 'assistant-budget-mark';
+        budget.mark.setAttribute('aria-hidden', 'true');
+        budget.mark.textContent = '~';
+        budget.mark.hidden = true;
+        budget.word = document.createElement('span');
+        budget.word.className = 'visually-hidden assistant-budget-estimated-word';
+        budget.word.textContent = 'estimated';
+        budget.word.hidden = true;
+        budget.count.after(budget.mark, budget.word);
+    }
+    // The token-counting spike's English-prose ratio, in the UTF-16 units `.length` counts. The
+    // request's own bytes per prompt token is a JSON body's ratio and would read an answer at about
+    // twice its size, so it is deliberately not used here.
+    const charsPerToken = 3.8;
     const token = messageForm.querySelector('input[name="__RequestVerificationToken"]')?.value ?? '';
     const messages = new Map();
     // Matches MessageText.MaximumLength, so a streamed tool summary matches the stored one.
@@ -185,26 +217,55 @@ if (root) {
         }
     }
 
+    // One card per kind of thing the run stops to ask. The event carries the kind and the request the
+    // server stored, so the page builds exactly the card the reload will render, and the route says
+    // nothing about the kind: the record does.
+    function interruptAction(runId) {
+        return `/assistant/${encodeURIComponent(conversationId)}/runs/${encodeURIComponent(runId)}/interrupt`;
+    }
+
+    function addInterrupt(data) {
+        if (data.kind === 'approval') {
+            addApproval(data);
+        } else if (data.kind === 'continuation') {
+            addContinuation(data);
+        }
+    }
+
     function addApproval(data) {
+        const request = data.request ?? {};
+        transcript.querySelector('section.assistant-approvals')?.remove();
+        const section = document.createElement('section');
+        section.className = 'assistant-approvals';
+        section.setAttribute('aria-label', 'Pending tool approvals');
+        section.dataset.interruptKind = data.kind;
+        const heading = document.createElement('h2');
+        heading.textContent = 'Approval required';
+        section.append(heading);
+
         const article = document.createElement('article');
         article.className = 'assistant-approval';
         article.dataset.toolCallId = data.toolCallId;
-        const heading = document.createElement('h3');
-        heading.textContent = data.name;
+        const title = document.createElement('h3');
+        title.textContent = request.name;
         const description = document.createElement('p');
-        description.textContent = data.description;
+        description.textContent = request.description;
         const args = document.createElement('pre');
-        args.textContent = data.arguments;
-        article.append(heading, description, args);
+        args.textContent = request.arguments;
+        article.append(title, description, args);
 
         for (const [decision, label] of [['approve', 'Approve'], ['deny', 'Deny']]) {
             const form = document.createElement('form');
             form.method = 'post';
-            form.action = `/assistant/${encodeURIComponent(conversationId)}/runs/${encodeURIComponent(data.runId)}/tool-calls/${encodeURIComponent(data.toolCallId)}/approval`;
+            form.action = interruptAction(data.runId);
             const csrf = document.createElement('input');
             csrf.type = 'hidden';
             csrf.name = '__RequestVerificationToken';
             csrf.value = token;
+            const call = document.createElement('input');
+            call.type = 'hidden';
+            call.name = 'toolCallId';
+            call.value = data.toolCallId ?? '';
             const choice = document.createElement('input');
             choice.type = 'hidden';
             choice.name = 'decision';
@@ -212,7 +273,7 @@ if (root) {
             const button = document.createElement('button');
             button.type = 'submit';
             button.textContent = label;
-            form.append(csrf, choice, button);
+            form.append(csrf, call, choice, button);
             form.addEventListener('submit', async event => {
                 event.preventDefault();
                 button.disabled = true;
@@ -226,48 +287,116 @@ if (root) {
             });
             article.append(form);
         }
-        prepend(article);
+        section.append(article);
+        prepend(section);
         statusLine.textContent = 'A tool needs your approval';
     }
 
     // The server already knows what each figure is; the page only shows it, by the same two rules
     // the markup is written with: the number may exceed the meter, the meter may not. A continuation
     // widens one budget, so the limit the row names moves with the figure.
-    function applyBudgets(budgets, limits) {
+    function applyBudgets(budgets, limits, estimate) {
         for (const [name, used] of Object.entries(budgets ?? {})) {
             const budget = budgetRows.get(name);
             if (!budget) {
                 continue;
             }
-            const maximum = Number(limits?.[name] ?? budget.meter.max);
-            budget.meter.max = String(maximum);
-            budget.meter.low = String(Math.floor(maximum * 3 / 5));
-            budget.meter.high = String(Math.floor(maximum * 17 / 20));
-            budget.meter.value = Math.min(used, maximum);
-            budget.count.textContent = formatAmount(used);
-            if (budget.limit) {
-                budget.limit.textContent = formatAmount(maximum);
+            // A snapshot is the authority: the characters counted since the last one have been measured.
+            budget.reported = used;
+            budget.pending = 0;
+            if (budget.direction && estimate?.direction) {
+                budget.direction.textContent = estimate.direction;
             }
-            budget.row.classList.toggle('assistant-budget-exceeded', used > maximum);
+            let maximum = null;
+            if (budget.meter) {
+                maximum = Number(limits?.[name] ?? budget.meter.max);
+                budget.meter.max = String(maximum);
+                budget.meter.low = String(Math.floor(maximum * 3 / 5));
+                budget.meter.high = String(Math.floor(maximum * 17 / 20));
+                if (budget.limit) {
+                    budget.limit.textContent = formatAmount(maximum);
+                }
+            }
+            drawBudget(budget, used, false, maximum);
         }
+        projectBudgets();
+    }
+
+    // The two rules every figure is drawn by, so a reported one and a projected one cannot be drawn
+    // differently. Only a reported figure may wear the exceeded class: that is the panel's one
+    // "read this twice" signal, and a guess that cries wolf is worse than a guess that waits.
+    function drawBudget(budget, value, estimated, maximum) {
+        budget.count.textContent = formatAmount(value);
+        if (budget.mark) {
+            budget.mark.hidden = !estimated;
+            budget.word.hidden = !estimated;
+            if (estimated) {
+                budget.row.dataset.estimated = 'true';
+            } else {
+                delete budget.row.dataset.estimated;
+            }
+        }
+        if (!budget.meter) {
+            return;
+        }
+        const limit = Number(maximum ?? budget.meter.max);
+        budget.meter.value = Math.min(value, limit);
+        budget.row.classList.toggle('assistant-budget-exceeded', !estimated && value > limit);
+    }
+
+    // What the panel can say before the server does: the characters that have arrived since the last
+    // snapshot, divided by a prose ratio. The next snapshot replaces each figure, so a projection never
+    // outlives the step that produced it, and it is painted over the reported figure rather than added
+    // to what is on screen, so a replayed event cannot be counted twice.
+    function projectBudgets() {
+        const output = budgetRows.get('output');
+        const context = budgetRows.get('context');
+        const reply = budgetRows.get('reply');
+        const window = budgetRows.get('window');
+        let contextFigure = null;
+        if (output?.reported != null && output.pending > 0) {
+            drawBudget(output, output.reported + Math.ceil(output.pending / charsPerToken), true);
+        }
+        if (context?.reported != null && context.pending > 0) {
+            contextFigure = context.reported + Math.ceil(context.pending / charsPerToken);
+            drawBudget(context, contextFigure, true);
+        }
+        if (window?.reported != null && contextFigure !== null && reply?.reported != null) {
+            drawBudget(window, contextFigure + reply.reported, true);
+        }
+    }
+
+    // Characters the panel will project once it has a figure to project from. Reasoning is omitted from
+    // the next request, so it counts towards the completion but not towards the context.
+    function addPending(names, characters) {
+        if (characters <= 0) {
+            return;
+        }
+        for (const name of names) {
+            const budget = budgetRows.get(name);
+            if (budget && budget.reported !== null) {
+                budget.pending += characters;
+            }
+        }
+        projectBudgets();
     }
 
     // A run that ran out of a budget waits here rather than failing: the same card the server
     // renders on a reload, with the server's own sentence, so the two cannot disagree.
     function addContinuation(data) {
-        // A reload renders the server's copy of this card, and the journal replays the event that
-        // asked for it, so the live card replaces the stored one rather than joining it.
-        transcript.querySelector(`section.assistant-continuation[data-budget="${CSS.escape(data.budget)}"]`)?.remove();
+        const request = data.request ?? {};
+        transcript.querySelector('section.assistant-continuation')?.remove();
         const section = document.createElement('section');
         section.className = 'assistant-continuation';
-        section.dataset.budget = data.budget;
+        section.dataset.budget = request.budget;
+        section.dataset.interruptKind = data.kind;
         const heading = document.createElement('h2');
         heading.textContent = 'Do you want to continue?';
         const message = document.createElement('p');
-        message.textContent = data.message;
+        message.textContent = request.message;
         const form = document.createElement('form');
         form.method = 'post';
-        form.action = `/assistant/${encodeURIComponent(conversationId)}/runs/${encodeURIComponent(data.runId)}/continue`;
+        form.action = interruptAction(data.runId);
         const csrf = document.createElement('input');
         csrf.type = 'hidden';
         csrf.name = '__RequestVerificationToken';
@@ -333,6 +462,7 @@ if (root) {
             }
             const message = attachMessage(messages.get(data.step) ?? beginMessage(data.step));
             message.reasoningBody.textContent += data.text;
+            addPending(['output'], data.text.length);
             reconnectFailures = 0;
         });
         source.addEventListener('content.delta', event => {
@@ -342,6 +472,7 @@ if (root) {
             }
             const message = attachMessage(messages.get(data.step) ?? beginMessage(data.step));
             message.content.textContent += data.text;
+            addPending(['output', 'context'], data.text.length);
             reconnectFailures = 0;
         });
         source.addEventListener('message.completed', event => {
@@ -356,21 +487,21 @@ if (root) {
         });
         source.addEventListener('budget.updated', event => {
             const data = JSON.parse(event.data);
-            applyBudgets(data.budgets, data.limits);
+            applyBudgets(data.budgets, data.limits, data.estimate);
             applyUsage(data.usage);
         });
-        source.addEventListener('tool.started', event => showTool(JSON.parse(event.data)));
-        source.addEventListener('approval.required', event => addApproval(JSON.parse(event.data)));
-        source.addEventListener('approval.resolved', event => {
+        source.addEventListener('tool.started', event => {
             const data = JSON.parse(event.data);
-            transcript.querySelector(`[data-tool-call-id="${CSS.escape(data.toolCallId)}"].assistant-approval`)?.remove();
-            statusLine.textContent = data.decision === 'approved' ? 'Tool approved' : 'Tool denied';
+            showTool(data);
+            // A call's arguments are completion tokens and part of the next request, but not of the
+            // count the server has published yet.
+            addPending(['output', 'context'], data.arguments?.length ?? 0);
         });
-        source.addEventListener('run.paused', event => addContinuation(JSON.parse(event.data)));
-        source.addEventListener('run.resumed', event => {
+        source.addEventListener('interrupt.required', event => addInterrupt(JSON.parse(event.data)));
+        source.addEventListener('interrupt.resolved', event => {
             const data = JSON.parse(event.data);
-            transcript.querySelector(`section.assistant-continuation[data-budget="${CSS.escape(data.budget)}"]`)?.remove();
-            statusLine.textContent = 'Continuing';
+            transcript.querySelector(`[data-interrupt-kind="${CSS.escape(data.kind)}"]`)?.remove();
+            statusLine.textContent = data.kind === 'approval' ? 'Approval recorded' : 'Continuing';
         });
         source.addEventListener('tool.finished', event => {
             const data = JSON.parse(event.data);

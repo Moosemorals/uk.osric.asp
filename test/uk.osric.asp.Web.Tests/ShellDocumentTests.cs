@@ -55,10 +55,11 @@ public sealed class ShellDocumentTests {
     }
 
     [Test]
-    public async Task BodyTakesAClassOnlyWhenAskedAsync() {
-        Assert.That(MarkupReader.Parse(await RenderAsync()).Elements("body").Single().HasAttribute("class"), Is.False);
+    public async Task TheBodyMarksTheShellAndAnExtraClassFollowsItAsync() {
+        Assert.That(MarkupReader.Parse(await RenderAsync()).Elements("body").Single().Attribute("class"),
+            Is.EqualTo(ShellDocument.ShellClass));
         Assert.That(MarkupReader.Parse(await RenderAsync(bodyClass: "editor-page")).Elements("body").Single().Attribute("class"),
-            Is.EqualTo("editor-page"));
+            Is.EqualTo("shell editor-page"));
     }
 
     [Test]
@@ -78,7 +79,9 @@ public sealed class ShellDocumentTests {
 
         IReadOnlyList<MarkupElement> children = document.Elements("body").Single().Children;
         Assert.That(children[1].Name, Is.EqualTo("header"));
-        Assert.That(children[1].Children.Single().Name, Is.EqualTo("nav"));
+        Assert.That(children[1].Children[0].Name, Is.EqualTo("p"));
+        Assert.That(children[1].Children[0].Text.Trim(), Is.EqualTo(ShellDocument.ShellLabelText));
+        Assert.That(children[1].Children[1].Name, Is.EqualTo("nav"));
         Assert.That(children[2].Name, Is.EqualTo("main"));
         Assert.That(document.Elements("main"), Has.Count.EqualTo(1));
         Assert.That(document.Elements("main").Single().Attribute("id"), Is.EqualTo("main"));

@@ -17,9 +17,9 @@ internal static class ShellKernelHarness {
         TestOptions.Assistant);
 
     /// <summary>Runs a line through the kernel, or fails the test when the command is not an applet.</summary>
-    public static async Task<ShellOutcome> RunAsync(PageEditor pages, string line, int maxChars = 4096) =>
+    public static async Task<ShellOutcome> RunAsync(PageEditor pages, string line) =>
         await ShellRunner.RunAsync(
-            line, pages, Policy, TestOptions.Assistant with { MaxToolResultChars = maxChars }, CancellationToken.None);
+            line, pages, Policy, TestOptions.Assistant, TestOptions.Budget, CancellationToken.None);
 
     /// <summary>The answer, for a line that is expected to work.</summary>
     public static async Task<string> OutputAsync(PageEditor pages, string line) {

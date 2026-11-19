@@ -187,9 +187,15 @@ public sealed class HeatmapTests {
     public void TicksArePlacedAtTheirFractionOfTheWindow() {
         string svg = Render(Row("0.5", 1, 2));
 
-        Assert.That(AttributeOf(svg, "05:00", "x"), Is.EqualTo(66), "the left margin");
-        Assert.That(AttributeOf(svg, "05:01", "x"), Is.EqualTo(119.67).Within(0.01), "a sixth of the 322-wide plot later");
-        Assert.That(AttributeOf(svg, "05:06", "x"), Is.EqualTo(388), "and the window's end at the plot's right edge");
+        Assert.That(AttributeOf(svg, "05:00", "x"), Is.EqualTo(ChartChrome.LeftMargin).Within(0.01), "the left margin");
+        Assert.That(
+            AttributeOf(svg, "05:01", "x"),
+            Is.EqualTo(ChartChrome.LeftMargin + (Size.PlotWidth / 6)).Within(0.01),
+            "a sixth of the plot later");
+        Assert.That(
+            AttributeOf(svg, "05:06", "x"),
+            Is.EqualTo(Size.Width - ChartChrome.RightMargin),
+            "and the window's end at the plot's right edge");
     }
 
     private static IEnumerable<(double X, double Width)> Rects(string svg) =>

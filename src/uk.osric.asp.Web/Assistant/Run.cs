@@ -24,20 +24,18 @@ internal sealed class Run {
     public int? CachedTokens { get; set; }
     /// <summary>Every step's reasoning tokens added together.</summary>
     public int? ReasoningTokens { get; set; }
-    /// <summary>The most recent step's completion tokens, which the output budget counts.</summary>
+    /// <summary>The most recent step's completion tokens, which the completion budget counts.</summary>
     public int? OutputTokens { get; set; }
+    /// <summary>The most recent request's estimated prompt tokens, which the estimate's error is measured from.</summary>
+    public long? EstimatedTokens { get; set; }
+    /// <summary>The most recent request's <c>max_tokens</c>, which is the allowance that step had.</summary>
+    public int? MaxTokens { get; set; }
     /// <summary>The UTF-8 bytes of the last request this run sent, for calibrating the token estimate.</summary>
     public long? RequestBytes { get; set; }
     /// <summary>The last request's provider-reported prompt tokens, for calibrating the token estimate.</summary>
     public int? LastPromptTokens { get; set; }
     public string? ErrorCode { get; set; }
     public string? ErrorMessage { get; set; }
-
-    /// <summary>The budget the run is paused on, or null when it is not paused.</summary>
-    /// <remarks>One of <see cref="RunBudget.Steps"/>, <see cref="RunBudget.ToolCalls"/> or
-    /// <see cref="RunBudget.ToolCallsPerStep"/> while <see cref="Status"/> is
-    /// <c>awaiting_continuation</c>.</remarks>
-    public string? PausedBudget { get; set; }
 
     /// <summary>The run's step budget, or null while it is the configured one.</summary>
     /// <remarks>A continuation adds one window to the budget it ran out of, so this is what the page

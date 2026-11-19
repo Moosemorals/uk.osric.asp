@@ -3,6 +3,8 @@
 
 namespace uk.osric.asp.Web.Metrics;
 
+using System.Globalization;
+
 /// <summary>One period a chart is drawn over: an explicit start and a length.</summary>
 /// <remarks>
 /// A window is a value, not "the last hour": the start is snapped down to the sample step, so the same
@@ -13,9 +15,27 @@ namespace uk.osric.asp.Web.Metrics;
 /// <param name="Length">How far the window reaches.</param>
 internal sealed record ChartWindow(DateTimeOffset Start, TimeSpan Length) {
 
-    // Prometheus refuses a range query over 11,000 points and the SVG is heaviest at one column per
-    // sample, so a long window samples more sparsely instead of sending 43,200 points for 30 days.
-    private const int TargetSamples = 500;
+    // A drawn sample is as wide as the step, and a spike that lasts a minute says nothing on a day's
+    // chart: every window gets about sixty samples, so a day samples every half hour and a month every
+    // twelve hours. Prometheus also refuses a range query over 11,000 points.
+    private const int TargetSamples = 60;
+
+    // The steps a window uses, in ascending order. A ladder rather than an arithmetic division keeps
+    // the boundaries readable: a quarter-hour tick is a clock reading, 13.7 minutes is not.
+    private static readonly TimeSpan[] StepLadder = [
+        TimeSpan.FromMinutes(1),
+        TimeSpan.FromMinutes(2),
+        TimeSpan.FromMinutes(5),
+        TimeSpan.FromMinutes(10),
+        TimeSpan.FromMinutes(15),
+        TimeSpan.FromMinutes(30),
+        TimeSpan.FromHours(1),
+        TimeSpan.FromHours(2),
+        TimeSpan.FromHours(3),
+        TimeSpan.FromHours(6),
+        TimeSpan.FromHours(12),
+        TimeSpan.FromDays(1),
+    ];
 
     /// <summary>The token a request that names no window gets.</summary>
     /// <remarks>
@@ -47,6 +67,14 @@ internal sealed record ChartWindow(DateTimeOffset Start, TimeSpan Length) {
 
     /// <summary>The spacing of the samples the window asks for.</summary>
     public TimeSpan Step => StepFor(Length);
+
+    /// <summary>
+    /// How long a rate averages over, as PromQL writes it: one step, so each drawn sample is the whole
+    /// slice it stands for rather than a narrow reading of it.
+    /// </summary>
+    public string RateRange => Step >= TimeSpan.FromHours(1)
+        ? string.Create(CultureInfo.InvariantCulture, $"{(long)Step.TotalHours}h")
+        : string.Create(CultureInfo.InvariantCulture, $"{(long)Step.TotalMinutes}m");
 
     /// <summary>Builds a window from an explicit start and length, snapping the start to the step.</summary>
     /// <param name="start">The left edge the caller asked for.</param>
@@ -83,9 +111,15 @@ internal sealed record ChartWindow(DateTimeOffset Start, TimeSpan Length) {
     /// <summary>The sample spacing a length needs to stay under the sample target.</summary>
     /// <param name="length">How far the window reaches.</param>
     public static TimeSpan StepFor(TimeSpan length) {
-        double minutes = Math.Max(1, Math.Ceiling(length.TotalSeconds / TargetSamples / 60));
+        foreach (TimeSpan step in StepLadder) {
+            if (length <= step * TargetSamples) {
+                return step;
+            }
+        }
 
-        return TimeSpan.FromMinutes(minutes);
+        double days = Math.Ceiling(length.TotalDays / TargetSamples);
+
+        return TimeSpan.FromDays(days);
     }
 
     // Snapping keeps a window a stable thing: two requests a few seconds apart are the same query, and

@@ -71,6 +71,36 @@ h6 {
     font-weight: 600;
 }
 
+/* The marker says this document's menu is the site's tools rather than a page's own. It is text,
+   not a colour, so it reads with no sheet at all and to a screen reader. */
+.shell-label {
+    margin: 0 0 0.25rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: #4a4a4a;
+}
+
+/* A shell document's banner carries a distinct edge, so which document a reader is in is visible at a
+   glance. The page's own sheet is linked last and may override this without a stronger selector. */
+.shell .site-header {
+    border-block-start: 0.25rem solid #005fa3;
+    padding-block-start: 0.5rem;
+}
+
+/* The administration menu: one wrapped line of tools, with the current one bold. */
+.editor-menu {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.25rem 1rem;
+    margin-block-end: 1.5rem;
+}
+
+.editor-menu .current {
+    font-weight: 600;
+}
+
 /* A list of diagnostics: the markers are stripped, so the role stays on the element to keep the
    semantics. <pre> used to give the list both its monospace type and its preserved breaks; it has
    to say so itself now. */

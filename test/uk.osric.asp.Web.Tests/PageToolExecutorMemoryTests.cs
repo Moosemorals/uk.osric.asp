@@ -19,7 +19,7 @@ public sealed class PageToolExecutorMemoryTests {
 
     private readonly AssistantOptions _options = TestOptions.Assistant with {
         MaxToolArgumentChars = 4_096,
-        MaxToolResultChars = 4_096,
+
         MaxPageChars = 4_096,
     };
 
@@ -226,6 +226,7 @@ public sealed class PageToolExecutorMemoryTests {
         _services.GetRequiredService<IServiceScopeFactory>(),
         new PagePathPolicy(new ReservedPaths(ReservedPaths.Default), _options),
         _options,
+        ModelWindowSource.Fixed(TestOptions.Budget),
         _services.GetRequiredService<AssistantMetrics>(),
         new FakeAssistantFetcher());
 

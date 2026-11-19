@@ -25,7 +25,7 @@ stylesheet or writes its own whole document, and a library is never one at all. 
 
 ## Bootstrap route
 A shell route that exists so the site can be repaired when a page is what is broken: `/login` and
-`/logout`, `/status` with its chart, and the two recovery routes `/admin/restore` and `/admin/scrub`.
+`/logout`, `/admin/status` with its chart, and the two recovery routes `/admin/restore` and `/admin/scrub`.
 
 **Not** a view that has not been ported yet. A route for a view a page could serve today is a page,
 and a route for one a page cannot serve yet has a job behind it (`pages-page-first`); bootstrap is the reason
@@ -39,8 +39,9 @@ shared by every request.
 
 **Not** a per-page quota, and not a promise that running page code stops: it bounds the response and
 releases the slot, while the abandoned render continues (`pages-the-execution-budget`). Nor are the assistant's budgets
-this: those are the `Assistant:Max*` limits on one run or conversation, drawn as used/available
-pairs (`assistant-budgets-are-one-snapshot`).
+this: those are the one content budget — the model's reported window less the reply floor — and the
+`Assistant:Max*` limits on one run or conversation, drawn as used/available pairs
+(`assistant-budgets-are-one-snapshot`, `assistant-the-budget-is-window-minus-reply`).
 
 **Owner:** pages — `PageBudget`, `Pages:Render:TimeoutSeconds`, `Pages:Render:Slots`,
 `Pages:Render:MaxBodyChars`, `Pages:Compile:TimeoutSeconds` and `Pages:Compile:Slots`; a committed
@@ -103,12 +104,12 @@ time.
 **Owner:** assistant — `Conversation`, the `AssistantConversations` table and `IConversationStore`.
 
 ## Dashboard
-The owner-only `/status` view that queries Prometheus and draws the answer as charts.
+The owner-only `/admin/status` view that queries Prometheus and draws the answer as charts.
 
 **Not** `/metrics`. The dashboard reads Prometheus with `query_range`; `/metrics` is the exporter's
 scrape surface.
 
-**Owner:** observability — `StatusEndpoint`, `Dashboard`, `StatusPage`; route `/status`.
+**Owner:** observability — `StatusEndpoint`, `Dashboard`, `StatusPage`; route `/admin/status`.
 
 ## Diff
 
@@ -228,14 +229,14 @@ assistant profile, `LinkPolicy` and `AccessibleTableRenderer` are the rules that
 page profile (`pages-markdown`).
 
 ## Masking
-Replacing old observations in a provider request with deterministic placeholders while the stored
+Replacing old tool results in a provider request with deterministic placeholders while the stored
 transcript keeps the whole value.
 
 **Not** trimming. Masking keeps the message and its tool name, id and short arguments; trimming drops
 whole old turns. **Not** summarisation: a placeholder only says how much was there, and costs no model
-call.
+call. Nothing is exempt: masking walks oldest first and stops the moment the request fits.
 
-**Owner:** assistant — `ObservationMasker` and `ContextPlanner` (`assistant-old-tool-results-are-masked`).
+**Owner:** assistant — `ToolResultMasker` and `ContextPlanner` (`assistant-old-tool-results-are-masked`).
 
 ## Memory
 One owner's note to the assistant: a preference, a fact about this site, a correction or a reference
@@ -254,7 +255,7 @@ The owner's own view of the assistant's memory: `/assistant/memory`, where every
 kind, corrected, pinned or forgotten.
 
 **Not** a stored page, and not a capability of its own. It is shell code under the reserved
-`/assistant` prefix, server-rendered like the editor and `/status`, so a page cannot claim the key and
+`/assistant` prefix, server-rendered like the editor and `/admin/status`, so a page cannot claim the key and
 the assistant reads it as a shell file it may not save. The view moves with the assistant page
 (IDEA-025) rather than becoming a capability of its own; `assistant-memory-belongs-to-the-assistant`, which proposed one, was withdrawn.
 
@@ -288,6 +289,17 @@ Prometheus sees; a series is one metric at one set of label values. A histogram 
 **Owner:** observability — OpenTelemetry's Prometheus exporter; names and labels are fixed in
 `PageMetrics` and `AssistantMetrics`, and a tag such as `page.path` becomes the label `page_path`.
 
+## Owner interrupt
+One time a run stopped and asked its owner for something: a stored request, the resolution they gave,
+and the run waiting in `awaiting_owner` until they did.
+
+**Not** an approval. An approval is one kind of interrupt; a spent budget's continuation is the
+other, and a kind is a request and a card rather than a new status, table or route.
+
+**Owner:** assistant — `OwnerInterrupt`, the `AssistantInterrupts` table,
+`OwnerInterruptCoordinator`, `RunStatus.AwaitingOwner` and
+`POST /assistant/{id}/runs/{runId}/interrupt`.
+
 ## Page
 The HTTP resource served at a key: the current revision's image run against a request.
 
@@ -297,7 +309,7 @@ the stored forms it is served from or restored from (`pages-names-follow-the-pip
 **Owner:** pages — `PageEndpoint`, `IPageStore` and the `PageHeads` table.
 
 ## Panel
-One drawing on `/status`, its title and its legend inside the SVG, and exactly one instrument behind
+One drawing on `/admin/status`, its title and its legend inside the SVG, and exactly one instrument behind
 it.
 
 **Not** a metric or a series. A panel may draw several series — the label values of one instrument —
@@ -318,13 +330,13 @@ value is `PagePath.Key`.
 ## Recall
 The one moment a run is given memory: its newest user message becomes FTS5 terms, the owner's pinned
 and already-used memories are mixed with the ranked matches by a pure rule, and the chosen notes are
-appended to the system prompt inside the character budget.
+appended to the system prompt inside its share of the context budget.
 
 **Not** a search the model makes. `search_memories` is the model asking; recall is the run deciding
 before the first step, once per run, with the block frozen for the rest of it (`assistant-memory-recall-is-fts5`).
 
-**Owner:** assistant — `MemoryRecall`, `MemoryQuery`, `MemorySelection`, `IMemoryStore.RecallAsync`,
-`Assistant:MaxMemoriesPerRun` and `Assistant:MaxMemoryCharsPerRun`.
+**Owner:** assistant — `MemoryRecall`, `MemoryQuery`, `MemorySelection`, `IMemoryStore.RecallAsync`
+and `ContextBudget.MemoryCharsPerRun` (`assistant-one-budget-decides-what-fits`).
 
 ## Pin
 The owner's "always use this": a flag on a memory that puts it first in recall, whatever the turn
@@ -335,6 +347,15 @@ from the memory page, changes it (`assistant-memory-page`).
 
 **Owner:** assistant — `MemoryCandidate.Pinned`, the `AssistantMemories.Pinned` column,
 `IMemoryStore.PinnedAsync` and `MemoryRecall.Select`.
+
+## Request
+The whole input to one step: the model name, the system prompt with a run's memory block, the tool
+definitions and the transcript after masking and trimming.
+
+**Not** the owner's message. The message is one entry in the transcript; the request is everything
+the provider is sent, and its `max_tokens` is computed from what its prompt leaves of the window.
+
+**Owner:** assistant — `ChatRequest`, `ChatRequestJson` and `ContextPlan.Request`.
 
 ## Restore
 Saving a retained revision's source as a new revision of the page, through the ordinary compile-and-save
@@ -379,7 +400,7 @@ went in; `TemplateHash` carries the source identity (`pages-compile-on-save`).
 ## Scrape
 One Prometheus pull of the app's `/metrics` endpoint.
 
-**Not** a dashboard query. Prometheus scrapes into its own store; `/status` then queries that store
+**Not** a dashboard query. Prometheus scrapes into its own store; `/admin/status` then queries that store
 with `query_range`.
 
 **Owner:** observability — `app.MapPrometheusScrapingEndpoint("/metrics")` and
@@ -410,12 +431,14 @@ holds it.
 The size of a provider request as sent: the UTF-8 byte count of the body `ChatRequestJson` builds
 from the model, system prompt, tool definitions, messages and envelope.
 
-**Not** the budget any more, and not a character count. Characters undercount the JSON envelope and
-escaping, so bytes are the honest measure of the wire body; `TokenEstimator` converts that count to
-estimated tokens, which is what `Assistant:MaxContextTokens` bounds (`assistant-the-request-budget-is-tokens`).
+**Not** the budget, and not a character count. Characters undercount the JSON envelope and escaping,
+so bytes are the honest measure of the wire body; `TokenEstimator` converts the difference between two
+bodies to estimated tokens, which is what the prompt's share of the model's window bounds
+(`assistant-the-request-budget-is-tokens`).
 
-**Owner:** assistant — `ChatRequestJson.MeasureBytes` and `ContextPlan.RequestBytes`; the token
-estimate is `TokenEstimator` and `ContextPlan.EstimatedTokens` (`assistant-the-request-budget-is-tokens`).
+**Owner:** assistant — `ChatRequestJson.MeasureBytes`, `PromptSizes` and `ContextPlan.RequestBytes`;
+the token estimate is `TokenEstimator` and `ContextPlan.EstimatedTokens`
+(`assistant-tokens-anchor-on-the-last-report`).
 
 ## Session
 One visitor's key/value store, which a page reaches through `IPageSession`: JSON values under short
@@ -436,8 +459,18 @@ the shell's route table — which the assistant may list and read but never save
 **Not** a page or a seed. A shell file has no stored source, revision or compile state: the assistant
 reads a host-written record of what the route does, because the running image has no source tree.
 
-**Owner:** assistant — `ShellRoutes` for the records, `PagePathPolicy` for the permission, and
+**Owner:** assistant — `ShellCatalogue` for the records, `PagePathPolicy` for the permission, and
 `ReservedPaths` for the list itself.
+
+## Shell page
+A document the site's own code writes: it carries `body.shell` and a visible **Site tools** label, and
+its menu is the shell's routes rather than the pages the store holds.
+
+**Not** a page that cannot be edited. A shell page answers when the page store or the page pipeline is
+what failed, which is why none of them is a stored page; a view the store could serve is a page
+(`pages-page-first`, `shell-the-shell-is-marked`).
+
+**Owner:** shell — `ShellDocument`, `SiteNavigation` and `AdminNavigation`.
 
 ## Series
 One metric at one set of label values, sampled over time.
@@ -478,17 +511,27 @@ many steps, bounded by `Assistant:MaxSteps`.
 **Owner:** assistant — no row; `Run.StepCount`, the `step` field on every run event and the
 `assistant.run.steps` instrument; `Assistant:MaxSteps`.
 
+## System prompt
+The fixed instructions at the head of every request: `PageAuthorPrompt`, versioned so a change to it
+is visible on the run, with the run's recalled memory block appended when there is one.
+
+**Not** the transcript. Nothing in it comes from the conversation, and it is a constant for the life
+of the run, which is why an untouched request should report most of its prompt as cached.
+
+**Owner:** assistant — `PageAuthorPrompt.Build()`, `PageAuthorPrompt.Version` and `Run.PromptVersion`.
+
 ## Token estimate
-The assistant's estimate of a provider request in tokens: `ChatRequestJson` measures the exact UTF-8
-body, and `TokenEstimator` divides it by the bytes-per-token ratio the provider's last `prompt_tokens`
-report calibrated, with a ten-percent margin and a conservative default before the first report.
+The assistant's estimate of a provider request in tokens, anchored on the provider's own count: the
+`prompt_tokens` it reported for the request the previous step sent, plus the messages appended since
+divided by the bytes-per-token ratio that report implies, with a three-percent margin on that delta.
 
-**Not** the provider's exact count. The usage list shows the exact prompt, completion, cache and
-reasoning tokens the provider reported; the request row is an estimate, and the provider's own limit
-is the backstop.
+**Not** the provider's exact count, and not an estimate of the whole conversation. The usage list
+shows the exact prompt, completion, cache and reasoning tokens the provider reported; the Context row
+is the estimate, and every step records how far it was from the truth.
 
-**Owner:** assistant — `TokenEstimator`, `ContextPlan.EstimatedTokens` and
-`BudgetSnapshot.ContextTokens`; `Assistant:MaxContextTokens` (`assistant-the-request-budget-is-tokens`).
+**Owner:** assistant — `TokenEstimator`, `TokenCalibration`, `ContextPlan.EstimatedTokens` and
+`BudgetSnapshot.ContextTokens`; `assistant.context.estimate.error`
+(`assistant-tokens-anchor-on-the-last-report`).
 
 ## Template
 The text an author edits and saves: markup plus C# in `<% %>` blocks and declarations in `<%! %>`
@@ -509,13 +552,14 @@ the head and revisions.
 it.
 
 ## Tool approval
-The durable owner decision that a flagged tool call waits for before it executes.
+The owner interrupt a flagged tool call waits for before it executes: the request names the call, and
+the resolution allows or refuses it.
 
 **Not** a tool call. The approval records whether one call may run; the call is the assistant's
 request to run it.
 
-**Owner:** assistant — `ToolApproval`, the `AssistantToolApprovals` table,
-`ToolApprovalCoordinator` and the per-conversation `ApprovalMode`.
+**Owner:** assistant — the `approval` kind of `OwnerInterrupt` and the per-conversation
+`ApprovalMode`.
 
 ## Tool call
 A call the assistant emits in a message and the run executes once, stored back as a `tool` message.
@@ -527,6 +571,16 @@ approval is the permission.
 `Message.ToolName` and `PageToolExecutor`; `Assistant:MaxToolCalls`, `Assistant:MaxToolCallsPerStep`
 and `assistant.run.tool_calls`.
 
+## Tool result
+What a tool hands back, as one `tool` message in the transcript and in every request that follows.
+
+**Not** an observation, a tool output or an answer: one word, the one MCP and Anthropic use, for the
+thing `ToolResultMasker`, the `assistant.tool.truncated` counter and the Tool result budget row all
+mean. DeepSeek's `<｜tool▁output▁begin｜>` is a token, not a name for the thing.
+
+**Owner:** assistant — `ToolExecutionResult`, `ToolResults`, `ChatMessage.Content` on a `tool`
+message, and `ToolResultMasker` (`assistant-the-vocabulary-is-the-providers`).
+
 ## Transcript
 The durable, ordered messages of a conversation, which are rebuilt into each provider request.
 
@@ -534,8 +588,16 @@ The durable, ordered messages of a conversation, which are rebuilt into each pro
 and dropped after `Assistant:JournalTtlMinutes`.
 
 **Owner:** assistant — `Message`, the `AssistantMessages` table and `IConversationStore`;
-`ContextPlanner` selects what is sent, and `ObservationMasker` shortens old payloads in the request
+`ContextPlanner` selects what is sent, and `ToolResultMasker` shortens old payloads in the request
 without changing the stored rows.
+
+## Turn
+The trimmer's unit: one user message and everything that answers it, up to the next user message.
+
+**Not** a message. A turn is never split — its tool calls and results travel with it — so dropping
+one takes the whole exchange with it.
+
+**Owner:** assistant — `ConversationTurns`, `ContextTrimmer` and `ContextPlan.DroppedMessages`.
 
 ## Usage
 The prompt, completion, cache-hit and reasoning token counts a provider reports for a step,

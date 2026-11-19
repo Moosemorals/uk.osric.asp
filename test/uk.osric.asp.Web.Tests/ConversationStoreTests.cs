@@ -130,10 +130,12 @@ public sealed class ConversationStoreTests {
             Content = "message",
             CreatedAt = DateTimeOffset.UtcNow,
         });
-        database.Add(new ToolApproval {
+        database.Add(new OwnerInterrupt {
             RunId = runId,
+            Kind = OwnerInterruptKind.Approval,
+            Status = OwnerInterruptStatus.Resolved,
             ToolCallId = "call-1",
-            Status = "executed",
+            RequestJson = "{}",
             CreatedAt = DateTimeOffset.UtcNow,
         });
         await database.SaveChangesAsync();
@@ -143,7 +145,7 @@ public sealed class ConversationStoreTests {
             Assert.That(database.Set<Conversation>().Count(), Is.Zero);
             Assert.That(database.Set<Run>().Count(), Is.Zero);
             Assert.That(database.Set<Message>().Count(), Is.Zero);
-            Assert.That(database.Set<ToolApproval>().Count(), Is.Zero);
+            Assert.That(database.Set<OwnerInterrupt>().Count(), Is.Zero);
         });
     }
 
@@ -221,52 +223,147 @@ public sealed class ConversationStoreTests {
         })];
         gate.SetResult();
 
-        long?[] sequences = await Task.WhenAll(appends);
+        long?[] ids = await Task.WhenAll(appends);
         await using StorageDbContext reader = new(_options);
         IReadOnlyList<Message> messages = await NewStore(reader).GetMessagesAsync(conversationId, "owner");
 
-        Assert.That(sequences, Is.All.Not.Null);
+        Assert.That(ids, Is.All.Not.Null);
         Assert.That(messages.Select(message => message.Sequence), Is.EqualTo(Enumerable.Range(1, Appends + 1).Select(value => (long)value)));
     }
 
     [Test]
-    public async Task ApprovalResolvesOnlyWhilePendingForTheOwnedActiveRunAsync() {
+    public async Task AnAppendedMessageReportsTheIdTheContentRouteServesAsync() {
         await using StorageDbContext database = new(_options);
         IConversationStore conversations = NewStore(database);
-        Conversation conversation = await conversations.CreateAsync("owner");
-        RunStartResult start = await conversations.StartRunAsync(conversation.Id, "owner", "write", "model", "prompt-v1");
-        await conversations.SetRunStatusAsync(start.RunId!, "awaiting_approval");
-        Assert.That(await conversations.CreateApprovalAsync(start.RunId!, "call-1"), Is.True);
+        Conversation first = await conversations.CreateAsync("owner");
+        RunStartResult firstRun = await conversations.StartRunAsync(first.Id, "owner", "first", "model", "prompt-v1");
+        await conversations.AppendMessageAsync(first.Id, firstRun.RunId!, new MessageInput("assistant", "reply"));
 
-        ApprovalResolutionResult approved = await conversations.ResolveApprovalAsync(
-            conversation.Id, "owner", start.RunId!, "call-1", "approve");
-        ApprovalResolutionResult repeated = await conversations.ResolveApprovalAsync(
-            conversation.Id, "owner", start.RunId!, "call-1", "approve");
-        ApprovalResolutionResult conflicting = await conversations.ResolveApprovalAsync(
-            conversation.Id, "owner", start.RunId!, "call-1", "deny");
+        Conversation second = await conversations.CreateAsync("owner");
+        RunStartResult secondRun = await conversations.StartRunAsync(second.Id, "owner", "second", "model", "prompt-v1");
+        long? reported = await conversations.AppendMessageAsync(
+            second.Id, secondRun.RunId!, new MessageInput("assistant", "reply"));
 
-        Assert.That(approved, Is.EqualTo(ApprovalResolutionResult.Approved));
-        Assert.That(repeated, Is.EqualTo(ApprovalResolutionResult.Approved));
-        Assert.That(conflicting, Is.EqualTo(ApprovalResolutionResult.Conflict));
-        Assert.That(await conversations.GetPendingApprovalsAsync(conversation.Id, "owner"), Is.Empty);
+        Message stored = (await conversations.GetMessagesAsync(second.Id, "owner")).Single(message => message.Role == "assistant");
+        Assert.Multiple(() => {
+            Assert.That(stored.Sequence, Is.Not.EqualTo(stored.Id), "the case needs a sequence that has drifted from the id");
+            Assert.That(reported, Is.EqualTo(stored.Id), "the transcript fetches the message by the id this call reports");
+        });
     }
 
     [Test]
-    public async Task StoppingRunFailsPendingApprovalsWithoutExecutingThemAsync() {
+    public async Task AnInterruptIsResolvedOnlyWhileItIsPendingForTheOwnedActiveRunAsync() {
         await using StorageDbContext database = new(_options);
         IConversationStore conversations = NewStore(database);
         Conversation conversation = await conversations.CreateAsync("owner");
         RunStartResult start = await conversations.StartRunAsync(conversation.Id, "owner", "write", "model", "prompt-v1");
-        await conversations.SetRunStatusAsync(start.RunId!, "awaiting_approval");
-        await conversations.CreateApprovalAsync(start.RunId!, "call-1");
+        await conversations.SetRunStatusAsync(start.RunId!, RunStatus.Running);
+        string resolution = InterruptPayloads.Write(new OwnerResolution("approve"));
+        Assert.That(await conversations.OpenInterruptAsync(
+            start.RunId!, OwnerInterruptKind.Approval, "call-1", Approval()), Is.True);
 
-        Assert.That(await conversations.FailPendingApprovalsAsync(start.RunId!, "stop"), Is.EqualTo(1));
+        InterruptResolutionResult? resolved = await conversations.ResolveInterruptAsync(
+            conversation.Id, "owner", start.RunId!, OwnerInterruptKind.Approval, "call-1", resolution);
+        InterruptResolutionResult repeated = await conversations.ResolveInterruptAsync(
+            conversation.Id, "owner", start.RunId!, OwnerInterruptKind.Approval, "call-1", resolution);
+        InterruptResolutionResult conflicting = await conversations.ResolveInterruptAsync(
+            conversation.Id, "owner", start.RunId!, OwnerInterruptKind.Approval, "call-1",
+            InterruptPayloads.Write(new OwnerResolution("deny")));
+        InterruptResolutionResult wrongKind = await conversations.ResolveInterruptAsync(
+            conversation.Id, "owner", start.RunId!, OwnerInterruptKind.Continuation, "call-1", resolution);
 
-        ToolApproval approval = (await database.Set<ToolApproval>().AsNoTracking().SingleAsync())!;
-        Assert.That(approval.Status, Is.EqualTo("failed"));
-        Assert.That(approval.FailureCode, Is.EqualTo("stop"));
-        Assert.That(await conversations.ResolveApprovalAsync(conversation.Id, "owner", start.RunId!, "call-1", "approve"),
-            Is.EqualTo(ApprovalResolutionResult.Conflict));
+        Run run = (await conversations.GetRunAsync(conversation.Id, "owner", start.RunId!))!;
+        OwnerInterrupt? pendingAfter = await conversations.GetPendingInterruptAsync(conversation.Id, "owner");
+        Assert.Multiple(() => {
+            Assert.That(resolved, Is.EqualTo(InterruptResolutionResult.Resolved));
+            Assert.That(repeated, Is.EqualTo(InterruptResolutionResult.Resolved), "a double click is one answer");
+            Assert.That(conflicting, Is.EqualTo(InterruptResolutionResult.Conflict));
+            Assert.That(wrongKind, Is.EqualTo(InterruptResolutionResult.Conflict), "a form for another kind is stale");
+            Assert.That(run.Status, Is.EqualTo(RunStatus.Running), "resolving moves the run on");
+            Assert.That(pendingAfter, Is.Null);
+        });
+    }
+
+    [Test]
+    public async Task AStrangerCannotResolveAnInterruptAsync() {
+        await using StorageDbContext database = new(_options);
+        IConversationStore conversations = NewStore(database);
+        Conversation conversation = await conversations.CreateAsync("owner");
+        RunStartResult start = await conversations.StartRunAsync(conversation.Id, "owner", "write", "model", "prompt-v1");
+        await conversations.SetRunStatusAsync(start.RunId!, RunStatus.Running);
+        await conversations.OpenInterruptAsync(start.RunId!, OwnerInterruptKind.Approval, "call-1", Approval());
+
+        InterruptResolutionResult result = await conversations.ResolveInterruptAsync(
+            conversation.Id, "someone", start.RunId!, OwnerInterruptKind.Approval, "call-1",
+            InterruptPayloads.Write(new OwnerResolution("approve")));
+
+        OwnerInterrupt? still = await conversations.GetPendingInterruptAsync(conversation.Id, "owner");
+        Assert.Multiple(() => {
+            Assert.That(result, Is.EqualTo(InterruptResolutionResult.NotFound));
+            Assert.That(still, Is.Not.Null);
+        });
+    }
+
+    [Test]
+    public async Task ARunHasAtMostOnePendingInterruptAsync() {
+        await using StorageDbContext database = new(_options);
+        IConversationStore conversations = NewStore(database);
+        Conversation conversation = await conversations.CreateAsync("owner");
+        RunStartResult start = await conversations.StartRunAsync(conversation.Id, "owner", "write", "model", "prompt-v1");
+        await conversations.SetRunStatusAsync(start.RunId!, RunStatus.Running);
+
+        Assert.That(await conversations.OpenInterruptAsync(
+            start.RunId!, OwnerInterruptKind.Approval, "call-1", Approval()), Is.True);
+        Assert.That(await conversations.OpenInterruptAsync(
+            start.RunId!, OwnerInterruptKind.Approval, "call-2", Approval()), Is.False,
+            "the run is already waiting on its owner");
+
+        OwnerInterrupt pending = (await conversations.GetPendingInterruptAsync(conversation.Id, "owner"))!;
+        Run run = (await conversations.GetRunAsync(conversation.Id, "owner", start.RunId!))!;
+        Assert.Multiple(() => {
+            Assert.That(pending.ToolCallId, Is.EqualTo("call-1"), "the first question is the one the owner was shown");
+            Assert.That(run.Status, Is.EqualTo(RunStatus.AwaitingOwner));
+        });
+    }
+
+    [Test]
+    public async Task AnInterruptIsOpenedOnlyWhileItsRunIsRunningAsync() {
+        await using StorageDbContext database = new(_options);
+        IConversationStore conversations = NewStore(database);
+        Conversation conversation = await conversations.CreateAsync("owner");
+        RunStartResult start = await conversations.StartRunAsync(conversation.Id, "owner", "write", "model", "prompt-v1");
+
+        Assert.That(await conversations.OpenInterruptAsync(
+            start.RunId!, OwnerInterruptKind.Approval, "call-1", Approval()), Is.False,
+            "a queued run has not reached a point where it can ask");
+
+        await conversations.SetRunStatusAsync(start.RunId!, RunStatus.Cancelled);
+        Assert.That(await conversations.OpenInterruptAsync(
+            start.RunId!, OwnerInterruptKind.Approval, "call-1", Approval()), Is.False);
+
+        Assert.That(await conversations.GetPendingInterruptAsync(conversation.Id, "owner"), Is.Null);
+    }
+
+    [Test]
+    public async Task StoppingARunFailsItsPendingInterruptWithoutExecutingItAsync() {
+        await using StorageDbContext database = new(_options);
+        IConversationStore conversations = NewStore(database);
+        Conversation conversation = await conversations.CreateAsync("owner");
+        RunStartResult start = await conversations.StartRunAsync(conversation.Id, "owner", "write", "model", "prompt-v1");
+        await conversations.SetRunStatusAsync(start.RunId!, RunStatus.Running);
+        await conversations.OpenInterruptAsync(start.RunId!, OwnerInterruptKind.Approval, "call-1", Approval());
+
+        Assert.That(await conversations.FailPendingInterruptAsync(start.RunId!, "stop"), Is.EqualTo(1));
+
+        OwnerInterrupt interrupt = (await database.Set<OwnerInterrupt>().AsNoTracking().SingleAsync())!;
+        InterruptResolutionResult afterFailure = await conversations.ResolveInterruptAsync(
+            conversation.Id, "owner", start.RunId!, OwnerInterruptKind.Approval, "call-1",
+            InterruptPayloads.Write(new OwnerResolution("approve")));
+        Assert.Multiple(() => {
+            Assert.That(interrupt.Status, Is.EqualTo(OwnerInterruptStatus.Failed));
+            Assert.That(interrupt.FailureCode, Is.EqualTo("stop"));
+            Assert.That(afterFailure, Is.EqualTo(InterruptResolutionResult.Conflict));
+        });
     }
 
     [Test]
@@ -278,42 +375,42 @@ public sealed class ConversationStoreTests {
         string toolCalls = "[{\"id\":\"call-1\",\"type\":\"function\",\"function\":{\"name\":\"write_page\",\"arguments\":\"{}\"}},{\"id\":\"call-2\",\"type\":\"function\",\"function\":{\"name\":\"delete_page\",\"arguments\":\"{}\"}}]";
         await conversations.AppendMessageAsync(conversation.Id, start.RunId!, new MessageInput("assistant", "", ToolCallsJson: toolCalls));
         await conversations.AppendMessageAsync(conversation.Id, start.RunId!, new MessageInput("tool", "done", ToolCallId: "call-1", ToolName: "write_page"));
-        await conversations.SetRunStatusAsync(start.RunId!, "awaiting_approval");
-        await conversations.CreateApprovalAsync(start.RunId!, "call-2");
+        await conversations.SetRunStatusAsync(start.RunId!, RunStatus.Running);
+        await conversations.OpenInterruptAsync(start.RunId!, OwnerInterruptKind.Approval, "call-2", Approval());
 
         Assert.That(await conversations.RecoverInterruptedRunsAsync(), Is.EqualTo(1));
         Assert.That(await conversations.RecoverInterruptedRunsAsync(), Is.Zero);
 
         Run run = await database.Set<Run>().AsNoTracking().SingleAsync();
-        ToolApproval approval = await database.Set<ToolApproval>().AsNoTracking().SingleAsync();
+        OwnerInterrupt interrupt = await database.Set<OwnerInterrupt>().AsNoTracking().SingleAsync();
         Message repaired = await database.Set<Message>().AsNoTracking()
             .SingleAsync(message => message.ToolCallId == "call-2");
         Assert.Multiple(() => {
-            Assert.That(run.Status, Is.EqualTo("interrupted"));
+            Assert.That(run.Status, Is.EqualTo(RunStatus.Interrupted));
             Assert.That(run.ErrorCode, Is.EqualTo("restart"));
-            Assert.That(approval.Status, Is.EqualTo("failed"));
-            Assert.That(approval.FailureCode, Is.EqualTo("restart"));
+            Assert.That(interrupt.Status, Is.EqualTo(OwnerInterruptStatus.Failed));
+            Assert.That(interrupt.FailureCode, Is.EqualTo("restart"));
             Assert.That(repaired.Content, Does.Contain("host restarted"));
             Assert.That(repaired.ToolName, Is.EqualTo("delete_page"));
         });
     }
 
     [Test]
-    public async Task RecordStepAddsEveryReportedCountToTheRunAsync() {
+    public async Task RecordStepAddsTheReportedUsageToTheRunAsync() {
         await using StorageDbContext database = new(_options);
         IConversationStore conversations = NewStore(database);
         Conversation conversation = await conversations.CreateAsync("owner");
         RunStartResult start = await conversations.StartRunAsync(conversation.Id, "owner", "write", "model", "prompt-v1");
 
-        Assert.That(await conversations.RecordStepAsync(start.RunId!, 1, 4_000,
+        Assert.That(await conversations.RecordStepAsync(start.RunId!, 4_000, 1_100, 100_000,
             new TokenUsage(1_000, 20, 600, 5), CancellationToken.None), Is.True);
-        Assert.That(await conversations.RecordStepAsync(start.RunId!, 2, 5_000,
+        Assert.That(await conversations.RecordStepAsync(start.RunId!, 5_000, 2_100, 90_000,
             new TokenUsage(2_000, 30, 1_200, 7), CancellationToken.None), Is.True);
 
         Run run = await database.Set<Run>().AsNoTracking().SingleAsync();
         Assert.Multiple(() => {
             Assert.That(run.StepCount, Is.EqualTo(2));
-            Assert.That(run.ToolCallCount, Is.EqualTo(3));
+            Assert.That(run.ToolCallCount, Is.Zero, "a step records no calls; they are counted as they run");
             Assert.That(run.PromptTokens, Is.EqualTo(3_000));
             Assert.That(run.CompletionTokens, Is.EqualTo(50));
             Assert.That(run.CachedTokens, Is.EqualTo(1_800));
@@ -321,6 +418,8 @@ public sealed class ConversationStoreTests {
             Assert.That(run.OutputTokens, Is.EqualTo(30), "the output budget counts the last step");
             Assert.That(run.RequestBytes, Is.EqualTo(5_000));
             Assert.That(run.LastPromptTokens, Is.EqualTo(2_000));
+            Assert.That(run.EstimatedTokens, Is.EqualTo(2_100), "the estimate is what the error row is measured from");
+            Assert.That(run.MaxTokens, Is.EqualTo(90_000), "the allowance is what the completion row is read against");
         });
     }
 
@@ -331,16 +430,34 @@ public sealed class ConversationStoreTests {
         Conversation conversation = await conversations.CreateAsync("owner");
         RunStartResult start = await conversations.StartRunAsync(conversation.Id, "owner", "write", "model", "prompt-v1");
 
-        Assert.That(await conversations.RecordStepAsync(start.RunId!, 4, 9_000, null, CancellationToken.None), Is.True);
+        Assert.That(await conversations.RecordStepAsync(start.RunId!, 9_000, 9_100, 80_000, null, CancellationToken.None), Is.True);
 
         Run run = await database.Set<Run>().AsNoTracking().SingleAsync();
         Assert.Multiple(() => {
             Assert.That(run.StepCount, Is.EqualTo(1));
-            Assert.That(run.ToolCallCount, Is.EqualTo(4));
+            Assert.That(run.ToolCallCount, Is.Zero);
             Assert.That(run.PromptTokens, Is.Null);
             Assert.That(run.CompletionTokens, Is.Null);
             Assert.That(run.RequestBytes, Is.Null);
+            Assert.That(run.EstimatedTokens, Is.EqualTo(9_100));
+            Assert.That(run.MaxTokens, Is.EqualTo(80_000));
         });
+    }
+
+    [Test]
+    public async Task AToolCallCountsWhenItIsAttemptedAsync() {
+        await using StorageDbContext database = new(_options);
+        IConversationStore conversations = NewStore(database);
+        Conversation conversation = await conversations.CreateAsync("owner");
+        RunStartResult start = await conversations.StartRunAsync(conversation.Id, "owner", "write", "model", "prompt-v1");
+
+        Assert.That(await conversations.RecordToolCallAsync(start.RunId!, CancellationToken.None), Is.True);
+        Assert.That(await conversations.RecordToolCallAsync(start.RunId!, CancellationToken.None), Is.True);
+
+        Run run = await database.Set<Run>().AsNoTracking().SingleAsync();
+        Assert.That(run.ToolCallCount, Is.EqualTo(2));
+        Assert.That(await conversations.RecordToolCallAsync("no-such-run", CancellationToken.None), Is.False,
+            "a call for a run that is not there counts nothing");
     }
 
     [Test]
@@ -349,7 +466,7 @@ public sealed class ConversationStoreTests {
         IConversationStore conversations = NewStore(database);
         Conversation conversation = await conversations.CreateAsync("owner");
         RunStartResult first = await conversations.StartRunAsync(conversation.Id, "owner", "write", "model", "prompt-v1");
-        await conversations.RecordStepAsync(first.RunId!, 0, 4_000, new TokenUsage(1_000, 20), CancellationToken.None);
+        await conversations.RecordStepAsync(first.RunId!, 4_000, 1_100, 100_000, new TokenUsage(1_000, 20), CancellationToken.None);
         await conversations.SetRunStatusAsync(first.RunId!, "completed");
 
         RunStartResult second = await conversations.StartRunAsync(conversation.Id, "owner", "again", "model", "prompt-v1");
@@ -398,29 +515,31 @@ public sealed class ConversationStoreTests {
     }
 
     [Test]
-    public async Task APausedRunWidensOnlyTheBudgetTheOwnerContinuedAsync() {
+    public async Task AContinuationWidensOnlyTheBudgetTheOwnerWasShownAsync() {
         await using StorageDbContext database = new(_options);
         IConversationStore conversations = NewStore(database);
         Conversation conversation = await conversations.CreateAsync("owner");
         RunStartResult start = await conversations.StartRunAsync(conversation.Id, "owner", "write", "model", "prompt-v1");
-        await conversations.SetRunStatusAsync(start.RunId!, "running");
+        await conversations.SetRunStatusAsync(start.RunId!, RunStatus.Running);
 
-        Assert.That(await conversations.PauseRunAsync(start.RunId!, RunBudget.Steps), Is.True);
+        Assert.That(await conversations.OpenInterruptAsync(
+            start.RunId!, OwnerInterruptKind.Continuation, null, Continuation(RunBudget.Steps, 40, 40)), Is.True);
         Run paused = (await conversations.GetActiveRunAsync(conversation.Id, "owner"))!;
         Assert.Multiple(() => {
-            Assert.That(paused.Status, Is.EqualTo(RunBudget.Awaiting));
-            Assert.That(paused.PausedBudget, Is.EqualTo(RunBudget.Steps));
+            Assert.That(paused.Status, Is.EqualTo(RunStatus.AwaitingOwner));
             Assert.That(paused.CompletedAt, Is.Null, "a paused run has not completed");
         });
 
-        Assert.That(await conversations.ContinueRunAsync(conversation.Id, "owner", start.RunId!, 40, 16), Is.True);
+        Assert.That(await conversations.ContinueRunAsync(conversation.Id, "owner", start.RunId!), Is.True);
         Run resumed = (await conversations.GetRunAsync(conversation.Id, "owner", start.RunId!))!;
+        OwnerInterrupt interrupt = (await conversations.GetInterruptAsync(start.RunId!))!;
         Assert.Multiple(() => {
-            Assert.That(resumed.Status, Is.EqualTo("running"));
-            Assert.That(resumed.PausedBudget, Is.Null);
-            Assert.That(resumed.StepLimit, Is.EqualTo(80), "the steps ran out, so the steps grew by a window");
+            Assert.That(resumed.Status, Is.EqualTo(RunStatus.Running));
+            Assert.That(resumed.StepLimit, Is.EqualTo(80), "the steps ran out, so the steps grew by the window shown");
             Assert.That(resumed.ToolCallLimit, Is.Null, "the tool-call budget did not");
             Assert.That(resumed.CompletedAt, Is.Null);
+            Assert.That(interrupt.Status, Is.EqualTo(OwnerInterruptStatus.Resolved));
+            Assert.That(InterruptPayloads.Resolution(interrupt.ResolutionJson)?.Decision, Is.EqualTo("continue"));
         });
     }
 
@@ -430,10 +549,11 @@ public sealed class ConversationStoreTests {
         IConversationStore conversations = NewStore(database);
         Conversation conversation = await conversations.CreateAsync("owner");
         RunStartResult start = await conversations.StartRunAsync(conversation.Id, "owner", "write", "model", "prompt-v1");
-        await conversations.SetRunStatusAsync(start.RunId!, "running");
-        await conversations.PauseRunAsync(start.RunId!, RunBudget.ToolCalls);
+        await conversations.SetRunStatusAsync(start.RunId!, RunStatus.Running);
+        await conversations.OpenInterruptAsync(
+            start.RunId!, OwnerInterruptKind.Continuation, null, Continuation(RunBudget.ToolCalls, 16, 16));
 
-        Assert.That(await conversations.ContinueRunAsync(conversation.Id, "owner", start.RunId!, 40, 16), Is.True);
+        Assert.That(await conversations.ContinueRunAsync(conversation.Id, "owner", start.RunId!), Is.True);
         Run resumed = (await conversations.GetRunAsync(conversation.Id, "owner", start.RunId!))!;
         Assert.Multiple(() => {
             Assert.That(resumed.ToolCallLimit, Is.EqualTo(32));
@@ -447,12 +567,13 @@ public sealed class ConversationStoreTests {
         IConversationStore conversations = NewStore(database);
         Conversation conversation = await conversations.CreateAsync("owner");
         RunStartResult start = await conversations.StartRunAsync(conversation.Id, "owner", "write", "model", "prompt-v1");
-        await conversations.SetRunStatusAsync(start.RunId!, "running");
+        await conversations.SetRunStatusAsync(start.RunId!, RunStatus.Running);
 
-        bool whileRunning = await conversations.ContinueRunAsync(conversation.Id, "owner", start.RunId!, 40, 16);
-        await conversations.PauseRunAsync(start.RunId!, RunBudget.Steps);
-        bool byAnotherOwner = await conversations.ContinueRunAsync(conversation.Id, "someone", start.RunId!, 40, 16);
-        bool inAnotherConversation = await conversations.ContinueRunAsync(conversation.Id + 1, "owner", start.RunId!, 40, 16);
+        bool whileRunning = await conversations.ContinueRunAsync(conversation.Id, "owner", start.RunId!);
+        await conversations.OpenInterruptAsync(
+            start.RunId!, OwnerInterruptKind.Continuation, null, Continuation(RunBudget.Steps, 40, 40));
+        bool byAnotherOwner = await conversations.ContinueRunAsync(conversation.Id, "someone", start.RunId!);
+        bool inAnotherConversation = await conversations.ContinueRunAsync(conversation.Id + 1, "owner", start.RunId!);
 
         Run after = (await conversations.GetRunAsync(conversation.Id, "owner", start.RunId!))!;
 
@@ -460,45 +581,55 @@ public sealed class ConversationStoreTests {
             Assert.That(whileRunning, Is.False);
             Assert.That(byAnotherOwner, Is.False);
             Assert.That(inAnotherConversation, Is.False);
-            Assert.That(after.Status, Is.EqualTo(RunBudget.Awaiting), "a refused continuation leaves the run as it was");
+            Assert.That(after.Status, Is.EqualTo(RunStatus.AwaitingOwner), "a refused continuation leaves the run as it was");
         });
     }
 
     [Test]
-    public async Task APausedRunStillOwnsItsConversationAsync() {
+    public async Task ARunWaitingOnItsOwnerStillOwnsTheConversationAsync() {
         await using StorageDbContext database = new(_options);
         IConversationStore conversations = NewStore(database);
         Conversation conversation = await conversations.CreateAsync("owner");
         RunStartResult start = await conversations.StartRunAsync(conversation.Id, "owner", "first", "model", "prompt-v1");
-        await conversations.SetRunStatusAsync(start.RunId!, "running");
-        await conversations.PauseRunAsync(start.RunId!, RunBudget.Steps);
+        await conversations.SetRunStatusAsync(start.RunId!, RunStatus.Running);
+        await conversations.OpenInterruptAsync(
+            start.RunId!, OwnerInterruptKind.Continuation, null, Continuation(RunBudget.Steps, 40, 40));
 
         RunStartResult second = await conversations.StartRunAsync(conversation.Id, "owner", "second", "model", "prompt-v1");
         ConversationListItem listed = (await conversations.ListAsync("owner")).Single();
 
         Assert.Multiple(() => {
             Assert.That(second.Status, Is.EqualTo(RunStartStatus.AlreadyActive));
-            Assert.That(listed.ActiveRunId, Is.EqualTo(start.RunId), "the list shows the paused run as active");
+            Assert.That(listed.ActiveRunId, Is.EqualTo(start.RunId), "the list shows the waiting run as active");
         });
     }
 
     [Test]
-    public async Task StartupRecoveryInterruptsAPausedRunAsync() {
+    public async Task StartupRecoveryInterruptsARunWaitingOnItsOwnerAsync() {
         await using StorageDbContext database = new(_options);
         IConversationStore conversations = NewStore(database);
         Conversation conversation = await conversations.CreateAsync("owner");
         RunStartResult start = await conversations.StartRunAsync(conversation.Id, "owner", "write", "model", "prompt-v1");
-        await conversations.SetRunStatusAsync(start.RunId!, "running");
-        await conversations.PauseRunAsync(start.RunId!, RunBudget.Steps);
+        await conversations.SetRunStatusAsync(start.RunId!, RunStatus.Running);
+        await conversations.OpenInterruptAsync(
+            start.RunId!, OwnerInterruptKind.Continuation, null, Continuation(RunBudget.Steps, 40, 40));
 
         Assert.That(await conversations.RecoverInterruptedRunsAsync(), Is.EqualTo(1));
 
         Run run = await database.Set<Run>().AsNoTracking().SingleAsync();
+        OwnerInterrupt interrupt = await database.Set<OwnerInterrupt>().AsNoTracking().SingleAsync();
         Assert.Multiple(() => {
-            Assert.That(run.Status, Is.EqualTo("interrupted"));
-            Assert.That(run.PausedBudget, Is.Null, "the question died with the process that asked it");
+            Assert.That(run.Status, Is.EqualTo(RunStatus.Interrupted));
+            Assert.That(interrupt.Status, Is.EqualTo(OwnerInterruptStatus.Failed),
+                "the question died with the process that asked it");
         });
     }
+
+    private static string Approval() =>
+        InterruptPayloads.Write(new ApprovalRequest("write_page", "Writes a page.", "{}"));
+
+    private static string Continuation(string budget, int limit, int window) =>
+        InterruptPayloads.Write(new ContinuationRequest(budget, limit, window, RunBudget.Sentence(budget, limit, window)));
 
     private static IConversationStore NewStore(StorageDbContext database) =>
         new SqliteConversationStore(database, TimeProvider.System, NullLogger<SqliteConversationStore>.Instance);

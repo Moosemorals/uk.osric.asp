@@ -18,6 +18,11 @@ The console provider is part of the `Microsoft.AspNetCore.App` shared framework,
 rather than referenced: .NET 11 refuses an explicit `PackageReference` for a package the framework
 already carries (`NU1510`), and `Directory.Build.props` treats that as an error.
 
+The app runs as a **user** unit, so its entries are in the user journal: journald writes them to
+`user-<uid>.journal`, and a reader that opens the system journal — `journalctl --system`, and fail2ban's
+systemd backend on its defaults — does not see them. Name `/var/log/journal` to read both;
+`deploy/fail2ban/jail.local` does, because [the ban](../deploy/operations.md#bans) depends on it.
+
 ```csharp
 builder.Logging.ClearProviders();
 builder.Logging.AddJsonConsole(options => {

@@ -63,8 +63,15 @@ and makes the template code. A block ends at the first `%>` whatever it holds, s
 mention one, and `<%#if DEBUG %>` is a note rather than a directive — `<% #if DEBUG %>` is the code.
 
 Diagnostics live in template space: `PageDiagnostic.Position` is a 1-based `TemplatePosition` in the
-page the author typed, or `null` when there is no position. The generator wraps each code block in
-`#line` directives that name the template line and pads the first line to the template column.
+page the author typed, or `null` when there is no position. A diagnostic about a run of text carries
+its extent too — `PageDiagnostic.End` is one past the last character, and is `null` when the
+diagnostic names a point — so an editor can underline the token rather than a character of it. Both
+ends are mapped through the same `#line` directives, and an end Roslyn puts at or before the start is
+dropped: a span is only ever read forwards. `PageDiagnostic.Source` is the key of the library a
+diagnostic is in, or `null` for the page itself, so a consumer knows which file a position is in
+(`pages-a-diagnostic-names-its-source`).
+The generator wraps each code block in `#line` directives that name the template line and pads the
+first line to the template column.
 Expression code is mapped separately from its generated `ctx.Response.Write(...)` or `ctx.Response.WriteRaw(...)`
 wrapper, so expression errors point to the expression and wrapper errors map to the opener's line.
 For a wrapper diagnostic, Roslyn's column identifies the generated method name (for example,
@@ -130,7 +137,7 @@ clean compile does not hide them, and they never stop a page being served (`page
 | The template language and its diagnostics | `Core.Compilation` |
 | The URL rule a restricted Markdown render applies | `Core.Markdown`, as `LinkPolicy` |
 | Markdown parsing and HTML generation | `Runtime`, as `MarkdownRenderer` and its renderers; the page capability is `Sdk/IMarkdownRenderer` |
-| The `/status` charts, including the palette and the presentation attributes that make one legible on its own | `Core.Charting`, as `LineChart`, `Heatmap`, `StackedAreaChart` and `ChartChrome` |
+| The `/admin/status` charts, including the palette and the presentation attributes that make one legible on its own | `Core.Charting`, as `LineChart`, `Heatmap`, `StackedAreaChart` and `ChartChrome` |
 | Reading the XML documentation the image carries | `Web`, in `Documentation/`: the reader, the normaliser, the copy-down of `inheritdoc` and the routes; the stylesheet is embedded, and a page cannot read a file beside the assembly |
 | Text whose case a key ignores — the page key and an account name | `Core.Text`, as `LowercaseText` |
 
@@ -142,7 +149,7 @@ host, and `SimpleContext` is its only implementation.
 A new view starts as a page. It becomes an endpoint only when it needs something a page may not have
 — identity, cookies, the page store, framing headers, or work that outlives the request. The editor
 is the worked example: it is the seeded `/pages`, which is offered `IPageWrites` like every page, and
-[IDEA-030](jobs/IDEA-030.md) is the remaining tidying. See [jobs](jobs/README.md).
+[IDEA-030](jobs/closed.md) was that tidying, and closed with the shell navigation plan. See [jobs](jobs/README.md).
 
 ### Where a view lives
 
@@ -152,7 +159,7 @@ is the worked example: it is the seeded `/pages`, which is offered `IPageWrites`
 | Route | Why it is not a page | Where that is recorded |
 | --- | --- | --- |
 | `/login`, `/logout` | **Bootstrap.** You cannot reach a page you must sign in for if signing in is a page you must sign in for | `pages-page-first` |
-| `/status`, `/status/chart` | **Bootstrap.** Diagnosing why a page did not load starts here | `pages-page-first` |
+| `/admin/status`, `/admin/status/chart` | **Bootstrap.** Diagnosing why a page did not load starts here | `pages-page-first` |
 | `/admin/changes`, `/admin/reference`, `/admin/copyright` | **The build's own facts.** Each reads a file the image carries — the changelist, the XML documentation and the licence and notice files — which a page cannot read | `shell-the-admin-tools`, `shell-the-reference` |
 | `/admin/restore`, `/admin/scrub` | **Bootstrap.** The restore is the way back for a page that no longer compiles, so it cannot itself be a page that might not compile; the scrub is the one irreversible delete and stays an explicit owner action | `pages-page-first`, `shell-the-admin-tools` |
 | `{**path}`, `/favicon.ico`, `/health`, `/metrics`, `wwwroot` | **The runtime.** The page catch-all, the reserved key that stops a page claiming the icon, the probe, the scrape target and the static files the shell's own views load are the thing pages run on | `pages-page-first` |
@@ -326,7 +333,7 @@ stay a map:
   how a stored image is compiled, judged and run.
 - [The shell](shell.md) — the document shell, layouts, error responses, and authentication.
 - [Storage](storage.md) — revisions, page state, and importing and exporting an archive.
-- [Metrics and the dashboard](metrics.md) — the instruments and `/status`.
+- [Metrics and the dashboard](metrics.md) — the instruments and `/admin/status`.
 - [AI page assistant](assistant.md) — the `/assistant` subsystem.
 - [Deployment](../deploy/README.md) — quadlets, Caddy, the first release and rollback.
 - [Running it](../deploy/operations.md) — limits, storage, backups, metrics and proxy trust.

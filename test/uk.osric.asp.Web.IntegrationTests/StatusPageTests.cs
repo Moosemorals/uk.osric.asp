@@ -24,7 +24,7 @@ public sealed class StatusPageTests : IntegrationTest {
         string statusStyles = await stylesheet.Content.ReadAsStringAsync();
         string sharedStyles = await client.GetStringAsync("/site.css");
 
-        string status = await client.GetStringAsync("/status");
+        string status = await client.GetStringAsync("/admin/status");
         using HttpClient anonymous = CreateClient();
         string login = await anonymous.GetStringAsync("/login");
         using HttpResponseMessage anonymousStylesheet = await anonymous.GetAsync("/status.css");
@@ -48,7 +48,7 @@ public sealed class StatusPageTests : IntegrationTest {
     public async Task ChartRedirectsAnAnonymousVisitorToSignIn() {
         using HttpClient client = CreateClient();
 
-        HttpResponseMessage response = await client.GetAsync("/status/chart?panel=page.render.duration&duration=1h");
+        HttpResponseMessage response = await client.GetAsync("/admin/status/chart?panel=page.render.duration&duration=1h");
 
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.Redirect));
         Assert.That(response.Headers.Location?.AbsolutePath, Is.EqualTo("/login"));
@@ -58,7 +58,7 @@ public sealed class StatusPageTests : IntegrationTest {
     public async Task TheOwnerFetchesOneChartOnItsOwn() {
         using HttpClient client = await CreateSignedInClientAsync();
 
-        HttpResponseMessage response = await client.GetAsync("/status/chart?panel=page.render.duration&duration=1h");
+        HttpResponseMessage response = await client.GetAsync("/admin/status/chart?panel=page.render.duration&duration=1h");
         string body = await response.Content.ReadAsStringAsync();
 
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
@@ -72,26 +72,28 @@ public sealed class StatusPageTests : IntegrationTest {
     public async Task StatusRedirectsAnAnonymousVisitorToSignIn() {
         using HttpClient client = CreateClient();
 
-        HttpResponseMessage response = await client.GetAsync("/status");
+        HttpResponseMessage response = await client.GetAsync("/admin/status");
 
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.Redirect));
         Assert.That(response.Headers.Location?.AbsolutePath, Is.EqualTo("/login"));
-        Assert.That(response.Headers.Location?.Query, Does.Contain("returnUrl=%2Fstatus"));
+        Assert.That(response.Headers.Location?.Query, Does.Contain("returnUrl=%2Fadmin%2Fstatus"));
     }
 
     [Test]
     public async Task StatusRendersTheShellAndEveryPanelForTheOwner() {
         using HttpClient client = await CreateSignedInClientAsync();
 
-        HttpResponseMessage response = await client.GetAsync("/status");
+        HttpResponseMessage response = await client.GetAsync("/admin/status");
         string body = await response.Content.ReadAsStringAsync();
 
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
         Assert.That(body, Does.Contain("<h1>Status</h1>"));
         Assert.That(body, Does.Contain("<nav class=\"status-nav\" aria-label=\"Time window\">"));
-        Assert.That(body, Does.Contain("<section class=\"status-group\"><h2>Pages</h2>"));
-        Assert.That(body, Does.Contain("<section class=\"status-group\"><h2>Assistant</h2>"));
-        Assert.That(body, Does.Contain("<section class=\"status-group\"><h2>Host</h2>"));
+        Assert.That(body, Does.Contain("<p class=\"status-host\">An arm64 VM hosted by <a href=\"https://www.hetzner.com/\">Hetzner</a>"));
+        Assert.That(body, Does.Contain("<nav class=\"status-toc\" aria-label=\"Groups\">"));
+        Assert.That(body, Does.Contain("<details class=\"status-group\" name=\"status-group\" open><summary><h2>Pages</h2>"));
+        Assert.That(body, Does.Contain("<summary><h2>Assistant</h2>"));
+        Assert.That(body, Does.Contain("<summary><h2>Host</h2>"));
         Assert.That(body.Split("<figure class=\"panel\">").Length - 1, Is.EqualTo(StatusCatalogue.Panels.Count));
         Assert.That(body, Does.Contain("<svg xmlns=\"http://www.w3.org/2000/svg\" class=\"chart\""));
         Assert.That(body, Does.Contain("<svg xmlns=\"http://www.w3.org/2000/svg\" class=\"heatmap\""));
@@ -101,19 +103,19 @@ public sealed class StatusPageTests : IntegrationTest {
     public async Task TheDurationParameterMarksTheCurrentWindow() {
         using HttpClient client = await CreateSignedInClientAsync();
 
-        HttpResponseMessage response = await client.GetAsync("/status?duration=7d");
+        HttpResponseMessage response = await client.GetAsync("/admin/status?duration=7d");
         string body = await response.Content.ReadAsStringAsync();
 
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
         Assert.That(body, Does.Contain("<span class=\"current\" aria-current=\"true\">7d</span>"));
-        Assert.That(body, Does.Not.Contain("href=\"/status?duration=7d\""));
+        Assert.That(body, Does.Not.Contain("href=\"/admin/status?duration=7d\""));
     }
 
     [Test]
     public async Task AFortnightOfSamplesStillFitsTheMarkupBudget() {
         using HttpClient client = await CreateSignedInClientAsync();
 
-        HttpResponseMessage response = await client.GetAsync("/status?duration=30d");
+        HttpResponseMessage response = await client.GetAsync("/admin/status?duration=30d");
         string body = await response.Content.ReadAsStringAsync();
 
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));

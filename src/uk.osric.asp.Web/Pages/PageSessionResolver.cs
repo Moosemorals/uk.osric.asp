@@ -5,6 +5,7 @@ namespace uk.osric.asp.Web.Pages;
 
 using System.Text;
 using System.Text.Json;
+using uk.osric.asp.Core.Text;
 using uk.osric.asp.Sdk;
 using uk.osric.asp.Web.Authentication;
 
@@ -18,6 +19,8 @@ using uk.osric.asp.Web.Authentication;
 // there is nothing to dispose: the class is not IDisposable for a field that would be a no-op.
 #pragma warning disable CA1001
 internal sealed class PageSessionRequest(string id, string? account, bool presented, bool exists) {
+
+    private static readonly JsonSerializerOptions s_jsonOptions = new(JsonSerialization.Options);
 
     private readonly SemaphoreSlim _gate = new(1, 1);
     private bool _touched;
@@ -106,7 +109,7 @@ internal sealed class PageSessionRequest(string id, string? account, bool presen
 
         string? json = await store.GetValueAsync(Id, pagePath, key, cancellationToken);
 
-        return json is null ? null : JsonSerializer.Deserialize<string>(json);
+        return json is null ? null : JsonSerializer.Deserialize<string>(json, s_jsonOptions);
     }
 
     /// <summary>Writes a value for the shell's own use, minting the session when it does not exist.</summary>
@@ -128,7 +131,7 @@ internal sealed class PageSessionRequest(string id, string? account, bool presen
 
         PageStateKey.Validate(key, options.MaxKeyChars);
 
-        string json = JsonSerializer.Serialize(text);
+        string json = JsonSerializer.Serialize(text, s_jsonOptions);
         PageSessionCaps caps = options.For(Account);
         if (Encoding.UTF8.GetByteCount(json) > caps.MaxValueBytes) {
             throw new ArgumentException($"The value for {key} is larger than the {caps.MaxValueBytes} byte limit.", nameof(text));

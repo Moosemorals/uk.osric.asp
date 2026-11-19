@@ -22,14 +22,14 @@ internal static class ChartChrome {
     /// <summary>The height of one legend row.</summary>
     internal const double LegendRowHeight = 14 * SvgText.TypeScale;
 
-    /// <summary>The size of the axis and legend labels.</summary>
-    internal const double FontSize = 11 * SvgText.TypeScale;
+    /// <summary>The size of the axis and legend labels: the site's body size, one rem.</summary>
+    internal const double FontSize = 16;
 
-    /// <summary>The size of the title.</summary>
-    internal const double TitleFontSize = 12 * SvgText.TypeScale;
+    /// <summary>The size of the title: the same size as the labels, set apart by weight rather than height.</summary>
+    internal const double TitleFontSize = FontSize;
 
-    /// <summary>The size of the label at the end of a series' line, a shade smaller than the ticks.</summary>
-    internal const double SeriesFontSize = 10 * SvgText.TypeScale;
+    /// <summary>The size of the label at the end of a series' line, the same as every other label.</summary>
+    internal const double SeriesFontSize = FontSize;
 
     internal const double KeyWidth = 14;
     internal const double KeyGap = 4;
@@ -63,9 +63,12 @@ internal static class ChartChrome {
         string explained = frame.Description is { Length: > 0 } ? frame.Description : description;
 
         // The namespace is implied inside an HTML page and required in a standalone document: without
-        // it a browser opening /status/chart on its own shows the markup as a tree, not as a drawing.
+        // it a browser opening /admin/status/chart on its own shows the markup as a tree, not as a drawing.
+        // The family is on the root so every label inherits it: served on its own the drawing has no
+        // stylesheet to ask, and without it the browser falls back to a serif face the page never uses.
         svg.Append("<svg xmlns=\"http://www.w3.org/2000/svg\" class=\"").Append(cssClass).Append("\" viewBox=\"0 0 ")
             .Append(SvgText.Number(size.Width)).Append(' ').Append(SvgText.Number(size.Height))
+            .Append("\" font-family=\"").Append(SvgText.FontFamily)
             .Append("\" role=\"img\">\n");
         svg.Append("<title>").Append(frame.Title.Escape()).Append("</title>\n");
         svg.Append("<desc>").Append(explained.Escape()).Append("</desc>\n");
@@ -78,7 +81,7 @@ internal static class ChartChrome {
         svg.Append("<text class=\"chart-title\" x=\"").Append(SvgText.Number(LeftMargin))
             .Append("\" y=\"").Append(SvgText.Number(TitleFontSize + (2 * SvgText.TypeScale)))
             .Append("\" font-size=\"").Append(SvgText.Number(TitleFontSize))
-            .Append("\" fill=\"#222222\" text-anchor=\"start\">");
+            .Append("\" font-weight=\"600\" fill=\"#222222\" text-anchor=\"start\">");
 
         // A title element inside the text is what a browser shows as a tooltip when the title is
         // hovered; it also gives the link a name that says what the chart is for.
@@ -277,12 +280,16 @@ internal static class ChartChrome {
         ArgumentNullException.ThrowIfNull(svg);
         ArgumentNullException.ThrowIfNull(axis);
 
+        // The edge labels grow inwards from the plot's edges rather than centred on them: at the body
+        // size half a label would hang past the drawing and be cut off.
         foreach (ChartTick tick in axis.Ticks.OrderBy(tick => tick.Position)) {
+            string anchor = tick.Position <= 0 ? "start" : tick.Position >= axis.Span ? "end" : "middle";
+
             svg.Append("<text class=\"chart-label\" x=\"").Append(SvgText.Number(plot.Time(axis, tick.Position)))
                 .Append("\" y=\"").Append(SvgText.Number(size.Height - (8 * SvgText.TypeScale)))
                 .Append("\" font-size=\"").Append(SvgText.Number(FontSize))
-                .Append("\" fill=\"#444444\" text-anchor=\"middle\">").Append(tick.Label.Escape())
-                .Append("</text>\n");
+                .Append("\" fill=\"#444444\" text-anchor=\"").Append(anchor).Append("\">")
+                .Append(tick.Label.Escape()).Append("</text>\n");
         }
     }
 

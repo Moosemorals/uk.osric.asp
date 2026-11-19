@@ -10,17 +10,18 @@ using uk.osric.asp.Core.Assistant;
 public sealed class ContextPlannerTests {
 
     [Test]
-    public void ARequestUnderBudgetIsSentUnchanged() {
+    public void ARequestUnderBudgetKeepsItsMessagesAndTools() {
         ChatRequest request = Request([
             new("system", "prompt"),
             new("user", "a question"),
             new("assistant", "an answer"),
         ]);
 
-        ContextPlan plan = ContextPlanner.Build(request, Bytes(request), Exact);
+        ContextPlan plan = ContextPlanner.Build(request, Budget(Bytes(request)), Exact);
 
         Assert.Multiple(() => {
-            Assert.That(plan.Request, Is.SameAs(request), "the common request keeps its prefix byte-identical");
+            Assert.That(plan.Request.Messages, Is.EqualTo(request.Messages), "the common request keeps its prefix byte-identical");
+            Assert.That(plan.Request.Tools, Is.SameAs(request.Tools));
             Assert.That(plan.OriginalTokens, Is.EqualTo(Bytes(request)));
             Assert.That(plan.EstimatedTokens, Is.EqualTo(Bytes(request)));
             Assert.That(plan.IsMasked, Is.False);
@@ -45,7 +46,7 @@ public sealed class ContextPlannerTests {
         int firstResult = expected.FindIndex(message => message.Role == "tool");
         expected[firstResult] = expected[firstResult].Mask().Message;
 
-        ContextPlan plan = ContextPlanner.Build(request, Bytes(Request(expected)), Exact);
+        ContextPlan plan = ContextPlanner.Build(request, Budget(Bytes(Request(expected))), Exact);
 
         Assert.Multiple(() => {
             Assert.That(plan.IsMasked, Is.True);
@@ -63,7 +64,7 @@ public sealed class ContextPlannerTests {
         List<ChatMessage> expected = [.. messages];
         expected[0] = messages[0].Mask().Message;
 
-        ContextPlan plan = ContextPlanner.Build(request, Bytes(Request(expected)), Exact);
+        ContextPlan plan = ContextPlanner.Build(request, Budget(Bytes(Request(expected))), Exact);
 
         Assert.Multiple(() => {
             Assert.That(plan.MaskedToolResults, Is.EqualTo(1));
@@ -81,10 +82,10 @@ public sealed class ContextPlannerTests {
             new("user", "c"), new("assistant", "d"),
         ];
 
-        ContextPlan plan = ContextPlanner.Build(Request(messages), Bytes(Request([
+        ContextPlan plan = ContextPlanner.Build(Request(messages), Budget(Bytes(Request([
             new("system", "s"),
             new("user", "c"), new("assistant", "d"),
-        ])), Exact);
+        ]))), Exact);
 
         Assert.Multiple(() => {
             Assert.That(plan.IsTrimmed, Is.True);
@@ -101,10 +102,10 @@ public sealed class ContextPlannerTests {
             new("user", "newest"),
         ];
 
-        ContextPlan plan = ContextPlanner.Build(Request(messages), Bytes(Request([
+        ContextPlan plan = ContextPlanner.Build(Request(messages), Budget(Bytes(Request([
             new("system", "s"),
             new("user", "newest"),
-        ])), Exact);
+        ]))), Exact);
 
         Assert.That(plan.Request.Messages[^1].Content, Is.EqualTo("newest"));
     }
@@ -120,10 +121,10 @@ public sealed class ContextPlannerTests {
             new("user", "new"),
         ];
 
-        ContextPlan plan = ContextPlanner.Build(Request(messages), Bytes(Request([
+        ContextPlan plan = ContextPlanner.Build(Request(messages), Budget(Bytes(Request([
             new("system", "s"),
             new("user", "new"),
-        ])), Exact);
+        ]))), Exact);
 
         Assert.Multiple(() => {
             Assert.That(plan.Request.Messages.Any(message => message.Role == "tool"), Is.False);
@@ -135,7 +136,7 @@ public sealed class ContextPlannerTests {
     public void TheSmallestRequestTooLargeIsAnErrorWithTheTokens() {
         ChatRequest request = Request([new("system", "s"), new("user", "a")]);
 
-        ContextPlan plan = ContextPlanner.Build(request, 1, Exact);
+        ContextPlan plan = ContextPlanner.Build(request, Budget(1), Exact);
 
         Assert.Multiple(() => {
             Assert.That(plan.Error, Does.Contain("needs").And.Contains("budget is 1"));
@@ -150,7 +151,7 @@ public sealed class ContextPlannerTests {
         ChatMessage[] messages = [.. Enumerable.Range(0, 10).Select(index => Result(1_000, $"call-{index}"))];
         ChatRequest request = Request(messages);
 
-        ContextPlan plan = ContextPlanner.Build(request, Bytes(request) - 500, Exact);
+        ContextPlan plan = ContextPlanner.Build(request, Budget(Bytes(request) - 500), Exact);
 
         Assert.Multiple(() => {
             Assert.That(plan.OriginalTokens, Is.EqualTo(Bytes(request)));
@@ -165,12 +166,12 @@ public sealed class ContextPlannerTests {
         ChatRequest request = Request([new("system", "s"), new("user", new string('x', 1_000))]);
         TokenEstimator estimator = new(4.0, 1.1);
 
-        ContextPlan plan = ContextPlanner.Build(request, Bytes(request), estimator);
+        ContextPlan plan = ContextPlanner.Build(request, Budget(Bytes(request)), estimator);
 
         Assert.Multiple(() => {
             Assert.That(plan.IsMasked, Is.False);
             Assert.That(plan.IsTrimmed, Is.False);
-            Assert.That(plan.EstimatedTokens, Is.EqualTo(estimator.Estimate(Bytes(request))));
+            Assert.That(plan.EstimatedTokens, Is.EqualTo(estimator.Estimate(plan.RequestBytes)));
         });
     }
 
@@ -178,7 +179,7 @@ public sealed class ContextPlannerTests {
     public void ThePlanIsStableForTheSameInput() {
         ChatMessage[] messages = [.. Enumerable.Range(0, 10).Select(index => Result(1_000, $"call-{index}"))];
         ChatRequest request = Request(messages);
-        long budget = Bytes(request) - 500;
+        ContextBudget budget = Budget(Bytes(request) - 500);
 
         ContextPlan first = ContextPlanner.Build(request, budget, Exact);
         ContextPlan second = ContextPlanner.Build(request, budget, Exact);
@@ -198,7 +199,7 @@ public sealed class ContextPlannerTests {
             [new("system", new string('s', 5_000)), new("user", "a")],
             [Tool]);
 
-        ContextPlan plan = ContextPlanner.Build(request, Bytes(Request([], [Tool])), Exact);
+        ContextPlan plan = ContextPlanner.Build(request, Budget(Bytes(Request([], [Tool]))), Exact);
 
         Assert.That(plan.Error, Is.Not.Null);
     }
@@ -207,20 +208,74 @@ public sealed class ContextPlannerTests {
     public void ThePlanReportsTheRequestBytesItReturns() {
         ChatRequest request = Request([new("system", "s"), new("user", new string('x', 1_000))]);
 
-        ContextPlan plan = ContextPlanner.Build(request, Bytes(request) - 500, Exact);
+        ContextPlan plan = ContextPlanner.Build(request, Budget(Bytes(request) - 500), Exact);
 
         Assert.That(plan.RequestBytes, Is.EqualTo(ChatRequestJson.MeasureBytes(plan.Request)));
     }
 
     [Test]
-    public void ANullRequestIsRefused() {
-        Assert.That(() => ContextPlanner.Build(null!, 10, Exact), Throws.ArgumentNullException);
+    public void TheReplyAllowanceFollowsThePrompt() {
+        ChatRequest request = Request([new("system", "s"), new("user", new string('x', 1_000))]);
+        ContextBudget budget = ContextBudget.ForPromptShare(Bytes(request), maximumOutputTokens: 50_000);
+
+        ContextPlan plan = ContextPlanner.Build(request, budget, Exact);
+
+        Assert.Multiple(() => {
+            Assert.That(plan.MaxTokens, Is.EqualTo(budget.MaxTokens(plan.EstimatedTokens)));
+            Assert.That(plan.Request.MaxTokens, Is.EqualTo(plan.MaxTokens));
+        });
     }
 
     [Test]
-    public void ANonPositiveBudgetIsRefused() {
-        Assert.That(() => ContextPlanner.Build(Request([new("user", "a")]), 0, Exact),
-            Throws.TypeOf<ArgumentOutOfRangeException>());
+    public void AMaskedPayloadMovesTheAnchorByItsOwnSize() {
+        // The provider counted the request the last step sent; masking one old payload takes a known
+        // byte amount off that count rather than starting the estimate again.
+        ChatMessage[] messages = [.. Enumerable.Range(0, 10).Select(index => Result(1_000, $"call-{index}"))];
+        ChatRequest request = Request(messages);
+        TokenCalibration anchor = new(Bytes(request), (int)(Bytes(request) / 2));
+        TokenEstimator estimator = TokenEstimator.For(anchor);
+
+        ContextPlan plan = ContextPlanner.Build(request, Budget(anchor.PromptTokens - 600), estimator);
+
+        Assert.Multiple(() => {
+            Assert.That(plan.IsMasked, Is.True);
+            Assert.That(plan.IsTrimmed, Is.False, "old payloads are cheaper than old turns");
+            Assert.That(plan.Error, Is.Null);
+            Assert.That(plan.EstimatedTokens, Is.LessThanOrEqualTo(anchor.PromptTokens - 600));
+            Assert.That(plan.EstimatedTokens, Is.GreaterThan(anchor.PromptTokens - 2_000),
+                "two payloads off an anchored count, not a whole request estimated again");
+        });
+    }
+
+    [Test]
+    public void ADroppedTurnIsSubtractedFromTheAnchor() {
+        ChatMessage[] messages = [
+            new("system", "s"),
+            new("user", new string('a', 4_000)), new("assistant", "b"),
+            new("user", new string('c', 100)), new("assistant", "d"),
+        ];
+        ChatRequest request = Request(messages);
+        TokenCalibration anchor = new(Bytes(request), (int)(Bytes(request) / 2));
+        TokenEstimator estimator = TokenEstimator.For(anchor);
+
+        ContextPlan plan = ContextPlanner.Build(request, Budget((anchor.PromptTokens / 2) + 200), estimator);
+
+        Assert.Multiple(() => {
+            Assert.That(plan.IsTrimmed, Is.True);
+            Assert.That(plan.DroppedMessages, Is.EqualTo(2));
+            Assert.That(plan.EstimatedTokens, Is.LessThan(anchor.PromptTokens), "the dropped turn left the anchored count");
+            Assert.That(plan.Error, Is.Null);
+        });
+    }
+
+    [Test]
+    public void ANullRequestIsRefused() {
+        Assert.That(() => ContextPlanner.Build(null!, Budget(10), Exact), Throws.ArgumentNullException);
+    }
+
+    [Test]
+    public void ANullBudgetIsRefused() {
+        Assert.That(() => ContextPlanner.Build(Request([new("user", "a")]), null!, Exact), Throws.ArgumentNullException);
     }
 
     private static ToolDefinition Tool { get; } = new(
@@ -233,14 +288,15 @@ public sealed class ContextPlannerTests {
     // arithmetic the masking rules were written around.
     private static readonly TokenEstimator Exact = new(1.0, 1.0);
 
+    private static ContextBudget Budget(long promptTokens) => ContextBudget.ForPromptShare(promptTokens);
+
     private static ChatRequest Request(IReadOnlyList<ChatMessage> messages, IReadOnlyList<ToolDefinition>? tools = null) => new(
         "model",
         messages,
         tools ?? [],
         0.2,
-        20,
-        "reasoning_content",
-        IncludeUsage: true);
+        1,
+        "reasoning_content");
 
     private static ChatMessage Result(int length, string id) =>
         new("tool", new string('x', length), ToolCallId: id, ToolName: "read_page");

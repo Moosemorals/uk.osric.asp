@@ -37,6 +37,7 @@ internal sealed class PageChain {
     private readonly string _loginRedirect;
     private readonly ReadBudget _readBudget;
     private readonly PageRequest _request;
+    private readonly IReadOnlyList<ShellLink> _shellLinks;
     private readonly PageRenderer.RenderSession _session;
     private readonly PageSessionRequest _sessionRequest;
     private readonly PageUser? _user;
@@ -59,6 +60,10 @@ internal sealed class PageChain {
     /// <param name="fetchBudget">The fetch allowance the whole render shares.</param>
     /// <param name="readBudget">The template allowance the whole render shares.</param>
     /// <param name="assets">The live assets every layer's links may be versioned against.</param>
+    /// <param name="shellLinks">
+    /// The shell's links as values, built once for this request so every layer's catalog answers the
+    /// same and the sign-in link carries the visitor's way back.
+    /// </param>
     /// <param name="loginRedirect">Where a guard sends an anonymous visitor.</param>
     /// <param name="antiforgeryField">
     /// Mints the antiforgery pair once per request, so every layer's form is verifiable against the
@@ -82,6 +87,7 @@ internal sealed class PageChain {
         RenderFetchBudget fetchBudget,
         ReadBudget readBudget,
         IReadOnlyDictionary<string, string> assets,
+        IReadOnlyList<ShellLink> shellLinks,
         string loginRedirect,
         Func<string> antiforgeryField,
         PageRenderer.RenderSession render,
@@ -95,6 +101,7 @@ internal sealed class PageChain {
         ArgumentNullException.ThrowIfNull(fetchBudget);
         ArgumentNullException.ThrowIfNull(readBudget);
         ArgumentNullException.ThrowIfNull(assets);
+        ArgumentNullException.ThrowIfNull(shellLinks);
         ArgumentNullException.ThrowIfNull(antiforgeryField);
         ArgumentNullException.ThrowIfNull(render);
 
@@ -112,6 +119,7 @@ internal sealed class PageChain {
         _fetchBudget = fetchBudget;
         _readBudget = readBudget;
         _assets = assets;
+        _shellLinks = shellLinks;
         _loginRedirect = loginRedirect;
         _antiforgeryField = antiforgeryField;
         _session = render;
@@ -167,6 +175,7 @@ internal sealed class PageChain {
             _loggerFactory.CreateLogger(SimpleContext.PageCategory));
         PageCatalogScope catalog = new(
             key,
+            _shellLinks,
             _environment.ReadStore,
             _environment.Read,
             _readBudget,

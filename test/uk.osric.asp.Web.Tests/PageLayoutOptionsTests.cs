@@ -8,7 +8,7 @@ using uk.osric.asp.Web.Pages;
 
 /// <summary>How <c>Pages:Layout</c> and <c>Pages:Render:MaxLayoutDepth</c> are read.</summary>
 [TestFixture]
-public sealed class PageLayoutConfigurationTests {
+public sealed class PageLayoutOptionsTests {
 
     [TestCase("/_layout", "/_layout")]
     [TestCase("/Layout", "/layout")]
@@ -16,7 +16,7 @@ public sealed class PageLayoutConfigurationTests {
     [TestCase("/_layout/", "/_layout")]
     [TestCase("/a/../_layout", "/_layout")]
     public void TheDefaultLayoutComesFromConfigurationAndNormalises(string configured, string expected) {
-        PageLayoutConfiguration options = PageLayoutConfiguration.FromConfiguration(
+        PageLayoutOptions options = PageLayoutOptions.FromConfiguration(
             ShippedConfiguration.Read(("Pages:Layout", configured)));
 
         Assert.That(options.Default, Is.EqualTo(expected));
@@ -25,7 +25,7 @@ public sealed class PageLayoutConfigurationTests {
     [TestCase("")]
     [TestCase("   ")]
     public void ABlankDefaultMeansNoLayout(string configured) {
-        PageLayoutConfiguration options = PageLayoutConfiguration.FromConfiguration(
+        PageLayoutOptions options = PageLayoutOptions.FromConfiguration(
             ShippedConfiguration.Read(("Pages:Layout", configured)));
 
         Assert.That(options.Default, Is.Null);
@@ -34,7 +34,7 @@ public sealed class PageLayoutConfigurationTests {
     [Test]
     public void AMissingLayoutStopsTheSite() {
         ConfigurationException error = Assert.Throws<ConfigurationException>(() =>
-            PageLayoutConfiguration.FromConfiguration(ShippedConfiguration.Without("Pages:Layout")))!;
+            PageLayoutOptions.FromConfiguration(ShippedConfiguration.Without("Pages:Layout")))!;
 
         Assert.That(error.Message, Does.Contain("Pages:Layout is not set."));
     }

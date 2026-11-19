@@ -432,6 +432,26 @@ retired: `PAGE005` left with the capability alias and is not reissued.
 
 *Recorded in [architecture](architecture.md#functional-core-imperative-shell), [compiler diagnostics](plans/archive/compiler-diagnostics.md#decisions).*
 
+### pages-a-diagnostic-names-its-source
+
+A diagnostic points at the thing, in the file it is in. Beside the severity, code and text of
+`pages-what-a-diagnostic-is` it carries the **run** it is about and the **source** it is in, because a
+start alone is half an answer: an editor cannot underline a token it has one end of, and a page that
+names a library compiles diagnostics in a file the author is not looking at.
+
+The run is two template positions — a start and an end one past the last character, as an editor's
+selection is — and an absent end means the start, so a consumer that wants a line never meets a second
+kind of unknown. The source is the key of the page or library the position refers to, or `null` for
+the page being saved: a key is what a consumer needs to name *which* library, where a "this is a
+library" flag would say only that it is one. Both survive every hop: `PageCompiler.MapDiagnostics`
+maps the end Roslyn already had in hand and drops one that is not after the start, `PageDiagnostics`
+copies the span and the key into the `Sdk` value as `EndLine`, `EndColumn` and `Source`, and the
+editor, `/admin/errors`, `make check-pages` and the assistant's tool results each read them rather
+than recomputing a range. The span is within mapped template lines: an end column is exact within one
+line and approximate across a line break, because Roslyn's mapped span is per generated line.
+
+*Recorded in [architecture](architecture.md#functional-core-imperative-shell), [pages](pages.md#compiled-pages), [MapDiagnostics](../src/uk.osric.asp.Runtime/PageCompiler.cs), [Sdk PageDiagnostic](../src/uk.osric.asp.Sdk/PageDiagnostic.cs).*
+
 ### pages-a-warning-never-stops-a-page
 
 A warning never stops a page compiling or being served. `Success` is "no diagnostic is an error"; a
@@ -704,7 +724,8 @@ Outbound fetch is bounded, not allow-listed: page code and the assistant's `fetc
 absolute `http` or `https` URL. Both use one outbound path with `GET`/`POST` only, text bodies, no
 cookies and no automatic redirects; a redirect hop must still be `http`/`https`, so the scheme rule and
 the redirect limit are the only destination guards. Every request carries `moosemorals.com (page)` or
-`moosemorals.com (assistant)` as its `User-Agent`, set by the host and not replaceable by a page. The
+`moosemorals.com (assistant)`, followed by the owner's address `fetchmoose@fluffypeople.com`, as its
+`User-Agent`, set by the host and not replaceable by a page. The
 page contract keeps every failure a value — status, content type, reason — so a page showing live data
 can fall back without a `try`, and a 4xx or 5xx keeps its real status and is marked `HttpError` so it
 is distinguishable from a success. Storage misuse is the opposite: a bad key, an oversized value, a
@@ -1078,6 +1099,19 @@ extra row arrives; `Pages:Read:MaxSourceCharsPerRender` is one `ReadBudget` per 
 layer of the chain, charged by the reads and refused rather than clamped.
 
 *Recorded in [page store read](plans/archive/page-store-read.md#d3--everything-marked), [PageStoreReader](../src/uk.osric.asp.Web/Assistant/PageStoreReader.cs).*
+
+### pages-the-catalog-knows-the-shell
+
+`IPageCatalog` answers what the shell can do as well as what the store holds: `ShellLinks()` returns
+the shell's links as `ShellLink` values, each with an href, a label, a section, an audience and the
+match the shell uses to mark it current. It is synchronous because it is a value, not a read, and
+refuses after the render ends as the other members do. The host returns facts; the page filters with
+its own `ctx.User`, orders, relabels, marks the current item and draws. There is no rendered menu, no
+`IsCurrent` and no new capability: the catalog is already the page's one read seam, and a footer is
+the layout's chrome rather than a shell fact. A worker has no request or visitor, so its list is
+empty.
+
+*Recorded in [pages](pages.md#page-contract), [the shell](shell.md#layouts), [IPageCatalog](../src/uk.osric.asp.Sdk/IPageCatalog.cs) and [shell-navigation](plans/shell-navigation.md#d2--the-page-catalog-knows-what-the-shell-can-do).*
 
 ### pages-the-store-is-a-tree
 
@@ -1573,13 +1607,26 @@ pass whose findings are recorded with the plan.
 ### shell-the-menu-is-written-twice
 
 The site menu is written twice on purpose: composed by `SiteNavigation` for the shell's own views, and
-written in the seeded `/_layout` for stored pages. The shell's copy and the administration menu both
-filter one list of `ShellLink` values, so a route cannot appear in one and not the other. Both render
-through one nav builder, and an integration test compares the two item lists. The shell's document is
-deliberately not the stored layout, because the error, health, sign-in and editor routes must answer
-when the page pipeline is broken.
+written in the seeded `/_layout` for stored pages. Both render one list of `ShellLink` values — the
+shell's own copy and the administration menu filter it, and the layout reads the same values through
+`IPageCatalog.ShellLinks()` — so a route cannot appear in one and not the other. Each document still
+writes its own markup, through the shell's nav builder or the seeded library, and an integration test
+compares the items, their destinations and the current item. The footer is the layout's own chrome and
+is not in the list. The shell's document is deliberately not the stored layout, because the error,
+health, sign-in and editor routes must answer when the page pipeline is broken.
 
 *Recorded in [site navigation](plans/archive/site-navigation.md#d5--the-menu-lives-in-the-layout-and-in-the-shell-through-the-same-builder).*
+
+### shell-the-shell-is-marked
+
+A shell document carries `class="shell"` on its `body` and a visible **Site tools** label in its
+banner; the stored layout carries neither. Both marks are text and structure rather than colour, so a
+shell page says what it is with no sheet and to a screen reader. The label is the honest statement of
+a property: a shell page cannot show stored pages in its menu because its menu is the site's tools,
+and it must answer when the page store is broken, so it never reads the store to draw its chrome. A
+page that wants a page-store menu reads `IPageCatalog.ListAsync` beside `ShellLinks()` and writes both.
+
+*Recorded in [the shell](shell.md#the-document-shell), [site.css](../src/uk.osric.asp.Web/Pages/Seeds/site.css) and [shell-navigation](plans/shell-navigation.md#d5--the-shell-is-marked-as-the-shell).*
 
 ### shell-admin-is-a-shell-route
 
@@ -1589,9 +1636,25 @@ public tools and a line saying a sign-in reaches the rest. It is a route because
 the page pipeline is broken — the same reason every other administration view is one — and because a
 page cannot draw the shell's own link list. The key is reserved, so a stored page cannot take it. The
 administrative index is the one view the earlier seeded page was right about in spirit: one list of
-tools rather than a second one.
+tools rather than a second one. The root holds every tool the audit keeps: the administration views
+and the status dashboard, which answers at `/admin/status` with its chart at `/admin/status/chart`
+(`shell-the-tools-live-under-admin`).
 
 *Recorded in [the seed trim](plans/seed-trimming.md#d3---admin-is-a-shell-route), [the shell](shell.md#the-administration-index), [AdminIndexEndpoint](../src/uk.osric.asp.Web/Admin/AdminIndexEndpoint.cs).*
+
+### shell-the-tools-live-under-admin
+
+Every shell **tool** the audit keeps lives under `/admin`: the administration views and the status
+dashboard, whose chart is `/admin/status/chart`. The routes outside it are not tools — `/login` and
+`/logout` bootstrap identity, the assistant is a page in waiting, `/health`, `/metrics` and
+`/favicon.ico` are the wire, and `{**path}` is the page runtime — so the root is a statement about
+what a tool is rather than a second namespace. `/status` was the only permanent tool outside it and
+became `/admin/status` with no redirect: the dashboard is owner-only and the old name would be a
+reserved key kept alive for a bookmark. The root is not configuration: it is the route identity and
+the boundary the `Editor` policy is written against, so a value that could move it could let a page
+claim a shell route.
+
+*Recorded in [the shell](shell.md), [architecture](architecture.md#where-a-view-lives) and [shell-navigation](plans/shell-navigation.md#d7--the-shells-tools-live-under-admin).*
 
 ### shell-admin-assets-are-static-files
 
@@ -1883,79 +1946,128 @@ ends the step. A stall fails the run with `provider_timeout` and its own sentenc
 run-timeout code, and the sentence is rendered in the transcript, because the reload that follows a
 terminal event is exactly when a bare `failed` would erase the reason. `Assistant:RunTimeoutSeconds`
 applies the same rule to the whole run: two minutes without a streamed event fails it with `run_timeout`,
-an SSE keep-alive comment does not count as an event, and the clock is stopped while a tool executes or an
-approval waits for its owner, so neither counts as the run going quiet. A message that stops at the
+an SSE keep-alive comment does not count as an event, and the clock is stopped while a tool executes or the
+owner is being asked, so neither counts as the run going quiet. A message that stops at the
 provider's output limit is stored as `truncated` for the same reason: the warning in the status line does
 not survive the reload.
 
 *Recorded in [the assistant](assistant.md#ai-page-assistant).*
 
+### assistant-a-run-waits-on-one-owner-interrupt
+
+Every time a run stops for its owner it is one thing: a row in `AssistantInterrupts` holding the kind, the
+request the owner is shown and the resolution they give, with the run stored `awaiting_owner` while it
+waits and the run's id as the key, because a run waits on one thing at a time. The kinds are the approval
+of a flagged tool call and the continuation of a spent budget; a further kind is a request and a card,
+not a new status, table, coordinator or route, because the store never reads inside either half of the
+record. One coordinator wakes the worker and the row is the authority, so no signal can disagree with what
+was recorded. One status, because the run's availability is the fact and the kind says why. The route
+carries no kind either, and its body is parsed against the record's kind, so a form built for another wait
+is refused rather than guessed at. A restart fails a pending interrupt closed and leaves the synthetic tool
+result the stop path writes.
+
+*Recorded in [the assistant](assistant.md#ai-page-assistant), [the owner interrupt](plans/assistant-owner-interrupt.md).*
+
 ### assistant-a-run-pauses-on-budget
 
 Running out of a run budget pauses the run instead of failing it: the step loop, the tool-call budget and
-the per-step call budget stop at the point the budget forbids, the run is stored `awaiting_continuation`
-with the budget it ran out of, and the page asks "Do you want to continue?" in a card rendered from that
-stored state, so a reload still shows it. The transcript gains nothing for the pause, so the next provider
+the per-step call budget stop at the point the budget forbids, the run is stored `awaiting_owner` with a
+pending `continuation` interrupt that carries the budget it ran out of and what continuing buys, and the
+page asks "Do you want to continue?" in a card rendered from that request, so a reload still shows it. The transcript gains nothing for the pause, so the next provider
 request is the one the run would have made and the model never learns it happened. Continue buys one
 window of that budget alone, kept in the run's `StepLimit` and `ToolCallLimit`, and Stop ends a paused run
 as `cancelled`, exactly as Stop ends a running one. The silence clock stops while the question waits; a
-host restart still interrupts the run, as it interrupts an approval. Provider silence and a timed-out tool
+host restart still interrupts the run, as it interrupts any other wait on the owner. Provider silence and a timed-out tool
 keep failing, because neither is a budget the owner can grant.
 
 *Recorded in [the assistant](assistant.md#ai-page-assistant), [RunProcessor](../src/uk.osric.asp.Web/Assistant/RunProcessor.cs).*
 
+### assistant-tool-calls-count-attempts
+
+The assistant's Tool calls row counts the calls a run has attempted, because that is what the tool-call
+budget spends and what a pause names; the response's call count is not used for it, because it describes
+the whole step and lands before any of those calls has run, so it would read past the limit while the run
+was still working and a step that stopped early would reload to a count it never reached. The figure is
+published as each `tool.started` is handled, so the row ticks with the card rather than at the step's
+edge, and `RecordToolCallAsync` stores each attempt so the reload agrees. A denied or refused call counts
+once, as the cap counts it. A reload taken while a call is in flight lags by that one call, the same way
+Steps lags by the step in flight.
+
+*Recorded in [RunProcessor](../src/uk.osric.asp.Web/Assistant/RunProcessor.cs), [the assistant](assistant.md#ai-page-assistant), [assistant live figures](plans/assistant-live-figures.md).*
+
 ### assistant-budgets-are-one-snapshot
 
-Every assistant budget figure is one pure `BudgetSnapshot` in `Core.Assistant`, measured by the trimmer's
-own rule and the transcript's own tool calls and results, and read by both the page render and the run
-stream, so a live figure and a reloaded one cannot disagree. The conversation page shows every budget
-that can stop a run as a used/available pair drawn with a `<meter>`, because a run that failed on a budget
-should have shown how close to it the conversation already was; HTML has no `<gauge>`, and the number is
-spelled out beside the meter so the picture is not the only reading. The panel is compact — seven rows in
-two columns, each a label and a meter with its figure drawn over it, at most three digits plus a unit
-letter, which replaces the count line beside the meter — and the amount is one formatting rule the live
-script mirrors, so a figure updated live and the same figure after a reload read alike.
+Every assistant budget figure the server reports is one pure `BudgetSnapshot` in `Core.Assistant`,
+measured by the trimmer's own rule and the stored transcript's tool calls and results, and read by both
+the page render and the run stream, so a reported live figure and a reloaded one cannot disagree. The
+conversation page shows every budget that can stop a run as a used/available pair drawn with a `<meter>`,
+because a run that failed on a budget should have shown how close to it the conversation already was;
+HTML has no `<gauge>`, and the number is spelled out beside the meter so the picture is not the only
+reading. The panel is compact — ten rows in two columns, each a label and a meter with its figure drawn
+over it, at most three digits plus a unit letter, which replaces the count line beside the meter — and
+the amount is one formatting rule the live script mirrors, so a figure updated live and the same figure
+after a reload read alike.
 
 The figures move while a run runs, over the journal the page already listens to: the loop publishes a
-budget update when it learns something — as a step starts, after that step's usage is stored, and around
-each tool call — and never on a timer. There is no budgets endpoint, because polling would be a second
-mechanism beside an open stream with no replay and no ordering against the deltas it would arrive
-between. A terminal event reloads the page and the reload is authoritative. An update changes the count
-text, the meter's `value` and the exceeded class, and nothing else: the meter stays hidden from assistive
-technology and the list is not a live region, because six counts moving several times a run are noise
-read aloud.
+budget update when it learns something — as a step starts, after that step's usage is stored, as each
+tool call starts and once before `run.completed` — and never on a timer. There is no budgets endpoint,
+because polling would be a second mechanism beside an open stream with no replay and no ordering against
+the deltas it would arrive between. A terminal event reloads the page and the reload is authoritative. An
+update changes the count text, the meter's `value` and the exceeded class, and nothing else: the meter
+stays hidden from assistive technology and the list is not a live region, because ten counts moving
+several times a run are noise read aloud.
 
 *Recorded in [BudgetSnapshot](../src/uk.osric.asp.Core/Assistant/BudgetSnapshot.cs), [assistant.js](../src/uk.osric.asp.Web/Pages/Seeds/assistant.js), [assistant live budgets](plans/archive/assistant-live-budgets.md).*
 
+### assistant-live-figures-are-marked
+
+A figure the conversation page projects between snapshots is marked, because the panel's promise is that
+a reported figure a reader watches is the figure a reload shows and a projection is not that figure. The
+projection is made from bytes the page already receives — the streamed answer and the tool-call arguments
+divided by the token spike's prose ratio, about 3.8 characters per token, never the request's own bytes
+per prompt token — and it covers Completion, Context and Window only: those three are tokens, and every
+other row is the reader's own input, a reported count, or already exact on the event that carries it. The
+mark is a `~` for the eye and a visually-hidden "estimated" for a screen reader, cleared by the
+next snapshot that supplies the row, and a projection never takes the exceeded class, which is reserved
+for a figure the server measured. Each replayed snapshot resets the characters counted, so a reload
+rebuilds the projection rather than doubling it, and the reload after a run renders reported figures only.
+
+*Recorded in [assistant.js](../src/uk.osric.asp.Web/Pages/Seeds/assistant.js), [the assistant](assistant.md#ai-page-assistant), [assistant live figures](plans/assistant-live-figures.md).*
+
 ### assistant-the-request-budget-is-tokens
 
-The assistant's request budget is estimated tokens, not bytes. `TokenEstimator` converts the serialized
-request's byte count with the bytes-per-token ratio the provider's last `prompt_tokens` report
-calibrated, a ten-percent margin, and a 1.6-bytes-per-token default before the first report; the ratio is
-clamped between 1.0 and 6.0, and `Assistant:ModelContextTokens` is checked against the request and output
-budgets together. The provider's own limit remains the backstop. The provider bills and limits in tokens,
-so the exact byte count is the estimator's input and not the budget.
+The assistant's request budget is estimated tokens, not bytes. The provider bills and limits in tokens,
+so the exact byte count is the estimator's input and not the budget. `TokenEstimator` starts from the
+`prompt_tokens` the provider reported for the request the previous step sent — an exact count — and adds
+only the bytes appended since, divided by the bytes-per-token ratio that report implies, with a
+three-percent margin on that delta and a 1.6-bytes-per-token default before the first report; the ratio
+is clamped between 1.0 and 6.0. Masking a payload and dropping a turn are known byte amounts, so they
+move the anchor by their own size and nothing else. The prompt's share of the budget is the model's
+reported window less the configured reply floor, and `max_tokens` is what that estimate leaves
+([assistant-the-budget-is-window-minus-reply](#assistant-the-budget-is-window-minus-reply)).
 
-*Recorded in [TokenEstimator](../src/uk.osric.asp.Core/Assistant/TokenEstimator.cs), [assistant context masking](plans/archive/assistant-context-masking.md).*
+*Recorded in [TokenEstimator](../src/uk.osric.asp.Core/Assistant/TokenEstimator.cs), [ContextBudget](../src/uk.osric.asp.Core/Assistant/ContextBudget.cs), [prompt-token-budget](plans/archive/prompt-token-budget.md).*
 
 ### assistant-old-tool-results-are-masked
 
-Before any whole turn is dropped, `ObservationMasker` replaces old tool results with
+Before any whole turn is dropped, `ToolResultMasker` replaces old tool results with
 `[tool result elided: N chars]` and long string values in old tool-call arguments with
-`[elided N chars]`. The newest eight tool results, the last two tool-call messages, every user and
-assistant word, every tool-call id and name and the tool definitions are kept. The mask is derived per
-request and never stored, so the transcript stays complete, the changed-pages card still reads real
-results, and there is no migration. Tool-call arguments are masked as well as results because a page
-write carries the whole page source, the largest thing in a page-authoring history.
+`[elided N chars]`. Every user and assistant word, every tool-call id and name and the tool definitions
+are kept; nothing else is exempt. The mask is derived per request and never stored, so the transcript
+stays complete, the changed-pages card still reads real results, and there is no migration. Tool-call
+arguments are masked as well as results because a page write carries the whole page source, the largest
+thing in a page-authoring history.
 
 Masking is attempted one old message at a time, oldest first, and only when the request is already over
 budget; a result or an assistant message's long arguments are masked as one payload. Whole user turns are
 dropped only after masking is exhausted, never split from their tool calls and results, and the newest
-turn is never dropped. A request that still does not fit fails with `context_too_long` naming the bytes
+turn is never dropped. A request that still does not fit fails with `context_too_long` naming the estimate
 rather than being sent. A request already under budget is returned untouched, so the common step keeps
-its prefix byte-identical for the provider's prompt cache.
+its prefix byte-identical for the provider's prompt cache. There is no protected window: a count of
+exempt results can be larger than the whole budget, and the oldest-first order already says what matters
+([assistant-one-budget-decides-what-fits](#assistant-one-budget-decides-what-fits)).
 
-*Recorded in [ObservationMasker](../src/uk.osric.asp.Core/Assistant/ObservationMasker.cs), [ContextPlanner](../src/uk.osric.asp.Core/Assistant/ContextPlanner.cs).*
+*Recorded in [ToolResultMasker](../src/uk.osric.asp.Core/Assistant/ToolResultMasker.cs), [ContextPlanner](../src/uk.osric.asp.Core/Assistant/ContextPlanner.cs).*
 
 ### assistant-usage-is-accumulated
 
@@ -2244,6 +2356,67 @@ range (30 to 3600 seconds, 60 shipped) is a safety net rather than a ration.
 
 *Recorded in [assistant](assistant.md), [AssistantOptions](../src/uk.osric.asp.Web/Assistant/AssistantOptions.cs), [appsettings.json](../src/uk.osric.asp.Web/appsettings.json).*
 
+### assistant-tokens-anchor-on-the-last-report
+
+Every step's estimate starts from the provider's `prompt_tokens` for the previous request and adds only
+what has been appended since. The margin covers the delta, not the conversation, so it is three percent
+rather than ten, and every step records how far the estimate was from the count the provider returned,
+both as a log line and as `assistant.context.estimate.error` labelled `over` or `under`. The exact
+tokenizer the spike measured was rejected: it costs 1 MB of DeepSeek-acquired vocabulary, a chat-template
+renderer and a fixture regenerated on every vocabulary bump, and still cannot see how the API injects
+`tools`. The anchor has the same blind spot and needs none of the rest.
+
+*Recorded in [TokenEstimator](../src/uk.osric.asp.Core/Assistant/TokenEstimator.cs), [RunProcessor](../src/uk.osric.asp.Web/Assistant/RunProcessor.cs), [spike](spikes/deepseek-token-counting.md).*
+
+### assistant-one-budget-decides-what-fits
+
+There is one content budget, derived from the model's window, and every other content cap is a fraction
+of it or gone: one tool result and one owner's message are an eighth of the prompt's share, a run's
+memory block a thirty-second. The fractions are invariants in `ContextBudget` rather than configuration,
+because a value that could raise one to the whole budget would switch the guard off. The one exception
+is a tool call's arguments, which must carry a page and so is `MaxPageChars` plus room for the envelope.
+A cap that cannot be derived this way must either come from the model or have a note and a way to ask
+again; a free-standing character count never decides what the model may read. `MaxContextTokens`,
+`ModelContextTokens`, `MaxOutputTokens`, `MaxToolResultChars`, `MaxMessageChars`,
+`MaxMemoryCharsPerRun` and `MaxMemoriesPerRun` are gone.
+
+*Recorded in [ContextBudget](../src/uk.osric.asp.Core/Assistant/ContextBudget.cs), [AssistantOptions](../src/uk.osric.asp.Web/Assistant/AssistantOptions.cs), [assistant](assistant.md).*
+
+### assistant-tool-results-are-cut-not-refused
+
+At a cap, a tool result is truncated, marked `truncated: true` and named in the note, and the head is
+kept. It is never replaced by a refusal, because a refusal loses the information and the fact that there
+was information, and the model usually calls the tool again. Refusals stay for what they are for: an
+invalid argument, a stale revision hash, a path outside the writable prefix, a missing page.
+
+*Recorded in [ToolResults](../src/uk.osric.asp.Web/Assistant/Tools/ToolResults.cs), [assistant](assistant.md), [metrics](metrics.md).*
+
+### assistant-the-budget-is-window-minus-reply
+
+The model's limits come from the provider's model list, not from configuration: `GET /models` publishes
+each model's `context_window` and `max_output_tokens`, and `ModelWindowSampler` reads it once at startup
+and again when a request is rejected for length. The prompt's share is the window less
+`Assistant:MinOutputTokens`, the reply's floor; `max_tokens` is what the estimate leaves of the window,
+capped at the published maximum and floored at that minimum, so prompt and reply always add up to the
+window. A provider that does not answer leaves the assistant without a budget and a run refuses with
+`model_window_unknown`; a provider that answers without the configured model stops the deploy, because
+that answer is authoritative. Neither `Assistant:MaxContextTokens` nor `Assistant:ModelContextTokens`
+exists any more.
+
+*Recorded in [ContextBudget](../src/uk.osric.asp.Core/Assistant/ContextBudget.cs), [ProviderModelsClient](../src/uk.osric.asp.Web/Assistant/ProviderModelsClient.cs), [ModelWindowSampler](../src/uk.osric.asp.Web/Assistant/ModelWindowSampler.cs).*
+
+### assistant-the-vocabulary-is-the-providers
+
+Where the provider has a word, use it; where it does not, one concept has one word. A tool's returned
+content is a **tool result** everywhere — `ToolResultMasker`, the budget row and the decision that records
+masking — and never an observation, a tool output or an answer. The owner's message is a **message**, not
+a prompt; *prompt* names only the system prompt unless it is the provider's `prompt_tokens`. The reply's
+quantity is a **completion**, and `RunUsage` says `LastCompletionTokens` for the last step and
+`CompletionTokens` for the run. `max_tokens` is the request's own field name, and the only configured
+figure left is `Assistant:MinOutputTokens`.
+
+*Recorded in [assistant](assistant.md), [glossary](glossary.md), [RunUsage](../src/uk.osric.asp.Core/Assistant/RunUsage.cs).*
+
 ## Deploy
 
 ### deploy-one-small-host
@@ -2358,7 +2531,7 @@ Metrics are exported by OpenTelemetry's Prometheus exporter, metrics only: no tr
 instrumentation packages. Instrument names, tags and bucket scales are a dashboard contract, so they live
 beside the code that records them rather than in a library's defaults. Prometheus runs rootless beside the
 app on a shared network and scrapes the app's loopback-facing port; it is never proxied. `/metrics` keeps
-two gates — the loopback-only publish and a proxy-level 404 on the public origin — and `/status` is
+two gates — the loopback-only publish and a proxy-level 404 on the public origin — and `/admin/status` is
 owner-only, server-rendered and JavaScript-free.
 
 *Recorded in [metrics](metrics.md#export-and-the-status-page), [operations](../deploy/operations.md#metrics-and-the-status-page).*
@@ -2377,7 +2550,7 @@ account, filled in as they become known rather than left out.
 
 ### metrics-one-panel-per-instrument
 
-`/status` draws one panel per instrument, and the instrument's type decides the chart: a histogram is a
+`/admin/status` draws one panel per instrument, and the instrument's type decides the chart: a histogram is a
 heatmap, a gauge a line chart, and a counter a line chart unless its labels partition one total, when it
 is a stacked area. A question that spans instruments may add a composed panel that names its sources and
 owns none. The catalogue is the only source of panels, the dashboard holds no queries, and a test fails
@@ -2400,13 +2573,13 @@ carries its own title and legend inside its SVG, so a panel adds no heading, no 
 the drawing's title is the link that opens the same chart on its own. A series is identified without
 colour: a colour-blind-safe palette, a dash pattern per series, a direct label at the end of every line, a
 hover or focus that dims the others and a click that pins one by fragment target, all in CSS because
-`/status` stays JavaScript-free. A series' legend entry sits inside the series' anchor, so the legend
+`/admin/status` stays JavaScript-free. A series' legend entry sits inside the series' anchor, so the legend
 behaves the same way, and a heatmap's row is its series. Each drawing is self-contained: colour, dash, fill
 and type size are presentation attributes from a palette in `Core.Charting`, not rules in a stylesheet, so
 the same SVG is legible with no stylesheet, and the page's sheet keeps only the grid, the caption and the
 hover and pinned states, which are properties of the page rather than of the picture.
 
-*Recorded in [metrics](metrics.md#the-panels), [status page rebuild](plans/archive/status-page-rebuild.md#identifying-a-series-without-colour).*
+*Recorded in [metrics](metrics.md#the-panels), [status page rebuild](plans/archive/admin/status-page-rebuild.md#identifying-a-series-without-colour).*
 
 ### metrics-a-chart-stands-alone
 

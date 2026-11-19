@@ -14,23 +14,34 @@ public sealed class TokenEstimatorTests {
 
         Assert.Multiple(() => {
             Assert.That(estimator.BytesPerToken, Is.EqualTo(1.6));
-            Assert.That(estimator.Estimate(1_600), Is.EqualTo(1_100));
+            Assert.That(estimator.Anchor, Is.Null);
+            // 1,600 bytes at 1.6 bytes per token, with the three percent margin.
+            Assert.That(estimator.Estimate(1_600), Is.EqualTo(1_030));
         });
     }
 
     [Test]
-    public void AProviderReportCalibratesTheNextEstimate() {
+    public void TheAnchoredEstimateIsTheReportedCountPlusTheDelta() {
         TokenEstimator estimator = TokenEstimator.For(new TokenCalibration(4_000, 1_000));
 
         Assert.Multiple(() => {
             Assert.That(estimator.BytesPerToken, Is.EqualTo(4.0));
-            Assert.That(estimator.Estimate(4_000), Is.EqualTo(1_100));
+            Assert.That(estimator.Estimate(4_000), Is.EqualTo(1_000), "an unchanged request costs what the provider counted");
+            Assert.That(estimator.Estimate(4_400), Is.EqualTo(1_103), "a hundred tokens of new content is a hundred and three, not a whole request");
         });
     }
 
     [Test]
-    public void TheMarginAddsTenPercent() {
-        Assert.That(new TokenEstimator(2.0, 1.1).Estimate(2_000), Is.EqualTo(1_100));
+    public void AMaskedPayloadIsSubtractedFromTheAnchor() {
+        TokenEstimator estimator = TokenEstimator.For(new TokenCalibration(4_000, 1_000));
+
+        // Masking 400 bytes of old payload is a delta of a hundred tokens, not a new estimate.
+        Assert.That(estimator.Estimate(3_600), Is.EqualTo(897));
+    }
+
+    [Test]
+    public void TheMarginIsThreePercentOfTheDelta() {
+        Assert.That(new TokenEstimator(2.0, 1.03).Estimate(2_000), Is.EqualTo(1_030));
     }
 
     [Test]
@@ -48,6 +59,7 @@ public sealed class TokenEstimatorTests {
         Assert.Multiple(() => {
             Assert.That(TokenEstimator.For(new TokenCalibration(0, 1_000)).BytesPerToken, Is.EqualTo(1.6));
             Assert.That(TokenEstimator.For(new TokenCalibration(1_000, 0)).BytesPerToken, Is.EqualTo(1.6));
+            Assert.That(TokenEstimator.For(new TokenCalibration(1_000, 0)).Anchor, Is.Null);
         });
     }
 
@@ -91,6 +103,5 @@ public sealed class TokenEstimatorTests {
         tools,
         0.2,
         20,
-        "reasoning_content",
-        IncludeUsage: true);
+        "reasoning_content");
 }

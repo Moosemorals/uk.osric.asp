@@ -32,12 +32,14 @@
           "${workspaceFolder}"
         ],
         "pattern": {
-          "regexp": "^(.+?):(\\d+):(\\d+): (error|warning) (.*)$",
+          "regexp": "^(.+?):(\\d+):(\\d+)(?:-(\\d+):(\\d+))?: (error|warning) (.*)$",
           "file": 1,
           "line": 2,
           "column": 3,
-          "severity": 4,
-          "message": 5
+          "endLine": 4,
+          "endColumn": 5,
+          "severity": 6,
+          "message": 7
         }
       }
     }

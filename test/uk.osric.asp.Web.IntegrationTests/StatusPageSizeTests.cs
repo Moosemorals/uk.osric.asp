@@ -13,7 +13,11 @@ public sealed class StatusPageSizeTests : IntegrationTest {
     private const int Samples = 500;
     private const int HistogramSeries = 15;
     private const int ChartSeries = 8;
-    private const int PageBudgetBytes = 2_800_000;
+    // Forty-five panels, every query answered with eight series of five hundred samples. The five
+    // fail2ban panels the Host group gained moved this from 2.8 MB, and the four context-budget
+    // instruments moved it again: the number is a ceiling to raise deliberately with the catalogue,
+    // not a target to approach.
+    private const int PageBudgetBytes = 4_000_000;
 
     internal override AspApplication CreateApplication() => new(metricsSource: new WideMetricsSource());
 
@@ -21,7 +25,7 @@ public sealed class StatusPageSizeTests : IntegrationTest {
     public async Task ThirtyDaysOfSamplesStillFitTheMarkupBudget() {
         using HttpClient client = await CreateSignedInClientAsync();
 
-        HttpResponseMessage response = await client.GetAsync("/status?duration=30d");
+        HttpResponseMessage response = await client.GetAsync("/admin/status?duration=30d");
         string body = await response.Content.ReadAsStringAsync();
 
         Assert.That(response.StatusCode, Is.EqualTo(System.Net.HttpStatusCode.OK));

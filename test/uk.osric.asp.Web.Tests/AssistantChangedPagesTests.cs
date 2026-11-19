@@ -163,13 +163,14 @@ public sealed class AssistantChangedPagesTests {
         context.User = new ClaimsPrincipal(new ClaimsIdentity(
             [new Claim(ClaimTypes.NameIdentifier, "owner")], "test"));
 
-        await AssistantEndpoint.ConversationAsync(
+        await AssistantConversationPage.ConversationAsync(
             context,
             1,
             new ShellConversationStore(messages, activeRun: activeRun),
             new TestAntiforgery(),
             new RunRegistry(TestOptions.Assistant, TimeProvider.System),
             TestOptions.Assistant,
+            ModelWindowSource.Fixed(TestOptions.Budget),
             new StubAccountBalanceClient());
 
         return await TestHttp.ReadBodyAsync(context);

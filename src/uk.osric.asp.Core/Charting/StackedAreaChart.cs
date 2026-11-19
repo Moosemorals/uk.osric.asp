@@ -20,7 +20,7 @@ using System.Text;
 /// </remarks>
 public static class StackedAreaChart {
 
-    private const double LabelHeight = 11 * SvgText.TypeScale;
+    private const double LabelHeight = ChartChrome.SeriesFontSize;
     private const double FillOpacity = 0.35;
 
     /// <summary>Renders one stacked area chart.</summary>

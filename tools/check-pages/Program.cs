@@ -6,8 +6,10 @@ using uk.osric.asp.Core.Pages;
 using uk.osric.asp.Runtime;
 
 // Compiles page templates with the product's own compiler and prints one line per diagnostic in the
-// file:line:column shape the `check pages` task's problem matcher reads. A template with no code is
-// skipped, because the host never compiles one either.
+// file:line:column-endLine:endColumn shape the `check pages` task's problem matcher reads; a
+// diagnostic that names one spot prints just its start, so the task underlines a token when the
+// compiler gave one and marks a point when it did not. A template with no code is skipped, because
+// the host never compiles one either.
 if (args.Length == 0) {
     Console.Error.WriteLine("usage: check-pages <file-or-directory>...");
     return 2;
@@ -54,13 +56,16 @@ foreach ((string file, _, PageKind kind, GeneratedSource? source, IReadOnlyList<
             : compiler.Compile(source, libraries).Diagnostics;
     foreach (PageDiagnostic diagnostic in PageDiagnostic.SortedForDisplay(diagnostics)) {
         string severity = diagnostic.Severity == PageDiagnosticSeverity.Error ? "error" : "warning";
-        TemplatePosition position = diagnostic.Position ?? new TemplatePosition(1, 1);
+        TemplatePosition start = diagnostic.Position ?? new TemplatePosition(1, 1);
+        string where = diagnostic.End is { } end
+            ? $"{start.Line}:{start.Column}-{end.Line}:{end.Column}"
+            : $"{start.Line}:{start.Column}";
 
         // A diagnostic from a library names the library's file rather than the page that reached it.
         string reported = diagnostic.Source is { } libraryKey
             ? templates.FirstOrDefault(item => item.Key == libraryKey).File ?? file
             : file;
-        string line = $"{reported}:{position.Line}:{position.Column}: {severity} {diagnostic.Message}";
+        string line = $"{reported}:{where}: {severity} {diagnostic.Message}";
         if (printed.Add(line)) {
             Console.WriteLine(line);
         }

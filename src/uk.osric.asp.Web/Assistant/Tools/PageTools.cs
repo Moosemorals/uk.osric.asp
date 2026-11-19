@@ -117,7 +117,7 @@ internal sealed class ReadPageTool : AssistantTool {
             return services.Results.Failure($"Page {path.Describe()} was not found.", $"{Spec.Verb} {path.Describe()}: not found");
         }
 
-        PageToolData.ProjectedSource? projected = PageToolData.ProjectSource(read.Text, requestedStart, requestedEnd, services.Options);
+        PageToolData.ProjectedSource? projected = PageToolData.ProjectSource(read.Text, requestedStart, requestedEnd, services.Budget);
         if (projected is null) {
             return services.Results.Failure("The requested line range is outside the page.", $"{Spec.Verb} {path.Describe()}: invalid range");
         }
@@ -307,12 +307,11 @@ internal sealed class EditPageTool : AssistantTool {
         return true;
     }
 
-    // The diff is one fifth of the result limit rather than half, because JSON escaping can double a
-    // line break and this answer has already saved the page: a result that overflowed into a refusal
-    // would report a successful edit as a failure.
+    // The diff is cut at one tool result's share of the budget: the answer has already saved the page,
+    // and JSON escaping can double a line break, so it is sized to fit inside the envelope as it is.
     private static (string Text, bool Truncated) BoundedDiff(ToolServices services, DiffDocument comparison) {
         string text = comparison.ToUnified();
-        int budget = Math.Max(1, services.Options.MaxToolResultChars / 5);
+        int budget = Math.Max(1, (int)Math.Min(services.Budget.ToolResultChars, int.MaxValue));
         if (text.Length <= budget) {
             return (text, false);
         }
@@ -467,8 +466,11 @@ internal static class PageToolData {
         [.. diagnostics.Select(diagnostic => new {
             code = DiagnosticCode(diagnostic),
             severity = diagnostic.Severity.ToString(),
+            source = diagnostic.Source,
             line = diagnostic.Position?.Line,
             column = diagnostic.Position?.Column,
+            endLine = diagnostic.End?.Line,
+            endColumn = diagnostic.End?.Column,
             message = diagnostic.Message,
         })];
 
@@ -487,7 +489,7 @@ internal static class PageToolData {
     /// <param name="content">The stored source.</param>
     /// <param name="requestedStart">The first line wanted, or null for the first.</param>
     /// <param name="requestedEnd">The last line wanted, or null for one line or the rest.</param>
-    /// <param name="options">The assistant's limits.</param>
+    /// <param name="budget">The content budget the read is windowed to.</param>
     /// <returns>The range, or null when it is outside the source.</returns>
     /// <remarks>
     /// <para>
@@ -499,7 +501,7 @@ internal static class PageToolData {
     /// that is guesswork, and a number that is not on the line cannot be miscounted.
     /// </para>
     /// </remarks>
-    public static ProjectedSource? ProjectSource(string content, int? requestedStart, int? requestedEnd, AssistantOptions options) {
+    public static ProjectedSource? ProjectSource(string content, int? requestedStart, int? requestedEnd, ContextBudget budget) {
         string[] lines = TemplateSourceLines(content);
         int start = requestedStart ?? 1;
         int end = requestedEnd ?? (requestedStart is null ? lines.Length : start);
@@ -514,9 +516,10 @@ internal static class PageToolData {
         }
 
         string source = string.Join('\n', numbered);
-        bool truncated = source.Length > options.ToolResultBudget;
+        int cap = (int)Math.Min(budget.ToolResultChars, int.MaxValue);
+        bool truncated = source.Length > cap;
         if (truncated) {
-            source = Window(source, Math.Max(1, options.MaxToolResultChars / 5));
+            source = Window(source, Math.Max(1, cap));
         }
 
         return new ProjectedSource(source, start, end, lines.Length, truncated);
@@ -527,13 +530,16 @@ internal static class PageToolData {
 
     // Both ends of a window keep complete lines, so every line still opens with its own number.
     private static string Window(string source, int window) {
-        string head = source[..Math.Min(window, source.Length)];
+        // Both ends together are what the window is: half each, so the answer stays inside the share
+        // of the budget it was given rather than being twice it.
+        int half = Math.Max(1, window / 2);
+        string head = source[..Math.Min(half, source.Length)];
         int lastBreak = head.LastIndexOf('\n');
         if (lastBreak >= 0) {
             head = head[..lastBreak];
         }
 
-        int tailStart = Math.Max(1, source.Length - window);
+        int tailStart = Math.Max(1, source.Length - half);
         int lineStart = source.LastIndexOf('\n', tailStart - 1);
         string tail = lineStart >= 0 ? source[(lineStart + 1)..] : string.Empty;
 

@@ -19,7 +19,7 @@ using System.Globalization;
 /// can share a colour and still be told apart without relying on the colour at all.
 /// </para>
 /// </remarks>
-public static class SvgText {
+internal static class SvgText {
 
     /// <summary>How many series colours the palette defines.</summary>
     internal const int SeriesColours = 7;
@@ -27,13 +27,16 @@ public static class SvgText {
     /// <summary>How many shades a heatmap uses.</summary>
     internal const int HeatLevels = 5;
 
+    /// <summary>The font stack the site sets on its body, written on every drawing so it reads the same on its own.</summary>
+    internal const string FontFamily = "system-ui, sans-serif";
+
     /// <summary>How much larger every chart's type is than the first draft's eleven-pixel labels.</summary>
     /// <remarks>
-    /// A drawing's spacing is arithmetic rather than measured, so the distances that exist to hold a
-    /// label scale with its type: the margins, the row heights and the end-of-line labels' offsets. The
-    /// type grows into its room instead of into its neighbours.
+    /// The first draft measured its spacing for eleven-pixel labels; the drawings now carry the same
+    /// sixteen-pixel body type as the page around them, so every distance that holds a label grows by
+    /// the same ratio. The type grows into its room instead of into its neighbours.
     /// </remarks>
-    internal const double TypeScale = 1.1;
+    internal const double TypeScale = ChartChrome.FontSize / 11;
 
     /// <summary>Roughly how wide one character is at the labels' size, for laying out a legend.</summary>
     internal const double CharacterWidth = 5.6 * TypeScale;

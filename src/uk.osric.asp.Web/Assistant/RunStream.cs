@@ -7,10 +7,11 @@ using System.Runtime.CompilerServices;
 using System.Text;
 using System.Text.Json;
 using System.Threading.Channels;
+using uk.osric.asp.Core.Text;
 
 /// <summary>One run's journal of events and its live subscribers.</summary>
 internal sealed class RunStream(string runId, AssistantOptions options, TimeProvider clock) : IDisposable {
-    private static readonly JsonSerializerOptions s_jsonOptions = new(JsonSerializerDefaults.Web);
+    private static readonly JsonSerializerOptions s_jsonOptions = new(JsonSerialization.Options);
 
     private readonly Lock _gate = new();
     private readonly Queue<RunEvent> _journal = new();

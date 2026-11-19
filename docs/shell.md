@@ -26,17 +26,25 @@ view to the next.
 
 - The body opens with the skip link, then the banner, then the one `main`. `BeginAsync` requires a
   navigation argument, so no view can be written without a menu: the shell composes its own with
-  `SiteNavigation`, and the seeded layout writes the same items for stored pages
-  (`shell-the-menu-is-written-twice`, `pages-the-document-is-the-shells`). The header carries where
-  the visitor can go from here; the footer carries About and the privacy policy on every page, and
-  the shell writes the same footer from `SiteNavigation.FooterLinks()`.
+  `SiteNavigation`, and the seeded layout writes the same items for stored pages, filtered from the
+  catalog's `ShellLinks()` (`shell-the-menu-is-written-twice`, `pages-the-document-is-the-shells`).
+  The header carries where the visitor can go from here; the footer carries About and the privacy
+  policy on every page, and the shell writes the same footer from `SiteNavigation.FooterLinks()`.
+- A shell document is marked (`shell-the-shell-is-marked`): `body` carries `class="shell"` before any
+  class the view asked for, and the banner carries a visible **Site tools** label before the
+  navigation landmark. Both are text and structure rather than colour, so a shell page says what it
+  is with no sheet and to a screen reader. The stored layout carries neither, which is the point: a
+  shell page answers when the page store is broken, so its menu is the site's routes rather than the
+  pages the store holds.
 - `/site.css` is a seeded page and the only base sheet (`pages-one-base-sheet`). It holds the document's shape —
   the visually hidden utility, the listing and the form grid — and the site's look, with the shape
   rules first. The view's own sheet is linked last, so it can override a structural rule without a
   more specific selector. The owner restores a stale seeded sheet from the page list.
-- `/status` writes body content only — its heading, window nav, banner and figures — and its document
-  is the builder's, like every other view's. A chart it draws can also be requested on its own at
-  `/status/chart`, which is a drawing rather than a document and so does not go through this builder.
+- `/admin/status` writes body content only — its heading, the administration landmark, its window
+  nav, host line, banner, jump bar and its groups of figures — and its document is the builder's,
+  like every other view's. A chart it draws can also be requested on its own at
+  `/admin/status/chart`, which is a drawing rather than a document and so does not go through this
+  builder.
 - `PageLayout` keeps the fragments a shell view writes: `Gutter` and `Diagnostics` (a `ul` with `role="list"`,
   `shell-the-markup-is-semantic`). Everything the shell's own document needs — the head with its base sheets and icon, the
   banner with the skip link, `Nav`, `OpenMain`/`CloseMain` and the close — is
@@ -168,14 +176,16 @@ write buffer 2
   cannot be served is an error naming the key.
 - **The menu is written twice, on purpose.** `SiteNavigation` composes it from the principal for the
   shell's own views, and the seeded `/_layout` writes it from `ctx.User` for stored pages — the header
-  items and the constant footer alike. The shell's copy is one table of shell routes
-  (`Shell/ShellCatalogue.cs`) filtered by section and audience, and `AdminNavigation` filters the same
-  table for the administration views, so a route cannot appear in one menu and not the other. The
-  shell's document must not depend on a stored page, because the error, health and sign-in routes have
-  to answer when the page pipeline is broken (`shell-the-menu-is-written-twice`). The shell's copy
-  comes from `ShellDocument.Nav`, the layout's from the seeded library, and an integration test
-  compares the document shape the two write as well as the items in it. The editor is a stored page,
-  so its menu is written by the page rather than by `SiteNavigation`.
+  items and the constant footer alike. Both read one list: the shell routes and their menus in
+  `Shell/ShellCatalogue.cs`, which `IPageCatalog.ShellLinks()` gives a page as `ShellLink` values.
+  `AdminNavigation` filters the same values for the administration views, so a route cannot appear in
+  one menu and not the other (`pages-the-catalog-knows-the-shell`). The shell's document must not
+  depend on a stored page, because the error, health and sign-in routes have to answer when the page
+  pipeline is broken (`shell-the-menu-is-written-twice`). The shell's copy comes from
+  `ShellDocument.Nav`, the layout's from the seeded library, and an integration test compares the
+  document shape the two write as well as the items in it. The footer is the layout's own chrome and
+  is not in the list; the editor is a stored page, so its menu is written by the page rather than by
+  `SiteNavigation`.
 
 The layout is not a guard: the content has already run. It is not a data boundary: it reads its own
 storage and nothing of the page's.
@@ -314,14 +324,18 @@ when the editor or its sheet will not load.
   account has the same effect on the next request. Signing in again does **not** rotate the stamp,
   so several browsers or devices can hold a valid session at the same time; only a password change
   or account removal revokes them all.
-- `/admin/**` and `/status` require the `Editor` policy, which is just an authenticated account.
-  `/admin/reference` is the one exception: it is public, because the reference describes the build
-  serving the request as `/about` does.
+- Every administration tool requires the `Editor` policy, which is just an authenticated account:
+  `/admin/import`, `/admin/export`, `/admin/changes`, `/admin/restore`, `/admin/scrub`,
+  `/admin/seed-apply` and `/admin/status` with its chart. Three routes under the root are public
+  because they are the site's own facts rather than its controls: `/admin` itself, because an
+  anonymous visitor is entitled to see which tools exist, `/admin/reference`, because it describes
+  the build serving the request as `/about` does, and `/admin/copyright`, because the notices the
+  image ships are for whoever asks.
   `/login`, `/logout`, `/health` and `/metrics` are the other routes outside the page catch-all, and
   every one of them is a reserved page key. The reserved keys are also what the assistant calls the
-  shell files: it lists and reads a record of each one and can never write one, and `ShellRoutes`
-  is pinned to `ReservedPaths.Default` by a test, so a new route adds its record in the same change
-  (`assistant-reads-the-shell-files`).
+  shell files: it lists and reads a record of each one and can never write one, and
+  `ShellCatalogue.Reserved` is the list `ReservedPaths.Default` starts from, pinned by a test, so a
+  new route adds its record in the same change (`assistant-reads-the-shell-files`).
 - Sign-in is throttled by a fixed window of `Authentication:Login:PermitLimit` attempts
   (ten shipped) every `Authentication:Login:WindowSeconds` (sixty shipped), and a request over the
   limit is answered `429` before any password is hashed. The window is per client

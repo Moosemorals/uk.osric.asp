@@ -21,7 +21,7 @@ using uk.osric.asp.Web.Http;
 /// </remarks>
 internal static class ChartEndpoint {
 
-    /// <summary>Answers <c>GET /status/chart</c> for the owner.</summary>
+    /// <summary>Answers <c>GET /admin/status/chart</c> for the owner.</summary>
     /// <param name="context">The response being written.</param>
     /// <param name="dashboard">Builds the drawings, and holds the cache the page shares.</param>
     /// <param name="time">The clock a window without a start ends at.</param>

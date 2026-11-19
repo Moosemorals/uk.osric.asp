@@ -73,6 +73,20 @@ public sealed class ChartConsistencyTests {
     }
 
     [Test]
+    public void TheTimeLabelsAtThePlotEdgesGrowInwards() {
+        string svg = LineChart.Render(
+            [Series("ok", (0, 1), (120, 2))],
+            TimeAxis,
+            new ChartAxis("count", [new ChartTick(0, "0"), new ChartTick(2, "2")]),
+            Size,
+            Frame);
+
+        Assert.That(TextTag(svg, "05:00"), Does.Contain("text-anchor=\"start\""), "the left label grows rightwards");
+        Assert.That(TextTag(svg, "05:01"), Does.Contain("text-anchor=\"middle\""), "an inner label stays centred");
+        Assert.That(TextTag(svg, "05:02"), Does.Contain("text-anchor=\"end\""), "the right label grows leftwards");
+    }
+
+    [Test]
     public void AnEmptyBucketMapKeepsTheBucketsItWasGiven() {
         string svg = Heatmap.Render(
             [new HeatmapRow("0.5", [new ChartPoint(Start, 0), new ChartPoint(Start.AddSeconds(60), 0)])],
@@ -165,13 +179,15 @@ public sealed class ChartConsistencyTests {
         return Attribute(svg[tagStart..tagEnd], attribute);
     }
 
-    private static double TextX(string svg, string label) {
+    private static double TextX(string svg, string label) => Attribute(TextTag(svg, label), "x");
+
+    private static string TextTag(string svg, string label) {
         int at = svg.IndexOf(">" + label + "</text>", StringComparison.Ordinal);
         Assert.That(at, Is.GreaterThanOrEqualTo(0), $"the label {label} is not in the markup");
 
         int tagStart = svg.LastIndexOf("<text", at, StringComparison.Ordinal);
 
-        return Attribute(svg[tagStart..at], "x");
+        return svg[tagStart..at];
     }
 
     private static double Attribute(string markup, string name) {

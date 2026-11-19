@@ -31,7 +31,7 @@ internal static class ChangesEndpoint {
 
         await ShellDocument.BeginAsync(context, "Changelist", SiteNavigation.For(context), stylesheets: ["/admin.css"]);
         await context.Response.WriteAsync("<h1>Changelist</h1>");
-        await context.Response.WriteAsync(AdminNavigation.Nav("changes", EditorPaths.Of(context.RequestServices)));
+        await context.Response.WriteAsync(AdminNavigation.Nav(context));
 
         if (text is null) {
             await context.Response.WriteAsync("""

@@ -83,7 +83,7 @@ public sealed class PageAuthorPromptTests {
         Assert.Multiple(() => {
             Assert.That(prompt, Does.Contain("type=\"IPageStorage\""));
             Assert.That(prompt, Does.Contain("query=\"cookie\""));
-            Assert.That(prompt, Does.Contain("page-author-v36"));
+            Assert.That(prompt, Does.Contain("page-author-v39"));
         });
     }
 
@@ -110,7 +110,7 @@ public sealed class PageAuthorPromptTests {
             Assert.That(prompt, Does.Contain("ctx.Capabilities.GetRequired<IHttpFetch>()"));
             Assert.That(prompt, Does.Contain("GetAsync(url)"));
             Assert.That(prompt, Does.Contain("any http or https"));
-            Assert.That(prompt, Does.Contain("moosemorals.com (page)"));
+            Assert.That(prompt, Does.Contain("moosemorals.com (page) fetchmoose@fluffypeople.com"));
             Assert.That(prompt, Does.Contain("Failures are values"));
         });
     }
@@ -279,7 +279,7 @@ public sealed class PageAuthorPromptTests {
     [Test]
     public void ThePromptIsVersionedForNullablePages() {
         Assert.Multiple(() => {
-            Assert.That(PageAuthorPrompt.Version, Is.EqualTo("page-author-v36"));
+            Assert.That(PageAuthorPrompt.Version, Is.EqualTo("page-author-v39"));
             Assert.That(PageAuthorPrompt.Build(), Does.Contain("## Nullable page code"));
         });
     }
@@ -386,6 +386,7 @@ public sealed class PageAuthorPromptTests {
         });
     }
 
+    [Test]
     public void TheWriteSectionSaysTheWriteNeedsASignedInVisitor() {
         string prompt = PageAuthorPrompt.Build();
 
@@ -398,7 +399,7 @@ public sealed class PageAuthorPromptTests {
             Assert.That(prompt, Does.Contain("needs a signed-in visitor"));
             Assert.That(prompt, Does.Contain("belongs to the next request"));
             Assert.That(prompt, Does.Contain("never during a `HEAD`"));
-            Assert.That(prompt, Does.Contain("layout is offered the read and not"));
+            Assert.That(prompt, Does.Contain("a layout is offered none of it"));
         });
     }
 
@@ -437,6 +438,18 @@ public sealed class PageAuthorPromptTests {
     }
 
     [Test]
+    public void ThePromptTeachesTheShellLinkList() {
+        string prompt = PageAuthorPrompt.Build();
+
+        Assert.Multiple(() => {
+            Assert.That(prompt, Does.Contain("ShellLinks()"));
+            Assert.That(prompt, Does.Contain("`ShellLink`"));
+            Assert.That(prompt, Does.Contain("`Audience`"));
+            Assert.That(prompt, Does.Contain("no markup and no current flag"));
+        });
+    }
+
+    [Test]
     public void PromptVersionIsStableAndPresentInThePrompt() {
         Assert.That(PageAuthorPrompt.Build(), Does.Contain(PageAuthorPrompt.Version));
     }
@@ -450,7 +463,7 @@ public sealed class PageAuthorPromptTests {
             Assert.That(prompt, Does.Contain("check_script` with the page's path"));
             Assert.That(prompt, Does.Contain("valid: false"));
             Assert.That(prompt, Does.Contain("SCRIPT002"));
-            Assert.That(PageAuthorPrompt.Version, Is.EqualTo("page-author-v36"));
+            Assert.That(PageAuthorPrompt.Version, Is.EqualTo("page-author-v39"));
         });
     }
 

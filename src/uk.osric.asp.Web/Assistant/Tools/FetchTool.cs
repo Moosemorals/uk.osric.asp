@@ -48,7 +48,7 @@ internal sealed class FetchTool : AssistantTool {
                 return services.Results.Failure("The fetch did not produce a response.", "Fetch failed");
         }
 
-        int budget = services.Options.ToolResultBudget;
+        int budget = (int)Math.Min(services.Budget.ToolResultChars, int.MaxValue);
         string content = response.Body;
         bool truncated = response.Truncated;
         if (content.Length > budget) {
