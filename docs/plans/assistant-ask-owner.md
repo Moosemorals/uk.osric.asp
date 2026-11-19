@@ -7,7 +7,7 @@ SPDX-License-Identifier: MIT
 
 | | |
 | --- | --- |
-| Status | Revised 2026-11-18 — the owner answered the five questions; this revision carries those answers and waits for a yes. Nothing below is built |
+| Status | Built 2026-11-19 — the owner's yes was given and the work is on its branch, awaiting the merge. The decision entry is written at the merge |
 | Size | Medium — one tool, one interrupt kind, a card in two renderers, three configuration values, a prompt version and five suites. The wait, the record, the status and the route are [the owner interrupt's](archive/assistant-owner-interrupt.md) |
 | Area | Core (Assistant), Web (assistant), docs |
 | Spike | [The ask tool's shape](../spikes/ask-tool-shape.md) read MCP elicitation, Claude Code, VS Code, Cline, Roo Code, OpenAI, DeepSeek, LangGraph and AutoGen; it recommends the schema and the caps this plan adopts, and names the two levers — the description and the parameter descriptions — that the evidence says matter most. The plan adds one thing it would not: a question the owner may skip (D4) |
@@ -252,7 +252,7 @@ the model's to read. `ToolSpecsTests` pins that a waiting tool's arguments are a
 
 ### D8 — The prompt says when, and who is speaking
 
-`PageAuthorPrompt` gains an "Asking the owner" section and moves to `page-author-v39`:
+`PageAuthorPrompt` gains an "Asking the owner" section and moves to `page-author-v44`:
 
 - Ask when the decision is the owner's and the answer changes what happens next, or when they hold a
   fact no tool can read. Do not ask for permission, for anything `read_page`, the shell or `fetch` can
@@ -299,7 +299,7 @@ the tool's presence are what the tests pin.
 | `src/uk.osric.asp.Web/Assistant/AssistantEndpoint.cs` | **changed** — the `question` kind's fields and validation |
 | `src/uk.osric.asp.Web/Assistant/AssistantConversationPage.cs` | **changed** — the question renderer and the answered card |
 | `src/uk.osric.asp.Web/Pages/Seeds/assistant.js`, `assistant.css` | **changed** — the card builder and its style |
-| `src/uk.osric.asp.Web/Assistant/PageAuthorPrompt.cs` | **changed** — the section and `page-author-v39` |
+| `src/uk.osric.asp.Web/Assistant/PageAuthorPrompt.cs` | **changed** — the section and `page-author-v44` |
 | `src/uk.osric.asp.Web/Assistant/AssistantOptions.cs`, `appsettings.json` | **changed** — three limits |
 | `src/uk.osric.asp.Web/Shell/ShellCatalogue.cs` | **changed** — the `/assistant` row's purpose gains the answers |
 | `test/…` | **new/changed** — the suites below |

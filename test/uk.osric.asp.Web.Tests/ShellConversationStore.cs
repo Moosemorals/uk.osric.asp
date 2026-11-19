@@ -11,7 +11,8 @@ internal sealed class ShellConversationStore(
     Run? lastRun = null,
     Run? activeRun = null,
     OwnerInterrupt? pendingInterrupt = null,
-    ApprovalMode approvalMode = ApprovalMode.RequireApproval) : IConversationStore {
+    ApprovalMode approvalMode = ApprovalMode.RequireApproval,
+    IReadOnlyList<OwnerInterrupt>? answeredQuestions = null) : IConversationStore {
     private Conversation Conversation => new() {
         Id = 1,
         Owner = "owner",
@@ -76,6 +77,13 @@ internal sealed class ShellConversationStore(
 
     public Task<OwnerInterrupt?> GetPendingInterruptAsync(long conversationId, string owner, CancellationToken cancellationToken = default) =>
         Task.FromResult(conversationId == 1 && owner == "owner" ? pendingInterrupt : null);
+
+    public Task<IReadOnlyList<OwnerInterrupt>> GetAnsweredQuestionsAsync(
+        long conversationId,
+        string owner,
+        CancellationToken cancellationToken = default) =>
+        Task.FromResult<IReadOnlyList<OwnerInterrupt>>(
+            conversationId == 1 && owner == "owner" ? answeredQuestions ?? [] : []);
 
     public Task<InterruptResolutionResult> ResolveInterruptAsync(
         long conversationId,

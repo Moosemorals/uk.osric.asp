@@ -436,6 +436,118 @@ public sealed class RunProcessorTests {
     }
 
     [Test]
+    public async Task AQuestionWaitsForTheOwnerAndItsAnswerIsTheToolResultAsync() {
+        SteppedClient client = new([
+            new ToolCallDelta(0, "call-ask", "ask_user", QuestionArguments()),
+            new Finished("tool_calls"),
+        ], [
+            new ContentDelta("Thanks."),
+            new Finished("stop"),
+        ]);
+        (Conversation conversation, RunStartResult started, _, RunProcessor processor) =
+            await StartRunAsync(client, RunTimeout(seconds: 20, toolSeconds: 5));
+
+        Task run = processor.RunAsync(new QueuedRun(conversation.Id, started.RunId!, "owner"), CancellationToken.None);
+        OwnerInterrupt pending = await WaitForPendingInterruptAsync(conversation);
+        Assert.Multiple(() => {
+            Assert.That(pending.Kind, Is.EqualTo(OwnerInterruptKind.Question));
+            Assert.That(pending.ToolCallId, Is.EqualTo("call-ask"));
+            Assert.That(InterruptPayloads.Question(pending.RequestJson)?.Questions[0].Options[0].Label, Is.EqualTo("Alpha"));
+        });
+
+        await AnswerQuestionAsync(conversation, pending, Answers("Alpha", ""));
+        Assert.That(await Task.WhenAny(run, Task.Delay(TimeSpan.FromSeconds(10))), Is.SameAs(run),
+            "the answer is what the run was waiting for");
+        await run;
+
+        Run finished = await RunAsync(conversation);
+        Message result = (await MessagesAsync(conversation)).Single(message => message.Role == "tool");
+        Assert.Multiple(() => {
+            Assert.That(finished.Status, Is.EqualTo(RunStatus.Completed), $"{finished.ErrorCode}: {finished.ErrorMessage}");
+            Assert.That(result.ToolCallId, Is.EqualTo("call-ask"));
+            Assert.That(result.Content, Does.Contain("\"selected\":[\"Alpha\"]"));
+        });
+    }
+
+    [Test]
+    public async Task AQuestionIsNotCutOffByTheToolTimeoutAsync() {
+        SteppedClient client = new([
+            new ToolCallDelta(0, "call-ask", "ask_user", QuestionArguments()),
+            new Finished("tool_calls"),
+        ], [
+            new ContentDelta("Thanks."),
+            new Finished("stop"),
+        ]);
+        (Conversation conversation, RunStartResult started, _, RunProcessor processor) =
+            await StartRunAsync(client, RunTimeout(seconds: 20, toolSeconds: 1));
+
+        Task run = processor.RunAsync(new QueuedRun(conversation.Id, started.RunId!, "owner"), CancellationToken.None);
+        OwnerInterrupt pending = await WaitForPendingInterruptAsync(conversation);
+        await Task.Delay(TimeSpan.FromSeconds(1.5));
+        await AnswerQuestionAsync(conversation, pending, Answers("Alpha", ""));
+        Assert.That(await Task.WhenAny(run, Task.Delay(TimeSpan.FromSeconds(10))), Is.SameAs(run));
+        await run;
+
+        Run finished = await RunAsync(conversation);
+        Message result = (await MessagesAsync(conversation)).Single(message => message.Role == "tool");
+        Assert.Multiple(() => {
+            Assert.That(finished.Status, Is.EqualTo(RunStatus.Completed), $"{finished.ErrorCode}: {finished.ErrorMessage}");
+            Assert.That(result.Content, Does.Not.Contain("time limit"), "the owner's wait is not the tool overrunning");
+        });
+    }
+
+    [Test]
+    public async Task AStoppedQuestionLeavesARefusalForItsCallAsync() {
+        SteppedClient client = new([
+            new ToolCallDelta(0, "call-ask", "ask_user", QuestionArguments()),
+            new Finished("tool_calls"),
+        ]);
+        (Conversation conversation, RunStartResult started, RunStream stream, RunProcessor processor) =
+            await StartRunAsync(client, RunTimeout(seconds: 20, toolSeconds: 5));
+
+        Task run = processor.RunAsync(new QueuedRun(conversation.Id, started.RunId!, "owner"), CancellationToken.None);
+        await WaitForPendingInterruptAsync(conversation);
+        Assert.That(stream.Stop(), Is.True);
+        Assert.That(await Task.WhenAny(run, Task.Delay(TimeSpan.FromSeconds(10))), Is.SameAs(run));
+        await run;
+
+        Run finished = await RunAsync(conversation);
+        Message result = (await MessagesAsync(conversation)).Single(message => message.Role == "tool");
+        OwnerInterrupt? pending = await PendingAsync(conversation);
+        Assert.Multiple(() => {
+            Assert.That(finished.Status, Is.EqualTo(RunStatus.Cancelled));
+            Assert.That(result.Content, Does.Contain("The run was stopped."));
+            Assert.That(pending, Is.Null, "a stopped run's question is failed closed");
+        });
+    }
+
+    [Test]
+    public async Task TheOwnersWaitIsNotCountedAsToolTimeAsync() {
+        SteppedClient client = new([
+            new ToolCallDelta(0, "call-ask", "ask_user", QuestionArguments()),
+            new Finished("tool_calls"),
+        ], [
+            new ContentDelta("Thanks."),
+            new Finished("stop"),
+        ]);
+        using MetricCapture capture = MetricCapture.Start(AssistantMetrics.MeterName);
+        (Conversation conversation, RunStartResult started, _, RunProcessor processor) =
+            await StartRunAsync(client, RunTimeout(seconds: 20, toolSeconds: 5));
+
+        Task run = processor.RunAsync(new QueuedRun(conversation.Id, started.RunId!, "owner"), CancellationToken.None);
+        OwnerInterrupt pending = await WaitForPendingInterruptAsync(conversation);
+        await Task.Delay(TimeSpan.FromSeconds(1.5));
+        await AnswerQuestionAsync(conversation, pending, Answers("Alpha", ""));
+        await run;
+
+        IReadOnlyList<MetricCapture.Measurement> durations = capture.ForTool("assistant.tool.duration", "ask_user");
+        Assert.Multiple(() => {
+            Assert.That(durations, Has.Count.EqualTo(1));
+            Assert.That(durations[0].Value, Is.LessThan(1), "the owner's wait is not the tool's time");
+        });
+    }
+
+    [Test]
     public async Task AWriteToAShellFileIsRefusedWithoutAnApprovalAsync() {
         SteppedClient client = new([
             new ToolCallDelta(0, "call-1", "write_page", """{"path":"/login","content":"x"}"""),
@@ -768,6 +880,30 @@ public sealed class RunProcessorTests {
         }
         Assert.Fail("The run never asked its owner.");
         return null!;
+    }
+
+    private static string QuestionArguments() => """
+        {"questions":[{"question":"Which?","options":[{"label":"Alpha"},{"label":"Beta"}]}]}
+        """;
+
+    private static string Answers(string selected, string text) {
+        IReadOnlyList<string> chosen = selected.Length == 0 ? [] : [selected];
+        return OwnerQuestions.WriteAnswers(new OwnerAnswerSet([new OwnerAnswer("Which?", null, chosen, text)]));
+    }
+
+    private async Task AnswerQuestionAsync(Conversation conversation, OwnerInterrupt pending, string resolutionJson) {
+        await using AsyncServiceScope scope = _services!.CreateAsyncScope();
+        IConversationStore store = scope.ServiceProvider.GetRequiredService<IConversationStore>();
+        Assert.That(await store.ResolveInterruptAsync(
+            conversation.Id, "owner", pending.RunId, pending.Kind, pending.ToolCallId, resolutionJson),
+            Is.EqualTo(InterruptResolutionResult.Resolved));
+        Assert.That(_interrupts.Signal(pending.RunId), Is.True, "the processor was not waiting for the owner");
+    }
+
+    private async Task<OwnerInterrupt?> PendingAsync(Conversation conversation) {
+        await using AsyncServiceScope scope = _services!.CreateAsyncScope();
+        IConversationStore store = scope.ServiceProvider.GetRequiredService<IConversationStore>();
+        return await store.GetPendingInterruptAsync(conversation.Id, "owner");
     }
 
     private async Task AnswerAsync(Conversation conversation, OwnerInterrupt pending, string decision) {

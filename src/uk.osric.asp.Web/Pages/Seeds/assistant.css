@@ -464,6 +464,69 @@
     color: var(--assistant-muted);
 }
 
+/* A tool that waits for an answer sits where an approval does: in the transcript, at the point the
+   run stopped. Every question is a fieldset and every option a label, so the card reads in order
+   without a script and a reload renders the same markup. */
+.assistant-question,
+.assistant-question-answers {
+    padding: 0.5rem 0.6rem;
+    border: 1px solid #2c5f8a;
+    background: var(--assistant-paper);
+}
+
+.assistant-question h2,
+.assistant-question-answers h2 {
+    margin: 0;
+    font-size: 1rem;
+}
+
+.assistant-question fieldset {
+    margin-block: 0.5rem 0;
+    padding: 0.35rem 0.5rem;
+    border: 1px solid var(--assistant-rule);
+}
+
+.assistant-question legend {
+    font-weight: 600;
+}
+
+.assistant-question-header {
+    color: var(--assistant-muted);
+}
+
+.assistant-question-option,
+.assistant-question-other {
+    display: block;
+    margin-block: 0.2rem;
+}
+
+.assistant-question-option-description {
+    color: #414b48;
+    font-size: 0.85rem;
+}
+
+.assistant-question-other input {
+    margin-inline-start: 0.35rem;
+    min-width: min(24rem, 100%);
+}
+
+.assistant-question-note,
+.assistant-question-unanswered {
+    color: var(--assistant-muted);
+}
+
+.assistant-question-answers dl {
+    margin: 0.25rem 0 0;
+}
+
+.assistant-question-answers dt {
+    font-weight: 600;
+}
+
+.assistant-question-answers dd {
+    margin: 0 0 0.35rem;
+}
+
 /* The turn's own summary of what it saved, so the pages are reachable without opening the tool
    details above it. */
 .assistant-changed-pages {
@@ -533,6 +596,8 @@
     .assistant-message.user-message,
     .assistant-approval,
     .assistant-continuation,
+    .assistant-question,
+    .assistant-question-answers,
     .assistant-changed-pages,
     .assistant-tool {
         padding: 0.4rem;

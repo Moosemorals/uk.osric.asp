@@ -4,6 +4,7 @@
 namespace uk.osric.asp.Web.Tests;
 
 using System.Reflection;
+using uk.osric.asp.Core.Assistant;
 using uk.osric.asp.Web.Assistant;
 using uk.osric.asp.Web.Assistant.Tools;
 
@@ -67,7 +68,7 @@ public sealed class ToolSpecsTests {
 
     [Test]
     public void TheRegistryHoldsEveryTool() {
-        Assert.That(ToolRegistry.Default.All, Has.Count.EqualTo(20));
+        Assert.That(ToolRegistry.Default.All, Has.Count.EqualTo(21));
     }
 
     [Test]
@@ -90,6 +91,54 @@ public sealed class ToolSpecsTests {
             .Select(type => type.FullName);
 
         Assert.That(unregistered, Is.Empty);
+    }
+
+
+    [Test]
+    public void OnlyTheQuestionToolWaitsForTheOwner() {
+        string[] waiting = [.. Specs.Where(tool => tool.WaitsForOwner).Select(tool => tool.Name)];
+
+        Assert.That(waiting, Is.EqualTo(["ask_user"]));
+    }
+
+    [Test]
+    public void AWaitingToolIsNotApprovalGated() {
+        IEnumerable<string> gated = Specs
+            .Where(tool => tool.WaitsForOwner && tool.NeedsApproval)
+            .Select(tool => tool.Name);
+
+        Assert.That(gated, Is.Empty);
+    }
+
+    [Test]
+    public void EveryArgumentOfAWaitingToolIsDescribed() {
+        IEnumerable<string> undescribed = Specs
+            .Where(tool => tool.WaitsForOwner)
+            .SelectMany(tool => Undescribed(tool.Arguments, tool.Name));
+
+        Assert.That(undescribed, Is.Empty);
+    }
+
+    // A tool that describes no argument sends the schema it always sent, so the provider's cached
+    // prefix does not move for the twenty tools this change leaves alone.
+    [Test]
+    public void AToolWithNoArgumentDescriptionsIsUnchangedOnTheWire() {
+        ToolDefinition readPage = PageToolExecutor.Definitions.Single(tool => tool.Name == "read_page");
+
+        Assert.That(readPage.ParametersJson, Is.EqualTo(
+            """{"type":"object","properties":{"path":{"type":"string"},"startLine":{"type":"integer"},"endLine":{"type":"integer"}},"required":["path"],"additionalProperties":false}"""));
+    }
+
+    private static IEnumerable<string> Undescribed(IEnumerable<ToolArgumentSchema> arguments, string prefix) {
+        foreach (ToolArgumentSchema argument in arguments) {
+            string name = $"{prefix}.{argument.Name}";
+            if (argument.Description is null) {
+                yield return name;
+            }
+            foreach (string nested in Undescribed(argument.Items ?? [], name)) {
+                yield return nested;
+            }
+        }
     }
 
     [TestCase("write_page", ExpectedResult = true)]

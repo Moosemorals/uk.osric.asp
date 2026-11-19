@@ -156,6 +156,13 @@ and what depends on it is asserted by the suites that use it (`SimpleContextTest
   page and the forget confirmation so the accessibility sweep covers both, and
   `AssistantMemoryBrowserTests` walks the round trip: see, correct, pin, forget. No suite contacts a
   real model provider.
+  The assistant's question tool is covered at the same boundaries: `OwnerQuestionsTests` pins the
+  caps, the refusals, the blank answer and the wire round trip; `AskUserToolTests` the tool's result
+  and its refusals; `RunProcessorTests` the wait, the timeout exemption and the owner's wait taken
+  off the tool's time; `ConversationStoreTests` the owner scope, the second answer and a restart
+  failing the record closed; `AssistantTranscriptTests` the pending and answered cards; and
+  `Web.IntegrationTests/AssistantQuestionFlowTests` and `AssistantQuestionTests` in the browser
+  drive a question from the card to the run carrying on.
 - **Markdown** is split by what each suite owns: `Core.Tests` pins `LinkPolicy`; `Runtime.Tests`
   drives both renderer profiles, including the table renderer's `scope="col"` and refusal of inline
   styles; `Web.Tests` renders a real page through `IMarkdownRenderer`, renders the transcript and

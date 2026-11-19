@@ -22,6 +22,12 @@ internal sealed record ToolSpec(
     /// <summary>Whether a successful call changes a stored page.</summary>
     public bool Writes { get; init; }
 
+    /// <summary>
+    /// Whether the call stops until the owner answers it. The tool timeout does not apply to such a
+    /// call, because the wait is the owner's rather than the tool's.
+    /// </summary>
+    public bool WaitsForOwner { get; init; }
+
     /// <summary>The argument the path policy refuses before the owner is asked, or null.</summary>
     public string? PathArgument { get; init; }
 }

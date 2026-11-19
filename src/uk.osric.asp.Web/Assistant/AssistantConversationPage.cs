@@ -69,6 +69,9 @@ internal static class AssistantConversationPage {
         OwnerInterrupt? pending = activeRun is null
             ? null
             : await conversations.GetPendingInterruptAsync(id, owner!, context.RequestAborted);
+        // A turn's question card is rendered from the resolved records, because the tool result may be
+        // cut at its cap and an answer cut in half is worse than no card.
+        IReadOnlyList<OwnerInterrupt> answered = await conversations.GetAnsweredQuestionsAsync(id, owner!, context.RequestAborted);
         AntiforgeryTokenSet tokens = antiforgery.GetAndStoreTokens(context);
         AccountBalance? balance = (await balanceTask).Balance;
         SecurityHeaders.AllowScripts(context);
@@ -100,6 +103,14 @@ internal static class AssistantConversationPage {
             """);
 
         Dictionary<string, (string Name, string Arguments)> calls = ReadToolCalls(messages);
+        Dictionary<string, List<OwnerInterrupt>> answersByRun = [];
+        foreach (OwnerInterrupt answeredQuestion in answered) {
+            if (!answersByRun.TryGetValue(answeredQuestion.RunId, out List<OwnerInterrupt>? runAnswers)) {
+                runAnswers = [];
+                answersByRun[answeredQuestion.RunId] = runAnswers;
+            }
+            runAnswers.Add(answeredQuestion);
+        }
         // The transcript reads newest first, so the latest run sits directly under the prompt box. A
         // run still going has not changed anything yet as far as a reader is concerned, and the card
         // that says what a finished turn changed leads that turn's block.
@@ -108,6 +119,9 @@ internal static class AssistantConversationPage {
         foreach (IGrouping<string, Message> turn in visibleMessages.Reverse().GroupBy(message => message.RunId)) {
             if (!string.Equals(turn.Key, activeRun?.Id, StringComparison.Ordinal)) {
                 await WriteChangedPagesAsync(context, turn);
+                if (answersByRun.TryGetValue(turn.Key, out List<OwnerInterrupt>? asked)) {
+                    await WriteAnsweredQuestionsAsync(context, asked);
+                }
             }
             foreach (Message message in turn) {
                 await WriteMessageAsync(context, message, calls);
@@ -269,6 +283,9 @@ internal static class AssistantConversationPage {
             case OwnerInterruptKind.Continuation when InterruptPayloads.Continuation(interrupt.RequestJson) is { } continuation:
                 await WriteContinuationAsync(context, interrupt, continuation, tokens, conversationId);
                 break;
+            case OwnerInterruptKind.Question when InterruptPayloads.Question(interrupt.RequestJson) is { } questions:
+                await WriteQuestionAsync(context, interrupt, questions, tokens, conversationId);
+                break;
             default:
                 // A request this build cannot read still leaves a run blocked, so the owner is told
                 // that and offered the one thing that ends it.
@@ -324,6 +341,99 @@ internal static class AssistantConversationPage {
                     <button type="submit">Continue</button>
                 </form>
                 <p class="assistant-continuation-note">Stopping ends the run; the transcript is kept.</p>
+            </section>
+            """);
+    }
+
+    /// <summary>Writes the questions a waiting tool call put to the owner.</summary>
+    /// <remarks>
+    /// Every question is one fieldset and every option a label wrapping its own control, so the card
+    /// reads in order with a screen reader. Nothing is required: the owner may read the whole set
+    /// before answering any of it, and a question left blank is an answer.
+    /// </remarks>
+    private static async Task WriteQuestionAsync(
+        HttpContext context,
+        OwnerInterrupt interrupt,
+        OwnerQuestionSet questions,
+        AntiforgeryTokenSet tokens,
+        long conversationId) {
+        string action = $"/assistant/{conversationId}/runs/{Encode(interrupt.RunId)}/interrupt";
+
+        await context.Response.WriteAsync($"""
+            <section class="assistant-question" aria-label="Questions from the assistant" data-interrupt-kind="{Encode(interrupt.Kind)}">
+                <h2>The assistant is asking you</h2>
+                <form method="post" action="{action}">
+                    {AntiforgeryField.Hidden(tokens)}
+                    <input type="hidden" name="toolCallId" value="{Encode(interrupt.ToolCallId ?? string.Empty)}">
+            """);
+        for (int index = 0; index < questions.Questions.Count; index++) {
+            OwnerQuestion question = questions.Questions[index];
+            string legend = question.Header is { Length: > 0 } header
+                ? $"<span class=\"assistant-question-header\">{Encode(header)}</span> {Encode(question.Question)}"
+                : Encode(question.Question);
+            await context.Response.WriteAsync($"""
+                    <fieldset>
+                        <legend>{legend}</legend>
+                """);
+            foreach (OwnerQuestionOption option in question.Options ?? []) {
+                string description = option.Description is { Length: > 0 } text
+                    ? $" <span class=\"assistant-question-option-description\">{Encode(text)}</span>"
+                    : string.Empty;
+                await context.Response.WriteAsync($"""
+                            <label class="assistant-question-option"><input type="{(question.MultiSelect ? "checkbox" : "radio")}" name="answer{index}" value="{Encode(option.Label)}"> {Encode(option.Label)}{description}</label>
+                    """);
+            }
+            await context.Response.WriteAsync($"""
+                        <label class="assistant-question-other">Your own answer <input type="text" name="other{index}"></label>
+                    </fieldset>
+                """);
+        }
+        await context.Response.WriteAsync("""
+                    <button type="submit">Send answer</button>
+                </form>
+                <p class="assistant-question-note">Nothing here is required: a question you leave blank is one the assistant decides for you.</p>
+            </section>
+            """);
+    }
+
+    /// <summary>Writes the questions a finished turn asked and the answers its owner gave.</summary>
+    private static async Task WriteAnsweredQuestionsAsync(HttpContext context, IReadOnlyList<OwnerInterrupt> interrupts) {
+        List<(OwnerQuestionSet Questions, OwnerAnswerSet Answers)> cards = [];
+        foreach (OwnerInterrupt interrupt in interrupts) {
+            if (InterruptPayloads.Question(interrupt.RequestJson) is { } questions
+                && InterruptPayloads.Answers(interrupt.ResolutionJson) is { } answers
+                && questions.Questions.Count == answers.Answers.Count) {
+                cards.Add((questions, answers));
+            }
+        }
+        if (cards.Count == 0) {
+            return;
+        }
+
+        await context.Response.WriteAsync("""
+            <section class="assistant-question-answers" aria-label="Questions the assistant asked">
+                <h2>Questions</h2>
+                <dl>
+            """);
+        foreach ((OwnerQuestionSet questions, OwnerAnswerSet answers) in cards) {
+            for (int index = 0; index < questions.Questions.Count; index++) {
+                OwnerQuestion question = questions.Questions[index];
+                OwnerAnswer answer = answers.Answers[index];
+                string asked = question.Header is { Length: > 0 } header
+                    ? $"{Encode(header)}: {Encode(question.Question)}"
+                    : Encode(question.Question);
+                string given = string.Join(", ", answer.Selected);
+                if (answer.Text.Length > 0) {
+                    given = given.Length == 0 ? answer.Text : $"{given} — {answer.Text}";
+                }
+                string value = given.Length == 0
+                    ? "<span class=\"assistant-question-unanswered\">No answer</span>"
+                    : Encode(given);
+                await context.Response.WriteAsync($"<div><dt>{asked}</dt><dd>{value}</dd></div>");
+            }
+        }
+        await context.Response.WriteAsync("""
+                </dl>
             </section>
             """);
     }

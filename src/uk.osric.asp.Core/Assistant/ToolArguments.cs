@@ -28,6 +28,12 @@ public sealed record ToolArgumentSchema(string Name, ToolArgumentType Type, bool
     /// null for every other type.
     /// </summary>
     public IReadOnlyList<ToolArgumentSchema>? Items { get; init; }
+
+    /// <summary>
+    /// What goes in the argument, for the model to read, or null when its name says enough. It is
+    /// emitted only when it is set, so a tool that carries none sends the schema it always sent.
+    /// </summary>
+    public string? Description { get; init; }
 }
 
 /// <summary>A validated argument object or a safe validation error.</summary>

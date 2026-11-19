@@ -43,6 +43,19 @@ internal interface IConversationStore {
     /// <param name="cancellationToken">The request's token.</param>
     Task<OwnerInterrupt?> GetPendingInterruptAsync(long conversationId, string owner, CancellationToken cancellationToken = default);
 
+    /// <summary>Every question this conversation's runs asked and its owner answered, oldest first.</summary>
+    /// <param name="conversationId">The conversation.</param>
+    /// <param name="owner">The signed-in owner.</param>
+    /// <param name="cancellationToken">The request's token.</param>
+    /// <remarks>
+    /// The transcript's answered card is rendered from these rows rather than the tool result, because
+    /// a long result is cut at the tool cap and an answer cut in half is worse than no card.
+    /// </remarks>
+    Task<IReadOnlyList<OwnerInterrupt>> GetAnsweredQuestionsAsync(
+        long conversationId,
+        string owner,
+        CancellationToken cancellationToken = default);
+
     /// <summary>Records the owner's resolution and moves the run back to <c>running</c>.</summary>
     /// <param name="conversationId">The conversation.</param>
     /// <param name="owner">The signed-in owner.</param>

@@ -23,6 +23,7 @@ using uk.osric.asp.Web.Pages;
 /// <param name="budget">The content budget a tool's answer is measured against.</param>
 /// <param name="metrics">Where the run's counters go.</param>
 /// <param name="fetcher">The HTTP fetch behind <c>fetch</c>.</param>
+/// <param name="questions">The seam a waiting tool asks the owner through, when the run supplies one.</param>
 internal sealed class ToolServices(
     IServiceProvider scope,
     ToolContext context,
@@ -30,7 +31,8 @@ internal sealed class ToolServices(
     AssistantOptions options,
     ContextBudget budget,
     AssistantMetrics metrics,
-    IAssistantFetcher fetcher) {
+    IAssistantFetcher fetcher,
+    IOwnerQuestions? questions = null) {
 
     /// <summary>The owner, conversation and run the call belongs to.</summary>
     public ToolContext Context { get; } = context;
@@ -49,6 +51,9 @@ internal sealed class ToolServices(
 
     /// <summary>The HTTP fetch behind <c>fetch</c>.</summary>
     public IAssistantFetcher Fetcher { get; } = fetcher;
+
+    /// <summary>The seam a waiting tool asks the owner through, or null when there is no run to ask.</summary>
+    public IOwnerQuestions? Questions { get; } = questions;
 
     /// <summary>The page editor, resolved from the call's scope: the writes, and nothing else.</summary>
     public PageEditor Pages => scope.GetRequiredService<PageEditor>();

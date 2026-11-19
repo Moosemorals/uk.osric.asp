@@ -44,6 +44,36 @@ internal sealed class AssistantLiveProviderTests : BrowserTest {
     public async Task StopHostAsync() => await _host.DisposeAsync();
 
     [Test]
+    public async Task ARealModelAsksAQuestionAndUsesTheAnswerAsync() {
+        string first = UniquePath("live-choice-a");
+        string second = UniquePath("live-choice-b");
+        await SignInAsync();
+        await NewConversationAsync();
+
+        await SendAsync(
+            $"Use the ask_user tool to ask me which of these two page keys a new page should use: "
+            + $"{first} or {second}. Offer exactly those two as options. When I answer, use write_page "
+            + $"to create the page I chose, with a paragraph reading 'asked and answered', then reply "
+            + $"with one short sentence.");
+
+        await Assertions.Expect(Page.Locator(".assistant-question")).ToBeVisibleAsync(new() { Timeout = 240_000 });
+        // The owner's own words are always a way to answer, whatever options the model offered.
+        await Page.FillAsync(".assistant-question input[name='other0']", first);
+        await Page.ClickAsync(".assistant-question button[type=submit]");
+
+        await Assertions.Expect(Page.Locator("details.assistant-tool")).ToContainTextAsync("write_page", new() { Timeout = 240_000 });
+        Assert.That(Host.Log, Does.Not.Contain("finished as failed"));
+
+        IPage visitor = await NewPageAsync();
+        IResponse? written = await visitor.GotoAsync(first.TrimStart('/'));
+        string content = await visitor.ContentAsync();
+        Assert.Multiple(() => {
+            Assert.That(written?.Status, Is.EqualTo(200), "the model wrote the page the owner named");
+            Assert.That(content, Does.Contain("asked and answered"));
+        });
+    }
+
+    [Test]
     public async Task ARealModelFinishesAConversationThatNeedsAToolCallAsync() {
         string path = UniquePath("live");
         string phrase = $"live check {Guid.NewGuid():N}";

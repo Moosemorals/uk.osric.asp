@@ -41,7 +41,7 @@ internal static class ShellCatalogue {
             AccessNote = "anyone, throttled to ten attempts a minute per client address",
         },
         new ShellRoute("/assistant", "GET, POST, HEAD", ShellAudience.Owner,
-            "The page assistant: conversations, transcript, run stream, tool approvals, the owner's memory list and the pause a run takes when it runs out of budget.",
+            "The page assistant: conversations, transcript, run stream, tool approvals, the owner's answers to the assistant's questions, the owner's memory list and the pause a run takes when it runs out of budget.",
             new ShellMenu(ShellSection.Site, ShellAudience.Owner, 30, "Assistant", ShellMatch.Subtree)),
         PageLink(ShellPage.Editor, ShellAudience.Owner, ShellSection.Site, 40, "Pages", ShellMatch.Subtree),
         new ShellRoute("/admin", "GET", ShellAudience.Everyone,

@@ -293,8 +293,9 @@ Prometheus sees; a series is one metric at one set of label values. A histogram 
 One time a run stopped and asked its owner for something: a stored request, the resolution they gave,
 and the run waiting in `awaiting_owner` until they did.
 
-**Not** an approval. An approval is one kind of interrupt; a spent budget's continuation is the
-other, and a kind is a request and a card rather than a new status, table or route.
+**Not** an approval. An approval is one kind of interrupt; a spent budget's continuation and a tool
+call's question are the others, and a kind is a request and a card rather than a new status, table or
+route.
 
 **Owner:** assistant — `OwnerInterrupt`, the `AssistantInterrupts` table,
 `OwnerInterruptCoordinator`, `RunStatus.AwaitingOwner` and
@@ -347,6 +348,20 @@ from the memory page, changes it (`assistant-memory-page`).
 
 **Owner:** assistant — `MemoryCandidate.Pinned`, the `AssistantMemories.Pinned` column,
 `IMemoryStore.PinnedAsync` and `MemoryRecall.Select`.
+
+## Question
+
+A tool call that stops the run until the owner answers, and whose result is that answer: one to four
+questions, each with two to five choices or none at all, and always room for the owner's own words.
+
+**Not** an approval, and not a page capability. An approval allows or refuses a call the model has
+already made; a question gathers a fact the model does not have. A question the owner leaves blank is
+an answer — the owner leaving the decision to the model — rather than a refusal, and a page cannot ask
+its visitor anything and wait.
+
+**Owner:** assistant — `ask_user`, `OwnerQuestions`, `OwnerInterruptKind.Question`,
+`OwnerQuestionSet` and `OwnerAnswerSet`; the caps are `Assistant:MaxQuestionsPerCall`,
+`MaxQuestionOptions` and `MaxQuestionChars`.
 
 ## Request
 The whole input to one step: the model name, the system prompt with a run's memory block, the tool

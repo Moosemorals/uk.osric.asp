@@ -23,9 +23,10 @@ closed, and dangling tool calls receive synthetic results rather than being repl
 
 The provider boundary is an explicitly configured OpenAI-compatible streaming chat-completions
 endpoint. A run sends the system prompt, conversation transcript, and page source read
-by tools to that provider. No provider SDK is used. The tools are nineteen types under
+by tools to that provider. No provider SDK is used. The tools are twenty-one types under
 `Assistant/Tools`, each carrying its name, its description, its argument schema, its approval flag,
-the verb its refusals use, whether it changes a page and its own run, beside the code that runs it;
+whether it waits for the owner, the verb its refusals use, whether it changes a page and its own run,
+beside the code that runs it;
 `ToolRegistry` is the only list, so the model's definitions, the dispatcher and the approval gate
 cannot drift from each other (`assistant-a-tool-is-one-type`). Assistant tools reach the page store
 through one read seam, `PageStoreReader` — list/read/search, bounded template-source line edits with an
@@ -36,8 +37,8 @@ tree, the reserved keys, the tombstones, the key order and what a scope means ar
 (`pages-the-store-is-read-through-one-seam`, `pages-a-listing-carries-facts`, `pages-a-page-has-a-state`, `pages-the-store-is-a-tree`). It carries facts rather than words: a node says whether a save would be accepted and
 what the page compiled to, and `PageMode` and `PageImageStatus` spell them, so `ls -l`, `stat`,
 `list_pages` and `read_page` agree (`pages-a-listing-carries-facts`, `pages-a-page-has-a-state`). The tools also see a record of the site's own
-routes, which they can read and never write, and three tools outside the store: `fetch`, `view` and
-`diff_page`.
+routes, which they can read and never write, and four tools outside the store: `fetch`, `view`,
+`diff_page` and `ask_user`.
 `fetch` GETs an absolute `http` or `https` URL through the same bounded
 outbound HTTP a page uses and returns the status, content type and text body; every assistant
 request, the provider call included, carries
@@ -106,12 +107,29 @@ approval mode defaults to `AlwaysApprove`; `RequireApproval` waits for an indivi
 each flagged call. Unresolved, stale, stopped, or restarted approvals never execute.
 
 Every time a run stops for its owner it is one **interrupt**: a stored request, the resolution the
-owner gives, and the run in `awaiting_owner` until then. The kinds are the approval of a flagged call
-and the continuation of a spent budget, and a new kind is a request and a card rather than a new
-status, table or route. A run waits on one thing at a time, so the run's id is the record's key. The card is rendered from the stored request, so a reload
+owner gives, and the run in `awaiting_owner` until then. The kinds are the approval of a flagged call,
+the continuation of a spent budget and the answer to a tool's question, and a new kind is a request
+and a card rather than a new status, table or route. A run waits on one thing at a time, so the run's
+id is the record's key. The card is rendered from the stored request, so a reload
 or another device shows what the live page showed, and the route is one
 (`POST /assistant/{id}/runs/{runId}/interrupt`) whose body is read against the record's kind: a form
 built for another wait is refused rather than guessed at.
+
+`ask_user` is the one tool whose result is not something the model found: it asks the owner one to
+four questions on a card, stops the run until they answer, and returns the answers in the order asked.
+The wait is the same interrupt — a `question` request, a card rendered from the record, and a
+resolution the tool returns — so a reload, a second device or a disconnected browser changes nothing
+about the outcome. A question may offer two to five choices, one or several, and always offers the
+owner's own words; nothing is required, so a question left blank is carried as an empty answer
+(`selected: []`, `text: ""`) and the model is told to decide and say what it assumed rather than ask
+again. The call belongs alone in its step because the run stops, it is not approval-gated, the tool
+timeout does not apply to it, and the owner's wait is taken off `assistant.tool.duration`, which stays
+tool time. The question and the answer are stored and sent to the provider like a message, so the tool
+description and the prompt forbid asking for a secret. The caps are `Assistant:MaxQuestionsPerCall`,
+`MaxQuestionOptions` and `MaxQuestionChars`, and a finished turn reads its questions and answers from
+the resolved interrupt records rather than the tool result, because a long result is cut at the tool
+cap. The per-parameter descriptions this tool carries are the schema's; the other tools still name
+their arguments only ([`tool-arguments-say-nothing`](backlog/tool-arguments-say-nothing.md)).
 
 The tools also see the shell's own files, which are the site's routes (`assistant-reads-the-shell-files`).
 Every route in the shell's table — `/login`, `/assistant`, `/admin/scrub`, `/metrics` and the rest,
