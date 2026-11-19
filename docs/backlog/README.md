@@ -112,6 +112,8 @@ its reason, and that no item sits above something that blocks it.
 | --- | --- | --- | --- | --- | --- |
 | [`ops-no-ci`](ops-no-ci.md) | There is no CI pipeline | caffeinated-squirrel ☕🐿️ | high | [planned](../plans/host-ci.md) | — |
 | | *Turns the gate from a habit into a rule, which makes every step below it cheaper.* | | | | |
+| [`makefile-holds-the-deploy-recipe`](makefile-holds-the-deploy-recipe.md) | The Makefile holds the host deploy recipe | caffeinated-squirrel ☕🐿️ | high | blocked | `ops-no-ci` |
+| | *The deploy target is 143 lines of host installation inside the task runner; moving it to deploy/deploy-host, as ci-install does, makes the Makefile readable and the host steps testable, and it waits for the CI branch to land first.* | | | | |
 | [`cannot-ask-the-owner`](cannot-ask-the-owner.md) | The assistant cannot ask the owner a question | caffeinated-squirrel ☕🐿️ | high | [planned](../plans/assistant-ask-owner.md) | — |
 | | *The wait it needs is built, so this is a tool, a card and three limits, and every assistant run that meets an unknown stops guessing.* | | | | |
 | [`page-cannot-move`](page-cannot-move.md) | A page cannot move a page | eager-beaver ⚙️🦫 | high | [planned](../plans/page-move.md) | — |

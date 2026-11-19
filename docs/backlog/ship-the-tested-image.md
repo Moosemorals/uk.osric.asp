@@ -26,6 +26,11 @@ likely harmless, but "the deployed image is the image that passed the tests" is 
 should have rather than infer. The host's `make ci` currently builds two images for `image-check` and
 discards both, so the one artifact that is proved is the one nobody keeps.
 
+The release also does not answer the two questions the owner asks of it: **was this commit's gate
+green?** and **is the running image the one that passed?** `make deploy` runs its own gate and waits
+for `/health`; it does not fetch `/ci/status.json`, and it does not compare the running container's
+image id with the image it pushed. The promotion should do both, not infer them.
+
 The owner's direction is build once and promote on command:
 
 - after a green gate, the host builds **one** image and pushes the commit tag;
@@ -42,7 +47,8 @@ The owner's direction is build once and promote on command:
 | Piece | Where | What it does |
 | --- | --- | --- |
 | The browser host | [`BrowserHost.cs`](../../test/uk.osric.asp.Web.BrowserTests/BrowserHost.cs) | Starts the built app as a `dotnet` child process with a throwaway SQLite file, a scripted provider and a loopback port. It never starts the image |
-| The release | [`Makefile`](../../Makefile) | `deploy` runs `deploy-guard`, `check`, the browser suite, then `image`; it builds the image after the browser suite and pushes `latest` and the commit tag |
+| The release | [`Makefile`](../../Makefile) | `deploy` runs `deploy-guard`, `check`, the browser suite, then `image`; it builds the image after the browser suite, pushes `latest` and the commit tag, and waits for `/health`. It does not read `/ci/status.json` and does not compare the running container's image id |
+| The status | [`check-push`](../../deploy/ci/check-push), Caddy | `/ci/status.json` carries the commit, ref, result, times, exitCode and summary. There is no image id, and nothing in the deploy reads the file |
 | The image proof | [`Makefile`](../../Makefile) | `image-check` builds two images with an empty layer cache, compares their ids and removes them. Nothing keeps the proved image |
 | The host gate | [`host-ci`](../plans/host-ci.md) | The proposed `make ci` on every trunk push; it publishes the result through Caddy at `/ci/status.json` and pushes no image |
 | The registry | [deploy/README.md](../../deploy/README.md#the-registry) | `registry.osric.uk`; the deploy user has a persistent pull auth file. The `ci` user has no registry credential today |
@@ -71,6 +77,17 @@ These are asked before a plan is written; the first is the one that decides the 
 6. **What does the failure look like?** The image is in the registry but the browser suite fails. The
    status says failed, the promotion refuses it, and the image stays unreferenced until the next
    build. An automatic rollback is not part of this item.
+7. **Does the promotion wait for `running`, or refuse it?** The host check is asynchronous. A
+   promote command could poll until the status is `passed` or `failed`, or stop with "the host is
+   still checking" and let the owner try again. Waiting is convenient; refusing is honest.
+8. **What does the status carry for the image?** The `imageId` the host proved, the commit label and
+   the pushed tag. The promotion pulls that id rather than rebuilding.
+9. **What does "live" mean?** After the restart, `podman inspect uk.osric.asp --format '{{.Image}}'`
+   equals the status's `imageId`, and the image's `org.opencontainers.image.revision` label is the
+   commit. The quadlet's `Image=` names the commit tag.
+10. **What if the status names another commit?** A host behind the checkout, or a deploy from a
+    branch, means the status is not about this commit. The promotion should refuse, or wait for the
+    host to check the commit it is about to deploy.
 
 ## What this is not
 
@@ -79,16 +96,20 @@ These are asked before a plan is written; the first is the one that decides the 
 - **Not a second VM.** The host that runs the gate, the browser and the app is the same machine; the
   slice is the control.
 - **Not a gate for branch pushes.** Only `trunk` is a release candidate.
+- **Not a green light from another commit.** The status must name the commit being promoted; a
+  status for a different commit is not evidence for this one.
 - **Not a page or shell feature.** The status file is Caddy's; the app is not given a route it does
   not need.
 
 ## What would prove it
 
 The host builds and pushes `registry.osric.uk/uk.osric.asp:<sha>`; the browser suite drives that
-image, not a `dotnet` child; the promotion pulls the same image id the status names and restarts the
-quadlet with it; the running container's `org.opencontainers.image.revision` label is `<sha>`; a
-failed browser run leaves the image unpromoted and the status says so; and the gate, browser and
-image are all readable from one `/ci/status.json` served by Caddy.
+image, not a `dotnet` child; the promotion refuses a commit whose status is not `passed` or waits
+while it is `running`; a status for another commit is a clear refusal; the status's `imageId` is the
+image the promotion pulls and restarts the quadlet with; after the restart, the running container's
+image id is that id and its `org.opencontainers.image.revision` label is `<sha>`; a failed browser run
+leaves the image unpromoted and the status says so; and the gate, browser and image are all readable
+from one `/ci/status.json` served by Caddy.
 
 ## The name a plan would propose
 

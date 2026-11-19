@@ -12,7 +12,7 @@ SPDX-License-Identifier: MIT
 | Area | Deploy (host); the shell's one table of routes |
 | Spike | None. The Makefile targets, the static-file pipeline, the shell catalogue, the Caddyfile and the host's existing shape were read off `trunk` on 2026-11-19. The host itself was not reachable from that checkout, so step 1 of the build starts by proving the assumptions it makes about the account, packages and podman |
 | Decisions | At the merge: **deploy-ci-is-its-own-account**, **deploy-trunk-is-checked-after-the-push** and **deploy-github-mirrors-the-host** are new; `code-one-gate`, `deploy-quadlets-are-the-source-of-truth` and `deploy-one-small-host` are edited in place. The first says the gate is the same target on a different machine; the second says a push is accepted before it is checked; the third says the host is the upstream and GitHub a pruned copy |
-| Backlog | [`ops-no-ci`](../backlog/ops-no-ci.md) is this step. It is the item's "still open" paragraph — the gate runs when someone runs it. [`ship-the-tested-image`](../backlog/ship-the-tested-image.md) is the release half, added now and blocked by this step |
+| Backlog | [`ops-no-ci`](../backlog/ops-no-ci.md) is this step. It is the item's "still open" paragraph — the gate runs when someone runs it. [`ship-the-tested-image`](../backlog/ship-the-tested-image.md) is the release half and [`makefile-holds-the-deploy-recipe`](../backlog/makefile-holds-the-deploy-recipe.md) is the deploy-target cleanup; both are blocked by this step |
 
 ## The short version
 
@@ -495,8 +495,12 @@ the scripts are checked where they run, as the backup scripts were:
 
 - [`ops-no-outage-notification`](../backlog/ops-no-outage-notification.md) is still the item that
   pushes a failure to the owner. A status file is a place to look, not a notification.
-- The release promotion — build once, run the browser suite against the image, promote on command —
-  is [`ship-the-tested-image`](../backlog/ship-the-tested-image.md), not this step.
+- The release promotion — build once, run the browser suite against the image, promote on command,
+  and check the status and the running image id — is
+  [`ship-the-tested-image`](../backlog/ship-the-tested-image.md), not this step.
+- The `deploy` target's host installation is
+  [`makefile-holds-the-deploy-recipe`](../backlog/makefile-holds-the-deploy-recipe.md), a cleanup
+  blocked by this step; it waits until the status seed this branch adds is in the target.
 - The live provider tests and the mutation targets stay out of the push gate.
 - A visible CI panel on `/admin/status` is a page or shell change for later; the JSON file is the
   contract this step ships.
