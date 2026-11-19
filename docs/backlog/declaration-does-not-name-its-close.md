@@ -156,7 +156,7 @@ rule and a footgun.
 - **The assistant's output.** Whether the prompt writes `!%>` for declarations is a prompt version of
   its own, and it follows the plan rather than this idea.
 - **Colouring the closer per block.** VS Code gets it from the grammar above; the site's editor is
-  [`editor-is-a-textarea`](editor-is-a-textarea.md), and a language server is [`vscode-cannot-check-a-page`](vscode-cannot-check-a-page.md).
+  [`editor-is-a-textarea`](editor-is-a-textarea.md), and a language server is the VS Code slice of [`check-without-storing`](check-without-storing.md).
 
 **Origin:** the owner's proposal on 2026-11-18 against [WHIM-02](WHIMS.md)'s `%><%` clause, then
 sharpened twice: the mirror spelling (`!%>`, not `%!>`) because `IndexOf("%>")` keeps working and the

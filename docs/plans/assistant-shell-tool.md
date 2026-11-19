@@ -11,9 +11,9 @@ SPDX-License-Identifier: MIT
 | Size | Large — a shell kernel, a mount table, a planner, a rewritten applet set, the shell tool rebuilt and the memory tool reshaped, the prompt, and the removal of nineteen tools. The largest change to the assistant since it landed |
 | Area | Core (Shell, Assistant), Web (assistant, site), docs |
 | Spike | None. The claims about today's shell were read off `trunk` on 2026-11-19: [`ShellRunner`](../../src/uk.osric.asp.Web/Assistant/Shell/ShellRunner.cs), the eleven applets, [`ShellApplet`](../../src/uk.osric.asp.Web/Assistant/Shell/ShellApplet.cs), [`ShellTool`](../../src/uk.osric.asp.Web/Assistant/Tools/ShellTool.cs), [`PageStoreReader`](../../src/uk.osric.asp.Web/Assistant/PageStoreReader.cs) and [`PagePathPolicy`](../../src/uk.osric.asp.Web/Assistant/PagePathPolicy.cs). The tool-count evidence is [the ask tool's shape](../spikes/ask-tool-shape.md) |
-| Backlog | [`tool-surface-is-one-shell`](../backlog/tool-surface-is-one-shell.md) is this plan; [`cannot-ask-the-owner`](../backlog/closed.md) was a dependency and has landed; [`tool-arguments-say-nothing`](../backlog/tool-arguments-say-nothing.md) is superseded; [`cannot-check-a-page`](../backlog/cannot-check-a-page.md), [`nothing-checks-page-assets`](../backlog/nothing-checks-page-assets.md), [`one-write-per-render`](../backlog/one-write-per-render.md) changes what the shell can do when it lands, and [`page-cannot-move`](../backlog/closed.md) has landed, so `mv` is already an applet; [`view-cannot-submit-a-form`](../backlog/view-cannot-submit-a-form.md) and [`terminal-cannot-reach-the-shell`](../backlog/terminal-cannot-reach-the-shell.md) are named here and are not this plan |
+| Backlog | [`tool-surface-is-one-shell`](../backlog/tool-surface-is-one-shell.md) is this plan; [`cannot-ask-the-owner`](../backlog/closed.md) was a dependency and has landed; [`tool-arguments-say-nothing`](../backlog/tool-arguments-say-nothing.md) is superseded; [`check-without-storing`](../backlog/check-without-storing.md), [`nothing-checks-page-assets`](../backlog/nothing-checks-page-assets.md), [`one-write-per-render`](../backlog/one-write-per-render.md) changes what the shell can do when it lands, and [`page-cannot-move`](../backlog/closed.md) has landed, so `mv` is already an applet; [`view-cannot-submit-a-form`](../backlog/view-cannot-submit-a-form.md) and [`terminal-cannot-reach-the-shell`](../backlog/terminal-cannot-reach-the-shell.md) are named here and are not this plan |
 | Depends on | `ask_user` and `mv` have landed ([the ask plan](archive/assistant-ask-owner.md), [the move plan](archive/page-move.md)); [`check-without-storing`](../backlog/check-without-storing.md) for `check -l template` |
-| Decisions | New names proposed: **code-a-shell-is-the-interpreter**, **assistant-the-shell-is-the-tool**, **assistant-a-command-is-posix**, **assistant-a-write-is-planned-before-it-approves**, **assistant-scratch-is-not-persistent**, **assistant-a-snapshot-is-a-path**, **assistant-patch-carries-the-hash**, **assistant-memory-is-one-tool** and **assistant-man-is-the-reference**; **assistant-a-check-names-its-language** is [`cannot-check-a-page`](../backlog/cannot-check-a-page.md)'s proposed name and is taken here. Relies on `assistant-a-tool-is-one-type`, `assistant-the-shell-is-applets`, `assistant-the-shell-lexes-before-it-judges`, `assistant-the-shell-is-posix`, `assistant-writes-are-revisions`, `assistant-edit-page-is-safe`, `assistant-reads-history`, `assistant-script-checks`, `assistant-reads-the-shell-files`, `assistant-memory-is-the-owners`, `assistant-memory-recall-is-fts5`, `assistant-memory-page`, `assistant-a-view-is-a-read`, `assistant-a-view-is-the-response`, `assistant-tool-results-are-cut-not-refused`, `assistant-old-tool-results-are-masked`, `pages-the-store-is-read-through-one-seam`, `pages-outbound-fetch`, `auth-a-view-token-reads-only` and `code-policy-values-are-configuration`. Edits `assistant-the-shell-is-posix` in place to name the conformance target |
+| Decisions | New names proposed: **code-a-shell-is-the-interpreter**, **assistant-the-shell-is-the-tool**, **assistant-a-command-is-posix**, **assistant-a-write-is-planned-before-it-approves**, **assistant-scratch-is-not-persistent**, **assistant-a-snapshot-is-a-path**, **assistant-patch-carries-the-hash**, **assistant-memory-is-one-tool** and **assistant-man-is-the-reference**; the check's own name, **pages-a-check-names-its-language**, belongs to [`check-without-storing`](../backlog/check-without-storing.md) and is not taken here. Relies on `assistant-a-tool-is-one-type`, `assistant-the-shell-is-applets`, `assistant-the-shell-lexes-before-it-judges`, `assistant-the-shell-is-posix`, `assistant-writes-are-revisions`, `assistant-edit-page-is-safe`, `assistant-reads-history`, `assistant-script-checks`, `assistant-reads-the-shell-files`, `assistant-memory-is-the-owners`, `assistant-memory-recall-is-fts5`, `assistant-memory-page`, `assistant-a-view-is-a-read`, `assistant-a-view-is-the-response`, `assistant-tool-results-are-cut-not-refused`, `assistant-old-tool-results-are-masked`, `pages-the-store-is-read-through-one-seam`, `pages-outbound-fetch`, `auth-a-view-token-reads-only` and `code-policy-values-are-configuration`. Edits `assistant-the-shell-is-posix` in place to name the conformance target |
 
 ## The short version
 
@@ -346,10 +346,10 @@ a type's summary, remarks and members. `man -k cookie` searches names and summar
 `help` is the command list and one command's usage; it is rendered from the applet registry, so a
 command that is not in the registry cannot be in the help.
 
-`check -l javascript <path|->` is today's two script tools, one command; `check -l template` calls
-`check-without-storing`'s compile when it lands, and answers its diagnostics. The language set is
-closed and `help check` names it; a language with no checker is refused by name. The proposed name
-**assistant-a-check-names-its-language** is taken here.
+`check` is the tool the check item ships: [`check-without-storing`](../backlog/check-without-storing.md)
+answers `-l javascript` and `-l template` from one capability. This plan makes it an applet rather
+than a tool, and `help check` renders the closed language set from the one declaration rather than a
+sentence that goes stale; a language with no checker is refused by name.
 
 ### D10 — Memory stays a tool, and becomes one
 
@@ -523,13 +523,12 @@ Each phase is a commit or a short series, and each ends with its tests green.
 | --- | --- |
 | [`tool-surface-is-one-shell`](../backlog/tool-surface-is-one-shell.md) | this plan |
 | [`tool-arguments-say-nothing`](../backlog/tool-arguments-say-nothing.md) | superseded: with three tools there is no long prefix to describe; closes at this merge |
-| [`cannot-check-a-page`](../backlog/cannot-check-a-page.md) | the JavaScript half lands as `check`; the template half waits on [`check-without-storing`](../backlog/check-without-storing.md); rewritten at this merge |
+| [`check-without-storing`](../backlog/check-without-storing.md) | its tool half is what this plan turns into an applet; the capability, the language set and the template compile stay with its own plan |
 | [`nothing-checks-page-assets`](../backlog/nothing-checks-page-assets.md) | grows `check`'s language set; unchanged |
 | [`one-write-per-render`](../backlog/one-write-per-render.md) | v1 refuses a second page write and names this item; not closed here |
 | [`page-cannot-move`](../backlog/closed.md) | landed 2026-11-19; the shell's `mv` is already there, and the typed `move_page` goes with the rest |
 | [`cannot-ask-the-owner`](../backlog/closed.md) | a dependency; landed 2026-11-19 |
 | [`cannot-search-the-store`](../backlog/cannot-search-the-store.md) | the page capability; the shell's `grep` already reads the same seam; unchanged |
-| [`vscode-cannot-check-a-page`](../backlog/vscode-cannot-check-a-page.md) | editor-only; unchanged |
 | [`editor-is-a-textarea`](../backlog/editor-is-a-textarea.md) | the terminal's `vi` may share `/vim.js`; unchanged |
 | [`conversation-is-not-a-page`](../backlog/conversation-is-not-a-page.md) | the assistant's own UI; unchanged |
 | [`listing-does-not-date-itself`](../backlog/listing-does-not-date-itself.md) | a shell listing is one shot; unchanged |
@@ -537,8 +536,8 @@ Each phase is a commit or a short series, and each ends with its tests green.
 | [`terminal-cannot-reach-the-shell`](../backlog/terminal-cannot-reach-the-shell.md) | new, and not this plan |
 
 At the merge the record is updated in the same change: `tool-surface-is-one-shell` moves to
-[closed.md](../backlog/closed.md), `tool-arguments-say-nothing` closes, `cannot-check-a-page` is
-rewritten to what is left, and the order's rows and reasons follow.
+[closed.md](../backlog/closed.md), `tool-arguments-say-nothing` closes, the check's item keeps the capability
+and its own plan, and the order's rows and reasons follow.
 
 ## Close-out
 
