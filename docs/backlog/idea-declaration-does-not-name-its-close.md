@@ -76,7 +76,7 @@ rule and a footgun.
 
    That is the capability an escaped closer was going to buy, arriving free, where it is actually
    wanted: declarations are where regexes, format strings and documentation live. Code blocks still
-   end at the first `%>`, so `TEMPLATE007` and the `\u003e` note from [`idea-block-that-is-not-code-compiles`](`idea-block-that-is-not-code-compiles`.md) keep
+   end at the first `%>`, so `TEMPLATE007` and the `\u003e` note from [`idea-block-that-is-not-code-compiles`](idea-block-that-is-not-code-compiles.md) keep
    their place.
 
 6. **Writes and comments keep the echo optional.** An expression cannot end in `=` or `==`, and a
@@ -99,7 +99,7 @@ rule and a footgun.
    declaration.
 
 9. **The gate.** `make check-pages` compiles the seeds with the product's compiler, so it carries
-   `TEMPLATE009`/`TEMPLATE010` to every seed without new code once [`idea-block-that-is-not-code-compiles`](`idea-block-that-is-not-code-compiles`.md)'s
+   `TEMPLATE009`/`TEMPLATE010` to every seed without new code once [`idea-block-that-is-not-code-compiles`](idea-block-that-is-not-code-compiles.md)'s
    consumer lands.
 
 10. **The record.** A plan proposes **pages-declarations-close-with-a-bang**, citing
@@ -156,7 +156,7 @@ rule and a footgun.
 - **The assistant's output.** Whether the prompt writes `!%>` for declarations is a prompt version of
   its own, and it follows the plan rather than this idea.
 - **Colouring the closer per block.** VS Code gets it from the grammar above; the site's editor is
-  [`idea-editor-is-a-textarea`](../backlog/idea-editor-is-a-textarea.md), and a language server is [`idea-vscode-cannot-check-a-page`](../backlog/idea-vscode-cannot-check-a-page.md).
+  [`idea-editor-is-a-textarea`](idea-editor-is-a-textarea.md), and a language server is [`idea-vscode-cannot-check-a-page`](idea-vscode-cannot-check-a-page.md).
 
 **Origin:** the owner's proposal on 2026-11-18 against [WHIM-02](WHIMS.md)'s `%><%` clause, then
 sharpened twice: the mirror spelling (`!%>`, not `%!>`) because `IndexOf("%>")` keeps working and the

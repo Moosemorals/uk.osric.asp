@@ -115,7 +115,7 @@ Checked against the code on 2026-11-08.
   template hash and the `RuntimeId`, and the render path uses it to recompile lazily; the listing
   never asks.
 - **Visibility is a documented rule, not an enforced one.**
-  [architecture.md's "Visibility"](../../../docs/architecture.md) says nothing is `public` unless
+  [architecture.md's "Visibility"](../../architecture.md) says nothing is `public` unless
   another product assembly needs it and that every type in `Web` is `internal`. Measured today:
 
   | Assembly | Types | `public` types | `public` members on public types | `public` members on non-public types |
@@ -140,7 +140,7 @@ Checked against the code on 2026-11-08.
 | --- | --- | --- |
 | ARCH-14 | This job | **Implements it**; the job is closed |
 | `pages-the-response-is-buffered-until-a-flush`, "Compiled pages" | A warning-only page stores its image and reports "Saved with warnings." | Makes that sentence true in practice by giving the compiler something to warn about, and makes it visible in the listing |
-| "Visibility" in [architecture.md](../../../docs/architecture.md) | Nothing is `public` unless another product assembly needs it | Turns the paragraph into a build failure, and narrows the surface it already describes |
+| "Visibility" in [architecture.md](../../architecture.md) | Nothing is `public` unless another product assembly needs it | Turns the paragraph into a build failure, and narrows the surface it already describes |
 | [IDEA-001](../../backlog/idea-editor-is-a-textarea.md) | The editor has a gutter and linked diagnostics | The listing gains the state column that makes the run of those links worth clicking |
 | [IDEA-015](../../backlog/closed.md) | The listing and history are shell views because a page cannot read the store | Unchanged: the listing stays a shell view, and this plan fixes its shape before a page takes it over |
 | [SEC-03](../../backlog/sec-page-runs-in-process.md) | Page code has no process boundary | Guards at public entry points are not a boundary and are not presented as one |
@@ -348,7 +348,7 @@ guarantee, hand-rolled, at the cost of a large literal and no "removed API" dete
   pass null, so a guard there is dead code. Guards stay where a constructor is *also* reached with
   data the container did not supply.
 
-The rule is written down in [architecture.md](../../../docs/architecture.md) beside "Visibility", so the
+The rule is written down in [architecture.md](../../architecture.md) beside "Visibility", so the
 next reviewer does not have to re-derive it.
 
 ### D11 — `FormatVersion` moves, once

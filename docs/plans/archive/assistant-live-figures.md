@@ -10,7 +10,7 @@ SPDX-License-Identifier: MIT
 | Status | Merged 2026-11-18 — built on *assistant-live-figures* and merged into trunk with `make check` and `make test-browser` green |
 | Size | Medium — the page's projection and its mark, a small server change to what the Tool calls row counts and when it is published, the store method behind it, five tests and the words in three docs. No event type, no migration, no configuration |
 | Area | Web (assistant, storage), docs |
-| Spike | [DeepSeek token counting](../spikes/deepseek-token-counting.md) measured the prose ratio the projection leans on; nothing new is measured |
+| Spike | [DeepSeek token counting](../../spikes/deepseek-token-counting.md) measured the prose ratio the projection leans on; nothing new is measured |
 | Backlog | [IDEA-051](../backlog/IDEA-051.md) |
 | Decisions | Recorded at the merge: `assistant-tool-calls-count-attempts` and `assistant-live-figures-are-marked`. Edits `assistant-budgets-are-one-snapshot`. Relies on `assistant-the-request-budget-is-tokens` |
 
@@ -131,7 +131,7 @@ a call before it has run.
 
 ### D3 — The ratio is prose, and it has a measurement behind it
 
-`3.8` characters per token, from [the spike](../spikes/deepseek-token-counting.md): 2,316 tokens for
+`3.8` characters per token, from [the spike](../../spikes/deepseek-token-counting.md): 2,316 tokens for
 8,817 characters of English. The unit is UTF-16 characters, which is what JavaScript's `.length`
 counts, so the page divides the text it already has and no encoding step exists.
 

@@ -11,15 +11,15 @@ SPDX-License-Identifier: MIT
 | Size | Small — one file split into two internal collaborators beside it, and the tests that test each part moved to meet it. No contract change, no migration, no configuration key, no build change |
 | Area | Web (pages), docs |
 | Spike | None. Every measurement below was read off the working tree on 2026-11-16 |
-| Backlog | IDEA-022, closed with this plan ([closed jobs](../backlog/closed.md)) |
+| Backlog | IDEA-022, closed with this plan ([closed jobs](../../backlog/closed.md)) |
 | Decisions | Records `code-one-concern-one-collaborator`. Relies on `code-shapes`, `code-nothing-public-without-a-caller`, `pages-capabilities-are-one-seam`, `pages-the-response-is-buffered-until-a-flush`, `pages-page-io-is-async` and `code-tests-are-written-first` |
 
 ## The short version
 
-[IDEA-022](../backlog/closed.md) was right to insist on a re-measure first, and it was right about the
-shape. The file did not shrink when the [page-features](../plans/archive/page-features.md) plan took
+[IDEA-022](../../backlog/closed.md) was right to insist on a re-measure first, and it was right about the
+shape. The file did not shrink when the [page-features](page-features.md) plan took
 storage and fetch out; it grew from 364 lines to 551, because
-[page-streaming](../plans/archive/page-streaming.md) then put the flush, the sink, the commit rule and
+[page-streaming](page-streaming.md) then put the flush, the sink, the commit rule and
 the tail on top of the buffer. The body is now the largest single job in the file, not the smallest.
 
 The idea offers three routes and says the third is the one that matters: *a split that does not let a
@@ -38,7 +38,7 @@ logging that is filed under one category, the antiforgery token, `AssetUrl`, the
 delegation itself. That is a class a reader can walk in one pass.
 
 The test payoff is concrete today. Of the 51 test methods in
-[SimpleContextTests](../../test/uk.osric.asp.Web.Tests/SimpleContextTests.cs), 19 are about the
+[SimpleContextTests](../../../test/uk.osric.asp.Web.Tests/SimpleContextTests.cs), 19 are about the
 response surface and 13 about buffering and streaming, and every one of them builds a full context
 through one of two helpers — a logger factory, a request, a capability set, a content-type table and a
 writer — to assert something about a status code, a header or a buffer. After the split,
@@ -63,7 +63,7 @@ writer — to assert something about a status code, a header or a buffer. After 
   fields, so the testability target is missed by design. See
   [Considered and rejected](#considered-and-rejected).
 - **No seam on `IPageCapabilities`.** The response is not a capability a page asks for; it is part of
-  the contract every page always has ([`pages-capabilities-are-one-seam`](../decisions.md)). The
+  the contract every page always has ([`pages-capabilities-are-one-seam`](../../decisions.md)). The
   collaborators are constructed by the context, not offered through the registry.
 - **No logging or antiforgery collaborator.** Logging is 21 lines and one category rule; antiforgery
   is 15 lines and one token per layer. Each reads in place, and neither gains a test setup worth the
@@ -209,7 +209,7 @@ Docs and the record, at the merge:
 - `docs/pages.md` — where the buffered and streaming implementations are described, the two names
   beside `SimpleContext`.
 - `docs/jobs/IDEA-022.md`, its row and its step — deleted, and the job recorded in
-  [closed](../backlog/closed.md) with this plan linked.
+  [closed](../../backlog/closed.md) with this plan linked.
 - `/help` is not touched: no page author can do anything new.
 
 ## Phases
@@ -289,7 +289,8 @@ The owner said yes on 2026-11-16, and chose composition over partials before the
 
 ## Status
 
-Built 2026-11-16 on `idea-022`, in two commits, and waiting for the merge.
+Merged. `code-one-concern-one-collaborator` is in [the record](../../decisions.md) and its item is in
+[closed.md](../../backlog/closed.md). Built on `idea-022`, in two commits.
 
 **What landed.** `SimpleContext` is 373 lines, down from 551, and the two collaborators are
 `PageResponseState` (121 lines) and `PageBody` (226, including the flush that used to be the largest

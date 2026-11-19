@@ -8,11 +8,11 @@ SPDX-License-Identifier: MIT
 | | |
 | --- | --- |
 | Status | Revised 2026-11-18 — the owner answered the five questions; this revision carries those answers and waits for a yes. Nothing below is built |
-| Size | Medium — one tool, one interrupt kind, a card in two renderers, three configuration values, a prompt version and five suites. The wait, the record, the status and the route are [the owner interrupt's](assistant-owner-interrupt.md) |
+| Size | Medium — one tool, one interrupt kind, a card in two renderers, three configuration values, a prompt version and five suites. The wait, the record, the status and the route are [the owner interrupt's](archive/assistant-owner-interrupt.md) |
 | Area | Core (Assistant), Web (assistant), docs |
 | Spike | [The ask tool's shape](../spikes/ask-tool-shape.md) read MCP elicitation, Claude Code, VS Code, Cline, Roo Code, OpenAI, DeepSeek, LangGraph and AutoGen; it recommends the schema and the caps this plan adopts, and names the two levers — the description and the parameter descriptions — that the evidence says matter most. The plan adds one thing it would not: a question the owner may skip (D4) |
 | Backlog | [`idea-assistant-cannot-ask`](../backlog/idea-assistant-cannot-ask.md) |
-| Depends on | [The owner interrupt](assistant-owner-interrupt.md) (ARCH-17), landed 2026-11-18 |
+| Depends on | [The owner interrupt](archive/assistant-owner-interrupt.md) (ARCH-17), landed 2026-11-18 |
 | Decisions | New name proposed: **assistant-a-question-is-a-tool-call**. Relies on `assistant-a-run-waits-on-one-owner-interrupt` and `assistant-a-tool-is-one-type`; edits nothing |
 
 ## The short version
@@ -23,7 +23,7 @@ should say, whether a section is still wanted — has no way to ask. It guesses,
 with the question in prose and loses the work it had queued behind the answer.
 
 This adds the missing turn: a tool, `ask_user`, whose **result is the owner's answer**. It is the third
-kind of [owner interrupt](assistant-owner-interrupt.md), so the wait already exists: the run opens a
+kind of [owner interrupt](archive/assistant-owner-interrupt.md), so the wait already exists: the run opens a
 question interrupt, the owner's card is rendered from the stored request, their answer is the stored
 resolution, and the run carries on in the same step. What this plan adds is the kind, the tool, the
 card, the prompt and three limits. The owner chose the name `ask_user` and no alias for it (D1).

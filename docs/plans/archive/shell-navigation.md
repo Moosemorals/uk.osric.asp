@@ -7,11 +7,11 @@ SPDX-License-Identifier: MIT
 
 | | |
 | --- | --- |
-| Status | Built 2026-11-18 on the shell-navigation branch — waits for the owner at the merge |
+| Status | Merged 2026-11-18 — its four decisions are in [the record](../../decisions.md) and IDEA-030 is in [closed.md](../../backlog/closed.md) |
 | Size | Large as a programme, Medium as each step — one `Sdk` value (with three enums) and one method on the existing catalog, the seeded layout and admin page, one route moved, shell chrome, the assistant's own menu, and the manual/prompt/document sweep. No migration, no new configuration key, no build change |
 | Area | Sdk, Web (html, admin, assistant, metrics, pages, seeds), docs |
 | Spike | None. Every claim below was read off the working tree on 2026-11-16: the two menu lists, the admin index, the shell routes, the reserved paths and the tests that pin them |
-| Backlog | [IDEA-030](../backlog/closed.md) — closed by this plan |
+| Backlog | [IDEA-030](../../backlog/closed.md) — closed by this plan |
 | Decisions | Edits `shell-the-menu-is-written-twice` and `shell-admin-is-a-shell-route`; records **pages-the-catalog-knows-the-shell**, **shell-the-shell-is-marked** and **shell-the-tools-live-under-admin**. Existing names it relies on: `pages-capabilities-are-one-seam`, `pages-a-layout-is-a-capability`, `pages-the-document-is-the-shells`, `pages-page-first`, `code-policy-values-are-configuration` |
 
 > **Built 2026-11-18.** The route table and the `/admin` shell route had already landed by the time
@@ -23,7 +23,7 @@ SPDX-License-Identifier: MIT
 
 ## The short version
 
-[IDEA-030](../backlog/closed.md) is right: the same handful of links is written by hand in a dozen
+[IDEA-030](../../backlog/closed.md) is right: the same handful of links is written by hand in a dozen
 places, and every route change is a sweep. The shape that fixes it is three changes, and they are
 deliberately separate steps:
 
@@ -41,7 +41,7 @@ deliberately separate steps:
 3. **The shell's tools live under one root.** `/admin` is already the shell's root in all but name:
    the index is a page, and every tool except `/status` is beneath it. The step finishes the move
    by putting the status dashboard at `/admin/status` and its chart at `/admin/status/chart`. The
-   assistant stays at `/assistant` because it is a page in waiting ([`idea-conversation-is-not-a-page`](../backlog/idea-conversation-is-not-a-page.md)),
+   assistant stays at `/assistant` because it is a page in waiting ([`idea-conversation-is-not-a-page`](../../backlog/idea-conversation-is-not-a-page.md)),
    `/login` and `/logout` stay because they bootstrap identity, and `/health`, `/metrics` and
    `/favicon.ico` stay because they are the wire rather than pages.
 
@@ -72,7 +72,7 @@ exists.
 - **A page-store menu in the shell.** The shell's tools are a fixed list; a page can add a
   page-store menu, the shell cannot.
 - **Moving `/assistant`.** It is the last view-shaped thing in the shell and has a job to become a
-  page ([`idea-conversation-is-not-a-page`](../backlog/idea-conversation-is-not-a-page.md)). Moving it under the shell root now would be undone.
+  page ([`idea-conversation-is-not-a-page`](../../backlog/idea-conversation-is-not-a-page.md)). Moving it under the shell root now would be undone.
 - **Moving `/login` and `/logout`.** They are identity bootstrap, they are conventional, and a
   public visitor should not be taught the site's internal vocabulary to sign in.
 - **Moving `/health`, `/metrics` or `/favicon.ico`.** They are not pages. The probe, the scrape
@@ -81,7 +81,7 @@ exists.
 - **A configurable root.** The root is the route's identity and the authorization boundary; a bad
   value could let a page claim a shell route. `Pages:Editor:Key` is configuration because it decides
   where a page lives and nothing about authority. If the root should be a policy value, that is
-  [`idea-policy-is-a-constant`](../backlog/idea-policy-is-a-constant.md)'s question.
+  [`idea-policy-is-a-constant`](../../backlog/idea-policy-is-a-constant.md)'s question.
 - **A capability that draws a nav or a footer.** `IPageCatalog.ShellLinks()` returns facts; the
   page draws. A `Site`, `Footer` or `Administration` list on a new capability would be a menu API
   wearing a capability's name.
@@ -99,27 +99,27 @@ The counts are from the working tree, not from the job's prose.
 
 | Copy | Where | What it is today |
 | --- | --- | --- |
-| Page catalog | [`Pages/PageCatalogScope.cs`](../../src/uk.osric.asp.Web/Pages/PageCatalogScope.cs), [`Sdk/IPageCatalog.cs`](../../src/uk.osric.asp.Sdk/IPageCatalog.cs) | The page's one read seam: four store reads and no shell links. This is the capability the change extends |
-| Site menu, shell | [`Html/SiteNavigation.cs`](../../src/uk.osric.asp.Web/Html/SiteNavigation.cs) | `Links(...)` returns Home, Sign in or the owner tools; `Nav`/`For` render them; `FooterLinks()` is the constant footer |
-| Site menu, stored pages | [`Pages/Seeds/_layout`](../../src/uk.osric.asp.Web/Pages/Seeds/_layout) | A hand-written `List<NavLink>` with the same items, a plain `/login` rather than a `returnUrl`, and a hand-written footer |
-| Admin menu, shell | [`Admin/AdminNavigation.cs`](../../src/uk.osric.asp.Web/Admin/AdminNavigation.cs) | A list built from a `current` token; nine items, including Page list and Help |
+| Page catalog | [`Pages/PageCatalogScope.cs`](../../../src/uk.osric.asp.Web/Pages/PageCatalogScope.cs), [`Sdk/IPageCatalog.cs`](../../../src/uk.osric.asp.Sdk/IPageCatalog.cs) | The page's one read seam: four store reads and no shell links. This is the capability the change extends |
+| Site menu, shell | [`Html/SiteNavigation.cs`](../../../src/uk.osric.asp.Web/Html/SiteNavigation.cs) | `Links(...)` returns Home, Sign in or the owner tools; `Nav`/`For` render them; `FooterLinks()` is the constant footer |
+| Site menu, stored pages | [`Pages/Seeds/_layout`](../../../src/uk.osric.asp.Web/Pages/Seeds/_layout) | A hand-written `List<NavLink>` with the same items, a plain `/login` rather than a `returnUrl`, and a hand-written footer |
+| Admin menu, shell | [`Admin/AdminNavigation.cs`](../../../src/uk.osric.asp.Web/Admin/AdminNavigation.cs) | A list built from a `current` token; nine items, including Page list and Help |
 | Admin index, stored page | [`Pages/Seeds/admin`](../../src/uk.osric.asp.Web/Pages/Seeds/admin) | A hand-written `<ul>` of import, export, reference and `/status` |
-| Assistant menu | [`Assistant/AssistantEndpoint.cs`](../../src/uk.osric.asp.Web/Assistant/AssistantEndpoint.cs), [`Assistant/AssistantMemoryEndpoint.cs`](../../src/uk.osric.asp.Web/Assistant/AssistantMemoryEndpoint.cs) | Three assemblies of Conversations, Memory and Page list, with the current item chosen at each call |
-| Error remedies | [`Errors/ErrorMessage.cs`](../../src/uk.osric.asp.Web/Errors/ErrorMessage.cs) | Home, Sign in or Page list, chosen for the failure; not a navigation landmark |
-| Status window | [`Metrics/StatusEndpoint.cs`](../../src/uk.osric.asp.Web/Metrics/StatusEndpoint.cs) | A Time window filter, not a site menu |
-| Editor menu | [`Pages/Seeds/pages`](../../src/uk.osric.asp.Web/Pages/Seeds/pages) | The editor's own Page list, Help, history and confirmation menus |
+| Assistant menu | [`Assistant/AssistantEndpoint.cs`](../../../src/uk.osric.asp.Web/Assistant/AssistantEndpoint.cs), [`Assistant/AssistantMemoryEndpoint.cs`](../../../src/uk.osric.asp.Web/Assistant/AssistantMemoryEndpoint.cs) | Three assemblies of Conversations, Memory and Page list, with the current item chosen at each call |
+| Error remedies | [`Errors/ErrorMessage.cs`](../../../src/uk.osric.asp.Web/Errors/ErrorMessage.cs) | Home, Sign in or Page list, chosen for the failure; not a navigation landmark |
+| Status window | [`Metrics/StatusEndpoint.cs`](../../../src/uk.osric.asp.Web/Metrics/StatusEndpoint.cs) | A Time window filter, not a site menu |
+| Editor menu | [`Pages/Seeds/pages`](../../../src/uk.osric.asp.Web/Pages/Seeds/pages) | The editor's own Page list, Help, history and confirmation menus |
 
-Three tests hold the current shape together: [`SiteNavigationTests`](../../test/uk.osric.asp.Web.Tests/SiteNavigationTests.cs)
-asserts the shell's items, [`SiteChromeTests.TheShellAndTheLayoutOfferTheSameItems`](../../test/uk.osric.asp.Web.IntegrationTests/SiteChromeTests.cs)
+Three tests hold the current shape together: [`SiteNavigationTests`](../../../test/uk.osric.asp.Web.Tests/SiteNavigationTests.cs)
+asserts the shell's items, [`SiteChromeTests.TheShellAndTheLayoutOfferTheSameItems`](../../../test/uk.osric.asp.Web.IntegrationTests/SiteChromeTests.cs)
 compares the words in the two menus (not their hrefs), and
-[`ShellViews`](../../test/uk.osric.asp.Web.Tests/ShellViews.cs) renders every shell and stored view for
+[`ShellViews`](../../../test/uk.osric.asp.Web.Tests/ShellViews.cs) renders every shell and stored view for
 the accessibility rules. The route table is pinned in both directions by
 [`ShellRoutesTests`](../../test/uk.osric.asp.Web.Tests/ShellRoutesTests.cs) and
-[`ReservedPathsTests`](../../test/uk.osric.asp.Web.Tests/ReservedPathsTests.cs).
+[`ReservedPathsTests`](../../../test/uk.osric.asp.Web.Tests/ReservedPathsTests.cs).
 
 ### The route audit, and what "one root" means here
 
-[The audit](../architecture.md#where-a-view-lives) already sorts every route into a column. This is
+[The audit](../../architecture.md#where-a-view-lives) already sorts every route into a column. This is
 the same list against the owner's three questions:
 
 | Route | Why it is where it is | Under the root? |
@@ -167,7 +167,7 @@ writes them as it does today; the shell's own document keeps `FooterLinks`. Ther
 capability, because there is no shell fact a page needs to draw one.
 
 The assistant's menu is not in the list either: no page asks for it, and the assistant becomes a
-page in [`idea-conversation-is-not-a-page`](../backlog/idea-conversation-is-not-a-page.md). It still gets one builder in this plan (D8), so the shell
+page in [`idea-conversation-is-not-a-page`](../../backlog/idea-conversation-is-not-a-page.md). It still gets one builder in this plan (D8), so the shell
 stops writing it three times.
 
 ### D2 — The page catalog knows what the shell can do
@@ -408,7 +408,7 @@ status dashboard is the only tool that has to move.
 No page asks for the assistant's menu, so it is not a capability. It is still three hand-written
 lists today. A small `AssistantNavigation` in `Assistant/` builds Conversations, Memory and Page
 list with the current item by path; `AssistantEndpoint` and `AssistantMemoryEndpoint` call it. When
-[`idea-conversation-is-not-a-page`](../backlog/idea-conversation-is-not-a-page.md) moves the assistant to a page, that page either keeps the builder or
+[`idea-conversation-is-not-a-page`](../../backlog/idea-conversation-is-not-a-page.md) moves the assistant to a page, that page either keeps the builder or
 replaces it with its own menu; the shell's copy is then deleted with the endpoint.
 
 The assistant's "Conversation navigation" and "Memory navigation" confirmations keep their own
@@ -433,18 +433,18 @@ The merge writes these, or folds them into the entries they qualify if the owner
 the store holds: `ShellLinks()` returns the shell's links as `ShellLink` values with a section and an
 audience. The host returns facts; the page filters, orders, labels, marks current and draws. There
 is no nav or footer capability, no `IsCurrent` in the value, and no new capability for the
-question. *Recorded in [pages](../pages.md#page-contract) and this plan.*
+question. *Recorded in [pages](../../pages.md#page-contract) and this plan.*
 
 **shell-the-shell-is-marked** — a shell document carries `body.shell` and a visible **Site tools**
 label, so a reader can see that its menu is the site's tools rather than a page's own. The shell
 never reads the page store to draw its chrome; a page that wants a page-store menu writes one beside
-the shell's. *Recorded in [the shell](../shell.md#the-document-shell), `/site.css` and this plan.*
+the shell's. *Recorded in [the shell](../../shell.md#the-document-shell), `/site.css` and this plan.*
 
 **shell-the-tools-live-under-admin** — every shell **tool** the audit keeps lives under `/admin`:
 the administration views and the status dashboard. The routes outside it are not tools: `/login` and
 `/logout` bootstrap identity, the assistant is a page in waiting, `/health`, `/metrics` and
 `/favicon.ico` are the wire, and `{**path}` is the page runtime. `/status` and its chart join the
-root as `/admin/status`. *Recorded in [the shell](../shell.md), [architecture](../architecture.md#where-a-view-lives)
+root as `/admin/status`. *Recorded in [the shell](../../shell.md), [architecture](../../architecture.md#where-a-view-lives)
 and this plan.*
 
 `shell-the-menu-is-written-twice` is edited: the menu is still written in two documents, but both
@@ -477,7 +477,7 @@ the same root.
 | `src/uk.osric.asp.Web/Metrics/StatusEndpoint.cs`, `ChartEndpoint.cs`, `Dashboard.cs` | New paths; the admin nav on the status page |
 | `src/uk.osric.asp.Web/Assistant/ShellRoutes.cs`, `PageAuthorPrompt.cs` | The moved route and the catalog's shell links in the assistant's instructions |
 | Tests | `PageCatalogScopeTests`, a new `ShellLinksTests`, `SiteNavigationTests`, `AdminNavigation`/`StatusEndpointTests`, the `ReferenceEndpointTests`/`ExportEndpointTests` label assertions, `ShellDocumentTests`/`ShellDocumentFragmentTests`, `SiteChromeTests`, `ReservedPathsTests`, `ShellRoutesTests`, `PageAssetSeederTests`, `StatusPageTests`, `StatusPageSizeTests`, `SecurityHeaderTests`, `SiteLayoutRecoveryTests`, `DashboardTests`, `ChartEndpointTests`, `PageAuthorPromptTests`, `ShellViews` |
-| Docs | [the shell](../shell.md), [pages](../pages.md), [architecture](../architecture.md), [metrics](../metrics.md), [testing](../testing.md), [assistant](../assistant.md), [glossary](../glossary.md), [decisions](../decisions.md), [deployment](../../deploy/README.md), [operations](../../deploy/operations.md), `README.md`, the live jobs and plans that name `/status` or the old landmark label; not `docs/archive/**` or `docs/plans/archive/**` |
+| Docs | [the shell](../../shell.md), [pages](../../pages.md), [architecture](../../architecture.md), [metrics](../../metrics.md), [testing](../../testing.md), [assistant](../../assistant.md), [glossary](../../glossary.md), [decisions](../../decisions.md), [deployment](../../../deploy/README.md), [operations](../../../deploy/operations.md), `README.md`, the live jobs and plans that name `/status` or the old landmark label; not `docs/archive/**` or `docs/plans/archive/**` |
 
 ## Phases
 
@@ -537,8 +537,8 @@ the accessibility sweep still finds one label per landmark.
 - Update `/help`: `IPageCatalog.ShellLinks()`, the marked shell page, the moved route, and a layout
   example that renders the list itself rather than writing the links.
 - Update `PageAuthorPrompt` and the shell-file list.
-- Write the decisions, edit the two existing entries, close [IDEA-030](../backlog/closed.md) and
-  update its row in [the job list](../backlog/README.md), including the Size it turned out to be.
+- Write the decisions, edit the two existing entries, close [IDEA-030](../../backlog/closed.md) and
+  update its row in [the job list](../../backlog/README.md), including the Size it turned out to be.
 - Sweep the live docs; leave the archives.
 
 **Done when** `make check` and `make decisions` are green, the manual's example compiles, and the

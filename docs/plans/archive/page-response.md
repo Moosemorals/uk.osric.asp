@@ -7,11 +7,11 @@ SPDX-License-Identifier: MIT
 
 | | |
 | --- | --- |
-| Status | Proposed 2026-11-16 — waits for the owner. Nothing below is built |
+| Status | Merged 2026-11-16 — `pages-the-response-is-one-object` is in [the record](../../decisions.md) and its item is in [closed.md](../../backlog/closed.md) |
 | Size | Medium — one `Sdk` interface with ten moved members and ten obsolete shims for one release, one new `Web` object over the two collaborators the split just made, the seven seeded pages and `/help`, the assistant's prompt and its version, the test templates that write pages as strings, and the docs. No store change, no migration, no configuration key, no new capability |
 | Area | Sdk, Web (pages, seeds, assistant), docs |
 | Spike | None. Every count below was taken off `trunk` on 2026-11-16, after the `SimpleContext` split merged |
-| Backlog | [IDEA-048](../backlog/IDEA-048.md) is this step; the shims' removal is a separate item ([`idea-old-response-spelling`](../backlog/idea-old-response-spelling.md)) written by this one |
+| Backlog | [IDEA-048](../backlog/IDEA-048.md) is this step; the shims' removal is a separate item ([`idea-old-response-spelling`](../../backlog/idea-old-response-spelling.md)) written by this one |
 | Decisions | New name proposed: **pages-the-response-is-one-object**. Edits `pages-capabilities-are-one-seam`. Relies on `pages-the-contract-is-the-seam`, `code-one-concern-one-collaborator`, `pages-the-response-is-buffered-until-a-flush`, `pages-page-io-is-async`, `pages-a-warning-never-stops-a-page` and `pages-what-a-diagnostic-is` |
 
 ## The short version
@@ -77,7 +77,7 @@ is exactly what `PAGE005` did for `ctx.Features`, and `PAGE009` is the next free
 
 | Surface | Says | Count |
 | --- | --- | --- |
-| `IContext` | twenty members, ten of them the response | [IContext.cs](../../src/uk.osric.asp.Sdk/IContext.cs) |
+| `IContext` | twenty members, ten of them the response | [IContext.cs](../../../src/uk.osric.asp.Sdk/IContext.cs) |
 | `SimpleContext` | implements all twenty over `PageBody` and `PageResponseState` since the split | 373 lines |
 | Seeded pages | `ctx.Write`, `ctx.FlushAsync`, … | 108 uses across seven files: `_lib/document` 34, `/help` 44, `/pages` 16, `_lib/editor` 8, `/editor-mode` 3, `/scratch` 2, `/admin` 1 |
 | Assistant prompt | the same spelling in prose and examples, plus a contract section built by reflection from `IContext` | 47 uses; `page-author-v34` |
@@ -185,7 +185,7 @@ public void Write(string message) => Response.Write(message);
   `IPageResponse`.
 - **The assistant's prompt**: the reflective contract section lists both interfaces (`IContext` and
   `IPageResponse`), the prose and the examples say `ctx.Response`, and `Version` moves to
-  `page-author-v35` — or the next free if [page-move](page-move.md) lands first.
+  `page-author-v35` — or the next free if [page-move](../page-move.md) lands first.
 - **The test templates**: 233 uses in 40 files across the four suites. Mechanical, but it is where a
   missed use would live on as a warning forever, so a test compiles every seeded page and asserts it
   records no `PAGE009`.

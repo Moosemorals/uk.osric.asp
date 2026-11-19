@@ -51,8 +51,8 @@ before and after rather than an opinion.
 
 ## The one argument a description cannot fix
 
-[`idea-assistant-cannot-check-a-page`](`idea-assistant-cannot-check-a-page`.md)'s `check` takes `language`, one of a closed set that grows as validators land
-([`idea-nothing-checks-page-assets`](`idea-nothing-checks-page-assets`.md)). Prose can enumerate it, and prose goes stale: the tool's description would
+[`idea-assistant-cannot-check-a-page`](idea-assistant-cannot-check-a-page.md)'s `check` takes `language`, one of a closed set that grows as validators land
+([`idea-nothing-checks-page-assets`](idea-nothing-checks-page-assets.md)). Prose can enumerate it, and prose goes stale: the tool's description would
 have to be edited every time a language arrived, which is the drift `help` avoids by rendering the shell
 registry. `enum` states the set where the model reads it as a constraint rather than a sentence, and
 `enum` is what the provider guidance asks for in place of prose — unlike `maxItems` and `minLength`,
@@ -71,7 +71,7 @@ declaration that uses it, and a new language later costs a row rather than a rew
 ## Where it lands
 
 Slice 1 of the assistant tool surface plan, `docs/plans/assistant-tool-surface.md`, written once
-[`idea-check-without-storing`](`idea-check-without-storing`.md) has merged, with [`idea-assistant-cannot-check-a-page`](`idea-assistant-cannot-check-a-page`.md) as slice 2. The two are one step
+[`idea-check-without-storing`](idea-check-without-storing.md) has merged, with [`idea-assistant-cannot-check-a-page`](idea-assistant-cannot-check-a-page.md) as slice 2. The two are one step
 because both rewrite the tool definitions and so the provider's cached prefix, and because the `enum`
 this job adds has no argument to describe until `check` exists. This job closes at that merge; the
 sketch above is unchanged.

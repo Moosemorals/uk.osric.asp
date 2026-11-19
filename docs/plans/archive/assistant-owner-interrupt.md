@@ -10,7 +10,7 @@ SPDX-License-Identifier: MIT
 | Status | Merged 2026-11-18 — built on *assistant-owner-interrupt* and merged into trunk with `make check` and `make test-browser` green |
 | Size | Large — one record and its table, one migration, one run status, one coordinator, one route, one wait, and the two existing cards rendered from the record. No new behaviour |
 | Area | Web (assistant, storage), docs |
-| Spike | None. The shape is LangGraph's `interrupt(value, response_schema)` applied to three waits this codebase already implements; [the ask tool's survey](../spikes/ask-tool-shape.md) is where the shape was met |
+| Spike | None. The shape is LangGraph's `interrupt(value, response_schema)` applied to three waits this codebase already implements; [the ask tool's survey](../../spikes/ask-tool-shape.md) is where the shape was met |
 | Backlog | ARCH-17 |
 | Decisions | Recorded at the merge: `assistant-a-run-waits-on-one-owner-interrupt`. Edited `assistant-a-run-pauses-on-budget` and `assistant-deadlines-bound-silence`. Relies on `assistant-a-run-is-not-resumed` |
 
@@ -74,7 +74,7 @@ the route a form posts to, the events the page listens to — and those are the 
 
 ## Non-goals
 
-- **The question tool.** That is [the next plan](assistant-ask-owner.md); this one only makes room for
+- **The question tool.** That is [the next plan](../assistant-ask-owner.md); this one only makes room for
   it. Nothing here knows what a question's request or resolution contains.
 - **Changing when the owner is asked.** `ApprovalMode`, the budgets and their windows are untouched.
 - **Resuming a run across a restart.** The record makes the *request* durable; the run is still not
@@ -240,7 +240,7 @@ the same results it writes today, because it derives them from the transcript, n
 - **`ApprovalMode`.** `AlwaysApprove` still asks nothing; `RequireApproval` still asks before a flagged
   call. The policy is not the record.
 - **The budgets.** The same windows, the same sentence, the same `StepLimit`/`ToolCallLimit` on the run.
-- **The ask tool's design.** [The next plan](assistant-ask-owner.md) is unchanged by this one except
+- **The ask tool's design.** [The next plan](../assistant-ask-owner.md) is unchanged by this one except
   that it is now small.
 
 ## What it touches

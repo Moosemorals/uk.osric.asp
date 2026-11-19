@@ -11,7 +11,7 @@ SPDX-License-Identifier: MIT
 | Utility | low |
 | Status | open |
 | Blocked by | — |
-| Plan | [page-response](../plans/page-response.md) |
+| Plan | [page-response](../plans/archive/page-response.md) |
 | Area | Sdk, docs |
 | Location | `src/uk.osric.asp.Sdk/IContext.cs`, `src/uk.osric.asp.Sdk/PageResponseDeprecation.cs`, `docs/architecture.md` |
 

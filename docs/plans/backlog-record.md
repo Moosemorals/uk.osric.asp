@@ -7,11 +7,11 @@ SPDX-License-Identifier: MIT
 
 | | |
 | --- | --- |
-| Status | Built 2026-11-19 — waits for the merge. The folder, the 26 slugs, the fields, the one table and `make backlog` are all in place, and the gate is green |
+| Status | Built 2026-11-19 — waits for the merge. The folder, the 26 slugs, the fields, the one table and `make backlog` are all in place; the eight completed plans are archived and the merge step now says so. The gate is green |
 | Difficulty | Determined Mountain Goat 🐐💪 — a folder rename and a slug sweep over 26 open items, one new checker, one Makefile target, and the index's two tables becoming one, with care needed where a frozen document's links move |
 | Area | `docs/jobs` → `docs/backlog`, `docs/plans`, the live documents that cite an item, `CONTRIBUTING.md`, `.github/copilot-instructions.md`, `Makefile`, `uk.osric.asp.slnx`, a new `tools/check-backlog` |
 | Spike | None. Every claim about what exists was read off `trunk` on 2026-11-18: the 26 item files and the two tables in [the index](../backlog/README.md), [the closed list](../backlog/closed.md), [the whims](../backlog/WHIMS.md), the `Backlog` rows of the live plans, and the citations the live documents and comments carry |
-| Decisions | At the merge: **product-backlog-items-are-slugs**, **product-a-difficulty-is-not-a-duration** and **code-the-gate-checks-the-backlog** |
+| Decisions | At the merge: **product-backlog-items-are-slugs**, **product-a-difficulty-is-not-a-duration**, **product-a-merged-plan-is-archived** and **code-the-gate-checks-the-backlog** |
 | Backlog | This plan is the whole of the work. Nothing about the site is wrong, so there is no item file: the record is what changes. [`whim-backlog-on-the-site`](../backlog/WHIMS.md) is adjacent and stays a whim |
 
 ## The short version
@@ -264,6 +264,24 @@ The changes are mechanical and finite.
 The proof that the sweep is complete is a `git grep` for the old numbers and for `docs/jobs` outside
 the frozen files, and the checker's rule 8 for a backticked citation that survives.
 
+### 7. A completed plan is archived
+
+The owner asked for this beside the record: a plan whose work has merged leaves `docs/plans/` for
+`docs/plans/archive/`, in the same merge that writes its decision. A finished plan that stays live asks
+to be read and is not; eight had been merged for days and still sat beside the ones being worked.
+
+- **The merge step does it.** [The instructions](../../.github/copilot-instructions.md), [the
+  record](../decisions.md#taking-a-name) and [how to work](../../CONTRIBUTING.md#working-on-it) now say
+  the merge writes the entry, points the plan at it, marks the plan's Status merged and moves it.
+- **The evidence is the item's.** A plan is completed when the item that carries it is in
+  [closed.md](../backlog/closed.md); three of the eight had a Status line that still said proposed or
+  waiting for a merge, and the move is where that was found. Their Status now says merged and names
+  the decision and the closed row.
+- **Every link moves with it.** A link into a moved plan is recomputed against the plan's new
+  directory, including the links inside the moved plan itself, which all need one more `../`. The
+  backlog checker does not police this; a link that pointed at a plan which has moved is a reader sent
+  nowhere, and the change that moves it is the change that fixes it.
+
 ## The slug map
 
 The titles are unchanged apart from the dropped number.
@@ -307,6 +325,7 @@ The titles are unchanged apart from the dropped number.
 | Retargeted | The `Backlog` rows of the live plans; the ten live documents above; the archived plans' and `archive/decisions.md`'s links; this plan's own links |
 | Added | `tools/check-backlog/check-backlog.csproj`, `Program.cs`; a `backlog` target in the `Makefile`; a line in `uk.osric.asp.slnx` and in `make check` |
 | Updated | `CONTRIBUTING.md` (a branch is `kind/filename`; an item is a slug) and `.github/copilot-instructions.md` (the citation rule and `docs/backlog/`) |
+| Archived | [assistant-live-figures](archive/assistant-live-figures.md), [assistant-owner-interrupt](archive/assistant-owner-interrupt.md), [page-composition](archive/page-composition.md), [page-response](archive/page-response.md), [seed-trimming](archive/seed-trimming.md), [shell-navigation](archive/shell-navigation.md), [shell-route-catalogue](archive/shell-route-catalogue.md) and [simple-context](archive/simple-context.md), with every link into them recomputed |
 | Untouched | The rows and numbers in `closed.md`, the host's `PageJob` vocabulary, the product assemblies, `/help` |
 
 ## Tests
@@ -332,6 +351,11 @@ the tree in a scratch directory, one break per run:
 The gate itself is the last proof: `make check` runs `format-check license-check audit decisions
 backlog check-pages test publish`, and `make format-check`, `make decisions` and `make license-check`
 were run first, so a failure would have named the change that caused it.
+
+The archive is proved by the links: every relative link in the tree is resolved against the file that
+carries it, and 94 do not resolve on this branch — the same 94 as on trunk, once `jobs/` is read as
+`backlog/`, and the same links. The move broke none and repaired none; the dead ones are links to
+items and source files deleted long before this change.
 
 Two rules the tool does not carry, deliberately:
 
@@ -365,6 +389,10 @@ No product test changes: nothing under `src/` or `test/` changes behaviour.
 - **product-a-difficulty-is-not-a-duration** — difficulty is a level on the animal scale, never a
   guess at the calendar: the header and the row carry an animal and its condition, and no document
   in the record estimates hours or days. Recorded in this plan and [the index](../backlog/README.md).
+- **product-a-merged-plan-is-archived** — the merge that writes a plan's decision also sets the
+  plan's Status to merged and moves it to `docs/plans/archive/`, retargeting every link into it, so
+  the live plans are the ones still being worked. Recorded in this plan,
+  [the record](../decisions.md#taking-a-name) and [how to work](../../CONTRIBUTING.md#working-on-it).
 - **code-the-gate-checks-the-backlog** — `make check` runs `make backlog`, which proves the slugs,
   the fields, the order against the dependency graph and both directions of the plan link. Recorded
   in this plan, [the index](../backlog/README.md) and the `Makefile`.
@@ -380,6 +408,9 @@ No product test changes: nothing under `src/` or `test/` changes behaviour.
 3. **The proof.** Determined Mountain Goat 🐐💪 — `tools/check-backlog`, `make backlog`, the `slnx`
    and `make check` entries, the `CONTRIBUTING.md` and instruction-file updates, and the eight
    deliberate breaks.
+4. **The archive.** Caffeinated Squirrel ☕🐿️ — the eight completed plans moved to
+   `docs/plans/archive/`, their Status lines corrected against `closed.md`, and every link into and
+   inside them recomputed.
 
 Slice 2 is what makes slice 3 possible, because the checker reads the shape slice 2 creates. If the
 owner would rather merge the folder and the slugs first, slice 1 stands alone and the other two wait.

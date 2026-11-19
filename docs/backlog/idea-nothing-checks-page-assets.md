@@ -19,7 +19,7 @@ SPDX-License-Identifier: MIT
 
 A page is four languages in one file: C#, the literal markup, the CSS in a `<style>` block or a
 `.css` asset page, and the JavaScript in its script blocks. Two of the four are checked —
-[`idea-check-without-storing`](`idea-check-without-storing`.md) and [`idea-assistant-cannot-check-a-page`](`idea-assistant-cannot-check-a-page`.md) cover the C# by compiling the template, and
+[`idea-check-without-storing`](idea-check-without-storing.md) and [`idea-assistant-cannot-check-a-page`](idea-assistant-cannot-check-a-page.md) cover the C# by compiling the template, and
 `JavaScriptValidator` covers the script — and the other two are checked by loading the page and looking
 at it, which is the most expensive way to learn that a brace is missing.
 
@@ -48,7 +48,7 @@ until something writes CSS in a page is a reason to pay for a parser.
    `assistant-script-checks` already fixed for the script check.
 
 5. **The `language` values are added, not renamed.** `check` gains `css`, `html` and `svg`; nothing
-   else about the tool moves, and the `enum` [`idea-tool-arguments-say-nothing`](`idea-tool-arguments-say-nothing`.md) emits grows a value without the
+   else about the tool moves, and the `enum` [`idea-tool-arguments-say-nothing`](idea-tool-arguments-say-nothing.md) emits grows a value without the
    description being edited.
 
 ## What each costs

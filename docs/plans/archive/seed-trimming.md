@@ -7,12 +7,12 @@ SPDX-License-Identifier: MIT
 
 | | |
 | --- | --- |
-| Status | Merged 2026-11-16. The decisions below are in [the record](../decisions.md); the steps landed in five commits |
+| Status | Merged 2026-11-16. The decisions below are in [the record](../../decisions.md); the steps landed in five commits |
 | Size | Large as a programme, Medium as each step — three seeds retired, five files moved from the pack to `wwwroot`, one shell route added and one rebuilt from the shell's link list, one route that reads the licence files, and the tests, manual, prompt and deployment notes for each. No migration, no new configuration key and no `Sdk` change |
 | Area | Web (html, admin, documentation, pages, seeds, wwwroot), deploy, docs |
 | Spike | None. Every count was read off the working tree on 2026-11-16: 26 files in `Pages/Seeds`, the consumers of each seed, the route table, `ReservedPaths`, `ShellRoutes`, `SecurityHeaders`, `ShellDocument` and the tests that name a retired key |
 | Decisions | Recorded at the merge: `shell-admin-is-a-shell-route`, `shell-admin-assets-are-static-files` and `shell-the-licences-are-read-not-restated` are new, and the first supersedes the retired admin-seed entry; `pages-scratch-saves-itself` and `shell-the-menu-is-written-twice` are edited in place |
-| Backlog | [IDEA-030](../backlog/closed.md) takes the link list this plan builds; [the shell navigation plan](shell-navigation.md) is the wider programme, and its D4 is superseded here |
+| Backlog | [IDEA-030](../../backlog/closed.md) takes the link list this plan builds; [the shell navigation plan](shell-navigation.md) is the wider programme, and its D4 is superseded here |
 
 ## The short version
 
@@ -120,7 +120,7 @@ internal static class ShellLinks {
 ```
 
 This is [the shell navigation plan](shell-navigation.md)'s D1 without its `Sdk` half: the values stay
-internal to `Web` because no page reads them yet. [IDEA-030](../backlog/closed.md) moves them to
+internal to `Web` because no page reads them yet. [IDEA-030](../../backlog/closed.md) moves them to
 `Sdk` and puts `ShellLinks()` on `IPageCatalog` when `_layout` and the editor want the list; that is a
 mechanical move, and the seeded layout keeps its hand-written menu until then.
 
@@ -248,10 +248,10 @@ step, or the model keeps teaching a page that is gone.
 
 ## Documentation
 
-- [the shell](../shell.md): `/admin` is a route, the static files, and the copyright page.
-- [pages](../pages.md), [the glossary](../glossary.md): the deleted examples.
-- [architecture](../architecture.md): a shell file is served from `wwwroot`; a page is a row.
-- [deployment](../../deploy/README.md) and [operations](../../deploy/operations.md): what the image
+- [the shell](../../shell.md): `/admin` is a route, the static files, and the copyright page.
+- [pages](../../pages.md), [the glossary](../../glossary.md): the deleted examples.
+- [architecture](../../architecture.md): a shell file is served from `wwwroot`; a page is a row.
+- [deployment](../../../deploy/README.md) and [operations](../../../deploy/operations.md): what the image
   now carries, and the one-time scrub on an existing installation.
 - The **author manual** (`/help`): the Vim keys section, and the two examples that named a retired
   seed. This is required by the same rule that asks for the tests.

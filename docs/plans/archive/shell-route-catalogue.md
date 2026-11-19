@@ -11,7 +11,7 @@ SPDX-License-Identifier: MIT
 | Size | M — one catalogue replaces two files, `ReservedPaths` derives its list from it, one configuration section is removed, and the tests, prompt, manual and docs follow. No migration, no new route, no `Sdk` change |
 | Area | Web (shell, html, assistant, pages), docs |
 | Spike | None. The three lists were read off the working tree on 2026-11-16: `ShellRoutes.All` (21 records), `ShellLinks.All` (17 links) and `ReservedPaths.Default` (21 keys); plus the prompt's own copy of the shell files |
-| Decisions | `shell-one-table-of-routes` and `shell-reserved-keys-are-an-invariant` are recorded; `code-policy-values-are-configuration` already carries the exception both rely on, and [`idea-policy-is-a-constant`](../backlog/idea-policy-is-a-constant.md) gained a row |
+| Decisions | `shell-one-table-of-routes` and `shell-reserved-keys-are-an-invariant` are recorded; `code-policy-values-are-configuration` already carries the exception both rely on, and [`idea-policy-is-a-constant`](../../backlog/idea-policy-is-a-constant.md) gained a row |
 
 ## The short version
 
@@ -145,7 +145,7 @@ public static IReadOnlyList<string> Default { get; } = ShellCatalogue.Reserved;
 
 ### D5 — What this is not
 
-- **Not the `Sdk` half of [IDEA-030](../backlog/closed.md).** A page still cannot read the links; that
+- **Not the `Sdk` half of [IDEA-030](../../backlog/closed.md).** A page still cannot read the links; that
   needs `IPageCatalog.ShellLinks()` and the values in `Sdk`, and it is a separate step. (It landed on
   2026-11-18 with [the shell navigation plan](shell-navigation.md).)
 - **Not a menu editor.** The table is code. A page can draw its own menu from what it knows; the
