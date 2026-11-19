@@ -161,7 +161,7 @@ The shapes that were weighed, with what each cost:
 | Shape | What it means | What it cost |
 | --- | --- | --- |
 | **A worker writer, bound to one worker** | The capability is granted to the worker key named in configuration, and it may write the keys the assistant's tools may write. One configured worker has the authority and nothing else does. | Rejected: the authority becomes a configuration value, and it is a second writer shape beside the page's own. |
-| **The write capability is offered to every page** (chosen) | Any page may save any key the shell does not route. | Taken: the assistant page is no longer special and a mistake in any page is a site-wide rewrite. The signed-in visitor, the reserved keys and `/admin/restore` are what is left of the guard. |
+| **The write capability is offered to every page** (chosen) | Any page may save any key the shell does not route. | Taken: the assistant page is no longer special and a mistake in any page is a site-wide rewrite. The signed-in visitor, the reserved keys and `/admin/seeds` are what is left of the guard. |
 | **Keep the tools in the shell** | The port stops at the view and the run: the assistant keeps its endpoint for the edits, or the tools stay shell-only and a page calls a route. | Rejected once the first question was answered: the page contract would keep a hole that is now visible. |
 
 ## What would make it unnecessary

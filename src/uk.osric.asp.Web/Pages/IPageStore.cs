@@ -23,6 +23,16 @@ internal interface IPageStore {
     /// </remarks>
     Task<IReadOnlyList<PageListRow>> ListPagesAsync(CancellationToken cancellationToken = default);
 
+    /// <summary>Lists every path the store holds a head, a revision or state for.</summary>
+    /// <param name="cancellationToken">Cancels the read.</param>
+    /// <returns>The distinct paths, ordered by key.</returns>
+    /// <remarks>
+    /// A path with revisions and no head is a row the listing cannot show; it is included here so a
+    /// repair that removes unreachable keys can find it. The store does not decide which paths are
+    /// usable, so the caller filters.
+    /// </remarks>
+    Task<IReadOnlyList<PagePath>> ListStoredPathsAsync(CancellationToken cancellationToken = default);
+
     /// <summary>Reads a live page's template text only, without the image stored beside it.</summary>
     /// <param name="path">The canonical key to read.</param>
     /// <param name="cancellationToken">Cancels the read.</param>
@@ -81,4 +91,15 @@ internal interface IPageStore {
     /// <param name="cancellationToken">Cancels the cleanup.</param>
     /// <returns><see langword="true"/> when a deleted head was scrubbed; otherwise, <see langword="false"/>.</returns>
     Task<bool> ScrubPageAsync(PagePath path, CancellationToken cancellationToken = default);
+
+    /// <summary>Removes every row at a path, whether or not its head is a tombstone.</summary>
+    /// <param name="path">The canonical key to remove.</param>
+    /// <param name="cancellationToken">Cancels the cleanup.</param>
+    /// <returns>What was removed; all three counts are zero when the store held nothing at the path.</returns>
+    /// <remarks>
+    /// This is the repair's scrub, not the editor's: a row at a key the shell answers can never be
+    /// deleted through a page, so it has no tombstone to require. The caller proves the key is not a
+    /// page a visitor can reach before it calls this.
+    /// </remarks>
+    Task<PageScrubResult> ScrubStoredPathAsync(PagePath path, CancellationToken cancellationToken = default);
 }

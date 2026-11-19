@@ -85,7 +85,7 @@ editing is special to one page, so the guard becomes what it was always about: a
 checked in the capability before anything is compiled or stored. `Pages:Editor:Key` keeps exactly one
 job, saying where the editor is served, which is what `ctx.EditorPath` has always used it for. The same
 step merges the two write handles into `IPageWrites`, so a page that may write any page writes itself
-through the same capability, and lets the editor's own key be deleted like any other — `/admin/restore`
+through the same capability, and lets the editor's own key be deleted like any other — `/admin/seeds`
 is the way back.
 
 **A render may write several pages, and the caller says how.** `pages-a-page-may-save-itself` says "one
@@ -155,7 +155,7 @@ smallest changes come first because they are what every later slice is written a
    it renames two public interfaces and breaks every stored page that names them. Proves: an anonymous
    render is refused; a layout never gets the handle; every content page does; two saves answer with
    their own values; a page writes another key; one render still makes one write; the editor's key is
-   deletable and `/admin/restore` is the way back.
+   deletable and `/admin/seeds` is the way back.
 5. **038 — the search.** Needs 039 for its cursor; it shares nothing with 043, but it is the last thing
    that reads every source, so it comes after the budget rules are settled.
    Proves: a scan finds a literal in a scope, is bounded, resumes from a cursor and never hands a
@@ -198,7 +198,7 @@ smallest changes come first because they are what every later slice is written a
 
 - **Any page may now write the store.** That is the owner's decision, and the blast radius is real: a
   page the assistant writes can rewrite the site. The guards that remain are the signed-in visitor, the
-  reserved keys, `/admin/restore` for a broken editor and `/admin/scrub` for the irreversible delete.
+  reserved keys, `/admin/seeds` for a broken editor and `/admin/scrub` for the irreversible delete.
   The assistant's own edit-safety rules are unchanged (`assistant-edit-page-is-safe`) and are what stop
   it from doing so by accident.
 - **A batch holds a transaction across writes it did not compile.** All compiles first for exactly
@@ -213,13 +213,13 @@ smallest changes come first because they are what every later slice is written a
   interfaces every stored page may name, and 039 and 047 add members to interfaces every stored page
   compiles against. Each is a change of the page contract's version and each is a recompile of the site;
   that is the ordinary cost of a contract change here, and it is recoverable in the editor and from
-  `/admin/restore`.
+  `/admin/seeds`.
 
 ## Open questions
 
 The first three were answered by the owner on 2026-11-15, and 043's plan records them: 043 is two jobs
 (the authority here, the batch in [`one-write-per-render`](../backlog/one-write-per-render.md)); the merged capability is
-`IPageWrites`; and the editor's key is deletable, with `/admin/restore` as the way back.
+`IPageWrites`; and the editor's key is deletable, with `/admin/seeds` as the way back.
 
 1. **Whether the assistant may batch across the site.** Its edit-safety rules are per key; a batch that
    writes ten pages is ten decisions in one request. The capability allows it, and the assistant's own

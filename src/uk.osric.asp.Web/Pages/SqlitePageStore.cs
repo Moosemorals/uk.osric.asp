@@ -64,6 +64,29 @@ internal sealed class SqlitePageStore(
                 PageImageStatus.Describe(row.RuntimeId, row.HasImage, row.HasDiagnostics, currentRuntimeId, row.TemplateKind)))];
     }
 
+    public async Task<IReadOnlyList<PagePath>> ListStoredPathsAsync(CancellationToken cancellationToken = default) {
+        string[] heads = await database.Set<PageHead>().AsNoTracking()
+            .Select(head => head.Path)
+            .Distinct()
+            .ToArrayAsync(cancellationToken);
+
+        string[] revisions = await database.Set<PageRevision>().AsNoTracking()
+            .Select(revision => revision.Path)
+            .Distinct()
+            .ToArrayAsync(cancellationToken);
+
+        string[] state = await database.Set<PageStateEntry>().AsNoTracking()
+            .Select(row => row.PagePath)
+            .Distinct()
+            .ToArrayAsync(cancellationToken);
+
+        return [.. heads
+            .Union(revisions, StringComparer.Ordinal)
+            .Union(state, StringComparer.Ordinal)
+            .Order(StringComparer.Ordinal)
+            .Select(PagePath.Normalize)];
+    }
+
     public async Task<string?> GetSourceAsync(PagePath path, CancellationToken cancellationToken = default) {
         ArgumentNullException.ThrowIfNull(path);
 
@@ -365,31 +388,49 @@ internal sealed class SqlitePageStore(
     }
 
     public async Task<bool> ScrubPageAsync(PagePath path, CancellationToken cancellationToken = default) {
+        PageScrubResult result = await ScrubStoredPathAsync(path, requireTombstone: true, cancellationToken);
+        return result.Head;
+    }
+
+    public Task<PageScrubResult> ScrubStoredPathAsync(PagePath path, CancellationToken cancellationToken = default) =>
+        ScrubStoredPathAsync(path, requireTombstone: false, cancellationToken);
+
+    private async Task<PageScrubResult> ScrubStoredPathAsync(
+        PagePath path,
+        bool requireTombstone,
+        CancellationToken cancellationToken) {
+        ArgumentNullException.ThrowIfNull(path);
+
         await database.Database.OpenConnectionAsync(cancellationToken);
         try {
             await ExecuteNonQueryAsync("PRAGMA secure_delete=ON", cancellationToken);
 
-            bool existed;
+            PageScrubResult removed;
             await using (IDbContextTransaction transaction = await database.Database.BeginTransactionAsync(cancellationToken)) {
-                int deletedHeads = await database.Set<PageHead>()
-                    .Where(head => head.Path == path.Key && head.IsDeleted)
+                int heads = await database.Set<PageHead>()
+                    .Where(head => head.Path == path.Key && (!requireTombstone || head.IsDeleted))
                     .ExecuteDeleteAsync(cancellationToken);
-                if (deletedHeads > 0) {
+
+                int state = 0;
+                int revisions = 0;
+                if (heads > 0 || !requireTombstone) {
                     // Only when a tombstoned head was actually removed, so a database written by an
-                    // older build cannot leave orphaned rows behind.
-                    await database.Set<PageStateEntry>()
+                    // older build cannot leave orphaned rows behind. The repair has no head to
+                    // require: a row at a shell path can never be deleted through a page.
+                    state = await database.Set<PageStateEntry>()
                         .Where(row => row.PagePath == path.Key)
                         .ExecuteDeleteAsync(cancellationToken);
-                    await database.Set<PageRevision>()
+                    revisions = await database.Set<PageRevision>()
                         .Where(revision => revision.Path == path.Key)
                         .ExecuteDeleteAsync(cancellationToken);
                 }
-                existed = deletedHeads > 0;
+
+                removed = new PageScrubResult(heads > 0, revisions, state);
                 await transaction.CommitAsync(cancellationToken);
             }
 
             await CheckpointWalAsync(cancellationToken);
-            return existed;
+            return removed;
         } finally {
             await database.Database.CloseConnectionAsync();
             storageRefresh?.Request();

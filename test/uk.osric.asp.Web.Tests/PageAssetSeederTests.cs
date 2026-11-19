@@ -182,6 +182,7 @@ public sealed class PageAssetSeederTests {
 
     [TestCase("/not-a-seed")]
     [TestCase("/admin/restore")]
+    [TestCase("/admin/seeds")]
     public async Task UnknownAndNestedPagesHaveNoShippedSeedAsync(string path) {
         string? template = TestOptions.SeedSource(PagePath.Normalize(path));
 

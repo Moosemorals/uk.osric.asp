@@ -214,7 +214,9 @@ reference, and `/about` links to it rather than carrying a copy that has to be k
 `wwwroot` and served by the static file handler, which runs before routing so a file answers before
 the page catch-all can claim its key. They are not pages: they are not seeded, not listed by the
 editor and not versioned by `/?v=`. The five keys are in the shell's route table, so the editor refuses
-a page that the file would shadow. `/site.css` and the editor's and assistant's sheets and scripts
+a page that the file would shadow. An installation that predates the move keeps a seeded row at each
+key; the file shadows it, and the **Stored pages at shell paths** section of `/admin/seeds` lists it
+for the owner to scrub. `/site.css` and the editor's and assistant's sheets and scripts
 are still seeded, because a stored page links them and the owner may want to fix one without a
 release.
 
@@ -298,11 +300,15 @@ back. A deleted page's history is scrubbed from `/admin/scrub/<key>`, which is t
 because it is irreversible: the owner types the page's key to confirm, and a live page has to be
 deleted before it can be scrubbed.
 
-The routine apply is `/admin/seed-apply`: it walks the pack in key order, writes every *release newer*
-and *new* row, records every row whose content already is the shipped seed, skips the rows that are
-not its business and stops at the first row that drifted, naming it. `/admin/restore` remains the
-emergency path — every seed, every outcome, past a failure — because it is what the owner reaches for
-when the editor or its sheet will not load.
+The seed page is `/admin/seeds`: it lists every page the release ships with its verdict and a tick for
+each row the owner chooses. The safe rows — *new*, *release newer* and the rows whose content already
+matches but have no record of installing it — start ticked; the rows that could replace the owner's
+source — *edited*, *conflict*, *deleted* and *unknown* — start unticked. A `POST` writes exactly the
+ticked rows, refuses a row that changed after the page loaded, and never stops at a drift.
+`?diff=<key>` shows one row's change in the same bare document. The same page lists every stored path
+the shell answers — a seed that became a shell file leaves one — and scrubs the ticked keys after the
+owner types `scrub`; it re-checks that each key is still reserved before it removes a head, revision
+or state row.
 
 - Accounts live in the `Users` table in the same SQLite database. There is no registration endpoint
   and no account UI: the `users` command in the Web app creates, lists, resets and removes accounts
@@ -325,8 +331,8 @@ when the editor or its sheet will not load.
   so several browsers or devices can hold a valid session at the same time; only a password change
   or account removal revokes them all.
 - Every administration tool requires the `Editor` policy, which is just an authenticated account:
-  `/admin/import`, `/admin/export`, `/admin/changes`, `/admin/restore`, `/admin/scrub`,
-  `/admin/seed-apply` and `/admin/status` with its chart. Three routes under the root are public
+  `/admin/import`, `/admin/export`, `/admin/changes`, `/admin/seeds`, `/admin/scrub`
+  and `/admin/status` with its chart. Three routes under the root are public
   because they are the site's own facts rather than its controls: `/admin` itself, because an
   anonymous visitor is entitled to see which tools exist, `/admin/reference`, because it describes
   the build serving the request as `/about` does, and `/admin/copyright`, because the notices the
@@ -395,7 +401,7 @@ A page keeps per-visitor state through `ctx.Capabilities.GetRequired<IPageSessio
 
 The shell keeps no flash message of its own. The editor page's notices are written into the render
 that produced them: it answers a save in place, so a message that a redirect would have to carry is
-not needed. `/admin/restore`, `/admin/seed-apply` and `/admin/scrub` answer with their own documents for the same reason.
+not needed. `/admin/seeds` and `/admin/scrub` answer with their own documents for the same reason.
 - Every response carries one set of security headers, written by `SecurityHeaders` when the response
   starts (`shell-security-headers-are-one-set`). The assistant and admin views widen the policy to `script-src 'self'` for their
   own modules, and a stored page asks for the same policy with `ctx.Response.AllowScripts()` — which is how

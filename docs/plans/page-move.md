@@ -43,7 +43,7 @@ and the stored image is path-independent, so the moved page serves the image it 
 | An image | path-independent: `PageCompiler` names the assembly `Dynamic_{guid}`, the handler is `LoadedPage.HandlerTypeName`, and nothing in `Runtime` reads a key. An image is reused while `TemplateHash` and `RuntimeId` match (`pages-compile-on-save`) |
 | A tombstone | a joined head row with `IsDeleted = 1` that still points at its last revision, so its history keeps answering; a deleted key reads as absent, so its URL answers `404` like any missing page |
 | The tree | `PageTree` is "below", "directly below" and "the folder above"; a folder is implicit, so a key may be both a page and a folder |
-| Seeds and a missing head | `PageSeedInstaller.PlanAsync` calls a key with **no head** a *new* seed and a key that is **tombstoned** a *deleted* one: `/admin/seed-apply` writes the new one and skips the deleted one, and `/admin/restore` writes every seed it ships. What a move leaves at the old key therefore decides whether a released seed can come back there |
+| Seeds and a missing head | `PageSeedInstaller.PlanAsync` calls a key with **no head** a *new* seed and a key that is **tombstoned** a *deleted* one: the seed page offers the new one ticked and the deleted one unticked, and writes whichever the owner ticks. What a move leaves at the old key therefore decides whether a released seed can come back there |
 | Not built | the dependents read (040), the search (038), the cursor (039), the span (041), the batch (047), and any `move_page` assistant tool |
 
 Two things follow from that table and they are the whole of the design.
@@ -159,8 +159,8 @@ history view. And the store gets no column, no migration and no second meaning f
    that hash, but a versioned read needs the key and the hash, so it answers at `/b?v=…` and not at
    `/a?v=…`.
 3. **A seed the release still ships at the old key will be installed there again.** With no head row,
-   `/admin/seed-apply` sees a *new* seed and writes it, and `/admin/restore` writes every seed it
-   ships. A release that moves a seeded page must move the seed in the same release, or the next apply
+   the seed page sees a *new* seed and offers it ticked; a tick writes it. A release that moves a
+   seeded page must move the seed in the same release, or the next apply
    puts the old key back. This is the one consequence of leaving nothing that a marker would have
    prevented, and it is recorded rather than argued.
 
@@ -381,8 +381,8 @@ record is written there.
 
 ## Risks
 
-- **A seeded page's old key comes back.** With nothing at the old key, `/admin/seed-apply` reads the
-  release's seed there as *new* and writes it, and `/admin/restore` writes every seed it ships. A
+- **A seeded page's old key comes back.** With nothing at the old key, the seed page reads the
+  release's seed there as *new* and offers it ticked; a tick writes it. A
   release that moves a seeded page — the editor key included — must move the seed in the same release.
   The manual says it; the test `ASeedWhoseKeyMovedIsANewSeedThereAgainAsync` pins the behaviour so it
   cannot drift into an accident.

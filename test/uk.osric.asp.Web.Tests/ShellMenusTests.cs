@@ -57,8 +57,8 @@ public sealed class ShellMenusTests {
         Assert.Multiple(() => {
             Assert.That(site, Is.EqualTo(["Home", "Sign in", "Assistant", "Pages", "Admin", "Sign out"]));
             Assert.That(administration, Is.EqualTo([
-                "Administration", "Import pages", "Export pages", "Changelist", "Restore seeds",
-                "Apply seed updates", "Reference", "Copyright and licences", "Status", "Page list", "Help",
+                "Administration", "Import pages", "Export pages", "Changelist", "Seeds",
+                "Reference", "Copyright and licences", "Status", "Page list", "Help",
             ]));
         });
     }

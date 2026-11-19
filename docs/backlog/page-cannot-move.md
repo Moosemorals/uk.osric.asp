@@ -55,7 +55,7 @@ and every caller that needs it today does it badly:
 
 3. **The refusals are the store's own rules.** A reserved key, a key that already has a live head, a key
    that names a folder the move would empty, and the page the move is running in. The editor's own key
-   is an ordinary key now, so moving it is allowed and `/admin/restore` puts the seeded editor back
+   is an ordinary key now, so moving it is allowed and `/admin/seeds` puts the seeded editor back
    (`pages-any-page-may-write-the-store`). A move to the same key, or a case-only rename, is a question
    the result answers rather than an exception.
 

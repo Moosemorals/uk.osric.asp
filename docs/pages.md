@@ -134,7 +134,7 @@ pure renderers, and one that is a fact about the build:
   key or a second write in one render is a page bug. A write belongs to the next request, and a write
   that has started finishes even if the render times out. A layout is offered the read and not the
   write. `Pages:Editor:Key` says only where the editor is served — it is not an authority — and the
-  editor's own key is an ordinary key, so `/admin/restore` is the way back from a deleted editor. The
+  editor's own key is an ordinary key, so `/admin/seeds` is the way back from a deleted editor. The
   rest is the editor's toolbox: `Resolve`, `DeleteAsync`, `RestoreRevisionAsync`, `AdoptSeedAsync`,
   `InstallSeedAsync` — which refuses a row the seed gate does not allow — and `SeedSourceAsync`
   (`pages-a-page-may-save-itself`, `pages-layouts-are-markup`, `pages-scratch-saves-itself`,

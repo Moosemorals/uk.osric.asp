@@ -55,8 +55,10 @@ internal static class ShellViews {
         "assistant-memory",
         "assistant-memory-forget",
         "admin-changes",
-        "admin-restore",
-        "admin-restore-result",
+        "admin-seeds",
+        "admin-seeds-result",
+        "admin-seeds-diff",
+        "admin-seeds-scrub-result",
         "admin-export",
         "admin-import",
         "admin-import-failed",
@@ -90,8 +92,10 @@ internal static class ShellViews {
         "assistant-memory" => RenderAsync(name, AssistantMemoryAsync),
         "assistant-memory-forget" => RenderAsync(name, AssistantMemoryForgetAsync),
         "admin-changes" => RenderAsync(name, AdminChangesAsync),
-        "admin-restore" => RenderAsync(name, AdminRestoreAsync),
-        "admin-restore-result" => RenderAsync(name, AdminRestoreResultAsync),
+        "admin-seeds" => RenderAsync(name, AdminSeedsAsync),
+        "admin-seeds-result" => RenderAsync(name, AdminSeedsResultAsync),
+        "admin-seeds-diff" => RenderAsync(name, AdminSeedsDiffAsync),
+        "admin-seeds-scrub-result" => RenderAsync(name, AdminSeedsScrubResultAsync),
         "admin-export" => RenderAsync(name, AdminExportAsync),
         "admin-import" => RenderAsync(name, AdminImportAsync),
         "admin-import-failed" => RenderAsync(name, AdminImportFailedAsync),
@@ -442,20 +446,56 @@ internal static class ShellViews {
         }
     }
 
-    private static async Task<string> AdminRestoreAsync() {
+    private static async Task<string> AdminSeedsAsync() {
         using PageHarness pages = await RestoreHarnessAsync();
-        DefaultHttpContext context = AuthenticatedContext("/admin/restore");
+        DefaultHttpContext context = AuthenticatedContext("/admin/seeds");
 
-        await RestoreEndpoint.PreviewAsync(context, pages.Editor, TestOptions.Seeds, new TestAntiforgery());
+        await SeedsEndpoint.GetAsync(context, pages.Editor, TestOptions.Seeds, pages.Storage,
+            TestOptions.Reserved, new TestAntiforgery(), pages.Diff);
 
         return await TestHttp.ReadBodyAsync(context);
     }
 
-    private static async Task<string> AdminRestoreResultAsync() {
+    private static async Task<string> AdminSeedsResultAsync() {
         using PageHarness pages = await RestoreHarnessAsync();
-        DefaultHttpContext context = AuthenticatedContext("/admin/restore");
+        DefaultHttpContext context = AuthenticatedContext("/admin/seeds");
+        context.Request.Method = "POST";
+        context.Request.ContentType = "application/x-www-form-urlencoded";
+        context.Request.Form = new FormCollection(new Dictionary<string, StringValues> {
+            ["action"] = "apply",
+        });
 
-        await RestoreEndpoint.RestoreAsync(context, pages.Editor, TestOptions.Seeds, NullLoggerFactory.Instance);
+        await SeedsEndpoint.PostAsync(context, pages.Editor, TestOptions.Seeds, pages.Storage,
+            TestOptions.Reserved, NullLoggerFactory.Instance);
+
+        return await TestHttp.ReadBodyAsync(context);
+    }
+
+    private static async Task<string> AdminSeedsDiffAsync() {
+        using PageHarness pages = await RestoreHarnessAsync();
+        DefaultHttpContext context = AuthenticatedContext("/admin/seeds");
+        context.Request.QueryString = new QueryString("?diff=/about");
+
+        await SeedsEndpoint.GetAsync(context, pages.Editor, TestOptions.Seeds, pages.Storage,
+            TestOptions.Reserved, new TestAntiforgery(), pages.Diff);
+
+        return await TestHttp.ReadBodyAsync(context);
+    }
+
+    private static async Task<string> AdminSeedsScrubResultAsync() {
+        using PageHarness pages = await RestoreHarnessAsync();
+        pages.Storage["/admin.css"] = new PageTemplate(PageHarness.Key("/admin.css"), "stray");
+        DefaultHttpContext context = AuthenticatedContext("/admin/seeds");
+        context.Request.Method = "POST";
+        context.Request.ContentType = "application/x-www-form-urlencoded";
+        context.Request.Form = new FormCollection(new Dictionary<string, StringValues> {
+            ["action"] = "scrub",
+            ["stray"] = "/admin.css",
+            ["confirm"] = "scrub",
+        });
+
+        await SeedsEndpoint.PostAsync(context, pages.Editor, TestOptions.Seeds, pages.Storage,
+            TestOptions.Reserved, NullLoggerFactory.Instance);
 
         return await TestHttp.ReadBodyAsync(context);
     }

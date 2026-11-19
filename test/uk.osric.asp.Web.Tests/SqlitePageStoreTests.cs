@@ -521,6 +521,93 @@ public sealed class SqlitePageStoreTests {
     }
 
     [Test]
+    public async Task StoredPathsIncludeHeadsRevisionOnlyKeysAndStateOnlyKeysAsync() {
+        await using StorageDbContext database = new(_options);
+        IPageStore storage = new SqlitePageStore(database, NullLogger<SqlitePageStore>.Instance);
+        await storage.SavePageAsync(new PageTemplate(Key("/headed"), "head"));
+        await storage.SavePageAsync(new PageTemplate(Key("/two-revisions"), "first"));
+        await storage.SavePageAsync(new PageTemplate(Key("/two-revisions"), "second"));
+
+        database.Add(new PageRevision {
+            RevisionId = Guid.NewGuid().ToString("N"),
+            Path = "/revision-only",
+            Hash = Guid.NewGuid().ToString("N"),
+            SavedAt = DateTimeOffset.UtcNow,
+            Template = "orphan",
+            CreationRuntimeId = "legacy:unknown",
+        });
+        database.Add(new PageStateEntry {
+            PagePath = "/state-only",
+            Key = "counter",
+            Value = "1",
+            UpdatedAt = DateTimeOffset.UtcNow,
+        });
+        await database.SaveChangesAsync();
+
+        IReadOnlyList<PagePath> paths = await storage.ListStoredPathsAsync();
+
+        Assert.That(paths.Select(path => path.Key), Is.EqualTo([
+            "/headed", "/revision-only", "/state-only", "/two-revisions",
+        ]));
+    }
+
+    [Test]
+    public async Task ScrubStoredPathRemovesALiveHeadItsRevisionsAndStateAsync() {
+        await using StorageDbContext database = new(_options);
+        IPageStore storage = new SqlitePageStore(database, NullLogger<SqlitePageStore>.Instance);
+        PagePath path = Key("/repair");
+        await storage.SavePageAsync(new PageTemplate(path, "first"));
+        await storage.SavePageAsync(new PageTemplate(path, "second"));
+        database.Add(new PageStateEntry {
+            PagePath = path.Key,
+            Key = "counter",
+            Value = "1",
+            UpdatedAt = DateTimeOffset.UtcNow,
+        });
+        await database.SaveChangesAsync();
+
+        PageScrubResult removed = await storage.ScrubStoredPathAsync(path);
+        PageHeadSummary? head = await storage.GetHeadAsync(path);
+        int revisionRows = await database.Set<PageRevision>().CountAsync(row => row.Path == path.Key);
+        int stateRows = await database.Set<PageStateEntry>().CountAsync(row => row.PagePath == path.Key);
+
+        Assert.Multiple(() => {
+            Assert.That(removed, Is.EqualTo(new PageScrubResult(true, 2, 1)));
+            Assert.That(removed.Any, Is.True);
+            Assert.That(head, Is.Null);
+            Assert.That(revisionRows, Is.Zero);
+            Assert.That(stateRows, Is.Zero);
+        });
+
+        Assert.That((await storage.ScrubStoredPathAsync(path)).Any, Is.False);
+    }
+
+    [Test]
+    public async Task ScrubStoredPathRemovesARevisionWithoutAHeadAsync() {
+        await using StorageDbContext database = new(_options);
+        IPageStore storage = new SqlitePageStore(database, NullLogger<SqlitePageStore>.Instance);
+        database.Add(new PageRevision {
+            RevisionId = Guid.NewGuid().ToString("N"),
+            Path = "/orphan",
+            Hash = Guid.NewGuid().ToString("N"),
+            SavedAt = DateTimeOffset.UtcNow,
+            Template = "orphan",
+            CreationRuntimeId = "legacy:unknown",
+        });
+        await database.SaveChangesAsync();
+
+        PageScrubResult removed = await storage.ScrubStoredPathAsync(Key("/orphan"));
+        bool editorRefused = await storage.ScrubPageAsync(Key("/orphan"));
+        int revisionRows = await database.Set<PageRevision>().CountAsync(row => row.Path == "/orphan");
+
+        Assert.Multiple(() => {
+            Assert.That(removed, Is.EqualTo(new PageScrubResult(false, 1, 0)));
+            Assert.That(editorRefused, Is.False, "the editor's scrub still requires a tombstone");
+            Assert.That(revisionRows, Is.Zero);
+        });
+    }
+
+    [Test]
     public async Task ScrubErasesDeletedTemplateAndBinaryMarkersFromStorageFilesAsync() {
         const string sourceMarker = "unique-source-scrub-marker";
         byte[] binaryMarker = Encoding.UTF8.GetBytes("unique-image-scrub-marker");

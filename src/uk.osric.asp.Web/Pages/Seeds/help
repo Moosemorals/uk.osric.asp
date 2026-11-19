@@ -64,12 +64,14 @@ confirms a delete, <code>?edit=&lt;path&gt;&amp;cmd=install</code> confirms a se
     you have changed since its seed set it, or one whose seed the release moved as well, is shown
     with the diff and no install: the row says why. A seed is installed; a saved revision is
     restored.</li>
-    <li><strong>Apply seed updates</strong> on <a href="/admin/seed-apply">/admin/seed-apply</a> is the
-    routine way a release moves a page: it writes what the release moved, records what already
-    matches and stops at the first page that has drifted. <strong>Restore every seed</strong> on
-    <a href="/admin/restore">/admin/restore</a> is the emergency way back when the editor itself will
-    not load: it saves the bundled source of every page the site ships with, never touches a page you
-    made, and skips a seed that already matches.</li>
+    <li><strong>Seeds</strong> on <a href="/admin/seeds">/admin/seeds</a> is the page for the pack this
+    release ships. It lists every page with its verdict and a tick for each row that can be written;
+    the safe rows start ticked, and the rows that could replace your own source &mdash; edited,
+    conflict, deleted and unknown &mdash; start unticked. A tick writes the bundled source as a new
+    revision, so the source it replaces stays in the page's history. A row that changed after the page
+    loaded is refused and the others still run. A row's <em>See what would change</em> link shows the
+    diff without opening the editor. The same page lists any stored page at a key the shell answers;
+    those rows can never be served, and a tick plus typing <code>scrub</code> removes them.</li>
     <li>The assistant is available from the editor to a signed-in owner, and it can view the site
     as you while it works: it sees the pages a signed-in visitor sees, read-only.</li>
 </ul>
@@ -137,8 +139,8 @@ been deleted stays in the list until the page compiles again &mdash; the row's
 <p>A library's <code>static</code> fields are one copy for each page that names it, not one copy for
 the site: do not use them to share a value between pages. A library that does not compile stops the
 pages that name it from compiling until it is fixed &mdash; and the editor page names the document
-library too, so <code>/admin/restore</code>, which is the shell's own route, is the way back when the
-editor will not open.</p>
+library too, so <a href="/admin/seeds">/admin/seeds</a>, which is the shell's own route, is the way
+back when the editor will not open.</p>
 <p>Do not write a doctype, <code>html</code>, <code>head</code>, <code>body</code>, a
 <code>title</code> element or the site menu in a page with code. Start at the page's first heading and
 write one <code>h1</code>.</p>
@@ -213,7 +215,7 @@ filtered for this visitor and section; the footer is the layout's own markup. Th
 routes, and the layout decides what a stored page carries.</p>
 <p>The last argument to <code>Head</code> is the link resolver: <code>ctx.AssetUrl</code> is what lets
 the base sheet and the icon carry a revision hash. The library is an ordinary stored page, so you can
-edit the document itself from the page list, and <code>/admin/restore</code> puts it back.</p>
+edit the document itself from the page list, and <a href="/admin/seeds">/admin/seeds</a> puts it back.</p>
 <p>The seeded <code>/_layout</code> is the full version of that page, and you can edit or restore both
 from the page list.</p>
 
@@ -680,7 +682,7 @@ not answer; the editor is the first customer of the capability and the owner of 
 <code>Pages:Editor:Key</code> says only where the editor is served, which is the key
 <code>ctx.EditorPath</code> gives you — link to it to offer "edit this page". Reserved keys are refused,
 so a shell file is never written. The editor's own page is ordinary too: any page may save it or delete
-it, and <a href="/admin/restore">/admin/restore</a> puts the seeded editor back if it is deleted or
+it, and <a href="/admin/seeds">/admin/seeds</a> puts the seeded editor back if it is deleted or
 broken.</p>
 <p>A save belongs to the <em>next</em> request: the running page is already compiled, so the response
 you are writing is still the page as it was. Save on a <code>POST</code>, write the answer you were
@@ -830,11 +832,22 @@ page holds the shipped bytes but has no record of installing them, and <em>unkno
 no record at all. A page whose seed this release no longer ships is <em>retired</em>, and is an
 ordinary live page. Only <em>release newer</em> offers an install; <em>store newer</em> and an
 <em>unknown</em> page whose content already matches offer <em>record as installed</em> instead. The
-row's button records one page; <a href="/admin/seed-apply">/admin/seed-apply</a> records and installs
-every safe row in one run and stops at the first page that has drifted, naming it. To go
-back to an earlier save of the page, restore it from the page's history. A page written before this
-feature has no record, so it stays <em>unknown</em> until something establishes where it came from;
-there is no backfill of that record.</p>
+row's button records one page; <a href="/admin/seeds">/admin/seeds</a> lists every row and writes the
+ones you tick. The safe rows &mdash; <em>new</em>, <em>release newer</em> and the rows whose content
+already matches but have no record of installing it &mdash; start ticked. The rows that could replace
+your own source &mdash; <em>edited</em>, <em>conflict</em>, <em>deleted</em> and <em>unknown</em>
+&mdash; start unticked; a tick is your instruction to replace what is there, and the source it
+replaces stays in the page's history. A row that changed after the page loaded is refused and the
+others still run. To go back to an earlier save of the page, restore it from the page's history. A
+page written before this feature has no record, so it stays <em>unknown</em> until something
+establishes where it came from; there is no backfill of that record.</p>
+<p>A stored page at a key the shell answers &mdash; a route, or a file under <code>wwwroot</code>
+&mdash; can never be served: the shell answers the key. It is what is left when a seed becomes a shell
+file, or when an older build or an import wrote a key the shell had taken. The <strong>Stored pages at
+shell paths</strong> section of <a href="/admin/seeds">/admin/seeds</a> lists each one with its head
+and revision count; ticking it and typing <code>scrub</code> removes its head, every revision and its
+page state for good. The page refuses the batch unless every selected key is still a shell path, so no
+normal page can be scrubbed there.</p>
 <p>Deleting a page leaves a tombstone and its history. Saving the path again continues that history:
 name the key in <strong>Create or open</strong> on the page list, and the editor says the page was
 deleted and that saving brings it back. A deleted page has no current revision, so every row of its
