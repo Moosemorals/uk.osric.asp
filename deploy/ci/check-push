@@ -71,10 +71,15 @@ write_status() {
 
 work=$(mktemp -d "$home/work.XXXXXX")
 rmdir "$work"
+logs=$home/logs
+install -d -m 0700 "$logs"
+log=$logs/$commit.log
 cleanup() {
     git --git-dir="$repo" worktree remove --force "$work" 2>/dev/null || true
     rm -rf "$work"
-    rm -f "$log"
+    # A kept log is what a failure is read from; ten runs is plenty of history beside one status file.
+    find "$logs" -maxdepth 1 -name '*.log' -printf '%T@ %p\n' 2>/dev/null \
+        | sort -rn | tail -n +11 | cut -d' ' -f2- | xargs -r rm -f
 }
 trap cleanup EXIT
 
@@ -83,12 +88,14 @@ git --git-dir="$repo" worktree add --detach "$work" "$commit"
 started=$(date -u +%Y-%m-%dT%H:%M:%SZ)
 write_status running -1 "make ci is running" "$started"
 
-log=$(mktemp "$home/ci-$commit.XXXXXX.log")
 set +e
 (cd "$work" && make ci) >"$log" 2>&1
 code=$?
 set -e
-cat "$log"
+# The whole log stays in the file: a run prints tens of thousands of lines, and the journal drops a
+# burst like that by rate limit, so the tail here is for the pusher and the file is the record.
+echo "check-push: the full log is $log"
+tail -n 60 "$log"
 
 finished=$(date -u +%Y-%m-%dT%H:%M:%SZ)
 if [ "$code" -eq 0 ]; then

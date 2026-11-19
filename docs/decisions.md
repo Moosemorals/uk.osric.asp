@@ -2534,8 +2534,9 @@ configuration, keys and storage are not reachable from it.
 
 A push to `trunk` is accepted and then checked: `post-receive` starts `make ci` in a transient unit,
 and the result is written to `/var/lib/uk.osric.asp-ci/status.json` and served by Caddy at
-`/ci/status.json`; the full log is the journal. A red trunk is fixed forward; the status file is the
-answer, not a blocking gate. The check is the same `make ci`, not a second definition of green.
+`/ci/status.json`; the run's whole output is a log file beside the account, because journald drops a
+burst of tens of thousands of lines. A red trunk is fixed forward; the status file is the answer, not
+a blocking gate. The check is the same `make ci`, not a second definition of green.
 
 *Recorded in [check-push](../deploy/ci/check-push), [post-receive](../deploy/ci/post-receive),
 [Caddyfile](../deploy/Caddyfile), [the Caddy quadlet](../deploy/caddy.container),

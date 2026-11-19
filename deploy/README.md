@@ -293,8 +293,10 @@ answers when the app is down.
   that reaches `deploy` can push, and that is all it can do. The backup host's restricted read key is
   not copied.
 - **The gate:** `make ci` is the same target as always. `uk.osric.asp-ci.slice` caps it at 2 vCPU and
-  4 GiB and deprioritizes it against the app. The full output is the journal of the unit the push
-  names; `sudo journalctl _SYSTEMD_USER_UNIT=uk.osric.asp-ci-<short>-<pid>` reads it.
+  4 GiB and deprioritizes it against the app. The run's output is a file, `/home/ci/logs/<commit>.log`
+  (the newest ten are kept), and the journal of the unit the push names carries its last sixty lines:
+  `sudo journalctl _SYSTEMD_USER_UNIT=uk.osric.asp-ci-<short>-<pid>`. The file rather than the journal
+  because a run prints tens of thousands of lines and journald drops a burst that size.
 - **The deploy key:** `ci-install` generates `~ci/.ssh/id_ed25519_github` and prints its public half.
   Add it to GitHub with **Allow write access**. It is the only GitHub credential on the host, and it
   can write this repository and nothing else.

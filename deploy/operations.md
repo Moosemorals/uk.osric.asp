@@ -98,15 +98,18 @@ The `ci` account runs `make ci` on every trunk push. It is not the app's account
   `CPUWeight=50` and `IOWeight=50` and `Nice=10` on the units, so a page keeps the app's 3 vCPU / 2 GiB
   cgroup while a check runs. If the build is OOM-killed, raise the slice; do not raise the app's
   limit to make room.
-- **The journal.** The transient unit is `uk.osric.asp-ci-<short>-<pid>`, and the push prints the
-  exact name. `sudo journalctl _SYSTEMD_USER_UNIT=uk.osric.asp-ci-<short>-<pid>` reads the whole
-  `make ci` output; the status file carries the result and the failing target.
+- **The log.** The transient unit is `uk.osric.asp-ci-<short>-<pid>`, and the push prints its name.
+  The run's whole output is `/home/ci/logs/<commit>.log`, kept for the newest ten checks, and the
+  unit's journal carries the last sixty lines: `sudo journalctl _SYSTEMD_USER_UNIT=<unit>`. The file
+  rather than the journal alone because journald rate-limits a burst of tens of thousands of lines
+  and silently drops the rest. The status file carries the result and the failing target.
 - **The status.** Caddy serves `/var/lib/uk.osric.asp-ci/status.json` at `/ci/status.json` from a
   read-only mount. A missing file is a 404; `make ci-install` or `make deploy` seeds a `never-run`
   one. The app does not read it, so the status answers with the app down.
 - **The disk.** `make ci` starts with `clean` and `check-push` removes its worktree; the persistent
-  growth is the NuGet cache and podman's layers under `/home/ci`, and the image proof removes its two
-  images. `df -h /home` is the measurement if a check starts failing for space.
+  growth is the NuGet cache, podman's layers and the newest ten run logs under `/home/ci`, and the
+  image proof removes its two images. `df -h /home` is the measurement if a check starts failing for
+  space.
 - **A red status.** Trunk stays as pushed; the status names the commit and the failing target. Fix
   forward. `make deploy` still runs its own gate and the browser suite; the host check is a signal,
   not a lock on the release.

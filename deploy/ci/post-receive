@@ -25,7 +25,7 @@ while read -r old new ref; do
             --property=Nice=10 \
             "$home/bin/check-push" "$new"
         printf 'trunk %s will be checked; the result is %s\n' "$short" "$status_url"
-        printf 'the full log: journalctl _SYSTEMD_USER_UNIT=%s\n' "$unit"
+        printf 'the tail: journalctl _SYSTEMD_USER_UNIT=%s on the host; the full log there is /home/ci/logs/%s.log\n' "$unit" "$new"
     fi
 done
 
