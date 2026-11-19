@@ -37,6 +37,14 @@ internal sealed class MvApplet : ShellApplet {
         ShellCommandLine line,
         ShellContext context,
         CancellationToken cancellationToken) {
+        if (context.Line.Arguments[0].Word.HasWildcard) {
+            // A pattern would expand to several pages and leave the destination at the end of them,
+            // so `mv` takes one key: a folder is a batch of moves, not one command.
+            return ShellResult.Refused(
+                "mv takes one key, not a pattern: name the page to move.",
+                "mv: a pattern is not a key");
+        }
+
         PagePath from = context.Paths[0].Path;
         PagePath to = context.Paths[1].Path;
 

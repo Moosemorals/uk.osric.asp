@@ -77,6 +77,22 @@ public sealed class MvAppletTests {
     }
 
     [Test]
+    public async Task MvRefusesAWildcardSourceAsync() {
+        FakePageStore storage = new();
+        storage["/alpha"] = new PageTemplate(PageHarness.Key("/alpha"), "one");
+        storage["/alpine"] = new PageTemplate(PageHarness.Key("/alpine"), "two");
+        using PageHarness pages = new(storage);
+
+        string refusal = await ShellKernelHarness.RefusalAsync(pages.Editor, "mv /al* /moved");
+
+        Assert.Multiple(() => {
+            Assert.That(refusal, Does.Contain("not a pattern"));
+            Assert.That(storage["/alpha"]?.Template, Is.EqualTo("one"));
+            Assert.That(storage["/alpine"]?.Template, Is.EqualTo("two"));
+        });
+    }
+
+    [Test]
     public async Task MvRefusesAShellFileAsTheDestinationAsync() {
         FakePageStore storage = new();
         storage["/a"] = new PageTemplate(PageHarness.Key("/a"), "one");
