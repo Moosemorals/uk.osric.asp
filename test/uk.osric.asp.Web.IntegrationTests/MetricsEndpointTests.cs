@@ -47,11 +47,8 @@ public sealed class MetricsEndpointTests : IntegrationTest {
         // so the absence of the machine routes would otherwise say nothing.
         await client.GetAsync("/measured-health-probe");
         await client.GetAsync("/health");
-        // The exporter caches a scrape response for 300 ms, and a scrape is measured only once its
-        // own response has been built, so a no-cache scrape is what makes a measured scrape visible.
-        await client.GetStringAsync("/metrics");
-        await Task.Delay(500);
-        string body = await client.GetStringAsync("/metrics");
+
+        string body = await ScrapeUntilAsync(client, "http_server_request_duration_seconds_bucket");
 
         Assert.Multiple(() => {
             Assert.That(body, Does.Contain("http_server_request_duration_seconds_bucket"),
