@@ -9,7 +9,7 @@ SPDX-License-Identifier: MIT
 | --- | --- |
 | Difficulty | contented-capybara |
 | Utility | medium |
-| Status | open |
+| Status | planned |
 | Blocked by | — |
 | Plan | [ide-host](../plans/ide-host.md) |
 | Area | Sdk, Web (pages, assistant), docs |

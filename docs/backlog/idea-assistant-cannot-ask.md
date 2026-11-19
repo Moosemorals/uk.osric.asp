@@ -9,7 +9,7 @@ SPDX-License-Identifier: MIT
 | --- | --- |
 | Difficulty | caffeinated-squirrel |
 | Utility | high |
-| Status | open |
+| Status | planned |
 | Blocked by | — |
 | Plan | [assistant-ask-owner](../plans/assistant-ask-owner.md) |
 | Area | Core (Assistant), Web (assistant) |
@@ -31,7 +31,7 @@ to the shell's assistant.
 [The survey](../spikes/ask-tool-shape.md) found no cross-vendor standard, but a strong convergence on
 one tool, an array of one to four question objects, optional options of a label and a description, free
 text always allowed, and hard caps. [The plan](../plans/assistant-ask-owner.md) adopts that shape; the
-wait it needs is [the owner interrupt](../plans/assistant-owner-interrupt.md), which landed on
+wait it needs is [the owner interrupt](../plans/archive/assistant-owner-interrupt.md), which landed on
 2026-11-18.
 
 ## Sketch
@@ -58,7 +58,7 @@ wait it needs is [the owner interrupt](../plans/assistant-owner-interrupt.md), w
 - A page capability that asks a visitor a question and waits. A page is rendered and returned; a
   question is the assistant's conversation. If that ever changes it is an `IDEA-` of its own.
 - Per-argument descriptions for the other twenty tools. It invalidates the provider's cached prefix and
-  deserves its own measurement: [`idea-tool-arguments-say-nothing`](`idea-tool-arguments-say-nothing`.md).
+  deserves its own measurement: [`idea-tool-arguments-say-nothing`](idea-tool-arguments-say-nothing.md).
 - A timeout for the answer. An interrupt waits until the owner answers, stops it, deletes the
   conversation or restarts the host.
 - Any way for a question to carry a file, an image or a link the owner clicks.

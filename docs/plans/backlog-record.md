@@ -84,6 +84,10 @@ see the graph, and the graph is the part that is getting unwieldy.
 | What is a branch called? | **`kind/filename`** — `idea/check-without-storing`, `sec/page-runs-in-process`; a plan's branch is `plan/<plan file name>`, which is `plan/backlog-record` for this one |
 | Is the record still called *jobs*? | **No** — the folder, the make target and the noun all become **backlog** and **item** |
 | Is difficulty a size or a level? | **A level, on the animal scale** the `animal-difficulty-scale` skill sets out — never a duration |
+| Does the order table link the plan? | **Not as a column** — the `planned` status is the link, so the state and the plan are one cell |
+| Is there a state for an item whose plan is written? | **Yes, `planned`** — nothing blocks it and its plan is live |
+| The reason column made the table wide | **Move it to a line under the row** — markdown has no merged cells, so it takes a row of its own under the title |
+| Does a plan make an item urgent? | **No** — `idea-message-does-not-survive-a-redirect` moved from first to last the day after its plan was written: a plan says the item is ready, not that it comes first |
 
 ## The design
 
@@ -181,10 +185,11 @@ The inventory table goes. The order table already lists every open item, and an 
 it is an item nobody will pick up; a second table that lists the same items with the same levels is a
 second place to be wrong.
 
-| # | Slug | Title | Difficulty | Utility | Status | Blocked by | Why here |
-| --- | --- | --- | --- | --- | --- | --- | --- |
-| 1 | `idea-message-does-not-survive-a-redirect` | A page cannot leave a message for a page it sends a visitor to | contented-capybara 😌🦫 | high | open | — | The least difficult item on the list that unblocks an ordinary page: a message that survives a redirect. |
-| … | | | | | | | |
+| # | Slug | Title | Difficulty | Utility | Status | Blocked by |
+| --- | --- | --- | --- | --- | --- | --- |
+| 1 | `idea-policy-is-a-constant` | Some policy is still a constant in code | contented-capybara 😌🦫 | medium | open | — |
+| | | *Closes the policy exceptions the configuration rule still names, and tightening a guarantee always outranks tidying.* | | | | |
+| … | | | | | | |
 
 - The `Slug` cell is a link to the item's file whose text is the backticked slug, so the table is an
   index of ids that is also the navigation. (The example above has no link because the files do not
@@ -195,6 +200,15 @@ second place to be wrong.
   caught: the table is what a reader scans, the header is what an item carries when it is read
   alone, and `make backlog` fails when the two disagree.
 - The rows are numbered `1..n` in order. A gap or a repeat is a problem.
+- **The reason is the line under the row**, in italics with the title column carrying it and every
+  other cell empty. Markdown has no merged cells, so this is the one way to give the reason its own
+  line and keep the data narrow; `make backlog` fails on a row with no reason under it.
+- **A plan does not move an item up.** `planned` says the item is ready, and the order still spends
+  utility first; the owner moved a planned item from row 1 to the last row to make the point.
+- **Every state is the record's.** `blocked` when a blocker is open, `planned` when nothing blocks it
+  and its `Plan` names a plan that is not archived, `open` when neither; only `parked` is the owner's.
+  A `planned` cell is the link to that plan, so the table needs no `Plan` column and the state and the
+  thing that decided it cannot disagree.
 - **A row normally names one item.** Where two items ship as one step — IDEA-054 with IDEA-053 as
   its first slice today — the row names both, its `Difficulty` is no easier than any of theirs and its
   `Utility` is each of theirs. Every item still appears exactly once.
@@ -212,12 +226,15 @@ prints `file:line` problems, and exits non-zero on any.
 3. Every H1 is the title and nothing else. Every header carries `Difficulty`, `Utility`, `Status`,
    `Blocked by` and `Plan`, each from its allowed set.
 4. Every open item appears exactly once in the order table; every row names an open item; the numbers
-   run `1..n`; the row's `Title` is the item's H1; a row that names one item has its `Difficulty`
-   and `Utility` equal to the header's, and a row that names several is no easier than any of them.
-   No `Difficulty` is a duration, and no cell in the table is one either.
+   run `1..n`; the row's `Title` is the item's H1; a row that names one item has its `Difficulty`,
+   `Utility` and `Status` equal to the header's, and a row that names several is no easier than any of
+   them. A `planned` row links the plan its item names, and a row in any other state links none. Every
+   row is followed by its reason line. No `Difficulty` is a duration, and no cell in the table is one
+   either.
 5. Every `Blocked by` target resolves — an open slug or a closed row — and no open blocker sits at
-   or below its dependent. An open blocker must be strictly earlier. Every item with an open blocker
-   is `blocked`; an item with none is `open`, unless it is `parked`.
+   or below its dependent. An open blocker must be strictly earlier. `Status` is what the graph and
+   the plan say it is: `blocked` with an open blocker, `planned` without one and with a live plan,
+   `open` otherwise, and `parked` if the owner wrote it.
 6. The graph has no cycle through open items.
 7. A `Plan` resolves to a live plan, and that plan's `Backlog` row links back to the item. A plan may
    name several items; every one of them links back.
@@ -347,6 +364,12 @@ the tree in a scratch directory, one break per run:
 | the same item `parked` | no problem, exit 0 — `parked` is the owner's to write |
 | a row whose utility disagrees with the header | `the row is high and … is low`, exit 1 |
 | an item renamed and its row not | "is not in the order", exit 1 |
+| a row marked `open` for an item the record calls `planned` | `the row is open and … is planned`, exit 1 |
+| an item with a live plan marked `open` | `says open and the record says planned`, exit 1 |
+| a `planned` row that links no plan | `the row is planned for — and … names page-inbox.md`, exit 1 |
+| a `planned` row that links another plan | `the row is planned for page-move.md and … names ide-host.md`, exit 1 |
+| an `open` row that links a plan | `the row is open and links a plan; only planned needs one`, exit 1 |
+| a row with no reason line under it | `the row has no reason line under it`, exit 1 |
 
 The gate itself is the last proof: `make check` runs `format-check license-check audit decisions
 backlog check-pages test publish`, and `make format-check`, `make decisions` and `make license-check`

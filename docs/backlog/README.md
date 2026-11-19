@@ -42,7 +42,7 @@ Every item opens with a header table, so an item read alone carries the facts it
 | Difficulty | one of the ten levels below, and never a duration |
 | Utility | `low`, `medium` or `high` — what the owner gets when it is done |
 | Severity | a defect only: the reviewer's risk assessment. An idea is not something that has gone wrong, so it has none |
-| Status | `open`, `blocked` or `parked` — and only `parked` is free text for the owner to write (see below) |
+| Status | `open`, `planned`, `blocked` or `parked` — and only `parked` is the owner's to write (see below) |
 | Blocked by | the slugs of the items that must land first, or `—` |
 | Plan | the plan that carries the work, or `—` |
 | Area | what the work touches |
@@ -72,48 +72,88 @@ may need none, and an `eager-beaver` may need one, because a plan is about coord
 
 ### Status is checked, not trusted
 
-`blocked` means at least one item in `Blocked by` is still open. `open` means none is. `make backlog`
-fails on an item that says one and the graph says the other, and on a `Blocked by` that names
-something which is not in the record — an open slug, or a closed item by the number it closed with.
+Three of the four states are the record's, not the author's:
+
+- `blocked` — at least one item in `Blocked by` is still open;
+- `planned` — nothing blocks it and its `Plan` names a plan that has not been archived, so the plan is
+  written and waits for a yes. In the table the state is the link — `[planned](../plans/ide-host.md)`
+  — so the cell answers both what the item waits for and where the answer is;
+- `open` — nothing blocks it and there is no live plan.
+
+`make backlog` fails on an item that says one and the record says another, and on a `Blocked by` that
+names something which is not in the record — an open slug, or a closed item by the number it closed
+with. An archived plan does not make an item `planned`: the work it carried has landed, and what is
+left of the item is new.
 
 `parked` is the one state the graph cannot see, so it is the one the owner writes.
 
 ## The order
 
-The one table is both the inventory and the order. A row's number is its priority, and "Why here" is
-the reason it sits there: the order spends the easy utility first, and the owner moves an item above
-its difficulty when it is a rule other work is written against rather than a tidy-up.
+The one table is both the inventory and the order. A row's number is its priority, and the line under
+it in italics is the reason it sits there — markdown has no merged cells, so the reason takes a row of
+its own under the title and the data above stays narrow. The order spends the easy utility first, and
+the owner moves an item above its difficulty when it is a rule other work is written against rather
+than a tidy-up. A `planned` item carries its plan in its status, so the list says at a glance which
+items are a yes away — but a plan says an item is ready, not that it is urgent, and a planned item sits
+where its utility puts it.
 
 `make backlog` checks that every open item appears exactly once, that the numbers run `1..n`, that a
-row's difficulty and utility are the item's, and that no item sits above something that blocks it.
+row's difficulty, utility and status are the item's, that a `planned` row links the plan its item
+names, that every row is followed by its reason, and that no item sits above something that blocks
+it.
 
-| # | Slug | Title | Difficulty | Utility | Status | Blocked by | Why here |
-| --- | --- | --- | --- | --- | --- | --- | --- |
-| 1 | [`idea-message-does-not-survive-a-redirect`](idea-message-does-not-survive-a-redirect.md) | A page cannot leave a message for a page it sends a visitor to | protective-dragon 🐉🔥 | high | open | — | Every page that sends a visitor on wants a way to say something that survives the redirect, and its plan is written, so this is a yes away. |
-| 2 | [`idea-policy-is-a-constant`](idea-policy-is-a-constant.md) | Some policy is still a constant in code | contented-capybara 😌🦫 | medium | open | — | Closes the policy exceptions the configuration rule still names, and tightening a guarantee always outranks tidying. |
-| 3 | [`idea-listing-has-no-cursor`](idea-listing-has-no-cursor.md) | A page cannot ask a listing for the next page | eager-beaver 🦫⚙️ | medium | open | — | A listing that refuses past the cap is hit by every store that grows; a keyset cursor is small. |
-| 4 | [`idea-library-edit-cost-is-invisible`](idea-library-edit-cost-is-invisible.md) | Nothing says which pages a library edit will recompile | contented-capybara 😌🦫 | medium | open | — | Says what a library edit recompiles; small, and it makes a cost the reader cannot see visible. |
-| 5 | [`idea-block-that-is-not-code-compiles`](idea-block-that-is-not-code-compiles.md) | A block that is not code still compiles | eager-beaver 🦫⚙️ | medium | open | — | The same complaint as the diagnostics above one layer down: a shape the compiler cannot see, and the seeds are the proof the warnings stay quiet. |
-| 6 | [`ops-no-ci`](ops-no-ci.md) | There is no CI pipeline | caffeinated-squirrel ☕🐿️ | high | open | — | Turns the gate from a habit into a rule, which makes every step below it cheaper. |
-| 7 | [`idea-assistant-cannot-ask`](idea-assistant-cannot-ask.md) | The assistant cannot ask the owner a question | caffeinated-squirrel ☕🐿️ | high | open | — | The wait it needs is built, so this is a tool, a card and three limits, and every assistant run that meets an unknown stops guessing. |
-| 8 | [`idea-page-cannot-move`](idea-page-cannot-move.md) | A page cannot move a page | eager-beaver 🦫⚙️ | high | open | — | A rename is two histories and silent breakage today; a common act for moderate work. |
-| 9 | [`idea-check-without-storing`](idea-check-without-storing.md) | A page cannot check a template without saving it | caffeinated-squirrel ☕🐿️ | high | open | — | Stops "check my work" storing a revision, so no history carries a test save. |
-| 10 | [`idea-one-write-per-render`](idea-one-write-per-render.md) | A render may write a batch of pages, and the caller names the policy | protective-dragon 🐉🔥 | high | blocked | `idea-check-without-storing` | The one-save rule is what the assistant hits on every multi-file edit, and the owner has decided it goes; it borrows 9's compile-without-store, so it follows that step. |
-| 11 | [`idea-job-borrows-a-credential`](idea-job-borrows-a-credential.md) | A job acts with its starter's credential, and loses it when that credential dies | persistent-salmon 🐟⬆️ | high | blocked | `idea-one-write-per-render` | A job's writer is only safe once 10 has replaced the one-action rule with a policy the caller names; revocation is the other half of the same decision. |
-| 12 | [`idea-assistant-cannot-check-a-page`](idea-assistant-cannot-check-a-page.md), with [`idea-tool-arguments-say-nothing`](idea-tool-arguments-say-nothing.md) as its first slice | The assistant can check a script but not a page | determined-mountain-goat 🐐💪 | high | blocked | `idea-check-without-storing` | The compiler step 9 gives the editor answers the model's most-asked question; the same step retires two tools that are one tool twice, so the definitions it describes are described once. |
-| 13 | [`idea-cannot-search-the-store`](idea-cannot-search-the-store.md) | A page cannot search the store's source | eager-beaver 🦫⚙️ | medium | open | — | Lifts the assistant's own search into the contract rather than inventing anything. |
-| 14 | [`ops-no-outage-notification`](ops-no-outage-notification.md) | No outbound notifications when the site breaks | eager-beaver 🦫⚙️ | medium | open | — | Useful, but one owner and a unit that restarts already notices most outages. |
-| 15 | [`idea-import-cannot-reset-a-site`](idea-import-cannot-reset-a-site.md) | Import only adds and overwrites, so an archive cannot reset a site | caffeinated-squirrel ☕🐿️ | medium | open | — | A destructive reset has to be designed carefully; the additive import is the safe default until it is. |
-| 16 | [`idea-no-account-store`](idea-no-account-store.md) | A page has no persistent per-account store | protective-dragon 🐉🔥 | high | open | — | The most useful large item, with a plan and a first customer, and a plan's yes is the only thing it waits on. |
-| 17 | [`idea-editor-is-a-textarea`](idea-editor-is-a-textarea.md) | The editor is a plain textarea | determined-mountain-goat 🐐💪 | high | open | — | High use and high cost; the gutter, the diagnostics and the row state already cover the worst of it. |
-| 18 | [`idea-conversation-is-not-a-page`](idea-conversation-is-not-a-page.md) | The assistant's conversation is a stream and a set of host actions, not a page | protective-dragon 🐉🔥 | medium | blocked | `idea-no-account-store` | The assistant's conversation as a page needs the account store beneath it, and that is 16. |
-| 19 | [`idea-archive-is-not-a-form`](idea-archive-is-not-a-form.md) | `/admin/import` and `/admin/export` are shell code because an archive is not a form | caffeinated-squirrel ☕🐿️ | low | open | — | The two admin routes already work; making them pages buys consistency, not capability. |
-| 20 | [`sec-page-runs-in-process`](sec-page-runs-in-process.md) | Page code has no execution budget and no process boundary | cornered-porcupine 🦔📍 | high | open | — | Medium severity and a redesign of how a page runs; the trimmed API policy and the sign-in guard already carry much of it. |
-| 21 | [`idea-no-browser-render`](idea-no-browser-render.md) | A page cannot render a page in a browser | persistent-salmon 🐟⬆️ | low | open | — | A spike, a sidecar and a capability for a question the server's own answer often settles. |
-| 22 | [`idea-nothing-checks-page-assets`](idea-nothing-checks-page-assets.md) | Nothing checks a page's CSS, HTML or SVG | persistent-salmon 🐟⬆️ | low | open | — | Pays off once pages write their own CSS and SVG, and each checker is a parser we write, so it waits for that reason rather than a hunch. |
-| 23 | [`idea-declaration-does-not-name-its-close`](idea-declaration-does-not-name-its-close.md) | A declaration block does not name its close | protective-dragon 🐉🔥 | medium | blocked | `idea-block-that-is-not-code-compiles` | A language change in two releases that rewrites every declaration in the store; it waits for 5 to have proved the warning that carries release 1. |
-| 24 | [`idea-vscode-cannot-check-a-page`](idea-vscode-cannot-check-a-page.md) | VS Code cannot check a page as it is typed | determined-mountain-goat 🐐💪 | low | open | — | Developer-only, and `make check-pages` already compiles the seeds. |
-| 25 | [`idea-old-response-spelling`](idea-old-response-spelling.md) | The old response spelling is still on `IContext` | contented-capybara 😌🦫 | low | open | — | Waits for a release: the alias has to have been out long enough that nothing in the store reports `PAGE009` before it is deleted. |
+| # | Slug | Title | Difficulty | Utility | Status | Blocked by |
+| --- | --- | --- | --- | --- | --- | --- |
+| 1 | [`idea-policy-is-a-constant`](idea-policy-is-a-constant.md) | Some policy is still a constant in code | contented-capybara 😌🦫 | medium | open | — |
+| | | *Closes the policy exceptions the configuration rule still names, and tightening a guarantee always outranks tidying.* | | | | |
+| 2 | [`idea-listing-has-no-cursor`](idea-listing-has-no-cursor.md) | A page cannot ask a listing for the next page | eager-beaver 🦫⚙️ | medium | [planned](../plans/ide-host.md) | — |
+| | | *A listing that refuses past the cap is hit by every store that grows; a keyset cursor is small.* | | | | |
+| 3 | [`idea-library-edit-cost-is-invisible`](idea-library-edit-cost-is-invisible.md) | Nothing says which pages a library edit will recompile | contented-capybara 😌🦫 | medium | [planned](../plans/ide-host.md) | — |
+| | | *Says what a library edit recompiles; small, and it makes a cost the reader cannot see visible.* | | | | |
+| 4 | [`idea-block-that-is-not-code-compiles`](idea-block-that-is-not-code-compiles.md) | A block that is not code still compiles | eager-beaver 🦫⚙️ | medium | open | — |
+| | | *The same complaint as the diagnostics above one layer down: a shape the compiler cannot see, and the seeds are the proof the warnings stay quiet.* | | | | |
+| 5 | [`ops-no-ci`](ops-no-ci.md) | There is no CI pipeline | caffeinated-squirrel ☕🐿️ | high | open | — |
+| | | *Turns the gate from a habit into a rule, which makes every step below it cheaper.* | | | | |
+| 6 | [`idea-assistant-cannot-ask`](idea-assistant-cannot-ask.md) | The assistant cannot ask the owner a question | caffeinated-squirrel ☕🐿️ | high | [planned](../plans/assistant-ask-owner.md) | — |
+| | | *The wait it needs is built, so this is a tool, a card and three limits, and every assistant run that meets an unknown stops guessing.* | | | | |
+| 7 | [`idea-page-cannot-move`](idea-page-cannot-move.md) | A page cannot move a page | eager-beaver 🦫⚙️ | high | [planned](../plans/page-move.md) | — |
+| | | *A rename is two histories and silent breakage today; a common act for moderate work.* | | | | |
+| 8 | [`idea-check-without-storing`](idea-check-without-storing.md) | A page cannot check a template without saving it | caffeinated-squirrel ☕🐿️ | high | [planned](../plans/ide-host.md) | — |
+| | | *Stops "check my work" storing a revision, so no history carries a test save.* | | | | |
+| 9 | [`idea-one-write-per-render`](idea-one-write-per-render.md) | A render may write a batch of pages, and the caller names the policy | protective-dragon 🐉🔥 | high | blocked | `idea-check-without-storing` |
+| | | *The one-save rule is what the assistant hits on every multi-file edit, and the owner has decided it goes; it borrows 9's compile-without-store, so it follows that step.* | | | | |
+| 10 | [`idea-job-borrows-a-credential`](idea-job-borrows-a-credential.md) | A job acts with its starter's credential, and loses it when that credential dies | persistent-salmon 🐟⬆️ | high | blocked | `idea-one-write-per-render` |
+| | | *A job's writer is only safe once 10 has replaced the one-action rule with a policy the caller names; revocation is the other half of the same decision.* | | | | |
+| 11 | [`idea-assistant-cannot-check-a-page`](idea-assistant-cannot-check-a-page.md), with [`idea-tool-arguments-say-nothing`](idea-tool-arguments-say-nothing.md) as its first slice | The assistant can check a script but not a page | determined-mountain-goat 🐐💪 | high | blocked | `idea-check-without-storing` |
+| | | *The compiler step 9 gives the editor answers the model's most-asked question; the same step retires two tools that are one tool twice, so the definitions it describes are described once.* | | | | |
+| 12 | [`idea-cannot-search-the-store`](idea-cannot-search-the-store.md) | A page cannot search the store's source | eager-beaver 🦫⚙️ | medium | [planned](../plans/ide-host.md) | — |
+| | | *Lifts the assistant's own search into the contract rather than inventing anything.* | | | | |
+| 13 | [`ops-no-outage-notification`](ops-no-outage-notification.md) | No outbound notifications when the site breaks | eager-beaver 🦫⚙️ | medium | open | — |
+| | | *Useful, but one owner and a unit that restarts already notices most outages.* | | | | |
+| 14 | [`idea-import-cannot-reset-a-site`](idea-import-cannot-reset-a-site.md) | Import only adds and overwrites, so an archive cannot reset a site | caffeinated-squirrel ☕🐿️ | medium | open | — |
+| | | *A destructive reset has to be designed carefully; the additive import is the safe default until it is.* | | | | |
+| 15 | [`idea-no-account-store`](idea-no-account-store.md) | A page has no persistent per-account store | protective-dragon 🐉🔥 | high | [planned](../plans/account-store.md) | — |
+| | | *The most useful large item, with a plan and a first customer, and a plan's yes is the only thing it waits on.* | | | | |
+| 16 | [`idea-editor-is-a-textarea`](idea-editor-is-a-textarea.md) | The editor is a plain textarea | determined-mountain-goat 🐐💪 | high | open | — |
+| | | *High use and high cost; the gutter, the diagnostics and the row state already cover the worst of it.* | | | | |
+| 17 | [`idea-conversation-is-not-a-page`](idea-conversation-is-not-a-page.md) | The assistant's conversation is a stream and a set of host actions, not a page | protective-dragon 🐉🔥 | medium | blocked | `idea-no-account-store` |
+| | | *The assistant's conversation as a page needs the account store beneath it, and that is 16.* | | | | |
+| 18 | [`idea-archive-is-not-a-form`](idea-archive-is-not-a-form.md) | `/admin/import` and `/admin/export` are shell code because an archive is not a form | caffeinated-squirrel ☕🐿️ | low | open | — |
+| | | *The two admin routes already work; making them pages buys consistency, not capability.* | | | | |
+| 19 | [`sec-page-runs-in-process`](sec-page-runs-in-process.md) | Page code has no execution budget and no process boundary | cornered-porcupine 🦔📍 | high | open | — |
+| | | *Medium severity and a redesign of how a page runs; the trimmed API policy and the sign-in guard already carry much of it.* | | | | |
+| 20 | [`idea-no-browser-render`](idea-no-browser-render.md) | A page cannot render a page in a browser | persistent-salmon 🐟⬆️ | low | open | — |
+| | | *A spike, a sidecar and a capability for a question the server's own answer often settles.* | | | | |
+| 21 | [`idea-nothing-checks-page-assets`](idea-nothing-checks-page-assets.md) | Nothing checks a page's CSS, HTML or SVG | persistent-salmon 🐟⬆️ | low | open | — |
+| | | *Pays off once pages write their own CSS and SVG, and each checker is a parser we write, so it waits for that reason rather than a hunch.* | | | | |
+| 22 | [`idea-declaration-does-not-name-its-close`](idea-declaration-does-not-name-its-close.md) | A declaration block does not name its close | protective-dragon 🐉🔥 | medium | blocked | `idea-block-that-is-not-code-compiles` |
+| | | *A language change in two releases that rewrites every declaration in the store; it waits for 5 to have proved the warning that carries release 1.* | | | | |
+| 23 | [`idea-vscode-cannot-check-a-page`](idea-vscode-cannot-check-a-page.md) | VS Code cannot check a page as it is typed | determined-mountain-goat 🐐💪 | low | open | — |
+| | | *Developer-only, and `make check-pages` already compiles the seeds.* | | | | |
+| 24 | [`idea-old-response-spelling`](idea-old-response-spelling.md) | The old response spelling is still on `IContext` | contented-capybara 😌🦫 | low | open | — |
+| | | *Waits for a release: the alias has to have been out long enough that nothing in the store reports `PAGE009` before it is deleted.* | | | | |
+| 25 | [`idea-message-does-not-survive-a-redirect`](idea-message-does-not-survive-a-redirect.md) | A page cannot leave a message for a page it sends a visitor to | protective-dragon 🐉🔥 | high | [planned](../plans/page-inbox.md) | — |
+| | | *Planned, but a plan is not urgency: nothing blocks it and no page stops working without it, so it waits below everything that does.* | | | | |
 
 Every step is one unit of work, on one branch in one worktree named `kind/filename`
 ([how](../../CONTRIBUTING.md#working-on-it)). Two independent steps may run at once, each in its own
@@ -156,7 +196,8 @@ follow-up.
 ## The check
 
 `make backlog` reads this file and the items beside it and fails on a slug outside the shape, a slug
-used twice, a missing or malformed field, an item missing from the order or listed twice, a row whose
-difficulty or utility disagrees with the item, an order that puts an item above its blocker, a cycle,
-a plan that does not link back, and a citation of an item that is not in the record. `make check`
-runs it, so the record cannot drift from itself.
+used twice, a missing or malformed field, a `Status` the blockers and the plan do not say, an item
+missing from the order or listed twice, a row whose difficulty, utility or status disagrees with the
+item, a `planned` row that links the wrong plan, an order that puts an item above its blocker, a
+cycle, a plan that does not link back, and a citation of an item that is not in the record. `make check` runs it, so the record cannot drift from
+itself.

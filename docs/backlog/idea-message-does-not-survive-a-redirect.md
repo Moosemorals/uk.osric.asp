@@ -9,7 +9,7 @@ SPDX-License-Identifier: MIT
 | --- | --- |
 | Difficulty | protective-dragon |
 | Utility | high |
-| Status | open |
+| Status | planned |
 | Blocked by | — |
 | Plan | [page-inbox](../plans/page-inbox.md) |
 | Area | Sdk, Web (pages, work, storage), docs |

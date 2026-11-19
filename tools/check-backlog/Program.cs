@@ -31,7 +31,7 @@ List<Problem> problems = [];
 HashSet<string> areas = DecisionAreas(root);
 HashSet<string> kinds = ["idea", "bug", "sec", "ops", "arch"];
 HashSet<string> utilities = ["low", "medium", "high"];
-HashSet<string> statuses = ["open", "blocked", "parked"];
+HashSet<string> statuses = ["open", "planned", "blocked", "parked"];
 
 string[] indexLines = File.ReadAllLines(index);
 List<string> difficulties = DifficultyScale(indexLines);
@@ -144,9 +144,24 @@ foreach (Item item in items) {
     if (!string.Equals(row.Utility, item.Header.GetValueOrDefault("Utility"), StringComparison.Ordinal)) {
         problems.Add(new(shownIndex, row.Line, $"the row is {row.Utility} and `{item.Slug}` is {item.Header.GetValueOrDefault("Utility")}"));
     }
+
+    if (!string.Equals(row.Status, item.Header.GetValueOrDefault("Status"), StringComparison.Ordinal)) {
+        problems.Add(new(shownIndex, row.Line, $"the row is {row.Status} and `{item.Slug}` is {item.Header.GetValueOrDefault("Status")}"));
+    }
+
+    string headerPlan = PlanName(item.Header.GetValueOrDefault("Plan") ?? "—");
+    if (row.Status == "planned" && !string.Equals(row.Plan, headerPlan, StringComparison.Ordinal)) {
+        problems.Add(new(shownIndex, row.Line, $"the row is planned for {row.Plan} and `{item.Slug}` names {headerPlan}"));
+    } else if (row.Status != "planned" && row.Plan != "—") {
+        problems.Add(new(shownIndex, row.Line, $"the row is {row.Status} and links a plan; only planned needs one"));
+    }
 }
 
 foreach (Row row in rows) {
+    if (!row.Reason) {
+        problems.Add(new(shownIndex, row.Line, "the row has no reason line under it"));
+    }
+
     foreach (string slug in row.Slugs) {
         if (!bySlug.ContainsKey(slug)) {
             problems.Add(new(shownIndex, row.Line, $"`{slug}` is in the order and is not an item"));
@@ -154,15 +169,15 @@ foreach (Row row in rows) {
     }
 }
 
-// Status is derived from the graph and then checked, so the field cannot become a second, staler
-// opinion; the order is then checked against the same graph.
+// Status is derived from the graph and the plan and then checked, so the field cannot become a
+// second, staler opinion; the order is then checked against the same graph.
 foreach (Item item in items) {
-    bool open = blocks[item.Slug].Any(bySlug.ContainsKey);
+    string expected = blocks[item.Slug].Any(bySlug.ContainsKey) ? "blocked"
+        : Live(item) ? "planned"
+        : "open";
     string? stored = item.Header.GetValueOrDefault("Status");
-    if (stored != "parked" && (stored == "blocked") != open) {
-        problems.Add(new(item.File, item.HeaderLine("Status"), open
-            ? "says open and a blocker is still open"
-            : "says blocked and no blocker is open"));
+    if (stored != "parked" && !string.Equals(stored, expected, StringComparison.Ordinal)) {
+        problems.Add(new(item.File, item.HeaderLine("Status"), $"says {stored} and the record says {expected}"));
     }
 
     if (!rowOf.TryGetValue(item.Slug, out Row? row)) {
@@ -324,11 +339,45 @@ static List<Row> Order(string[] lines) {
         }
 
         int number = int.Parse(match.Groups["number"].Value, CultureInfo.InvariantCulture);
+        string status = Status(match.Groups["status"].Value);
         found.Add(new(i + 1, number, match.Groups["title"].Value.Trim(), Level(match.Groups["difficulty"].Value),
-            match.Groups["utility"].Value.Trim(), slugs));
+            match.Groups["utility"].Value.Trim(), status, PlanName(match.Groups["status"].Value),
+            slugs, Reason(lines, i)));
     }
 
     return found;
+}
+
+// The line under a row is the reason it sits there. Markdown has no merged cells, so the reason is a
+// row of its own with the title column carrying the text; a row without one is a number with no
+// argument behind it.
+static bool Reason(string[] lines, int row) =>
+    row + 1 < lines.Length
+    && lines[row + 1].StartsWith("| |", StringComparison.Ordinal)
+    && lines[row + 1].Split('|').Any(cell => cell.Trim().Length > 2);
+
+// A plan is live while it is not in the archive, which is how an item that still needs work after
+// its plan landed says so.
+static bool Live(Item item) {
+    if (!item.Header.TryGetValue("Plan", out string? cell) || cell == "—") {
+        return false;
+    }
+
+    Match match = Program.Link().Match(cell);
+    return match.Success && !match.Groups["target"].Value.Contains("plans/archive/", StringComparison.Ordinal);
+}
+
+// A planned row carries its plan as the status, so the state and the thing that decides it are one
+// cell; every other state is plain text.
+static string Status(string cell) {
+    Match match = Program.Link().Match(cell);
+    return match.Success ? match.Groups["text"].Value.Trim() : cell.Trim();
+}
+
+// A plan is compared by its file, because the item and the row name it from different directories.
+static string PlanName(string cell) {
+    Match match = Program.Link().Match(cell);
+    return match.Success ? Path.GetFileName(match.Groups["target"].Value) : "—";
 }
 
 // The cell is the level's slug and then its emoji, so the level is the first word.
@@ -501,7 +550,7 @@ internal sealed record Item(string File, string Slug, int Line, string Title, Di
     internal int HeaderLine(string key) => Rows.GetValueOrDefault(key, Line);
 }
 
-internal sealed record Row(int Line, int Number, string Title, string Difficulty, string Utility, List<string> Slugs);
+internal sealed record Row(int Line, int Number, string Title, string Difficulty, string Utility, string Status, string Plan, List<string> Slugs, bool Reason);
 
 internal sealed record Problem(string File, int Line, string Message);
 
@@ -516,13 +565,13 @@ internal static partial class Program {
     [GeneratedRegex(@"^\| (?<key>[^|]+?) \| (?<value>.*) \|$")]
     internal static partial Regex HeaderRow();
 
-    [GeneratedRegex(@"^\| (?<number>\d+) \| (?<slugs>[^|]+) \| (?<title>[^|]+) \| (?<difficulty>[^|]+) \| (?<utility>[^|]+) \|")]
+    [GeneratedRegex(@"^\| (?<number>\d+) \| (?<slugs>[^|]+) \| (?<title>[^|]+) \| (?<difficulty>[^|]+) \| (?<utility>[^|]+) \| (?<status>[^|]+) \| (?<blocked>[^|]+) \|")]
     internal static partial Regex OrderRow();
 
     [GeneratedRegex(@"^\| \d+ \| `(?<level>[a-z-]+)` \|")]
     internal static partial Regex ScaleRow();
 
-    [GeneratedRegex(@"\[[^\]]*\]\((?<target>[^)\s]+)\)")]
+    [GeneratedRegex(@"\[(?<text>[^\]]*)\]\((?<target>[^)\s]+)\)")]
     internal static partial Regex Link();
 
     [GeneratedRegex(@"`(?<slug>[a-z][a-z0-9]*(?:-[a-z0-9]+)+)`")]
