@@ -113,9 +113,11 @@ The `ci` account runs `make ci` on every trunk push. It is not the app's account
 - **A stuck or lost unit.** The journal shows whether a check is running, and the next trunk push
   starts a new one. A check can be run by hand as `ci`:
   `sudo -H -u ci /home/ci/bin/check-push <sha>` — it only checks the current trunk tip.
-- **The mirror.** `uk.osric.asp-mirror.service` holds `/home/ci/.mirror.lock`; the timer retries every
-  fifteen minutes. A failed push is in `journalctl _SYSTEMD_USER_UNIT=uk.osric.asp-mirror.service`,
-  and no host ref is lost by it.
+- **The mirror.** `uk.osric.asp-mirror.service` holds `/home/ci/.mirror.lock` and is started by the
+  push, never by a clock; a failed run retries every minute for ten minutes and then stops until the
+  next push. If GitHub's key is not in place yet, the run fails ten times and
+  `systemctl --user start uk.osric.asp-mirror.service` as `ci` mirrors by hand. A failed push is in
+  `journalctl _SYSTEMD_USER_UNIT=uk.osric.asp-mirror.service`, and no host ref is lost by it.
 
 ## Configuration
 

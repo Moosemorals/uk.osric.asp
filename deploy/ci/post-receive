@@ -4,7 +4,7 @@
 
 # Starts the check for a trunk push and the mirror for every accepted ref. The push returns as soon
 # as this hook does: the check is a transient unit in the ci slice, and the mirror is a user service
-# the timer retries if this start or that run fails.
+# that retries by itself for ten minutes if this run fails.
 set -euo pipefail
 
 home=/home/ci
@@ -29,10 +29,12 @@ while read -r old new ref; do
     fi
 done
 
-# Every ref, including a branch or a tag, is mirrored. The service is asynchronous, and the timer is
-# the guarantee when it is already running or this start fails.
+# Every ref, including a branch or a tag, is mirrored. The service is asynchronous, and its own
+# restarts are the retry: reset-failed clears the limit a previous failure reached, so this push gets
+# a full window rather than inheriting an exhausted one.
+systemctl --user reset-failed uk.osric.asp-mirror.service 2>/dev/null || true
 if ! systemctl --user start --no-block uk.osric.asp-mirror.service; then
-    echo "post-receive: could not start the mirror; the timer will retry" >&2
+    echo "post-receive: could not start the mirror; check journalctl --user -u uk.osric.asp-mirror.service" >&2
 fi
 
-echo "mirroring to GitHub; the timer retries if this run fails"
+echo "mirroring to GitHub; a failed run retries for ten minutes, then the next push starts again"

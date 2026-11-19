@@ -298,10 +298,11 @@ answers when the app is down.
 - **The deploy key:** `ci-install` generates `~ci/.ssh/id_ed25519_github` and prints its public half.
   Add it to GitHub with **Allow write access**. It is the only GitHub credential on the host, and it
   can write this repository and nothing else.
-- **The mirror:** `post-receive` starts `uk.osric.asp-mirror.service`, and a fifteen-minute timer
-  retries. It pushes the host's branches and tags with `--prune`, so a branch deleted on the host is
-  deleted on GitHub. The bare repository is cloned from GitHub at install, so the first mirror has
-  nothing to delete.
+- **The mirror:** `post-receive` starts `uk.osric.asp-mirror.service`, so the mirror copies what was
+  pushed and runs on no clock at all. A failed run restarts itself every minute for ten minutes, and
+  the next push starts a fresh window. It pushes the host's branches and tags with `--prune`, so a
+  branch deleted on the host is deleted on GitHub. The bare repository is cloned from GitHub at
+  install, so the first mirror has nothing to delete.
 - **The status:** `never-run` before the first push, `running` while `make ci` is in the unit, then
   `passed` or `failed` with the commit, the times and the failing target. The file is written with an
   atomic rename; Caddy sends `Cache-Control: no-store`.

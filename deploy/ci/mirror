@@ -3,7 +3,7 @@
 # SPDX-License-Identifier: MIT
 
 # Pushes the host's branches and tags to GitHub. The host is the source of truth; this is a one-way,
-# pruned copy. The lock keeps a push's mirror and the timer from overlapping.
+# pruned copy. The lock keeps a hand-run from overlapping the unit post-receive starts.
 set -euo pipefail
 
 home=${CI_HOME:-/home/ci}

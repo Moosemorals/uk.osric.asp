@@ -2545,11 +2545,12 @@ answer, not a blocking gate. The check is the same `make ci`, not a second defin
 
 The host is the upstream; GitHub is a one-way, pruned mirror of its branches and tags. The bare
 repository is cloned from GitHub at install so existing refs survive, and the mirror runs on receive
-with a fifteen-minute timer as the retry. The deploy key can write this repository and nothing else;
-there is no branch protection on the copy, because the gate and the authority are on the host.
+and on nothing else — a failed run restarts itself for ten minutes as the retry, and the next push is
+the next attempt. The deploy key can write this repository and nothing else; there is no branch
+protection on the copy, because the gate and the authority are on the host.
 
 *Recorded in [mirror](../deploy/ci/mirror), [the service](../deploy/ci/uk.osric.asp-mirror.service),
-[the timer](../deploy/ci/uk.osric.asp-mirror.timer), [deploy](../deploy/README.md#ci-on-the-host),
+[post-receive](../deploy/ci/post-receive), [deploy](../deploy/README.md#ci-on-the-host),
 [the plan](plans/archive/host-ci.md).*
 
 ### deploy-the-image

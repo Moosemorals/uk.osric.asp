@@ -3,10 +3,17 @@
 
 [Unit]
 Description=Mirror the host's branches and tags to GitHub
+# Started by post-receive, never on a clock: the mirror copies what was pushed. A failed run retries
+# every minute, and ten starts in ten minutes is the whole budget, so an unreachable GitHub costs
+# nine minutes of attempts and then stops — the next push starts a fresh window.
+StartLimitIntervalSec=10min
+StartLimitBurst=10
 
 [Service]
-Type=oneshot
+Type=simple
 ExecStart=%h/bin/mirror
+Restart=on-failure
+RestartSec=60s
 # The site is serving requests at the time this runs; let those win.
 Nice=10
 IOSchedulingClass=best-effort

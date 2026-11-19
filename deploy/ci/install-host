@@ -139,7 +139,13 @@ install -o ci -g ci -m 0755 "$directory/check-push" /home/ci/bin/check-push
 install -o ci -g ci -m 0755 "$directory/mirror" /home/ci/bin/mirror
 install -o ci -g ci -m 0644 "$directory/uk.osric.asp-ci.slice" /home/ci/.config/systemd/user/uk.osric.asp-ci.slice
 install -o ci -g ci -m 0644 "$directory/uk.osric.asp-mirror.service" /home/ci/.config/systemd/user/uk.osric.asp-mirror.service
-install -o ci -g ci -m 0644 "$directory/uk.osric.asp-mirror.timer" /home/ci/.config/systemd/user/uk.osric.asp-mirror.timer
+# The mirror ran on a fifteen-minute timer until it became push-only; a host set up by the earlier
+# version has that timer enabled and still ticking until it is stopped, so stop it first and then take
+# the unit and its wants link away.
+uid=$(id -u ci)
+sudo -H -u ci env XDG_RUNTIME_DIR="/run/user/$uid" systemctl --user stop uk.osric.asp-mirror.timer 2>/dev/null || true
+rm -f /home/ci/.config/systemd/user/uk.osric.asp-mirror.timer \
+    /home/ci/.config/systemd/user/timers.target.wants/uk.osric.asp-mirror.timer
 
 if [ ! -e /var/lib/uk.osric.asp-ci/status.json ]; then
     sudo -H -u ci tee /var/lib/uk.osric.asp-ci/status.json >/dev/null < "$directory/status-never-run.json"
@@ -149,7 +155,7 @@ chmod 0644 /var/lib/uk.osric.asp-ci/status.json
 
 uid=$(id -u ci)
 sudo -H -u ci env XDG_RUNTIME_DIR="/run/user/$uid" systemctl --user daemon-reload
-sudo -H -u ci env XDG_RUNTIME_DIR="/run/user/$uid" systemctl --user enable --now uk.osric.asp-mirror.timer
+sudo -H -u ci env XDG_RUNTIME_DIR="/run/user/$uid" systemctl --user reset-failed uk.osric.asp-mirror.service 2>/dev/null || true
 
 if ! podman_output=$(sudo -H -u ci env XDG_RUNTIME_DIR="/run/user/$uid" podman info --format '{{.Host.Security.Rootless}}' 2>&1); then
     echo "install-host: ci cannot run rootless podman: $podman_output" >&2
@@ -172,4 +178,6 @@ echo "  git fetch origin"
 echo "  git branch --set-upstream-to=origin/trunk trunk"
 echo
 echo "The result is https://moosemorals.com/ci/status.json; the full log is the unit the push names in"
-echo "the journal. If the mirror's key is not on GitHub yet, the timer retries every fifteen minutes."
+echo "the journal. The mirror runs on every push and retries for ten minutes if GitHub is unreachable;"
+echo "if its key is not on GitHub yet, push again once it is, or run systemctl --user start"
+echo "uk.osric.asp-mirror.service as ci."
