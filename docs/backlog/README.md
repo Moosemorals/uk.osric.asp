@@ -95,67 +95,67 @@ left of the item is new.
 
 ## The order
 
-The one table is both the inventory and the order. A row's number is its priority, and the line under
-it in italics is the reason it sits there — markdown has no merged cells, so the reason takes a row of
-its own under the title and the data above stays narrow. The order spends the easy utility first, and
-the owner moves an item above its difficulty when it is a rule other work is written against rather
-than a tidy-up. A `planned` item carries its plan in its status, so the list says at a glance which
-items are a yes away — but a plan says an item is ready, not that it is urgent, and a planned item sits
-where its utility puts it.
+The one table is both the inventory and the order. **A row's place is its priority** — the first row
+is next — and there is no number column, because a number that every close has to renumber is churn with
+nothing to show for it. The line under a row in italics is the reason it sits there: markdown has no
+merged cells, so the reason takes a row of its own under the title and the data above stays narrow. The
+order spends the easy utility first, and the owner moves an item above its difficulty when it is a rule
+other work is written against rather than a tidy-up. A `planned` item carries its plan in its status,
+so the list says at a glance which items are a yes away — but a plan says an item is ready, not that it
+is urgent, and a planned item sits where its utility puts it.
 
-`make backlog` checks that every open item appears exactly once, that the numbers run `1..n`, that a
-row's difficulty, utility and status are the item's, that a `planned` row links the plan its item
-names, that every row is followed by its reason, and that no item sits above something that blocks
-it.
+`make backlog` checks that every open item appears exactly once, that a row's difficulty, utility and
+status are the item's, that a `planned` row links the plan its item names, that every row is followed by
+its reason, and that no item sits above something that blocks it.
 
-| # | Slug | Title | Difficulty | Utility | Status | Blocked by |
-| --- | --- | --- | --- | --- | --- | --- |
-| 1 | [`block-that-is-not-code-compiles`](block-that-is-not-code-compiles.md) | A block that is not code still compiles | eager-beaver ⚙️🦫 | medium | open | — |
-| | | *The same complaint as the diagnostics above one layer down: a shape the compiler cannot see, and the seeds are the proof the warnings stay quiet.* | | | | |
-| 2 | [`ops-no-ci`](ops-no-ci.md) | There is no CI pipeline | caffeinated-squirrel ☕🐿️ | high | open | — |
-| | | *Turns the gate from a habit into a rule, which makes every step below it cheaper.* | | | | |
-| 3 | [`cannot-ask-the-owner`](cannot-ask-the-owner.md) | The assistant cannot ask the owner a question | caffeinated-squirrel ☕🐿️ | high | [planned](../plans/assistant-ask-owner.md) | — |
-| | | *The wait it needs is built, so this is a tool, a card and three limits, and every assistant run that meets an unknown stops guessing.* | | | | |
-| 4 | [`page-cannot-move`](page-cannot-move.md) | A page cannot move a page | eager-beaver ⚙️🦫 | high | [planned](../plans/page-move.md) | — |
-| | | *A rename is two histories and silent breakage today; a common act for moderate work.* | | | | |
-| 5 | [`check-without-storing`](check-without-storing.md) | A page cannot check a template without saving it | caffeinated-squirrel ☕🐿️ | high | [planned](../plans/ide-host.md) | — |
-| | | *Stops "check my work" storing a revision, so no history carries a test save.* | | | | |
-| 6 | [`one-write-per-render`](one-write-per-render.md) | A render may write a batch of pages, and the caller names the policy | protective-dragon 🔥🐉 | high | blocked | `check-without-storing` |
-| | | *The one-save rule is what the assistant hits on every multi-file edit, and the owner has decided it goes; it borrows [`check-without-storing`](check-without-storing.md)'s compile-without-store, so it follows that step.* | | | | |
-| 7 | [`job-borrows-a-credential`](job-borrows-a-credential.md) | A job acts with its starter's credential, and loses it when that credential dies | persistent-salmon ⬆️🐟 | high | blocked | `one-write-per-render` |
-| | | *A job's writer is only safe once [`one-write-per-render`](one-write-per-render.md) has replaced the one-action rule with a policy the caller names; revocation is the other half of the same decision.* | | | | |
-| 8 | [`cannot-check-a-page`](cannot-check-a-page.md), with [`tool-arguments-say-nothing`](tool-arguments-say-nothing.md) as its first slice | The assistant can check a script but not a page | determined-mountain-goat 💪🐐 | high | blocked | `check-without-storing` |
-| | | *The compiler [`check-without-storing`](check-without-storing.md) adds gives the editor answers the model's most-asked question; the same step retires two tools that are one tool twice, so the definitions it describes are described once.* | | | | |
-| 9 | [`cannot-search-the-store`](cannot-search-the-store.md) | A page cannot search the store's source | eager-beaver ⚙️🦫 | medium | [planned](../plans/ide-host.md) | — |
-| | | *Lifts the assistant's own search into the contract rather than inventing anything.* | | | | |
-| 10 | [`ops-no-outage-notification`](ops-no-outage-notification.md) | No outbound notifications when the site breaks | eager-beaver ⚙️🦫 | medium | open | — |
-| | | *Useful, but one owner and a unit that restarts already notices most outages.* | | | | |
-| 11 | [`import-cannot-reset-a-site`](import-cannot-reset-a-site.md) | Import only adds and overwrites, so an archive cannot reset a site | caffeinated-squirrel ☕🐿️ | medium | open | — |
-| | | *A destructive reset has to be designed carefully; the additive import is the safe default until it is.* | | | | |
-| 12 | [`no-account-store`](no-account-store.md) | A page has no persistent per-account store | protective-dragon 🔥🐉 | high | [planned](../plans/account-store.md) | — |
-| | | *The most useful large item, with a plan and a first customer, and a plan's yes is the only thing it waits on.* | | | | |
-| 13 | [`editor-is-a-textarea`](editor-is-a-textarea.md) | The editor is a plain textarea | determined-mountain-goat 💪🐐 | high | open | — |
-| | | *High use and high cost; the gutter, the diagnostics and the row state already cover the worst of it.* | | | | |
-| 14 | [`conversation-is-not-a-page`](conversation-is-not-a-page.md) | The assistant's conversation is a stream and a set of host actions, not a page | protective-dragon 🔥🐉 | medium | blocked | `no-account-store` |
-| | | *The assistant's conversation as a page needs the account store beneath it, and that is [`no-account-store`](no-account-store.md).* | | | | |
-| 15 | [`archive-is-not-a-form`](archive-is-not-a-form.md) | `/admin/import` and `/admin/export` are shell code because an archive is not a form | caffeinated-squirrel ☕🐿️ | low | open | — |
-| | | *The two admin routes already work; making them pages buys consistency, not capability.* | | | | |
-| 16 | [`sec-page-runs-in-process`](sec-page-runs-in-process.md) | Page code has no execution budget and no process boundary | cornered-porcupine 📍🦔 | high | open | — |
-| | | *Medium severity and a redesign of how a page runs; the trimmed API policy and the sign-in guard already carry much of it.* | | | | |
-| 17 | [`no-browser-render`](no-browser-render.md) | A page cannot render a page in a browser | persistent-salmon ⬆️🐟 | low | open | — |
-| | | *A spike, a sidecar and a capability for a question the server's own answer often settles.* | | | | |
-| 18 | [`nothing-checks-page-assets`](nothing-checks-page-assets.md) | Nothing checks a page's CSS, HTML or SVG | persistent-salmon ⬆️🐟 | low | open | — |
-| | | *Pays off once pages write their own CSS and SVG, and each checker is a parser we write, so it waits for that reason rather than a hunch.* | | | | |
-| 19 | [`declaration-does-not-name-its-close`](declaration-does-not-name-its-close.md) | A declaration block does not name its close | protective-dragon 🔥🐉 | medium | blocked | `block-that-is-not-code-compiles` |
-| | | *A language change in two releases that rewrites every declaration in the store; it waits for [`block-that-is-not-code-compiles`](block-that-is-not-code-compiles.md) to have proved the warning that carries release 1.* | | | | |
-| 20 | [`vscode-cannot-check-a-page`](vscode-cannot-check-a-page.md) | VS Code cannot check a page as it is typed | determined-mountain-goat 💪🐐 | low | open | — |
-| | | *Developer-only, and `make check-pages` already compiles the seeds.* | | | | |
-| 21 | [`old-response-spelling`](old-response-spelling.md) | The old response spelling is still on `IContext` | contented-capybara 😌🦫 | low | open | — |
-| | | *Waits for a release: the alias has to have been out long enough that nothing in the store reports `PAGE009` before it is deleted.* | | | | |
-| 22 | [`message-does-not-survive-a-redirect`](message-does-not-survive-a-redirect.md) | A page cannot leave a message for a page it sends a visitor to | protective-dragon 🔥🐉 | high | [planned](../plans/page-inbox.md) | — |
-| | | *Planned, but a plan is not urgency: nothing blocks it and no page stops working without it, so it waits below everything that does.* | | | | |
-| 23 | [`listing-does-not-date-itself`](listing-does-not-date-itself.md) | A listing cannot say the store moved under it | caffeinated-squirrel ☕🐿️ | medium | open | — |
-| | | *The cursor answered where a walk is; this answers whether it is still the same walk, and the write paths are the price.* | | | | |
+| Slug | Title | Difficulty | Utility | Status | Blocked by |
+| --- | --- | --- | --- | --- | --- |
+| [`block-that-is-not-code-compiles`](block-that-is-not-code-compiles.md) | A block that is not code still compiles | eager-beaver ⚙️🦫 | medium | open | — |
+| | *The same complaint as the diagnostics above one layer down: a shape the compiler cannot see, and the seeds are the proof the warnings stay quiet.* | | | | |
+| [`ops-no-ci`](ops-no-ci.md) | There is no CI pipeline | caffeinated-squirrel ☕🐿️ | high | open | — |
+| | *Turns the gate from a habit into a rule, which makes every step below it cheaper.* | | | | |
+| [`cannot-ask-the-owner`](cannot-ask-the-owner.md) | The assistant cannot ask the owner a question | caffeinated-squirrel ☕🐿️ | high | [planned](../plans/assistant-ask-owner.md) | — |
+| | *The wait it needs is built, so this is a tool, a card and three limits, and every assistant run that meets an unknown stops guessing.* | | | | |
+| [`page-cannot-move`](page-cannot-move.md) | A page cannot move a page | eager-beaver ⚙️🦫 | high | [planned](../plans/page-move.md) | — |
+| | *A rename is two histories and silent breakage today; a common act for moderate work.* | | | | |
+| [`check-without-storing`](check-without-storing.md) | A page cannot check a template without saving it | caffeinated-squirrel ☕🐿️ | high | [planned](../plans/ide-host.md) | — |
+| | *Stops "check my work" storing a revision, so no history carries a test save.* | | | | |
+| [`one-write-per-render`](one-write-per-render.md) | A render may write a batch of pages, and the caller names the policy | protective-dragon 🔥🐉 | high | blocked | `check-without-storing` |
+| | *The one-save rule is what the assistant hits on every multi-file edit, and the owner has decided it goes; it borrows [`check-without-storing`](check-without-storing.md)'s compile-without-store, so it follows that step.* | | | | |
+| [`job-borrows-a-credential`](job-borrows-a-credential.md) | A job acts with its starter's credential, and loses it when that credential dies | persistent-salmon ⬆️🐟 | high | blocked | `one-write-per-render` |
+| | *A job's writer is only safe once [`one-write-per-render`](one-write-per-render.md) has replaced the one-action rule with a policy the caller names; revocation is the other half of the same decision.* | | | | |
+| [`cannot-check-a-page`](cannot-check-a-page.md), with [`tool-arguments-say-nothing`](tool-arguments-say-nothing.md) as its first slice | The assistant can check a script but not a page | determined-mountain-goat 💪🐐 | high | blocked | `check-without-storing` |
+| | *The compiler [`check-without-storing`](check-without-storing.md) adds gives the editor answers the model's most-asked question; the same step retires two tools that are one tool twice, so the definitions it describes are described once.* | | | | |
+| [`cannot-search-the-store`](cannot-search-the-store.md) | A page cannot search the store's source | eager-beaver ⚙️🦫 | medium | [planned](../plans/ide-host.md) | — |
+| | *Lifts the assistant's own search into the contract rather than inventing anything.* | | | | |
+| [`ops-no-outage-notification`](ops-no-outage-notification.md) | No outbound notifications when the site breaks | eager-beaver ⚙️🦫 | medium | open | — |
+| | *Useful, but one owner and a unit that restarts already notices most outages.* | | | | |
+| [`import-cannot-reset-a-site`](import-cannot-reset-a-site.md) | Import only adds and overwrites, so an archive cannot reset a site | caffeinated-squirrel ☕🐿️ | medium | open | — |
+| | *A destructive reset has to be designed carefully; the additive import is the safe default until it is.* | | | | |
+| [`no-account-store`](no-account-store.md) | A page has no persistent per-account store | protective-dragon 🔥🐉 | high | [planned](../plans/account-store.md) | — |
+| | *The most useful large item, with a plan and a first customer, and a plan's yes is the only thing it waits on.* | | | | |
+| [`editor-is-a-textarea`](editor-is-a-textarea.md) | The editor is a plain textarea | determined-mountain-goat 💪🐐 | high | open | — |
+| | *High use and high cost; the gutter, the diagnostics and the row state already cover the worst of it.* | | | | |
+| [`conversation-is-not-a-page`](conversation-is-not-a-page.md) | The assistant's conversation is a stream and a set of host actions, not a page | protective-dragon 🔥🐉 | medium | blocked | `no-account-store` |
+| | *The assistant's conversation as a page needs the account store beneath it, and that is [`no-account-store`](no-account-store.md).* | | | | |
+| [`archive-is-not-a-form`](archive-is-not-a-form.md) | `/admin/import` and `/admin/export` are shell code because an archive is not a form | caffeinated-squirrel ☕🐿️ | low | open | — |
+| | *The two admin routes already work; making them pages buys consistency, not capability.* | | | | |
+| [`sec-page-runs-in-process`](sec-page-runs-in-process.md) | Page code has no execution budget and no process boundary | cornered-porcupine 📍🦔 | high | open | — |
+| | *Medium severity and a redesign of how a page runs; the trimmed API policy and the sign-in guard already carry much of it.* | | | | |
+| [`no-browser-render`](no-browser-render.md) | A page cannot render a page in a browser | persistent-salmon ⬆️🐟 | low | open | — |
+| | *A spike, a sidecar and a capability for a question the server's own answer often settles.* | | | | |
+| [`nothing-checks-page-assets`](nothing-checks-page-assets.md) | Nothing checks a page's CSS, HTML or SVG | persistent-salmon ⬆️🐟 | low | open | — |
+| | *Pays off once pages write their own CSS and SVG, and each checker is a parser we write, so it waits for that reason rather than a hunch.* | | | | |
+| [`declaration-does-not-name-its-close`](declaration-does-not-name-its-close.md) | A declaration block does not name its close | protective-dragon 🔥🐉 | medium | blocked | `block-that-is-not-code-compiles` |
+| | *A language change in two releases that rewrites every declaration in the store; it waits for [`block-that-is-not-code-compiles`](block-that-is-not-code-compiles.md) to have proved the warning that carries release 1.* | | | | |
+| [`vscode-cannot-check-a-page`](vscode-cannot-check-a-page.md) | VS Code cannot check a page as it is typed | determined-mountain-goat 💪🐐 | low | open | — |
+| | *Developer-only, and `make check-pages` already compiles the seeds.* | | | | |
+| [`old-response-spelling`](old-response-spelling.md) | The old response spelling is still on `IContext` | contented-capybara 😌🦫 | low | open | — |
+| | *Waits for a release: the alias has to have been out long enough that nothing in the store reports `PAGE009` before it is deleted.* | | | | |
+| [`message-does-not-survive-a-redirect`](message-does-not-survive-a-redirect.md) | A page cannot leave a message for a page it sends a visitor to | protective-dragon 🔥🐉 | high | [planned](../plans/page-inbox.md) | — |
+| | *Planned, but a plan is not urgency: nothing blocks it and no page stops working without it, so it waits below everything that does.* | | | | |
+| [`listing-does-not-date-itself`](listing-does-not-date-itself.md) | A listing cannot say the store moved under it | caffeinated-squirrel ☕🐿️ | medium | open | — |
+| | *The cursor answered where a walk is; this answers whether it is still the same walk, and the write paths are the price.* | | | | |
 
 Every step is one unit of work, on one branch in one worktree named `kind/filename`
 ([how](../../CONTRIBUTING.md#working-on-it)). Two independent steps may run at once, each in its own
@@ -184,8 +184,9 @@ Promoting a whim means writing an item file and removing its line; deleting one 
 
 ## Closed items
 
-A resolved item moves to [closed.md](closed.md), where its row keeps the number it closed with: a
-plan, a commit or a decision written before the move still means what it meant.
+A resolved item moves to [closed.md](closed.md), where its row keeps the id it was cited by — a legacy
+`IDEA-` number for an item old enough to have one, its slug for everything since — so a plan, a commit
+or a decision written before the move still means what it meant.
 
 ## Help for authors
 
