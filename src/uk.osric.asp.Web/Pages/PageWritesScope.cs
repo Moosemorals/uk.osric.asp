@@ -123,21 +123,10 @@ internal sealed class PageWritesScope(
         // The render's deadline, not CancellationToken.None: a move compiles nothing and is four
         // statements, so one that outlives the render rolls back and the caller still has the hash.
         PageMoveStoreResult moved = await pages.MoveAsync(source, target, expectedHash, Deadline);
-
-        if (moved.Outcome == PageMoveStoreOutcome.IsLibrary) {
-            throw new InvalidOperationException(
-                $"{source.Key} is a library: its key is in every dependent's closure, so moving it would leave those pages naming an empty key. Move the pages that name it first.");
-        }
-
+        PageMoveResult answer = PageMoveAnswer.From(moved, source);
         Acted();
 
-        return moved.Outcome switch {
-            PageMoveStoreOutcome.Moved => new PageMoveResult(PageMoveOutcome.Moved, moved.Hash, []),
-            PageMoveStoreOutcome.Stale => new PageMoveResult(PageMoveOutcome.Stale, null, []),
-            PageMoveStoreOutcome.SourceNotFound => new PageMoveResult(PageMoveOutcome.SourceNotFound, null, []),
-            PageMoveStoreOutcome.TargetExists => new PageMoveResult(PageMoveOutcome.TargetExists, null, []),
-            _ => new PageMoveResult(PageMoveOutcome.FolderNotEmpty, null, moved.Below ?? []),
-        };
+        return answer;
     }
 
     /// <inheritdoc/>
