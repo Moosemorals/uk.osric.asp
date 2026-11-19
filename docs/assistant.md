@@ -162,7 +162,7 @@ the owner typed still in it. Forgetting asks on a page of its own first, and say
 cannot reach. The page is server-rendered and script-free, it is a shell file the assistant may read
 and never save (`assistant-reads-the-shell-files`), and it is the only place a memory can be pinned: no tool has an argument
 for that (`assistant-memory-page`). It stays shell code until the assistant itself is a page
-([`idea-conversation-is-not-a-page`](backlog/idea-conversation-is-not-a-page.md)): the memory view is one of that page's routes, and the page capability
+([`conversation-is-not-a-page`](backlog/conversation-is-not-a-page.md)): the memory view is one of that page's routes, and the page capability
 that would have replaced it was withdrawn (`assistant-memory-belongs-to-the-assistant`).
 
 Recall happens once per run, on the first step, and the block it builds is frozen for the rest of the

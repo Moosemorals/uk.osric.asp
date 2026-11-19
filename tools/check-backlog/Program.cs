@@ -29,7 +29,6 @@ string shownIndex = Path.GetRelativePath(root, index);
 List<Problem> problems = [];
 
 HashSet<string> areas = DecisionAreas(root);
-HashSet<string> kinds = ["idea", "bug", "sec", "ops", "arch"];
 HashSet<string> utilities = ["low", "medium", "high"];
 HashSet<string> statuses = ["open", "planned", "blocked", "parked"];
 
@@ -53,10 +52,10 @@ foreach (Item item in items) {
     if (!Program.Slug().IsMatch(item.Slug)) {
         problems.Add(new(item.File, item.Line, $"`{item.Slug}` is not a lowercase hyphenated slug"));
     } else {
-        string kind = item.Slug[..item.Slug.IndexOf('-', StringComparison.Ordinal)];
-        if (!kinds.Contains(kind)) {
-            problems.Add(new(item.File, item.Line, $"`{item.Slug}` does not begin with idea, bug, sec, ops or arch"));
-        } else if (areas.Contains(kind)) {
+        // A defect's slug opens with its kind and an idea's opens with anything but one, so the only
+        // word that means something is the one no item may use: an area would read as a decision.
+        string first = item.Slug[..item.Slug.IndexOf('-', StringComparison.Ordinal)];
+        if (areas.Contains(first)) {
             problems.Add(new(item.File, item.Line, $"`{item.Slug}` begins with a decision area"));
         }
     }
@@ -469,9 +468,12 @@ static void Whims(string root, string file, List<Problem> problems) {
 }
 
 // A citation is a backticked token that names an item, and an item it does not find is a reader sent
-// to a file that is not there. A backticked old number is allowed only where closed.md kept it.
+// to a file that is not there. A backticked old number is allowed only where closed.md kept it. An
+// idea's slug carries no kind for a token to be recognised by, so a link into the record is what
+// proves those: its target has to be a file beside the index.
 static int Citations(string root, Dictionary<string, Item> bySlug, (HashSet<string> Slugs, HashSet<string> Numbers) closed, List<Problem> problems) {
     int count = 0;
+    string record = Path.Combine(root, "docs", "backlog") + Path.DirectorySeparatorChar;
     foreach (string file in Sources(root)) {
         string shown = Path.GetRelativePath(root, file);
         if (Frozen(shown)) {
@@ -492,6 +494,23 @@ static int Citations(string root, Dictionary<string, Item> bySlug, (HashSet<stri
                 string number = match.Groups["id"].Value;
                 if (!closed.Numbers.Contains(number)) {
                     problems.Add(new(shown, i + 1, $"`{number}` is cited by its old number and closed.md has no such row"));
+                }
+            }
+
+            foreach (Match match in Program.Link().Matches(lines[i])) {
+                string target = match.Groups["target"].Value.Split('#')[0];
+                if (target.Length == 0 || target.Contains("://", StringComparison.Ordinal)) {
+                    continue;
+                }
+
+                string resolved = Path.GetFullPath(Path.Combine(Path.GetDirectoryName(file)!, target));
+                if (!resolved.StartsWith(record, StringComparison.Ordinal)) {
+                    continue;
+                }
+
+                count++;
+                if (!File.Exists(resolved)) {
+                    problems.Add(new(shown, i + 1, $"[{match.Groups["text"].Value}]({match.Groups["target"].Value}) links to a file the record does not have"));
                 }
             }
         }
@@ -577,7 +596,7 @@ internal static partial class Program {
     [GeneratedRegex(@"`(?<slug>[a-z][a-z0-9]*(?:-[a-z0-9]+)+)`")]
     internal static partial Regex Token();
 
-    [GeneratedRegex(@"`(?<slug>(?:idea|bug|sec|ops|arch)-(?=[a-z0-9-]*[a-z])[a-z0-9]+(?:-[a-z0-9]+)*)`")]
+    [GeneratedRegex(@"`(?<slug>(?:bug|sec|ops|arch)-(?=[a-z0-9-]*[a-z])[a-z0-9]+(?:-[a-z0-9]+)*)`")]
     internal static partial Regex Citation();
 
     [GeneratedRegex(@"`(?<id>(?:IDEA|SEC|OPS|ARCH|BUG)-\d+)`")]

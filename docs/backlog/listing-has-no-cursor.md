@@ -33,7 +33,7 @@ The host already has the answer and does not offer it:
   rather than a design.
 
 The wider class is every bounded read: a listing, a page's history, a search's matches
-([`idea-cannot-search-the-store`](idea-cannot-search-the-store.md)) and a folder's children all have the same three parts — a bound, a way to
+([`cannot-search-the-store`](cannot-search-the-store.md)) and a folder's children all have the same three parts — a bound, a way to
 resume, and an honest "there is more". Writing that once as a value keeps every later read from
 inventing its own.
 
@@ -88,7 +88,7 @@ inventing its own.
   per-folder endpoint would be a second way to walk one tree (`pages-the-store-is-a-tree`).
 - **An ordered listing that is not by key.** A tree in saved-time order is a different view with a
   different cursor; nothing wants it yet.
-- **A search cursor.** That is [`idea-cannot-search-the-store`](idea-cannot-search-the-store.md)'s, because a match is ordered by key *and* line.
+- **A search cursor.** That is [`cannot-search-the-store`](cannot-search-the-store.md)'s, because a match is ordered by key *and* line.
 
 **Origin:** the owner's comparison of the site's IDE plan (`/ide-plan`, a stored page that is not in this
 repository) with the job list of 2026-11-15. The IDE plan observes that `ListAsync(prefix)` "refuses

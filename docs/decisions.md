@@ -126,13 +126,14 @@ GitHub Issues and Pull Requests tabs are off.
 
 ### product-work-is-jobs
 
-Work is tracked in the backlog: one file per item in `docs/backlog`, named by a `kind-subject` slug
-whose kind is `idea` for something the site could become and `bug`, `sec`, `ops` or `arch` for
-something it gets wrong. An item's title is its H1, its header carries Difficulty on the animal scale,
-Utility, Status, Blocked by and Plan, and the one order table is the priority — small, high-utility
-work first because it never gets scheduled otherwise. A job is the host's `PageJob`; the record does
-not use the word for an item. Speculative product work is an item, not a licence to widen the task in
-hand. The name is kept though the record moved on, because a name is permanent.
+Work is tracked in the backlog: one file per item in `docs/backlog`, named by a slug of two to five
+words that state the gap. A defect's slug begins with its kind, `bug`, `sec`, `ops` or `arch`; an
+idea's carries none, because an idea is what an item is when its slug names no defect, and its branch
+carries the word the slug does not. An item's title is its H1, its header carries Difficulty on the
+animal scale, Utility, Status, Blocked by and Plan, and the one order table is the priority — small,
+high-utility work first because it never gets scheduled otherwise. A job is the host's `PageJob`; the
+record does not use the word for an item. Speculative product work is an item, not a licence to widen
+the task in hand. The name is kept though the record moved on, because a name is permanent.
 
 *Recorded in [the backlog](backlog/README.md), [the plan](plans/archive/backlog-record.md).*
 
@@ -291,7 +292,7 @@ ceiling that keep a configured value from switching a guard off — and a securi
 configured only in the direction that keeps or tightens the shipped guarantee. `Core` never reads
 configuration: the shell turns a setting into a plain value and passes it in.
 
-*Recorded in [configuration](architecture.md#configuration), [`idea-policy-is-a-constant`](backlog/idea-policy-is-a-constant.md).*
+*Recorded in [configuration](architecture.md#configuration), [`policy-is-a-constant`](backlog/policy-is-a-constant.md).*
 
 ### code-validation-at-the-boundary
 
@@ -395,10 +396,11 @@ locally; the fixtures that use the real provider are `[Explicit]` and cost token
 ### code-the-gate-checks-the-backlog
 
 `make check` runs `make backlog`, a tool over `docs/backlog` in the shape of `check-decisions`: a slug
-outside the shape or used twice, a missing or malformed field, a Status the blockers and the plan do
-not say, an item missing from the order or listed twice, a row whose difficulty, utility or status
-disagrees with the item, a planned row that links the wrong plan, an order that puts an item above its
-blocker, a cycle, a plan that does not link back, and a citation of an item that is not in the record
+outside the shape, used twice or opening with a decision area, a missing or malformed field, a Status
+the blockers and the plan do not say, an item missing from the order or listed twice, a row whose
+difficulty, utility or status disagrees with the item, a planned row that links the wrong plan, an
+order that puts an item above its blocker, a cycle, a plan that does not link back, a kinded citation
+of an item that is not in the record, and a link into the record that names a file it does not have
 all fail it. The lists it reads — the difficulty scale, the decision areas — are read out of their own
 documents, so each has one home. A scheme nobody verifies is a scheme that drifts.
 
@@ -1199,7 +1201,7 @@ A save belongs to the next request: the running image is not re-read, the respon
 page unless the page shows the result the save returned, the save is committed before the rest of the
 render, and one render makes at most one write, whichever member it uses. The canonical pattern is a
 `POST` that saves and answers with the diagnostics, or saves and redirects with `303`. A batch that
-names its own policy is [`idea-one-write-per-render`](backlog/idea-one-write-per-render.md)'s work.
+names its own policy is [`one-write-per-render`](backlog/one-write-per-render.md)'s work.
 
 *Recorded in [page self-save](plans/archive/page-self-save.md), [page writes](plans/archive/page-writes.md), [IPageWrites](../src/uk.osric.asp.Sdk/IPageWrites.cs).*
 
@@ -1741,7 +1743,7 @@ with the reason. A route exists because the site's code answers it, so an operat
 list could only let a stored page shadow a route such as `/login`, and no legitimate deployment needs
 that; a longer list would have to invent a route that does not exist. This is the exception
 `code-policy-values-are-configuration` names — a security policy configuration may only keep or tighten
-— and [`idea-policy-is-a-constant`](backlog/idea-policy-is-a-constant.md) lists it with the other invariants.
+— and [`policy-is-a-constant`](backlog/policy-is-a-constant.md) lists it with the other invariants.
 
 *Recorded in [the route catalogue](plans/archive/shell-route-catalogue.md#d4--reservedpaths-derives-its-keys), [ReservedPaths](../src/uk.osric.asp.Web/Pages/ReservedPaths.cs), [the shell](shell.md).*
 
@@ -2127,7 +2129,7 @@ Memory is the assistant's, not the page contract's. Its store, its FTS5 recall, 
 provenance are written by the assistant's tools inside a run and read back into the next prompt, so the
 owner's view of it arrives with the assistant page rather than as a capability of its own. What a page
 cannot do is keep anything for a signed-in account: page storage is shared by every visitor and a page
-session belongs to one browser and goes when it signs out. That gap is [`idea-no-account-store`](backlog/idea-no-account-store.md),
+session belongs to one browser and goes when it signs out. That gap is [`no-account-store`](backlog/no-account-store.md),
 shaped as a per-account SQL store whose tables the page declares, and a capability arrives with the view
 that needs it, so the job names its first customer before it is built.
 
@@ -2693,5 +2695,5 @@ Not decisions yet — recorded so they are not rediscovered:
   the member list is the only exception surface.
 - `pages-page-storage` makes page state shared by every visitor and racy under concurrency: an increment
   is last-write-wins, not atomic. The identity hook a per-user store needs exists, and that store is
-  [`idea-no-account-store`](backlog/idea-no-account-store.md) — a job with its own plan, migration and decision rather than a blocked
+  [`no-account-store`](backlog/no-account-store.md) — a job with its own plan, migration and decision rather than a blocked
   one. An atomic increment would still be a different storage primitive.

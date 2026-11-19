@@ -10,7 +10,7 @@ SPDX-License-Identifier: MIT
 | Difficulty | protective-dragon |
 | Utility | medium |
 | Status | blocked |
-| Blocked by | `idea-no-account-store` |
+| Blocked by | `no-account-store` |
 | Plan | [page-apps](../plans/archive/page-apps.md) |
 | Area | Sdk, Web, assistant |
 | Location | `src/uk.osric.asp.Web/Assistant/AssistantEndpoint.cs`, `src/uk.osric.asp.Web/Assistant/RunQueue.cs`, `src/uk.osric.asp.Sdk/IContext.cs` |
@@ -115,7 +115,7 @@ message-and-event pair the run loop already speaks.
 
 ### 3. The transcript and memory need a store that belongs to an account
 
-This is [`idea-no-account-store`](idea-no-account-store.md) and it blocks both the conversation view and the memory view. A page's
+This is [`no-account-store`](no-account-store.md) and it blocks both the conversation view and the memory view. A page's
 `IPageStorage` is shared by **every** visitor and `IPageSession` goes when the visitor signs out, so
 neither can hold one account's conversation. Memory is the assistant's own rows with FTS5 recall,
 versions, pins and provenance (`assistant-memory-belongs-to-the-assistant`); a view of it needs the same account-scoped store, and a
@@ -125,7 +125,7 @@ to everyone; that is not the feature.
 The approval does **not** need it. A decision is a message to the running job, and a wait in
 `ReceiveAsync` pauses the job's silence clock while the ceiling still bounds it — which is the shape
 an approval needs, and it is available today. A decision that must survive a restart becomes a row in
-the account store, and that is `idea-no-account-store` again.
+the account store, and that is `no-account-store` again.
 
 ### 4. A worker cannot save a page, and the tools do
 
@@ -134,9 +134,9 @@ save, delete and restore any page the shell does not route. A worker is offered 
 (`pages-a-worker-gets-no-response`). What the assistant's page tools do beyond that — the diff, the
 search, the batch — is the rest of this job.
 
-**Split off 2026-11-18.** The writer a worker needs is [`idea-job-borrows-a-credential`](idea-job-borrows-a-credential.md): it acts with the
+**Split off 2026-11-18.** The writer a worker needs is [`job-borrows-a-credential`](job-borrows-a-credential.md): it acts with the
 credential its starter presented, so logging out or changing a password ends it, and it waits on
-[`idea-one-write-per-render`](idea-one-write-per-render.md)'s batch. This job keeps the port; the authority is recorded there.
+[`one-write-per-render`](one-write-per-render.md)'s batch. This job keeps the port; the authority is recorded there.
 
 ### 5. The restricted Markdown profile is shell-only
 
@@ -154,7 +154,7 @@ existing one, or a seeded library the page opts into.
 route, and that the authority is the signed-in visitor's rather than the page's
 (`pages-any-page-may-write-the-store`). So the port needs no worker writer, and the assistant page
 would make its edits through `IPageWrites` the way its tools make them today — with a batch
-([`idea-one-write-per-render`](idea-one-write-per-render.md)) making a multi-file edit one request rather than a sequence.
+([`one-write-per-render`](one-write-per-render.md)) making a multi-file edit one request rather than a sequence.
 
 The shapes that were weighed, with what each cost:
 

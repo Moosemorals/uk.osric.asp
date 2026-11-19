@@ -107,7 +107,7 @@ tokenizer's tokens and the scanner's own literal tracking carry every fact.
 3. **Whether `make check-pages` should fail on a warning.** It does not fail on one today and warning
    severity does not stop a page; the seeds staying quiet is a habit the gate can only encourage.
 4. **What the assistant should be told.** A save's answer already carries the warnings; whether the
-   prompt should name the empty block as a thing not to write is [`idea-assistant-cannot-check-a-page`](idea-assistant-cannot-check-a-page.md)'s subject
+   prompt should name the empty block as a thing not to write is [`cannot-check-a-page`](cannot-check-a-page.md)'s subject
    with its own prompt version.
 
 ## Not in scope
@@ -116,15 +116,15 @@ tokenizer's tokens and the scanner's own literal tracking carry every fact.
   or escapes a `%>` is a different change with a different risk.
 - **Making any of them an error.** `pages-a-warning-never-stops-a-page`.
 - **`%><%` between two blocks.** The seeds use it four times and three are the only spelling for a
-  declaration followed by code. [`idea-declaration-does-not-name-its-close`](idea-declaration-does-not-name-its-close.md) makes the declaration close name itself, so
+  declaration followed by code. [`declaration-does-not-name-its-close`](declaration-does-not-name-its-close.md) makes the declaration close name itself, so
   the junction is marked by the grammar rather than scolded by a warning; nothing here needs to say
   anything about adjacency.
 - **An escaped closer.** `%%>` is already a spelling (`<%%>` is an empty code block), and after
-  `idea-declaration-does-not-name-its-close` a declaration does not need one; the character is written `\u003e`. `idea-declaration-does-not-name-its-close`'s record holds
+  `declaration-does-not-name-its-close` a declaration does not need one; the character is written `\u003e`. `declaration-does-not-name-its-close`'s record holds
   the full argument and the spelling to take if demand ever arrives.
-- **Publishing to VS Code.** The language server is [`idea-vscode-cannot-check-a-page`](idea-vscode-cannot-check-a-page.md); `check-pages`
+- **Publishing to VS Code.** The language server is [`vscode-cannot-check-a-page`](vscode-cannot-check-a-page.md); `check-pages`
   already puts the warnings in its Problems list for free.
-- **A check without saving.** [`idea-check-without-storing`](idea-check-without-storing.md) answers what a save answers, so it
+- **A check without saving.** [`check-without-storing`](check-without-storing.md) answers what a save answers, so it
   inherits these; the assistant's `check` inherits them through that.
 - **Roslyn.** None of this needs the compiler, which is the whole point of the shape check.
 
