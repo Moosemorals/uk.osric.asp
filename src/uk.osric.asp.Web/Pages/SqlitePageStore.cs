@@ -387,6 +387,103 @@ internal sealed class SqlitePageStore(
         return deleted;
     }
 
+    public async Task<PageMoveStoreResult> MovePageAsync(
+        PagePath from,
+        PagePath to,
+        string expectedHash,
+        CancellationToken cancellationToken = default) {
+        ArgumentNullException.ThrowIfNull(from);
+        ArgumentNullException.ThrowIfNull(to);
+        ArgumentException.ThrowIfNullOrWhiteSpace(expectedHash);
+
+        await using IDbContextTransaction transaction = await database.Database.BeginTransactionAsync(cancellationToken);
+
+        var source = await database.Set<PageHead>().AsNoTracking()
+            .Where(head => head.Path == from.Key && !head.IsDeleted)
+            .Join(database.Set<PageRevision>().AsNoTracking(),
+                head => new { head.RevisionId, head.Path },
+                revision => new { revision.RevisionId, revision.Path },
+                (head, revision) => new {
+                    head.RevisionId,
+                    head.SeedHash,
+                    head.ContentHash,
+                    revision.Hash,
+                    revision.TemplateKind,
+                })
+            .SingleOrDefaultAsync(cancellationToken);
+
+        if (source is null) {
+            return PageMoveStoreResult.Of(PageMoveStoreOutcome.SourceNotFound);
+        }
+
+        if (source.TemplateKind == PageKind.Library) {
+            return PageMoveStoreResult.Of(PageMoveStoreOutcome.IsLibrary);
+        }
+
+        if (!string.Equals(source.Hash, expectedHash, StringComparison.Ordinal)) {
+            return PageMoveStoreResult.Of(PageMoveStoreOutcome.Stale);
+        }
+
+        PageHead? target = await database.Set<PageHead>().AsNoTracking()
+            .SingleOrDefaultAsync(head => head.Path == to.Key, cancellationToken);
+        if (target is { IsDeleted: false }) {
+            return PageMoveStoreResult.Of(PageMoveStoreOutcome.TargetExists);
+        }
+
+        // The store is a tree, so a key with anything below it names a folder; moving it would leave
+        // that subtree under a key with no page. One read of every head is enough for a store this size.
+        string[] heads = await database.Set<PageHead>().AsNoTracking()
+            .Select(head => head.Path)
+            .ToArrayAsync(cancellationToken);
+        IReadOnlyList<string> below = [.. heads
+            .Select(PagePath.Normalize)
+            .Where(key => key.IsBelow(from))
+            .Select(key => key.Key)
+            .OrderBy(key => key, StringComparer.Ordinal)];
+
+        if (below.Count > 0) {
+            return new PageMoveStoreResult(PageMoveStoreOutcome.FolderNotEmpty, Below: below);
+        }
+
+        if (target is not null) {
+            // Only a tombstone can reach here: a live target was refused above. Its revisions stay,
+            // because history survives a delete; its state belonged to the dead page and does not.
+            await database.Database.ExecuteSqlAsync(
+                $"""DELETE FROM "PageHeads" WHERE "Path" = {to.Key}""", cancellationToken);
+            await database.Database.ExecuteSqlAsync(
+                $"""DELETE FROM "PageState" WHERE "PagePath" = {to.Key}""", cancellationToken);
+        }
+
+        // The head has to go before its revisions change path: the composite foreign key points at a
+        // revision of the head's own path, and it is checked on every row.
+        int removed = await database.Database.ExecuteSqlAsync($"""
+            DELETE FROM "PageHeads"
+            WHERE "Path" = {from.Key} AND "IsDeleted" = 0 AND "RevisionId" = {source.RevisionId}
+            """, cancellationToken);
+        if (removed == 0) {
+            // A save landed between the read and this statement. The transaction rolls back, so the
+            // author's edit survives and the caller is told to read the page again.
+            await transaction.RollbackAsync(cancellationToken);
+            return PageMoveStoreResult.Of(PageMoveStoreOutcome.Stale);
+        }
+
+        await database.Database.ExecuteSqlAsync($"""
+            UPDATE "PageRevisions" SET "Path" = {to.Key} WHERE "Path" = {from.Key}
+            """, cancellationToken);
+        await database.Database.ExecuteSqlAsync($"""
+            UPDATE "PageState" SET "PagePath" = {to.Key} WHERE "PagePath" = {from.Key}
+            """, cancellationToken);
+        await database.Database.ExecuteSqlAsync($"""
+            INSERT INTO "PageHeads" ("Path", "RevisionId", "IsDeleted", "SeedHash", "ContentHash")
+            VALUES ({to.Key}, {source.RevisionId}, 0, {source.SeedHash}, {source.ContentHash})
+            """, cancellationToken);
+
+        await transaction.CommitAsync(cancellationToken);
+        storageRefresh?.Request();
+
+        return new PageMoveStoreResult(PageMoveStoreOutcome.Moved, source.Hash);
+    }
+
     public async Task<bool> ScrubPageAsync(PagePath path, CancellationToken cancellationToken = default) {
         PageScrubResult result = await ScrubStoredPathAsync(path, requireTombstone: true, cancellationToken);
         return result.Head;

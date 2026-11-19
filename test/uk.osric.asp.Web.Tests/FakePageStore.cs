@@ -246,6 +246,70 @@ internal sealed class FakePageStore : IPageStore {
         return Task.FromResult(true);
     }
 
+    public Task<PageMoveStoreResult> MovePageAsync(
+        PagePath from,
+        PagePath to,
+        string expectedHash,
+        CancellationToken cancellationToken = default) {
+        ArgumentNullException.ThrowIfNull(from);
+        ArgumentNullException.ThrowIfNull(to);
+        ArgumentException.ThrowIfNullOrWhiteSpace(expectedHash);
+        Check(cancellationToken);
+
+        if (!_pages.TryGetValue(from.Key, out PageTemplate? page)
+            || _heads.GetValueOrDefault(from.Key)) {
+            return Task.FromResult(PageMoveStoreResult.Of(PageMoveStoreOutcome.SourceNotFound));
+        }
+
+        if (page.Kind == PageKind.Library) {
+            return Task.FromResult(PageMoveStoreResult.Of(PageMoveStoreOutcome.IsLibrary));
+        }
+
+        if (!string.Equals(page.Hash, expectedHash, StringComparison.Ordinal)) {
+            return Task.FromResult(PageMoveStoreResult.Of(PageMoveStoreOutcome.Stale));
+        }
+
+        if (_heads.TryGetValue(to.Key, out bool targetDeleted) && !targetDeleted) {
+            return Task.FromResult(PageMoveStoreResult.Of(PageMoveStoreOutcome.TargetExists));
+        }
+
+        IReadOnlyList<string> below = [.. _heads.Keys
+            .Select(PagePath.Normalize)
+            .Where(key => key.IsBelow(from))
+            .Select(key => key.Key)
+            .OrderBy(key => key, StringComparer.Ordinal)];
+        if (below.Count > 0) {
+            return Task.FromResult(new PageMoveStoreResult(PageMoveStoreOutcome.FolderNotEmpty, Below: below));
+        }
+
+        string? anchor = _anchors.GetValueOrDefault(from.Key);
+        _pages.Remove(from.Key);
+        _heads.Remove(from.Key);
+        _anchors.Remove(from.Key);
+
+        if (_heads.ContainsKey(to.Key)) {
+            _pages.Remove(to.Key);
+            _anchors.Remove(to.Key);
+            _heads.Remove(to.Key);
+        }
+
+        foreach (PageTemplate revision in _revisions.Values.Where(row => row.Path == from).ToArray()) {
+            _revisions[revision.Hash] = revision with { Path = to };
+        }
+
+        PageTemplate moved = page with { Path = to };
+        _pages[to.Key] = moved;
+        _heads[to.Key] = false;
+        if (anchor is not null) {
+            _anchors[to.Key] = anchor;
+        }
+
+        WriteCount++;
+        LastWritePath = to;
+
+        return Task.FromResult(new PageMoveStoreResult(PageMoveStoreOutcome.Moved, page.Hash));
+    }
+
     public Task<bool> DeletePageAsync(PagePath path, CancellationToken cancellationToken = default) {
         Check(cancellationToken);
         if (!_heads.TryGetValue(path.Key, out bool isDeleted) || isDeleted) {
