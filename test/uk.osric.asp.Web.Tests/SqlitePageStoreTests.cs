@@ -251,7 +251,7 @@ public sealed class SqlitePageStoreTests {
         IPageStore storage = new SqlitePageStore(database, NullLogger<SqlitePageStore>.Instance, currentRuntimeId: "1:build");
         await storage.SavePageAsync(new PageTemplate(path, "Loud.", warning));
 
-        IReadOnlyList<PageListing> listing = await storage.ListPagesAsync();
+        IReadOnlyList<PageListRow> listing = await storage.ListPagesAsync();
 
         Assert.That(listing.Single().State, Is.EqualTo(PageImageState.CompiledWithWarnings));
     }
@@ -262,7 +262,7 @@ public sealed class SqlitePageStoreTests {
         IPageStore storage = new SqlitePageStore(database, NullLogger<SqlitePageStore>.Instance);
         await storage.SavePageAsync(new PageTemplate(Key("/plain"), "plain"));
 
-        IReadOnlyList<PageListing> listing = await storage.ListPagesAsync();
+        IReadOnlyList<PageListRow> listing = await storage.ListPagesAsync();
 
         Assert.That(listing.Single().State, Is.EqualTo(PageImageState.NotCompiled));
     }
@@ -275,7 +275,7 @@ public sealed class SqlitePageStoreTests {
         IPageStore storage = new SqlitePageStore(database, NullLogger<SqlitePageStore>.Instance, currentRuntimeId: "2:build");
         await storage.SavePageAsync(new PageTemplate(path, "Blog.", previous));
 
-        IReadOnlyList<PageListing> listing = await storage.ListPagesAsync();
+        IReadOnlyList<PageListRow> listing = await storage.ListPagesAsync();
 
         Assert.That(listing.Single().State, Is.EqualTo(PageImageState.Stale));
     }
@@ -291,7 +291,7 @@ public sealed class SqlitePageStoreTests {
         await storage.SavePageAsync(new PageTemplate(path, "Gone.", failed));
         await storage.DeletePageAsync(path);
 
-        PageListing row = (await storage.ListPagesAsync()).Single();
+        PageListRow row = (await storage.ListPagesAsync()).Single();
 
         Assert.Multiple(() => {
             Assert.That(row.IsDeleted, Is.True);

@@ -30,7 +30,7 @@ internal sealed class PageEditor(
         return storage.GetPageAsync(path, cancellationToken);
     }
 
-    public Task<IReadOnlyList<PageListing>> ListAsync(CancellationToken cancellationToken = default) {
+    public Task<IReadOnlyList<PageListRow>> ListAsync(CancellationToken cancellationToken = default) {
         return storage.ListPagesAsync(cancellationToken);
     }
 

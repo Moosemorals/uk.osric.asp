@@ -30,7 +30,7 @@ public sealed class PageCatalogTests : IntegrationTest {
         </tr>
     </thead>
     <tbody>
-<% foreach (PageEntry entry in await ctx.Capabilities.GetRequired<IPageCatalog>().ListAsync("")) { %>
+<% foreach (PageEntry entry in (await ctx.Capabilities.GetRequired<IPageCatalog>().ListAsync(new())).Entries) { %>
         <tr>
             <th scope="row"><%= entry.Key %></th>
             <td><%= entry.SavedAt.ToUniversalTime().ToString("yyyy-MM-dd HH:mm 'UTC'", System.Globalization.CultureInfo.InvariantCulture) %></td>
@@ -40,7 +40,40 @@ public sealed class PageCatalogTests : IntegrationTest {
 </table>
 """;
 
+    // A listing that asks for one slice and says whether anything stands after it, which is what a
+    // caller walks a store of any size with.
+    private const string PagedListing = """
+<% ctx.Capabilities.GetRequired<IPageLayout>().Title = "Paged";
+   ctx.Capabilities.GetRequired<IPageComposition>().Wrap();
+   string? after = ctx.Request.Query.TryGetValue("after", out string? asked) ? asked : null;
+   PageListing page = await ctx.Capabilities.GetRequired<IPageCatalog>().ListAsync(
+       new PageListingRequest("", after, 2)); %>
+<h1>Paged</h1>
+<p id="more"><%= page.Truncated ? "more" : "end" %></p>
+<ul>
+<% foreach (PageEntry entry in page.Entries) { %>
+    <li><%= entry.Key %></li>
+<% } %>
+</ul>
+""";
+
     private async Task SeedListingAsync() => await SavePageAsync("/catalog-listing", Listing);
+
+    [Test]
+    public async Task ASliceIsAsLongAsItWasAskedForAndSaysThereIsMoreAsync() {
+        await SavePageAsync("/catalog-paged", PagedListing);
+        using HttpClient client = CreateClient();
+
+        string first = await client.GetStringAsync("/catalog-paged");
+        string past = await client.GetStringAsync("/catalog-paged?after=/zzzz");
+
+        Assert.Multiple(() => {
+            Assert.That(first.Split("<li>").Length - 1, Is.EqualTo(2));
+            Assert.That(first, Does.Contain("more"));
+            Assert.That(past.Split("<li>").Length - 1, Is.Zero, "a cursor past the last key is a complete answer");
+            Assert.That(past, Does.Contain("end"));
+        });
+    }
 
     [Test]
     public async Task ThePublicListingNamesEveryPageAndWhenItChangedAsync() {

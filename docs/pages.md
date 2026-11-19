@@ -91,15 +91,21 @@ pure renderers, and one that is a fact about the build:
   so another account's job is an unknown one rather than a refusal that says it exists (`pages-a-page-may-save-itself`). A
   `HEAD` is offered the reads and not the start, send or cancel, and a layout is offered nothing.
   See [jobs](#jobs).
-- `IPageCatalog` reads the page store and answers what the shell can do: `ListAsync(prefix)` lists the
-  heads under a subtree, `ReadAsync(key)` reads a live page's template, `RevisionsAsync(key)` lists a
+- `IPageCatalog` reads the page store and answers what the shell can do: `ListAsync(request)` lists one
+  slice of the heads under a subtree, `ReadAsync(key)` reads a live page's template, `RevisionsAsync(key)` lists a
   page's history, `ReadRevisionAsync(key, hash)` reads one retained revision, and `ShellLinks()` returns
   the shell's links as values. Each `PageEntry` marks the head
   `IsDeleted`, `IsReserved`, `IsHtml` and `IsAsset`, so a view filters rather than re-deriving the
   host's rules, and carries the head's image state in `State` — the host's own words, judged against
   the running build — so a page's listing says what the editor's says without reading source
   (`pages-a-page-has-a-state`). The class the shell's own list marks it with stays in the shell: how a view presents a
-  state is the view's business. It reads and never writes. The read is
+  state is the view's business. A listing is a `PageListingRequest(prefix, after, limit)` answered by a
+  `PageListing`: `after` is the last key the caller was given and is exclusive, so the next call resumes
+  where the last one stopped and a save between two calls neither skips nor repeats a row; `limit` is
+  bounded by `Pages:Read:MaxRowsPerList`, which an absent limit takes, and a larger one is refused with
+  the setting's name rather than trimmed; and `Truncated` says whether anything stands after the last
+  row, so a caller walks a store of any size one slice at a time (`pages-a-listing-resumes-from-a-key`).
+  It reads and never writes. The read is
   as public as the page that calls it — there is no gate, and a page that wants privacy writes the
   ordinary `ctx.User` guard — and the render's deadline, abandonment and the shared chain budgets
   bound it (`pages-the-store-is-read-through-one-seam`, `pages-reading-the-store-is-public`, `pages-a-listing-carries-facts`, `product-manual-is-a-page`, `pages-delete-install-and-restore`, `pages-page-first`). See [source storage](storage.md#source-storage).

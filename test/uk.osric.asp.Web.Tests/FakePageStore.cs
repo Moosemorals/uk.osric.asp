@@ -81,11 +81,11 @@ internal sealed class FakePageStore : IPageStore {
     /// <summary>The build the listing is judged against, or null to leave staleness unjudged.</summary>
     public string? CurrentRuntimeId { get; set; }
 
-    public Task<IReadOnlyList<PageListing>> ListPagesAsync(CancellationToken cancellationToken = default) {
+    public Task<IReadOnlyList<PageListRow>> ListPagesAsync(CancellationToken cancellationToken = default) {
         Check(cancellationToken);
-        IReadOnlyList<PageListing> result = [.. _heads
+        IReadOnlyList<PageListRow> result = [.. _heads
             .OrderBy(item => item.Key, StringComparer.Ordinal)
-            .Select(item => new PageListing(
+            .Select(item => new PageListRow(
                 PagePath.Normalize(item.Key),
                 item.Value,
                 StateOf(_pages.GetValueOrDefault(item.Key)?.Image)))];

@@ -30,12 +30,12 @@ internal sealed class ExportEndpoint {
     public static async Task ListAsync(HttpContext context, IPageStore pages, ReservedPaths reserved, PageSeeds seeds, IAntiforgery antiforgery) {
         ArgumentNullException.ThrowIfNull(context);
 
-        IReadOnlyList<PageListing> heads = await pages.ListPagesAsync(context.RequestAborted);
-        PageListing[] reachable = [.. heads
+        IReadOnlyList<PageListRow> heads = await pages.ListPagesAsync(context.RequestAborted);
+        PageListRow[] reachable = [.. heads
             .Where(head => IsExportable(head, reserved))
             .OrderBy(head => head.Path.Key, StringComparer.Ordinal)];
-        PageListing[] ownPages = [.. reachable.Where(head => seeds.Find(head.Path) is null)];
-        PageListing[] seededPages = [.. reachable.Where(head => seeds.Find(head.Path) is not null)];
+        PageListRow[] ownPages = [.. reachable.Where(head => seeds.Find(head.Path) is null)];
+        PageListRow[] seededPages = [.. reachable.Where(head => seeds.Find(head.Path) is not null)];
 
         AntiforgeryTokenSet tokens = antiforgery.GetAndStoreTokens(context);
         SecurityHeaders.AllowScripts(context);
@@ -78,7 +78,7 @@ internal sealed class ExportEndpoint {
     // empty heading. The index keeps every checkbox id in the form distinct.
     private static async Task<int> WriteGroupAsync(
         HttpContext context,
-        IReadOnlyList<PageListing> heads,
+        IReadOnlyList<PageListRow> heads,
         string heading,
         int firstIndex) {
         if (heads.Count == 0) {
@@ -87,7 +87,7 @@ internal sealed class ExportEndpoint {
 
         await context.Response.WriteAsync($"<h2>{heading}</h2><ul class=\"admin-pages\" role=\"list\">");
         int index = firstIndex;
-        foreach (PageListing head in heads) {
+        foreach (PageListRow head in heads) {
             string id = "include-" + index.ToString(CultureInfo.InvariantCulture);
             string key = WebUtility.HtmlEncode(head.Path.Key);
             await context.Response.WriteAsync($"""<li><input type="checkbox" id="{id}" name="include" value="{key}" checked><label for="{id}">{key}</label></li>""");
@@ -148,9 +148,9 @@ internal sealed class ExportEndpoint {
             return;
         }
 
-        IReadOnlyList<PageListing> heads = await pages.ListPagesAsync(context.RequestAborted);
+        IReadOnlyList<PageListRow> heads = await pages.ListPagesAsync(context.RequestAborted);
         Dictionary<string, PagePath> reachable = [];
-        foreach (PageListing head in heads) {
+        foreach (PageListRow head in heads) {
             if (IsExportable(head, reserved)) {
                 reachable[head.Path.Key] = head.Path;
             }
@@ -215,7 +215,7 @@ internal sealed class ExportEndpoint {
 
     // A page on a reserved key could never be imported back, and a deleted page has no current
     // source to export, so the list and the download have to agree on what is exportable.
-    private static bool IsExportable(PageListing head, ReservedPaths reserved) =>
+    private static bool IsExportable(PageListRow head, ReservedPaths reserved) =>
         !head.IsDeleted && head.Path.IsAddressable && !reserved.IsReserved(head.Path);
 
     private static IReadOnlyList<NavLink> AdminRemedies(HttpContext context) => context.User.Identity?.IsAuthenticated == true

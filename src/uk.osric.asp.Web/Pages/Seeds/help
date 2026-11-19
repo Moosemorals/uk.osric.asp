@@ -569,14 +569,22 @@ prefix, read a live page's template, list a page's history, and read one retaine
 key and hash. It never meets an image, a symbol or a write; saving is
 <a href="/admin/reference/sdk#t-IPageWrites"><code>IPageWrites</code></a>, below.</p>
 <pre class="source" tabindex="0"><code>&lt;% IPageCatalog catalog = ctx.Capabilities.GetRequired&lt;IPageCatalog&gt;();
-   System.Collections.Generic.IReadOnlyList&lt;PageEntry&gt; pages = await catalog.ListAsync("/blog");
+   PageListing listing = await catalog.ListAsync(new PageListingRequest("/blog"));
    PageSource? page = await catalog.ReadAsync("/blog");
    System.Collections.Generic.IReadOnlyList&lt;PageRevisionInfo&gt; history = await catalog.RevisionsAsync("/blog"); %&gt;
 &lt;ul&gt;
-&lt;% foreach (PageEntry entry in pages) { %&gt;
+&lt;% foreach (PageEntry entry in listing.Entries) { %&gt;
     &lt;li&gt;&lt;%= entry.Key %&gt; — &lt;%= entry.IsDeleted ? "deleted" : "live" %&gt;&lt;/li&gt;
 &lt;% } %&gt;
 &lt;/ul&gt;</code></pre>
+<p>A listing is one slice. <code>PageListingRequest(prefix, after, limit)</code> asks for at most
+<code>limit</code> rows past the key <code>after</code>, which is exclusive: pass the last key you
+were given and the next call resumes where the last one stopped, so a page saved between two calls can
+neither be skipped nor repeated. A blank prefix is the whole store. An absent limit is the host's cap,
+and asking for more than the cap is refused with the setting's name rather than trimmed. The answer's
+<code>Truncated</code> says whether anything stands after the last row, so ask again while it is true
+and stop on an empty answer with it false — a cursor past the last key is a complete answer, not an
+error.</p>
 <p><a href="/admin/reference/sdk#m-IPageCatalog.ShellLinks"><code>ShellLinks()</code></a> is the
 other read: the links the shell knows, both its site menu and its administration menu, as values.
 Each link carries its href, its label, the section it belongs to, who it is for, and how the shell

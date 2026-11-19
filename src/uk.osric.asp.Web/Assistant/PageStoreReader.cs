@@ -104,7 +104,7 @@ internal sealed class PageStoreReader(PageEditor pages, PagePathPolicy paths) : 
     /// <inheritdoc/>
     public async Task<IReadOnlyList<PageNode>> TreeAsync(bool includeDeleted, CancellationToken cancellationToken) {
         Dictionary<string, (bool IsDeleted, PageImageState State)> stored = [with(StringComparer.Ordinal)];
-        foreach (PageListing head in await pages.ListAsync(cancellationToken)) {
+        foreach (PageListRow head in await pages.ListAsync(cancellationToken)) {
             if (paths.IsReserved(head.Path) || (head.IsDeleted && !includeDeleted)) {
                 continue;
             }

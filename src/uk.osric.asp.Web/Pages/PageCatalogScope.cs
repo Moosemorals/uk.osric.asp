@@ -20,9 +20,10 @@ using uk.osric.asp.Sdk;
 /// </para>
 /// <para>
 /// The only refusals are about the call itself. An argument that cannot name anything is an
-/// <see cref="ArgumentException"/>, because that is a page bug; an abandoned render is an
-/// <see cref="InvalidOperationException"/>; and a cap is an <see cref="InvalidOperationException"/>
-/// that names the setting rather than a truncated answer.
+/// <see cref="ArgumentException"/>, because that is a page bug; a limit past the cap is an
+/// <see cref="ArgumentOutOfRangeException"/> that names the setting, rather than a silently trimmed
+/// answer; and an abandoned render is an <see cref="InvalidOperationException"/>. A store with more
+/// rows than the slice asked for is not a refusal: the answer says so.
 /// </para>
 /// </remarks>
 internal sealed class PageCatalogScope(
@@ -44,23 +45,32 @@ internal sealed class PageCatalogScope(
     }
 
     /// <inheritdoc/>
-    public async Task<IReadOnlyList<PageEntry>> ListAsync(string prefix) {
-        string key = NormalizePrefix(prefix);
-        ThrowIfEnded();
+    public async Task<PageListing> ListAsync(PageListingRequest request) {
+        ArgumentNullException.ThrowIfNull(request);
 
-        // One row past the cap is how the store says "there are more"; the read refuses rather than
-        // showing a visitor 500 of 900 pages with nothing to say.
-        IReadOnlyList<PageReadHead> rows = await store.ListAsync(key, options.MaxRowsPerList + 1, Cancellation());
+        string key = NormalizePrefix(request.Prefix);
+        string? after = request.After is null ? null : NormalizeKey(request.After);
+        int limit = request.Limit ?? options.MaxRowsPerList;
 
-        if (rows.Count > options.MaxRowsPerList) {
-            throw new InvalidOperationException(
-                $"Listing {key} on {path.Key} returned more than {options.MaxRowsPerList} pages. "
-                + "Use a prefix to list a subtree, or raise Pages:Read:MaxRowsPerList.");
+        if (limit < 1 || limit > options.MaxRowsPerList) {
+            throw new ArgumentOutOfRangeException(
+                nameof(request),
+                limit,
+                $"A listing of {path.Key} asked for {limit} rows; a limit is 1 to {options.MaxRowsPerList}. "
+                + "Raise Pages:Read:MaxRowsPerList, or ask for a slice and resume from the last key.");
         }
 
+        ThrowIfEnded();
+
+        // One row past the limit is how the store says "there are more" without a second query.
+        IReadOnlyList<PageReadHead> rows = await store.ListAsync(key, after, limit + 1, Cancellation());
+        bool truncated = rows.Count > limit;
+
         List<PageEntry> entries = [];
-        entries.EnsureCapacity(rows.Count);
-        foreach (PageReadHead row in rows) {
+        int shown = Math.Min(rows.Count, limit);
+        entries.EnsureCapacity(shown);
+        for (int index = 0; index < shown; index++) {
+            PageReadHead row = rows[index];
             PageImageState state = PageImageStatus.Describe(
                 row.RuntimeId, row.HasImage, row.HasDiagnostics, currentRuntimeId, row.TemplateKind);
             entries.Add(new PageEntry(
@@ -78,7 +88,7 @@ internal sealed class PageCatalogScope(
             });
         }
 
-        return entries;
+        return new PageListing(entries, truncated);
     }
 
     /// <inheritdoc/>

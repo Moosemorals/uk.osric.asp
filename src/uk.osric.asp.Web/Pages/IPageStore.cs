@@ -21,7 +21,7 @@ internal interface IPageStore {
     /// The state is judged against the running build, so a page whose image came from an earlier one
     /// says so: after a deploy that is every page, until each is next requested.
     /// </remarks>
-    Task<IReadOnlyList<PageListing>> ListPagesAsync(CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<PageListRow>> ListPagesAsync(CancellationToken cancellationToken = default);
 
     /// <summary>Reads a live page's template text only, without the image stored beside it.</summary>
     /// <param name="path">The canonical key to read.</param>

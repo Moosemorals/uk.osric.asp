@@ -7,11 +7,11 @@ SPDX-License-Identifier: MIT
 
 | | |
 | --- | --- |
-| Status | Proposed 2026-11-15 — waits for the owner. Slice 0 is built and merged; the other seven are unbuilt, and nothing below is the IDE |
+| Status | Proposed 2026-11-15 — waits for the owner. Slices 0 and 1 are built and merged; the other six are unbuilt, and nothing below is the IDE |
 | Size | Large as a programme, small as a step: eight capabilities, each its own job and its own branch, ordered so that each ships on its own and can be backed out on its own |
 | Spike | None. Every claim about what exists was read off `trunk` on 2026-11-15: `IPageCatalog`, `IPageEditor`, `PageEditorScope`, `PageWriterScope`, `PageCompiler.MapDiagnostics`, `PageDiagnostics.ToSdk` and `PageJobRunner` |
 | Decisions | `pages-a-diagnostic-names-its-source` (041), recorded at its merge. The rest are named at the merge (`product-plan-before-building`); this branch states the names it intends. One entry is retired rather than revised — the one that made the editor's registration the authority — and `pages-a-page-may-save-itself` is revised twice, once by 043 and once by 047 |
-| Backlog | [`check-without-storing`](../backlog/check-without-storing.md), [`cannot-search-the-store`](../backlog/cannot-search-the-store.md), [`listing-has-no-cursor`](../backlog/listing-has-no-cursor.md), [`library-edit-cost-is-invisible`](../backlog/library-edit-cost-is-invisible.md), [IDEA-041](../backlog/closed.md), [`page-cannot-move`](../backlog/page-cannot-move.md), [IDEA-043](../backlog/closed.md), [`one-write-per-render`](../backlog/one-write-per-render.md) |
+| Backlog | [`check-without-storing`](../backlog/check-without-storing.md), [`cannot-search-the-store`](../backlog/cannot-search-the-store.md), [`listing-has-no-cursor`](../backlog/closed.md), [`library-edit-cost-is-invisible`](../backlog/library-edit-cost-is-invisible.md), [IDEA-041](../backlog/closed.md), [`page-cannot-move`](../backlog/page-cannot-move.md), [IDEA-043](../backlog/closed.md), [`one-write-per-render`](../backlog/one-write-per-render.md) |
 
 ## The short version
 
@@ -101,10 +101,11 @@ backticks beside the slice that took it:
 
 - **pages-a-check-stores-nothing** (037)
 - **pages-a-search-returns-matches** (038)
-- **pages-a-listing-resumes-from-a-key** (039)
 - **pages-a-page-names-its-libraries** (040)
 - `pages-a-diagnostic-names-its-source` (041) — recorded: the span and the key are one rule, a
   diagnostic points at the thing in the file it is in
+- `pages-a-listing-resumes-from-a-key` (039) — recorded: a slice is a keyset, and the cap is the
+  largest slice rather than a refusal
 - **pages-a-key-moves-with-its-history** (042)
 - **pages-any-page-may-write-the-store** (043) — the authority is the signed-in visitor and the two
   write handles are one capability
@@ -138,9 +139,10 @@ smallest changes come first because they are what every later slice is written a
    Smallest, and a breaking change to a public record, so it landed before three more consumers learned
    the point-shaped version. Proved: a token diagnostic has an extent, a library's diagnostic names the
    library, an unknown position is still `null`.
-1. **039 — the cursor.** Small, independent, and the shape 038 and the tree both need. Proves: a
-   cursor walks the store in slices with no key twice and none missed, and the row cap becomes a limit
-   rather than a refusal.
+1. **039 — the cursor.** Landed, and the record is `pages-a-listing-resumes-from-a-key`. Small,
+   independent, and the shape 038 and the tree both need. Proved: a cursor walks the store in slices
+   with no key twice and none missed, a cursor past the last key is an empty answer, and the row cap
+   became a limit rather than a refusal.
 2. **040 — the closure.** Small, and it is what makes a tree's marks true. Proves: a page that names a
    library reports it, a transitive naming does too, a tombstoned library is still named, and saving a
    library changes no row's closure.
