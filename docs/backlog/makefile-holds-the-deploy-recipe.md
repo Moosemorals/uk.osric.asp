@@ -9,11 +9,11 @@ SPDX-License-Identifier: MIT
 | --- | --- |
 | Difficulty | caffeinated-squirrel |
 | Utility | high |
-| Status | open |
+| Status | planned |
 | Blocked by | — |
-| Plan | — |
+| Plan | [deploy-host-script](../plans/deploy-host-script.md) |
 | Area | Deploy, Makefile |
-| Location | `Makefile`, `deploy/` |
+| Location | `deploy/deploy-host`, `Makefile`, `deploy/README.md` |
 | Spike | — |
 
 ## Idea
