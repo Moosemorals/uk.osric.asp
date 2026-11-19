@@ -41,7 +41,7 @@ fi
 # a key in deploy's file that carries a forced `command=` (the backup host's read-only rrsync key) is
 # intentionally not copied.
 if ! id -u ci >/dev/null 2>&1; then
-    useradd --create-home --shell /usr/bin/git-shell --gecos "CI runner" ci
+    useradd --create-home --shell /usr/bin/git-shell --comment "CI runner" ci
 fi
 usermod -s /usr/bin/git-shell ci
 grep -q '^ci:' /etc/subuid || usermod --add-subuids 200000-265535 ci
