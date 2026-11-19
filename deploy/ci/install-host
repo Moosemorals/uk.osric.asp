@@ -16,6 +16,10 @@ if [ "$(id -u)" -ne 0 ]; then
     exit 1
 fi
 
+# sudo -u keeps the operator's working directory, and that is a 0700 home the ci account cannot
+# enter — rootless podman fails with "cannot chdir to /home/<operator>". Move somewhere neutral.
+cd /
+
 # The host's packages. The rootless pieces come from cloud-init on a fresh host; naming them here
 # turns a missing one into a clear message rather than a check that fails minutes later.
 missing=
@@ -43,13 +47,18 @@ fi
 if ! id -u ci >/dev/null 2>&1; then
     useradd --create-home --shell /usr/bin/git-shell --comment "CI runner" ci
 fi
-usermod -s /usr/bin/git-shell ci
+if [ "$(getent passwd ci | cut -d: -f7)" != /usr/bin/git-shell ]; then
+    usermod -s /usr/bin/git-shell ci
+fi
 grep -q '^ci:' /etc/subuid || usermod --add-subuids 200000-265535 ci
 grep -q '^ci:' /etc/subgid || usermod --add-subgids 200000-265535 ci
 loginctl enable-linger ci
 install -d -o ci -g ci -m 0700 /home/ci /home/ci/.ssh
 chmod 0700 /home/ci
-install -d -o ci -g ci -m 0755 /home/ci/bin /home/ci/.config/systemd/user
+# Every level is named: `install -d` creates a missing intermediate directory as root, and a root-owned
+# ~/.config makes rootless podman refuse to start. Naming them also repairs a host that already has one.
+install -d -o ci -g ci -m 0755 /home/ci/bin
+install -d -o ci -g ci -m 0755 /home/ci/.config /home/ci/.config/systemd /home/ci/.config/systemd/user
 install -d -m 0755 /var/lib/uk.osric.asp-ci
 chown ci:ci /var/lib/uk.osric.asp-ci
 if [ ! -e /home/ci/.ssh/authorized_keys ]; then
@@ -89,6 +98,8 @@ if ! dotnet --list-sdks | grep -qE "^${sdk_major_minor//./\\.}\\.[0-9]+ "; then
     echo "install-host: $sdk_package is installed but no $sdk_major_minor.x SDK is listed" >&2
     exit 1
 fi
+# The per-account install the apt package replaces; left behind it is a stale SDK nothing reads.
+rm -rf /home/ci/.dotnet /home/ci/dotnet-install.sh
 
 # The bare repository is a clone of the public GitHub URL, so every branch and tag that exists today
 # is present before the first push and the first pruned mirror has nothing to delete.
@@ -140,8 +151,13 @@ uid=$(id -u ci)
 sudo -H -u ci env XDG_RUNTIME_DIR="/run/user/$uid" systemctl --user daemon-reload
 sudo -H -u ci env XDG_RUNTIME_DIR="/run/user/$uid" systemctl --user enable --now uk.osric.asp-mirror.timer
 
-if [ "$(sudo -H -u ci env XDG_RUNTIME_DIR="/run/user/$uid" podman info --format '{{.Host.Security.Rootless}}' 2>/dev/null)" != "true" ]; then
-    echo "install-host: ci cannot run rootless podman; check subuid/subgid and lingering" >&2
+if ! podman_output=$(sudo -H -u ci env XDG_RUNTIME_DIR="/run/user/$uid" podman info --format '{{.Host.Security.Rootless}}' 2>&1); then
+    echo "install-host: ci cannot run rootless podman: $podman_output" >&2
+    echo "install-host: check /etc/subuid, /etc/subgid, lingering and that /home/ci/.config belongs to ci" >&2
+    exit 1
+fi
+if [ "$podman_output" != true ]; then
+    echo "install-host: ci's podman reports rootless=$podman_output; check /etc/subuid for ci" >&2
     exit 1
 fi
 
