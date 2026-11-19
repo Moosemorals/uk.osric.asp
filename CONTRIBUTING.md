@@ -45,8 +45,9 @@ writes the entry. The merge also closes the plan: its Status becomes merged and 
 **The owner merges, not the agent.** A branch is a proposal. When its work is done and its gate is
 run, the agent stops and says what changed, what proved it and what it is unsure of; the owner answers.
 A green gate, a finished plan, an obvious next step or silence is not an answer. The same holds before
-the work: a plan is committed on its branch and waits for a yes before anything is built
-([the programme](docs/backlog/README.md#a-step-stops-and-the-owner-answers)).
+the work, in two stages: the questions an item or a plan puts to the owner are asked and answered
+before anything is written from it, and then a plan is committed on its branch and waits for a yes
+before anything is built ([the programme](docs/backlog/README.md#a-step-stops-and-the-owner-answers))
 
 Two independent steps may run at once, each in its own worktree. No two agents share a worktree, and
 `make deploy` and `make image` wait until nothing else is building. Each worktree builds into its own
