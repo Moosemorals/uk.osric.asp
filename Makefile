@@ -83,6 +83,12 @@ SOURCE_DATE_EPOCH ?= $(shell git log -1 --format=%ct 2>/dev/null)
 # Where `make deploy` sends the image and quadlets, and where the remote-* targets run.
 HOST ?=
 
+# The host's CI account. `ci-install` takes HOST as the deploy connection and derives the push
+# address from the same host; SDK_VERSION is what the tree pins, not the distribution's roll-forward.
+CI_HOST ?= ci@$(lastword $(subst @, ,$(HOST)))
+CI_STATUS_DIR := /var/lib/uk.osric.asp-ci
+SDK_VERSION := $(shell sed -n 's/.*"version": *"\([^"]*\)".*/\1/p' global.json)
+
 # A deploy is a dozen ssh commands to one host. A control socket makes them one connection: the host
 # key check and authentication happen once, and every later command is a channel on the connection
 # that is already open. ControlPersist closes the master 60s after the last of them — long enough to
@@ -123,7 +129,7 @@ BUILD_INPUTS := $(shell find src test tools -type f 2>/dev/null) \
 	Directory.Build.props Directory.Build.targets Directory.Packages.props $(SOLUTION) \
 	$(wildcard $(ARTIFACTS)/bin $(ARTIFACTS)/obj)
 
-.PHONY: help build restore check ci drift-check audit check-pages decisions backlog test test-core test-runtime test-web test-integration test-browser test-browser-live browsers vscode-extension migration user-add user-passwd user-list user-remove remote-user-add remote-user-passwd remote-user-list remote-user-remove seeds-list seeds-pull remote-seeds-list remote-seeds-pull run publish image image-check deploy deploy-guard pull-install format format-check license-check mutation-core mutation-runtime mutation-sdk mutation-web worktree worktrees worktree-remove changelist clean
+.PHONY: help build restore check ci ci-install drift-check audit check-pages decisions backlog test test-core test-runtime test-web test-integration test-browser test-browser-live browsers vscode-extension migration user-add user-passwd user-list user-remove remote-user-add remote-user-passwd remote-user-list remote-user-remove seeds-list seeds-pull remote-seeds-list remote-seeds-pull run publish image image-check deploy deploy-guard pull-install format format-check license-check mutation-core mutation-runtime mutation-sdk mutation-web worktree worktrees worktree-remove changelist clean
 .DELETE_ON_ERROR:
 
 # ssh will not create the directory its control socket lives in.
@@ -138,6 +144,7 @@ help:
 		'restore            Force a NuGet restore (build restores only when inputs change).' \
 		'check              The gate: formatting, licences, package audit, the record, the seeded pages, every suite, Release publish.' \
 		'ci                 Clean tree, the gate, and two image builds that must agree.' \
+		'ci-install         Prepare HOST=deploy@server with the ci account, bare repo, hooks, units and status file.' \
 		'audit              Fail if any NuGet package is vulnerable or deprecated.' \
 		'check-pages        Compile the seeded pages and print compiler diagnostics.' \
 		'decisions          Check the decision record: names, areas, duplicates, citations.' \
@@ -249,13 +256,25 @@ drift-check:
 	@$(MAKE) --no-print-directory build
 	@test -z "$$(git status --porcelain)" || { echo "the build wrote to the working tree; commit it or ignore it"; git status --short; exit 1; }
 
-# What a machine with nothing but this repository, the SDK, reuse and podman runs. No workflow file,
-# no service, no secret: whatever eventually runs this is calling one target. It adds the clean tree
-# at both ends and the reproducibility proof, which are the two things `check` alone cannot say.
+# What a machine with nothing but this repository, the SDK, reuse and podman runs. The host runs it
+# from a post-receive hook installed by `ci-install`; whatever else runs it is calling one target. It
+# adds the clean tree at both ends and the reproducibility proof, which are the two things `check`
+# alone cannot say.
 ci: clean
 	@$(MAKE) --no-print-directory drift-check
 	@$(MAKE) --no-print-directory check
 	@$(MAKE) --no-print-directory image-check
+
+# Prepares the host's CI account, bare repository, hooks, units and status file. The files under
+# deploy/ci are the source of truth; this copies them up and lets install-host do the account work as
+# root. It is idempotent: a second run only changes what is missing or stale.
+ci-install: | $(SSH_CONTROL_DIR)
+	@test -n "$(strip $(HOST))" || { echo "usage: make ci-install HOST=deploy@your.server"; exit 1; }
+	@$(SSH) -o ConnectTimeout=10 $(HOST) true || { echo "cannot reach $(HOST)"; exit 1; }
+	@$(SSH) $(HOST) 'sudo -n true' || { echo "$(HOST) needs passwordless sudo for the account setup"; exit 1; }
+	@$(SSH) $(HOST) 'rm -rf /tmp/uk.osric.asp-ci-install && mkdir -p /tmp/uk.osric.asp-ci-install'
+	tar -C deploy/ci -cf - . | $(SSH) $(HOST) 'tar -C /tmp/uk.osric.asp-ci-install -xf -'
+	$(SSH) $(HOST) 'sudo bash /tmp/uk.osric.asp-ci-install/install-host "$(SDK_VERSION)" "$(CI_HOST)"; status=$$?; sudo rm -rf /tmp/uk.osric.asp-ci-install; exit $$status'
 
 test-core: build
 	$(DOTNET) test $(CORE_TESTS) -c $(CONFIGURATION) --no-build $(TEST_FAST_ARGS)
@@ -566,6 +585,20 @@ deploy: deploy-guard check test-browser image | $(SSH_CONTROL_DIR)
 		fi; \
 		sleep 2; \
 	done'
+	@# The CI status is Caddy's, not the app's: the caddy container mounts this directory, so it must
+	@# exist before that unit starts. Seed a valid never-run body rather than a 404; ci-install owns it
+	@# and leaves an existing result alone.
+	$(SSH) $(HOST) 'sudo install -d -m 0755 $(CI_STATUS_DIR); \
+		if id ci >/dev/null 2>&1; then sudo chown ci:ci $(CI_STATUS_DIR); fi; \
+		if [ ! -e $(CI_STATUS_DIR)/status.json ]; then \
+			if id ci >/dev/null 2>&1; then \
+				sudo -H -u ci tee $(CI_STATUS_DIR)/status.json >/dev/null; \
+			else \
+				sudo tee $(CI_STATUS_DIR)/status.json >/dev/null; \
+			fi; \
+			sudo chmod 0644 $(CI_STATUS_DIR)/status.json; \
+		fi; \
+		if id ci >/dev/null 2>&1; then sudo chown ci:ci $(CI_STATUS_DIR)/status.json; fi' < deploy/ci/status-never-run.json
 	$(SSH) $(HOST) sudo install -d -o root -g root -m 0755 /etc/caddy
 	$(SSH) $(HOST) 'sudo tee /etc/caddy/Caddyfile > /dev/null' < deploy/Caddyfile
 	$(SSH) $(HOST) 'sudo tee /etc/containers/systemd/caddy.container' < deploy/caddy.container > /dev/null

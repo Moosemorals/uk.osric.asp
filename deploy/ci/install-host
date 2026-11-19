@@ -1,0 +1,135 @@
+#!/bin/bash
+# SPDX-FileCopyrightText: Copyright 2026 Osric Wilkinson <osric@fluffypeople.com>
+# SPDX-License-Identifier: MIT
+
+# Prepares the host's ci account, bare repository, hooks, units and status file. `make ci-install`
+# copies this directory to the host and runs this as root, so the files beside it are the source of
+# truth. It is idempotent: a second run only changes what is missing or stale.
+set -euo pipefail
+
+sdk=${1:?usage: install-host <sdk-version> [ci@host]}
+ci_host=${2:-ci@$(hostname -f)}
+directory=$(cd "$(dirname "$0")" && pwd)
+
+if [ "$(id -u)" -ne 0 ]; then
+    echo "install-host: run as root; make ci-install does this" >&2
+    exit 1
+fi
+
+# The host's packages. The rootless pieces come from cloud-init on a fresh host; naming them here
+# turns a missing one into a clear message rather than a check that fails minutes later.
+missing=
+for command in git make jq reuse podman curl; do
+    command -v "$command" >/dev/null 2>&1 || missing="$missing $command"
+done
+for package in ca-certificates libicu-dev uidmap passt fuse-overlayfs aardvark-dns; do
+    dpkg -s "$package" >/dev/null 2>&1 || missing="$missing $package"
+done
+if [ -n "$missing" ]; then
+    echo "installing$missing"
+    apt-get update -qq
+    apt-get install -y $missing
+fi
+
+if ! command -v git-shell >/dev/null 2>&1; then
+    echo "install-host: git-shell is missing; install git" >&2
+    exit 1
+fi
+
+# The account. It has no sudo and a login shell that only carries git. The owner's unrestricted keys
+# are copied so the same SSH identity that reaches deploy can push, but cannot run a command here;
+# a key in deploy's file that carries a forced `command=` (the backup host's read-only rrsync key) is
+# intentionally not copied.
+if ! id -u ci >/dev/null 2>&1; then
+    useradd --create-home --shell /usr/bin/git-shell --gecos "CI runner" ci
+fi
+usermod -s /usr/bin/git-shell ci
+grep -q '^ci:' /etc/subuid || usermod --add-subuids 200000-265535 ci
+grep -q '^ci:' /etc/subgid || usermod --add-subgids 200000-265535 ci
+loginctl enable-linger ci
+install -d -o ci -g ci -m 0700 /home/ci /home/ci/.ssh
+chmod 0700 /home/ci
+install -d -o ci -g ci -m 0755 /home/ci/bin /home/ci/.config/systemd/user
+install -d -m 0755 /var/lib/uk.osric.asp-ci
+chown ci:ci /var/lib/uk.osric.asp-ci
+if [ ! -e /home/ci/.ssh/authorized_keys ]; then
+    grep -v 'command=' /home/deploy/.ssh/authorized_keys > /home/ci/.ssh/authorized_keys || true
+fi
+chown ci:ci /home/ci/.ssh/authorized_keys
+chmod 0600 /home/ci/.ssh/authorized_keys
+
+# The SDK the tree pins, not the distribution's roll-forward. The binary lives in the ci home so the
+# account is self-contained; `check-push` puts it first on PATH.
+if ! sudo -H -u ci /home/ci/.dotnet/dotnet --list-sdks 2>/dev/null | grep -q "^$sdk "; then
+    echo "installing .NET SDK $sdk for ci"
+    sudo -H -u ci curl -fsSL https://dot.net/v1/dotnet-install.sh -o /home/ci/dotnet-install.sh
+    sudo -H -u ci bash /home/ci/dotnet-install.sh --version "$sdk" --install-dir /home/ci/.dotnet
+fi
+
+# The bare repository is a clone of the public GitHub URL, so every branch and tag that exists today
+# is present before the first push and the first pruned mirror has nothing to delete.
+if [ ! -d /home/ci/repo.git ]; then
+    sudo -H -u ci git clone --bare https://github.com/Moosemorals/uk.osric.asp.git /home/ci/repo.git
+fi
+sudo -H -u ci git --git-dir=/home/ci/repo.git symbolic-ref HEAD refs/heads/trunk
+if sudo -H -u ci git --git-dir=/home/ci/repo.git remote get-url github >/dev/null 2>&1; then
+    sudo -H -u ci git --git-dir=/home/ci/repo.git remote set-url github git@github.com:Moosemorals/uk.osric.asp.git
+else
+    sudo -H -u ci git --git-dir=/home/ci/repo.git remote add github git@github.com:Moosemorals/uk.osric.asp.git
+fi
+
+# The mirror's key can write this repository and nothing else. Its host key is pinned at install
+# time; a host that cannot reach GitHub gets a warning here and a mirror that fails until it can.
+if [ ! -e /home/ci/.ssh/id_ed25519_github ]; then
+    sudo -H -u ci ssh-keygen -q -t ed25519 -N '' -C 'uk.osric.asp mirror' -f /home/ci/.ssh/id_ed25519_github
+fi
+if ! ssh-keyscan -t ed25519 github.com 2>/dev/null | sudo -H -u ci tee -a /home/ci/.ssh/known_hosts >/dev/null; then
+    echo "install-host: could not read GitHub's host key; fill /home/ci/.ssh/known_hosts before the mirror" >&2
+fi
+sudo -H -u ci tee /home/ci/.ssh/config >/dev/null <<'EOF'
+Host github.com
+  User git
+  IdentityFile ~/.ssh/id_ed25519_github
+  IdentitiesOnly yes
+  StrictHostKeyChecking yes
+EOF
+chown ci:ci /home/ci/.ssh/config /home/ci/.ssh/known_hosts
+chmod 0600 /home/ci/.ssh/config /home/ci/.ssh/known_hosts
+
+# The hooks, the two scripts and the units. The paths are the ones the scripts name; the files here
+# are the source of truth, exactly as the quadlets are.
+install -o ci -g ci -m 0755 "$directory/pre-receive" /home/ci/repo.git/hooks/pre-receive
+install -o ci -g ci -m 0755 "$directory/post-receive" /home/ci/repo.git/hooks/post-receive
+install -o ci -g ci -m 0755 "$directory/check-push" /home/ci/bin/check-push
+install -o ci -g ci -m 0755 "$directory/mirror" /home/ci/bin/mirror
+install -o ci -g ci -m 0644 "$directory/uk.osric.asp-ci.slice" /home/ci/.config/systemd/user/uk.osric.asp-ci.slice
+install -o ci -g ci -m 0644 "$directory/uk.osric.asp-mirror.service" /home/ci/.config/systemd/user/uk.osric.asp-mirror.service
+install -o ci -g ci -m 0644 "$directory/uk.osric.asp-mirror.timer" /home/ci/.config/systemd/user/uk.osric.asp-mirror.timer
+
+if [ ! -e /var/lib/uk.osric.asp-ci/status.json ]; then
+    sudo -H -u ci tee /var/lib/uk.osric.asp-ci/status.json >/dev/null < "$directory/status-never-run.json"
+fi
+chown ci:ci /var/lib/uk.osric.asp-ci/status.json
+chmod 0644 /var/lib/uk.osric.asp-ci/status.json
+
+uid=$(id -u ci)
+sudo -H -u ci env XDG_RUNTIME_DIR="/run/user/$uid" systemctl --user daemon-reload
+sudo -H -u ci env XDG_RUNTIME_DIR="/run/user/$uid" systemctl --user enable --now uk.osric.asp-mirror.timer
+
+if [ "$(sudo -H -u ci env XDG_RUNTIME_DIR="/run/user/$uid" podman info --format '{{.Host.Security.Rootless}}' 2>/dev/null)" != "true" ]; then
+    echo "install-host: ci cannot run rootless podman; check subuid/subgid and lingering" >&2
+    exit 1
+fi
+
+echo
+echo "CI account is ready. Add this deploy key to GitHub (Settings -> Deploy keys) with write access:"
+sudo -H -u ci cat /home/ci/.ssh/id_ed25519_github.pub
+echo
+echo "Then switch this checkout to the host:"
+echo "  git remote rename origin github"
+echo "  git remote add origin $ci_host:repo.git"
+echo "  git fetch origin"
+echo "  git branch --set-upstream-to=origin/trunk trunk"
+echo
+echo "The result is https://moosemorals.com/ci/status.json; the full log is the unit the push names in"
+echo "the journal. If the mirror's key is not on GitHub yet, the timer retries every fifteen minutes."

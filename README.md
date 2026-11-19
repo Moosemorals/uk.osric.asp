@@ -133,6 +133,7 @@ The `Makefile` is the only entry point; `make help` lists everything.
 | `make migration NAME=...` | Add a storage migration |
 | `make image` | Build the OCI image into podman |
 | `make deploy HOST=deploy@server` | The gate plus the browser suite, build, push and restart on the server |
+| `make ci-install HOST=deploy@server` | Prepare the host's CI account, bare repo, hooks, units and status file |
 | `make changelist` | Write the deployed commit's history to `artifacts/changes.txt`, which `/admin/changes` serves |
 | `make worktree BRANCH=...` | Create the branch and the worktree a job or plan is worked in |
 | `make worktrees` | List every worktree, the main one included |
@@ -156,7 +157,9 @@ are the things NuGet cannot give you, and a fresh machine has none of them.
 
 The server side needs rootless podman with `uidmap`, `passt`, `fuse-overlayfs` and `aardvark-dns`
 (container-name resolution for the shared network); `deploy/cloud-init.yaml` installs those on a fresh
-Debian 13 arm64 VM (Hetzner CAX21).
+Debian 13 arm64 VM (Hetzner CAX21). The host's separate `ci` account also needs `git`, `make`,
+`reuse`, `jq`, `curl`, `libicu-dev` and the SDK the tree pins; `make ci-install` checks and installs
+them, and [the deployment notes](deploy/README.md#ci-on-the-host) describe the account.
 
 Optional, but they make life easier: the `hcloud` CLI if you are creating the VM, and VS Code with
 the C# extension, which has a launch configuration in `.vscode/launch.json`.

@@ -1,0 +1,14 @@
+# SPDX-FileCopyrightText: Copyright 2026 Osric Wilkinson <osric@fluffypeople.com>
+# SPDX-License-Identifier: MIT
+
+[Unit]
+Description=Mirror the host's branches and tags to GitHub
+
+[Service]
+Type=oneshot
+ExecStart=%h/bin/mirror
+# The site is serving requests at the time this runs; let those win.
+Nice=10
+IOSchedulingClass=best-effort
+IOSchedulingPriority=7
+Slice=uk.osric.asp-ci.slice

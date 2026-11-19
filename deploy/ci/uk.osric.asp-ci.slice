@@ -1,0 +1,10 @@
+# SPDX-FileCopyrightText: Copyright 2026 Osric Wilkinson <osric@fluffypeople.com>
+# SPDX-License-Identifier: MIT
+
+[Slice]
+# The CAX21 has four vCPUs and 8 GiB. The app keeps its own --cpus=3 and --memory=2g; this slice is
+# the build's ceiling, and the low weights are what let a page win while a check is running.
+CPUQuota=200%
+MemoryMax=4G
+CPUWeight=50
+IOWeight=50

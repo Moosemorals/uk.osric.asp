@@ -90,6 +90,33 @@ this is what podman does about it.
   raising it without leaving memory for the page cache only moves the kill from the container to the
   kernel's choice of victim.
 
+## CI on the host
+
+The `ci` account runs `make ci` on every trunk push. It is not the app's account and has no sudo.
+
+- **The slice.** `uk.osric.asp-ci.slice` gives the check and the mirror 2 vCPUs and 4 GiB, with
+  `CPUWeight=50` and `IOWeight=50` and `Nice=10` on the units, so a page keeps the app's 3 vCPU / 2 GiB
+  cgroup while a check runs. If the build is OOM-killed, raise the slice; do not raise the app's
+  limit to make room.
+- **The journal.** The transient unit is `uk.osric.asp-ci-<short>-<pid>`, and the push prints the
+  exact name. `sudo journalctl _SYSTEMD_USER_UNIT=uk.osric.asp-ci-<short>-<pid>` reads the whole
+  `make ci` output; the status file carries the result and the failing target.
+- **The status.** Caddy serves `/var/lib/uk.osric.asp-ci/status.json` at `/ci/status.json` from a
+  read-only mount. A missing file is a 404; `make ci-install` or `make deploy` seeds a `never-run`
+  one. The app does not read it, so the status answers with the app down.
+- **The disk.** `make ci` starts with `clean` and `check-push` removes its worktree; the persistent
+  growth is the NuGet cache and podman's layers under `/home/ci`, and the image proof removes its two
+  images. `df -h /home` is the measurement if a check starts failing for space.
+- **A red status.** Trunk stays as pushed; the status names the commit and the failing target. Fix
+  forward. `make deploy` still runs its own gate and the browser suite; the host check is a signal,
+  not a lock on the release.
+- **A stuck or lost unit.** The journal shows whether a check is running, and the next trunk push
+  starts a new one. A check can be run by hand as `ci`:
+  `sudo -H -u ci /home/ci/bin/check-push <sha>` — it only checks the current trunk tip.
+- **The mirror.** `uk.osric.asp-mirror.service` holds `/home/ci/.mirror.lock`; the timer retries every
+  fifteen minutes. A failed push is in `journalctl _SYSTEMD_USER_UNIT=uk.osric.asp-mirror.service`,
+  and no host ref is lost by it.
+
 ## Configuration
 
 Every policy value the site needs is required: there is no fallback in code, so a host that is missing

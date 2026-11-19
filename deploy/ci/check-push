@@ -1,0 +1,117 @@
+#!/bin/bash
+# SPDX-FileCopyrightText: Copyright 2026 Osric Wilkinson <osric@fluffypeople.com>
+# SPDX-License-Identifier: MIT
+
+# Runs make ci for one trunk commit and writes the result Caddy serves. It is started by the
+# post-receive hook as a transient systemd unit in the ci slice. The lock serializes runs, and the
+# "latest wins" check leaves a commit that was superseded before its run began to the newer push.
+set -euo pipefail
+
+if [ "$#" -ne 1 ]; then
+    echo "usage: check-push <commit>" >&2
+    exit 2
+fi
+
+commit=$1
+# The defaults are the host's; the overrides are what the local harness uses to exercise this script
+# without writing under /home/ci or /var/lib.
+home=${CI_HOME:-/home/ci}
+repo=${CI_REPO:-$home/repo.git}
+status_dir=${CI_STATUS_DIR:-/var/lib/uk.osric.asp-ci}
+status=$status_dir/status.json
+lock=$home/.check.lock
+log=
+
+export HOME=$home
+export PATH=$home/.dotnet:/usr/local/bin:/usr/bin:/bin
+export XDG_RUNTIME_DIR=${XDG_RUNTIME_DIR:-/run/user/$(id -u)}
+export DOTNET_CLI_TELEMETRY_OPTOUT=1
+export DOTNET_NOLOGO=1
+
+if [ ! -d "$status_dir" ]; then
+    echo "check-push: $status_dir is missing; run make ci-install" >&2
+    exit 1
+fi
+
+# A second push starts a second unit; it waits here rather than running a second make ci beside this
+# one. The ceiling is generous: a real run is minutes, and a wait longer than an hour is a fault.
+exec 9>"$lock"
+flock -w 3600 9
+
+if [ "$(git --git-dir="$repo" rev-parse refs/heads/trunk)" != "$commit" ]; then
+    echo "check-push: $commit is no longer trunk; the newer push is the one being checked"
+    exit 0
+fi
+
+write_status() {
+    local result=$1
+    local exit_code=$2
+    local summary=$3
+    local started=$4
+    local finished=${5:-}
+    local tmp
+
+    tmp=$(mktemp "$status_dir/.status.XXXXXX")
+    chmod 0644 "$tmp"
+    jq -n \
+        --arg commit "$commit" \
+        --arg ref "refs/heads/trunk" \
+        --arg result "$result" \
+        --arg startedAt "$started" \
+        --arg finishedAt "$finished" \
+        --arg summary "$summary" \
+        --argjson exitCode "$exit_code" \
+        '{commit: $commit, ref: $ref, result: $result,
+          startedAt: (if $startedAt == "" then null else $startedAt end),
+          finishedAt: (if $finishedAt == "" then null else $finishedAt end),
+          exitCode: (if $exitCode < 0 then null else $exitCode end),
+          summary: $summary}' >"$tmp"
+    mv "$tmp" "$status"
+}
+
+work=$(mktemp -d "$home/work.XXXXXX")
+rmdir "$work"
+cleanup() {
+    git --git-dir="$repo" worktree remove --force "$work" 2>/dev/null || true
+    rm -rf "$work"
+    rm -f "$log"
+}
+trap cleanup EXIT
+
+git --git-dir="$repo" worktree add --detach "$work" "$commit"
+
+started=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+write_status running -1 "make ci is running" "$started"
+
+log=$(mktemp "$home/ci-$commit.XXXXXX.log")
+set +e
+(cd "$work" && make ci) >"$log" 2>&1
+code=$?
+set -e
+cat "$log"
+
+finished=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+if [ "$code" -eq 0 ]; then
+    summary="make ci passed"
+else
+    summary="make ci exited $code"
+    target=$(grep -E '^make(\[[0-9]+\])?: \*\*\* \[.*: [^]]+\] Error [0-9]+$' "$log" \
+        | tail -1 \
+        | sed -E 's/^make(\[[0-9]+\])?: \*\*\* \[.*: ([^]]+)\] Error [0-9]+$/\2/')
+    if [ -n "$target" ]; then
+        summary="make ci failed: $target"
+    fi
+fi
+
+if [ "$(git --git-dir="$repo" rev-parse refs/heads/trunk)" = "$commit" ]; then
+    result=passed
+    if [ "$code" -ne 0 ]; then
+        result=failed
+    fi
+    write_status "$result" "$code" "$summary" "$started" "$finished"
+else
+    echo "check-push: trunk moved while $commit was checked; not publishing a result for it"
+fi
+
+# The status file is the result; a failed gate is a published answer, not a failed unit.
+exit 0

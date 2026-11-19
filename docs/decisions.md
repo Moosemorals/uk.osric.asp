@@ -326,10 +326,12 @@ is how a reader sees what a file depends on.
 
 ### code-one-gate
 
-There is one gate: `make check`, run on demand and by `make deploy` and `make ci`, and the `Makefile`
-is the only entry point — no parallel scripts and no second definition of "green". Nothing installs a
-pre-push hook and there are no workflow files, no service and no secret: a machine with the
-repository, the SDK, `reuse` and podman can reproduce the gate. Warnings are errors and code style is
+There is one gate: `make check`, run on demand, by `make deploy` and by `make ci` on the host after a
+push to `trunk`; the `Makefile` is the only entry point — no parallel scripts and no second definition
+of "green". Nothing installs a pre-push hook and there are no workflow files: the host runs the same
+target from a `post-receive` hook, and the only secret is the mirror's deploy key, which lives on the
+host. A machine with the repository, the SDK, `reuse` and podman can reproduce the gate. Warnings are
+errors and code style is
 enforced in the build rather than only in the gate, so what `make build` proves is what `make check`
 proves and a cached stamp can never mean a looser build. That is why `make format-check` asks
 `dotnet format` for layout and nothing else — the whitespace rules and the `IMPORTS` fixer that orders
@@ -2510,11 +2512,45 @@ figure left is `Assistant:MinOutputTokens`.
 ### deploy-one-small-host
 
 One Hetzner Cloud VM: a CAX21 — four Ampere arm64 vCPUs, 8 GB of RAM, an 80 GB SSD, Debian 13 — with
-rootless podman quadlets for the app and Prometheus and rootful Caddy as the only privileged unit. Caddy
-owns 80 and 443 and proxies to the app's loopback port. The move from the older x86 host replaced it
-rather than adding to it: the topology is unchanged.
+rootless podman quadlets for the app and Prometheus, a separate `ci` account that runs the gate in a
+2 vCPU / 4 GiB slice, and rootful Caddy as the only privileged unit. Caddy owns 80 and 443 and proxies
+to the app's loopback port. The move from the older x86 host replaced it rather than adding to it: the
+topology is unchanged.
 
-*Recorded in [deploy](../deploy/README.md), [cloud-init](../deploy/cloud-init.yaml).*
+*Recorded in [deploy](../deploy/README.md), [cloud-init](../deploy/cloud-init.yaml), [the CI
+slice](../deploy/ci/uk.osric.asp-ci.slice).*
+
+### deploy-ci-is-its-own-account
+
+The gate runs on the host as `ci`, a separate account from `deploy`: no sudo, a `git-shell` login, its
+own subuid ranges, a bare clone and a 2 vCPU / 4 GiB slice. The account that receives a push is not
+the account that runs the site; the only credential it holds is the GitHub deploy key, and the app's
+configuration, keys and storage are not reachable from it.
+
+*Recorded in [deploy](../deploy/README.md#ci-on-the-host), [install-host](../deploy/ci/install-host),
+[cloud-init](../deploy/cloud-init.yaml), [Makefile](../Makefile), [the plan](plans/archive/host-ci.md).*
+
+### deploy-trunk-is-checked-after-push
+
+A push to `trunk` is accepted and then checked: `post-receive` starts `make ci` in a transient unit,
+and the result is written to `/var/lib/uk.osric.asp-ci/status.json` and served by Caddy at
+`/ci/status.json`; the full log is the journal. A red trunk is fixed forward; the status file is the
+answer, not a blocking gate. The check is the same `make ci`, not a second definition of green.
+
+*Recorded in [check-push](../deploy/ci/check-push), [post-receive](../deploy/ci/post-receive),
+[Caddyfile](../deploy/Caddyfile), [the Caddy quadlet](../deploy/caddy.container),
+[the plan](plans/archive/host-ci.md).*
+
+### deploy-github-mirrors-the-host
+
+The host is the upstream; GitHub is a one-way, pruned mirror of its branches and tags. The bare
+repository is cloned from GitHub at install so existing refs survive, and the mirror runs on receive
+with a fifteen-minute timer as the retry. The deploy key can write this repository and nothing else;
+there is no branch protection on the copy, because the gate and the authority are on the host.
+
+*Recorded in [mirror](../deploy/ci/mirror), [the service](../deploy/ci/uk.osric.asp-mirror.service),
+[the timer](../deploy/ci/uk.osric.asp-mirror.timer), [deploy](../deploy/README.md#ci-on-the-host),
+[the plan](plans/archive/host-ci.md).*
 
 ### deploy-the-image
 
@@ -2555,10 +2591,11 @@ a reboot.
 
 ### deploy-quadlets-are-the-source-of-truth
 
-The quadlets and Caddyfile in `deploy/` are the source of truth. The host is a deployment target, never
-edited by hand.
+The quadlets, Caddyfile and CI files in `deploy/` are the source of truth. The host is a deployment
+target, never edited by hand.
 
-*Recorded in [Caddyfile](../deploy/Caddyfile), [the instructions](../.github/copilot-instructions.md).*
+*Recorded in [Caddyfile](../deploy/Caddyfile), [the CI hooks](../deploy/ci/post-receive), [the
+instructions](../.github/copilot-instructions.md).*
 
 ### deploy-caps-and-swap
 

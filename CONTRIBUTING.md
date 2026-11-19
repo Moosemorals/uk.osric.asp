@@ -29,15 +29,18 @@ The branch is `kind/filename`, and the name comes from the work:
 - the item's slug, for planning work and for an item small enough to need no plan — an idea takes
   `idea/` in front of it, so [`check-without-storing`](docs/backlog/check-without-storing.md) is
   `idea/check-without-storing`, and a defect's slug is split at its first hyphen, so
-  [`ops-no-ci`](docs/backlog/ops-no-ci.md) is `ops/no-ci`;
+  [`ops-no-ci`](docs/backlog/closed.md) is `ops/no-ci`;
 - the plan's file name once a plan is being implemented — [page-first](docs/plans/archive/page-first.md)
   is `plan/page-editor`. An item whose plan has a different name has two branches: the first writes
   the plan, `plan/page-streaming` implements it.
 
 Work lands as a merge commit (`git merge --no-ff`) rather than a fast-forward, so the branch and the
 work it carries stay one unit in the history. After the merge its worktree is removed and the branch
-deleted; nothing is pushed to `origin` until asked. A decision is named rather than numbered and its
-name is taken when the work merges
+deleted; nothing is pushed to `origin` until asked. With the host as `origin`
+([deploy](deploy/README.md#ci-on-the-host)), a push to `trunk` is what runs `make ci` in the host's
+`ci` account; GitHub is a one-way mirror. The check is asynchronous, so
+`https://moosemorals.com/ci/status.json` is the answer, and a red trunk is fixed forward. A decision
+is named rather than numbered and its name is taken when the work merges
 ([the record](docs/decisions.md)), so a branch states the name it intends until then and the merge
 writes the entry. The merge also closes the plan: its Status becomes merged and it moves to
 [docs/plans/archive](docs/plans/archive), with every link into it retargeted in the same change.

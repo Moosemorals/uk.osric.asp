@@ -15,12 +15,24 @@ moosemorals.com {
 	# written, compressed or not. Only the shell's events route is excluded, until it becomes a page.
 	@notAssistantEvents not path /assistant/*/events
 	encode @notAssistantEvents zstd gzip
-	# Prometheus scrapes inside the podman network. The public origin must not serve metrics.
-	@metrics path /metrics
-	respond @metrics 404
-	# The app trusts X-Forwarded-Proto and X-Forwarded-Host to learn the browser's scheme and host;
-	# Caddy's defaults supply both, so no header directive is needed here. See deploy/README.md.
-	reverse_proxy 127.0.0.1:8080 {
-		flush_interval -1
+	# The host's CI status, written by the ci account. Caddy serves it from a read-only mount, so it
+	# answers even when the app is down; the app has no route for it. The two handles are exclusive
+	# and the first matching one wins, so this path never reaches the proxy.
+	@ciStatus path /ci/status.json
+	handle @ciStatus {
+		rewrite * /status.json
+		root * /srv/ci-status
+		file_server
+		header Cache-Control no-store
+	}
+	handle {
+		# Prometheus scrapes inside the podman network. The public origin must not serve metrics.
+		@metrics path /metrics
+		respond @metrics 404
+		# The app trusts X-Forwarded-Proto and X-Forwarded-Host to learn the browser's scheme and host;
+		# Caddy's defaults supply both, so no header directive is needed here. See deploy/README.md.
+		reverse_proxy 127.0.0.1:8080 {
+			flush_interval -1
+		}
 	}
 }

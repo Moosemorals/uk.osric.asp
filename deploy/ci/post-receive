@@ -1,0 +1,38 @@
+#!/bin/bash
+# SPDX-FileCopyrightText: Copyright 2026 Osric Wilkinson <osric@fluffypeople.com>
+# SPDX-License-Identifier: MIT
+
+# Starts the check for a trunk push and the mirror for every accepted ref. The push returns as soon
+# as this hook does: the check is a transient unit in the ci slice, and the mirror is a user service
+# the timer retries if this start or that run fails.
+set -euo pipefail
+
+home=/home/ci
+status_url=https://moosemorals.com/ci/status.json
+zero=0000000000000000000000000000000000000000
+
+if [ -z "${XDG_RUNTIME_DIR:-}" ]; then
+    export XDG_RUNTIME_DIR="/run/user/$(id -u)"
+fi
+
+while read -r old new ref; do
+    if [ "$ref" = "refs/heads/trunk" ] && [ "$new" != "$zero" ]; then
+        short=$(printf '%s' "$new" | cut -c1-12)
+        unit="uk.osric.asp-ci-$short-$$"
+        systemd-run --user --no-block --collect \
+            --unit="$unit" \
+            --slice=uk.osric.asp-ci.slice \
+            --property=Nice=10 \
+            "$home/bin/check-push" "$new"
+        printf 'trunk %s will be checked; the result is %s\n' "$short" "$status_url"
+        printf 'the full log: journalctl _SYSTEMD_USER_UNIT=%s\n' "$unit"
+    fi
+done
+
+# Every ref, including a branch or a tag, is mirrored. The service is asynchronous, and the timer is
+# the guarantee when it is already running or this start fails.
+if ! systemctl --user start --no-block uk.osric.asp-mirror.service; then
+    echo "post-receive: could not start the mirror; the timer will retry" >&2
+fi
+
+echo "mirroring to GitHub; the timer retries if this run fails"

@@ -65,7 +65,7 @@ gives those durations a history **in a service that is not the site**:
   would make every build a new series.
 - **Alerting on a slow build.** A notification channel is [`ops-no-outage-notification`](../backlog/ops-no-outage-notification.md).
 - **Retrying or failing a build when the push fails.** The build's exit code is the command's.
-- **A CI runner.** Running the gate unasked is [`ops-no-ci`](../backlog/ops-no-ci.md); this only makes the push
+- **A CI runner.** Running the gate unasked is [`ops-no-ci`](../backlog/closed.md); this only makes the push
   reachable from whatever eventually runs it.
 - **Timing `make build`, `make restore` or the mutation targets.** They are one wrapper line and one
   name away, but the user's list does not ask for them, and a stamp that does nothing (an up-to-date
