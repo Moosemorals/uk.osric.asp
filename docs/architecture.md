@@ -204,8 +204,22 @@ environment variable or a deployment's own settings file.
 - **What stays in code.** An invariant — a cryptographic or wire-format constant, a schema
   constraint, an algorithm work cap, or the floor and ceiling that keeps a configured value from
   switching a guard off. A security policy may be configured only in the direction that keeps or
-  tightens the shipped guarantee; [`policy-is-a-constant`](backlog/policy-is-a-constant.md) holds the list of policy-shaped values
-  that remain constants and the question of whether to expose them.
+  tightens the shipped guarantee. A number the product fixes as its own rule is not a policy value at
+  all, however much it looks like a limit: a password's bounds are the rule, where a model timeout is
+  a limit on how the site spends a resource.
+
+  These are the values that stay, and why none of them is a key:
+
+  | Value | Where | Why it stays |
+  | --- | --- | --- |
+  | Password length 12–1024 | `PasswordPolicy` | `auth-passwords` fixes it, and a password's length is the rule rather than a limit on a resource; tightening it is not a choice a deployment makes |
+  | User name length 64 | `UserName` | The same number is a column length and five EF models' `HasMaxLength`; it is a schema constraint before it is a policy |
+  | The header set and the CSP | `SecurityHeaders` | `pages-the-response-is-buffered-until-a-flush` and the frame, referrer and permissions rules. The shipped policy is already `default-src 'none'`, so a setting could only widen it |
+  | The page API allow-list | `PageApiPolicy` | `pages-the-api-policy` makes it default-deny data in `Core`; a page that could change it would be granting itself APIs, and removing an entry is a code change rather than a knob |
+  | The 1 MiB form body, and the parser's count and header limits | `PageEndpoint`, `Program` | `pages-the-response-is-buffered-until-a-flush`. A form smaller than the page that reads it is a page that fails at some size, and the upload cap that is policy is already `Pages:Archive:MaxUploadBytes` |
+  | Compile attempts, SQLite retries | `PageRenderer`, `SqliteErrors` | Internal recovery behaviour: a different number is a different algorithm, not an operator preference |
+  | Cleanup and sample periods | the background services | A shorter sweep only makes an expired row linger for less time, and the one period that is policy is already `Assistant:BalanceSampleSeconds` |
+  | The reserved keys | `Shell/ShellCatalogue` | `shell-reserved-keys-are-an-invariant`: a shorter list lets a stored page shadow a route such as `/login`, so configuration could only weaken it |
 
 Each subsystem documents its own keys: [pages](pages.md#page-execution-budget),
 [the shell](shell.md#authentication-and-the-editor), [storage](storage.md),
