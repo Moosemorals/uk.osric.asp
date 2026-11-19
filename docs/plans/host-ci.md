@@ -8,19 +8,20 @@ SPDX-License-Identifier: MIT
 | | |
 | --- | --- |
 | Status | Proposed 2026-11-19 — waits for the owner. Nothing below is built |
-| Size | M/L — one host account, a bare repository and four small scripts, two user units and a slice, one Makefile target, one static route served by the app, the Caddy header, and the docs; no page, endpoint or storage behaviour changes |
+| Size | M/L — one host account, a bare repository and four small scripts, two user units and a slice, one Makefile target, one static route served by Caddy from a host directory, the Caddy mount and header, and the docs; no page, endpoint or storage behaviour changes |
 | Area | Deploy (host); the shell's one table of routes |
 | Spike | None. The Makefile targets, the static-file pipeline, the shell catalogue, the Caddyfile and the host's existing shape were read off `trunk` on 2026-11-19. The host itself was not reachable from that checkout, so step 1 of the build starts by proving the assumptions it makes about the account, packages and podman |
 | Decisions | At the merge: **deploy-ci-is-its-own-account**, **deploy-trunk-is-checked-after-the-push** and **deploy-github-mirrors-the-host** are new; `code-one-gate`, `deploy-quadlets-are-the-source-of-truth` and `deploy-one-small-host` are edited in place. The first says the gate is the same target on a different machine; the second says a push is accepted before it is checked; the third says the host is the upstream and GitHub a pruned copy |
-| Backlog | [`ops-no-ci`](../backlog/ops-no-ci.md) is this step. It is the item's "still open" paragraph — the gate runs when someone runs it — and nothing else in the record is closed or opened by it |
+| Backlog | [`ops-no-ci`](../backlog/ops-no-ci.md) is this step. It is the item's "still open" paragraph — the gate runs when someone runs it. [`ship-the-tested-image`](../backlog/ship-the-tested-image.md) is the release half, added now and blocked by this step |
 
 ## The short version
 
 The gate exists and is one command; what is missing is something that runs it without being asked. The
 host that already runs the site is the machine that gets asked. A push to `trunk` on the host is
 accepted, a `post-receive` hook starts `make ci` in a **separate `ci` account**, and the result is
-published as `/ci/status.json` on the site and as a journal on the host. GitHub becomes a one-way,
-pruned mirror of the host's branches and tags, so the public copy is no longer the upstream.
+published as `/ci/status.json` by Caddy from a host directory, with the full log in the journal.
+GitHub becomes a one-way, pruned mirror of the host's branches and tags, so the public copy is no
+longer the upstream.
 
 The three constraints that shape everything below:
 
@@ -45,6 +46,7 @@ The three constraints that shape everything below:
 | How the host writes to GitHub | A dedicated deploy key with write access to this repository only | The key lives in `~ci/.ssh`; no other GitHub credential exists on the host |
 | How the host is prepared | A `make ci-install` target, plus cloud-init for future hosts | The account, repository, hooks, units and slice are installed from `deploy/`, exactly as the quadlets are |
 | Protecting the running site | A 2 vCPU / 4 GiB systemd slice, low CPU and I/O weight | The build is deprioritized against the app; the app's own cgroup is unchanged |
+| Who serves the status file | Caddy, from a host directory | Caddy mounts the status directory read-only and answers `/ci/status.json`; the app has no route or mount, and the status answers while the app is down |
 
 Two consequences follow and are design decisions rather than open questions. **The mirror runs on
 receive, not after the check**, so a commit is off the host before the gate has an opinion about it;
@@ -60,7 +62,7 @@ current tip.
 | The host | [deploy/README.md](../../deploy/README.md), [cloud-init.yaml](../../deploy/cloud-init.yaml) | One Hetzner CAX21 (Debian 13, arm64, 4 vCPU, 8 GiB), rootless podman quadlets for the app and Prometheus, rootful Caddy, and a `deploy` user with passwordless sudo. There is no `ci` user, no `git`, no `reuse` and no SDK |
 | The remotes | `git remote -v` | `origin` is `git@github.com:Moosemorals/uk.osric.asp.git`; `trunk` tracks `origin/trunk`; `origin/page-inbox` exists. There is no host remote |
 | The shell's files | [Program.cs](../../src/uk.osric.asp.Web/Program.cs), [wwwroot](../../src/uk.osric.asp.Web/wwwroot), [ShellCatalogue.cs](../../src/uk.osric.asp.Web/Shell/ShellCatalogue.cs) | `UseStaticFiles()` runs before routing; every web-root file is in the route table, and `ReservedPaths` derives from that table, so one list both serves and reserves a key |
-| The edge | [Caddyfile](../../deploy/Caddyfile) | Rootful Caddy owns 80/443, adds and removes headers, encodes, and reverse-proxies everything to `127.0.0.1:8080`. It has no static route |
+| The edge | [Caddyfile](../../deploy/Caddyfile) | Rootful Caddy owns 80/443, adds and removes headers, encodes, and reverse-proxies everything to `127.0.0.1:8080`. It has no static route today; this plan adds one for the status file |
 | The host's install pattern | [pull-install](../../Makefile), [backup-snapshot.sh](../../deploy/backup-snapshot.sh) | Host scripts and user units live in `deploy/`, are installed by a Makefile target over `ssh`, and rely on lingering for timers that outlive a login |
 | Not built | — | No host repository, no receive hook, no `ci` account, no mirror, no status file and no systemd slice |
 
@@ -85,7 +87,9 @@ current tip.
 - **Gating branches.** Only `trunk` is checked. A branch is a proposal; the status file is about the
   integrated tree.
 - **The browser suite per push.** It stays where `code-browser-suite-is-opt-in` put it: `make deploy`.
-  `make ci` is the four unit/integration suites, the records and the image proof.
+  `make ci` is the four unit/integration suites, the records and the image proof. Moving the browser
+  suite downstream of the image, and promoting the image the tests drove, is
+  [`ship-the-tested-image`](../backlog/ship-the-tested-image.md), not this step.
 - **Outbound notification.** A failed check is read from the status file or the journal. Pushing the
   result to the owner is [`ops-no-outage-notification`](../backlog/ops-no-outage-notification.md).
 - **A CI dashboard.** The status file is JSON. A panel on `/admin/status` is a later page or shell
@@ -176,34 +180,60 @@ The file is:
 `summary` is one line: the failing target for a failure, and a plain sentence otherwise. There is no
 log path, no host name and no environment in the file; the full output is the journal.
 
-### 4. The status file is served by the site
+### 4. Caddy serves the status file
 
-The file is written by `ci` and read by the app through a read-only directory mount:
+The file is written by `ci` to `/var/lib/uk.osric.asp-ci/status.json`. Caddy is the server: the
+rootful edge container mounts that directory read-only and answers the path before the reverse proxy:
 
 ```ini
+# deploy/caddy.container
 # The host's CI status, written by the ci account. The directory is mounted rather than the file so
 # the writer's atomic rename is visible inside the container.
-Volume=/var/lib/uk.osric.asp-ci:/app/wwwroot/ci:ro
+Volume=/var/lib/uk.osric.asp-ci:/srv/ci-status:ro
 ```
 
-`UseStaticFiles()` already answers `/ci/status.json` from the web root, and the shell's route table is
-the one place a route is described. One entry is added to
-[`ShellCatalogue`](../../src/uk.osric.asp.Web/Shell/ShellCatalogue.cs), beside the other web-root
-files:
+```caddyfile
+@ciStatus path /ci/status.json
+handle @ciStatus {
+    rewrite * /status.json
+    root * /srv/ci-status
+    file_server
+    header Cache-Control no-store
+}
+handle {
+    @metrics path /metrics
+    respond @metrics 404
+    reverse_proxy 127.0.0.1:8080 {
+        flush_interval -1
+    }
+}
+```
+
+The two `handle` blocks are one mutually exclusive group, so the status path is answered by the
+file server and everything else is the app. The existing `/metrics` 404 moves inside the catch-all
+`handle`, because a top-level `respond` is ordered after `handle` and the proxy would otherwise
+swallow the path. The app has no route, no mount and no knowledge of the file; that is the point of
+putting it on Caddy. The status answers even when the app is down, which
+is when an owner is most likely to be looking at it, and the edge can read a `0755` directory with a
+`0644` file that `ci` owns. The JSON's content type comes from the `.json` extension; `no-store` is
+there because a status file that a browser caches is a status file that lies.
+
+The shell's route table is still the one place a key is reserved. One entry is added to
+[`ShellCatalogue`](../../src/uk.osric.asp.Web/Shell/ShellCatalogue.cs), with a description that
+names Caddy:
 
 ```csharp
 new ShellRoute("/ci/status.json", "GET", ShellAudience.Everyone,
-    "The host's CI status: the commit the last trunk push checked, when it ran and whether it passed."),
+    "The host's CI status: the commit the last trunk push checked, when it ran and whether it passed. Caddy serves it; the app does not answer this path."),
 ```
 
-That entry does two jobs the codebase already relies on: the key is reserved, so no page can shadow
-it, and the assistant's shell-file record says what it is. The file is JSON with the framework's
-`.json` media type; the Caddyfile adds `Cache-Control: no-store` for the path, because a status file
-that a browser caches is a status file that lies.
+The entry is a reserved record, not an app route: it keeps a stored page from claiming a key the edge
+owns, and it tells the assistant what the path is. `ReservedPaths` already derives from this table, so
+the two lists cannot disagree.
 
 `make deploy` creates `/var/lib/uk.osric.asp-ci` if it is absent and seeds a `never-run` file if the
-status file is absent, so the mount is a directory and the first request answers JSON rather than 404.
-`ci-install` takes ownership of both for `ci`.
+status file is absent, so the Caddy mount is a directory and the first request answers JSON rather
+than 404. `ci-install` takes ownership of both for `ci`.
 
 ### 5. The mirror
 
@@ -305,7 +335,7 @@ deliberately deleted.
 | --- | --- | --- |
 | CPU 200%, memory 4 GiB, CPU weight 50, I/O weight 50 | `deploy/ci/uk.osric.asp-ci.slice` | Deploy configuration is the source of truth for the host, like the quadlets |
 | Mirror every 15 minutes | `deploy/ci/uk.osric.asp-mirror.timer` | The hook is the prompt; the timer is the retry |
-| `/ci/status.json` and `/app/wwwroot/ci` | `ShellCatalogue`, the app quadlet and the Caddyfile | The route is in the shell's one table; the path is a mount in the deploy configuration |
+| `/ci/status.json`, `/var/lib/uk.osric.asp-ci` and `/srv/ci-status` | `ShellCatalogue`, `deploy/caddy.container` and the Caddyfile | The key is in the shell's one table; the directory and its mount are deploy configuration |
 | `ci`, `/home/ci`, `/var/lib/uk.osric.asp-ci` | `deploy/ci` scripts, `ci-install`, cloud-init | One account and one directory; a name in three places is still one invariant |
 | SDK version | `global.json`, read by `ci-install` | The host builds the tree's SDK, not the distro's |
 | Cache and worktree | `check-push` | `make ci` cleans; the worktree is removed; caches are the only growth |
@@ -320,7 +350,7 @@ deliberately deleted.
 | The mirror cannot authenticate | `post-receive` prints the warning; the timer retries every 15 minutes; the key is the only thing to fix, and the status file still describes the check |
 | The host is unreachable | The push fails; the local clone still has the commits; `git push github trunk` is the deliberate, ungated exception |
 | The bare repository is lost | GitHub has the last mirrored refs and the owner's clone has the rest; `ci-install` re-clones GitHub and the owner pushes the missing commits |
-| The status file is missing | `/ci/status.json` answers 404 until `ci-install` or `make deploy` seeds it; the check still runs and writes the file |
+| The status file is missing | Caddy answers 404 until `ci-install` or `make deploy` seeds it; the check still runs and writes the file |
 | The slice is too tight | `make ci` fails with an OOM or a timeout; raise the slice, not the app's cgroup, and record the measurement in the plan |
 | A page or a build saturates the host | The app keeps its 3 vCPU / 2 GiB cgroup; the CI is at `CPUWeight=50` and `Nice=10`; the health check is unchanged |
 
@@ -334,8 +364,8 @@ deliberately deleted.
   assistant's provider key.
 - The status file is public but carries no secret: a commit, two timestamps, a result and one line.
   The full log stays in the host's journal.
-- The app's mount is read-only, so a page or the assistant cannot write the status file. `ci` can
-  write only `/var/lib/uk.osric.asp-ci`.
+- Caddy mounts the status directory read-only, and the app has no route or mount for it. A page or
+  the assistant cannot write the status file; `ci` can write only `/var/lib/uk.osric.asp-ci`.
 - The mirror is a pruned, forced copy of heads and tags. There is no branch protection on GitHub,
   because protection on the copy would make the host's mirror fail and would give the copy an
   authority the decision gives the host.
@@ -346,9 +376,9 @@ One branch, `plan/host-ci`, because the pieces are one account and one push path
 is a coherent checkpoint and leaves the gate green. The owner may ask for any of them as a separate
 step.
 
-1. **The status route.** Add the `ShellCatalogue` entry, the read-only mount in the app quadlet, the
-   Caddy `no-store` header, the `make deploy` seed, and the fixture that proves the file is served
-   from the web root.
+1. **The status route.** Add the `ShellCatalogue` reserved entry, the read-only mount in the Caddy
+   container, the Caddy route and its `no-store` header, the `make deploy` seed, and the checks that
+   prove Caddy serves the file with the app stopped.
 2. **The account and the repository.** Add `ci-install` with the user, packages, SDK, bare clone,
    directory and seed; add the `ci` user to cloud-init; install the scripts and units as they arrive.
 3. **The check.** Add `pre-receive`, `post-receive`, `check-push` and the slice; install them; prove a
@@ -356,8 +386,8 @@ step.
    nothing.
 4. **The mirror.** Add the deploy-key setup, the `mirror` script, the service and the timer; prove a
    scratch branch appears and then disappears on GitHub.
-5. **The record and the remotes.** Switch the local remotes, update the docs and decisions, and mark
-   the item closed at the merge.
+5. **The record and the remotes.** Switch the local remotes, update the docs and decisions, close
+   `ops-no-ci` at the merge, and unblock `ship-the-tested-image` in the same commit.
 
 ## Tests
 
@@ -374,11 +404,10 @@ the scripts are checked where they run, as the backup scripts were:
   `running` → `failed` with the failing target; `journalctl` has the full log.
 - The mirror: a scratch branch pushed to the host appears on GitHub; deleting it on the host and
   running the mirror removes it on GitHub.
-- The app: a fixture overrides `CreateApplication` with a temporary web root containing
-  `ci/status.json`, and proves `/ci/status.json` is served with `application/json`; the existing
-  catalogue tests keep the route reserved and described.
+- Caddy: `caddy validate` on the Caddyfile; with the app stopped, `curl` through Caddy answers
+  `/ci/status.json` with `application/json` and `Cache-Control: no-store`; a fresh deploy's
+  `never-run` seed is the first body. The shell's catalogue tests keep the key reserved and described.
 - `make check`, `make decisions`, `make backlog` and `make license-check` on the branch.
-- `caddy validate` on the Caddyfile before the first deploy that carries the header.
 
 ## Documentation
 
@@ -408,14 +437,12 @@ the scripts are checked where they run, as the backup scripts were:
 | `deploy/ci/uk.osric.asp-ci.slice` | New: the 2 vCPU / 4 GiB cap |
 | `deploy/ci/uk.osric.asp-mirror.service`, `.timer` | New: the mirror's oneshot and its fifteen-minute clock |
 | `deploy/cloud-init.yaml` | `ci` user, `git` and `reuse`, subuid/subgid and lingering for the new host |
-| `deploy/uk.osric.asp.container` | The read-only status directory mount |
-| `deploy/Caddyfile` | `Cache-Control: no-store` for `/ci/status.json` |
+| `deploy/caddy.container` | The read-only status directory mount |
+| `deploy/Caddyfile` | The `/ci/status.json` route and its `Cache-Control: no-store` |
 | `Makefile` | `ci-install`; the `ci` comment no longer says there is no service; the `make deploy` seed |
-| `src/uk.osric.asp.Web/Shell/ShellCatalogue.cs` | `/ci/status.json` as a web-root route |
-| `test/uk.osric.asp.Web.IntegrationTests/AspApplication.cs` | A temporary web root for the fixture |
-| `test/uk.osric.asp.Web.IntegrationTests/PageAssetTests.cs` | The status file is served |
+| `src/uk.osric.asp.Web/Shell/ShellCatalogue.cs` | The reserved `/ci/status.json` key, described as Caddy's |
 | `docs/plans/host-ci.md` | This plan |
-| `docs/backlog/ops-no-ci.md`, `docs/backlog/README.md` | Planned now; closed at the merge |
+| `docs/backlog/ops-no-ci.md`, `docs/backlog/ship-the-tested-image.md`, `docs/backlog/README.md` | `ops-no-ci` planned now and closed at the merge; the release half recorded and blocked by it |
 | `docs/decisions.md` | Three new entries and three edits |
 | `deploy/README.md`, `deploy/operations.md`, `CONTRIBUTING.md`, `README.md`, `.github/copilot-instructions.md` | The setup, the push order, the status and the mirror |
 
@@ -430,6 +457,8 @@ the scripts are checked where they run, as the backup scripts were:
 | The first pruned mirror deletes a GitHub branch | The bare repository is cloned from GitHub before the first push, so every existing branch is a source ref. `ci-install` and the remote switch are made in one sitting, so no GitHub-only commit sits between the clone and the first mirror |
 | `make ci` cannot finish in a reasonable time on 4 vCPU | The push does not wait; the status says `running`. The first run's duration is a measurement, and the slice and the timer are the two values that change if it is wrong |
 | The status file is cached or stale | Caddy adds `no-store`, the write is an atomic rename, and the file carries the commit it describes |
+| Caddy cannot read the status directory | The directory is `0755` and the file `0644`, both owned by `ci`, and the Caddy container mounts the directory read-only. `make deploy` seeds it and `ci-install` owns it, so a missing file is a 404, not a broken site |
+| The status route shadows a page | The key is in the shell's route table as a reserved record, so no page can be stored there; Caddy's `handle` group answers the path and the proxy handles the rest |
 | The account's keys are the deploy user's | SSH is forced to `git-shell`; the account has no sudo and no shell. A dedicated key can replace them without changing the design |
 | The mirror is a force-push to a protected branch | There is no protection on the mirror. The gate and the authority are on the host; a protected copy would fail the mirror and change which copy is the source |
 
@@ -447,9 +476,10 @@ the scripts are checked where they run, as the backup scripts were:
 - **`git push --mirror` from the local checkout.** It carries `refs/remotes`, so the host would end up
   with a remote-tracking namespace and GitHub would receive it. The bare clone plus explicit heads
   and tags is the mirror that was meant.
-- **Serving the status from Caddy instead of the app.** It would answer while the app is down, but it
-  would be a route outside the shell's one table and a page key that could be shadowed without the
-  catalogue knowing. The app's web root is the table.
+- **Serving the status from the app's web root.** It would put the status behind the app, so it would
+  be unavailable when the app is down, and it would add an app mount and a fixture for a file the app
+  does not need. Caddy answers it from a read-only mount; the key is still in the shell's one table as
+  a reserved record, so a page cannot shadow it.
 - **Writing the status file in place.** A reader can see a half-written JSON document. The temporary
   file and the rename make the file's content a value, not a race.
 - **A mirror that waits for the check.** A failed check would leave the commit only on the host, which
@@ -462,7 +492,9 @@ the scripts are checked where they run, as the backup scripts were:
 
 - [`ops-no-outage-notification`](../backlog/ops-no-outage-notification.md) is still the item that
   pushes a failure to the owner. A status file is a place to look, not a notification.
-- The browser suite, the live provider tests and the mutation targets stay out of the push gate.
+- The release promotion — build once, run the browser suite against the image, promote on command —
+  is [`ship-the-tested-image`](../backlog/ship-the-tested-image.md), not this step.
+- The live provider tests and the mutation targets stay out of the push gate.
 - A visible CI panel on `/admin/status` is a page or shell change for later; the JSON file is the
   contract this step ships.
 - A dedicated key for `ci` distinct from `deploy` is a rotation the owner can make; the forced shell
@@ -471,11 +503,12 @@ the scripts are checked where they run, as the backup scripts were:
 ## Delivered when
 
 `make ci-install HOST=deploy@…` has prepared the host and a second run changes nothing; a push to
-`trunk` on the host is accepted and `/ci/status.json` goes `running` → `passed` for a good commit and
-`running` → `failed` for a deliberately broken one, with the failing target named and the full output
-in the journal; a branch and a tag appear on GitHub and a branch deleted on the host disappears on the
-next mirror; the local `origin` is the host and `github` is GitHub; `make deploy` still gates a
-release; and `make check`, `make decisions`, `make backlog` and `make license-check` are green.
+`trunk` on the host is accepted and `/ci/status.json` — served by Caddy, not the app — goes `running`
+→ `passed` for a good commit and `running` → `failed` for a deliberately broken one, with the failing
+target named and the full output in the journal; it still answers with the app stopped; a branch and a
+tag appear on GitHub and a branch deleted on the host disappears on the next mirror; the local `origin`
+is the host and `github` is GitHub; `make deploy` still gates a release; and `make check`,
+`make decisions`, `make backlog` and `make license-check` are green.
 
 ## The names this plan proposed
 

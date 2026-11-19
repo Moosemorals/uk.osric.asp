@@ -154,6 +154,8 @@ its reason, and that no item sits above something that blocks it.
 | | *Planned, but a plan is not urgency: nothing blocks it and no page stops working without it, so it waits below everything that does.* | | | | |
 | [`listing-does-not-date-itself`](listing-does-not-date-itself.md) | A listing cannot say the store moved under it | caffeinated-squirrel ☕🐿️ | medium | open | — |
 | | *The cursor answered where a walk is; this answers whether it is still the same walk, and the write paths are the price.* | | | | |
+| [`ship-the-tested-image`](ship-the-tested-image.md) | A release does not ship the image the tests passed | persistent-salmon ⬆️🐟 | high | blocked | `ops-no-ci` |
+| | *The browser suite drives a source build while the deploy ships an image built later; this makes the promoted image the one the browser drove, and it waits for the host gate to keep one.* | | | | |
 
 Every step is one unit of work, on one branch in one worktree named `kind/filename`
 ([how](../../CONTRIBUTING.md#working-on-it)). Two independent steps may run at once, each in its own
