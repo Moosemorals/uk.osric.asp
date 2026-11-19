@@ -159,7 +159,8 @@ The server side needs rootless podman with `uidmap`, `passt`, `fuse-overlayfs` a
 (container-name resolution for the shared network); `deploy/cloud-init.yaml` installs those on a fresh
 Debian 13 arm64 VM (Hetzner CAX21). The host's separate `ci` account also needs `git`, `make`,
 `reuse`, `jq`, `curl`, `libicu-dev` and the SDK the tree pins; `make ci-install` checks and installs
-them, and [the deployment notes](deploy/README.md#ci-on-the-host) describe the account.
+them, adding Microsoft's apt repository for `dotnet-sdk-11.0`, and
+[the deployment notes](deploy/README.md#ci-on-the-host) describe the account.
 
 Optional, but they make life easier: the `hcloud` CLI if you are creating the VM, and VS Code with
 the C# extension, which has a launch configuration in `.vscode/launch.json`.

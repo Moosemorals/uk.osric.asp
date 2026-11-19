@@ -321,9 +321,9 @@ answers when the app is down.
   status is a signal to look, not a lock on the release.
 
 `ci-install` checks for `git`, `make`, `jq`, `reuse`, `curl`, `libicu-dev` and the rootless podman
-pieces, and installs what `apt` has; the SDK is the version in `global.json`, under `~ci/.dotnet`.
-`deploy/ci/` is the source of truth for the hooks, the scripts and the units, as `deploy/` is for the
-quadlets.
+pieces, installs what `apt` has, adds Microsoft's apt repository and installs `dotnet-sdk-11.0` — the
+major.minor in `global.json`; `global.json`'s `rollForward` picks the patch. `deploy/ci/` is the source
+of truth for the hooks, the scripts and the units, as `deploy/` is for the quadlets.
 
 ## Local accounts
 

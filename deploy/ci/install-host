@@ -58,12 +58,36 @@ fi
 chown ci:ci /home/ci/.ssh/authorized_keys
 chmod 0600 /home/ci/.ssh/authorized_keys
 
-# The SDK the tree pins, not the distribution's roll-forward. The binary lives in the ci home so the
-# account is self-contained; `check-push` puts it first on PATH.
-if ! sudo -H -u ci /home/ci/.dotnet/dotnet --list-sdks 2>/dev/null | grep -q "^$sdk "; then
-    echo "installing .NET SDK $sdk for ci"
-    sudo -H -u ci curl -fsSL https://dot.net/v1/dotnet-install.sh -o /home/ci/dotnet-install.sh
-    sudo -H -u ci bash /home/ci/dotnet-install.sh --version "$sdk" --install-dir /home/ci/.dotnet
+# The SDK the tree pins, from Microsoft's apt repository rather than the dotnet-install script or a
+# distribution roll-forward. The package is the major.minor of global.json, so the repository's latest
+# patch in that band is what the host runs; global.json's rollForward picks it for the build.
+sdk_major_minor=${sdk%.*}
+sdk_package=dotnet-sdk-$sdk_major_minor
+if [ ! -f /etc/apt/sources.list.d/microsoft-prod.list ]; then
+    repo_added=false
+    for release in 13 12; do
+        if curl -fsSL "https://packages.microsoft.com/config/debian/$release/packages-microsoft-prod.deb" \
+            -o /tmp/packages-microsoft-prod.deb; then
+            dpkg -i /tmp/packages-microsoft-prod.deb
+            rm -f /tmp/packages-microsoft-prod.deb
+            repo_added=true
+            break
+        fi
+    done
+    rm -f /tmp/packages-microsoft-prod.deb
+    if [ "$repo_added" != true ]; then
+        echo "install-host: could not add packages.microsoft.com; install $sdk_package by hand" >&2
+        exit 1
+    fi
+fi
+apt-get update -qq
+if ! dpkg -s "$sdk_package" >/dev/null 2>&1; then
+    echo "installing $sdk_package from packages.microsoft.com"
+    apt-get install -y "$sdk_package"
+fi
+if ! dotnet --list-sdks | grep -qE "^${sdk_major_minor//./\\.}\\.[0-9]+ "; then
+    echo "install-host: $sdk_package is installed but no $sdk_major_minor.x SDK is listed" >&2
+    exit 1
 fi
 
 # The bare repository is a clone of the public GitHub URL, so every branch and tag that exists today
