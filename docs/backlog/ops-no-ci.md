@@ -10,9 +10,9 @@ SPDX-License-Identifier: MIT
 | Difficulty | caffeinated-squirrel |
 | Utility | high |
 | Severity | Medium |
-| Status | open |
+| Status | planned |
 | Blocked by | — |
-| Plan | — |
+| Plan | [host-ci](../plans/host-ci.md) |
 | Area | Operations, quality |
 | Location | `.github/` (no `workflows/`), `Makefile` |
 

@@ -110,7 +110,7 @@ its reason, and that no item sits above something that blocks it.
 
 | Slug | Title | Difficulty | Utility | Status | Blocked by |
 | --- | --- | --- | --- | --- | --- |
-| [`ops-no-ci`](ops-no-ci.md) | There is no CI pipeline | caffeinated-squirrel ☕🐿️ | high | open | — |
+| [`ops-no-ci`](ops-no-ci.md) | There is no CI pipeline | caffeinated-squirrel ☕🐿️ | high | [planned](../plans/host-ci.md) | — |
 | | *Turns the gate from a habit into a rule, which makes every step below it cheaper.* | | | | |
 | [`cannot-ask-the-owner`](cannot-ask-the-owner.md) | The assistant cannot ask the owner a question | caffeinated-squirrel ☕🐿️ | high | [planned](../plans/assistant-ask-owner.md) | — |
 | | *The wait it needs is built, so this is a tool, a card and three limits, and every assistant run that meets an unknown stops guessing.* | | | | |
