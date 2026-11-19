@@ -18,6 +18,10 @@ using uk.osric.asp.Core.Pages;
 /// <param name="HasDiagnostics">Whether the head's stored compile has diagnostics.</param>
 /// <param name="SeedHash">The seed the page's content is anchored to, or null when unknown.</param>
 /// <param name="ContentHash">The content hash of the head's stored source.</param>
+/// <param name="TemplateLibraries">
+/// The fingerprint of the libraries the head was compiled against, or <see langword="null"/> when it
+/// named none.
+/// </param>
 internal sealed record PageReadHead(
     string Key,
     DateTimeOffset SavedAt,
@@ -28,7 +32,8 @@ internal sealed record PageReadHead(
     bool HasImage = false,
     bool HasDiagnostics = false,
     string? SeedHash = null,
-    string? ContentHash = null);
+    string? ContentHash = null,
+    string? TemplateLibraries = null);
 
 /// <summary>One template the read store retrieved.</summary>
 /// <param name="Key">The page's canonical key.</param>

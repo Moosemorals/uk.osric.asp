@@ -1145,6 +1145,19 @@ chain, charged by the reads and refused rather than clamped.
 
 *Recorded in [page store read](plans/archive/page-store-read.md#d3--everything-marked), [PageStoreReader](../src/uk.osric.asp.Web/Assistant/PageStoreReader.cs).*
 
+### pages-a-page-names-its-libraries
+
+A listing row carries the keys of the libraries its head was compiled against, transitively, so a view
+can say what a save to one of those keys would recompile before the edit rather than after it. The fact
+is the compiler's closure — already stored as the revision's `key@hash` fingerprint and used by the
+staleness check — read back as keys where the fingerprint is written, so the two cannot spell one fact
+twice. It is the closure that compiled rather than what the source spells, which is the right answer to
+"what recompiles": a library that names another is in it, and a library the page has not recompiled
+without stays in it, with the row's `State` saying what happened to the compile. The reverse question —
+which pages name this library — is a listing filtered on the fact, not a second read.
+
+*Recorded in [pages](pages.md), [PageEntry](../src/uk.osric.asp.Sdk/PageEntry.cs), [the plan](plans/ide-host.md).*
+
 ### pages-a-listing-resumes-from-a-key
 
 A listing is one slice, asked for by a prefix, a cursor and a limit, and answered with its rows and

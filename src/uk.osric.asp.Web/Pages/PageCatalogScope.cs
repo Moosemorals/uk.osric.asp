@@ -84,6 +84,7 @@ internal sealed class PageCatalogScope(
                 IsLibrary = row.TemplateKind.IsLibrary(),
                 IsWorker = row.TemplateKind.IsWorker(),
                 State = state.Describe(),
+                Libraries = PageLibraryFingerprint.KeysOf(row.TemplateLibraries),
                 Seed = Describe(row),
             });
         }

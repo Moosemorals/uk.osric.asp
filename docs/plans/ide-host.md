@@ -7,11 +7,11 @@ SPDX-License-Identifier: MIT
 
 | | |
 | --- | --- |
-| Status | Proposed 2026-11-15 — waits for the owner. Slices 0 and 1 are built and merged; the other six are unbuilt, and nothing below is the IDE |
+| Status | Proposed 2026-11-15 — waits for the owner. Slices 0, 1 and 2 are built and merged; the other five are unbuilt, and nothing below is the IDE |
 | Size | Large as a programme, small as a step: eight capabilities, each its own job and its own branch, ordered so that each ships on its own and can be backed out on its own |
 | Spike | None. Every claim about what exists was read off `trunk` on 2026-11-15: `IPageCatalog`, `IPageEditor`, `PageEditorScope`, `PageWriterScope`, `PageCompiler.MapDiagnostics`, `PageDiagnostics.ToSdk` and `PageJobRunner` |
 | Decisions | `pages-a-diagnostic-names-its-source` (041), recorded at its merge. The rest are named at the merge (`product-plan-before-building`); this branch states the names it intends. One entry is retired rather than revised — the one that made the editor's registration the authority — and `pages-a-page-may-save-itself` is revised twice, once by 043 and once by 047 |
-| Backlog | [`check-without-storing`](../backlog/check-without-storing.md), [`cannot-search-the-store`](../backlog/cannot-search-the-store.md), [`listing-has-no-cursor`](../backlog/closed.md), [`library-edit-cost-is-invisible`](../backlog/library-edit-cost-is-invisible.md), [IDEA-041](../backlog/closed.md), [`page-cannot-move`](../backlog/page-cannot-move.md), [IDEA-043](../backlog/closed.md), [`one-write-per-render`](../backlog/one-write-per-render.md) |
+| Backlog | [`check-without-storing`](../backlog/check-without-storing.md), [`cannot-search-the-store`](../backlog/cannot-search-the-store.md), [`listing-has-no-cursor`](../backlog/closed.md), [`library-edit-cost-is-invisible`](../backlog/closed.md), [IDEA-041](../backlog/closed.md), [`page-cannot-move`](../backlog/page-cannot-move.md), [IDEA-043](../backlog/closed.md), [`one-write-per-render`](../backlog/one-write-per-render.md) |
 
 ## The short version
 
@@ -101,11 +101,11 @@ backticks beside the slice that took it:
 
 - **pages-a-check-stores-nothing** (037)
 - **pages-a-search-returns-matches** (038)
-- **pages-a-page-names-its-libraries** (040)
 - `pages-a-diagnostic-names-its-source` (041) — recorded: the span and the key are one rule, a
   diagnostic points at the thing in the file it is in
 - `pages-a-listing-resumes-from-a-key` (039) — recorded: a slice is a keyset, and the cap is the
   largest slice rather than a refusal
+- `pages-a-page-names-its-libraries` (040) — recorded: a row carries its closure's keys
 - **pages-a-key-moves-with-its-history** (042)
 - **pages-any-page-may-write-the-store** (043) — the authority is the signed-in visitor and the two
   write handles are one capability
@@ -143,9 +143,10 @@ smallest changes come first because they are what every later slice is written a
    independent, and the shape 038 and the tree both need. Proved: a cursor walks the store in slices
    with no key twice and none missed, a cursor past the last key is an empty answer, and the row cap
    became a limit rather than a refusal.
-2. **040 — the closure.** Small, and it is what makes a tree's marks true. Proves: a page that names a
-   library reports it, a transitive naming does too, a tombstoned library is still named, and saving a
-   library changes no row's closure.
+2. **040 — the closure.** Landed, and the record is `pages-a-page-names-its-libraries`. Small, and it
+   is what makes a tree's marks true. Proved: a page that names a library reports it, the page that
+   names none reports nothing, and the closure is the one the save stored rather than a second parse
+   of the source.
 3. **037 — the check.** The loop the editor is built around. The cheap answer to its "spends the action"
    question is no — a check is a read that compiles — because 047 removes the action rule entirely.
    Proves: a check stores nothing and the head hash is unchanged; a broken template answers its

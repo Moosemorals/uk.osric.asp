@@ -284,6 +284,23 @@ public sealed class PageCatalogScopeTests {
     }
 
     [Test]
+    public async Task AListingRowSaysWhichLibrariesItsClosureNamedAsync() {
+        FakePageReadStore store = new();
+        store.Save("/uses", "uses", templateLibraries: PageLibraryFingerprint.Of([
+            ("/_lib/document", "hash-d"),
+        ]));
+        store.Save("/plain", "plain");
+
+        IReadOnlyList<PageEntry> entries = await ListAsync(Scope(store));
+
+        string[] closure = ["/_lib/document"];
+        Assert.Multiple(() => {
+            Assert.That(entries.Single(entry => entry.Key == "/uses").Libraries, Is.EqualTo(closure));
+            Assert.That(entries.Single(entry => entry.Key == "/plain").Libraries, Is.Empty);
+        });
+    }
+
+    [Test]
     public async Task ACursorWalksTheStoreWithoutRepeatingOrMissingAKeyAsync() {
         FakePageReadStore store = new();
         foreach (string key in new[] { "/a", "/b", "/c", "/d", "/e" }) {

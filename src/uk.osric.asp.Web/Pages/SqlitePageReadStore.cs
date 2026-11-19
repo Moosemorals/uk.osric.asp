@@ -37,6 +37,7 @@ internal sealed class SqlitePageReadStore(IDbContextFactory<StorageDbContext> co
                     revision.SavedAt,
                     revision.Hash,
                     revision.TemplateKind,
+                    revision.TemplateLibraries,
                     revision.RuntimeId,
                     HasImage = revision.Image != null,
                     HasDiagnostics = revision.Diagnostics != null && revision.Diagnostics != "[]",
@@ -47,7 +48,8 @@ internal sealed class SqlitePageReadStore(IDbContextFactory<StorageDbContext> co
 
         return [.. rows.Select(row => new PageReadHead(
             row.Path, row.SavedAt, row.Hash, IsDeleted: false, row.TemplateKind,
-            row.RuntimeId, row.HasImage, row.HasDiagnostics, row.SeedHash, row.ContentHash))];
+            row.RuntimeId, row.HasImage, row.HasDiagnostics, row.SeedHash, row.ContentHash,
+            row.TemplateLibraries))];
     }
 
     /// <inheritdoc/>
@@ -83,6 +85,7 @@ internal sealed class SqlitePageReadStore(IDbContextFactory<StorageDbContext> co
                     revision.SavedAt,
                     revision.Hash,
                     revision.TemplateKind,
+                    revision.TemplateLibraries,
                     revision.RuntimeId,
                     HasImage = revision.Image != null,
                     HasDiagnostics = revision.Diagnostics != null && revision.Diagnostics != "[]",
@@ -93,7 +96,8 @@ internal sealed class SqlitePageReadStore(IDbContextFactory<StorageDbContext> co
 
         return [.. rows.Select(row => new PageReadHead(
             row.Path, row.SavedAt, row.Hash, row.IsDeleted, row.TemplateKind,
-            row.RuntimeId, row.HasImage, row.HasDiagnostics, row.SeedHash, row.ContentHash))];
+            row.RuntimeId, row.HasImage, row.HasDiagnostics, row.SeedHash, row.ContentHash,
+            row.TemplateLibraries))];
     }
 
     /// <inheritdoc/>
@@ -115,6 +119,7 @@ internal sealed class SqlitePageReadStore(IDbContextFactory<StorageDbContext> co
                     revision.SavedAt,
                     revision.Hash,
                     revision.TemplateKind,
+                    revision.TemplateLibraries,
                     revision.RuntimeId,
                     HasImage = revision.Image != null,
                     HasDiagnostics = revision.Diagnostics != null && revision.Diagnostics != "[]",
@@ -125,7 +130,8 @@ internal sealed class SqlitePageReadStore(IDbContextFactory<StorageDbContext> co
             ? null
             : new PageReadHead(
                 row.Path, row.SavedAt, row.Hash, row.IsDeleted, row.TemplateKind,
-                row.RuntimeId, row.HasImage, row.HasDiagnostics, row.SeedHash, row.ContentHash);
+                row.RuntimeId, row.HasImage, row.HasDiagnostics, row.SeedHash, row.ContentHash,
+                row.TemplateLibraries);
     }
 
     /// <inheritdoc/>

@@ -291,6 +291,8 @@ uk.osric.asp.Sdk.PageEntry.IsWorker.get -> bool
 uk.osric.asp.Sdk.PageEntry.IsWorker.init -> void
 uk.osric.asp.Sdk.PageEntry.Key.get -> string!
 uk.osric.asp.Sdk.PageEntry.Key.init -> void
+uk.osric.asp.Sdk.PageEntry.Libraries.get -> System.Collections.Generic.IReadOnlyList<string!>!
+uk.osric.asp.Sdk.PageEntry.Libraries.init -> void
 uk.osric.asp.Sdk.PageEntry.PageEntry() -> void
 uk.osric.asp.Sdk.PageEntry.PageEntry(string! Key, System.DateTimeOffset SavedAt, string! Hash, bool IsDeleted, bool IsReserved, bool IsHtml) -> void
 uk.osric.asp.Sdk.PageEntry.SavedAt.get -> System.DateTimeOffset

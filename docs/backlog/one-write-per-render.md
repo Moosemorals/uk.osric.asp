@@ -92,7 +92,7 @@ writes, chosen policy, one report. Building it for Save all alone would be build
 4. **Whether a batch may span a library and its dependents.** It writes both; whether it compiles the
    dependents again in the same batch, or leaves them stale as the lazy path does ([page libraries](../plans/archive/page-libraries.md#d7--the-closure-is-recorded-with-the-image-and-nothing-recompiles-eagerly)),
    is a property of the saves rather than of the batch, so the answer is likely "leave them stale, and
-   let [`library-edit-cost-is-invisible`](library-edit-cost-is-invisible.md) say which they are".
+   let [`library-edit-cost-is-invisible`](closed.md) say which they are".
 5. **Whether the assistant may batch across the site.** Its edit-safety rules are per key; a batch that
    writes ten pages is ten decisions in one request. The capability allows it, and the assistant's own
    policy may be stricter — that is the assistant's prompt, not the contract.

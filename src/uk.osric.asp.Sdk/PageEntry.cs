@@ -49,6 +49,19 @@ public readonly record struct PageEntry(
     public string State { get; init; } = string.Empty;
 
     /// <summary>
+    /// The keys of the libraries this page was compiled against, transitively, or empty when it names
+    /// none.
+    /// </summary>
+    /// <remarks>
+    /// This is what a save to one of those keys would recompile, so a view can mark a row before the
+    /// edit rather than after it. It is the closure the compiler used rather than what the source
+    /// spells: a library that names another library is in it, and so is one the compiler dropped as
+    /// unreachable. A key stays in the list while the page has not recompiled, so a library that has
+    /// been deleted is still named — <see cref="State"/> says what happened to the compile.
+    /// </remarks>
+    public IReadOnlyList<string> Libraries { get; init; } = [];
+
+    /// <summary>
     /// What this page is relative to the seed the release ships, or <see langword="null"/> when the
     /// key has no seed either side of the store.
     /// </summary>

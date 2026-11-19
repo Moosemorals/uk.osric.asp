@@ -9,7 +9,7 @@ using uk.osric.asp.Web.Shell;
 
 /// <summary>The system prompt and worked examples that teach the model to write a page.</summary>
 internal static class PageAuthorPrompt {
-    public const string Version = "page-author-v40";
+    public const string Version = "page-author-v41";
 
     public static IReadOnlyList<(string Name, string Source)> Examples { get; } = [
         ("query-driven", """
@@ -328,8 +328,9 @@ internal static class PageAuthorPrompt {
         `ctx.Capabilities.GetRequired<IPageCatalog>()` reads the site's page store
         and never writes. `ListAsync(new PageListingRequest(prefix, after, limit))`
         lists one slice of the heads under a subtree and returns a `PageListing`:
-        `Entries` with `Key`, `SavedAt`, `Hash` and seven marks — `IsDeleted`,
-        `IsReserved`, `IsHtml`, `IsAsset`, `IsLibrary`, `IsWorker` and `State` —
+        `Entries` with `Key`, `SavedAt`, `Hash` and eight marks — `IsDeleted`,
+        `IsReserved`, `IsHtml`, `IsAsset`, `IsLibrary`, `IsWorker`, `State` and
+        `Libraries` —
         and `Truncated`, which says something stands after the last row.
         `after` is the last key you were given and is exclusive, so a loop that
         passes the last key and asks again while `Truncated` is true walks a
@@ -341,7 +342,10 @@ internal static class PageAuthorPrompt {
         not a string prefix: `/blog` lists `/blog` and `/blog/post`, never
         `/blogroll`; `""` and `/` are the whole store. `ReadAsync(key)` reads a
         live page's template as a `PageSource`, or null when there is none;
-        a deleted page is listed as deleted and reads as absent.
+        a deleted page is listed as deleted and reads as absent. `Libraries` is the
+        keys of the page's closure, transitively: the libraries editing would
+        recompile. Read it before changing a library, and do not change a library
+        whose dependents you have not looked at.
         `RevisionsAsync(key)` lists a page's history newest first as
         `PageRevisionInfo` rows, including the history of a deleted page, and
         `ReadRevisionAsync(key, hash)` reads one of those revisions. All four

@@ -129,6 +129,11 @@ namespace Site.Document {
 libraries those reach in turn, so one library may build on another. Editing a library recompiles the
 pages that name it, and nothing else. A diagnostic from library code names the library and the line
 and columns in it, rather than pointing at your page.</p>
+<p>A listing says which libraries a page was compiled against: <code>PageEntry.Libraries</code> is
+the keys of its closure, in order and transitive, so before you edit a library a listing tells you
+which pages will recompile. It is empty for a page that names none, and a library that has since
+been deleted stays in the list until the page compiles again &mdash; the row's
+<code>State</code> says what happened to that compile.</p>
 <p>A library's <code>static</code> fields are one copy for each page that names it, not one copy for
 the site: do not use them to share a value between pages. A library that does not compile stops the
 pages that name it from compiling until it is fixed &mdash; and the editor page names the document

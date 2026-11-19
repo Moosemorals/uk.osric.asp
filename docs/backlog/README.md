@@ -59,16 +59,16 @@ calendar, and no item estimates hours or days.
 
 | # | Level | Emoji | What it says |
 | --- | --- | --- | --- |
-| -1 | `sleepy-hamster` | 😴🐹 | Trivial — autopilot |
-| 0 | `contented-capybara` | 😌🦫 | Easy — straightforward |
-| 1 | `eager-beaver` | ⚙️🦫 | Moderate — some problem-solving |
-| 2 | `caffeinated-squirrel` | ☕🐿️ | Tricky — attention to detail, several considerations |
-| 3 | `determined-mountain-goat` | 💪🐐 | Challenging — careful planning, several steps |
-| 4 | `persistent-salmon` | ⬆️🐟 | Difficult — real obstacles, fought against |
-| 5 | `angry-honey-badger` | 😠🦡 | Very difficult — determined effort, will not back down |
-| 6 | `protective-dragon` | 🔥🐉 | Formidable — a major undertaking with real risk |
-| 7 | `cornered-porcupine` | 📍🦔 | Hardcore — everything can go wrong, sharp edges everywhere |
-| 8 | `tiger-with-a-toothache` | 🐯🦷 | Extreme — complexity and pain together |
+| 1 | `sleepy-hamster` | 😴🐹 | Trivial — autopilot |
+| 2 | `contented-capybara` | 😌🦫 | Easy — straightforward |
+| 3 | `eager-beaver` | ⚙️🦫 | Moderate — some problem-solving |
+| 4 | `caffeinated-squirrel` | ☕🐿️ | Tricky — attention to detail, several considerations |
+| 5 | `determined-mountain-goat` | 💪🐐 | Challenging — careful planning, several steps |
+| 6 | `persistent-salmon` | ⬆️🐟 | Difficult — real obstacles, fought against |
+| 7 | `angry-honey-badger` | 😠🦡 | Very difficult — determined effort, will not back down |
+| 8 | `protective-dragon` | 🔥🐉 | Formidable — a major undertaking with real risk |
+| 9 | `cornered-porcupine` | 📍🦔 | Hardcore — everything can go wrong, sharp edges everywhere |
+| 10 | `tiger-with-a-toothache` | 🐯🦷 | Extreme — complexity and pain together |
 
 A level's glyphs are in the order of its words — the condition first, the animal second — except
 `tiger-with-a-toothache`, whose name puts the animal first and whose glyphs follow it.
@@ -110,53 +110,51 @@ it.
 
 | # | Slug | Title | Difficulty | Utility | Status | Blocked by |
 | --- | --- | --- | --- | --- | --- | --- |
-| 1 | [`library-edit-cost-is-invisible`](library-edit-cost-is-invisible.md) | Nothing says which pages a library edit will recompile | contented-capybara 😌🦫 | medium | [planned](../plans/ide-host.md) | — |
-| | | *Says what a library edit recompiles; small, and it makes a cost the reader cannot see visible.* | | | | |
-| 2 | [`block-that-is-not-code-compiles`](block-that-is-not-code-compiles.md) | A block that is not code still compiles | eager-beaver ⚙️🦫 | medium | open | — |
+| 1 | [`block-that-is-not-code-compiles`](block-that-is-not-code-compiles.md) | A block that is not code still compiles | eager-beaver ⚙️🦫 | medium | open | — |
 | | | *The same complaint as the diagnostics above one layer down: a shape the compiler cannot see, and the seeds are the proof the warnings stay quiet.* | | | | |
-| 3 | [`ops-no-ci`](ops-no-ci.md) | There is no CI pipeline | caffeinated-squirrel ☕🐿️ | high | open | — |
+| 2 | [`ops-no-ci`](ops-no-ci.md) | There is no CI pipeline | caffeinated-squirrel ☕🐿️ | high | open | — |
 | | | *Turns the gate from a habit into a rule, which makes every step below it cheaper.* | | | | |
-| 4 | [`cannot-ask-the-owner`](cannot-ask-the-owner.md) | The assistant cannot ask the owner a question | caffeinated-squirrel ☕🐿️ | high | [planned](../plans/assistant-ask-owner.md) | — |
+| 3 | [`cannot-ask-the-owner`](cannot-ask-the-owner.md) | The assistant cannot ask the owner a question | caffeinated-squirrel ☕🐿️ | high | [planned](../plans/assistant-ask-owner.md) | — |
 | | | *The wait it needs is built, so this is a tool, a card and three limits, and every assistant run that meets an unknown stops guessing.* | | | | |
-| 5 | [`page-cannot-move`](page-cannot-move.md) | A page cannot move a page | eager-beaver ⚙️🦫 | high | [planned](../plans/page-move.md) | — |
+| 4 | [`page-cannot-move`](page-cannot-move.md) | A page cannot move a page | eager-beaver ⚙️🦫 | high | [planned](../plans/page-move.md) | — |
 | | | *A rename is two histories and silent breakage today; a common act for moderate work.* | | | | |
-| 6 | [`check-without-storing`](check-without-storing.md) | A page cannot check a template without saving it | caffeinated-squirrel ☕🐿️ | high | [planned](../plans/ide-host.md) | — |
+| 5 | [`check-without-storing`](check-without-storing.md) | A page cannot check a template without saving it | caffeinated-squirrel ☕🐿️ | high | [planned](../plans/ide-host.md) | — |
 | | | *Stops "check my work" storing a revision, so no history carries a test save.* | | | | |
-| 7 | [`one-write-per-render`](one-write-per-render.md) | A render may write a batch of pages, and the caller names the policy | protective-dragon 🔥🐉 | high | blocked | `check-without-storing` |
+| 6 | [`one-write-per-render`](one-write-per-render.md) | A render may write a batch of pages, and the caller names the policy | protective-dragon 🔥🐉 | high | blocked | `check-without-storing` |
 | | | *The one-save rule is what the assistant hits on every multi-file edit, and the owner has decided it goes; it borrows [`check-without-storing`](check-without-storing.md)'s compile-without-store, so it follows that step.* | | | | |
-| 8 | [`job-borrows-a-credential`](job-borrows-a-credential.md) | A job acts with its starter's credential, and loses it when that credential dies | persistent-salmon ⬆️🐟 | high | blocked | `one-write-per-render` |
+| 7 | [`job-borrows-a-credential`](job-borrows-a-credential.md) | A job acts with its starter's credential, and loses it when that credential dies | persistent-salmon ⬆️🐟 | high | blocked | `one-write-per-render` |
 | | | *A job's writer is only safe once [`one-write-per-render`](one-write-per-render.md) has replaced the one-action rule with a policy the caller names; revocation is the other half of the same decision.* | | | | |
-| 9 | [`cannot-check-a-page`](cannot-check-a-page.md), with [`tool-arguments-say-nothing`](tool-arguments-say-nothing.md) as its first slice | The assistant can check a script but not a page | determined-mountain-goat 💪🐐 | high | blocked | `check-without-storing` |
+| 8 | [`cannot-check-a-page`](cannot-check-a-page.md), with [`tool-arguments-say-nothing`](tool-arguments-say-nothing.md) as its first slice | The assistant can check a script but not a page | determined-mountain-goat 💪🐐 | high | blocked | `check-without-storing` |
 | | | *The compiler [`check-without-storing`](check-without-storing.md) adds gives the editor answers the model's most-asked question; the same step retires two tools that are one tool twice, so the definitions it describes are described once.* | | | | |
-| 10 | [`cannot-search-the-store`](cannot-search-the-store.md) | A page cannot search the store's source | eager-beaver ⚙️🦫 | medium | [planned](../plans/ide-host.md) | — |
+| 9 | [`cannot-search-the-store`](cannot-search-the-store.md) | A page cannot search the store's source | eager-beaver ⚙️🦫 | medium | [planned](../plans/ide-host.md) | — |
 | | | *Lifts the assistant's own search into the contract rather than inventing anything.* | | | | |
-| 11 | [`ops-no-outage-notification`](ops-no-outage-notification.md) | No outbound notifications when the site breaks | eager-beaver ⚙️🦫 | medium | open | — |
+| 10 | [`ops-no-outage-notification`](ops-no-outage-notification.md) | No outbound notifications when the site breaks | eager-beaver ⚙️🦫 | medium | open | — |
 | | | *Useful, but one owner and a unit that restarts already notices most outages.* | | | | |
-| 12 | [`import-cannot-reset-a-site`](import-cannot-reset-a-site.md) | Import only adds and overwrites, so an archive cannot reset a site | caffeinated-squirrel ☕🐿️ | medium | open | — |
+| 11 | [`import-cannot-reset-a-site`](import-cannot-reset-a-site.md) | Import only adds and overwrites, so an archive cannot reset a site | caffeinated-squirrel ☕🐿️ | medium | open | — |
 | | | *A destructive reset has to be designed carefully; the additive import is the safe default until it is.* | | | | |
-| 13 | [`no-account-store`](no-account-store.md) | A page has no persistent per-account store | protective-dragon 🔥🐉 | high | [planned](../plans/account-store.md) | — |
+| 12 | [`no-account-store`](no-account-store.md) | A page has no persistent per-account store | protective-dragon 🔥🐉 | high | [planned](../plans/account-store.md) | — |
 | | | *The most useful large item, with a plan and a first customer, and a plan's yes is the only thing it waits on.* | | | | |
-| 14 | [`editor-is-a-textarea`](editor-is-a-textarea.md) | The editor is a plain textarea | determined-mountain-goat 💪🐐 | high | open | — |
+| 13 | [`editor-is-a-textarea`](editor-is-a-textarea.md) | The editor is a plain textarea | determined-mountain-goat 💪🐐 | high | open | — |
 | | | *High use and high cost; the gutter, the diagnostics and the row state already cover the worst of it.* | | | | |
-| 15 | [`conversation-is-not-a-page`](conversation-is-not-a-page.md) | The assistant's conversation is a stream and a set of host actions, not a page | protective-dragon 🔥🐉 | medium | blocked | `no-account-store` |
+| 14 | [`conversation-is-not-a-page`](conversation-is-not-a-page.md) | The assistant's conversation is a stream and a set of host actions, not a page | protective-dragon 🔥🐉 | medium | blocked | `no-account-store` |
 | | | *The assistant's conversation as a page needs the account store beneath it, and that is [`no-account-store`](no-account-store.md).* | | | | |
-| 16 | [`archive-is-not-a-form`](archive-is-not-a-form.md) | `/admin/import` and `/admin/export` are shell code because an archive is not a form | caffeinated-squirrel ☕🐿️ | low | open | — |
+| 15 | [`archive-is-not-a-form`](archive-is-not-a-form.md) | `/admin/import` and `/admin/export` are shell code because an archive is not a form | caffeinated-squirrel ☕🐿️ | low | open | — |
 | | | *The two admin routes already work; making them pages buys consistency, not capability.* | | | | |
-| 17 | [`sec-page-runs-in-process`](sec-page-runs-in-process.md) | Page code has no execution budget and no process boundary | cornered-porcupine 📍🦔 | high | open | — |
+| 16 | [`sec-page-runs-in-process`](sec-page-runs-in-process.md) | Page code has no execution budget and no process boundary | cornered-porcupine 📍🦔 | high | open | — |
 | | | *Medium severity and a redesign of how a page runs; the trimmed API policy and the sign-in guard already carry much of it.* | | | | |
-| 18 | [`no-browser-render`](no-browser-render.md) | A page cannot render a page in a browser | persistent-salmon ⬆️🐟 | low | open | — |
+| 17 | [`no-browser-render`](no-browser-render.md) | A page cannot render a page in a browser | persistent-salmon ⬆️🐟 | low | open | — |
 | | | *A spike, a sidecar and a capability for a question the server's own answer often settles.* | | | | |
-| 19 | [`nothing-checks-page-assets`](nothing-checks-page-assets.md) | Nothing checks a page's CSS, HTML or SVG | persistent-salmon ⬆️🐟 | low | open | — |
+| 18 | [`nothing-checks-page-assets`](nothing-checks-page-assets.md) | Nothing checks a page's CSS, HTML or SVG | persistent-salmon ⬆️🐟 | low | open | — |
 | | | *Pays off once pages write their own CSS and SVG, and each checker is a parser we write, so it waits for that reason rather than a hunch.* | | | | |
-| 20 | [`declaration-does-not-name-its-close`](declaration-does-not-name-its-close.md) | A declaration block does not name its close | protective-dragon 🔥🐉 | medium | blocked | `block-that-is-not-code-compiles` |
+| 19 | [`declaration-does-not-name-its-close`](declaration-does-not-name-its-close.md) | A declaration block does not name its close | protective-dragon 🔥🐉 | medium | blocked | `block-that-is-not-code-compiles` |
 | | | *A language change in two releases that rewrites every declaration in the store; it waits for [`block-that-is-not-code-compiles`](block-that-is-not-code-compiles.md) to have proved the warning that carries release 1.* | | | | |
-| 21 | [`vscode-cannot-check-a-page`](vscode-cannot-check-a-page.md) | VS Code cannot check a page as it is typed | determined-mountain-goat 💪🐐 | low | open | — |
+| 20 | [`vscode-cannot-check-a-page`](vscode-cannot-check-a-page.md) | VS Code cannot check a page as it is typed | determined-mountain-goat 💪🐐 | low | open | — |
 | | | *Developer-only, and `make check-pages` already compiles the seeds.* | | | | |
-| 22 | [`old-response-spelling`](old-response-spelling.md) | The old response spelling is still on `IContext` | contented-capybara 😌🦫 | low | open | — |
+| 21 | [`old-response-spelling`](old-response-spelling.md) | The old response spelling is still on `IContext` | contented-capybara 😌🦫 | low | open | — |
 | | | *Waits for a release: the alias has to have been out long enough that nothing in the store reports `PAGE009` before it is deleted.* | | | | |
-| 23 | [`message-does-not-survive-a-redirect`](message-does-not-survive-a-redirect.md) | A page cannot leave a message for a page it sends a visitor to | protective-dragon 🔥🐉 | high | [planned](../plans/page-inbox.md) | — |
+| 22 | [`message-does-not-survive-a-redirect`](message-does-not-survive-a-redirect.md) | A page cannot leave a message for a page it sends a visitor to | protective-dragon 🔥🐉 | high | [planned](../plans/page-inbox.md) | — |
 | | | *Planned, but a plan is not urgency: nothing blocks it and no page stops working without it, so it waits below everything that does.* | | | | |
-| 24 | [`listing-does-not-date-itself`](listing-does-not-date-itself.md) | A listing cannot say the store moved under it | caffeinated-squirrel ☕🐿️ | medium | open | — |
+| 23 | [`listing-does-not-date-itself`](listing-does-not-date-itself.md) | A listing cannot say the store moved under it | caffeinated-squirrel ☕🐿️ | medium | open | — |
 | | | *The cursor answered where a walk is; this answers whether it is still the same walk, and the write paths are the price.* | | | | |
 
 Every step is one unit of work, on one branch in one worktree named `kind/filename`
