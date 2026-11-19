@@ -2594,10 +2594,28 @@ a reboot.
 ### deploy-quadlets-are-the-source-of-truth
 
 The quadlets, Caddyfile and CI files in `deploy/` are the source of truth. The host is a deployment
-target, never edited by hand.
+target, never edited by hand, and so are the steps that install it: `make deploy` runs
+`deploy/deploy-host`, which is a file in the tree like the quadlets it writes.
 
-*Recorded in [Caddyfile](../deploy/Caddyfile), [the CI hooks](../deploy/ci/post-receive), [the
-instructions](../.github/copilot-instructions.md).*
+*Recorded in [Caddyfile](../deploy/Caddyfile), [the CI hooks](../deploy/ci/post-receive),
+[deploy-host](../deploy/deploy-host), [the instructions](../.github/copilot-instructions.md).*
+
+### deploy-target-is-a-script
+
+`make deploy` is the entry point and the release's steps are `deploy/deploy-host`, beside the files
+they install. The target keeps what belongs to a task runner — the gate (`deploy-guard check
+test-browser image`), the control-socket directory the first `ssh` needs, and one call — and the
+script holds the package checks, the image's push and pull, the app's paths, the rootless and rootful
+units, the CI status seed, the three waits and the note at the end, with the reason for each step
+beside the command that performs it.
+
+The values it needs are named and passed on the one call — the host, the ssh command, the three image
+tags, both auth files, the status directory and the commit — and none has a default in the script, so
+a direct run refuses rather than installing a host on a guess. A helper the target calls is not a
+parallel entry point: `ci-install` and `pull-install` already work this way.
+
+*Recorded in [deploy-host](../deploy/deploy-host), [Makefile](../Makefile), [deploy](../deploy/README.md),
+[the plan](plans/archive/deploy-host-script.md).*
 
 ### deploy-caps-and-swap
 

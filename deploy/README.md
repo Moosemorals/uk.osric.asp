@@ -33,13 +33,16 @@ deploy/
   fail2ban/jail.local       the jails: Debian's sshd, and the site's own
   fail2ban/filter.d/        the app's refusal line, which the site's jail matches
   uk.osric.asp-fail2ban-metrics.service, .timer   the collector's clock, system units
+  deploy-host               the host steps `make deploy` runs, beside the files they install
   ci/                       the host's CI account: hooks, check and mirror scripts, slice and units;
                             `make ci-install` copies them up
 ```
 
 The quadlets, the Caddyfile, the fail2ban configuration and the CI files under `deploy/ci` are the
 source of truth for the server: `make deploy` copies the quadlets and the Caddyfile up and applies
-them, and `make ci-install` installs the CI account, the hooks and the units.
+them, and `make ci-install` installs the CI account, the hooks and the units. The steps a deploy runs
+are written down in `deploy/deploy-host`, beside the files it installs; the target keeps the gate, the
+control socket and the one call.
 
 ## First deployment
 
