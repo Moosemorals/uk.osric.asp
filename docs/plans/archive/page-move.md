@@ -7,16 +7,16 @@ SPDX-License-Identifier: MIT
 
 | | |
 | --- | --- |
-| Status | Building 2026-11-19 on `idea/page-cannot-move`. Proposed 2026-11-16, and the owner approved it with four answers below |
+| Status | Merged 2026-11-19 — `pages-a-key-moves-with-its-history`. Proposed 2026-11-16, approved with four answers, and built on `idea/page-cannot-move` |
 | Size | M — one member and one outcome on the write capability, one store transaction, the seeded editor's action, an assistant tool and a shell applet, and the tests, manual and prompt for each. No migration: the owner's answer of 2026-11-16 leaves nothing at the old key, which removes the column the job expected |
 | Spike | None. Every claim about what exists was read off `trunk` on 2026-11-16: `IPageWrites`, `PageWritesScope`, `PageEditor`, `PageSaver`, `SqlitePageStore`, `PageHead`, `PageRevision`, `PageTemplate`, `PageSeedInstaller`, `ApplySeedsEndpoint`, `RestoreEndpoint`, `PageTree`, `RevisionHash`, `ToolRegistry` and the migrations |
-| Decisions | At the merge: **pages-a-key-moves-with-its-history** is new, and `pages-any-page-may-write-the-store` is edited in place to name the new member |
-| Backlog | [`page-cannot-move`](../backlog/page-cannot-move.md) is this step; [`library-edit-cost-is-invisible`](../backlog/closed.md), [`cannot-search-the-store`](../backlog/cannot-search-the-store.md), [`listing-has-no-cursor`](../backlog/closed.md), [IDEA-041](../backlog/closed.md), [`check-without-storing`](../backlog/check-without-storing.md), [IDEA-043](../backlog/closed.md) and [`one-write-per-render`](../backlog/one-write-per-render.md) are its neighbours in [the IDE plan](ide-host.md) |
+| Decisions | `pages-a-key-moves-with-its-history` is new, and `pages-any-page-may-write-the-store` is edited in place to name the new member |
+| Backlog | [`page-cannot-move`](../../backlog/closed.md) is this step; [`library-edit-cost-is-invisible`](../../backlog/closed.md), [`cannot-search-the-store`](../../backlog/cannot-search-the-store.md), [`listing-has-no-cursor`](../../backlog/closed.md), [IDEA-041](../../backlog/closed.md), [`check-without-storing`](../../backlog/check-without-storing.md), [IDEA-043](../../backlog/closed.md) and [`one-write-per-render`](../../backlog/one-write-per-render.md) are its neighbours in [the IDE plan](../ide-host.md) |
 
 ## The short version
 
 A key is a page's identity, and nothing moves one. `MoveAsync(from, to, expectedHash)` on
-[`IPageWrites`](../../src/uk.osric.asp.Sdk/IPageWrites.cs) moves the page, its history and its state
+[`IPageWrites`](../../../src/uk.osric.asp.Sdk/IPageWrites.cs) moves the page, its history and its state
 under the new key in one transaction, leaves **nothing** at the old key, and compiles nothing. The
 caller names the head it believed the source had, so a move cannot be applied to a page that changed
 underneath it, and every answer the store already gives about a save — stale, unchanged, target
@@ -55,7 +55,7 @@ Two things follow from that table and they are the whole of the design.
 | What is left at the old key after a move? | **Nothing**: "after moving `/a` to `/b`, `/a` should 404" (2026-11-16) | No marker row and no `MovedTo` column, so no migration, no copy of the head, and the whole history moves — §2 and §3 |
 | Is `expectedHash` required? | **Yes** (2026-11-19) | One member, no nullable expectation: a move cannot race an edit the caller did not read — §1 |
 | Does the assistant get a `move_page` tool? | **Yes, and the shell gets `mv`** (2026-11-19) | Both are shipped callers over the same capability, so the model renames as a move rather than a write-and-delete — §8 |
-| Is a page with children refused? | **Yes**, naming them (2026-11-19) | `FolderNotEmpty`; a folder is a batch of moves, and [`one-write-per-render`](../backlog/one-write-per-render.md) is told to include bulk move — §4 |
+| Is a page with children refused? | **Yes**, naming them (2026-11-19) | `FolderNotEmpty`; a folder is a batch of moves, and [`one-write-per-render`](../../backlog/one-write-per-render.md) is told to include bulk move — §4 |
 | Does the editor get a Move action? | **Yes**, as a link that opens a page asking for the destination (2026-11-19) | `?edit=<key>&cmd=move` renders a confirmation page with a new-key field, like Delete's confirmation — §7 |
 
 The alternative to leaving nothing — a deleted head row that says where the page went — would *also*
@@ -197,7 +197,7 @@ is `TargetExists` and writes nothing.
 
 Links inside other pages still point at the old key, and now they are broken rather than redirected:
 `/a` is not a page, so it answers `404`. That is the honest half the owner chose. Rewriting the links
-is a search plus a batch save ([`cannot-search-the-store`](../backlog/cannot-search-the-store.md), [`one-write-per-render`](../backlog/one-write-per-render.md)) and
+is a search plus a batch save ([`cannot-search-the-store`](../../backlog/cannot-search-the-store.md), [`one-write-per-render`](../../backlog/one-write-per-render.md)) and
 it edits pages the caller may never have opened — a decision of its own, deliberately not bundled here.
 
 A library's dependents are the one case where the store *knows* it has invalidated something it cannot
@@ -369,12 +369,12 @@ unit or integration test.
   carries.
 - **`PageAuthorPrompt`** gains the same paragraph and the version bump, because it is the assistant's
   only manual: *rename by moving; never by writing the source at the new key and deleting the old*.
-- **[pages](../pages.md)** adds `MoveAsync` to the `IPageWrites` bullet; the capability count does not
+- **[pages](../../pages.md)** adds `MoveAsync` to the `IPageWrites` bullet; the capability count does not
   change and the `IPageCatalog` bullet is untouched.
-- **[storage](../storage.md)** records the transaction: the four statements, why the head row goes
+- **[storage](../../storage.md)** records the transaction: the four statements, why the head row goes
   first, the re-filed history, the anchor that moves with it, the state, and that nothing is left at
   the old key.
-- **[decisions](../decisions.md)** at the merge, below.
+- **[decisions](../../decisions.md)** at the merge, below.
 
 ## The record at the merge
 
@@ -406,9 +406,9 @@ One branch, one gate, six commits, each readable on its own.
 4. **The assistant and the shell.** `move_page`, `mv`, `ShellTool`, and their tests.
 5. **The manual and the prompt.** `/help`'s two sections, `PageAuthorPrompt` and `page-author-v45`, and
    their tests.
-6. **The docs.** [pages](../pages.md), [storage](../storage.md), [assistant](../assistant.md),
-   [`page-cannot-move`](../backlog/page-cannot-move.md), [`one-write-per-render`](../backlog/one-write-per-render.md)'s
-   bulk-move note, and the slice-6 pointer in [the IDE plan](ide-host.md).
+6. **The docs.** [pages](../../pages.md), [storage](../../storage.md), [assistant](../../assistant.md),
+   [`page-cannot-move`](../../backlog/closed.md), [`one-write-per-render`](../../backlog/one-write-per-render.md)'s
+   bulk-move note, and the slice-6 pointer in [the IDE plan](../ide-host.md).
 
 `make check` is the gate: format, licence, audit, decisions, `check-pages` (the seeds compile, so the
 editor's new action is compile-proved), the tests and the publish. The merge is the owner's, and the
@@ -423,13 +423,13 @@ record is written there.
   cannot drift into an accident.
 - **Every inbound link is broken, not redirected.** The job's workaround broke them silently; this
   breaks them loudly, because `/a` answers `404`. That is the owner's decision and the reason a link
-  audit after a move is [`cannot-search-the-store`](../backlog/cannot-search-the-store.md)'s work.
+  audit after a move is [`cannot-search-the-store`](../../backlog/cannot-search-the-store.md)'s work.
 - **A `?v=` link answers at the new key only.** The revision and its hash are unchanged; the address is
   not.
 - **A library move stays refused until 040 and 047 exist.** The refusal is honest rather than helpful:
   with no dependents read, it cannot name the pages a library move would break.
 - **The one action means one move per render.** A folder is several moves, so it is several requests
-  until the batch ([`one-write-per-render`](../backlog/one-write-per-render.md)). The confirmation says so.
+  until the batch ([`one-write-per-render`](../../backlog/one-write-per-render.md)). The confirmation says so.
 - **The transaction is the store's first that changes the path of stored revisions.** It is four
   statements in an order the foreign key demands, and `AFailedMoveWritesNothingAsync` is the test that
   keeps it whole; but it is the operation to re-read when the schema is next changed.
@@ -454,7 +454,7 @@ All answered by the owner on 2026-11-19; recorded so the answers and their costs
 4. **~~A page with children is refused?~~ Answered 2026-11-19: yes, with the children named**
    (`FolderNotEmpty`). A folder is a batch of moves, and a move that left a subtree behind would split
    it silently. Moving the children first and the folder's own page last renames a folder by hand.
-   [`one-write-per-render`](../backlog/one-write-per-render.md) is told that a batch must be able to move
+   [`one-write-per-render`](../../backlog/one-write-per-render.md) is told that a batch must be able to move
    as well as save.
 5. **~~The editor's own Move action, and its own row.~~ Answered 2026-11-19: the action, as a link to
    a page.** Clicking Move opens `?edit=<key>&cmd=move`, which asks for the destination key and shows
@@ -463,16 +463,16 @@ All answered by the owner on 2026-11-19; recorded so the answers and their costs
 ## Not in scope
 
 - **Moving a folder.** A batch of moves, built from this member rather than as a second operation
-  ([`one-write-per-render`](../backlog/one-write-per-render.md)).
+  ([`one-write-per-render`](../../backlog/one-write-per-render.md)).
 - **Rewriting inbound links.** A search plus a batch save, and a decision about editing pages the
-  caller never opened ([`cannot-search-the-store`](../backlog/cannot-search-the-store.md)).
-- **Moving a library.** Refused until the dependents are readable ([`library-edit-cost-is-invisible`](../backlog/closed.md)) and
-  a batch can recompile them ([`one-write-per-render`](../backlog/one-write-per-render.md)).
+  caller never opened ([`cannot-search-the-store`](../../backlog/cannot-search-the-store.md)).
+- **Moving a library.** Refused until the dependents are readable ([`library-edit-cost-is-invisible`](../../backlog/closed.md)) and
+  a batch can recompile them ([`one-write-per-render`](../../backlog/one-write-per-render.md)).
 - **An alias or a redirect.** A key that `301`s is a response rule and a store column, and the owner
   declined even the store's memory of the move; a redirect is a different job with a different security
   story.
 - **Moving a tombstone.** A tombstone is history, not a page; it is scrubbed or saved over, not moved.
-- **A rename in the release's own seed pack.** [IDEA-036](archive/seed-provenance.md)'s harvest and
+- **A rename in the release's own seed pack.** [IDEA-036](seed-provenance.md)'s harvest and
   adopt round trip — and the reason §3's third cost has a way out.
 - **The IDE's tree and tabs.** A page that moved one knows the new key, and that is what its own view
   shows; the IDE's tree and open tabs are its plan's work.

@@ -16,7 +16,7 @@ SPDX-License-Identifier: MIT
 | Location | `src/uk.osric.asp.Sdk/IPageWrites.cs`, `src/uk.osric.asp.Web/Pages/PageWritesScope.cs`, `src/uk.osric.asp.Web/Editor/PageSaver.cs`, `src/uk.osric.asp.Web/Pages/IPageRevisionStore.cs`, `src/uk.osric.asp.Web/Pages/Seeds/pages`, `src/uk.osric.asp.Web/Pages/Seeds/help`, `src/uk.osric.asp.Web/Assistant/PageAuthorPrompt.cs` |
 
 > **A batch must be able to move, not only save — 2026-11-19.** The owner settled
-> [`page-cannot-move`](page-cannot-move.md) with a single `MoveAsync`, and a folder rename is a batch of
+> [`page-cannot-move`](closed.md) with a single `MoveAsync`, and a folder rename is a batch of
 > moves. A batch is therefore a list of operations, not only a list of edits: the same three policies
 > wrap saves, moves and the two together, and a report row says which one it was. One render's one
 > action is what makes this the only way to rename a folder.
@@ -72,7 +72,7 @@ writes, chosen policy, one report. Building it for Save all alone would be build
    recovery path.
 
 4. **A batch moves as well as writes.** A folder rename, a seed re-slugged by a release and a tree
-   rearrangement are several moves, and [`page-cannot-move`](page-cannot-move.md) deliberately refuses a
+   rearrangement are several moves, and [`page-cannot-move`](closed.md) deliberately refuses a
    key with pages below it. So the batch carries an operation as well as an edit — a save, or a move
    with its `from`, `to` and expected hash — and the same three policies and the same per-operation
    report cover both. Nothing else moves down: the batch does not
@@ -110,7 +110,7 @@ writes, chosen policy, one report. Building it for Save all alone would be build
 ## Not in scope
 
 - **The widened authority and the merged capability.** [IDEA-043](closed.md), which lands first.
-- **A single rename, a search and a check.** [`page-cannot-move`](page-cannot-move.md) lands the member a
+- **A single rename, a search and a check.** [`page-cannot-move`](closed.md) lands the member a
   batch of moves is built from; [`cannot-search-the-store`](cannot-search-the-store.md) and
   [`check-without-storing`](check-without-storing.md) are their own items.
 - **Bulk delete, install and restore.** Single-action members, and their own policies when they need

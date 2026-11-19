@@ -23,7 +23,7 @@ closed, and dangling tool calls receive synthetic results rather than being repl
 
 The provider boundary is an explicitly configured OpenAI-compatible streaming chat-completions
 endpoint. A run sends the system prompt, conversation transcript, and page source read
-by tools to that provider. No provider SDK is used. The tools are twenty-one types under
+by tools to that provider. No provider SDK is used. The tools are twenty-two types under
 `Assistant/Tools`, each carrying its name, its description, its argument schema, its approval flag,
 whether it waits for the owner, the verb its refusals use, whether it changes a page and its own run,
 beside the code that runs it;

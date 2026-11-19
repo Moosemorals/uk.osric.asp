@@ -110,8 +110,6 @@ its reason, and that no item sits above something that blocks it.
 
 | Slug | Title | Difficulty | Utility | Status | Blocked by |
 | --- | --- | --- | --- | --- | --- |
-| [`page-cannot-move`](page-cannot-move.md) | A page cannot move a page | eager-beaver ⚙️🦫 | high | [planned](../plans/page-move.md) | — |
-| | *A rename is two histories and silent breakage today; a common act for moderate work.* | | | | |
 | [`check-without-storing`](check-without-storing.md) | A page cannot check a template without saving it | caffeinated-squirrel ☕🐿️ | high | [planned](../plans/ide-host.md) | — |
 | | *Stops "check my work" storing a revision, so no history carries a test save.* | | | | |
 | [`seed-auto-apply-at-startup`](seed-auto-apply-at-startup.md) | A release applies the seeds it moved at startup | eager-beaver ⚙️🦫 | high | open | — |

@@ -11,7 +11,7 @@ SPDX-License-Identifier: MIT
 | Size | Large as a programme, small as a step: eight capabilities, each its own job and its own branch, ordered so that each ships on its own and can be backed out on its own |
 | Spike | None. Every claim about what exists was read off `trunk` on 2026-11-15: `IPageCatalog`, `IPageEditor`, `PageEditorScope`, `PageWriterScope`, `PageCompiler.MapDiagnostics`, `PageDiagnostics.ToSdk` and `PageJobRunner` |
 | Decisions | `pages-a-diagnostic-names-its-source` (041), recorded at its merge. The rest are named at the merge (`product-plan-before-building`); this branch states the names it intends. One entry is retired rather than revised — the one that made the editor's registration the authority — and `pages-a-page-may-save-itself` is revised twice, once by 043 and once by 047 |
-| Backlog | [`check-without-storing`](../backlog/check-without-storing.md), [`cannot-search-the-store`](../backlog/cannot-search-the-store.md), [`listing-has-no-cursor`](../backlog/closed.md), [`library-edit-cost-is-invisible`](../backlog/closed.md), [IDEA-041](../backlog/closed.md), [`page-cannot-move`](../backlog/page-cannot-move.md), [IDEA-043](../backlog/closed.md), [`one-write-per-render`](../backlog/one-write-per-render.md) |
+| Backlog | [`check-without-storing`](../backlog/check-without-storing.md), [`cannot-search-the-store`](../backlog/cannot-search-the-store.md), [`listing-has-no-cursor`](../backlog/closed.md), [`library-edit-cost-is-invisible`](../backlog/closed.md), [IDEA-041](../backlog/closed.md), [`page-cannot-move`](../backlog/closed.md), [IDEA-043](../backlog/closed.md), [`one-write-per-render`](../backlog/one-write-per-render.md) |
 
 ## The short version
 
