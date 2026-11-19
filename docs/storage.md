@@ -96,6 +96,16 @@ copies, exported archives, backups or filesystem snapshots. Rotate exposed secre
 copies separately. Runtime-change cleanup of obsolete images and symbols is future work; source and
 revision identity are retained unless explicitly scrubbed.
 
+A move re-files a page in one transaction: the head row at the old key is deleted, every revision's
+`Path` is updated to the new key, `PageState` rows are re-keyed, and a head is inserted at the new key
+with the revision the page already had and the anchor and content hash it already carried. The head
+goes first and comes back last because `PageHeads(RevisionId, Path)` points at a revision of the head's
+own path, so the foreign key would refuse any other order; nothing is recompiled. Every hash is kept,
+so the history is one history under the new name, and nothing is left at the old key. A tombstone at
+the new key is deleted first and keeps the history it retained; its state belonged to the dead page and
+is discarded. The deletion of the old head is conditional on the revision the move read, so a save that
+lands in between makes the transaction roll back and the caller is answered Stale.
+
 A stored page may read the same store through `ctx.Capabilities.GetRequired<IPageCatalog>()`
 (`pages-the-store-is-read-through-one-seam`, `pages-reading-the-store-is-public`, `pages-a-listing-carries-facts`, `product-manual-is-a-page`, `pages-delete-install-and-restore`, `pages-page-first`). The read is a capability of its own rather than `IPageStore` because the latter
 is scoped to the request's context and a page's task can outlive the request: `IPageReadStore` is a

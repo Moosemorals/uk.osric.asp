@@ -13,7 +13,7 @@ SPDX-License-Identifier: MIT
 | Blocked by | — |
 | Plan | [page-move](../plans/page-move.md) |
 | Area | Sdk, Web (pages, storage), docs |
-| Location | `src/uk.osric.asp.Sdk/IPageWrites.cs`, `src/uk.osric.asp.Web/Pages/PageWritesScope.cs`, `src/uk.osric.asp.Web/Editor/PageEditor.cs`, `src/uk.osric.asp.Web/Pages/SqlitePageStore.cs`, `src/uk.osric.asp.Web/Pages/PageRevision.cs`, `src/uk.osric.asp.Web/Pages/Seeds/help`, `src/uk.osric.asp.Web/Assistant/PageAuthorPrompt.cs` |
+| Location | `src/uk.osric.asp.Sdk/IPageWrites.cs`, `src/uk.osric.asp.Web/Pages/PageWritesScope.cs`, `src/uk.osric.asp.Web/Editor/PageEditor.cs`, `src/uk.osric.asp.Web/Pages/SqlitePageStore.cs`, `src/uk.osric.asp.Web/Pages/PageRevision.cs`, `src/uk.osric.asp.Web/Pages/Seeds/pages`, `src/uk.osric.asp.Web/Pages/Seeds/help`, `src/uk.osric.asp.Web/Assistant/PageAuthorPrompt.cs`, `src/uk.osric.asp.Web/Assistant/Tools/PageTools.cs`, `src/uk.osric.asp.Web/Assistant/Shell/Applets/MvApplet.cs` |
 
 ## Idea
 
@@ -27,10 +27,11 @@ The wider class is "the store's shape changes": a page renamed, a set of pages m
 folder, a seed re-slugged by a release. It is a store operation with a validity rule, not a view of one,
 and every caller that needs it today does it badly:
 
-- **The editor** offers a save and a delete, so an author does it by hand and says the history is what
-  it is.
-- **The assistant** has `write_page` and `delete_page` and would do the same two calls, and its
-  edit-safety rules are about one key at a time (`assistant-edit-page-is-safe`).
+- **The editor** offered a save and a delete, so an author did it by hand and said the history was
+  what it was. Its Move action opens a confirmation that asks for the destination.
+- **The assistant** had `write_page` and `delete_page` and would do the same two calls, and its
+  edit-safety rules are about one key at a time (`assistant-edit-page-is-safe`). Its `move_page` and
+  the shell's `mv` are this item's answer.
 - **A release** cannot move a seeded page at all: the seed's key is its identity
   ([seed provenance](../plans/archive/seed-provenance.md)), so a renamed seed is a new page with a new
   anchor and an orphan on the old
@@ -73,20 +74,25 @@ and every caller that needs it today does it badly:
    `PageAuthorPrompt` sentence with its `Version` bumped so the assistant moves rather than copies, and
    the storage section of [storage](../storage.md) for the transaction.
 
-## Open questions
+## Answered questions
 
 1. **A tombstone at the old key, or nothing.** A tombstone is how the store already records "this key
    had a page", and it makes a stale link render the deleted-page answer rather than a missing key. A
    *moved* marker needs a column (an ordinary row work, beside the anchor IDEA-036 landed), and it is the
   only way a visitor learns
    where the page went. Nothing at all is honest but loses the trail.
+   **Answered 2026-11-16: nothing**. `/a` answers `404` after it moves to `/b`, so there is no row, no
+   column and no migration; §3 of the plan records the three things that costs.
 2. **Whether the history moves or is copied.** One history under the new key is the simple answer; a
    retained copy under the old key costs nothing but bytes and confuses "the history of this key". The
    store's rule is that history survives a delete, so a move that empties the old key's history is a
    second kind of forgetting.
+   **Answered: it moves.** One history under the new key, every hash kept; nothing is duplicated.
 3. **Whether `MoveAsync` is one member or `SaveManyAsync` with a rename row.** A batch of edits is
    [IDEA-043](closed.md)'s value; a rename is not an edit and does not compile. Keeping them apart is
    probably right, and it means a batch cannot rename.
+   **Answered 2026-11-19: one member**, because a rename is not an edit and does not compile, and a
+   batch is [`one-write-per-render`](one-write-per-render.md)'s work.
 4. **Case-only renames.** SQLite's default collation makes `/Blog` and `/blog` the same row to one query
    and different rows to another; the store already normalises keys, so a case-only rename may be a
    no-op it has to say out loud.

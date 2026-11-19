@@ -30,9 +30,9 @@ beside the code that runs it;
 `ToolRegistry` is the only list, so the model's definitions, the dispatcher and the approval gate
 cannot drift from each other (`assistant-a-tool-is-one-type`). Assistant tools reach the page store
 through one read seam, `PageStoreReader` — list/read/search, bounded template-source line edits with an
-atomic revision-hash check, whole-page writes, tombstone deletes, a read-only virtual shell, and two
-read-only script checks that parse a stored page or a supplied complete template as an ES module and
-change nothing — while every write is still `PageEditor`'s. The seam also answers the applets, so the
+atomic revision-hash check, whole-page writes, tombstone deletes, page moves, a virtual shell whose one
+writing command is `mv`, and two read-only script checks that parse a stored page or a supplied
+complete template as an ES module and change nothing — while every write is still `PageEditor`'s. The seam also answers the applets, so the
 tree, the reserved keys, the tombstones, the key order and what a scope means are decided once
 (`pages-the-store-is-read-through-one-seam`, `pages-a-listing-carries-facts`, `pages-a-page-has-a-state`, `pages-the-store-is-a-tree`). It carries facts rather than words: a node says whether a save would be accepted and
 what the page compiled to, and `PageMode` and `PageImageStatus` spell them, so `ls -l`, `stat`,
@@ -76,6 +76,15 @@ path — the rules the editor's `cmd=revision` applies. Reading a revision sends
 provider exactly as `read_page` does. Every source line the two tools answer with is prefixed by
 its 1-based number and `| `, because counting lines in escaped JSON is guesswork; the prefix is not
 part of the stored source (`assistant-edit-page-is-safe`).
+
+`move_page` renames a page: it takes `from`, `to` and the head hash the model read, moves the history
+and the state in one transaction, keeps every revision's hash and leaves nothing at the old key, so it
+is the only route to a rename — a write at the new key plus a delete of the old splits the history and
+leaves every inbound link pointing at a tombstone. It is approval-gated, checked at both paths, and a
+library, a key with pages below it, a shell file and a live destination are refusals it reports. Its
+shell twin is `mv <key> <new-key>`, the one applet that writes; because a writing tool is
+approval-gated (`assistant-a-tool-is-one-type`), the whole shell tool asks for approval in
+`RequireApproval` mode, every read command included.
 
 `edit_page` answers with what it changed: the added and removed line counts and the unified diff,
 so an edit that compiles but mangles a block is visible in the same turn. It takes either one line

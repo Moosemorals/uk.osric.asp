@@ -129,13 +129,19 @@ pure renderers, and one that is a fact about the build:
   route, only while the head still has the hash the form was drawn from, and answers a `PageEditResult`
   whose outcome is Saved, Stale or Unchanged; a `null` expectation means the form was drawn from a
   page with no live source, so a create cannot overwrite one. Both compile before they store, so an
-  error is stored and reported and a warning still serves. **The write requires a signed-in visitor**:
+  error is stored and reported and a warning still serves. `MoveAsync(from, to, expectedHash)` renames
+  a page: every revision is re-filed under the new key with the hash it was saved with, the anchor,
+  the content hash and the page state move with it, nothing is compiled, and nothing is left at the old
+  key. It answers a `PageMoveResult` — Moved, Unchanged, Stale, SourceNotFound, TargetExists or
+  FolderNotEmpty with the keys below the old one — while a reserved key, a library and the page moving
+  itself throw, because no argument makes those legal. **The write requires a signed-in visitor**:
   it refuses an anonymous render before it stores anything, and a `HEAD`, an ended render, a reserved
   key or a second write in one render is a page bug. A write belongs to the next request, and a write
   that has started finishes even if the render times out. A layout is offered the read and not the
   write. `Pages:Editor:Key` says only where the editor is served — it is not an authority — and the
   editor's own key is an ordinary key, so `/admin/seeds` is the way back from a deleted editor. The
-  rest is the editor's toolbox: `Resolve`, `DeleteAsync`, `RestoreRevisionAsync`, `AdoptSeedAsync`,
+  rest is the editor's toolbox: `Resolve`, `MoveAsync`, `DeleteAsync`, `RestoreRevisionAsync`,
+  `AdoptSeedAsync`,
   `InstallSeedAsync` — which refuses a row the seed gate does not allow — and `SeedSourceAsync`
   (`pages-a-page-may-save-itself`, `pages-layouts-are-markup`, `pages-scratch-saves-itself`,
   `pages-delete-install-and-restore`). See [source storage](storage.md#source-storage).

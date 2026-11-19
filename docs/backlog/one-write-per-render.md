@@ -15,6 +15,12 @@ SPDX-License-Identifier: MIT
 | Area | Sdk, Web (pages, editor, work), docs, assistant |
 | Location | `src/uk.osric.asp.Sdk/IPageWrites.cs`, `src/uk.osric.asp.Web/Pages/PageWritesScope.cs`, `src/uk.osric.asp.Web/Editor/PageSaver.cs`, `src/uk.osric.asp.Web/Pages/IPageRevisionStore.cs`, `src/uk.osric.asp.Web/Pages/Seeds/pages`, `src/uk.osric.asp.Web/Pages/Seeds/help`, `src/uk.osric.asp.Web/Assistant/PageAuthorPrompt.cs` |
 
+> **A batch must be able to move, not only save — 2026-11-19.** The owner settled
+> [`page-cannot-move`](page-cannot-move.md) with a single `MoveAsync`, and a folder rename is a batch of
+> moves. A batch is therefore a list of operations, not only a list of edits: the same three policies
+> wrap saves, moves and the two together, and a report row says which one it was. One render's one
+> action is what makes this the only way to rename a folder.
+
 > **Re-prioritised 2026-11-18** by the owner. The rule is the friction the assistant meets on every
 > multi-file edit, and it is the gate in front of a job writer ([`job-borrows-a-credential`](job-borrows-a-credential.md)), so it moves
 > from the bottom of the order to just after [`check-without-storing`](check-without-storing.md), whose compile-without-store its
@@ -65,10 +71,14 @@ writes, chosen policy, one report. Building it for Save all alone would be build
    self-save (`SaveAsync(template)`) keeps its simplest shape, because a page repairing itself is the
    recovery path.
 
-4. **Nothing else moves down.** The batch writes pages; it does not rename ([`page-cannot-move`](page-cannot-move.md)),
-   search ([`cannot-search-the-store`](cannot-search-the-store.md)) or check without saving, except as the first half of All. A batch
-   that also deletes, installs seeds or restores revisions multiplies the policy question by four and
-   is not in the first version — those stay single-action members.
+4. **A batch moves as well as writes.** A folder rename, a seed re-slugged by a release and a tree
+   rearrangement are several moves, and [`page-cannot-move`](page-cannot-move.md) deliberately refuses a
+   key with pages below it. So the batch carries an operation as well as an edit — a save, or a move
+   with its `from`, `to` and expected hash — and the same three policies and the same per-operation
+   report cover both. Nothing else moves down: the batch does not
+   search ([`cannot-search-the-store`](cannot-search-the-store.md)) or check without saving, except as the first half of
+   All. A batch that also deletes, installs seeds or restores revisions multiplies the policy question
+   by four and is not in the first version — those stay single-action members.
 
 5. **The documentation.** `/help` gains the capability's section, the three policies and their exact
    words (`product-manual-is-a-page`); `PageAuthorPrompt` gains the batch and its policies with its
@@ -100,8 +110,9 @@ writes, chosen policy, one report. Building it for Save all alone would be build
 ## Not in scope
 
 - **The widened authority and the merged capability.** [IDEA-043](closed.md), which lands first.
-- **Renaming, searching and checking.** [`page-cannot-move`](page-cannot-move.md), [`cannot-search-the-store`](cannot-search-the-store.md),
-  [`check-without-storing`](check-without-storing.md).
+- **A single rename, a search and a check.** [`page-cannot-move`](page-cannot-move.md) lands the member a
+  batch of moves is built from; [`cannot-search-the-store`](cannot-search-the-store.md) and
+  [`check-without-storing`](check-without-storing.md) are their own items.
 - **Bulk delete, install and restore.** Single-action members, and their own policies when they need
   one.
 - **A second transaction model.** One database, one transaction; no outbox, no two-phase commit, no
