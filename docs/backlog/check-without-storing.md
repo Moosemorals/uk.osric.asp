@@ -79,7 +79,7 @@ hundredths of a millisecond and a warm compile is 30–70 ms (`Pages:Compile:Slo
    (`pages-any-page-may-write-the-store`).
 2. **Whether a check is "the action".** A page that checks and then saves makes two compiles in one
    render, and `PageWritesScope` currently counts any write as the one action. If
-   [`idea-one-write-per-render`](idea-one-write-per-render.md) replaces that rule with a batch, check-then-save is one batch of one; until
+   [`one-write-per-render`](one-write-per-render.md) replaces that rule with a batch, check-then-save is one batch of one; until
    then the check must not spend the action, or the editor cannot check and save.
 3. **Anonymous checks.** A check discloses nothing from the store, but it spends a compile slot, and a
    slot is a shared resource. Signed-in only is the conservative answer; a public check is a denial of
@@ -101,7 +101,7 @@ hundredths of a millisecond and a warm compile is 30–70 ms (`Pages:Compile:Slo
 **Origin:** the owner's comparison of the site's IDE plan (`/ide-plan`, a stored page that is not in this
 repository) with the job list of 2026-11-15. The IDE plan calls this "the biggest single gap" and its
 workaround — save, read, accept the noise — is what every caller does today. The narrower half is
-already named in [`idea-vscode-cannot-check-a-page`](idea-vscode-cannot-check-a-page.md) for VS Code; this job is the page side of the same compiler.
+already named in [`vscode-cannot-check-a-page`](vscode-cannot-check-a-page.md) for VS Code; this job is the page side of the same compiler.
 
 The plan that places it is [host support for the IDE](../plans/ide-host.md); this is slice 3 there, because a
 check needs the diagnostic value [IDEA-041](closed.md) answers with.

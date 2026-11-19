@@ -58,7 +58,7 @@ wait it needs is [the owner interrupt](../plans/archive/assistant-owner-interrup
 - A page capability that asks a visitor a question and waits. A page is rendered and returned; a
   question is the assistant's conversation. If that ever changes it is an `IDEA-` of its own.
 - Per-argument descriptions for the other twenty tools. It invalidates the provider's cached prefix and
-  deserves its own measurement: [`idea-tool-arguments-say-nothing`](idea-tool-arguments-say-nothing.md).
+  deserves its own measurement: [`tool-arguments-say-nothing`](tool-arguments-say-nothing.md).
 - A timeout for the answer. An interrupt waits until the owner answers, stops it, deletes the
   conversation or restarts the host.
 - Any way for a question to carry a file, an image or a link the owner clicks.

@@ -29,7 +29,7 @@ compile is 30–70 ms, so a debounced `didChange` can answer as the author pause
 the process that speaks Language Server Protocol, and the client that starts it.
 
 **This is not [WHIM-01](WHIMS.md).** That whim is an LSP *inside the site's own editor* — the
-textarea `idea-editor-is-a-textarea` is replacing — publishing the C# compile diagnostics and the script checker's
+textarea `editor-is-a-textarea` is replacing — publishing the C# compile diagnostics and the script checker's
 JavaScript diagnostics to a browser page. This idea is an editor for the repository: VS Code's side
 of the same compiler, reusing the template-space `PageDiagnostic` values that already exist. The two
 share the compiler and nothing else.

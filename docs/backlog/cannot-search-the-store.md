@@ -59,7 +59,7 @@ Encoding that as the editor's find box is what makes it look like editor work.
    applies to a listing.
 
 4. **A cursor in key-then-line order.** Results are ordered by key and then by line, and the cursor names
-   the last match returned, so the next call resumes rather than repeats. That is [`idea-listing-has-no-cursor`](idea-listing-has-no-cursor.md)
+   the last match returned, so the next call resumes rather than repeats. That is [`listing-has-no-cursor`](listing-has-no-cursor.md)
    applied to a scan; the two ship best together, because a scan with no cursor is a scan of the first
    page and nothing else.
 
@@ -93,7 +93,7 @@ Encoding that as the editor's find box is what makes it look like editor work.
 
 - **Replace.** A search that edits is IDEA-043's batch with this scan choosing the edits; the two are
   separate capabilities and separate decisions.
-- **An index.** FTS5 over page source is the mechanism `idea-no-account-store` chose for per-account data, and it is a
+- **An index.** FTS5 over page source is the mechanism `no-account-store` chose for per-account data, and it is a
   store migration with triggers to maintain. `n` pages is a linear scan until a measurement says
   otherwise (`code-n-is-small`).
 - **Searching a revision's history.** One live source per key, as the tools do.
@@ -106,4 +106,4 @@ budget, because a worker's `ReadBudget` is built once per job (`PageJobRunner.cs
 request.
 
 The plan that places it is [host support for the IDE](../plans/ide-host.md); this is slice 5 there, after the
-cursor it resumes from ([`idea-listing-has-no-cursor`](idea-listing-has-no-cursor.md)).
+cursor it resumes from ([`listing-has-no-cursor`](listing-has-no-cursor.md)).

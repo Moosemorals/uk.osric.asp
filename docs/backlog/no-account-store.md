@@ -16,7 +16,7 @@ SPDX-License-Identifier: MIT
 | Location | `src/uk.osric.asp.Sdk/`, `src/uk.osric.asp.Web/Pages/`, `src/uk.osric.asp.Web/Storage/`, `src/uk.osric.asp.Web/Pages/Seeds/help`, `src/uk.osric.asp.Web/Assistant/PageAuthorPrompt.cs` |
 
 > **Planned 2026-11-16** — [the per-account store](../plans/account-store.md) answers the seven open
-> questions, names the first customer (the transcript of the assistant page's port, [`idea-conversation-is-not-a-page`](idea-conversation-is-not-a-page.md)
+> questions, names the first customer (the transcript of the assistant page's port, [`conversation-is-not-a-page`](conversation-is-not-a-page.md)
 > §3) and orders the work into six slices. Memory stays the assistant's: the view arrives with that
 > plan, not as a capability here. Nothing is built until the owner says yes to the plan.
 
@@ -166,7 +166,7 @@ needed at all: memory is the assistant's own, with its own store (`assistant-mem
 ## Not in scope
 
 - **Memory.** It stays the assistant's and its view arrives with the assistant page (`assistant-memory-belongs-to-the-assistant`,
-  [`idea-conversation-is-not-a-page`](idea-conversation-is-not-a-page.md)).
+  [`conversation-is-not-a-page`](conversation-is-not-a-page.md)).
 - **Sharing, public rows and roles.** One owner per row, no sharing between accounts, no roles
   (`pages-public-by-default`, `product-one-owner`).
 - **Migration of existing tables** into the new store. Nothing exists to migrate.

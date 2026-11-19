@@ -11,7 +11,7 @@ SPDX-License-Identifier: MIT
 | Size | Medium — one tool, one interrupt kind, a card in two renderers, three configuration values, a prompt version and five suites. The wait, the record, the status and the route are [the owner interrupt's](archive/assistant-owner-interrupt.md) |
 | Area | Core (Assistant), Web (assistant), docs |
 | Spike | [The ask tool's shape](../spikes/ask-tool-shape.md) read MCP elicitation, Claude Code, VS Code, Cline, Roo Code, OpenAI, DeepSeek, LangGraph and AutoGen; it recommends the schema and the caps this plan adopts, and names the two levers — the description and the parameter descriptions — that the evidence says matter most. The plan adds one thing it would not: a question the owner may skip (D4) |
-| Backlog | [`idea-assistant-cannot-ask`](../backlog/idea-assistant-cannot-ask.md) |
+| Backlog | [`cannot-ask-the-owner`](../backlog/cannot-ask-the-owner.md) |
 | Depends on | [The owner interrupt](archive/assistant-owner-interrupt.md) (ARCH-17), landed 2026-11-18 |
 | Decisions | New name proposed: **assistant-a-question-is-a-tool-call**. Relies on `assistant-a-run-waits-on-one-owner-interrupt` and `assistant-a-tool-is-one-type`; edits nothing |
 
@@ -87,7 +87,7 @@ Four choices are load-bearing:
   say not to ask for secrets instead.
 - **Per-parameter descriptions for the other twenty tools.** The capability lands in `Core`; using it
   everywhere rewrites the provider's cached prefix and is a separate job with a measurement —
-  [`idea-tool-arguments-say-nothing`](../backlog/idea-tool-arguments-say-nothing.md).
+  [`tool-arguments-say-nothing`](../backlog/tool-arguments-say-nothing.md).
 
 ## The design
 
@@ -305,7 +305,7 @@ the tool's presence are what the tests pin.
 | `test/…` | **new/changed** — the suites below |
 | `docs/assistant.md`, `docs/glossary.md`, `docs/testing.md` | **changed** — the tool, the glossary's "Question", the suites |
 | `docs/decisions.md` | **changed at the merge** — **assistant-a-question-is-a-tool-call** written |
-| `docs/jobs/`idea-tool-arguments-say-nothing`.md`, `docs/jobs/README.md` | **new/changed** — the per-argument descriptions the survey wants and this change does not make |
+| `docs/jobs/`tool-arguments-say-nothing`.md`, `docs/jobs/README.md` | **new/changed** — the per-argument descriptions the survey wants and this change does not make |
 
 ## Phases
 
@@ -322,7 +322,7 @@ the tool's presence are what the tests pin.
 6. **The card.** The server's renderer, the answered card, the script's builder and the stylesheet;
    transcript tests, then the browser suite.
 7. **The words.** The prompt and its version, `assistant.md`, the glossary, `testing.md`, the shell
-   catalogue, the `idea-tool-arguments-say-nothing` job and the decision entry at the merge.
+   catalogue, the `tool-arguments-say-nothing` job and the decision entry at the merge.
 
 ## Tests
 
@@ -432,7 +432,7 @@ The plan asked five questions on 2026-11-18; these are the answers, and this rev
 | 2 | Batch or one at a time? | Batch, up to four in one call. The owner has met seven or eight questions at a time before, so four is not a long card; the accepted range reaches eight. |
 | 3 | Should an unanswered question be skippable? | Yes, without a flag: the owner wants to read the whole set before answering any of it, and to be able to leave a question. An empty answer is an answer (D4). |
 | 4 | Should the wait be excluded from `assistant.tool.duration`? | Yes — "waiting for the user is not the assistant's budget" (D9). |
-| 5 | Should parameter descriptions be added to every tool? | Not in this change, and it is written down: [`idea-tool-arguments-say-nothing`](../backlog/idea-tool-arguments-say-nothing.md). |
+| 5 | Should parameter descriptions be added to every tool? | Not in this change, and it is written down: [`tool-arguments-say-nothing`](../backlog/tool-arguments-say-nothing.md). |
 
 ## Considered and rejected
 

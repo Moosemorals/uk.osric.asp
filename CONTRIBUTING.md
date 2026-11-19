@@ -26,9 +26,10 @@ make worktree-remove BRANCH=idea/check-without-storing
 
 The branch is `kind/filename`, and the name comes from the work:
 
-- the item's slug split at its first hyphen, for planning work and for an item small enough to need
-  no plan — [`idea-check-without-storing`](docs/backlog/idea-check-without-storing.md) is
-  `idea/check-without-storing`;
+- the item's slug, for planning work and for an item small enough to need no plan — an idea takes
+  `idea/` in front of it, so [`check-without-storing`](docs/backlog/check-without-storing.md) is
+  `idea/check-without-storing`, and a defect's slug is split at its first hyphen, so
+  [`ops-no-ci`](docs/backlog/ops-no-ci.md) is `ops/no-ci`;
 - the plan's file name once a plan is being implemented — [page-first](docs/plans/archive/page-first.md)
   is `plan/page-editor`. An item whose plan has a different name has two branches: the first writes
   the plan, `plan/page-streaming` implements it.
