@@ -13,7 +13,7 @@ accepted.
 ## Status
 
 Implemented 2026-11-06, in five commits from `b3e9715`. Every phase below shipped; IDEA-012 is in the
-closed table in [the job index](../../jobs/closed.md), and the revisions in
+closed table in [the job index](../../backlog/closed.md), and the revisions in
 [What fetch and storage must change](#what-fetch-and-storage-must-change) landed in
 [fetch and storage](page-fetch-and-storage.md) before its Phase 1 started, so the synchronous
 members it described are never written.
@@ -772,9 +772,9 @@ file carries its SPDX header; `make license-check` is part of the gate.
 
 ## Folding the jobs
 
-- IDEA-012 is closed: it moved to the closed table in [the job index](../../jobs/closed.md) and
+- IDEA-012 is closed: it moved to the closed table in [the job index](../../backlog/closed.md) and
   its file was deleted into git history, following the IDEA-004 and ARCH-10 convention.
 - The rough order in `docs/jobs/README.md` no longer carries the async step, because it shipped;
   fetch and storage is next.
-- [IDEA-002](../../jobs/README.md) and [IDEA-003](../../jobs/README.md) are untouched here. Their plan
+- [IDEA-002](../../backlog/README.md) and [IDEA-003](../../backlog/README.md) are untouched here. Their plan
   changes shape, not scope, and their job files already defer to it.

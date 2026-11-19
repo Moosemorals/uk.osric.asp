@@ -623,6 +623,6 @@ Phases 3 and 4 can be built in either order; 5 and 6 depend on both.
 - **Nuke and import.** Deleting every page the archive does not mention, with its history, as part of
   the import. It is technically a `DELETE` in the same transaction, but it turns a safe additive
   operation into an irreversible one and still does not make the archive a backup. Recorded as
-  [IDEA-020](../../jobs/IDEA-020.md).
+  [IDEA-020](../../backlog/idea-import-cannot-reset-a-site.md).
 - **A zip format.** It was the first shape, but SQLite already answers every requirement and removes
   the entry-name class of validation. A zip reader would be a second parser to keep.

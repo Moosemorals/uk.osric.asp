@@ -11,7 +11,7 @@ SPDX-License-Identifier: MIT
 | Size | Medium — a tool type and its registry, three shared helpers, fifteen tools moved into five files by family, and the tests that pin the new wiring. No tool changes what it does |
 | Spike | None. The shape is the shell's, proved in `assistant-the-shell-is-applets`, and the tool surface is already a table with one row per tool |
 | Decisions | `assistant-a-tool-is-one-type` (a tool is one type and the registry is the only table), recorded with this plan. `pages-capabilities-are-one-seam` belongs to [capability naming](capability-naming.md) and is not claimed here |
-| Backlog | Nothing waits on this. [ARCH-15](../../jobs/ARCH-15.md) rewrites the same pre-approval refusal and should land first, or phase 2 absorbs it |
+| Backlog | Nothing waits on this. [ARCH-15](../../backlog/ARCH-15.md) rewrites the same pre-approval refusal and should land first, or phase 2 absorbs it |
 
 ## The short version
 

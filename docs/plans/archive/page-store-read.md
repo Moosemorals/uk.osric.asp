@@ -39,7 +39,7 @@ suite.
 ## Goals
 
 - A page can render the listing, history and revision views that are shell views today — the listing
-  and history of [IDEA-017](../../jobs/IDEA-017.md)'s cheap half — without meeting an image, a symbol, a
+  and history of [IDEA-017](../../backlog/IDEA-017.md)'s cheap half — without meeting an image, a symbol, a
   `PagePath` or a write.
 - The read is bounded the way every other page capability is: by the render's deadline, by
   abandonment, and by a cap that refuses rather than half-answers.
@@ -52,8 +52,8 @@ suite.
 
 ## Non-goals
 
-- **A write.** `ctx.SaveAsync` is [IDEA-016](../../jobs/closed.md), and writing a named key is
-  [IDEA-017](../../jobs/IDEA-017.md). Nothing here creates, saves, deletes, scrubs or restores.
+- **A write.** `ctx.SaveAsync` is [IDEA-016](../../backlog/closed.md), and writing a named key is
+  [IDEA-017](../../backlog/IDEA-017.md). Nothing here creates, saves, deletes, scrubs or restores.
 - **Moving the editor's views.** The listing, history and revision views stay in `EditorEndpoint`.
   This plan is what makes moving them possible; moving them is IDEA-017's cheap half, and it is a
   separate change with its own markup, accessibility and browser tests.
@@ -103,7 +103,7 @@ Checked against the code on 2026-11-09.
 - **The chain already shares a body budget and a fetch budget** across the content and its layouts, so
   a layout cannot double an allowance (`pages-one-request-one-chain`).
 - **The manual is `/help`, a seeded page,** and a change to what a page author can do updates it in
-  the same change ([jobs/README.md](../../jobs/README.md#help-for-authors); the decision entry's ID
+  the same change ([jobs/README.md](../../backlog/README.md#help-for-authors); the decision entry's ID
   collides, see "Documentation and decisions").
 - **The demo routes are free.** `/recent` and `/pages` are not reserved, are not shell routes, and no
   seed claims them ([ReservedPaths.cs](../../../src/uk.osric.asp.Web/Pages/ReservedPaths.cs),
@@ -113,12 +113,12 @@ Checked against the code on 2026-11-09.
 
 | Job or decision | What it already says | What this plan does |
 | --- | --- | --- |
-| [IDEA-015](../../jobs/README.md) | A page cannot read the page store; list heads, read a template, list revisions, read a revision's source; **the gate belongs to the shell**; caps and the deadline apply; decide the competing road | **Implements it**, as a capability rather than "on `IContext`", with the shell gate removed by review (`pages-reading-the-store-is-public`) and the marks added |
-| [IDEA-017](../../jobs/IDEA-017.md) | The cheap half is the listing, history and revision views; the full editor is later and the shell keeps the save | Unblocks the cheap half; the editor itself is untouched |
-| [IDEA-016](../../jobs/closed.md) | A page saves its own source; it needs an Sdk diagnostic value | Nothing here; the value shapes this plan adds are what a save's answer will sit beside |
+| [IDEA-015](../../backlog/README.md) | A page cannot read the page store; list heads, read a template, list revisions, read a revision's source; **the gate belongs to the shell**; caps and the deadline apply; decide the competing road | **Implements it**, as a capability rather than "on `IContext`", with the shell gate removed by review (`pages-reading-the-store-is-public`) and the marks added |
+| [IDEA-017](../../backlog/IDEA-017.md) | The cheap half is the listing, history and revision views; the full editor is later and the shell keeps the save | Unblocks the cheap half; the editor itself is untouched |
+| [IDEA-016](../../backlog/closed.md) | A page saves its own source; it needs an Sdk diagnostic value | Nothing here; the value shapes this plan adds are what a save's answer will sit beside |
 | IDEA-014 | A page cannot keep per-visitor state | Nothing here; a page that saves from a form and redirects still cannot say why |
-| [Import and export](page-import-export.md) (IDEA-009, closed) and [IDEA-020](../../jobs/IDEA-020.md) | Import and export read and write the same store from the shell behind `Editor`; a reset-to-archive is not part of that flow | The competing road is settled: the shell keeps the write, the page gets a bounded read (`pages-page-first`) |
-| [IDEA-005](../../jobs/IDEA-005.md) | Shared *types* between pages are deferred until a concrete helper needs them | Untouched: this adds values a page may name, not a declaration a second page can use |
+| [Import and export](page-import-export.md) (IDEA-009, closed) and [IDEA-020](../../backlog/idea-import-cannot-reset-a-site.md) | Import and export read and write the same store from the shell behind `Editor`; a reset-to-archive is not part of that flow | The competing road is settled: the shell keeps the write, the page gets a bounded read (`pages-page-first`) |
+| [IDEA-005](../../backlog/IDEA-005.md) | Shared *types* between pages are deferred until a concrete helper needs them | Untouched: this adds values a page may name, not a declaration a second page can use |
 | `pages-the-contract-is-the-seam` | `Sdk` is the only product assembly a page may name | The capability and its three values live in `Sdk`; the mapping from `Core`/`Web` rows happens in `PageCatalogScope`, the capability's implementation |
 | `pages-capabilities-are-one-seam` | A capability is registered or absent, never `null`; the host decides what a render offers | Extended: this one is always registered, and it never refuses (`pages-reading-the-store-is-public`) |
 | `pages-page-io-is-async` | I/O on a capability is a `Task`, takes no token, and is linked to the render's deadline | Followed: the scope holds the deadline and passes it to the store per call |
@@ -160,7 +160,7 @@ public readonly record struct PageRevisionInfo(string Hash, DateTimeOffset Saved
 - `ListAsync` lists heads: the key, the head's revision time and hash, and the three marks of D3.
   The time and hash ride along because the join is one statement and because a "recent changes" view
   would otherwise read every page's history to find out when each one last changed — the one unlock
-  [IDEA-015](../../jobs/README.md) names that a key-only listing cannot serve cheaply.
+  [IDEA-015](../../backlog/README.md) names that a key-only listing cannot serve cheaply.
 - `ReadAsync` reads a live page's template, or `null` when no live page has the key. A tombstone has
   no source: it is listed as deleted and read as absent.
 - `RevisionsAsync` lists a key's history newest first, including the revisions of a tombstoned page —
@@ -307,7 +307,7 @@ difference between them is one line of source:
 - **They are seeds,** so they can be edited, restored and deleted like any other page, and an existing
   installation gains both on its next start because they are new keys.
 - **Both call themselves demonstrations** in their own text and name
-  [IDEA-017](../../jobs/IDEA-017.md), so nobody mistakes them for the editor.
+  [IDEA-017](../../backlog/IDEA-017.md), so nobody mistakes them for the editor.
 
 Why pages rather than only tests: the capability's interesting failures are the ones that only show up
 with a real layout around it, a real render deadline and a real store — a listing that reads another
@@ -316,7 +316,7 @@ and the unguarded one makes the public case one request away.
 
 ### D7 — What this is not, and the competing road
 
-[IDEA-015](../../jobs/README.md) point 6 asks for a decision: the import and export routes read and
+[IDEA-015](../../backlog/README.md) point 6 asks for a decision: the import and export routes read and
 write the same store from the shell behind the `Editor` policy, and a page read is a second route to
 the same authority.
 
@@ -333,7 +333,7 @@ opening a second writer.
 is the contract every stored page compiles against, and a page that never reads the store should never
 meet it (`pages-capabilities-are-one-seam`, `pages-the-store-is-read-through-one-seam`).
 
-**A shell gate on the read** ([IDEA-015](../../jobs/README.md) point 3, "refused for an anonymous
+**A shell gate on the read** ([IDEA-015](../../backlog/README.md) point 3, "refused for an anonymous
 visitor whatever the page's own code does"). Rejected by review, in both of its shapes: an absent
 capability for an anonymous render, and a registered one that refuses. Each puts the privacy rule in
 the shell, where a page's source cannot show it and a page author cannot change it; each makes the
@@ -359,7 +359,7 @@ instead, which keeps one rule and lets a view decide (D3).
 
 **Reading a page's title into the listing.** Rejected: a title is a render or a compile away, and a
 listing that compiles every page is the store reading its own images. A cheap title would be a shared
-declaration ([IDEA-005](../../jobs/IDEA-005.md)) or a new value, and neither belongs in a read.
+declaration ([IDEA-005](../../backlog/IDEA-005.md)) or a new value, and neither belongs in a read.
 
 **One demo page rather than two.** Rejected by review: a listing and a source view want different
 audiences, and shipping them as a public page and a guarded one answers the gate question in two files
@@ -453,7 +453,7 @@ table with scoped headers and no cell without a heading, and the source view's n
 is the same rule set applied to the two views that are content.
 
 **Deliberately not tested.** Browser behaviour: neither page has script, so `Web.BrowserTests` gains
-nothing, and [IDEA-001](../../jobs/IDEA-001.md) covers the editor's own scripts.
+nothing, and [IDEA-001](../../backlog/idea-editor-is-a-textarea.md) covers the editor's own scripts.
 
 ## Phases
 
@@ -482,7 +482,7 @@ Phase 2 depends on phase 1, phase 3 on phase 2. Phases 1 and 2 are one sitting; 
 - **`pages-reading-the-store-is-public`**: the read is public by default. There is no shell gate: the capability answers an
   anonymous render exactly as it answers a signed-in one, and a page that wants its listing or its
   source private puts the ordinary `ctx.User` guard at the top of its own source (`pages-public-by-default`). This
-  overrules [IDEA-015](../../jobs/README.md) point 3, whose objection — a careless public page becomes a
+  overrules [IDEA-015](../../backlog/README.md) point 3, whose objection — a careless public page becomes a
   source dump of every other page — is answered by saying so in `/help`, in the plan's risks, and by
   the guarded demo page. A refusal inside a capability is rejected: it is an invisible second gate
   whose failure is a `500` rather than the redirect the page's own guard gives.
@@ -574,5 +574,5 @@ Phase 2 depends on phase 1, phase 3 on phase 2. Phases 1 and 2 are one sitting; 
 
 **Deferred, so they are not rediscovered.** A title (or an image state) in the listing, which needs a
 compile or [ARCH-14](page-diagnostics-and-visibility.md)'s column; shared types between pages
-([IDEA-005](../../jobs/IDEA-005.md)); and moving the editor's listing, history and revisions into pages,
-which is [IDEA-017](../../jobs/IDEA-017.md)'s cheap half and the next job this one unblocks.
+([IDEA-005](../../backlog/IDEA-005.md)); and moving the editor's listing, history and revisions into pages,
+which is [IDEA-017](../../backlog/IDEA-017.md)'s cheap half and the next job this one unblocks.

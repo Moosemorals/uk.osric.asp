@@ -11,8 +11,8 @@ SPDX-License-Identifier: MIT
 | Size | Medium — two store operations, four routes, a list-and-form view, one seed's styles and the tests for each |
 | Spike | None. [The memory spike](../../spikes/assistant-memory.md) already settled the store; this plan only reads and writes it |
 | Decisions | `assistant-memory-page`, recorded when this lands |
-| Backlog | [IDEA-023](../../jobs/closed.md), which this plan closed |
-| Superseded | D2–D6, the shell view, by the assistant page ([IDEA-025](../../jobs/IDEA-025.md)): the memory view becomes one of its routes and no page capability is added for it — [page first](page-first.md) first proposed one and withdrew it (`assistant-memory-belongs-to-the-assistant`). D1's store work stands |
+| Backlog | [IDEA-023](../../backlog/closed.md), which this plan closed |
+| Superseded | D2–D6, the shell view, by the assistant page ([IDEA-025](../../backlog/idea-conversation-is-not-a-page.md)): the memory view becomes one of its routes and no page capability is added for it — [page first](page-first.md) first proposed one and withdrew it (`assistant-memory-belongs-to-the-assistant`). D1's store work stands |
 
 ## The short version
 
@@ -506,7 +506,7 @@ trip edits, pins and forgets a memory.
 - [storage](../../storage.md): the owner's write and the pin.
 - [testing](../../testing.md): the suites.
 - [glossary](../../glossary.md): **Memory page** and **Pin**.
-- Delete `docs/jobs/IDEA-023.md` and add its row to [the closed jobs](../../jobs/closed.md).
+- Delete `docs/jobs/IDEA-023.md` and add its row to [the closed jobs](../../backlog/closed.md).
 - The plan's status row moved to landed; link and anchor check.
 
 **Done when** the docs describe what the code does, IDEA-023 is closed with its outcome, and
@@ -533,7 +533,7 @@ trip edits, pins and forgets a memory.
 Docs changes: [assistant](../../assistant.md) gains the page where it now says the transcript is the only
 view; [storage](../../storage.md) gains the owner's write beside the assistant's; [testing](../../testing.md)
 names the three suites; [glossary](../../glossary.md) defines **Memory page** and **Pin**; IDEA-023 moves
-to [closed](../../jobs/closed.md); and the plan's status row says landed.
+to [closed](../../backlog/closed.md); and the plan's status row says landed.
 
 ## Risks
 

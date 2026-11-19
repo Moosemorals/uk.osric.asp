@@ -41,7 +41,7 @@ seeded scripts and stylesheets already ask for, so they stop asking.
 
 The extension is also a **source-language signal**: it says the author intends the literal text to
 be JavaScript, CSS or JSON. It is not a promise that the text is valid, and it does not validate
-anything. [IDEA-021](../../jobs/README.md) is the separate idea for using the signal in the
+anything. [IDEA-021](../../backlog/README.md) is the separate idea for using the signal in the
 assistant's validator.
 
 ## Goals and non-goals
@@ -66,7 +66,7 @@ Non-goals:
 - MIME sniffing, `Content-Disposition`, content negotiation on `Accept`, or a second static-file
   pipeline.
 - Inferring `Content-Security-Policy` or `AllowScripts` from the extension.
-- Validating the page source. That is [IDEA-021](../../jobs/README.md).
+- Validating the page source. That is [IDEA-021](../../backlog/README.md).
 - A general MIME database: the section is a short, hand-maintained map for a text page store, not a
   copy of `/etc/mime.types` and not `FileExtensionContentTypeProvider` in another shape.
 - A cache policy per type or per row. Caching is one default and one page-level opt-out
@@ -120,7 +120,7 @@ source of defaults, not a policy: nothing in the file can stop a page choosing i
 
 The source language and the response type are separate facts. A `.js` page that overrides its
 response type is still JavaScript source for validation; a page at `/notes` that sets
-`text/javascript` is still HTML source by convention. [IDEA-021](../../jobs/README.md) uses the key,
+`text/javascript` is still HTML source by convention. [IDEA-021](../../backlog/README.md) uses the key,
 not the final header.
 
 ### 2. The map is configuration in `appsettings.json`

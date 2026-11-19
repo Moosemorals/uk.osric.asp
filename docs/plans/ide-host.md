@@ -11,7 +11,7 @@ SPDX-License-Identifier: MIT
 | Size | Large as a programme, small as a step: eight capabilities, each its own job and its own branch, ordered so that each ships on its own and can be backed out on its own |
 | Spike | None. Every claim about what exists was read off `trunk` on 2026-11-15: `IPageCatalog`, `IPageEditor`, `PageEditorScope`, `PageWriterScope`, `PageCompiler.MapDiagnostics`, `PageDiagnostics.ToSdk` and `PageJobRunner` |
 | Decisions | `pages-a-diagnostic-names-its-source` (041), recorded at its merge. The rest are named at the merge (`product-plan-before-building`); this branch states the names it intends. One entry is retired rather than revised — the one that made the editor's registration the authority — and `pages-a-page-may-save-itself` is revised twice, once by 043 and once by 047 |
-| Backlog | [IDEA-037](../jobs/IDEA-037.md), [IDEA-038](../jobs/IDEA-038.md), [IDEA-039](../jobs/IDEA-039.md), [IDEA-040](../jobs/IDEA-040.md), [IDEA-041](../jobs/closed.md), [IDEA-042](../jobs/IDEA-042.md), [IDEA-043](../jobs/closed.md), [IDEA-047](../jobs/IDEA-047.md) |
+| Backlog | [`idea-check-without-storing`](../backlog/idea-check-without-storing.md), [`idea-cannot-search-the-store`](../backlog/idea-cannot-search-the-store.md), [`idea-listing-has-no-cursor`](../backlog/idea-listing-has-no-cursor.md), [`idea-library-edit-cost-is-invisible`](../backlog/idea-library-edit-cost-is-invisible.md), [IDEA-041](../backlog/closed.md), [`idea-page-cannot-move`](../backlog/idea-page-cannot-move.md), [IDEA-043](../backlog/closed.md), [`idea-one-write-per-render`](../backlog/idea-one-write-per-render.md) |
 
 ## The short version
 
@@ -28,8 +28,8 @@ largest view the shell had ever held, and the one view the assistant could not r
 assistant cannot do for itself is widen the contract, and that is this plan.
 
 The comparison that produced the backlog is worth stating once: of the IDE plan's twelve wishes, two
-were already jobs ([IDEA-033](../jobs/IDEA-033.md) for per-account preferences and favourites,
-[IDEA-001](../jobs/IDEA-001.md) for highlighting), one was not the host's business, and seven had
+were already jobs ([`idea-no-account-store`](../backlog/idea-no-account-store.md) for per-account preferences and favourites,
+[`idea-editor-is-a-textarea`](../backlog/idea-editor-is-a-textarea.md) for highlighting), one was not the host's business, and seven had
 nothing behind them. One of those seven split into two jobs, so the list above is eight.
 
 ## What the host does, and what it does not
@@ -73,8 +73,8 @@ for eight of the eleven, and those eight are why the page can start before any o
 
 An entry in [decisions](../decisions.md) is a guideline against relitigating the same problem, not a
 constraint that outlives its reason. Two of them have outlived theirs, and the owner decided on
-2026-11-15 that both go. They are two steps rather than one: [IDEA-043](../jobs/closed.md) takes the
-authority and has [a plan of its own](archive/page-writes.md), and [IDEA-047](../jobs/IDEA-047.md) takes the
+2026-11-15 that both go. They are two steps rather than one: [IDEA-043](../backlog/closed.md) takes the
+authority and has [a plan of its own](archive/page-writes.md), and [`idea-one-write-per-render`](../backlog/idea-one-write-per-render.md) takes the
 batch.
 
 **The authority to write is the visitor's, not the page's.** The entry that makes the isolated
@@ -215,7 +215,7 @@ smallest changes come first because they are what every later slice is written a
 ## Open questions
 
 The first three were answered by the owner on 2026-11-15, and 043's plan records them: 043 is two jobs
-(the authority here, the batch in [IDEA-047](../jobs/IDEA-047.md)); the merged capability is
+(the authority here, the batch in [`idea-one-write-per-render`](../backlog/idea-one-write-per-render.md)); the merged capability is
 `IPageWrites`; and the editor's key is deletable, with `/admin/restore` as the way back.
 
 1. **Whether the assistant may batch across the site.** Its edit-safety rules are per key; a batch that
@@ -236,5 +236,5 @@ The first three were answered by the owner on 2026-11-15, and 043's plan records
   mechanism is recorded here so the next version finds it.
 - **Search inside a worker's run.** A worker's read budget is built once per job, so it does not lift
   the scan's ceiling; 038 gives the scan its own allowance instead.
-- **Per-account preferences, favourites and tags.** [IDEA-033](../jobs/IDEA-033.md), unchanged, and the
+- **Per-account preferences, favourites and tags.** [`idea-no-account-store`](../backlog/idea-no-account-store.md), unchanged, and the
   IDE plan itself declines to put its own state there.

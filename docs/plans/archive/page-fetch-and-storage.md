@@ -7,7 +7,7 @@ SPDX-License-Identifier: MIT
 
 Implementation plan for IDEA-002 — a page cannot call an outbound HTTP API — and IDEA-003 — a page
 has nowhere to keep state. Both are closed; their rows are in the closed table in
-[the job index](../../jobs/closed.md). The two jobs are one
+[the job index](../../backlog/closed.md). The two jobs are one
 change because they share the same seam: both are capabilities a page reaches through `IContext`,
 both need the render's deadline, and both must keep the page contract free of ASP.NET, database and
 `HttpClient` types.
@@ -39,7 +39,7 @@ inherits the async contract's deadline lifetime.
 5. A narrow set of `System.Text.Json` types joins the page policy so a fetched JSON body can be
    parsed. `System.Net` stays denied: `ctx.FetchAsync` is the only way out.
 6. The page-author prompt, architecture, decisions, deployment notes and the job index are updated.
-   [IDEA-009](../../jobs/README.md) gains a requirement to export and import page state.
+   [IDEA-009](../../backlog/README.md) gains a requirement to export and import page state.
 
 ## Goals and non-goals
 
@@ -59,12 +59,12 @@ inherits the async contract's deadline lifetime.
 
 - SQL, joins, queries, indices or transactions exposed to page code. This is key/value only.
 - Per-user state. `PageRequest` has no identity, and pages are public; state is shared by every
-  visitor. [IDEA-011](../../jobs/README.md) is the separate auth hook that makes a private page and,
+  visitor. [IDEA-011](../../backlog/README.md) is the separate auth hook that makes a private page and,
   later, per-user state possible; it is not part of this plan.
 - Binary request or response bodies. Fetch is for text, JSON, HTML and similar payloads.
 - Fetch caching, storage TTL, expiry, compare-and-set or cross-key transactions.
 - Encryption at rest. The database is the site's own storage and is already treated as sensitive.
-- A process boundary. [SEC-03](../../jobs/SEC-03.md) is still open, and fetch widens egress; the
+- A process boundary. [SEC-03](../../backlog/sec-page-runs-in-process.md) is still open, and fetch widens egress; the
   allow-list is a footgun guard, not a sandbox.
 
 ## The page API
@@ -436,7 +436,7 @@ These are deliberate limits, not omissions:
 - Storage has no query language. Keys are exact matches and `Keys()` is a listing. Anything that
   needs a query is a different job.
 - All visitors share a page's state. A guestbook is possible; "my drafts" is not until
-  [IDEA-011](../../jobs/README.md) adds page authentication, and per-user storage is still a later
+  [IDEA-011](../../backlog/README.md) adds page authentication, and per-user storage is still a later
   change after that.
 - Nothing expires. The caps bound the store; deleting the page clears it. A TTL or sweep is a
   follow-up.
@@ -536,7 +536,7 @@ null value, which is how a stored null is distinguished from an absent key.
 ### Deletion and export
 
 `DeletePageAsync` and `ScrubPageAsync` are the two deletion paths today. Both must clear
-`PageState`, and both have tests. [IDEA-009](../../jobs/README.md) export/import must carry state
+`PageState`, and both have tests. [IDEA-009](../../backlog/README.md) export/import must carry state
 as well; a page archive that loses a guestbook is not a round trip. The archive shape is a
 follow-on: the simplest form is one JSON document per page keyed by the storage keys, validated with
 the same key and value caps on import.
@@ -842,11 +842,11 @@ port and a flaky dependency for no extra proof.
 ## Folding the jobs
 
 - IDEA-002 and IDEA-003 are closed: they moved to the closed table in
-  [the job index](../../jobs/closed.md) and their files were deleted into git history.
+  [the job index](../../backlog/closed.md) and their files were deleted into git history.
 - `docs/jobs/README.md` links both entries to this plan, and items 5 and 6 of the rough order become
   one item: fetch and storage are planned together, with storage first because it is the smaller
   independent slice and fetch's integration test depends on the same context plumbing.
-- [IDEA-009](../../jobs/README.md) carries the requirement that the archive includes page state
+- [IDEA-009](../../backlog/README.md) carries the requirement that the archive includes page state
   and validates it with the same caps on import.
 - Both files were deleted into git history and their rows moved to the closed table, following the
   IDEA-004 convention.

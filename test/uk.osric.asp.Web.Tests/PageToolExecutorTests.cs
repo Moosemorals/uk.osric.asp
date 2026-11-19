@@ -683,7 +683,7 @@ public sealed class PageToolExecutorTests {
     [Test]
     public async Task SearchPagesStopsAtTheSearchMatchLimit() {
         // The shipped cap is the configuration range's own maximum, so a stop is a real limit rather
-        // than a number the assistant picked; IDEA-038 replaces it with a cursor.
+        // than a number the assistant picked; `idea-cannot-search-the-store` replaces it with a cursor.
         FakePageStore storage = new();
         storage["/many"] = new PageTemplate(PageHarness.Key("/many"), string.Join('\n', Enumerable.Repeat("hit", 1_001)));
         using PageHarness pages = new(storage);

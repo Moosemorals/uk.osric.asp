@@ -149,7 +149,7 @@ host, and `SimpleContext` is its only implementation.
 A new view starts as a page. It becomes an endpoint only when it needs something a page may not have
 — identity, cookies, the page store, framing headers, or work that outlives the request. The editor
 is the worked example: it is the seeded `/pages`, which is offered `IPageWrites` like every page, and
-[IDEA-030](jobs/closed.md) was that tidying, and closed with the shell navigation plan. See [jobs](jobs/README.md).
+[IDEA-030](backlog/closed.md) was that tidying, and closed with the shell navigation plan. See [jobs](backlog/README.md).
 
 ### Where a view lives
 
@@ -163,17 +163,17 @@ is the worked example: it is the seeded `/pages`, which is offered `IPageWrites`
 | `/admin/changes`, `/admin/reference`, `/admin/copyright` | **The build's own facts.** Each reads a file the image carries — the changelist, the XML documentation and the licence and notice files — which a page cannot read | `shell-the-admin-tools`, `shell-the-reference` |
 | `/admin/restore`, `/admin/scrub` | **Bootstrap.** The restore is the way back for a page that no longer compiles, so it cannot itself be a page that might not compile; the scrub is the one irreversible delete and stays an explicit owner action | `pages-page-first`, `shell-the-admin-tools` |
 | `{**path}`, `/favicon.ico`, `/health`, `/metrics`, `wwwroot` | **The runtime.** The page catch-all, the reserved key that stops a page claiming the icon, the probe, the scrape target and the static files the shell's own views load are the thing pages run on | `pages-page-first` |
-| `/admin` | **The index of the shell's tools.** It draws the same list the administration menus draw, filtered to what the visitor may reach, and it must answer when the page pipeline is broken | [the seed-trimming plan](plans/seed-trimming.md) |
-| `/assistant`, `/assistant/{id}`, its events, approvals, options, stop, delete and the memory view | **A page cannot, yet.** The stream, the worker kind and jobs now exist, so the view and the run are page code; what blocks the port is an account-scoped store for the transcript and memory ([IDEA-033](jobs/IDEA-033.md)), the page-store write authority the tools need, and a restricted Markdown profile a page can reach | [IDEA-025](jobs/IDEA-025.md) |
-| `/admin/import`, `/admin/export` | **A page cannot, yet.** A page can neither take an upload nor serve a file | [IDEA-024](jobs/IDEA-024.md) |
+| `/admin` | **The index of the shell's tools.** It draws the same list the administration menus draw, filtered to what the visitor may reach, and it must answer when the page pipeline is broken | [the seed-trimming plan](plans/archive/seed-trimming.md) |
+| `/assistant`, `/assistant/{id}`, its events, approvals, options, stop, delete and the memory view | **A page cannot, yet.** The stream, the worker kind and jobs now exist, so the view and the run are page code; what blocks the port is an account-scoped store for the transcript and memory ([`idea-no-account-store`](backlog/idea-no-account-store.md)), the page-store write authority the tools need, and a restricted Markdown profile a page can reach | [`idea-conversation-is-not-a-page`](backlog/idea-conversation-is-not-a-page.md) |
+| `/admin/import`, `/admin/export` | **A page cannot, yet.** A page can neither take an upload nor serve a file | [`idea-archive-is-not-a-form`](backlog/idea-archive-is-not-a-form.md) |
 
 The page column is the default, so a new route asks which column it is in before it is written, and
 "it is easier in C#" is an IDEA file rather than an answer. The list is expected to shrink: when
-IDEA-024 lands, import and export join the page column, and the rule is what stays the same. The
+`idea-archive-is-not-a-form` lands, import and export join the page column, and the rule is what stays the same. The
 assistant row's reason has already changed once: "a live run needs a stream" was true when this table
 was written and is not true now, because a page can hold a response open and start a job. What is left
 there is the store, the write authority and the renderer profile — each recorded in
-[IDEA-025](jobs/IDEA-025.md), and none of them a route the shell has to keep.
+[`idea-conversation-is-not-a-page`](backlog/idea-conversation-is-not-a-page.md), and none of them a route the shell has to keep.
 
 ## Configuration
 
@@ -204,7 +204,7 @@ environment variable or a deployment's own settings file.
 - **What stays in code.** An invariant — a cryptographic or wire-format constant, a schema
   constraint, an algorithm work cap, or the floor and ceiling that keeps a configured value from
   switching a guard off. A security policy may be configured only in the direction that keeps or
-  tightens the shipped guarantee; [IDEA-031](jobs/IDEA-031.md) holds the list of policy-shaped values
+  tightens the shipped guarantee; [`idea-policy-is-a-constant`](backlog/idea-policy-is-a-constant.md) holds the list of policy-shaped values
   that remain constants and the question of whether to expose them.
 
 Each subsystem documents its own keys: [pages](pages.md#page-execution-budget),

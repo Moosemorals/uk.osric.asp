@@ -48,7 +48,7 @@ owner could not authenticate at all.
 
 Denial of service only — no credential is exposed and no session changes hands.
 
-This was recorded as accepted risk 5 in [the auth cookie review](./docs/security/auth-cookie-review.md),
+This was recorded as accepted risk 5 in [the auth cookie review](docs/security/auth-cookie-review.md),
 whose reasoning was that per-client partitioning needs `X-Forwarded-For` trust. That reasoning was
 half right and half wrong. Wrong: the proxy boundary was already widened for `X-Forwarded-Proto` and
 `X-Forwarded-Host`, and the loopback-only publish is what bounds it, so `X-Forwarded-For` costs
@@ -100,8 +100,8 @@ The cache now holds exactly one category however many URLs are requested. The sc
 filterable — the JSON formatter writes it as a `Path` field, so the same per-page alerting works —
 while making the operator-facing category a constant and removing the request path from anything
 that is cached. `TheCategoryDoesNotVaryWithThePath` in `SimpleContextTests` pins the property.
-Recorded as `pages-one-log-category` in [the decisions](./docs/decisions.md) and updated in
-[pages](./docs/pages.md#page-contract); `IContext`'s doc comment says the same.
+Recorded as `pages-one-log-category` in [the decisions](docs/decisions.md) and updated in
+[pages](docs/pages.md#page-contract); `IContext`'s doc comment says the same.
 
 ### 3. Page code can blank the shell's `X-` security headers — Low — *fixed*
 
@@ -149,12 +149,12 @@ durations stay public, because the container health check needs them, and the ex
 ## Known risks, unchanged
 
 Both are already reasoned about and accepted in
-[the auth cookie review](./docs/security/auth-cookie-review.md):
+[the auth cookie review](docs/security/auth-cookie-review.md):
 
 - Accepted risk 9 — `Conversation.ApprovalMode` defaults to `AlwaysApprove`, so model-driven
   page writes execute without approval. The agent is off by default and owner scoped. Defaulting new
   conversations to `RequireApproval` remains cheap defence in depth.
-- `Pages:Render` abandons work by design (SEC-03): an authenticated page author can wedge render
+- `Pages:Render` abandons work by design (`sec-page-runs-in-process`): an authenticated page author can wedge render
   slots, and the container health check is the only backstop. Fine while there is one account;
   revisit before a second is created.
 

@@ -37,7 +37,8 @@ A plan is written before a large change (`product-plan-before-building`), and it
 it records by the name that decision will carry. A decision has a name rather than a number —
 `area-subject`, from the fixed list of areas — and the name is taken when the work merges, not when it
 is planned: until then the plan states the name it intends, and the merge writes the entry in
-`docs/decisions.md` and points the plan at it. A name is permanent once merged, is cited in backticks
+`docs/decisions.md`, points the plan at it, marks the plan's Status merged and moves the plan to
+`docs/plans/archive/`. A name is permanent once merged, is cited in backticks
 with no number, and is never disambiguated with a suffix: if two branches land one name, the merge
 folds them into one entry or narrows one of the names, and updates every citation in that branch.
 `docs/archive/decisions.md` is frozen — a `DEC-` number written before 2026-11-15 means what it meant then.
@@ -49,6 +50,10 @@ Every step of the programme is proposed and waits for the owner: the plan, befor
 and the merge, for every step, once its gate is run (`product-steps-wait-for-the-owner`). Working on a
 branch in its own worktree, a green `make check`, a finished plan and an obvious next step are not
 permission to merge, to push, or to start the next step — ask, and stop.
+
+The work itself is the backlog in `docs/backlog`: an item is a `kind-subject` slug and a title, and
+`job` is the host's word for a `PageJob`, not for an item. `make backlog` is the gate's check on the
+record; [its index](../docs/backlog/README.md) says what an item carries and how it is ordered.
 
 ## Core and shell
 
@@ -62,7 +67,7 @@ minting an identity or setting a cookie, reading or writing the page store, fram
 headers, work that outlives the request, and the error, health and metrics routes that have to answer
 when the page pipeline itself is broken. A view that ships with the site is a seeded page under
 `Pages/Seeds`, so the owner can edit it. When a missing page capability is the only thing in the way,
-add it to `docs/jobs/` as an `IDEA-` job rather than growing the shell by default.
+add it to `docs/backlog/` as an `idea-` item rather than growing the shell by default.
 
 The author manual is the seeded `/help` page, linked from the editor. A change that adds or alters
 what a page author can do — a context member, a capability, a layout slot, an editor action, a
@@ -94,7 +99,7 @@ switch, host or credential list, or a name that decides routing or authority.
   algorithm work cap, or the floor and ceiling that keep a configured value from switching a guard
   off. A security policy may be configured only in the direction that keeps or tightens the shipped
   guarantee; one that configuration could only weaken stays an invariant until a decision says
-  otherwise ([IDEA-031](../docs/jobs/IDEA-031.md) holds the list).
+  otherwise ([`idea-policy-is-a-constant`](../docs/backlog/idea-policy-is-a-constant.md) holds the list).
 
 ## JavaScript
 

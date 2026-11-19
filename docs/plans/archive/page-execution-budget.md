@@ -5,7 +5,7 @@ SPDX-License-Identifier: MIT
 
 # Page execution budget
 
-Implementation plan for ARCH-03. [SEC-03](../../jobs/SEC-03.md) — the process
+Implementation plan for ARCH-03. [SEC-03](../../backlog/sec-page-runs-in-process.md) — the process
 boundary — is **not** part of this: pages keep running in the site's process, and the safety net for
 the cases a budget cannot handle is the supervisor restarting an unhealthy container.
 

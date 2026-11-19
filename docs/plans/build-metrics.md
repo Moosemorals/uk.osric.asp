@@ -11,7 +11,7 @@ SPDX-License-Identifier: MIT
 | Size | Large — one pure contract in `Core`, one new deployable (project, image, quadlet, DNS, scrape job), one Makefile wrapper, and the panel that draws the family |
 | Area | Core (metrics), a new `Collector` service, Web (metrics catalogue only), Makefile, deploy (image, quadlet, Caddy, Prometheus, one secret) |
 | Spike | None. The collector is a minimal API over one dictionary; the app's meter/exporter is the pattern it does *not* need, and `ViewTokenStore` is the precedent for a fixed-time secret comparison |
-| Backlog | [WHIM-04](../jobs/WHIMS.md) — promoted here; its line goes when this merges |
+| Backlog | [WHIM-04](../backlog/WHIMS.md) — promoted here; its line goes when this merges |
 | Decisions | Six names intended, below; taken at the merge (`product-plan-before-building`) |
 
 ## The short version
@@ -63,9 +63,9 @@ gives those durations a history **in a service that is not the site**:
 - **Per-machine, per-branch or per-commit labels.** There is one builder. A `host` label would
   separate machines that should not be compared and multiply the series. A branch or commit label
   would make every build a new series.
-- **Alerting on a slow build.** A notification channel is [OPS-05](../jobs/OPS-05.md).
+- **Alerting on a slow build.** A notification channel is [`ops-no-outage-notification`](../backlog/ops-no-outage-notification.md).
 - **Retrying or failing a build when the push fails.** The build's exit code is the command's.
-- **A CI runner.** Running the gate unasked is [OPS-03](../jobs/OPS-03.md); this only makes the push
+- **A CI runner.** Running the gate unasked is [`ops-no-ci`](../backlog/ops-no-ci.md); this only makes the push
   reachable from whatever eventually runs it.
 - **Timing `make build`, `make restore` or the mutation targets.** They are one wrapper line and one
   name away, but the user's list does not ask for them, and a stamp that does nothing (an up-to-date

@@ -7,11 +7,11 @@ SPDX-License-Identifier: MIT
 
 | | |
 | --- | --- |
-| Status | Done — `assistant-memory-belongs-to-the-assistant`. The rule and the audit landed; the memory capability this plan first proposed was withdrawn before it was built, and the gap it was meant to fill is [IDEA-033](../../jobs/IDEA-033.md) |
+| Status | Done — `assistant-memory-belongs-to-the-assistant`. The rule and the audit landed; the memory capability this plan first proposed was withdrawn before it was built, and the gap it was meant to fill is [IDEA-033](../../backlog/idea-no-account-store.md) |
 | Size | Small — a rule and its audit in two documents, one withdrawn decision, one new job and the cross-references that pointed at it. No product code |
 | Spike | None. Nothing is built: the step records where a view lives and what a page still cannot do |
 | Decisions | `pages-page-first` (the rule) stands; `assistant-memory-belongs-to-the-assistant` is withdrawn; `assistant-memory-belongs-to-the-assistant` records the re-scope |
-| Backlog | [IDEA-025](../../jobs/IDEA-025.md) (the assistant page, which now includes the memory view), [IDEA-024](../../jobs/IDEA-024.md) (an archive is not a form), [IDEA-033](../../jobs/IDEA-033.md) (a page has no persistent per-account store); streaming landed in [the streaming plan](page-streaming.md) |
+| Backlog | [IDEA-025](../../backlog/idea-conversation-is-not-a-page.md) (the assistant page, which now includes the memory view), [IDEA-024](../../backlog/idea-archive-is-not-a-form.md) (an archive is not a form), [IDEA-033](../../backlog/idea-no-account-store.md) (a page has no persistent per-account store); streaming landed in [the streaming plan](page-streaming.md) |
 
 ## The short version
 
@@ -52,7 +52,7 @@ capability re-pointed at the right one.
 | Claim in the first version | What is true |
 | --- | --- |
 | "Memory becomes a product capability: a page written by the owner can read and change their own memory" | Memory is the assistant's. Its store, its FTS5 recall, its versions, pins and provenance are written by the tools inside a run and read back into the next prompt. A page capability would either duplicate that store or invert who owns the schema |
-| "`IMemoryCatalog` and `IMemoryWriter` in `Sdk`, offered through `ctx.Capabilities`" | Those two interfaces are host support for one view. When the assistant becomes a page ([IDEA-025](../../jobs/IDEA-025.md)), that page's capability answers for memory as it answers for conversations — one capability, owner-bound, and no memory-shaped type in `Sdk` |
+| "`IMemoryCatalog` and `IMemoryWriter` in `Sdk`, offered through `ctx.Capabilities`" | Those two interfaces are host support for one view. When the assistant becomes a page ([IDEA-025](../../backlog/idea-conversation-is-not-a-page.md)), that page's capability answers for memory as it answers for conversations — one capability, owner-bound, and no memory-shaped type in `Sdk` |
 | "The first customer is the owner's memory page" | The first thing a page wants that it cannot have is not memory and not a view. It is somewhere to keep per-account data |
 | "`/assistant/memory` is deleted in phase 3" | It stays until the assistant page replaces it. Deleting it first would take away the owner's only view of their memory, and a page cannot replace it without the assistant's store |
 
@@ -75,8 +75,8 @@ recovery routes the first version left out are named.
 | `/status`, `/status/chart`, `/admin/changes` | **Bootstrap.** Diagnosing why a page did not load starts here, and the changelist is a file the image carries, which a page cannot read | `pages-page-first`, `shell-the-admin-tools` |
 | `/admin/restore`, `/admin/scrub` | **Bootstrap.** The restore is the way back for a page that no longer compiles, so it cannot itself be a page that might not compile; the scrub is the one irreversible delete and stays an explicit owner action | `pages-page-first`, `shell-the-admin-tools` |
 | `{**path}`, `/favicon.ico`, `/health`, `/metrics` | **The runtime.** The page catch-all, the reserved key that stops a page claiming the icon, the probe and the scrape target are the thing pages run on | `pages-page-first` |
-| `/assistant`, `/assistant/{id}`, its events, approvals, options, stop, delete and the memory view | **A page cannot, yet.** The live stream is now something a page can do ([the streaming plan](page-streaming.md)); the conversation's actions are host singletons; the memory view belongs to that page rather than to a capability of its own | [IDEA-025](../../jobs/IDEA-025.md) |
-| `/admin/import`, `/admin/export` | **A page cannot, yet.** A page can neither take an upload nor serve a file | [IDEA-024](../../jobs/IDEA-024.md) |
+| `/assistant`, `/assistant/{id}`, its events, approvals, options, stop, delete and the memory view | **A page cannot, yet.** The live stream is now something a page can do ([the streaming plan](page-streaming.md)); the conversation's actions are host singletons; the memory view belongs to that page rather than to a capability of its own | [IDEA-025](../../backlog/idea-conversation-is-not-a-page.md) |
+| `/admin/import`, `/admin/export` | **A page cannot, yet.** A page can neither take an upload nor serve a file | [IDEA-024](../../backlog/idea-archive-is-not-a-form.md) |
 
 Two sentences go with the table: the page column is the default, so a new route asks which column it
 is in before it is written, and "it is easier in C#" is an IDEA file rather than an answer. The list
@@ -96,7 +96,7 @@ The gap is deliberate today: `pages-page-storage`'s open-policy note says per-us
 own migration and decision", and the identity hook it needed has existed since `pages-public-by-default`, `pages-identity-is-a-plain-value`, `pages-redirect-to-login`, `auth-a-state-changing-form-carries-a-token`, `pages-a-stored-page-is-never-cached`, `assistant-knows-the-guard`. This
 plan opens that job rather than building it.
 
-[IDEA-033](../../jobs/IDEA-033.md) — a page has no persistent per-account store — carries the analysis:
+[IDEA-033](../../backlog/idea-no-account-store.md) — a page has no persistent per-account store — carries the analysis:
 
 - **Per account, not per page.** The namespace belongs to the signed-in account, so a page names its
   own tables and can read what another page stored for the same account, which is the rule
@@ -166,7 +166,7 @@ the first version's design sections are described in "What changed, and why" rat
 
 ### D3 — Memory's view belongs to the assistant page
 
-[IDEA-025](../../jobs/IDEA-025.md) already says the conversation list, the transcript and the approval
+[IDEA-025](../../backlog/idea-conversation-is-not-a-page.md) already says the conversation list, the transcript and the approval
 card are page-shaped, and that the two host things are a stream and the run actions. It now says the
 memory view is page-shaped too:
 
@@ -294,7 +294,7 @@ does not is one link away.
 ### Phase 2 — the plan and the jobs
 
 - This plan, in place of the first version.
-- [IDEA-033](../../jobs/IDEA-033.md) written.
+- [IDEA-033](../../backlog/idea-no-account-store.md) written.
 - The memory view in IDEA-025; IDEA-024's citation corrected to `pages-a-page-may-save-itself`.
 - The jobs README: open table, programme step 9 and the note under the programme.
 - The memory-page plan's **Superseded** row pointed at IDEA-025; the sentence added to
@@ -325,7 +325,7 @@ document that mentioned the withdrawn capability points at where the question we
 - **`assistant-memory-page`** stand: the shell memory page is what exists today, and every rule it keeps moves
   with the view when IDEA-025 replaces it.
 - Written by this step: [architecture](../../architecture.md#where-a-view-lives) (the rule and the audit),
-  this plan, [IDEA-033](../../jobs/IDEA-033.md), [the jobs](../../jobs/README.md), the
+  this plan, [IDEA-033](../../backlog/idea-no-account-store.md), [the jobs](../../backlog/README.md), the
   [glossary](../../glossary.md), [assistant](../../assistant.md), and one line each in IDEA-024, IDEA-025 and
   the archived memory-page plan.
 

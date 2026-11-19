@@ -9,7 +9,7 @@ SPDX-License-Identifier: MIT
 | --- | --- |
 | Status | Implemented 2026-11-12 |
 | Size | Large — an SDK capability, two tables and a store, the shell's cookie and rotation, the loss of `context.Session`, a caching change with a known regression, a cookie rename, and a seeded page |
-| Job | IDEA-014 — a page cannot keep per-visitor state, so a form cannot redirect and say why; closed, see [jobs](../../jobs/closed.md) |
+| Job | IDEA-014 — a page cannot keep per-visitor state, so a form cannot redirect and say why; closed, see [jobs](../../backlog/closed.md) |
 | Spike | None. The shape is settled; the uncertain part is cost, not behaviour |
 | Decisions | `pages-the-session`, `pages-a-stored-page-is-never-cached`, `shell-the-cookie-names`, recorded with this plan: the identity, the ownership model, the caps, pages become uncacheable, and the cookie names |
 
@@ -50,8 +50,8 @@ A page can keep per-visitor state, bounded and cleared on sign-out:
 ## Non-goals
 
 - **Page-to-page messaging as a feature.** Reading another page's key ships here; a *send* with a
-  redirect is [IDEA-027](../../jobs/IDEA-027.md), and the editor becoming a page is
-  [IDEA-017](../../jobs/IDEA-017.md).
+  redirect is [IDEA-027](../../backlog/idea-message-does-not-survive-a-redirect.md), and the editor becoming a page is
+  [IDEA-017](../../backlog/IDEA-017.md).
 - **Merging with `IPageStorage`.** Page state is site content — exported, imported, scrubbed,
   measured — and session values are a visitor's scratch space; the reasoning is under *considered
   and rejected*.

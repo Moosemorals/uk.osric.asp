@@ -53,6 +53,11 @@ A name is taken when the work merges. A plan proposes the decision by the name i
 merge writes the entry and points the plan at it; nothing is recorded here for work that has not
 landed, and nothing is added for a change that decided nothing.
 
+**The merge also closes the plan.** The same step that writes the entry sets the plan's Status to
+merged and moves the plan to [`plans/archive/`](plans/archive), so the live plans are the ones still
+being worked and every link into the plan is retargeted in that change. A plan left behind is a
+finished step still asking to be read.
+
 **A name is permanent.** Once it is on trunk it is never renamed and never reused, because a name is
 cited from code, commits, plans and the manual, and a reader has to be able to find it. A poor name is
 cheaper than a broken id.
@@ -84,7 +89,7 @@ second copy of something it already said. Three rules keep this one honest.
 
 - **One rule, one entry.** A change that qualifies an existing entry edits it. An entry that stops
   being true is edited or deleted rather than kept beside its replacement: the reasoning lives in the
-  [plan](plans/) that proposed it and the history in git, so a superseded table is a third copy of a
+  [plan](plans) that proposed it and the history in git, so a superseded table is a third copy of a
   fact that has already changed twice.
 - **Name the rule and the reason; leave the value where it is used.** A limit, timeout, quota or
   routing name is referred to by the configuration key or options type that holds it, with the
@@ -121,19 +126,42 @@ GitHub Issues and Pull Requests tabs are off.
 
 ### product-work-is-jobs
 
-Work is tracked as jobs: one file per job, `IDEA-` for something the site could become and `SEC-`,
-`BUG-`, `OPS-` or `ARCH-` for something it gets wrong. **Size** is the scheduling column, and small
-self-contained work goes first because it never gets scheduled otherwise. Speculative product work is
-backlog, not a licence to widen the task in hand.
+Work is tracked in the backlog: one file per item in `docs/backlog`, named by a `kind-subject` slug
+whose kind is `idea` for something the site could become and `bug`, `sec`, `ops` or `arch` for
+something it gets wrong. An item's title is its H1, its header carries Difficulty on the animal scale,
+Utility, Status, Blocked by and Plan, and the one order table is the priority — small, high-utility
+work first because it never gets scheduled otherwise. A job is the host's `PageJob`; the record does
+not use the word for an item. Speculative product work is an item, not a licence to widen the task in
+hand. The name is kept though the record moved on, because a name is permanent.
 
-*Recorded in [jobs](jobs/README.md).*
+*Recorded in [the backlog](backlog/README.md), [the plan](plans/archive/backlog-record.md).*
+
+### product-a-difficulty-is-not-a-duration
+
+An item's difficulty is a level on the animal scale — sleepy hamster to tiger with a toothache — and
+never a guess at the calendar. No document in the record estimates hours or days: a time estimate
+ignores who is doing the work, what interrupts them and what they already know, and it reads as a
+promise nobody can keep. Whether an item wants a plan is the `Plan` field's business, not difficulty's,
+because a plan is about coordination rather than size.
+
+*Recorded in [the backlog](backlog/README.md#difficulty-is-a-level-not-a-duration), [the plan](plans/archive/backlog-record.md).*
+
+### product-a-merged-plan-is-archived
+
+A plan is finished when the work merges, and it leaves `docs/plans/` for `docs/plans/archive/` in that
+same merge: the merge that writes the decision also sets the plan's Status to merged and moves it,
+retargeting every link into it. The live plans are then the ones still being worked. A finished plan
+that stays live asks to be read and is not — eight had merged for days, three of them still saying
+proposed or waiting — and the stale Status line is what a reader trusts.
+
+*Recorded in [CONTRIBUTING](../CONTRIBUTING.md#working-on-it), [the record](#taking-a-name), [the plan](plans/archive/backlog-record.md).*
 
 ### product-plan-before-building
 
 A plan is written before a large change and kept as the record of the reasoning, including the options
 that were rejected. Plans are not rewritten into marketing copy afterwards.
 
-*Recorded in [plans](plans/).*
+*Recorded in [plans](plans).*
 
 ### product-steps-wait-for-the-owner
 
@@ -143,7 +171,7 @@ on the answer. A green gate, a finished plan, the next step being ready and sile
 expectation, never permission: an agent does not merge its own work and does not start the step after
 it.
 
-*Recorded in [the programme](jobs/README.md#a-step-stops-and-the-owner-answers), [how to work](../CONTRIBUTING.md#working-on-it).*
+*Recorded in [the programme](backlog/README.md#a-step-stops-and-the-owner-answers), [how to work](../CONTRIBUTING.md#working-on-it).*
 
 ### product-manual-is-a-page
 
@@ -263,7 +291,7 @@ ceiling that keep a configured value from switching a guard off — and a securi
 configured only in the direction that keeps or tightens the shipped guarantee. `Core` never reads
 configuration: the shell turns a setting into a plain value and passes it in.
 
-*Recorded in [configuration](architecture.md#configuration), [IDEA-031](jobs/IDEA-031.md).*
+*Recorded in [configuration](architecture.md#configuration), [`idea-policy-is-a-constant`](backlog/idea-policy-is-a-constant.md).*
 
 ### code-validation-at-the-boundary
 
@@ -363,6 +391,18 @@ and is the moment it matters that the site serves a page in a browser at all. Th
 locally; the fixtures that use the real provider are `[Explicit]` and cost tokens.
 
 *Recorded in [testing](testing.md#the-browser-suite), [assistant browser tests](plans/archive/assistant-browser-tests.md).*
+
+### code-the-gate-checks-the-backlog
+
+`make check` runs `make backlog`, a tool over `docs/backlog` in the shape of `check-decisions`: a slug
+outside the shape or used twice, a missing or malformed field, a Status the blockers and the plan do
+not say, an item missing from the order or listed twice, a row whose difficulty, utility or status
+disagrees with the item, a planned row that links the wrong plan, an order that puts an item above its
+blocker, a cycle, a plan that does not link back, and a citation of an item that is not in the record
+all fail it. The lists it reads — the difficulty scale, the decision areas — are read out of their own
+documents, so each has one home. A scheme nobody verifies is a scheme that drifts.
+
+*Recorded in [the backlog](backlog/README.md#the-check), [the Makefile](../Makefile), [the plan](plans/archive/backlog-record.md).*
 
 ### code-licence-is-mit
 
@@ -587,10 +627,10 @@ close.
 
 There is no sandbox claim. A page runs in-process with the site's identity and the whole BCL; isolation
 is fencing, not a boundary, and the threat model is "avoid obvious footguns", not "resist a determined
-adversary". The trims and the policy are worth their cost at that bar; the process boundary (SEC-03)
+adversary". The trims and the policy are worth their cost at that bar; the process boundary (`sec-page-runs-in-process`)
 and an out-of-process worker are priced and stay unbuilt while the only page author is the owner.
 
-*Recorded in [SEC-03](jobs/SEC-03.md), [page-runtime-hardening](plans/archive/page-runtime-hardening.md).*
+*Recorded in [`sec-page-runs-in-process`](backlog/sec-page-runs-in-process.md), [page-runtime-hardening](plans/archive/page-runtime-hardening.md).*
 
 ### pages-the-execution-budget
 
@@ -637,9 +677,9 @@ The ten old members stay on `IContext` for one release as `[Obsolete]` warnings 
 stored pages are compiled source and a change to `Sdk` invalidates every image — and go with that
 alias (`pages-a-warning-never-stops-a-page`, `pages-what-a-diagnostic-is`). `Web`'s implementation is
 `SimpleResponse`, which composes the response state and the body the [context
-split](plans/simple-context.md) made.
+split](plans/archive/simple-context.md) made.
 
-*Recorded in [pages](pages.md#page-contract), [glossary](glossary.md#response), [the plan](plans/page-response.md).*
+*Recorded in [pages](pages.md#page-contract), [glossary](glossary.md#response), [the plan](plans/archive/page-response.md).*
 
 ### pages-the-response-is-buffered-until-a-flush
 
@@ -924,7 +964,7 @@ after `HandleAsync` returns, so a guard's early `return;` is still wrapped and t
 status after writing its body. A page that declares nothing is served exactly as it wrote itself — a
 fragment — and `IPageLayout.Layout` is gone.
 
-*Recorded in [page composition](plans/page-composition.md#d1--ipagecomposition-is-one-capability-with-four-calls), [layouts](shell.md#layouts).*
+*Recorded in [page composition](plans/archive/page-composition.md#d1--ipagecomposition-is-one-capability-with-four-calls), [layouts](shell.md#layouts).*
 
 ### pages-an-embed-is-a-render
 
@@ -935,7 +975,7 @@ declares no wrapper. It is offered the capabilities a content page has, includin
 jobs, because the authority is the caller's identity; it may not redirect, because it has no response.
 One render still writes once, however many layers it has.
 
-*Recorded in [page composition](plans/page-composition.md#d4--one-layer-renderer-and-the-wrap-is-the-policy-over-it), [composition](shell.md#composition).*
+*Recorded in [page composition](plans/archive/page-composition.md#d4--one-layer-renderer-and-the-wrap-is-the-policy-over-it), [composition](shell.md#composition).*
 
 ### pages-a-composed-page-gets-a-request
 
@@ -945,7 +985,7 @@ separate options type. A copy-and-change helper is an extension method on the re
 `WithQuery`, `WithAnotherQuery`, `WithoutQuery` — so the sealed record keeps its shape and its own
 surface stays the values it carries.
 
-*Recorded in [page composition](plans/page-composition.md#d2--the-input-is-a-pagerequest-not-an-options-type), [composition](shell.md#composition).*
+*Recorded in [page composition](plans/archive/page-composition.md#d2--the-input-is-a-pagerequest-not-an-options-type), [composition](shell.md#composition).*
 
 ### pages-a-capture-returns-the-body
 
@@ -955,7 +995,7 @@ response stays withheld, so its status, headers and content type never reach the
 that would redirect refuses. The result is a value rather than the live `IPageLayout`, because that is
 the capability a layer runs with, not the material it produced.
 
-*Recorded in [page composition](plans/page-composition.md#d8--capture-is-the-same-render-returned), [composition](shell.md#composition).*
+*Recorded in [page composition](plans/archive/page-composition.md#d8--capture-is-the-same-render-returned), [composition](shell.md#composition).*
 
 ### pages-a-page-inside-a-page-is-a-capture
 
@@ -965,7 +1005,7 @@ or received it with `Wrap`. The host composes nothing behind the outer page's ba
 sheets of the layer inside are the caller's to fold, and the one thing the host still unions is the
 script permission, so a document that carries a body cannot lose it.
 
-*Recorded in [page composition](plans/page-composition.md#d5--the-wrapper-folds-the-contents-capture-it-does-not-get-the-response), [layouts](shell.md#layouts).*
+*Recorded in [page composition](plans/archive/page-composition.md#d5--the-wrapper-folds-the-contents-capture-it-does-not-get-the-response), [layouts](shell.md#layouts).*
 
 ### pages-one-render-three-roles
 
@@ -975,7 +1015,7 @@ their status, content type and header settings are ignored and logged, neither m
 embedded page's redirect is refused. The write, the jobs and a writable session are offered to content
 and embedded and not to layout, because a layout runs once per page it wraps.
 
-*Recorded in [page composition](plans/page-composition.md#d3--the-layer-role-replaces-islayout), [layouts](shell.md#layouts).*
+*Recorded in [page composition](plans/archive/page-composition.md#d3--the-layer-role-replaces-islayout), [layouts](shell.md#layouts).*
 
 ### pages-the-wrapper-owns-the-title
 
@@ -984,7 +1024,7 @@ means: the seeded `/_layout` uses the page's title when it has one and the site'
 host no longer refuses a chain whose page forgot, so the error is a wrapper's decision rather than a
 host rule.
 
-*Recorded in [page composition](plans/page-composition.md#d6--ipagelayout-loses-layout-and-body-gains-content), [layouts](shell.md#layouts).*
+*Recorded in [page composition](plans/archive/page-composition.md#d6--ipagelayout-loses-layout-and-body-gains-content), [layouts](shell.md#layouts).*
 
 ### pages-the-document-is-the-shells
 
@@ -1111,7 +1151,7 @@ its own `ctx.User`, orders, relabels, marks the current item and draws. There is
 the layout's chrome rather than a shell fact. A worker has no request or visitor, so its list is
 empty.
 
-*Recorded in [pages](pages.md#page-contract), [the shell](shell.md#layouts), [IPageCatalog](../src/uk.osric.asp.Sdk/IPageCatalog.cs) and [shell-navigation](plans/shell-navigation.md#d2--the-page-catalog-knows-what-the-shell-can-do).*
+*Recorded in [pages](pages.md#page-contract), [the shell](shell.md#layouts), [IPageCatalog](../src/uk.osric.asp.Sdk/IPageCatalog.cs) and [shell-navigation](plans/archive/shell-navigation.md#d2--the-page-catalog-knows-what-the-shell-can-do).*
 
 ### pages-the-store-is-a-tree
 
@@ -1159,7 +1199,7 @@ A save belongs to the next request: the running image is not re-read, the respon
 page unless the page shows the result the save returned, the save is committed before the rest of the
 render, and one render makes at most one write, whichever member it uses. The canonical pattern is a
 `POST` that saves and answers with the diagnostics, or saves and redirects with `303`. A batch that
-names its own policy is [IDEA-047](../docs/jobs/IDEA-047.md)'s work.
+names its own policy is [`idea-one-write-per-render`](backlog/idea-one-write-per-render.md)'s work.
 
 *Recorded in [page self-save](plans/archive/page-self-save.md), [page writes](plans/archive/page-writes.md), [IPageWrites](../src/uk.osric.asp.Sdk/IPageWrites.cs).*
 
@@ -1626,7 +1666,7 @@ a property: a shell page cannot show stored pages in its menu because its menu i
 and it must answer when the page store is broken, so it never reads the store to draw its chrome. A
 page that wants a page-store menu reads `IPageCatalog.ListAsync` beside `ShellLinks()` and writes both.
 
-*Recorded in [the shell](shell.md#the-document-shell), [site.css](../src/uk.osric.asp.Web/Pages/Seeds/site.css) and [shell-navigation](plans/shell-navigation.md#d5--the-shell-is-marked-as-the-shell).*
+*Recorded in [the shell](shell.md#the-document-shell), [site.css](../src/uk.osric.asp.Web/Pages/Seeds/site.css) and [shell-navigation](plans/archive/shell-navigation.md#d5--the-shell-is-marked-as-the-shell).*
 
 ### shell-admin-is-a-shell-route
 
@@ -1640,7 +1680,7 @@ tools rather than a second one. The root holds every tool the audit keeps: the a
 and the status dashboard, which answers at `/admin/status` with its chart at `/admin/status/chart`
 (`shell-the-tools-live-under-admin`).
 
-*Recorded in [the seed trim](plans/seed-trimming.md#d3---admin-is-a-shell-route), [the shell](shell.md#the-administration-index), [AdminIndexEndpoint](../src/uk.osric.asp.Web/Admin/AdminIndexEndpoint.cs).*
+*Recorded in [the seed trim](plans/archive/seed-trimming.md#d3---admin-is-a-shell-route), [the shell](shell.md#the-administration-index), [AdminIndexEndpoint](../src/uk.osric.asp.Web/Admin/AdminIndexEndpoint.cs).*
 
 ### shell-the-tools-live-under-admin
 
@@ -1654,7 +1694,7 @@ reserved key kept alive for a bookmark. The root is not configuration: it is the
 the boundary the `Editor` policy is written against, so a value that could move it could let a page
 claim a shell route.
 
-*Recorded in [the shell](shell.md), [architecture](architecture.md#where-a-view-lives) and [shell-navigation](plans/shell-navigation.md#d7--the-shells-tools-live-under-admin).*
+*Recorded in [the shell](shell.md), [architecture](architecture.md#where-a-view-lives) and [shell-navigation](plans/archive/shell-navigation.md#d7--the-shells-tools-live-under-admin).*
 
 ### shell-admin-assets-are-static-files
 
@@ -1666,7 +1706,7 @@ reserved so a page cannot be shadowed silently. `/site.css` stays seeded because
 it and the owner may edit it (`pages-one-base-sheet`), and so do the sheets and scripts a stored page
 loads.
 
-*Recorded in [the seed trim](plans/seed-trimming.md#d1---the-shells-own-files-are-files), [the shell](shell.md#the-shells-own-files), [operations](../deploy/operations.md).*
+*Recorded in [the seed trim](plans/archive/seed-trimming.md#d1---the-shells-own-files-are-files), [the shell](shell.md#the-shells-own-files), [operations](../deploy/operations.md).*
 
 ### shell-the-licences-are-read-not-restated
 
@@ -1677,7 +1717,7 @@ the notice the image ships for its packages is the one a reader is entitled to s
 named and the rest of the page still answers, so a build that did not come through the Makefile says
 what it lacks instead of failing.
 
-*Recorded in [the seed trim](plans/seed-trimming.md#d4---about-keeps-the-credits-admincopyright-keeps-the-licences), [the shell](shell.md#the-copyright-page), [CopyrightEndpoint](../src/uk.osric.asp.Web/Admin/CopyrightEndpoint.cs).*
+*Recorded in [the seed trim](plans/archive/seed-trimming.md#d4---about-keeps-the-credits-admincopyright-keeps-the-licences), [the shell](shell.md#the-copyright-page), [CopyrightEndpoint](../src/uk.osric.asp.Web/Admin/CopyrightEndpoint.cs).*
 
 ### shell-one-table-of-routes
 
@@ -1691,7 +1731,7 @@ appear in no menu. A menu entry carries its own audience and order, because who 
 who a link is for are different facts — `/admin` answers anyone, the site menu offers it to the owner,
 the administration menu to everyone — and the two menus do not agree on position.
 
-*Recorded in [the route catalogue](plans/shell-route-catalogue.md), [the shell](shell.md#the-administration-index), [ShellCatalogue](../src/uk.osric.asp.Web/Shell/ShellCatalogue.cs).*
+*Recorded in [the route catalogue](plans/archive/shell-route-catalogue.md), [the shell](shell.md#the-administration-index), [ShellCatalogue](../src/uk.osric.asp.Web/Shell/ShellCatalogue.cs).*
 
 ### shell-reserved-keys-are-an-invariant
 
@@ -1701,9 +1741,9 @@ with the reason. A route exists because the site's code answers it, so an operat
 list could only let a stored page shadow a route such as `/login`, and no legitimate deployment needs
 that; a longer list would have to invent a route that does not exist. This is the exception
 `code-policy-values-are-configuration` names — a security policy configuration may only keep or tighten
-— and [IDEA-031](../docs/jobs/IDEA-031.md) lists it with the other invariants.
+— and [`idea-policy-is-a-constant`](backlog/idea-policy-is-a-constant.md) lists it with the other invariants.
 
-*Recorded in [the route catalogue](plans/shell-route-catalogue.md#d4--reservedpaths-derives-its-keys), [ReservedPaths](../src/uk.osric.asp.Web/Pages/ReservedPaths.cs), [the shell](shell.md).*
+*Recorded in [the route catalogue](plans/archive/shell-route-catalogue.md#d4--reservedpaths-derives-its-keys), [ReservedPaths](../src/uk.osric.asp.Web/Pages/ReservedPaths.cs), [the shell](shell.md).*
 
 ### shell-the-admin-tools
 
@@ -1966,7 +2006,7 @@ carries no kind either, and its body is parsed against the record's kind, so a f
 is refused rather than guessed at. A restart fails a pending interrupt closed and leaves the synthetic tool
 result the stop path writes.
 
-*Recorded in [the assistant](assistant.md#ai-page-assistant), [the owner interrupt](plans/assistant-owner-interrupt.md).*
+*Recorded in [the assistant](assistant.md#ai-page-assistant), [the owner interrupt](plans/archive/assistant-owner-interrupt.md).*
 
 ### assistant-a-run-pauses-on-budget
 
@@ -1993,7 +2033,7 @@ edge, and `RecordToolCallAsync` stores each attempt so the reload agrees. A deni
 once, as the cap counts it. A reload taken while a call is in flight lags by that one call, the same way
 Steps lags by the step in flight.
 
-*Recorded in [RunProcessor](../src/uk.osric.asp.Web/Assistant/RunProcessor.cs), [the assistant](assistant.md#ai-page-assistant), [assistant live figures](plans/assistant-live-figures.md).*
+*Recorded in [RunProcessor](../src/uk.osric.asp.Web/Assistant/RunProcessor.cs), [the assistant](assistant.md#ai-page-assistant), [assistant live figures](plans/archive/assistant-live-figures.md).*
 
 ### assistant-budgets-are-one-snapshot
 
@@ -2032,7 +2072,7 @@ next snapshot that supplies the row, and a projection never takes the exceeded c
 for a figure the server measured. Each replayed snapshot resets the characters counted, so a reload
 rebuilds the projection rather than doubling it, and the reload after a run renders reported figures only.
 
-*Recorded in [assistant.js](../src/uk.osric.asp.Web/Pages/Seeds/assistant.js), [the assistant](assistant.md#ai-page-assistant), [assistant live figures](plans/assistant-live-figures.md).*
+*Recorded in [assistant.js](../src/uk.osric.asp.Web/Pages/Seeds/assistant.js), [the assistant](assistant.md#ai-page-assistant), [assistant live figures](plans/archive/assistant-live-figures.md).*
 
 ### assistant-the-request-budget-is-tokens
 
@@ -2087,7 +2127,7 @@ Memory is the assistant's, not the page contract's. Its store, its FTS5 recall, 
 provenance are written by the assistant's tools inside a run and read back into the next prompt, so the
 owner's view of it arrives with the assistant page rather than as a capability of its own. What a page
 cannot do is keep anything for a signed-in account: page storage is shared by every visitor and a page
-session belongs to one browser and goes when it signs out. That gap is [IDEA-033](jobs/IDEA-033.md),
+session belongs to one browser and goes when it signs out. That gap is [`idea-no-account-store`](backlog/idea-no-account-store.md),
 shaped as a per-account SQL store whose tables the page declares, and a capability arrives with the view
 that needs it, so the job names its first customer before it is built.
 
@@ -2514,7 +2554,7 @@ never deletes on the site.
 No outbound alerting yet. A failure is discovered by visiting the site or reading the journal; a job
 carries the notification work.
 
-*Recorded in [OPS-05](jobs/OPS-05.md).*
+*Recorded in [`ops-no-outage-notification`](backlog/ops-no-outage-notification.md).*
 
 ### deploy-the-domain-is-public
 
@@ -2644,7 +2684,7 @@ name, and the entries that were already superseded when this file was written ar
 
 Not decisions yet — recorded so they are not rediscovered:
 
-- The process boundary (SEC-03 step 3) rests on the owner being the only author. If that premise changes,
+- The process boundary (`sec-page-runs-in-process` step 3) rests on the owner being the only author. If that premise changes,
   `pages-there-is-no-sandbox` changes with it.
 - A page that blocks synchronously is unchanged by `pages-page-io-is-async`: async makes a *waiting* page
   cheap to abandon, and does nothing for arbitrary C# the deadline cannot interrupt.
@@ -2653,5 +2693,5 @@ Not decisions yet — recorded so they are not rediscovered:
   the member list is the only exception surface.
 - `pages-page-storage` makes page state shared by every visitor and racy under concurrency: an increment
   is last-write-wins, not atomic. The identity hook a per-user store needs exists, and that store is
-  [IDEA-033](jobs/IDEA-033.md) — a job with its own plan, migration and decision rather than a blocked
+  [`idea-no-account-store`](backlog/idea-no-account-store.md) — a job with its own plan, migration and decision rather than a blocked
   one. An atomic increment would still be a different storage primitive.

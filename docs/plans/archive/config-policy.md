@@ -10,7 +10,7 @@ SPDX-License-Identifier: MIT
 | Status | Landed: the rule, the reader, every option migrated, the shipped file, and the tests |
 | Size | Large — a configuration reader, every options record migrated, the shipped file, the startup path and the test harnesses |
 | Area | Web (configuration, pages, assistant, metrics, authentication, admin), tests, docs, deploy |
-| Backlog | [IDEA-031](../../jobs/IDEA-031.md) — the policy-shaped constants that deliberately stay |
+| Backlog | [IDEA-031](../../backlog/idea-policy-is-a-constant.md) — the policy-shaped constants that deliberately stay |
 | Decisions | `code-policy-values-are-configuration` |
 
 ## The short story
@@ -35,7 +35,7 @@ This change makes configuration the only source.
 - **The clear-cut tail is migrated:** sign-in throttling, the authentication ticket lifetime, the
   assistant's tool and shell limits, and the metrics cache and query deadline.
 - **Security policy that configuration could only weaken** stays an invariant and is recorded as
-  [IDEA-031](../../jobs/IDEA-031.md).
+  [IDEA-031](../../backlog/idea-policy-is-a-constant.md).
 - **Enforcement is documentation and review**, deliberately: no analyzer and no reflection guard. The
   tests prove the contract and the shipped file, not that every future literal is caught.
 
@@ -129,7 +129,7 @@ tests that asserted a fallback or a clamp now assert the refusal.
 | Report one section per start | Rejected on review: a hand-written file then costs one restart per section. One reader is threaded through every factory instead, and the report names every bad key at once |
 | A reflection test over options and the shipped file | The chosen enforcement is review and documentation. `ShippedConfigurationTests` covers the part that actually bites — a factory and the file disagreeing — without pinning every future literal |
 | A custom Roslyn analyzer | A new project and dependency for one owner, and it would have to whitelist the invariants the rule deliberately keeps |
-| Move the password, header and API-policy constants too | Configuration could only weaken them. [IDEA-031](../../jobs/IDEA-031.md) asks whether a tightening-only key is worth having |
+| Move the password, header and API-policy constants too | Configuration could only weaken them. [IDEA-031](../../backlog/idea-policy-is-a-constant.md) asks whether a tightening-only key is worth having |
 | Clamp an out-of-range value instead of refusing it | A clamp silently runs something other than what the operator wrote, which is the problem this change exists to remove |
 
 ## Verification

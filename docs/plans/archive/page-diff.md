@@ -11,7 +11,7 @@ SPDX-License-Identifier: MIT
 | Size | Medium — a pure line diff, one capability, one renderer, one assistant tool, one editor view, and the tests for each |
 | Spike | None. The BCL has no diff, and the algorithm is a page of code rather than a dependency to measure |
 | Decisions | `pages-diff`, recorded in [decisions](../../decisions.md#pages-diff) |
-| Backlog | [WHIM-02](../../jobs/WHIMS.md) — the diff viewer; the whim was removed when this landed |
+| Backlog | [WHIM-02](../../backlog/WHIMS.md) — the diff viewer; the whim was removed when this landed |
 
 Implementation notes, where the code differs from the plan: the compare form sits **below** the
 history table, so the table stays newest first; `DiffRenderer` exposes `Compare` and a

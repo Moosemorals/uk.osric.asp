@@ -5,7 +5,7 @@ SPDX-License-Identifier: MIT
 
 # The page SDK, and the names that go with it
 
-Implementation plan for IDEA-004 (closed by this work; the [job index](../../jobs/README.md) records it), plus the structural tidy-up that goes with it:
+Implementation plan for IDEA-004 (closed by this work; the [job index](../../backlog/README.md) records it), plus the structural tidy-up that goes with it:
 vertical slices instead of a flat namespace per project, and names that say whether a thing is a
 template (what the author edits) or a page (what the compiler produces).
 

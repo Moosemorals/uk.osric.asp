@@ -11,7 +11,7 @@ SPDX-License-Identifier: MIT
 | Size | Medium — one contract member, one response sink, a commit rule, a disconnect guard and their tests |
 | Spike | None. `SimpleContext` already buffers through one writer, the endpoint already shapes the whole response in one place, and the render already owns a deadline and an abandonment switch |
 | Decisions | `pages-page-io-is-async` to `pages-a-stream-reports-its-own-end`, in [the record](../../decisions.md) |
-| Backlog | ARCH-13 — a page cannot stream (now [closed](../../jobs/closed.md)) — and BUG-17's one loose end, the failed-request line a mid-run reload leaves behind |
+| Backlog | ARCH-13 — a page cannot stream (now [closed](../../backlog/closed.md)) — and BUG-17's one loose end, the failed-request line a mid-run reload leaves behind |
 
 ## The short version
 
@@ -35,7 +35,7 @@ Four consequences follow, and each is deliberate:
 - A failure after the commit — an exception, or the render deadline — truncates the response and
   aborts the connection. It cannot become an error page or a `504`.
 - A streamed page still holds its render slot and its deadline. This change makes the shape right; it
-  does not make a long-lived server-sent-event stream safe. That is [IDEA-025](../../jobs/IDEA-025.md)'s
+  does not make a long-lived server-sent-event stream safe. That is [IDEA-025](../../backlog/idea-conversation-is-not-a-page.md)'s
   plan, which is the first customer.
 
 BUG-17's loose end closes here because it is the same write path. A response that is already
@@ -66,7 +66,7 @@ at Debug and aborts quietly; a genuine failure on a live response is still an Er
   and its slot. The deadline is what makes the "truncate, do not `504`" rule meaningful.
 - **Releasing the render slot after the commit.** The page is still running and still holding a
   deadline; pretending the render is over would let a public SSE page exhaust the site. This is
-  [IDEA-025](../../jobs/IDEA-025.md)'s problem.
+  [IDEA-025](../../backlog/idea-conversation-is-not-a-page.md)'s problem.
 - **A demo page or a seeded example.** No stored page wants to stream yet, and an example that sleeps
   between flushes would need a delay primitive the page API deliberately does not offer. The tests and
   `/help` are the worked example.

@@ -11,7 +11,7 @@ SPDX-License-Identifier: MIT
 | Size | M — one capability replaces two, one registration gate and one delete protection removed, a public type renamed, and the tests, the manual, the prompt and the jobs for each |
 | Spike | None. Every claim about what exists was read off `trunk` on 2026-11-15 and re-checked after merging `1aade5d`, which landed seed provenance and the editor rewrite |
 | Decisions | At the merge: **pages-any-page-may-write-the-store** is new; the entry that made the editor's registration the authority is retired and replaced by it; `pages-a-page-may-save-itself` is edited in place |
-| Backlog | [IDEA-043](../../jobs/closed.md) is this step; [IDEA-047](../../jobs/IDEA-047.md) is the batch, split out of it |
+| Backlog | [IDEA-043](../../backlog/closed.md) is this step; [IDEA-047](../../backlog/idea-one-write-per-render.md) is the batch, split out of it |
 
 ## The short version
 
@@ -21,17 +21,17 @@ stays, as the bound member it is today; the named, conditional save and the rest
 members sit beside it on the same interface, and one render still makes one write.
 
 The batch — several pages, a named policy, one report — is
-[IDEA-047](../../jobs/IDEA-047.md), not this step. It is the half that needs a vocabulary of policies, a
+[IDEA-047](../../backlog/idea-one-write-per-render.md), not this step. It is the half that needs a vocabulary of policies, a
 transaction boundary and a report value; this half only removes a gate and merges two handles that
 existed apart because of that gate.
 
 The IDE's Save all and the assistant's multi-file edit found the one-save rule, and an editor sub-route
-found the one-key rule ([IDEA-043](../../jobs/closed.md)'s origin). Both narrowings were deliberate: a
+found the one-key rule ([IDEA-043](../../backlog/closed.md)'s origin). Both narrowings were deliberate: a
 handle with a key parameter was kept from every page because every stored page would then have been a
 writer of the whole store, and a render was kept to one save because a render that wrote twice could
 leave the site half-changed. The owner has decided the first trade is worth making — nothing about
 editing is special to one page, because the authority is the signed-in visitor — and the batch, which is
-the answer to the second, is [IDEA-047](../../jobs/IDEA-047.md) on its own branch.
+the answer to the second, is [IDEA-047](../../backlog/idea-one-write-per-render.md) on its own branch.
 
 ## What the owner decided
 
@@ -40,7 +40,7 @@ the answer to the second, is [IDEA-047](../../jobs/IDEA-047.md) on its own branc
 | Merge the self-save into the write capability? | Yes: "if a page can save any page it can certainly save itself" | `IPageWriter` goes; a page saves itself through the same interface it saves any page through |
 | The merged capability's name | `IPageWrites` | The renamed type, the seeds, the manual, the prompt and the SDK public API |
 | A bound self-save, or one save only? | Keep the bound one | Two saves on one interface, each with its own answer (below) |
-| One write per render | Keep it, until the batch | Every member shares one action; [IDEA-047](../../jobs/IDEA-047.md) removes the rule |
+| One write per render | Keep it, until the batch | Every member shares one action; [IDEA-047](../../backlog/idea-one-write-per-render.md) removes the rule |
 | The editor key's delete protection | Remove it | `DeleteAsync` treats `Pages:Editor:Key` like any other key; `/admin/restore` is the way back |
 | `Pages:Editor:Key` itself | Keep it | It stops deciding authority and keeps deciding where the editor is served |
 | The job | Split it | This branch rewrites IDEA-043 and files IDEA-047 |
@@ -144,7 +144,7 @@ page holds both capabilities and so two counters, and could save itself *and* ed
 render. After the merge it makes one write like every other page. No seeded page did that, and it is
 the rule the old comment intended.
 
-[IDEA-047](../../jobs/IDEA-047.md) removes the rule and puts a policy in its place: all or nothing, stop
+[IDEA-047](../../backlog/idea-one-write-per-render.md) removes the rule and puts a policy in its place: all or nothing, stop
 at the first refusal, or save what can be saved and report each refusal.
 
 ### 5. The editor key keeps one job and loses two
@@ -291,7 +291,7 @@ Three changes, and the citations that follow them.
    alone.
 
 The retired name is cited in ten backticked places outside the record: two in [pages](../../pages.md),
-one in [IDEA-037](../../jobs/IDEA-037.md), six in the archived editor plan and one in the archived
+one in [IDEA-037](../../backlog/idea-check-without-storing.md), six in the archived editor plan and one in the archived
 edit-safety plan. The six headings and the row are repointed where a pointer is what they are, and the
 lines that record *what that plan wrote at the time* say "the capability entry (since retired)" instead,
 so the archive does not claim a plan wrote a name that did not exist yet. The archived naming plan's
@@ -302,9 +302,9 @@ name, which is still true.
 
 This branch is documentation only, and it does three things:
 
-- **[IDEA-043](../../jobs/closed.md)** shrinks to this step: the widened authority, the merged
+- **[IDEA-043](../../backlog/closed.md)** shrinks to this step: the widened authority, the merged
   capability, the rename, the lost delete protection, and the tests, manual and prompt for them.
-- **[IDEA-047](../../jobs/IDEA-047.md)** is new: `SaveManyAsync(edits, policy)` with All, FirstRefusal and
+- **[IDEA-047](../../backlog/idea-one-write-per-render.md)** is new: `SaveManyAsync(edits, policy)` with All, FirstRefusal and
   Continue; compile-before-transaction; the per-edit report; one save as a batch of one; the removal of
   the one-write rule; nothing else in the batch (no rename, search, delete, install or restore).
 - **[the IDE plan](../ide-host.md)** gains 047 as its own slice and states both names it intends.
@@ -346,10 +346,10 @@ tests and the publish.
 
 ## Not in scope
 
-- **The batch.** [IDEA-047](../../jobs/IDEA-047.md): policies, transaction boundary, report, and the end
+- **The batch.** [IDEA-047](../../backlog/idea-one-write-per-render.md): policies, transaction boundary, report, and the end
   of the one-write rule.
 - **Renaming, searching, deleting in bulk, installing or restoring in bulk.** Those stay single-action
-  members, and [IDEA-042](../../jobs/IDEA-042.md) and [IDEA-038](../../jobs/IDEA-038.md) are their own jobs.
+  members, and [IDEA-042](../../backlog/idea-page-cannot-move.md) and [IDEA-038](../../backlog/idea-cannot-search-the-store.md) are their own jobs.
 - **A page store for a job.** A worker is offered no write (`pages-a-worker-gets-no-response`).
 - **The shell's writes.** Import, export, restore and scrub stay routes (`pages-page-first`).
 - **Removing `Pages:Editor:Key`.** It still decides routing; a host that stopped knowing where the
