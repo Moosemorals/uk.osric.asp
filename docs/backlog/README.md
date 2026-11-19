@@ -156,6 +156,8 @@ it.
 | | | *Waits for a release: the alias has to have been out long enough that nothing in the store reports `PAGE009` before it is deleted.* | | | | |
 | 23 | [`message-does-not-survive-a-redirect`](message-does-not-survive-a-redirect.md) | A page cannot leave a message for a page it sends a visitor to | protective-dragon 🔥🐉 | high | [planned](../plans/page-inbox.md) | — |
 | | | *Planned, but a plan is not urgency: nothing blocks it and no page stops working without it, so it waits below everything that does.* | | | | |
+| 24 | [`listing-does-not-date-itself`](listing-does-not-date-itself.md) | A listing cannot say the store moved under it | caffeinated-squirrel ☕🐿️ | medium | open | — |
+| | | *The cursor answered where a walk is; this answers whether it is still the same walk, and the write paths are the price.* | | | | |
 
 Every step is one unit of work, on one branch in one worktree named `kind/filename`
 ([how](../../CONTRIBUTING.md#working-on-it)). Two independent steps may run at once, each in its own
