@@ -16,6 +16,9 @@ public enum ShellOperandKind {
 
     /// <summary>A path that may name a folder, or a pattern: <c>ls</c>'s directory.</summary>
     Prefix,
+
+    /// <summary>A path that must be a valid page key but need not exist yet: <c>mv</c>'s destination.</summary>
+    Destination,
 }
 
 /// <summary>One operand a command takes, and how many of it.</summary>

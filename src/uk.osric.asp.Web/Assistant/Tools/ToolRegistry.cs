@@ -45,6 +45,7 @@ internal sealed class ToolRegistry {
         new EditPageTool(),
         new WritePageTool(),
         new DeletePageTool(),
+        new MovePageTool(),
         new SearchPagesTool(),
         new CheckScriptTool(),
         new CheckScriptTextTool(),

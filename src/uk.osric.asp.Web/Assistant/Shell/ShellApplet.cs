@@ -3,6 +3,7 @@
 
 namespace uk.osric.asp.Web.Assistant.Shell;
 
+using uk.osric.asp.Core.Pages;
 using uk.osric.asp.Core.Shell;
 
 /// <summary>One command of the virtual shell: its usage, its syntax and its behaviour, in one place.</summary>
@@ -43,7 +44,8 @@ internal abstract class ShellApplet {
 /// <param name="IsSuccess">Whether it did what it was asked.</param>
 /// <param name="Summary">One line for the tool result's summary.</param>
 /// <param name="Error">The refusal, when it failed.</param>
-internal sealed record ShellResult(bool IsSuccess, string Summary, string? Error = null) {
+/// <param name="Changed">The key a writing command moved the page to, when it moved one.</param>
+internal sealed record ShellResult(bool IsSuccess, string Summary, string? Error = null, PagePath? Changed = null) {
 
     /// <summary>What a command that worked answers with.</summary>
     /// <param name="summary">One line for the tool result's summary.</param>
@@ -61,14 +63,16 @@ internal sealed record ShellResult(bool IsSuccess, string Summary, string? Error
 /// <param name="Truncated">Whether a limit or the result budget left something out.</param>
 /// <param name="Summary">One line for the tool result's summary.</param>
 /// <param name="Error">The refusal, when it failed.</param>
-internal sealed record ShellOutcome(bool IsSuccess, string Output, bool Truncated, string Summary, string? Error) {
+/// <param name="Changed">The key a writing command moved the page to, when it moved one.</param>
+internal sealed record ShellOutcome(bool IsSuccess, string Output, bool Truncated, string Summary, string? Error, PagePath? Changed = null) {
 
     /// <summary>An answer.</summary>
     /// <param name="output">What the command wrote.</param>
     /// <param name="truncated">Whether something was left out.</param>
     /// <param name="summary">One line for the tool result's summary.</param>
-    public static ShellOutcome Answered(string output, bool truncated, string summary) =>
-        new(true, output, truncated, summary, null);
+    /// <param name="changed">The key a move reported, or null.</param>
+    public static ShellOutcome Answered(string output, bool truncated, string summary, PagePath? changed = null) =>
+        new(true, output, truncated, summary, null, changed);
 
     /// <summary>A refusal.</summary>
     /// <param name="error">The refusal.</param>

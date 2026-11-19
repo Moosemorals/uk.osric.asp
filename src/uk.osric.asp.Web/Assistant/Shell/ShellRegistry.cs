@@ -4,6 +4,7 @@
 namespace uk.osric.asp.Web.Assistant.Shell;
 
 using uk.osric.asp.Core.Shell;
+using uk.osric.asp.Web.Editor;
 
 /// <summary>The shell's applets, by the word that runs them.</summary>
 /// <remarks>
@@ -36,6 +37,7 @@ internal sealed class ShellRegistry {
 /// <param name="line">The parsed command line.</param>
 /// <param name="paths">The paths its operands named, expanded and validated.</param>
 /// <param name="store">The one read seam over the page store.</param>
+/// <param name="pages">The editor behind the store, for the one applet that writes.</param>
 /// <param name="output">Where the answer is written.</param>
 /// <param name="registry">The applets, which <c>help</c> reads.</param>
 /// <param name="options">The assistant's configured limits, for the defaults an applet uses.</param>
@@ -43,6 +45,7 @@ internal sealed class ShellContext(
     ShellCommandLine line,
     IReadOnlyList<PageNode> paths,
     IPageStoreReader store,
+    PageEditor pages,
     IShellOutput output,
     ShellRegistry registry,
     AssistantOptions options) {
@@ -55,6 +58,9 @@ internal sealed class ShellContext(
 
     /// <summary>The one read seam over the page store.</summary>
     public IPageStoreReader Store { get; } = store;
+
+    /// <summary>The editor behind the store, which only <c>mv</c> reaches.</summary>
+    public PageEditor Pages { get; } = pages;
 
     /// <summary>Where the answer is written.</summary>
     public IShellOutput Output { get; } = output;

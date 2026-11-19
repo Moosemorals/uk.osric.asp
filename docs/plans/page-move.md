@@ -231,8 +231,10 @@ Two more callers, because both are places the workaround lives today.
   the outcome as data — never a silent save-and-delete. Both paths are validated with `ToolPaths`
   before anything moves, and a refusal is the tool's own sentence.
 - **`mv`** is a shell applet beside `cat` and `stat`: `mv <from> <to>`. It is the first applet that
-  writes, so `ShellTool` stops calling itself read-only, its `Spec.Writes` becomes true, and the tool's
-  description says a move is the one command that changes the store. `mv` reads the source's head
+  writes, so `ShellTool` stops calling itself read-only, its `Spec.Writes` becomes true, and — because
+  a tool that writes is approval-gated (`assistant-a-tool-is-one-type`) — the whole shell tool becomes
+  approval-gated. The owner approves a shell command in `RequireApproval` mode, read or not; that is
+  the price of a shell that can rename. `mv` reads the source's head
   through the store seam to learn the `expectedHash` the capability wants, and answers the move's
   outcome in the shell's own words. A reserved key, a library, a page with children and a target that
   exists are refusals with the capability's sentence.
@@ -434,8 +436,9 @@ record is written there.
 - **The store cannot say a page moved.** Nothing records it, so no view can offer "moved to …" and a
   trail cannot be reconstructed from the database. That is the accepted cost of §3.
 - **The shell stops being read-only.** `mv` is the first applet that writes, so `ShellTool`'s
-  description, its `Writes` flag and the changed-pages card now say a shell call can change the store.
-  Only `mv` writes; every other command is a read, and the applet is the one place that says so.
+  description, its `Writes` flag and the changed-pages card now say a shell call can change the store,
+  and the tool is approval-gated for every command, `ls` included. Only `mv` writes; every other
+  command is a read, and the applet is the one place that says so.
 
 ## Open questions
 

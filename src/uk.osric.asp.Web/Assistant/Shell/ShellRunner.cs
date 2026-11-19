@@ -26,6 +26,7 @@ internal static class ShellRunner {
         new HeadApplet(),
         new HelpApplet(),
         new LsApplet(),
+        new MvApplet(),
         new StatApplet(),
         new TailApplet(),
         new WcApplet(),
@@ -85,7 +86,7 @@ internal static class ShellRunner {
             MatchLimit = options.ShellMatchLimit,
             ListingLimit = options.MaxListLimit,
         };
-        ShellContext context = new(matched.Line, expanded, store, output, s_registry, options);
+        ShellContext context = new(matched.Line, expanded, store, pages, output, s_registry, options);
         ShellResult result = await applet.RunAsync(matched.Line, context, cancellationToken);
         if (!result.IsSuccess) {
             return ShellOutcome.Refused(result.Error!, result.Summary);
@@ -103,7 +104,7 @@ internal static class ShellRunner {
             truncated = true;
         }
 
-        return ShellOutcome.Answered(answer, truncated, result.Summary);
+        return ShellOutcome.Answered(answer, truncated, result.Summary, result.Changed);
     }
 
     /// <summary>Why an unquoted operator is refused for now.</summary>

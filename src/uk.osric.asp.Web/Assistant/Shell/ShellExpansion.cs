@@ -36,6 +36,31 @@ internal sealed class ShellExpansion(PagePathPolicy paths) {
 
             // A word with an unquoted wildcard names every node it fits, as a shell expands a pattern
             // before the command runs; a word without one names the key it spells.
+            if (argument.Kind == ShellOperandKind.Destination) {
+                if (argument.Word.HasWildcard) {
+                    return ([], ShellResult.Refused(
+                        $"A destination names one key, so {MessageText.Sanitize(argument.Word.Text)} cannot be a pattern.",
+                        "Shell path refused: a pattern is not a destination"));
+                }
+
+                // A destination need not exist yet, but it has to be a key a save could use: the write
+                // policy refuses a reserved or shadowed key, and that is the rule a move must obey too.
+                PathValidationResult checkedDestination = paths.Validate(argument.Word.Text, write: true);
+                if (!checkedDestination.IsSuccess) {
+                    return ([], ShellResult.Refused(checkedDestination.Error!, "Shell path refused"));
+                }
+
+                named.Add(new PageNode(
+                    checkedDestination.Path!,
+                    IsFolder: false,
+                    IsPage: false,
+                    IsShellFile: false,
+                    IsDeleted: false,
+                    CanWrite: true,
+                    State: null));
+                continue;
+            }
+
             if (argument.Word.HasWildcard) {
                 List<PageNode> matched = [.. (await store.TreeAsync(includeDeleted: false, cancellationToken))
                     .Where(node => argument.Word.IsMatch(node.Path.Key))];
