@@ -289,10 +289,12 @@ names the key, the accepted range and the recommended value, and `Program.Main` 
 error and exits non-zero. A range is a safety net, not a straitjacket. An invariant stays in code — a
 cryptographic or wire-format constant, a schema constraint, an algorithm work cap, or the floor and
 ceiling that keep a configured value from switching a guard off — and a security policy may be
-configured only in the direction that keeps or tightens the shipped guarantee. `Core` never reads
-configuration: the shell turns a setting into a plain value and passes it in.
+configured only in the direction that keeps or tightens the shipped guarantee. A number the product
+fixes as its own rule is not a policy value at all, however much it looks like a limit: a password's
+bounds are the rule, where a model timeout is a limit on how the site spends a resource. `Core` never
+reads configuration: the shell turns a setting into a plain value and passes it in.
 
-*Recorded in [configuration](architecture.md#configuration), [`policy-is-a-constant`](backlog/policy-is-a-constant.md).*
+*Recorded in [configuration](architecture.md#configuration).*
 
 ### code-validation-at-the-boundary
 
@@ -1743,7 +1745,7 @@ with the reason. A route exists because the site's code answers it, so an operat
 list could only let a stored page shadow a route such as `/login`, and no legitimate deployment needs
 that; a longer list would have to invent a route that does not exist. This is the exception
 `code-policy-values-are-configuration` names — a security policy configuration may only keep or tighten
-— and [`policy-is-a-constant`](backlog/policy-is-a-constant.md) lists it with the other invariants.
+— and [configuration](architecture.md#configuration) lists it with the other invariants.
 
 *Recorded in [the route catalogue](plans/archive/shell-route-catalogue.md#d4--reservedpaths-derives-its-keys), [ReservedPaths](../src/uk.osric.asp.Web/Pages/ReservedPaths.cs), [the shell](shell.md).*
 

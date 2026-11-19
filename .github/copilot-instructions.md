@@ -100,7 +100,8 @@ switch, host or credential list, or a name that decides routing or authority.
   algorithm work cap, or the floor and ceiling that keep a configured value from switching a guard
   off. A security policy may be configured only in the direction that keeps or tightens the shipped
   guarantee; one that configuration could only weaken stays an invariant until a decision says
-  otherwise ([`policy-is-a-constant`](../docs/backlog/policy-is-a-constant.md) holds the list).
+  otherwise, and a number the product fixes as its own rule — a password's bounds — is not a policy
+  value at all. [Configuration](../docs/architecture.md#configuration) lists what stays and why.
 
 ## JavaScript
 
