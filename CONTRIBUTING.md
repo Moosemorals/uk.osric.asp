@@ -19,18 +19,19 @@ gets a branch and a worktree beside the repository, so two agents (or two sessio
 checkout.
 
 ```bash
-make worktree BRANCH=arch-15      # ../uk.osric.asp.worktrees/arch-15, branched from trunk
-make worktrees                    # every checkout, the main one included
-make worktree-remove BRANCH=arch-15
+make worktree BRANCH=idea/check-without-storing   # ../uk.osric.asp.worktrees/idea/check-without-storing
+make worktrees                                    # every checkout, the main one included
+make worktree-remove BRANCH=idea/check-without-storing
 ```
 
-The branch is named for the unit of work:
+The branch is `kind/filename`, and the name comes from the work:
 
-- the job id in lower case, for planning work and for a job small enough to need no plan —
-  `arch-15`, `idea-026`;
+- the item's slug split at its first hyphen, for planning work and for an item small enough to need
+  no plan — [`idea-check-without-storing`](docs/backlog/idea-check-without-storing.md) is
+  `idea/check-without-storing`;
 - the plan's file name once a plan is being implemented — [page-first](docs/plans/archive/page-first.md)
-  is `page-editor`. A job whose plan has a different name has two branches: `arch-13` writes the
-  plan, `page-streaming` implements it.
+  is `plan/page-editor`. An item whose plan has a different name has two branches: the first writes
+  the plan, `plan/page-streaming` implements it.
 
 Work lands as a merge commit (`git merge --no-ff`) rather than a fast-forward, so the branch and the
 work it carries stay one unit in the history. After the merge its worktree is removed and the branch
@@ -43,8 +44,8 @@ writes the entry.
 run, the agent stops and says what changed, what proved it and what it is unsure of; the owner answers.
 A green gate, a finished plan, an obvious next step or silence is not an answer. The same holds before
 the work: a plan is committed on its branch and waits for a yes before anything is built
-([the programme](docs/jobs/README.md#a-step-stops-and-the-owner-answers)).
+([the programme](docs/backlog/README.md#a-step-stops-and-the-owner-answers)).
 
-Two independent jobs may run at once, each in its own worktree. No two agents share a worktree, and
+Two independent steps may run at once, each in its own worktree. No two agents share a worktree, and
 `make deploy` and `make image` wait until nothing else is building. Each worktree builds into its own
 `artifacts/`, so builds do not collide.

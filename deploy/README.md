@@ -173,7 +173,7 @@ The quadlets, the Caddyfile and the fail2ban configuration are the source of tru
   `MaxResponseBytes`, `MaxRequestsPerRender` and `MaxRedirects` bound the rest. The container's egress
   and internal network are not otherwise restricted, and the assistant's `fetch` tool uses the same
   path, so a stored page or an approved tool call can reach anything the container can. That is the
-  single-owner trust boundary, not a sandbox (SEC-03). Every request carries
+  single-owner trust boundary, not a sandbox (`sec-page-runs-in-process`). Every request carries
   `moosemorals.com (page)` or `moosemorals.com (assistant)`, followed by
   `fetchmoose@fluffypeople.com`, as its `User-Agent`, set by the host.
   The site's own origin is reachable too: the quadlet's `AddHost=moosemorals.com:host-gateway` stops

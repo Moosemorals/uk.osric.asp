@@ -3,11 +3,15 @@ SPDX-FileCopyrightText: Copyright 2026 Osric Wilkinson <osric@fluffypeople.com>
 SPDX-License-Identifier: MIT
 -->
 
-# IDEA-057 — A block that is not code still compiles
+# A block that is not code still compiles
 
 | | |
 | --- | --- |
-| Size | S — two codes in one pure function, one text-run rule so a mistake is reported once, one more consumer in `check-pages`, and the tests and the docs for each |
+| Difficulty | eager-beaver |
+| Utility | medium |
+| Status | open |
+| Blocked by | — |
+| Plan | — |
 | Area | Core (Compilation), tools, docs |
 | Location | `src/uk.osric.asp.Core/Compilation/TemplateShapeCheck.cs`, `test/uk.osric.asp.Core.Tests/TemplateShapeCheckTests.cs`, `tools/check-pages/Program.cs`, `docs/architecture.md`, `docs/pages.md`, `src/uk.osric.asp.Web/Pages/Seeds/help` |
 
@@ -103,7 +107,7 @@ tokenizer's tokens and the scanner's own literal tracking carry every fact.
 3. **Whether `make check-pages` should fail on a warning.** It does not fail on one today and warning
    severity does not stop a page; the seeds staying quiet is a habit the gate can only encourage.
 4. **What the assistant should be told.** A save's answer already carries the warnings; whether the
-   prompt should name the empty block as a thing not to write is [IDEA-054](IDEA-054.md)'s subject
+   prompt should name the empty block as a thing not to write is [`idea-assistant-cannot-check-a-page`](`idea-assistant-cannot-check-a-page`.md)'s subject
    with its own prompt version.
 
 ## Not in scope
@@ -112,15 +116,15 @@ tokenizer's tokens and the scanner's own literal tracking carry every fact.
   or escapes a `%>` is a different change with a different risk.
 - **Making any of them an error.** `pages-a-warning-never-stops-a-page`.
 - **`%><%` between two blocks.** The seeds use it four times and three are the only spelling for a
-  declaration followed by code. [IDEA-058](IDEA-058.md) makes the declaration close name itself, so
+  declaration followed by code. [`idea-declaration-does-not-name-its-close`](`idea-declaration-does-not-name-its-close`.md) makes the declaration close name itself, so
   the junction is marked by the grammar rather than scolded by a warning; nothing here needs to say
   anything about adjacency.
 - **An escaped closer.** `%%>` is already a spelling (`<%%>` is an empty code block), and after
-  IDEA-058 a declaration does not need one; the character is written `\u003e`. IDEA-058's record holds
+  `idea-declaration-does-not-name-its-close` a declaration does not need one; the character is written `\u003e`. `idea-declaration-does-not-name-its-close`'s record holds
   the full argument and the spelling to take if demand ever arrives.
-- **Publishing to VS Code.** The language server is [IDEA-029](../jobs/IDEA-029.md); `check-pages`
+- **Publishing to VS Code.** The language server is [`idea-vscode-cannot-check-a-page`](../backlog/idea-vscode-cannot-check-a-page.md); `check-pages`
   already puts the warnings in its Problems list for free.
-- **A check without saving.** [IDEA-037](../jobs/IDEA-037.md) answers what a save answers, so it
+- **A check without saving.** [`idea-check-without-storing`](../backlog/idea-check-without-storing.md) answers what a save answers, so it
   inherits these; the assistant's `check` inherits them through that.
 - **Roslyn.** None of this needs the compiler, which is the whole point of the shape check.
 

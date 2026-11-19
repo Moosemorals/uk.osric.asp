@@ -257,7 +257,7 @@ kind, corrected, pinned or forgotten.
 **Not** a stored page, and not a capability of its own. It is shell code under the reserved
 `/assistant` prefix, server-rendered like the editor and `/admin/status`, so a page cannot claim the key and
 the assistant reads it as a shell file it may not save. The view moves with the assistant page
-(IDEA-025) rather than becoming a capability of its own; `assistant-memory-belongs-to-the-assistant`, which proposed one, was withdrawn.
+(`idea-conversation-is-not-a-page`) rather than becoming a capability of its own; `assistant-memory-belongs-to-the-assistant`, which proposed one, was withdrawn.
 
 **Owner:** assistant — `AssistantMemoryEndpoint`, `/assistant.css` and `assistant-memory-page`.
 

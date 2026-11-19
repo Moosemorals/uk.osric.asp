@@ -154,7 +154,7 @@ Both are already reasoned about and accepted in
 - Accepted risk 9 — `Conversation.ApprovalMode` defaults to `AlwaysApprove`, so model-driven
   page writes execute without approval. The agent is off by default and owner scoped. Defaulting new
   conversations to `RequireApproval` remains cheap defence in depth.
-- `Pages:Render` abandons work by design (SEC-03): an authenticated page author can wedge render
+- `Pages:Render` abandons work by design (`sec-page-runs-in-process`): an authenticated page author can wedge render
   slots, and the container health check is the only backstop. Fine while there is one account;
   revisit before a second is created.
 

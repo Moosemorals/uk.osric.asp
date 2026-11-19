@@ -11,7 +11,7 @@ SPDX-License-Identifier: MIT
 | Size | Large — one `Sdk` capability with six types, offered to two kinds of caller; two tables and a migration; a store, a render-bound scope and a worker binding; an account-keyed recipient check; named topics; configuration; the activity slide and the cascades; the page-delete cleanup; the layout flash; the page session's signed-in lifetime moved onto the sign-in; the manual, the privacy page and the docs |
 | Area | Sdk, Web (pages, work, storage), docs |
 | Spike | None. Every count, path and behaviour below was taken off `trunk` on 2026-11-17 |
-| Backlog | [IDEA-027](../jobs/IDEA-027.md) is this step. It was sized `S` when the sketch was one store write; the shape below is larger |
+| Backlog | [`idea-message-does-not-survive-a-redirect`](../backlog/idea-message-does-not-survive-a-redirect.md) is this step. It was sized `S` when the sketch was one store write; the shape below is larger |
 | Decisions | New names proposed: **pages-a-page-has-an-inbox**, **pages-a-topic-is-a-named-inbox**, **pages-an-inbox-belongs-to-its-visitor**, **pages-a-message-is-taken-once**. Edits **pages-the-session**, **pages-a-job-is-not-durable** and **pages-layouts-are-markup**. Relies on `pages-capabilities-are-one-seam`, `pages-page-io-is-async`, `pages-jobs-run-a-worker-for-the-page`, `pages-a-worker-gets-no-response`, `pages-a-page-has-a-state`, `code-policy-values-are-configuration` and `code-validation-at-the-boundary` |
 
 ## The short version
@@ -679,7 +679,7 @@ browser suite.
   sign-in; **`docs/storage.md`** says the sweep's signed-in threshold is the login's.
 - **`docs/decisions.md`** at merge: the four new entries, the edit to `pages-a-job-is-not-durable`,
   the edit to `pages-the-session` and the edit to `pages-layouts-are-markup`.
-- **`IDEA-027`** gains the *Planned* note and the plan link; the backlog row changes from `S` to `L`.
+- **`idea-message-does-not-survive-a-redirect`** gains the *Planned* note and the plan link; its row changes from `S` to `L`.
 
 ## Risks
 

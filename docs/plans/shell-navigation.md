@@ -11,7 +11,7 @@ SPDX-License-Identifier: MIT
 | Size | Large as a programme, Medium as each step — one `Sdk` value (with three enums) and one method on the existing catalog, the seeded layout and admin page, one route moved, shell chrome, the assistant's own menu, and the manual/prompt/document sweep. No migration, no new configuration key, no build change |
 | Area | Sdk, Web (html, admin, assistant, metrics, pages, seeds), docs |
 | Spike | None. Every claim below was read off the working tree on 2026-11-16: the two menu lists, the admin index, the shell routes, the reserved paths and the tests that pin them |
-| Backlog | [IDEA-030](../jobs/closed.md) — closed by this plan |
+| Backlog | [IDEA-030](../backlog/closed.md) — closed by this plan |
 | Decisions | Edits `shell-the-menu-is-written-twice` and `shell-admin-is-a-shell-route`; records **pages-the-catalog-knows-the-shell**, **shell-the-shell-is-marked** and **shell-the-tools-live-under-admin**. Existing names it relies on: `pages-capabilities-are-one-seam`, `pages-a-layout-is-a-capability`, `pages-the-document-is-the-shells`, `pages-page-first`, `code-policy-values-are-configuration` |
 
 > **Built 2026-11-18.** The route table and the `/admin` shell route had already landed by the time
@@ -23,7 +23,7 @@ SPDX-License-Identifier: MIT
 
 ## The short version
 
-[IDEA-030](../jobs/closed.md) is right: the same handful of links is written by hand in a dozen
+[IDEA-030](../backlog/closed.md) is right: the same handful of links is written by hand in a dozen
 places, and every route change is a sweep. The shape that fixes it is three changes, and they are
 deliberately separate steps:
 
@@ -41,7 +41,7 @@ deliberately separate steps:
 3. **The shell's tools live under one root.** `/admin` is already the shell's root in all but name:
    the index is a page, and every tool except `/status` is beneath it. The step finishes the move
    by putting the status dashboard at `/admin/status` and its chart at `/admin/status/chart`. The
-   assistant stays at `/assistant` because it is a page in waiting ([IDEA-025](../jobs/IDEA-025.md)),
+   assistant stays at `/assistant` because it is a page in waiting ([`idea-conversation-is-not-a-page`](../backlog/idea-conversation-is-not-a-page.md)),
    `/login` and `/logout` stay because they bootstrap identity, and `/health`, `/metrics` and
    `/favicon.ico` stay because they are the wire rather than pages.
 
@@ -72,7 +72,7 @@ exists.
 - **A page-store menu in the shell.** The shell's tools are a fixed list; a page can add a
   page-store menu, the shell cannot.
 - **Moving `/assistant`.** It is the last view-shaped thing in the shell and has a job to become a
-  page ([IDEA-025](../jobs/IDEA-025.md)). Moving it under the shell root now would be undone.
+  page ([`idea-conversation-is-not-a-page`](../backlog/idea-conversation-is-not-a-page.md)). Moving it under the shell root now would be undone.
 - **Moving `/login` and `/logout`.** They are identity bootstrap, they are conventional, and a
   public visitor should not be taught the site's internal vocabulary to sign in.
 - **Moving `/health`, `/metrics` or `/favicon.ico`.** They are not pages. The probe, the scrape
@@ -81,7 +81,7 @@ exists.
 - **A configurable root.** The root is the route's identity and the authorization boundary; a bad
   value could let a page claim a shell route. `Pages:Editor:Key` is configuration because it decides
   where a page lives and nothing about authority. If the root should be a policy value, that is
-  [IDEA-031](../jobs/IDEA-031.md)'s question.
+  [`idea-policy-is-a-constant`](../backlog/idea-policy-is-a-constant.md)'s question.
 - **A capability that draws a nav or a footer.** `IPageCatalog.ShellLinks()` returns facts; the
   page draws. A `Site`, `Footer` or `Administration` list on a new capability would be a menu API
   wearing a capability's name.
@@ -128,7 +128,7 @@ the same list against the owner's three questions:
 | `/admin` | The shell route that indexes the tools (`shell-admin-is-a-shell-route`) | It is the root's index |
 | `/admin/import`, `/admin/export`, `/admin/changes`, `/admin/reference`, `/admin/restore`, `/admin/scrub`, `/admin/seed-apply` | Shell tools; bootstrap or the build's own facts | Yes |
 | `/status`, `/status/chart` | Bootstrap: what the owner reads when a page did not load | **Move to `/admin/status` and `/admin/status/chart`** |
-| `/assistant`, its events, approvals, options, stop, delete and memory view | A page in waiting; the account-scoped store and the tools' authority are the blockers | No — IDEA-025 moves it to a page key |
+| `/assistant`, its events, approvals, options, stop, delete and memory view | A page in waiting; the account-scoped store and the tools' authority are the blockers | No — `idea-conversation-is-not-a-page` moves it to a page key |
 | `/login`, `/logout` | Identity bootstrap | No |
 | `/favicon.ico`, `/health`, `/metrics` | The runtime and the wire | No |
 | `{**path}` | The page catch-all | No — it is the product |
@@ -167,7 +167,7 @@ writes them as it does today; the shell's own document keeps `FooterLinks`. Ther
 capability, because there is no shell fact a page needs to draw one.
 
 The assistant's menu is not in the list either: no page asks for it, and the assistant becomes a
-page in [IDEA-025](../jobs/IDEA-025.md). It still gets one builder in this plan (D8), so the shell
+page in [`idea-conversation-is-not-a-page`](../backlog/idea-conversation-is-not-a-page.md). It still gets one builder in this plan (D8), so the shell
 stops writing it three times.
 
 ### D2 — The page catalog knows what the shell can do
@@ -392,7 +392,7 @@ A `/_shell` root is the obvious alternative, and it is a different plan. The sha
 | `/admin/import`, `/admin/export`, `/admin/changes`, `/admin/reference`, `/admin/restore`, `/admin/scrub`, `/admin/seed-apply` | `/_shell/admin/import`, … |
 | `/status`, `/status/chart` | `/_shell/status`, `/_shell/status/chart` |
 | `/login`, `/logout` | Stay, or `/_shell/login` and `/_shell/logout` |
-| `/assistant` | Stay until IDEA-025, unless it moves twice |
+| `/assistant` | Stay until `idea-conversation-is-not-a-page`, unless it moves twice |
 | `/health`, `/metrics`, `/favicon.ico` | Stay — they are the wire |
 | `{**path}` | Stay — it is the page runtime |
 | `/admin` page index | Stays a page outside the root, or the root index becomes shell code |
@@ -408,7 +408,7 @@ status dashboard is the only tool that has to move.
 No page asks for the assistant's menu, so it is not a capability. It is still three hand-written
 lists today. A small `AssistantNavigation` in `Assistant/` builds Conversations, Memory and Page
 list with the current item by path; `AssistantEndpoint` and `AssistantMemoryEndpoint` call it. When
-[IDEA-025](../jobs/IDEA-025.md) moves the assistant to a page, that page either keeps the builder or
+[`idea-conversation-is-not-a-page`](../backlog/idea-conversation-is-not-a-page.md) moves the assistant to a page, that page either keeps the builder or
 replaces it with its own menu; the shell's copy is then deleted with the endpoint.
 
 The assistant's "Conversation navigation" and "Memory navigation" confirmations keep their own
@@ -537,8 +537,8 @@ the accessibility sweep still finds one label per landmark.
 - Update `/help`: `IPageCatalog.ShellLinks()`, the marked shell page, the moved route, and a layout
   example that renders the list itself rather than writing the links.
 - Update `PageAuthorPrompt` and the shell-file list.
-- Write the decisions, edit the two existing entries, close [IDEA-030](../jobs/closed.md) and
-  update its row in [the job list](../jobs/README.md), including the Size it turned out to be.
+- Write the decisions, edit the two existing entries, close [IDEA-030](../backlog/closed.md) and
+  update its row in [the job list](../backlog/README.md), including the Size it turned out to be.
 - Sweep the live docs; leave the archives.
 
 **Done when** `make check` and `make decisions` are green, the manual's example compiles, and the
@@ -589,7 +589,7 @@ assistant's prompt names the catalog method and the moved route.
   the first customers filter on both; a later need is an additive member or a new value, not a menu
   registry. The footer is deliberately not in it, so there is no list a page must render to be
   complete.
-- **The assistant moves later.** `AssistantNavigation` is shell code until IDEA-025; moving the
+- **The assistant moves later.** `AssistantNavigation` is shell code until `idea-conversation-is-not-a-page`; moving the
   assistant to a page deletes it with the endpoint, which is cheaper than pretending it is a page
   capability now.
 - **The marker's wording.** "Site tools" has to be true on `/login` and `/logout` too. The owner may
@@ -612,7 +612,7 @@ assistant's prompt names the catalog method and the moved route.
    audience (recommended, so a page can show them and let the sign-in redirect answer, as the
    reference page does), or return only what the current visitor can use?
 6. **The assistant's menu.** Centralise it in this programme (recommended, it is three copies) or
-   leave it for IDEA-025, which deletes it?
+   leave it for `idea-conversation-is-not-a-page`, which deletes it?
 7. **The admin page's presentation.** Render the administration list as the shell does
    (`Document.Nav` with the Site administration label), or keep the old `<ul class="pages">` and loop
    over the same list? Both use one source; only the look differs.
@@ -621,14 +621,14 @@ assistant's prompt names the catalog method and the moved route.
 
 - **A new `/_shell` or `/shell` root.** It reads more clearly, but it is a second namespace for the
   same tools, it leaves the page index at `/admin`, it duplicates the landing page, and the
-  assistant still cannot move under it without pre-empting IDEA-025. The saving is a mass rename,
+  assistant still cannot move under it without pre-empting `idea-conversation-is-not-a-page`. The saving is a mass rename,
   not a rule.
 - **Moving `/login` and `/logout` under the root.** They are identity bootstrap and conventional;
   a public visitor should not meet the shell's vocabulary to sign in. Moving them changes
   `LoginPath`, `RedirectToLogin`, every return URL, the rate limiter's special case and the prompt
   for no user benefit.
 - **Moving `/assistant` under the root now.** It is a page in waiting; the move would be undone by
-  IDEA-025 and would make the page-first audit's "not yet" column look like a permanent home.
+  `idea-conversation-is-not-a-page` and would make the page-first audit's "not yet" column look like a permanent home.
 - **A page-store menu in the shell.** The shell must answer when the page store is broken. A
   page-store query in the shell's chrome would make `/admin/status` depend on the store it is
   diagnosing.

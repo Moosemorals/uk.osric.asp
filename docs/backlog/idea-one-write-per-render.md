@@ -3,17 +3,21 @@ SPDX-FileCopyrightText: Copyright 2026 Osric Wilkinson <osric@fluffypeople.com>
 SPDX-License-Identifier: MIT
 -->
 
-# IDEA-047 — A render may write a batch of pages, and the caller names the policy
+# A render may write a batch of pages, and the caller names the policy
 
 | | |
 | --- | --- |
-| Size | L — a new capability member and two values, a transaction boundary, three policies and their words, and the tests, the manual, the prompt and the record for each. It wants a plan of its own |
+| Difficulty | protective-dragon |
+| Utility | high |
+| Status | blocked |
+| Blocked by | `idea-check-without-storing` |
+| Plan | [ide-host](../plans/ide-host.md) |
 | Area | Sdk, Web (pages, editor, work), docs, assistant |
 | Location | `src/uk.osric.asp.Sdk/IPageWrites.cs`, `src/uk.osric.asp.Web/Pages/PageWritesScope.cs`, `src/uk.osric.asp.Web/Editor/PageSaver.cs`, `src/uk.osric.asp.Web/Pages/IPageRevisionStore.cs`, `src/uk.osric.asp.Web/Pages/Seeds/pages`, `src/uk.osric.asp.Web/Pages/Seeds/help`, `src/uk.osric.asp.Web/Assistant/PageAuthorPrompt.cs` |
 
 > **Re-prioritised 2026-11-18** by the owner. The rule is the friction the assistant meets on every
-> multi-file edit, and it is the gate in front of a job writer ([IDEA-056](IDEA-056.md)), so it moves
-> from the bottom of the order to just after [IDEA-037](IDEA-037.md), whose compile-without-store its
+> multi-file edit, and it is the gate in front of a job writer ([`idea-job-borrows-a-credential`](`idea-job-borrows-a-credential`.md)), so it moves
+> from the bottom of the order to just after [`idea-check-without-storing`](`idea-check-without-storing`.md), whose compile-without-store its
 > `All` policy borrows. Its own terms are unchanged.
 
 ## Idea
@@ -51,7 +55,7 @@ writes, chosen policy, one report. Building it for Save all alone would be build
 2. **The transaction boundary.** A compile is slow (30–70 ms warm, bounded by
    `Pages:Compile:TimeoutSeconds`) and slots are scarce (`Pages:Compile:Slots` is 1), so an All batch
    cannot hold a write transaction open across compiles. It compiles first — which is
-   [IDEA-037](IDEA-037.md)'s work, borrowed — and then opens one transaction and inserts every revision
+   [`idea-check-without-storing`](`idea-check-without-storing`.md)'s work, borrowed — and then opens one transaction and inserts every revision
    in it. If the render's deadline passes while compiling, nothing has been written, which is exactly
    what All promised. A save that has begun is never abandoned; a batch that has begun committing is
    not either.
@@ -61,8 +65,8 @@ writes, chosen policy, one report. Building it for Save all alone would be build
    self-save (`SaveAsync(template)`) keeps its simplest shape, because a page repairing itself is the
    recovery path.
 
-4. **Nothing else moves down.** The batch writes pages; it does not rename ([IDEA-042](IDEA-042.md)),
-   search ([IDEA-038](IDEA-038.md)) or check without saving, except as the first half of All. A batch
+4. **Nothing else moves down.** The batch writes pages; it does not rename ([`idea-page-cannot-move`](`idea-page-cannot-move`.md)),
+   search ([`idea-cannot-search-the-store`](`idea-cannot-search-the-store`.md)) or check without saving, except as the first half of All. A batch
    that also deletes, installs seeds or restores revisions multiplies the policy question by four and
    is not in the first version — those stay single-action members.
 
@@ -88,7 +92,7 @@ writes, chosen policy, one report. Building it for Save all alone would be build
 4. **Whether a batch may span a library and its dependents.** It writes both; whether it compiles the
    dependents again in the same batch, or leaves them stale as the lazy path does ([page libraries](../plans/archive/page-libraries.md#d7--the-closure-is-recorded-with-the-image-and-nothing-recompiles-eagerly)),
    is a property of the saves rather than of the batch, so the answer is likely "leave them stale, and
-   let [IDEA-040](IDEA-040.md) say which they are".
+   let [`idea-library-edit-cost-is-invisible`](`idea-library-edit-cost-is-invisible`.md) say which they are".
 5. **Whether the assistant may batch across the site.** Its edit-safety rules are per key; a batch that
    writes ten pages is ten decisions in one request. The capability allows it, and the assistant's own
    policy may be stricter — that is the assistant's prompt, not the contract.
@@ -96,8 +100,8 @@ writes, chosen policy, one report. Building it for Save all alone would be build
 ## Not in scope
 
 - **The widened authority and the merged capability.** [IDEA-043](closed.md), which lands first.
-- **Renaming, searching and checking.** [IDEA-042](IDEA-042.md), [IDEA-038](IDEA-038.md),
-  [IDEA-037](IDEA-037.md).
+- **Renaming, searching and checking.** [`idea-page-cannot-move`](`idea-page-cannot-move`.md), [`idea-cannot-search-the-store`](`idea-cannot-search-the-store`.md),
+  [`idea-check-without-storing`](`idea-check-without-storing`.md).
 - **Bulk delete, install and restore.** Single-action members, and their own policies when they need
   one.
 - **A second transaction model.** One database, one transaction; no outbox, no two-phase commit, no

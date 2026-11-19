@@ -3,16 +3,20 @@ SPDX-FileCopyrightText: Copyright 2026 Osric Wilkinson <osric@fluffypeople.com>
 SPDX-License-Identifier: MIT
 -->
 
-# IDEA-033 — A page has no persistent per-account store
+# A page has no persistent per-account store
 
 | | |
 | --- | --- |
-| Size | L — a capability, a migration, a schema lifecycle, a statement sandbox, a quota per account, and the tests and docs for each. It wants a plan of its own |
+| Difficulty | protective-dragon |
+| Utility | high |
+| Status | open |
+| Blocked by | — |
+| Plan | [account-store](../plans/account-store.md) |
 | Area | Sdk, Web (storage and pages), docs |
 | Location | `src/uk.osric.asp.Sdk/`, `src/uk.osric.asp.Web/Pages/`, `src/uk.osric.asp.Web/Storage/`, `src/uk.osric.asp.Web/Pages/Seeds/help`, `src/uk.osric.asp.Web/Assistant/PageAuthorPrompt.cs` |
 
 > **Planned 2026-11-16** — [the per-account store](../plans/account-store.md) answers the seven open
-> questions, names the first customer (the transcript of the assistant page's port, [IDEA-025](IDEA-025.md)
+> questions, names the first customer (the transcript of the assistant page's port, [`idea-conversation-is-not-a-page`](`idea-conversation-is-not-a-page`.md)
 > §3) and orders the work into six slices. Memory stays the assistant's: the view arrives with that
 > plan, not as a capability here. Nothing is built until the owner says yes to the plan.
 
@@ -162,7 +166,7 @@ needed at all: memory is the assistant's own, with its own store (`assistant-mem
 ## Not in scope
 
 - **Memory.** It stays the assistant's and its view arrives with the assistant page (`assistant-memory-belongs-to-the-assistant`,
-  [IDEA-025](IDEA-025.md)).
+  [`idea-conversation-is-not-a-page`](`idea-conversation-is-not-a-page`.md)).
 - **Sharing, public rows and roles.** One owner per row, no sharing between accounts, no roles
   (`pages-public-by-default`, `product-one-owner`).
 - **Migration of existing tables** into the new store. Nothing exists to migrate.

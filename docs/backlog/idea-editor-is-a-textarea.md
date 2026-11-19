@@ -3,11 +3,15 @@ SPDX-FileCopyrightText: Copyright 2026 Osric Wilkinson <osric@fluffypeople.com>
 SPDX-License-Identifier: MIT
 -->
 
-# IDEA-001 — The editor is a plain textarea
+# The editor is a plain textarea
 
 | | |
 | --- | --- |
-| Size | Large |
+| Difficulty | determined-mountain-goat |
+| Utility | high |
+| Status | open |
+| Blocked by | — |
+| Plan | — |
 | Area | Web, developer experience |
 | Location | `src/uk.osric.asp.Web/Editor/EditorEndpoint.cs` |
 | Spike | [Ace evaluated as the editor](../spikes/ace-editor.md) |

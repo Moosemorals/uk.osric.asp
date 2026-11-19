@@ -3,11 +3,15 @@ SPDX-FileCopyrightText: Copyright 2026 Osric Wilkinson <osric@fluffypeople.com>
 SPDX-License-Identifier: MIT
 -->
 
-# IDEA-052 — The assistant cannot ask the owner a question
+# The assistant cannot ask the owner a question
 
 | | |
 | --- | --- |
-| Size | M — [ARCH-17](../plans/assistant-owner-interrupt.md) has landed, so this is one tool, one interrupt kind, the card in two renderers, three limits, a prompt version and five suites |
+| Difficulty | caffeinated-squirrel |
+| Utility | high |
+| Status | open |
+| Blocked by | — |
+| Plan | [assistant-ask-owner](../plans/assistant-ask-owner.md) |
 | Area | Core (Assistant), Web (assistant) |
 | Location | `src/uk.osric.asp.Core/Assistant/`, `src/uk.osric.asp.Web/Assistant/Tools/`, `src/uk.osric.asp.Web/Pages/Seeds/assistant.js`, `docs/assistant.md` |
 
@@ -54,7 +58,7 @@ wait it needs is [the owner interrupt](../plans/assistant-owner-interrupt.md), w
 - A page capability that asks a visitor a question and waits. A page is rendered and returned; a
   question is the assistant's conversation. If that ever changes it is an `IDEA-` of its own.
 - Per-argument descriptions for the other twenty tools. It invalidates the provider's cached prefix and
-  deserves its own measurement: [IDEA-053](IDEA-053.md).
+  deserves its own measurement: [`idea-tool-arguments-say-nothing`](`idea-tool-arguments-say-nothing`.md).
 - A timeout for the answer. An interrupt waits until the owner answers, stops it, deletes the
   conversation or restarts the host.
 - Any way for a question to carry a file, an image or a link the owner clicks.

@@ -3,11 +3,15 @@ SPDX-FileCopyrightText: Copyright 2026 Osric Wilkinson <osric@fluffypeople.com>
 SPDX-License-Identifier: MIT
 -->
 
-# IDEA-039 — A page cannot ask a listing for the next page
+# A page cannot ask a listing for the next page
 
 | | |
 | --- | --- |
-| Size | S — a request and a result value, a keyset cursor on the two ordered reads, and the tests and manual entry for each |
+| Difficulty | eager-beaver |
+| Utility | medium |
+| Status | open |
+| Blocked by | — |
+| Plan | [ide-host](../plans/ide-host.md) |
 | Area | Sdk, Web (pages), docs |
 | Location | `src/uk.osric.asp.Sdk/IPageCatalog.cs`, `src/uk.osric.asp.Sdk/PageListing.cs` (new), `src/uk.osric.asp.Web/Pages/PageCatalogScope.cs`, `src/uk.osric.asp.Web/Pages/IPageReadStore.cs`, `src/uk.osric.asp.Web/Pages/Seeds/help`, `src/uk.osric.asp.Web/Assistant/PageAuthorPrompt.cs` |
 
@@ -29,7 +33,7 @@ The host already has the answer and does not offer it:
   rather than a design.
 
 The wider class is every bounded read: a listing, a page's history, a search's matches
-([IDEA-038](IDEA-038.md)) and a folder's children all have the same three parts — a bound, a way to
+([`idea-cannot-search-the-store`](`idea-cannot-search-the-store`.md)) and a folder's children all have the same three parts — a bound, a way to
 resume, and an honest "there is more". Writing that once as a value keeps every later read from
 inventing its own.
 
@@ -84,7 +88,7 @@ inventing its own.
   per-folder endpoint would be a second way to walk one tree (`pages-the-store-is-a-tree`).
 - **An ordered listing that is not by key.** A tree in saved-time order is a different view with a
   different cursor; nothing wants it yet.
-- **A search cursor.** That is [IDEA-038](IDEA-038.md)'s, because a match is ordered by key *and* line.
+- **A search cursor.** That is [`idea-cannot-search-the-store`](`idea-cannot-search-the-store`.md)'s, because a match is ordered by key *and* line.
 
 **Origin:** the owner's comparison of the site's IDE plan (`/ide-plan`, a stored page that is not in this
 repository) with the job list of 2026-11-15. The IDE plan observes that `ListAsync(prefix)` "refuses

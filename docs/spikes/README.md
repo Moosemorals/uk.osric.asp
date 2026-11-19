@@ -9,7 +9,7 @@ A spike answers one question with evidence instead of argument: read the upstrea
 bytes, try the thing, then write down what was found and what it rules out. A spike is neither a plan
 nor a decision. It ends with a recommendation and, at most, the decision that adopting it would need.
 
-Unlike a [job](../jobs/README.md), a spike is not work waiting to be done; unlike a
+Unlike a [job](../backlog/README.md), a spike is not work waiting to be done; unlike a
 [plan](../plans/), it does not describe how to build something. It exists so the next person does not
 have to repeat the reading.
 

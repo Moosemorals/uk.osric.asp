@@ -11,7 +11,7 @@ SPDX-License-Identifier: MIT
 | Size | M — one member and one outcome on the write capability, one store transaction, the seeded editor's action, and the tests, manual and prompt for each. No migration: the owner's answer of 2026-11-16 leaves nothing at the old key, which removes the column the job expected |
 | Spike | None. Every claim about what exists was read off `trunk` on 2026-11-16: `IPageWrites`, `PageWritesScope`, `PageEditor`, `PageSaver`, `SqlitePageStore`, `PageHead`, `PageRevision`, `PageTemplate`, `PageSeedInstaller`, `ApplySeedsEndpoint`, `RestoreEndpoint`, `PageTree`, `RevisionHash`, `ToolRegistry` and the migrations |
 | Decisions | At the merge: **pages-a-key-moves-with-its-history** is new, and `pages-any-page-may-write-the-store` is edited in place to name the new member |
-| Backlog | [IDEA-042](../jobs/IDEA-042.md) is this step; [IDEA-040](../jobs/IDEA-040.md), [IDEA-038](../jobs/IDEA-038.md), [IDEA-039](../jobs/IDEA-039.md), [IDEA-041](../jobs/closed.md), [IDEA-037](../jobs/IDEA-037.md), [IDEA-043](../jobs/closed.md) and [IDEA-047](../jobs/IDEA-047.md) are its neighbours in [the IDE plan](ide-host.md) |
+| Backlog | [`idea-page-cannot-move`](../backlog/idea-page-cannot-move.md) is this step; [`idea-library-edit-cost-is-invisible`](../backlog/idea-library-edit-cost-is-invisible.md), [`idea-cannot-search-the-store`](../backlog/idea-cannot-search-the-store.md), [`idea-listing-has-no-cursor`](../backlog/idea-listing-has-no-cursor.md), [IDEA-041](../backlog/closed.md), [`idea-check-without-storing`](../backlog/idea-check-without-storing.md), [IDEA-043](../backlog/closed.md) and [`idea-one-write-per-render`](../backlog/idea-one-write-per-render.md) are its neighbours in [the IDE plan](ide-host.md) |
 
 ## The short version
 
@@ -193,7 +193,7 @@ is `TargetExists` and writes nothing.
 
 Links inside other pages still point at the old key, and now they are broken rather than redirected:
 `/a` is not a page, so it answers `404`. That is the honest half the owner chose. Rewriting the links
-is a search plus a batch save ([IDEA-038](../jobs/IDEA-038.md), [IDEA-047](../jobs/IDEA-047.md)) and
+is a search plus a batch save ([`idea-cannot-search-the-store`](../backlog/idea-cannot-search-the-store.md), [`idea-one-write-per-render`](../backlog/idea-one-write-per-render.md)) and
 it edits pages the caller may never have opened — a decision of its own, deliberately not bundled here.
 
 A library's dependents are the one case where the store *knows* it has invalidated something it cannot
@@ -267,7 +267,7 @@ Task<PageMoveResult> MoveAsync(string from, string to, string expectedHash);
 | `src/uk.osric.asp.Web/Pages/Seeds/help` | The write section, and one sentence in the editor section |
 | `src/uk.osric.asp.Web/Assistant/PageAuthorPrompt.cs` | The move paragraph, and `Version` → `page-author-v36` |
 | `docs/pages.md`, `docs/storage.md` | The capability; the move's transaction and what it leaves behind |
-| `docs/jobs/IDEA-042.md`, `docs/plans/ide-host.md` | The plan pointer and the intended name |
+| `docs/jobs/`idea-page-cannot-move`.md`, `docs/plans/ide-host.md` | The plan pointer and the intended name |
 | `docs/decisions.md` | At the merge only (below) |
 | `test/…/FakePageStore.cs` | `MovePageAsync`, so the scope's checks stay testable without a database |
 
@@ -372,7 +372,7 @@ One branch, one gate, five commits, each readable on its own.
 3. **The editor.** The Move action, its confirmation, and the editor and integration tests.
 4. **The manual and the prompt.** `/help`'s two sections, `PageAuthorPrompt` and `page-author-v36`, and
    their tests.
-5. **The docs.** [pages](../pages.md), [storage](../storage.md), [IDEA-042](../jobs/IDEA-042.md), and
+5. **The docs.** [pages](../pages.md), [storage](../storage.md), [`idea-page-cannot-move`](../backlog/idea-page-cannot-move.md), and
    the slice-6 pointer in [the IDE plan](ide-host.md).
 
 `make check` is the gate: format, licence, audit, decisions, `check-pages` (the seeds compile, so the
@@ -388,13 +388,13 @@ record is written there.
   cannot drift into an accident.
 - **Every inbound link is broken, not redirected.** The job's workaround broke them silently; this
   breaks them loudly, because `/a` answers `404`. That is the owner's decision and the reason a link
-  audit after a move is [IDEA-038](../jobs/IDEA-038.md)'s work.
+  audit after a move is [`idea-cannot-search-the-store`](../backlog/idea-cannot-search-the-store.md)'s work.
 - **A `?v=` link answers at the new key only.** The revision and its hash are unchanged; the address is
   not.
 - **A library move stays refused until 040 and 047 exist.** The refusal is honest rather than helpful:
   with no dependents read, it cannot name the pages a library move would break.
 - **The one action means one move per render.** A folder is several moves, so it is several requests
-  until the batch ([IDEA-047](../jobs/IDEA-047.md)). The confirmation says so.
+  until the batch ([`idea-one-write-per-render`](../backlog/idea-one-write-per-render.md)). The confirmation says so.
 - **The transaction is the store's first that changes the path of stored revisions.** It is four
   statements in an order the foreign key demands, and `AFailedMoveWritesNothingAsync` is the test that
   keeps it whole; but it is the operation to re-read when the schema is next changed.
@@ -427,11 +427,11 @@ overrule them cheaply.
 ## Not in scope
 
 - **Moving a folder.** A batch of moves, built from this member rather than as a second operation
-  ([IDEA-047](../jobs/IDEA-047.md)).
+  ([`idea-one-write-per-render`](../backlog/idea-one-write-per-render.md)).
 - **Rewriting inbound links.** A search plus a batch save, and a decision about editing pages the
-  caller never opened ([IDEA-038](../jobs/IDEA-038.md)).
-- **Moving a library.** Refused until the dependents are readable ([IDEA-040](../jobs/IDEA-040.md)) and
-  a batch can recompile them ([IDEA-047](../jobs/IDEA-047.md)).
+  caller never opened ([`idea-cannot-search-the-store`](../backlog/idea-cannot-search-the-store.md)).
+- **Moving a library.** Refused until the dependents are readable ([`idea-library-edit-cost-is-invisible`](../backlog/idea-library-edit-cost-is-invisible.md)) and
+  a batch can recompile them ([`idea-one-write-per-render`](../backlog/idea-one-write-per-render.md)).
 - **An alias or a redirect.** A key that `301`s is a response rule and a store column, and the owner
   declined even the store's memory of the move; a redirect is a different job with a different security
   story.

@@ -10,7 +10,7 @@ that IDEA-015 has landed: review chose a capability reached through `ctx.Feature
 to `IContext` for the read ([page store read](page-store-read.md), `pages-the-store-is-read-through-one-seam`, `pages-reading-the-store-is-public`, `pages-a-listing-carries-facts`, `product-manual-is-a-page`, `pages-delete-install-and-restore`, `pages-page-first`), and the same
 shape is used here. The authority is deliberately **not** symmetric with the read: the read is as
 public as the page that calls it (`pages-reading-the-store-is-public`), and this write requires a signed-in visitor (`pages-a-page-may-save-itself`). The
-job was [IDEA-016](../../jobs/closed.md).
+job was [IDEA-016](../../backlog/closed.md).
 
 ## The short version
 
@@ -18,7 +18,7 @@ job was [IDEA-016](../../jobs/closed.md).
   saves the calling page's own source. **`IContext` gains nothing** (`pages-the-store-is-read-through-one-seam`, `pages-a-page-may-save-itself`).
 - **One write and no key.** The handle is bound to `ctx.Path`, exactly as `IPageStorage` is
   (`pages-page-storage`): isolation is structural, and a page cannot name another page. A page that needs to write
-  a *named* key is [IDEA-017](../../jobs/IDEA-017.md).
+  a *named* key is [IDEA-017](../../backlog/IDEA-017.md).
 - **Authority is asymmetric, on purpose.** The read is permissive because a page's output is already
   public; a write changes the site, so it is authority, and authority is the shell's. `SaveAsync`
   refuses an anonymous render **before it compiles or stores anything**, and says so in words the
@@ -49,21 +49,21 @@ job was [IDEA-016](../../jobs/closed.md).
 - The authority question is answered once, in the capability, in the direction the site already
   answers it: a write needs an identity, a read does not (`pages-a-page-may-save-itself`).
 - A page that saves can render its own answer — clean, warnings, or errors with positions — without
-  a second render and without a per-visitor message (that is [IDEA-014](../../jobs/README.md)).
+  a second render and without a per-visitor message (that is [IDEA-014](../../backlog/README.md)).
 - Nothing a page can name comes from `Core` or `Web` (`pages-the-contract-is-the-seam`).
 
 ## Non-goals
 
 - **A named key.** `SaveAsync` takes no path; a page writes itself and nothing else. Widening it is
-  [IDEA-017](../../jobs/IDEA-017.md), which is also where the editor becomes a page.
+  [IDEA-017](../../backlog/IDEA-017.md), which is also where the editor becomes a page.
 - **Delete, scrub, restore a seed, import, export.** The shell keeps every one of them (`pages-page-first`).
 - **A rename.** A save appends a revision at the page's own key; moving a key is not a write.
 - **Conditional saves in the contract.** The editor's `SaveIfRevisionAsync` stays the shell's. A page
   that wants a "somebody else saved this" message compares the hash it read with the head it reads
   again, using the read it already has (D1, D8).
 - **A second render after the save.** A page saves, then answers; the next request serves the new
-  revision (`pages-a-page-may-save-itself`). Streaming is [ARCH-13](../../jobs/README.md)'s.
-- **A preview, an autosave, or scripted editing.** [IDEA-001](../../jobs/IDEA-001.md) covers the
+  revision (`pages-a-page-may-save-itself`). Streaming is [ARCH-13](../../backlog/README.md)'s.
+- **A preview, an autosave, or scripted editing.** [IDEA-001](../../backlog/idea-editor-is-a-textarea.md) covers the
   editor's client side.
 - **New caps or a `Pages:Write` section.** A save is bounded by limits the site already has (D5).
 - **Speculative widening of the diagnostic value** — no column ranges, no end positions, no fixits.
@@ -142,10 +142,10 @@ Checked against the code on 2026-11-09.
 
 | Job or decision | What it already says | What this plan does |
 | --- | --- | --- |
-| [IDEA-016](../../jobs/closed.md) | A page cannot save its own source; no write member and no `Sdk` diagnostic; a save bound to `ctx.Path`, compiled before it is stored, answering with diagnostics and the hash; authority stays with the shell | **Implements it**, as a capability rather than an `IContext` member, with the check in the capability rather than in `SimpleContext` (`pages-a-page-may-save-itself`) |
-| [IDEA-015](../../jobs/README.md) (closed) | The read is a capability, public by default, and the shell keeps every write (`pages-the-store-is-read-through-one-seam`, `pages-reading-the-store-is-public`, `pages-a-listing-carries-facts`, `product-manual-is-a-page`, `pages-delete-install-and-restore`, `pages-page-first`) | Follows the shape and reverses the authority for the write, on purpose: a disclosure and a change are not the same act (`pages-a-page-may-save-itself`) |
-| [IDEA-017](../../jobs/IDEA-017.md) | A page cannot edit another page; the full editor is the last of the capability jobs | Hands it the saver and the capability; what it adds is a key (`pages-a-page-may-save-itself`) |
-| [IDEA-014](../../jobs/README.md) | A page cannot keep per-visitor state, so a form cannot redirect and say why | Untouched, and the reason the demo page answers the save in the response it is already writing (`pages-a-page-may-save-itself`) |
+| [IDEA-016](../../backlog/closed.md) | A page cannot save its own source; no write member and no `Sdk` diagnostic; a save bound to `ctx.Path`, compiled before it is stored, answering with diagnostics and the hash; authority stays with the shell | **Implements it**, as a capability rather than an `IContext` member, with the check in the capability rather than in `SimpleContext` (`pages-a-page-may-save-itself`) |
+| [IDEA-015](../../backlog/README.md) (closed) | The read is a capability, public by default, and the shell keeps every write (`pages-the-store-is-read-through-one-seam`, `pages-reading-the-store-is-public`, `pages-a-listing-carries-facts`, `product-manual-is-a-page`, `pages-delete-install-and-restore`, `pages-page-first`) | Follows the shape and reverses the authority for the write, on purpose: a disclosure and a change are not the same act (`pages-a-page-may-save-itself`) |
+| [IDEA-017](../../backlog/IDEA-017.md) | A page cannot edit another page; the full editor is the last of the capability jobs | Hands it the saver and the capability; what it adds is a key (`pages-a-page-may-save-itself`) |
+| [IDEA-014](../../backlog/README.md) | A page cannot keep per-visitor state, so a form cannot redirect and say why | Untouched, and the reason the demo page answers the save in the response it is already writing (`pages-a-page-may-save-itself`) |
 | `pages-the-store-is-read-through-one-seam`, `pages-reading-the-store-is-public` | The store read is a capability and is public | The pattern, applied with the opposite answer for authority |
 | `pages-page-first` | The shell keeps every write; IDEA-016 reuses `PageEditor.SaveAsync` rather than opening a second writer | Kept literally: the saver and the insert move, they are not copied (`pages-a-page-may-save-itself`) |
 | `pages-page-storage` | `IPageStorage` is bound to the page's key; a `HEAD` reads but never writes | Followed in shape: this handle is bound to `ctx.Path` and refuses a `HEAD` |
@@ -195,7 +195,7 @@ public enum PageDiagnosticSeverity { Warning, Error }
 - **No conditional save.** `IPageStorage` is last-write-wins (`pages-page-storage`) and so is this: two tabs on one
   page, the later save wins. A page that wants a conflict message reads the head again before it
   saves — the demo page shows the six lines that costs — rather than widening the contract with the
-  editor's `SaveIfRevisionAsync`. That belongs with [IDEA-017](../../jobs/IDEA-017.md)'s editor.
+  editor's `SaveIfRevisionAsync`. That belongs with [IDEA-017](../../backlog/IDEA-017.md)'s editor.
 - **No dedupe.** Saving the template that is already the head appends a revision, as the editor's save
   does. A save is a revision, and the history is the record.
 - **`Task`, no token** (`pages-page-io-is-async`). A `null` template is an `ArgumentNullException` at the door
@@ -276,7 +276,7 @@ Three consequences, all of which the plan states rather than smooths over:
   page and the submitted template still in the textarea (the demo page, and the only pattern that
   works without per-visitor state). **Save and redirect** — `ctx.Redirect(ctx.Path, 303)` sends the
   visitor to the page the next request will serve, at the cost of saying nothing about the compile
-  unless the page keeps state ([IDEA-014](../../jobs/README.md)).
+  unless the page keeps state ([IDEA-014](../../backlog/README.md)).
 
 ### D5 — What bounds a save, without a new setting
 
@@ -350,7 +350,7 @@ One seed, a fragment the default layout wraps:
   conditional save".
 - **It writes its own body with `ctx.Write` where it shows source**, because page source is exactly
   what a page that shows source must not run.
-- **It says it is a demonstration** and names [IDEA-017](../../jobs/IDEA-017.md), so nobody mistakes it
+- **It says it is a demonstration** and names [IDEA-017](../../backlog/IDEA-017.md), so nobody mistakes it
   for the editor.
 - **One page, not two.** The read had a public and a guarded page because the gate question needed two
   files; the write has one answer, and a second page differing only in a form would be a second demo of
@@ -385,7 +385,7 @@ its source to explain it. Registered, and refusing with a message, is the same r
 the shell would answer with the generic "An unexpected error occurred" text. The session that expired
 is the visitor's to fix, so it gets `UserFacingException` and its own sentence.
 
-**A second capability for a named key now.** Rejected: that is [IDEA-017](../../jobs/IDEA-017.md), and
+**A second capability for a named key now.** Rejected: that is [IDEA-017](../../backlog/IDEA-017.md), and
 it needs the editor's view underneath it. One handle bound to one key is the whole of this job.
 
 **A conditional save in the contract.** Rejected: the editor's conflict detection exists because two
@@ -401,7 +401,7 @@ author typed. The site already refuses that loss for compiles (`pages-the-execut
 render is a revision flood, and a layout is markup (`pages-layouts-are-markup`).
 
 **Turning the editor's views into the demo page.** Rejected: that is
-[IDEA-017](../../jobs/IDEA-017.md). `/scratch` is 60 lines and proves the capability; the editor is a
+[IDEA-017](../../backlog/IDEA-017.md). `/scratch` is 60 lines and proves the capability; the editor is a
 different job with its own markup, accessibility and browser tests.
 
 **A `Pages:Write:MaxTemplateChars` cap.** Rejected: the request cap already binds the only way a
@@ -590,7 +590,7 @@ Phase 2 depends on phase 1, phase 3 on phase 2. Phases 1 and 2 are one sitting; 
   does a slow fetch before saving can lose the post; a template over the 1 MiB request cap never
   reaches the page; and a browser that drops the connection mid-post loses it as it would anywhere
   else. The demo page keeps the submitted template in the textarea of the response it sends, which is
-  the only mitigation a page without per-visitor state has ([IDEA-014](../../jobs/README.md)).
+  the only mitigation a page without per-visitor state has ([IDEA-014](../../backlog/README.md)).
 - **A save is a compile, and compiles are serialised.** One compile slot means a save queues behind
   every other compile; the slot wait ends at the render deadline, so under load a visitor meets `504`
   while their edit still lands (D6). Worth watching: the page list will show revisions whose authors

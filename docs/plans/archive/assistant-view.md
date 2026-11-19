@@ -11,7 +11,7 @@ SPDX-License-Identifier: MIT
 | Size | M — four files in `Authentication`, one options record, one tool, a credential rule stated once, and the tests, the prompt and the docs for each. The idea's `L` was for an account of the assistant's own; this design needs no account, no secret and no schema, so it stays an `M` |
 | Spike | None. Every claim about what exists was read off `trunk` on 2026-11-15: `AuthenticationExtensions`, `PageCredential`, `PageFetchOptions`, `OutboundFetcher`, `AssistantFetcher`, `FetchTool`, `PageEndpoint`, `RunProcessor`, `PageAuthorPrompt` |
 | Decisions | Six, taken at the merge and listed at the bottom of this file; no existing entry is revised |
-| Backlog | IDEA-045, closed by this merge ([the job index](../../jobs/closed.md)) |
+| Backlog | IDEA-045, closed by this merge ([the job index](../../backlog/closed.md)) |
 
 ## The short version
 
@@ -33,7 +33,7 @@ run cannot afford.
 
 That choice answers the idea's expensive question — *whose identity* — for free. There is nothing to
 create with `users add`, nothing to rotate, nothing to leak, and nothing a browser can use: the token
-is not a sign-in and cannot become one, so [IDEA-044](../../jobs/IDEA-044.md) is neither helped nor made riskier
+is not a sign-in and cannot become one, so [IDEA-044](../../backlog/idea-no-browser-render.md) is neither helped nor made riskier
 by it.
 
 ## What the assistant sees today
@@ -421,11 +421,11 @@ The idea's six open questions are answered here rather than carried:
 | A second scheme, or the cookie | A second scheme; the cookie is untouched and stays the challenge scheme |
 | Where the token is stored and rotated | Nowhere: in memory, dead with the run, nothing to rotate |
 | Whether a page may name it | It cannot, because there is no name — it is not in `Pages:Fetch:Credentials` and not in configuration |
-| What it does to the browser | Nothing: it is not a sign-in, so [IDEA-044](../../jobs/IDEA-044.md) gets no identity from this |
+| What it does to the browser | Nothing: it is not a sign-in, so [IDEA-044](../../backlog/idea-no-browser-render.md) gets no identity from this |
 
 Three the plan puts back, each with a recommendation it will follow unless the owner says otherwise:
 
-1. **The tool's name.** `view`, beside `fetch`. `browse` was rejected because [IDEA-044](../../jobs/IDEA-044.md)
+1. **The tool's name.** `view`, beside `fetch`. `browse` was rejected because [IDEA-044](../../backlog/idea-no-browser-render.md)
    will want that word for the real thing.
 2. **No approval on `view`.** Recommended: a read of this site as the run's owner is `read_page`'s
    standing, not `fetch`'s.
@@ -475,5 +475,5 @@ different failures with different tests.
   argument would let a run walk a big page in pieces, and it is not asked for: the same-page questions
   are about shape and a few lines, and `read_page` already addresses source by line. If a big page's
   tail turn out to matter, that is a change to the tool and its own tests.
-- **Any identity a browser can use.** That is [IDEA-044](../../jobs/IDEA-044.md), and this makes it neither easier
+- **Any identity a browser can use.** That is [IDEA-044](../../backlog/idea-no-browser-render.md), and this makes it neither easier
   nor harder.

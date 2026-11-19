@@ -9,7 +9,7 @@ SPDX-License-Identifier: MIT
 DEC-184 and DEC-185, and were renumbered when the assistant's memory decisions were found to hold the
 same pair.
 
-[OPS-06](../../jobs/closed.md) recorded that half of what the site measures never reaches `/status`:
+[OPS-06](../../backlog/closed.md) recorded that half of what the site measures never reaches `/status`:
 sixteen of the twenty-three instruments have no panel at all. It also found the reason the gap
 opened. The dashboard's panels are hand-written next to the instruments they read, in a different
 file, in a different shape, with no test tying the two together — so `page.fetch.duration`,

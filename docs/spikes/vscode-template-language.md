@@ -11,7 +11,7 @@ SPDX-License-Identifier: MIT
 | Answered | 2026-11-13 |
 | Version measured | VS Code 1.146.0 with its built-in `html` and `csharp` grammars (extension version 10.0.0); `vscode-textmate` 9.3.2 and `vscode-oniguruma` 2.0.1 used only as a test harness |
 | Verdict | Highlighting is a small **declarative** extension — one manifest and three data files, no `main`, no JavaScript, no npm — but only if C# is embedded as a *flat fragment*; including `source.cs` wholesale breaks on the language's central idiom. Real error positions need no language server at all: the compiler already answers in template space, and a problem matcher makes that output clickable |
-| Recorded | The declarative half landed: `tools/vscode-asp` and `make check-pages`. The live half is [IDEA-029](../jobs/IDEA-029.md) |
+| Recorded | The declarative half landed: `tools/vscode-asp` and `make check-pages`. The live half is [`idea-vscode-cannot-check-a-page`](../backlog/idea-vscode-cannot-check-a-page.md) |
 
 ## The answer
 
@@ -243,7 +243,7 @@ That is a plan-sized job, not a sitting, and it is independent of the two cheap 
 - **A stray quote or comment drifts.** A `%>` inside an unclosed string is already a page bug; the
   grammar will colour the rest of the block as C# until it is closed, which is the same thing the
   tokenizer would have done.
-- **Not the site's own editor.** IDEA-001's editor and its Ace mode are separate; this is for
+- **Not the site's own editor.** `idea-editor-is-a-textarea`'s editor and its Ace mode are separate; this is for
   reading seeds in VS Code.
 
 ## What landed
@@ -254,7 +254,7 @@ That is a plan-sized job, not a sitting, and it is independent of the two cheap 
 2. [`tools/check-pages`](../../tools/check-pages) — the compiler over the seeds, and the `check pages`
    task in [`.vscode/tasks.json`](../../.vscode/tasks.json) with the problem matcher. It is also in
    `make check`, so a broken seed fails the gate rather than the first visitor.
-3. The live half — diagnostics while typing, completion, hover — is [IDEA-029](../jobs/IDEA-029.md):
+3. The live half — diagnostics while typing, completion, hover — is [`idea-vscode-cannot-check-a-page`](../backlog/idea-vscode-cannot-check-a-page.md):
    a C# server, a plain-JS client and, if completion is in scope, a reverse map in `Core`.
 
 The tokenize harness that produced these numbers is test tooling, not a dependency: it is

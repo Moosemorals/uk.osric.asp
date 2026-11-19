@@ -3,11 +3,15 @@ SPDX-FileCopyrightText: Copyright 2026 Osric Wilkinson <osric@fluffypeople.com>
 SPDX-License-Identifier: MIT
 -->
 
-# IDEA-031 — Some policy is still a constant in code
+# Some policy is still a constant in code
 
 | | |
 | --- | --- |
-| Size | S |
+| Difficulty | contented-capybara |
+| Utility | medium |
+| Status | open |
+| Blocked by | — |
+| Plan | — |
 | Area | Core, Web, Runtime (deploy) |
 | Location | `src/uk.osric.asp.Web/Users/PasswordPolicy.cs`, `src/uk.osric.asp.Web/Users/UserName.cs`, `src/uk.osric.asp.Web/Http/SecurityHeaders.cs`, `src/uk.osric.asp.Core/Compilation/PageApiPolicy.cs`, `src/uk.osric.asp.Web/Pages/PageEndpoint.cs`, `src/uk.osric.asp.Web/Pages/PageRenderer.cs`, `src/uk.osric.asp.Web/Storage/` |
 

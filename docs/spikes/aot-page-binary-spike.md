@@ -19,7 +19,7 @@ process.
 
 **Verdict: the render half is better than expected; the build half fails by 7.5× on the 1 vCPU host
 (5.6× on the CAX21), and the per-render sandbox is blocked by the deployed hardening.** With the
-process boundary deprioritised anyway (SEC-03), there is nothing here to justify the build pipeline.
+process boundary deprioritised anyway (`sec-page-runs-in-process`), there is nothing here to justify the build pipeline.
 This record exists so the idea is not re-litigated from estimates.
 
 ## Hypotheses
@@ -102,7 +102,7 @@ the shared-state window with it.
 The tidy per-render sandbox — a 2.96 MB static binary in a namespace with no network and almost no
 filesystem — works in principle and does not work inside the container as deployed. Getting it back
 means either relaxing `DropCapability` on the app or giving the renderer its own container with its
-own settings (the socket-and-second-unit shape from SEC-03's third fix). Per-render `podman run` is
+own settings (the socket-and-second-unit shape from `sec-page-runs-in-process`'s third fix). Per-render `podman run` is
 not an option: container start measured **164 ms**, 46× the render.
 
 ### Build

@@ -11,7 +11,7 @@ SPDX-License-Identifier: MIT
 | Size | Medium — the page's projection and its mark, a small server change to what the Tool calls row counts and when it is published, the store method behind it, five tests and the words in three docs. No event type, no migration, no configuration |
 | Area | Web (assistant, storage), docs |
 | Spike | [DeepSeek token counting](../spikes/deepseek-token-counting.md) measured the prose ratio the projection leans on; nothing new is measured |
-| Backlog | [IDEA-051](../jobs/IDEA-051.md) |
+| Backlog | [IDEA-051](../backlog/IDEA-051.md) |
 | Decisions | Recorded at the merge: `assistant-tool-calls-count-attempts` and `assistant-live-figures-are-marked`. Edits `assistant-budgets-are-one-snapshot`. Relies on `assistant-the-request-budget-is-tokens` |
 
 ## The short version

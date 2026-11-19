@@ -11,7 +11,7 @@ SPDX-License-Identifier: MIT
 | Size | Small — six list entries, one grouping rule in `Check`, one sentence in the message, three descriptions that say what a page may name, and their tests |
 | Spike | None. Every claim was measured on `trunk` on 2026-11-15 by compiling templates through `PageCompiler`, and by counting the reference set's public types over `TRUSTED_PLATFORM_ASSEMBLIES` |
 | Decisions | `pages-admit-what-adds-no-capability`, recorded at the merge; it refines `pages-the-api-policy` rather than replacing it (`product-plan-before-building`, `product-steps-wait-for-the-owner`) |
-| Backlog | None. The threat model it sits inside is [SEC-03](../../jobs/SEC-03.md), unchanged |
+| Backlog | None. The threat model it sits inside is [SEC-03](../../backlog/sec-page-runs-in-process.md), unchanged |
 
 ## The short version
 
@@ -54,7 +54,7 @@ Three things follow from the table.
   may declare `Dictionary<string, int>` and implement `IEqualityComparer<string>` by hand, but may not
   use the comparer the base library ships for exactly that. `System.Globalization` is admitted too, so
   a page **can** set `CultureInfo.DefaultThreadCurrentCulture` — process-wide mutable state, accepted
-  as residual risk in [SEC-03](../../jobs/SEC-03.md) — while a readonly comparer over `string` is
+  as residual risk in [SEC-03](../../backlog/sec-page-runs-in-process.md) — while a readonly comparer over `string` is
   refused. Membership is not being decided by capability; it is being decided by whether a feature
   needed it.
 - **Every refusal is a redeploy.** The author is in the editor. The fix for `StringComparer` is a
@@ -131,7 +131,7 @@ No entry here needs a member deny: none of them binds a way to reach a resource 
 - **`System.Collections.Immutable`, `System.Collections.ObjectModel`.** Copies of abstractions already
   admitted; no page has asked.
 - **`System.Text.RegularExpressions`.** Unchanged: a CPU amplification path inside a deadline that
-  cannot reclaim its thread ([SEC-03](../../jobs/SEC-03.md)). A page that needs matching gets a
+  cannot reclaim its thread ([SEC-03](../../backlog/sec-page-runs-in-process.md)). A page that needs matching gets a
   capability.
 
 ### D4 — one diagnostic per refused type

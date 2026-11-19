@@ -11,7 +11,7 @@ SPDX-License-Identifier: MIT
 | Size | Large — one new `Sdk` capability with four calls and two values, `IPageLayout` loses `Layout` and gains a nullable `Title`, one layer renderer with three roles, the layout chain rebuilt on it and entered by the page, ten seeded pages and the editor's starter, the manual, the assistant's prompt and its version, two configuration values, one instrument, and the tests that pin the recursion, the response gates and the chrome |
 | Area | Sdk, Web (pages, shell, seeds, assistant, metrics), docs |
 | Spike | None. Every count below was taken off `trunk` at `6004526` on 2026-11-16, after `pages-the-response-is-one-object` merged |
-| Backlog | [IDEA-049](../jobs/closed.md) is this step, closed by the merge. [IDEA-047](../jobs/IDEA-047.md) is the answer if a real page needs more than one write in one render, which composition makes likelier |
+| Backlog | [IDEA-049](../backlog/closed.md) is this step, closed by the merge. [`idea-one-write-per-render`](../backlog/idea-one-write-per-render.md) is the answer if a real page needs more than one write in one render, which composition makes likelier |
 | Decisions | New names proposed: **pages-an-embed-is-a-render**, **pages-a-composed-page-gets-a-request**, **pages-a-capture-returns-the-body**, **pages-a-page-inside-a-page-is-a-capture**, **pages-a-page-chooses-its-layout**, **pages-one-render-three-roles**, **pages-the-wrapper-owns-the-title**. Edits `pages-one-request-one-chain`, `pages-a-layout-is-a-capability`, `pages-layouts-are-markup`, `pages-one-base-sheet` and `pages-capabilities-are-one-seam`. The shell trim D14 proposed is dropped: trunk unified the menus into one route table first, so `shell-the-menu-is-written-twice` stands as trunk edits it. Relies on `pages-the-response-is-one-object`, `pages-the-contract-is-the-seam`, `pages-public-by-default`, `pages-a-warning-never-stops-a-page`, `pages-page-io-is-async`, `pages-any-page-may-write-the-store`, `pages-a-page-may-save-itself`, `metrics-one-panel-per-instrument` and `code-policy-values-are-configuration` |
 
 ## The short version
@@ -97,7 +97,7 @@ itself. That is the point and the migration: the seeds and the editor's starter 
   that makes ignoring a failure the default is not this step.
 - **Moving `/status` or `/assistant` off the shell.** Both stay shell documents for now; the health
   surface must answer when the page pipeline is broken.
-- **Batch writes.** One render still writes once across the whole chain. [IDEA-047](../jobs/IDEA-047.md)
+- **Batch writes.** One render still writes once across the whole chain. [`idea-one-write-per-render`](../backlog/idea-one-write-per-render.md)
   is where several writes with a named policy land.
 - **Caching or memoising an embed.** It is part of the page it appears on, and the page is `no-store`.
 - **A per-call embed boundary, a partial view of a page, or an embed flag.** An embed is the page's
@@ -751,7 +751,7 @@ through, and the first two were committed together because the role and the chai
 
 - Moving `/status` or `/assistant` off the shell; see the health-surface objection in
   [shell.md](../shell.md).
-- Rendering a page in a browser — [IDEA-044](../jobs/IDEA-044.md).
-- Batch writes — [IDEA-047](../jobs/IDEA-047.md).
+- Rendering a page in a browser — [`idea-no-browser-render`](../backlog/idea-no-browser-render.md).
+- Batch writes — [`idea-one-write-per-render`](../backlog/idea-one-write-per-render.md).
 - Caching or memoising an embed; the page is `no-store` and the image cache already covers the compile.
 - A second response body or a streamed embed.

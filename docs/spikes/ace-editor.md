@@ -3,7 +3,7 @@ SPDX-FileCopyrightText: Copyright 2026 Osric Wilkinson <osric@fluffypeople.com>
 SPDX-License-Identifier: MIT
 -->
 
-# Spike — Ace as the editor (IDEA-001)
+# Spike — Ace as the editor (`idea-editor-is-a-textarea`)
 
 | | |
 | --- | --- |
@@ -18,7 +18,7 @@ SPDX-License-Identifier: MIT
 Ace is the only mature editor that satisfies the constraint that matters most here: **no npm and no
 build step**. `ace-builds` ships a browser bundle checked in at `src-min-noconflict/`, its GitHub
 tags match its npm versions, and the files it needs can be extracted from a tag tarball with `curl`
-and `tar`. CodeMirror 6, which [IDEA-001](../jobs/IDEA-001.md) names as the smallest real option, is
+and `tar`. CodeMirror 6, which [`idea-editor-is-a-textarea`](../backlog/idea-editor-is-a-textarea.md) names as the smallest real option, is
 pure ESM packages and a bundler: out, while this project has no npm. Monaco needs a build too, and
 brings no vim keymap.
 
@@ -76,7 +76,7 @@ special case, special marks are unimplemented — the usual long tail, not a toy
 
 The integration is one call, `editor.setKeyboardHandler("ace/keyboard/vim")`, plus our own
 `editor.commands.addCommand` bindings for `:w` and `Ctrl-S` that submit the existing form. Nothing
-about the save path changes: one antiforgery-checked `POST`, one `303`, one flash message — IDEA-001
+about the save path changes: one antiforgery-checked `POST`, one `303`, one flash message — `idea-editor-is-a-textarea`
 step 5 holds.
 
 ## C# inside HTML
@@ -146,14 +146,14 @@ into the textarea. If any script fails, the textarea was never taken away.
 [EditorEndpointTests.cs](../../test/uk.osric.asp.Web.Tests/EditorEndpointTests.cs) — so keeping the
 textarea exactly as it is has a second benefit: the existing unit tests keep proving the fallback.
 
-The fallback is only *useful* if it is worth using, which is IDEA-001 step 2: a server-rendered line
+The fallback is only *useful* if it is worth using, which is `idea-editor-is-a-textarea` step 2: a server-rendered line
 gutter and each diagnostic anchored to its line. That layer is shared with the Ace path —
 `session.setAnnotations` wants a zero-based line, and `PageDiagnostic.Position` is a one-based
 `TemplatePosition`, so the mapping is `Line - 1` and the diagnostics payload is
 `<script type="application/json">` (the default `System.Text.Json` encoder escapes `<`, so a
 compiler message containing `</script>` cannot break out).
 
-Caret across a save is the one IDEA-001 requirement Ace does not hand over, because a save is a full
+Caret across a save is the one `idea-editor-is-a-textarea` requirement Ace does not hand over, because a save is a full
 `POST` → `303` → `GET`. `sessionStorage` keyed on the editor URL restores it with no server change and
 no new session key.
 
@@ -164,7 +164,7 @@ editor is created stops it injecting `<style>`, at the cost of linking the two s
 The upstream `demo/csp.html` is the canonical example and runs under `style-src 'self'`,
 `script-src 'self' 'nonce-…'`, `worker-src 'self' blob:`.
 
-So IDEA-001 step 4 can be stricter than it assumed:
+So `idea-editor-is-a-textarea` step 4 can be stricter than it assumed:
 
 ```
 script-src 'self'; style-src 'self'; worker-src 'none'; object-src 'none'; base-uri 'none'

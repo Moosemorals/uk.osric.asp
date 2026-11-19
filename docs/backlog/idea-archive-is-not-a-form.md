@@ -3,11 +3,15 @@ SPDX-FileCopyrightText: Copyright 2026 Osric Wilkinson <osric@fluffypeople.com>
 SPDX-License-Identifier: MIT
 -->
 
-# IDEA-024 — `/admin/import` and `/admin/export` are shell code because an archive is not a form
+# `/admin/import` and `/admin/export` are shell code because an archive is not a form
 
 | | |
 | --- | --- |
-| Size | Large |
+| Difficulty | caffeinated-squirrel |
+| Utility | low |
+| Status | open |
+| Blocked by | — |
+| Plan | — |
 | Area | Sdk, Web, storage |
 | Location | `src/uk.osric.asp.Sdk/IContext.cs`, `src/uk.osric.asp.Web/Admin/`, `src/uk.osric.asp.Web/Pages/` |
 

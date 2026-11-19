@@ -3,11 +3,15 @@ SPDX-FileCopyrightText: Copyright 2026 Osric Wilkinson <osric@fluffypeople.com>
 SPDX-License-Identifier: MIT
 -->
 
-# IDEA-053 — Twenty tools' arguments say nothing about themselves
+# Twenty tools' arguments say nothing about themselves
 
 | | |
 | --- | --- |
-| Size | S — a data change, one optional schema value and a measurement, with the capability already in `Core` |
+| Difficulty | contented-capybara |
+| Utility | high |
+| Status | open |
+| Blocked by | — |
+| Plan | — |
 | Area | Core (Assistant), Web (assistant), docs |
 | Location | `src/uk.osric.asp.Web/Assistant/Tools/`, `src/uk.osric.asp.Core/Assistant/ToolArguments.cs` |
 
@@ -23,7 +27,7 @@ them ahead of any schema choice: a description that says when to use a tool and 
 description on each parameter. The first is already this site's habit; the second is not, for all but
 one tool.
 
-## Why it is not in IDEA-052
+## Why it is not in `idea-assistant-cannot-ask`
 
 The tool list is part of the request body, and its declaration order is part of the provider's cached
 prefix (`assistant-a-tool-is-one-type`). Adding a sentence to twenty schemas rewrites that prefix, so
@@ -47,8 +51,8 @@ before and after rather than an opinion.
 
 ## The one argument a description cannot fix
 
-[IDEA-054](IDEA-054.md)'s `check` takes `language`, one of a closed set that grows as validators land
-([IDEA-055](IDEA-055.md)). Prose can enumerate it, and prose goes stale: the tool's description would
+[`idea-assistant-cannot-check-a-page`](`idea-assistant-cannot-check-a-page`.md)'s `check` takes `language`, one of a closed set that grows as validators land
+([`idea-nothing-checks-page-assets`](`idea-nothing-checks-page-assets`.md)). Prose can enumerate it, and prose goes stale: the tool's description would
 have to be edited every time a language arrived, which is the drift `help` avoids by rendering the shell
 registry. `enum` states the set where the model reads it as a constraint rather than a sentence, and
 `enum` is what the provider guidance asks for in place of prose — unlike `maxItems` and `minLength`,
@@ -67,7 +71,7 @@ declaration that uses it, and a new language later costs a row rather than a rew
 ## Where it lands
 
 Slice 1 of the assistant tool surface plan, `docs/plans/assistant-tool-surface.md`, written once
-[IDEA-037](IDEA-037.md) has merged, with [IDEA-054](IDEA-054.md) as slice 2. The two are one step
+[`idea-check-without-storing`](`idea-check-without-storing`.md) has merged, with [`idea-assistant-cannot-check-a-page`](`idea-assistant-cannot-check-a-page`.md) as slice 2. The two are one step
 because both rewrite the tool definitions and so the provider's cached prefix, and because the `enum`
 this job adds has no argument to describe until `check` exists. This job closes at that merge; the
 sketch above is unchanged.

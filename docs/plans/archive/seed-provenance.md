@@ -11,7 +11,7 @@ SPDX-License-Identifier: MIT
 | Size | Large — a migration with two columns and a one-off repair, one write-path fact, one pure comparison and its words, one field on the page contract and one member removed, one shell route, an archive format version, a `seeds` command with four make targets, two seeded pages, and the prose and tests for each. Slices 0 and 1 are small and independent; 2–4 are the bulk |
 | Spike | None. Every number and claim below was measured on `trunk` at `f369bcc`; the first version of this plan was measured at `1badddd`, and the pack has grown by 7,972 bytes since. The two places the design could fail are the revision hash (settled: it is an identity, D1) and the archive reader (settled by the format's own version column, D9) |
 | Decisions | `pages-a-seed-write-records-its-hash`, `pages-a-seed-verdict-is-the-hosts`, `shell-the-pack-comes-home`, `shell-the-seed-apply-is-a-route`, `pages-an-archive-carries-provenance` |
-| Backlog | [IDEA-036](../../jobs/closed.md) — closed by this plan. Relates to [IDEA-024](../../jobs/IDEA-024.md) (an archive is not a form), [IDEA-030](../../jobs/closed.md) (every view writes its own navigation), and [IDEA-043](../../jobs/closed.md) (the widened write authority; the batch is split out of it, unnumbered for now — see *Risks*) |
+| Backlog | [IDEA-036](../../backlog/closed.md) — closed by this plan. Relates to [IDEA-024](../../backlog/idea-archive-is-not-a-form.md) (an archive is not a form), [IDEA-030](../../backlog/closed.md) (every view writes its own navigation), and [IDEA-043](../../backlog/closed.md) (the widened write authority; the batch is split out of it, unnumbered for now — see *Risks*) |
 
 ## The short version
 
@@ -49,7 +49,7 @@ sections below are written to them.
 
 | Question | Answer |
 | --- | --- |
-| How the pack comes home | `seeds pull` emits a tar on stdout and `make` extracts it. No page serves a pack: an archive is not a form ([IDEA-024](../../jobs/IDEA-024.md)) |
+| How the pack comes home | `seeds pull` emits a tar on stdout and `make` extracts it. No page serves a pack: an archive is not a form ([IDEA-024](../../backlog/idea-archive-is-not-a-form.md)) |
 | Does the bulk apply adopt? | Yes. `H = S` is a fact the store verifies, so `store newer` is recorded as installed in the same run |
 | A manual install on an `edited` or `conflict` row | No. The row offers the diff, not a button. `/admin/restore` stays the deliberate overwrite-everything path |
 | Headings in `/pages` | Live and seeded are one list, as the production page already has them; a `retired` page is an ordinary live page. Two tables: *Pages* and *Deleted pages* |
@@ -452,7 +452,7 @@ the rest.
 | [`docs/storage.md`](../../storage.md) | Two columns and what writes them; the repair; the archive's column list and its version |
 | [`docs/pages.md`](../../pages.md), [`docs/shell.md`](../../shell.md) | The listing's seed summary; `AdoptSeedAsync`; the gate's refusal; the apply route; the two tables |
 | [`docs/glossary.md`](../../glossary.md) | *Seed*, *seed hash* and *verdict* — the anchor, and what an install records that a save does not |
-| [`docs/jobs/README.md`](../../jobs/README.md), [`docs/decisions.md`](../../decisions.md) | The job moves to Closed with its summary and a programme row; five decision entries, named at the merge |
+| [`docs/jobs/README.md`](../../backlog/README.md), [`docs/decisions.md`](../../decisions.md) | The job moves to Closed with its summary and a programme row; five decision entries, named at the merge |
 | `/seed-plan` (the store page) | Superseded: update it to point at this plan, or retire it — it is not in the repository, so it is also the first thing a harvest would find |
 
 ## Slices
@@ -601,7 +601,7 @@ same change, as the author-manual rule asks.
 ## Not in scope
 
 - **A page that serves the pack.** The owner asked for the command and make, not a download page; an
-  archive is not a form ([IDEA-024](../../jobs/IDEA-024.md)), and the owner is at a terminal when they
+  archive is not a form ([IDEA-024](../../backlog/idea-archive-is-not-a-form.md)), and the owner is at a terminal when they
   mean to commit.
 - **A pipeline that emits an importable database when seeds change.** Wrong shape: the archive is
   all-or-nothing over the store, so importing one clobbers local edits, discards revisions and bypasses
@@ -623,7 +623,7 @@ same change, as the author-manual rule asks.
   verdict whenever the pack is big enough to need it, and it is not that big.
 
 **Origin:** the owner's note at `/seed-plan`, a stored page that is not part of this repository,
-reviewed against `trunk` on 2026-11-15 and recorded as [IDEA-036](../../jobs/closed.md). The review
+reviewed against `trunk` on 2026-11-15 and recorded as [IDEA-036](../../backlog/closed.md). The review
 changed three things: the revision hash is an identity, so the content hash has to be a second column
 (D1); the verdict is the host's answer rather than three hashes handed to the page (D3); and a
 harvested pack makes `store newer` an ordinary row rather than an optional repair (D4, D11). The owner

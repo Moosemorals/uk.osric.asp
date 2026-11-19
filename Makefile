@@ -123,7 +123,7 @@ BUILD_INPUTS := $(shell find src test tools -type f 2>/dev/null) \
 	Directory.Build.props Directory.Build.targets Directory.Packages.props $(SOLUTION) \
 	$(wildcard $(ARTIFACTS)/bin $(ARTIFACTS)/obj)
 
-.PHONY: help build restore check ci drift-check audit check-pages decisions test test-core test-runtime test-web test-integration test-browser test-browser-live browsers vscode-extension migration user-add user-passwd user-list user-remove remote-user-add remote-user-passwd remote-user-list remote-user-remove seeds-list seeds-pull remote-seeds-list remote-seeds-pull run publish image image-check deploy deploy-guard pull-install format format-check license-check mutation-core mutation-runtime mutation-sdk mutation-web worktree worktrees worktree-remove changelist clean
+.PHONY: help build restore check ci drift-check audit check-pages decisions backlog test test-core test-runtime test-web test-integration test-browser test-browser-live browsers vscode-extension migration user-add user-passwd user-list user-remove remote-user-add remote-user-passwd remote-user-list remote-user-remove seeds-list seeds-pull remote-seeds-list remote-seeds-pull run publish image image-check deploy deploy-guard pull-install format format-check license-check mutation-core mutation-runtime mutation-sdk mutation-web worktree worktrees worktree-remove changelist clean
 .DELETE_ON_ERROR:
 
 # ssh will not create the directory its control socket lives in.
@@ -141,6 +141,7 @@ help:
 		'audit              Fail if any NuGet package is vulnerable or deprecated.' \
 		'check-pages        Compile the seeded pages and print compiler diagnostics.' \
 		'decisions          Check the decision record: names, areas, duplicates, citations.' \
+		'backlog            Check the backlog record: slugs, fields, the order, plans and citations.' \
 		'test               Run every suite: core, runtime, web and integration (no browser required).' \
 		'test-core          Run the NUnit core tests only.' \
 		'test-runtime       Run the NUnit runtime tests only.' \
@@ -237,7 +238,7 @@ TEST_BROWSER_ARGS := --results-directory $(TEST_RESULTS) -- RunConfiguration.Tes
 # Every part is a target of its own, so this is as runnable on a laptop as it is in CI: there is no
 # second definition of "green" to drift from this one. `publish` is here because Release is what
 # actually ships — a Release-only break should not wait for a deploy to be discovered.
-check: format-check license-check audit decisions check-pages test publish
+check: format-check license-check audit decisions backlog check-pages test publish
 
 # A clean tree in, a clean tree out. The stamps in artifacts/ make repeat runs cheap, which is also
 # how an input that was never committed can hide; this is the one target that starts from nothing.
@@ -418,6 +419,17 @@ CHECK_DECISIONS_PROJECT := tools/check-decisions/check-decisions.csproj
 
 decisions: $(BUILD_STAMP)
 	$(DOTNET) run --project $(CHECK_DECISIONS_PROJECT) -c $(CONFIGURATION) --no-build -- .
+
+# ---- Backlog checks -------------------------------------------------------------------------------
+
+# docs/backlog is the record of what the site should become, so its shape is proved rather than
+# remembered: a slug of the right kind, one slug used once, the fields an item is ordered by, an order
+# that respects every blocker, both directions of the plan link, and no citation of an item that is
+# not there.
+CHECK_BACKLOG_PROJECT := tools/check-backlog/check-backlog.csproj
+
+backlog: $(BUILD_STAMP)
+	$(DOTNET) run --project $(CHECK_BACKLOG_PROJECT) -c $(CONFIGURATION) --no-build -- .
 
 # ---- Page checks ----------------------------------------------------------------------------------
 

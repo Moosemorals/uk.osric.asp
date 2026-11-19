@@ -3,11 +3,15 @@ SPDX-FileCopyrightText: Copyright 2026 Osric Wilkinson <osric@fluffypeople.com>
 SPDX-License-Identifier: MIT
 -->
 
-# IDEA-040 — Nothing says which pages a library edit will recompile
+# Nothing says which pages a library edit will recompile
 
 | | |
 | --- | --- |
-| Size | S — one fact on the listing or one reverse read, a value, and the tests and manual entry for each |
+| Difficulty | contented-capybara |
+| Utility | medium |
+| Status | open |
+| Blocked by | — |
+| Plan | [ide-host](../plans/ide-host.md) |
 | Area | Sdk, Web (pages, assistant), docs |
 | Location | `src/uk.osric.asp.Sdk/PageEntry.cs`, `src/uk.osric.asp.Sdk/IPageCatalog.cs`, `src/uk.osric.asp.Web/Pages/PageCatalogScope.cs`, `src/uk.osric.asp.Web/Pages/PageRevision.cs`, `src/uk.osric.asp.Web/Pages/PageImage.cs`, `src/uk.osric.asp.Web/Pages/PageLibraries.cs`, `src/uk.osric.asp.Web/Pages/Seeds/help` |
 

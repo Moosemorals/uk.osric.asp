@@ -12,7 +12,7 @@ SPDX-License-Identifier: MIT
 | Area | Web (html, admin, documentation, pages, seeds, wwwroot), deploy, docs |
 | Spike | None. Every count was read off the working tree on 2026-11-16: 26 files in `Pages/Seeds`, the consumers of each seed, the route table, `ReservedPaths`, `ShellRoutes`, `SecurityHeaders`, `ShellDocument` and the tests that name a retired key |
 | Decisions | Recorded at the merge: `shell-admin-is-a-shell-route`, `shell-admin-assets-are-static-files` and `shell-the-licences-are-read-not-restated` are new, and the first supersedes the retired admin-seed entry; `pages-scratch-saves-itself` and `shell-the-menu-is-written-twice` are edited in place |
-| Backlog | [IDEA-030](../jobs/closed.md) takes the link list this plan builds; [the shell navigation plan](shell-navigation.md) is the wider programme, and its D4 is superseded here |
+| Backlog | [IDEA-030](../backlog/closed.md) takes the link list this plan builds; [the shell navigation plan](shell-navigation.md) is the wider programme, and its D4 is superseded here |
 
 ## The short version
 
@@ -120,7 +120,7 @@ internal static class ShellLinks {
 ```
 
 This is [the shell navigation plan](shell-navigation.md)'s D1 without its `Sdk` half: the values stay
-internal to `Web` because no page reads them yet. [IDEA-030](../jobs/closed.md) moves them to
+internal to `Web` because no page reads them yet. [IDEA-030](../backlog/closed.md) moves them to
 `Sdk` and puts `ShellLinks()` on `IPageCatalog` when `_layout` and the editor want the list; that is a
 mechanical move, and the seeded layout keeps its hand-written menu until then.
 

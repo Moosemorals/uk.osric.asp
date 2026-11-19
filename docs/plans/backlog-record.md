@@ -7,12 +7,12 @@ SPDX-License-Identifier: MIT
 
 | | |
 | --- | --- |
-| Status | Proposed 2026-11-18 — waits for the owner. Nothing below is built |
+| Status | Built 2026-11-19 — waits for the merge. The folder, the 26 slugs, the fields, the one table and `make backlog` are all in place, and the gate is green |
 | Difficulty | Determined Mountain Goat 🐐💪 — a folder rename and a slug sweep over 26 open items, one new checker, one Makefile target, and the index's two tables becoming one, with care needed where a frozen document's links move |
 | Area | `docs/jobs` → `docs/backlog`, `docs/plans`, the live documents that cite an item, `CONTRIBUTING.md`, `.github/copilot-instructions.md`, `Makefile`, `uk.osric.asp.slnx`, a new `tools/check-backlog` |
-| Spike | None. Every claim about what exists was read off `trunk` on 2026-11-18: the 26 item files and the two tables in [the index](../jobs/README.md), [the closed list](../jobs/closed.md), [the whims](../jobs/WHIMS.md), the `Backlog` rows of the live plans, and the citations the live documents and comments carry |
+| Spike | None. Every claim about what exists was read off `trunk` on 2026-11-18: the 26 item files and the two tables in [the index](../backlog/README.md), [the closed list](../backlog/closed.md), [the whims](../backlog/WHIMS.md), the `Backlog` rows of the live plans, and the citations the live documents and comments carry |
 | Decisions | At the merge: **product-backlog-items-are-slugs**, **product-a-difficulty-is-not-a-duration** and **code-the-gate-checks-the-backlog** |
-| Backlog | This plan is the whole of the work. Nothing about the site is wrong, so there is no item file: the record is what changes. [WHIM-03](../jobs/WHIMS.md) — the backlog is not on the site — is adjacent and stays a whim |
+| Backlog | This plan is the whole of the work. Nothing about the site is wrong, so there is no item file: the record is what changes. [WHIM-03](../backlog/WHIMS.md) — the backlog is not on the site — is adjacent and stays a whim |
 
 ## The short version
 
@@ -43,7 +43,7 @@ record](../decisions.md) already made, applied to the other record in the reposi
 | | |
 | --- | --- |
 | The open items | 26 files, each with a header table of Size, Area, Location, Spike (and sometimes a Link or a Status) and an H1 of `IDEA-nnn — title` |
-| The index | Two tables in [the README](../jobs/README.md): an inventory of `ID`, Size, Severity, Plan and title, and an order of `#`, item, Size and "Why here" |
+| The index | Two tables in [the README](../backlog/README.md): an inventory of `ID`, Size, Severity, Plan and title, and an order of `#`, item, Size and "Why here" |
 | Duplication | Size is in the file header and in both tables, so one judgement is written in three places and can disagree with itself |
 | What Size measures | Duration: `S` is "a sitting", `M` "a day or so", `L` "big enough to want a plan of its own". That is a guess about the calendar dressed as a judgement about the work, and the owner asked for difficulty |
 | Priority | The order table's `#`, which is a good total order with a written reason — and nothing else |
@@ -133,6 +133,7 @@ already the block an item read alone carries.
 | --- | --- |
 | Difficulty | one of the ten levels below, written in the header — `caffeinated-squirrel` |
 | Utility | `low` / `medium` / `high` — what the owner gets when it is done |
+| Severity | a defect only, and kept as it was: the reviewer's risk assessment |
 | Status | `open` / `blocked` / `parked` |
 | Blocked by | `` `idea-check-without-storing` ``, comma-separated, or `—` |
 | Plan | [ide-host](ide-host.md), or `—` |
@@ -311,27 +312,40 @@ The titles are unchanged apart from the dropped number.
 ## Tests
 
 The checker is a tool and has no suite; the owner has answered that it does not want one, and
-`check-decisions` is the precedent. The proof is the record plus a deliberate break, each run on a
-copy in a scratch directory and recorded as evidence on the branch:
+`check-decisions` is the precedent. The proof is the record, then a deliberate break run on a copy of
+the tree in a scratch directory, one break per run:
 
-1. The real tree passes: `make backlog` prints the item count, the citation count and no problems.
-2. Remove an item's row from the table — a problem that points at the item.
-3. Put an item above its open blocker — a problem on the row and on the blocker.
-4. Make two items block each other — a cycle problem on both.
-5. Point a `Plan` at a plan whose `Backlog` does not link back — a problem on the header and the plan.
-6. Cite a slug that is not in the record in a live document — a problem on the citation.
-7. Leave an open item cited by its old number in backticks in a live document — a problem on the
-   citation.
-8. Write `Status: blocked` on an item with no open blocker — a problem on the field.
-9. Give two items one slug — a problem on both, and on the file that would be overwritten.
-10. The full gate: `make format-check license-check audit decisions backlog check-pages test
-    publish`, or `make check`.
+| Break | What `make backlog` said |
+| --- | --- |
+| none — the real tree | `backlog: 26 items in 25 rows, 289 citations resolved`, exit 0 |
+| a row deleted from the order | `the order runs 1..24 and this row is 15` and `` `ops-no-outage-notification` is not in the order ``, exit 1 |
+| an item moved above its blocker | `` `idea-one-write-per-render` is blocked by `idea-check-without-storing`, which is at row 10 ``, exit 1 |
+| two items made to block each other | a row problem, `says open and a blocker is still open`, and `` `idea-one-write-per-render` is in a cycle of blockers ``, exit 1 |
+| a plan's `Backlog` row unlinked | `` `account-store.md` does not link back to `idea-no-account-store` ``, exit 1 |
+| a citation of a slug that is not there | "cited but is not in the record", exit 1 |
+| an open item cited by its old number | "cited by its old number and closed.md has no such row", exit 1 |
+| `blocked` with no open blocker | `says blocked and no blocker is open`, exit 1 |
+| the same item `parked` | no problem, exit 0 — `parked` is the owner's to write |
+| a row whose utility disagrees with the header | `the row is high and … is low`, exit 1 |
+| an item renamed and its row not | "is not in the order", exit 1 |
+
+The gate itself is the last proof: `make check` runs `format-check license-check audit decisions
+backlog check-pages test publish`, and `make format-check`, `make decisions` and `make license-check`
+were run first, so a failure would have named the change that caused it.
+
+Two rules the tool does not carry, deliberately:
+
+- **`closed.md` is not rewritten except to append.** Only git can answer that, and a checker that
+  guessed would be a second history.
+- **Two items sharing a row.** The row's `Difficulty` is the step's, so it must be no easier than any
+  item in it and its `Utility` must be theirs; that is what is checked, rather than an equality the
+  combined step would always fail.
 
 No product test changes: nothing under `src/` or `test/` changes behaviour.
 
 ## Documentation
 
-- [The index](../jobs/README.md) states the scheme once: the slug and the title, the header's fields,
+- [The index](../backlog/README.md) states the scheme once: the slug and the title, the header's fields,
   the difficulty scale with its ten animals, the one table, and what `make backlog` proves.
 - [CONTRIBUTING.md](../../CONTRIBUTING.md) says a branch is `kind/filename` and an item is a slug;
   the `arch-15`/`idea-026` examples become `arch/…` and `idea/…`.
@@ -347,13 +361,13 @@ No product test changes: nothing under `src/` or `test/` changes behaviour.
   is identified by a `kind-subject` slug and has a title as its H1, the header carries Difficulty,
   Utility, Status, Blocked by and Plan, the order table is the priority, and `closed.md` is frozen.
   Recorded
-  in this plan and [the index](../jobs/README.md).
+  in this plan and [the index](../backlog/README.md).
 - **product-a-difficulty-is-not-a-duration** — difficulty is a level on the animal scale, never a
   guess at the calendar: the header and the row carry an animal and its condition, and no document
-  in the record estimates hours or days. Recorded in this plan and [the index](../jobs/README.md).
+  in the record estimates hours or days. Recorded in this plan and [the index](../backlog/README.md).
 - **code-the-gate-checks-the-backlog** — `make check` runs `make backlog`, which proves the slugs,
   the fields, the order against the dependency graph and both directions of the plan link. Recorded
-  in this plan, [the index](../jobs/README.md) and the `Makefile`.
+  in this plan, [the index](../backlog/README.md) and the `Makefile`.
 
 ## Slices
 
@@ -399,7 +413,7 @@ owner would rather merge the folder and the slugs first, slice 1 stands alone an
 
 - **GitHub Issues, Projects or Azure DevOps.** They model every field above and do it well; they move
   the record out of the repository, out of the diff and out of the gate, and that is the property
-  this plan is keeping. A board is a view, and a view can be generated later ([WHIM-03](../jobs/WHIMS.md)).
+  this plan is keeping. A board is a view, and a view can be generated later ([WHIM-03](../backlog/WHIMS.md)).
 - **A tracker tool.** A checker is a pure function over a folder of text; a tracker with transitions,
   filters and a UI is a second product.
 - **A computed priority score.** The order with a reason per row is the decision; a score is a

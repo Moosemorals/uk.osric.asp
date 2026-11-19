@@ -3,11 +3,15 @@ SPDX-FileCopyrightText: Copyright 2026 Osric Wilkinson <osric@fluffypeople.com>
 SPDX-License-Identifier: MIT
 -->
 
-# IDEA-027 — A page cannot leave a message for a page it sends a visitor to
+# A page cannot leave a message for a page it sends a visitor to
 
 | | |
 | --- | --- |
-| Size | L — re-sized 2026-11-17. The chosen shape is a durable mailbox for pages and workers, not one write into the session store |
+| Difficulty | protective-dragon |
+| Utility | high |
+| Status | open |
+| Blocked by | — |
+| Plan | [page-inbox](../plans/page-inbox.md) |
 | Area | Sdk, Web (pages, work, storage), docs |
 | Location | `src/uk.osric.asp.Sdk/IPageInbox.cs` (new), `src/uk.osric.asp.Sdk/PageTopic.cs` (new), `src/uk.osric.asp.Web/Pages/PageInboxScope.cs` (new), `src/uk.osric.asp.Web/Pages/SqlitePageInboxStore.cs` (new), `src/uk.osric.asp.Web/Pages/PageSessionOptions.cs`, `src/uk.osric.asp.Web/Work/PageJobRunner.cs`, `src/uk.osric.asp.Web/Pages/PageChain.cs`, `src/uk.osric.asp.Web/Storage/`, `src/uk.osric.asp.Web/Pages/Seeds/_layout`, `src/uk.osric.asp.Web/Pages/Seeds/help`, `src/uk.osric.asp.Web/Pages/Seeds/privacy` |
 

@@ -11,7 +11,7 @@ SPDX-License-Identifier: MIT
 | Size | Small — one pure parse, one value on the client's answer, one sampler, one gauge, one panel and one key, with the tests for each |
 | Area | Core (assistant), Web (assistant, metrics, configuration) |
 | Spike | None. `/user/balance` is already read on every conversation page view, its JSON is already parsed, and the observability shape is the one `PageStorageSampler` already uses |
-| Backlog | IDEA-032, closed by this change ([the job index](../../jobs/closed.md)) |
+| Backlog | IDEA-032, closed by this change ([the job index](../../backlog/closed.md)) |
 | Decisions | Six, taken at the merge and listed at the bottom of this file; no existing entry is revised |
 
 ## The short version
@@ -52,7 +52,7 @@ down*, *what did this week cost*, and *did the price move*, because credit per s
   the balance is the provider's own figure.
 - **The granted and topped-up split as series.** The page shows it; the chart shows the total, which
   is the one that runs out.
-- **Alerting.** A low balance is [OPS-05](../../jobs/OPS-05.md)'s question and needs a notification
+- **Alerting.** A low balance is [OPS-05](../../backlog/ops-no-outage-notification.md)'s question and needs a notification
   channel, not a chart.
 - **Per-run cost attribution.** The balance is an account's, not a run's; `assistant.tokens` already
   attributes text to a run, and dividing the two is a reader's arithmetic.
@@ -261,7 +261,7 @@ tests are green.
 
 - [metrics](../../metrics.md): the instrument row, the panel count sentence, and what the level answers.
 - [assistant](../../assistant.md): the balance paragraph gains the sample.
-- [jobs](../../jobs/README.md): IDEA-032 moved to Closed and its file removed; the open table and "not
+- [jobs](../../backlog/README.md): IDEA-032 moved to Closed and its file removed; the open table and "not
   in this programme" lose their rows.
 - `/help` is unchanged: this adds no page-authoring capability.
 

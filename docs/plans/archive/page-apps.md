@@ -13,7 +13,7 @@ SPDX-License-Identifier: MIT
 | Location | `src/uk.osric.asp.Core/`, `src/uk.osric.asp.Sdk/`, `src/uk.osric.asp.Runtime/`, `src/uk.osric.asp.Web/Pages/`, `src/uk.osric.asp.Web/Work/`, `deploy/Caddyfile`, `src/uk.osric.asp.Web/Pages/Seeds/help` |
 | Spike | None. The assistant proves the long response, the upstream stream and work that outlives a request; the worker kind is the compiler's existing page/library split with an entry point instead of a handler |
 | Decisions | Named in prose; the names are taken when the work merges (`product-plan-before-building`, `product-decisions-have-names`, `product-steps-wait-for-the-owner`) |
-| Backlog | [IDEA-025](../../jobs/IDEA-025.md) (the assistant as a page, re-scoped by this plan), [IDEA-033](../../jobs/IDEA-033.md) (a page has no per-account store), [the streaming plan](page-streaming.md) (ARCH-13, where a page learned to stream but not to keep the stream) |
+| Backlog | [IDEA-025](../../backlog/idea-conversation-is-not-a-page.md) (the assistant as a page, re-scoped by this plan), [IDEA-033](../../backlog/idea-no-account-store.md) (a page has no per-account store), [the streaming plan](page-streaming.md) (ARCH-13, where a page learned to stream but not to keep the stream) |
 
 ## The short version
 
@@ -56,7 +56,7 @@ view outlived the view and had to be withdrawn (`assistant-memory-belongs-to-the
 
 | The assistant does | What it needs | Where that belongs |
 | --- | --- | --- |
-| Lists conversations, reads a transcript, edits options, deletes, shows memory rows | Durable rows owned by one account | Page code over storage — but `IPageStorage` is shared by every visitor and capped at 256 KiB per page in the shipped configuration. The owner's store is [IDEA-033](../../jobs/IDEA-033.md) |
+| Lists conversations, reads a transcript, edits options, deletes, shows memory rows | Durable rows owned by one account | Page code over storage — but `IPageStorage` is shared by every visitor and capped at 256 KiB per page in the shipped configuration. The owner's store is [IDEA-033](../../backlog/idea-no-account-store.md) |
 | Starts a run from a message, bounds the queue and the concurrency | Work after the response has gone | **Workers and jobs** (this plan): a worker entry point, invoked by the job runner |
 | Streams deltas, replays them after a reconnect, stops a run | A sequenced journal with live subscribers and a bounded replay | **Workers and jobs** — the journal belongs to the job, not to a standalone event bus |
 | Asks for approval, asks to continue | A decision sent as a message to the running job, or a stored row that starts the next job | **Workers and jobs** — the message channel; the page chooses whether to wait or to end |
@@ -129,7 +129,7 @@ a response-shaped context it can never use.
 9. A worker is a fourth kind: compiled to an entry-point assembly when it is saved, never served,
    never wrapped, never an asset, and never a library another page or library may `using`.
 10. `/help`, the page contract, configuration, [pages](../../pages.md), [architecture](../../architecture.md)
-    and [the jobs](../../jobs/README.md) say what a page author may rely on, in the same change.
+    and [the jobs](../../backlog/README.md) say what a page author may rely on, in the same change.
 11. The page side of a worker is a capability, not a new `IContext` member; a layout is not offered it
     and a `HEAD` is offered the reads and never the writes.
 12. The assistant is never named in `Sdk`, and no new type exists only for it.
@@ -138,7 +138,7 @@ a response-shaped context it can never use.
 
 - **Porting the assistant in this plan.** The plan ends with what a port still lacks. The port is its
   own step, with its own plan, after the authority question in phase 5 is answered.
-- **A per-account store.** [IDEA-033](../../jobs/IDEA-033.md) is the owner's rows, with SQL, quotas, a
+- **A per-account store.** [IDEA-033](../../backlog/idea-no-account-store.md) is the owner's rows, with SQL, quotas, a
   schema lifecycle and a privacy sentence. The job registry and journal are in memory and are not a
   store a page can put its data in.
 - **A general page-store writer.** A page still writes only its own key and a worker writes no
@@ -490,10 +490,10 @@ second request, streamed, stopped and read, with no assistant type in `Sdk`.
 
 ### Phase 5 — what a port still lacks (documents only)
 
-- Re-scope [IDEA-025](../../jobs/IDEA-025.md): the conversation view, the run as a worker and a job, the
+- Re-scope [IDEA-025](../../backlog/idea-conversation-is-not-a-page.md): the conversation view, the run as a worker and a job, the
   memory view, the approval as a stored decision and a new job, and the transcript on the owner's
   store.
-- Name the remaining gaps honestly: [IDEA-033](../../jobs/IDEA-033.md) for the transcript and memory, the
+- Name the remaining gaps honestly: [IDEA-033](../../backlog/idea-no-account-store.md) for the transcript and memory, the
   page-store write authority for the tools, and the restricted Markdown profile.
 - The authority question, written as a decision for the owner: does a worker get a page writer for the
   keys the assistant's tools may edit, so one configured worker (or one page) has the authority and
@@ -660,7 +660,7 @@ client.
    job can only keep data. The port cannot happen without an answer. Does a worker get a page writer
    for another key, bound to one configured worker, or does the page's write grow a key for any caller?
    Phase 5 records the choice, and it is written out with its three shapes and their costs in
-   [IDEA-025](../../jobs/IDEA-025.md#the-authority-question-for-the-owner). It is still open: it is the
+   [IDEA-025](../../backlog/idea-conversation-is-not-a-page.md#the-authority-question-for-the-owner). It is still open: it is the
    owner's to make, and it is also listed in [the open questions](../../decisions.md#open-questions).
 2. **The names.** Settled. `Worker` and `Job` are the kind and one run of it; `IPageJobs`, `IWorker`,
    `IWorkerContext`, `StreamAsync`, `HttpFetchStream` and `PageStreamRefusedException` are the

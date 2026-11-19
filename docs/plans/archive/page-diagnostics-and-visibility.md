@@ -6,7 +6,7 @@ SPDX-License-Identifier: MIT
 # Page diagnostics and assembly visibility
 
 Status: **implemented** 2026-11-09, in the order the phases below set out. Written 2026-11-08 for
-review. Filed as ARCH-14, which is now closed and recorded in [jobs](../../jobs/closed.md).
+review. Filed as ARCH-14, which is now closed and recorded in [jobs](../../backlog/closed.md).
 
 Three things landed differently from the plan as written, and are recorded here rather than left
 for a reader to discover:
@@ -141,9 +141,9 @@ Checked against the code on 2026-11-08.
 | ARCH-14 | This job | **Implements it**; the job is closed |
 | `pages-the-response-is-buffered-until-a-flush`, "Compiled pages" | A warning-only page stores its image and reports "Saved with warnings." | Makes that sentence true in practice by giving the compiler something to warn about, and makes it visible in the listing |
 | "Visibility" in [architecture.md](../../../docs/architecture.md) | Nothing is `public` unless another product assembly needs it | Turns the paragraph into a build failure, and narrows the surface it already describes |
-| [IDEA-001](../../jobs/IDEA-001.md) | The editor has a gutter and linked diagnostics | The listing gains the state column that makes the run of those links worth clicking |
-| [IDEA-015](../../jobs/closed.md) | The listing and history are shell views because a page cannot read the store | Unchanged: the listing stays a shell view, and this plan fixes its shape before a page takes it over |
-| [SEC-03](../../jobs/SEC-03.md) | Page code has no process boundary | Guards at public entry points are not a boundary and are not presented as one |
+| [IDEA-001](../../backlog/idea-editor-is-a-textarea.md) | The editor has a gutter and linked diagnostics | The listing gains the state column that makes the run of those links worth clicking |
+| [IDEA-015](../../backlog/closed.md) | The listing and history are shell views because a page cannot read the store | Unchanged: the listing stays a shell view, and this plan fixes its shape before a page takes it over |
+| [SEC-03](../../backlog/sec-page-runs-in-process.md) | Page code has no process boundary | Guards at public entry points are not a boundary and are not presented as one |
 | [the shell](../../shell.md#error-responses) | Every failure is a document a person can read | The listing stays a document; the new column is text, not an icon |
 
 ## Design

@@ -5,7 +5,7 @@ SPDX-License-Identifier: MIT
 
 # The editor's line gutter, linked diagnostics and its script
 
-Implementation plan for [IDEA-001](../../jobs/IDEA-001.md) steps 2 and 4 — a server-rendered line
+Implementation plan for [IDEA-001](../../backlog/idea-editor-is-a-textarea.md) steps 2 and 4 — a server-rendered line
 gutter, each diagnostic anchored to its line, and the first script on the site with the policy that
 goes with it. Three things ride along because they touch the same markup: the editor fills the
 viewport, the caret survives a save, and the two inline `<pre style>` attributes go.

@@ -7,7 +7,7 @@ SPDX-License-Identifier: MIT
 
 | | |
 | --- | --- |
-| Status | Implemented 2026-11-10; phase 4 is [IDEA-026](../../jobs/IDEA-026.md) |
+| Status | Implemented 2026-11-10; phase 4 is [IDEA-026](../../backlog/IDEA-026.md) |
 | Size | Medium — two `Sdk` renames behind an obsolete alias, a mechanical rename through `Web` and its suites, seven seeded pages (`/help` among them), and the documents that teach the name |
 | Spike | None. The split is already in the code, and the obsolete behaviour is settled: a warning where a page uses the old name, and no warning where the host implements it |
 | Decisions | `pages-capabilities-are-one-seam` (the word, the alias, and the release that removes it), recorded with this plan |
@@ -394,7 +394,7 @@ the suppression. Gated on a query of the page store for heads whose source still
 - [glossary](../../glossary.md) defines **Capability**, with the "not a feature, not an extension" clause
   and the note that the accessor was `Features` until `pages-capabilities-are-one-seam`.
 - [testing](../../testing.md) needs no suite name change; it does not list `PageFeaturesTests`.
-- [the jobs](../../jobs/README.md) and IDEA-022/024/025 use the current spelling, and IDEA-026 is added
+- [the jobs](../../backlog/README.md) and IDEA-022/024/025 use the current spelling, and IDEA-026 is added
   as the alias's removal; archive plans and decision rows written before this change keep theirs.
 
 ## Delivered when

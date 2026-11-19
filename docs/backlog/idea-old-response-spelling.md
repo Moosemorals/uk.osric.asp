@@ -3,11 +3,15 @@ SPDX-FileCopyrightText: Copyright 2026 Osric Wilkinson <osric@fluffypeople.com>
 SPDX-License-Identifier: MIT
 -->
 
-# IDEA-050 — The old response spelling is still on `IContext`
+# The old response spelling is still on `IContext`
 
 | | |
 | --- | --- |
-| Size | S — ten default interface members and one constant deleted from `Sdk`, the `PAGE009` row retired, and the checks that the old spelling is gone |
+| Difficulty | contented-capybara |
+| Utility | low |
+| Status | open |
+| Blocked by | — |
+| Plan | [page-response](../plans/page-response.md) |
 | Area | Sdk, docs |
 | Location | `src/uk.osric.asp.Sdk/IContext.cs`, `src/uk.osric.asp.Sdk/PageResponseDeprecation.cs`, `docs/architecture.md` |
 

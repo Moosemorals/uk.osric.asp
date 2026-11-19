@@ -3,11 +3,16 @@ SPDX-FileCopyrightText: Copyright 2026 Osric Wilkinson <osric@fluffypeople.com>
 SPDX-License-Identifier: MIT
 -->
 
-# SEC-03 — Page code has no execution budget and no process boundary
+# Page code has no execution budget and no process boundary
 
 | | |
 | --- | --- |
+| Difficulty | cornered-porcupine |
+| Utility | high |
 | Severity | Medium |
+| Status | open |
+| Blocked by | — |
+| Plan | — |
 | Area | Security, runtime |
 | Location | `src/uk.osric.asp.Runtime/CompiledPage.cs`, `src/uk.osric.asp.Web/Pages/PageEndpoint.cs` |
 

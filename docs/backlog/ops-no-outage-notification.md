@@ -3,11 +3,16 @@ SPDX-FileCopyrightText: Copyright 2026 Osric Wilkinson <osric@fluffypeople.com>
 SPDX-License-Identifier: MIT
 -->
 
-# OPS-05 — No outbound notifications when the site breaks
+# No outbound notifications when the site breaks
 
 | | |
 | --- | --- |
+| Difficulty | eager-beaver |
+| Utility | medium |
 | Severity | Medium |
+| Status | open |
+| Blocked by | — |
+| Plan | — |
 | Area | Operations, deployment |
 | Location | `deploy/`, `src/uk.osric.asp.Web` |
 

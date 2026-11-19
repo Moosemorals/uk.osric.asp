@@ -11,7 +11,7 @@ SPDX-License-Identifier: MIT
 | Size | Large — a migration, a store, four tools, recall in the run, and the tests for each |
 | Spike | [Memory for the page assistant](../../spikes/assistant-memory.md), which measures the store and surveys what other systems do |
 | Decisions | `assistant-memory-is-the-owners`, `assistant-memory-recall-is-fts5`, recorded in [decisions](../../decisions.md#assistant-memory-is-the-owners) |
-| Backlog | [IDEA-023](../../jobs/closed.md) — the page that shows, edits and pins memory, now built by [its own plan](assistant-memory-page.md) |
+| Backlog | [IDEA-023](../../backlog/closed.md) — the page that shows, edits and pins memory, now built by [its own plan](assistant-memory-page.md) |
 
 ## The short version
 
@@ -36,7 +36,7 @@ run.
   under a millisecond.
 
 The owner's view of all this — a page that lists, edits, forgets and pins — is
-[IDEA-023](../../jobs/closed.md). This plan stores the `Pinned` flag and honours it in the selector so
+[IDEA-023](../../backlog/closed.md). This plan stores the `Pinned` flag and honours it in the selector so
 that the job is a page rather than a migration, but until the job lands nothing sets it except a
 test. The assistant's own tools are the whole owner interface in the meantime: the transcript shows
 every write, and `forget_memory` is how a memory is removed.
@@ -59,7 +59,7 @@ every write, and `forget_memory` is how a memory is removed.
 ## Non-goals
 
 - **An owner-facing page.** Listing, editing, forgetting and pinning from the browser is
-  [IDEA-023](../../jobs/closed.md), built by [the memory page plan](assistant-memory-page.md). This
+  [IDEA-023](../../backlog/closed.md), built by [the memory page plan](assistant-memory-page.md). This
   plan is the assistant side.
 - **Embeddings, a vector store or a reranker.** The provider client speaks chat completions only,
   and the measured recall at this size does not need them.
@@ -627,7 +627,7 @@ because v12 was taken by the context-masking change that merged ahead of this on
 Docs changes: a paragraph in [assistant](../../assistant.md) after the tools and approvals paragraph; an
 "Assistant memory" subsection in [storage](../../storage.md) beside `PageState`; **Memory** and **Recall**
 entries in [glossary](../../glossary.md); a clause in [testing](../../testing.md) naming the memory suites;
-the six settings in `appsettings.json`; and [IDEA-023](../../jobs/closed.md) for the page.
+the six settings in `appsettings.json`; and [IDEA-023](../../backlog/closed.md) for the page.
 
 ## Risks
 

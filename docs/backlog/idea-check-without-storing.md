@@ -3,11 +3,15 @@ SPDX-FileCopyrightText: Copyright 2026 Osric Wilkinson <osric@fluffypeople.com>
 SPDX-License-Identifier: MIT
 -->
 
-# IDEA-037 — A page cannot check a template without saving it
+# A page cannot check a template without saving it
 
 | | |
 | --- | --- |
-| Size | M — one member on the editor capability, one call through the save path that discards its answer, a compile-budget rule, and the tests and manual entry for each |
+| Difficulty | caffeinated-squirrel |
+| Utility | high |
+| Status | open |
+| Blocked by | — |
+| Plan | [ide-host](../plans/ide-host.md) |
 | Area | Sdk, Runtime, Web (pages, editor), docs |
 | Location | `src/uk.osric.asp.Sdk/IPageWrites.cs`, `src/uk.osric.asp.Sdk/PageEditResult.cs`, `src/uk.osric.asp.Web/Pages/PageWritesScope.cs`, `src/uk.osric.asp.Web/Editor/PageSaver.cs`, `src/uk.osric.asp.Web/Pages/PageImageBuilder.cs`, `src/uk.osric.asp.Web/Pages/Seeds/help`, `src/uk.osric.asp.Web/Assistant/PageAuthorPrompt.cs` |
 
@@ -75,7 +79,7 @@ hundredths of a millisecond and a warm compile is 30–70 ms (`Pages:Compile:Slo
    (`pages-any-page-may-write-the-store`).
 2. **Whether a check is "the action".** A page that checks and then saves makes two compiles in one
    render, and `PageWritesScope` currently counts any write as the one action. If
-   [IDEA-047](IDEA-047.md) replaces that rule with a batch, check-then-save is one batch of one; until
+   [`idea-one-write-per-render`](`idea-one-write-per-render`.md) replaces that rule with a batch, check-then-save is one batch of one; until
    then the check must not spend the action, or the editor cannot check and save.
 3. **Anonymous checks.** A check discloses nothing from the store, but it spends a compile slot, and a
    slot is a shared resource. Signed-in only is the conservative answer; a public check is a denial of
@@ -97,7 +101,7 @@ hundredths of a millisecond and a warm compile is 30–70 ms (`Pages:Compile:Slo
 **Origin:** the owner's comparison of the site's IDE plan (`/ide-plan`, a stored page that is not in this
 repository) with the job list of 2026-11-15. The IDE plan calls this "the biggest single gap" and its
 workaround — save, read, accept the noise — is what every caller does today. The narrower half is
-already named in [IDEA-029](IDEA-029.md) for VS Code; this job is the page side of the same compiler.
+already named in [`idea-vscode-cannot-check-a-page`](`idea-vscode-cannot-check-a-page`.md) for VS Code; this job is the page side of the same compiler.
 
 The plan that places it is [host support for the IDE](../plans/ide-host.md); this is slice 3 there, because a
 check needs the diagnostic value [IDEA-041](closed.md) answers with.

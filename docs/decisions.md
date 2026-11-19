@@ -126,7 +126,7 @@ Work is tracked as jobs: one file per job, `IDEA-` for something the site could 
 self-contained work goes first because it never gets scheduled otherwise. Speculative product work is
 backlog, not a licence to widen the task in hand.
 
-*Recorded in [jobs](jobs/README.md).*
+*Recorded in [jobs](backlog/README.md).*
 
 ### product-plan-before-building
 
@@ -143,7 +143,7 @@ on the answer. A green gate, a finished plan, the next step being ready and sile
 expectation, never permission: an agent does not merge its own work and does not start the step after
 it.
 
-*Recorded in [the programme](jobs/README.md#a-step-stops-and-the-owner-answers), [how to work](../CONTRIBUTING.md#working-on-it).*
+*Recorded in [the programme](backlog/README.md#a-step-stops-and-the-owner-answers), [how to work](../CONTRIBUTING.md#working-on-it).*
 
 ### product-manual-is-a-page
 
@@ -263,7 +263,7 @@ ceiling that keep a configured value from switching a guard off — and a securi
 configured only in the direction that keeps or tightens the shipped guarantee. `Core` never reads
 configuration: the shell turns a setting into a plain value and passes it in.
 
-*Recorded in [configuration](architecture.md#configuration), [IDEA-031](jobs/IDEA-031.md).*
+*Recorded in [configuration](architecture.md#configuration), [`idea-policy-is-a-constant`](backlog/idea-policy-is-a-constant.md).*
 
 ### code-validation-at-the-boundary
 
@@ -587,10 +587,10 @@ close.
 
 There is no sandbox claim. A page runs in-process with the site's identity and the whole BCL; isolation
 is fencing, not a boundary, and the threat model is "avoid obvious footguns", not "resist a determined
-adversary". The trims and the policy are worth their cost at that bar; the process boundary (SEC-03)
+adversary". The trims and the policy are worth their cost at that bar; the process boundary (`sec-page-runs-in-process`)
 and an out-of-process worker are priced and stay unbuilt while the only page author is the owner.
 
-*Recorded in [SEC-03](jobs/SEC-03.md), [page-runtime-hardening](plans/archive/page-runtime-hardening.md).*
+*Recorded in [`sec-page-runs-in-process`](backlog/sec-page-runs-in-process.md), [page-runtime-hardening](plans/archive/page-runtime-hardening.md).*
 
 ### pages-the-execution-budget
 
@@ -1159,7 +1159,7 @@ A save belongs to the next request: the running image is not re-read, the respon
 page unless the page shows the result the save returned, the save is committed before the rest of the
 render, and one render makes at most one write, whichever member it uses. The canonical pattern is a
 `POST` that saves and answers with the diagnostics, or saves and redirects with `303`. A batch that
-names its own policy is [IDEA-047](../docs/jobs/IDEA-047.md)'s work.
+names its own policy is [`idea-one-write-per-render`](../docs/backlog/idea-one-write-per-render.md)'s work.
 
 *Recorded in [page self-save](plans/archive/page-self-save.md), [page writes](plans/archive/page-writes.md), [IPageWrites](../src/uk.osric.asp.Sdk/IPageWrites.cs).*
 
@@ -1701,7 +1701,7 @@ with the reason. A route exists because the site's code answers it, so an operat
 list could only let a stored page shadow a route such as `/login`, and no legitimate deployment needs
 that; a longer list would have to invent a route that does not exist. This is the exception
 `code-policy-values-are-configuration` names — a security policy configuration may only keep or tighten
-— and [IDEA-031](../docs/jobs/IDEA-031.md) lists it with the other invariants.
+— and [`idea-policy-is-a-constant`](../docs/backlog/idea-policy-is-a-constant.md) lists it with the other invariants.
 
 *Recorded in [the route catalogue](plans/shell-route-catalogue.md#d4--reservedpaths-derives-its-keys), [ReservedPaths](../src/uk.osric.asp.Web/Pages/ReservedPaths.cs), [the shell](shell.md).*
 
@@ -2087,7 +2087,7 @@ Memory is the assistant's, not the page contract's. Its store, its FTS5 recall, 
 provenance are written by the assistant's tools inside a run and read back into the next prompt, so the
 owner's view of it arrives with the assistant page rather than as a capability of its own. What a page
 cannot do is keep anything for a signed-in account: page storage is shared by every visitor and a page
-session belongs to one browser and goes when it signs out. That gap is [IDEA-033](jobs/IDEA-033.md),
+session belongs to one browser and goes when it signs out. That gap is [`idea-no-account-store`](backlog/idea-no-account-store.md),
 shaped as a per-account SQL store whose tables the page declares, and a capability arrives with the view
 that needs it, so the job names its first customer before it is built.
 
@@ -2514,7 +2514,7 @@ never deletes on the site.
 No outbound alerting yet. A failure is discovered by visiting the site or reading the journal; a job
 carries the notification work.
 
-*Recorded in [OPS-05](jobs/OPS-05.md).*
+*Recorded in [`ops-no-outage-notification`](backlog/ops-no-outage-notification.md).*
 
 ### deploy-the-domain-is-public
 
@@ -2644,7 +2644,7 @@ name, and the entries that were already superseded when this file was written ar
 
 Not decisions yet — recorded so they are not rediscovered:
 
-- The process boundary (SEC-03 step 3) rests on the owner being the only author. If that premise changes,
+- The process boundary (`sec-page-runs-in-process` step 3) rests on the owner being the only author. If that premise changes,
   `pages-there-is-no-sandbox` changes with it.
 - A page that blocks synchronously is unchanged by `pages-page-io-is-async`: async makes a *waiting* page
   cheap to abandon, and does nothing for arbitrary C# the deadline cannot interrupt.
@@ -2653,5 +2653,5 @@ Not decisions yet — recorded so they are not rediscovered:
   the member list is the only exception surface.
 - `pages-page-storage` makes page state shared by every visitor and racy under concurrency: an increment
   is last-write-wins, not atomic. The identity hook a per-user store needs exists, and that store is
-  [IDEA-033](jobs/IDEA-033.md) — a job with its own plan, migration and decision rather than a blocked
+  [`idea-no-account-store`](backlog/idea-no-account-store.md) — a job with its own plan, migration and decision rather than a blocked
   one. An atomic increment would still be a different storage primitive.

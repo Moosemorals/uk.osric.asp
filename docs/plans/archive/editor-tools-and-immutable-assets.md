@@ -8,7 +8,7 @@ SPDX-License-Identifier: MIT
 Implementation plan for ARCH-06, ARCH-10 and ARCH-11, covering the completed editor listing,
 deletion and generated-source work plus the retained-revision storage foundation for future
 immutable asset URLs.
-The history storage and browsing view also deliver part of [ARCH-07](../../jobs/ARCH-07.md); revision
+The history storage and browsing view also deliver part of [ARCH-07](../../backlog/ARCH-07.md); revision
 restore remains later work. Asset serving and PageLayout adoption belong to
 IDEA-010.
 

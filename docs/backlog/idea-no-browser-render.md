@@ -3,11 +3,15 @@ SPDX-FileCopyrightText: Copyright 2026 Osric Wilkinson <osric@fluffypeople.com>
 SPDX-License-Identifier: MIT
 -->
 
-# IDEA-044 — A page cannot render a page in a browser
+# A page cannot render a page in a browser
 
 | | |
 | --- | --- |
-| Size | L — a spike first, then a sidecar container with a pinned digest, one protocol, one capability, a job path, a configuration section, and the manual and the assistant prompt for each. It wants a plan of its own |
+| Difficulty | persistent-salmon |
+| Utility | low |
+| Status | open |
+| Blocked by | — |
+| Plan | — |
 | Area | Sdk, Web (pages, jobs), deploy, docs, security |
 | Location | `src/uk.osric.asp.Sdk/` (a new capability and its values), `src/uk.osric.asp.Web/Pages/`, `src/uk.osric.asp.Web/Work/`, `deploy/` (a quadlet and an internal network), `deploy/README.md`, `src/uk.osric.asp.Web/Pages/Seeds/help`, `src/uk.osric.asp.Web/Assistant/PageAuthorPrompt.cs` |
 
@@ -140,7 +144,7 @@ than the app, and running the page's own scripts.
    gets a report and never a socket.
 3. **`pages-there-is-no-sandbox`** — must gain the sentence that a browser is not a boundary for page
    code; it is a second process, and a second place to attack.
-4. **SEC-03** — the process boundary it leaves unbuilt is for *page code*. A browser is not that
+4. **`sec-page-runs-in-process`** — the process boundary it leaves unbuilt is for *page code*. A browser is not that
    boundary, and no reader should be able to mistake one for the other.
 5. **`code-browser-suite-is-opt-in`** — a product browser is not the test browser, but the precedent
    stands: browsers here are opt-in, outside the gate, and heavy.

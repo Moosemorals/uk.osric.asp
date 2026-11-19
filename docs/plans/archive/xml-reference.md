@@ -457,7 +457,7 @@ four names. The tool is unaffected: `Sdk` has no `<inheritdoc/>` entries.
 | [`Pages/Seeds/help`](../../../src/uk.osric.asp.Web/Pages/Seeds/help) | The reference link beside the page API paragraph, and a link on the first mention of each type and member in a section (`product-manual-is-a-page`) |
 | [`docs/shell.md`](../../shell.md), [`docs/assistant.md`](../../assistant.md) | The routes and the tool; the `/admin/**` sentence gains its `/admin/reference` exception |
 | [`docs/architecture.md`](../../architecture.md#where-a-view-lives), [`docs/glossary.md`](../../glossary.md) | The audit's fourth reason, the **Build fact** entry, bootstrap's list |
-| [`docs/jobs/README.md`](../../jobs/README.md) | The job moves to Closed with the summary and `shell-the-reference` |
+| [`docs/jobs/README.md`](../../backlog/README.md) | The job moves to Closed with the summary and `shell-the-reference` |
 | [`docs/decisions.md`](../../decisions.md) | One entry, named at the merge |
 | `test/uk.osric.asp.Web.BrowserTests/` | One test: the external-link arrow, which no string proves |
 
@@ -554,7 +554,7 @@ registry holds nineteen tools; the prompt names the tool, the `/admin/reference`
 
 ### 6 — Close-out
 
-Done: the job moved to Closed in [jobs](../../jobs/README.md) with a summary, `docs/decisions.md` gained
+Done: the job moved to Closed in [jobs](../../backlog/README.md) with a summary, `docs/decisions.md` gained
 `shell-the-reference`, and every citation in the branch names it.
 
 ## Verification

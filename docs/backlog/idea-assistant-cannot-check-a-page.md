@@ -3,11 +3,15 @@ SPDX-FileCopyrightText: Copyright 2026 Osric Wilkinson <osric@fluffypeople.com>
 SPDX-License-Identifier: MIT
 -->
 
-# IDEA-054 — The assistant can check a script but not a page
+# The assistant can check a script but not a page
 
 | | |
 | --- | --- |
-| Size | M — one tool replacing two, the compile through [IDEA-037](IDEA-037.md)'s member, one `language` argument, the prompt, the docs and five suites; and the second merge is nearly free once the same change is open |
+| Difficulty | determined-mountain-goat |
+| Utility | high |
+| Status | blocked |
+| Blocked by | `idea-check-without-storing` |
+| Plan | — |
 | Area | Core (Assistant), Web (assistant), docs |
 | Location | `src/uk.osric.asp.Web/Assistant/Tools/ScriptTools.cs`, `ToolRegistry.cs`, `src/uk.osric.asp.Core/Assistant/ToolArguments.cs`, `src/uk.osric.asp.Web/Assistant/PageAuthorPrompt.cs`, `docs/assistant.md` |
 
@@ -16,7 +20,7 @@ SPDX-License-Identifier: MIT
 The assistant can ask whether a page's **JavaScript** parses, and nothing else. The question it asks
 most — does this page compile — has one answer today, and that answer is a save: `write_page` and
 `edit_page` compile because they store, so a template the assistant is unsure of reaches the store
-before anyone knows whether it is good. [IDEA-037](IDEA-037.md) names exactly this and puts the answer
+before anyone knows whether it is good. [`idea-check-without-storing`](`idea-check-without-storing`.md) names exactly this and puts the answer
 on the page contract as `CheckAsync(key, template)`; its first open question already says why the
 assistant's case is the one that wants a read-only form of it.
 
@@ -39,11 +43,11 @@ which validator, and therefore which language — is hidden behind a suffix nami
    `check_script_text`, with the same blanking of template constructs, the same success-on-invalid
    rule and the same diagnostics. Nothing about the check moves; only the name it is asked by.
 
-3. **`template` is the compile, borrowed and not rebuilt.** It calls [IDEA-037](IDEA-037.md)'s
+3. **`template` is the compile, borrowed and not rebuilt.** It calls [`idea-check-without-storing`](`idea-check-without-storing`.md)'s
    `CheckAsync` and answers its diagnostics, so `check(language: "template", content: X)` returns
    exactly what a save of `X` would, and there is one compile seam rather than two. That answers
-   IDEA-037's first open question in the negative: the assistant needs no second capability, because a
-   tool is host code and asks the same member a page would. This job therefore follows IDEA-037; a tool
+   `idea-check-without-storing`'s first open question in the negative: the assistant needs no second capability, because a
+   tool is host code and asks the same member a page would. This job therefore follows `idea-check-without-storing`; a tool
    that arrived first would have to grow the seam the page contract is already getting, which is the
    duplication the seam rule exists to prevent.
 
@@ -52,7 +56,7 @@ which validator, and therefore which language — is hidden behind a suffix nami
    provider's cached prefix has already been built against.
 
 5. **Two checkers today is a `switch`, not a registry.** `n` is two; a table of one type per language
-   is the shape [IDEA-055](IDEA-055.md) introduces with its third and fourth, exactly as the shell
+   is the shape [`idea-nothing-checks-page-assets`](`idea-nothing-checks-page-assets`.md) introduces with its third and fourth, exactly as the shell
    became applets when it had twelve commands rather than two. The refusal names the languages that
    are not there yet, in the wording `help` uses.
 
@@ -69,12 +73,12 @@ which validator, and therefore which language — is hidden behind a suffix nami
 
 9. **The record.** A new name, proposed **assistant-a-check-names-its-language**, citing
    `assistant-script-checks` and `assistant-edit-page-is-safe`, both permanent and unedited. Its
-   description, and every other tool's, is written by [IDEA-053](IDEA-053.md)'s slice rather than
+   description, and every other tool's, is written by [`idea-tool-arguments-say-nothing`](`idea-tool-arguments-say-nothing`.md)'s slice rather than
    rewritten after it. The prompt
    loses the two lines that name `check_script_text` and `check_script` and gains one; `Version` moves.
    [assistant](../assistant.md) follows, and its "nineteen types" is already one behind the registry,
    so the count is corrected by the same edit. `/help` does not change: this is not a page capability,
-   and the page-side check is IDEA-037's manual entry.
+   and the page-side check is `idea-check-without-storing`'s manual entry.
 
 ## The composite, flagged
 
@@ -99,17 +103,17 @@ and not a preference.
 Both merges rewrite the tool definitions, and the tool list is part of the request body and so of the
 provider's cached prefix (`assistant-a-tool-is-one-type`). One change pays one invalidated prefix, one
 prompt version and one measurement; two changes pay it twice and ask the model to learn two namings in
-sequence. [IDEA-053](IDEA-053.md) is in the same step for the same reason and a stronger one: its
+sequence. [`idea-tool-arguments-say-nothing`](`idea-tool-arguments-say-nothing`.md) is in the same step for the same reason and a stronger one: its
 argument descriptions would be written against definitions this job then deletes and merges.
 
 ## Not in scope
 
 - **The CSS, HTML and SVG checkers.** Values of `language` that have no checker are refused by name
-  until [IDEA-055](IDEA-055.md) lands; this job ships two.
+  until [`idea-nothing-checks-page-assets`](`idea-nothing-checks-page-assets`.md) lands; this job ships two.
 - **An `enum` for `language`.** The closed set belongs in the schema rather than a sentence, and that is
-  [IDEA-053](IDEA-053.md) — this plan's first slice, so `check` ships with the `enum` rather than
+  [`idea-tool-arguments-say-nothing`](`idea-tool-arguments-say-nothing`.md) — this plan's first slice, so `check` ships with the `enum` rather than
   gaining it later.
-- **The page-side check.** `ctx.Capabilities` and `/help` are [IDEA-037](IDEA-037.md)'s.
+- **The page-side check.** `ctx.Capabilities` and `/help` are [`idea-check-without-storing`](`idea-check-without-storing`.md)'s.
 - **Checking a fragment.** `content` is a complete template, for the reason the script check already
   records: a fragment can be invalid alone even when the edit that produced it is correct.
 - **Inferring the language from the key.** The extension maps to a content type, not to a validator,
@@ -117,9 +121,9 @@ argument descriptions would be written against definitions this job then deletes
 
 ## Where it lands
 
-One plan, `docs/plans/assistant-tool-surface.md`, written once [IDEA-037](IDEA-037.md) has merged,
+One plan, `docs/plans/assistant-tool-surface.md`, written once [`idea-check-without-storing`](`idea-check-without-storing`.md) has merged,
 because by then the member it calls and the diagnostic it answers with are real rather than sketched. It
-covers [IDEA-053](IDEA-053.md) as its first slice and this job as its second, cites
+covers [`idea-tool-arguments-say-nothing`](`idea-tool-arguments-say-nothing`.md) as its first slice and this job as its second, cites
 [the IDE's plan](../plans/ide-host.md) slices 0 and 3 as its prerequisites and restates neither, and
 proposes both names — **assistant-a-tool-describes-its-arguments** and
-**assistant-a-check-names-its-language**. IDEA-053 closes at that merge.
+**assistant-a-check-names-its-language**. `idea-tool-arguments-say-nothing` closes at that merge.

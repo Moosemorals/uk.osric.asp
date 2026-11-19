@@ -11,12 +11,12 @@ SPDX-License-Identifier: MIT
 | Size | Small — one file split into two internal collaborators beside it, and the tests that test each part moved to meet it. No contract change, no migration, no configuration key, no build change |
 | Area | Web (pages), docs |
 | Spike | None. Every measurement below was read off the working tree on 2026-11-16 |
-| Backlog | IDEA-022, closed with this plan ([closed jobs](../jobs/closed.md)) |
+| Backlog | IDEA-022, closed with this plan ([closed jobs](../backlog/closed.md)) |
 | Decisions | Records `code-one-concern-one-collaborator`. Relies on `code-shapes`, `code-nothing-public-without-a-caller`, `pages-capabilities-are-one-seam`, `pages-the-response-is-buffered-until-a-flush`, `pages-page-io-is-async` and `code-tests-are-written-first` |
 
 ## The short version
 
-[IDEA-022](../jobs/closed.md) was right to insist on a re-measure first, and it was right about the
+[IDEA-022](../backlog/closed.md) was right to insist on a re-measure first, and it was right about the
 shape. The file did not shrink when the [page-features](../plans/archive/page-features.md) plan took
 storage and fetch out; it grew from 364 lines to 551, because
 [page-streaming](../plans/archive/page-streaming.md) then put the flush, the sink, the commit rule and
@@ -209,7 +209,7 @@ Docs and the record, at the merge:
 - `docs/pages.md` — where the buffered and streaming implementations are described, the two names
   beside `SimpleContext`.
 - `docs/jobs/IDEA-022.md`, its row and its step — deleted, and the job recorded in
-  [closed](../jobs/closed.md) with this plan linked.
+  [closed](../backlog/closed.md) with this plan linked.
 - `/help` is not touched: no page author can do anything new.
 
 ## Phases
@@ -276,7 +276,7 @@ The owner said yes on 2026-11-16, and chose composition over partials before the
 
 ## Not in scope
 
-- **`IContext` itself.** Making the response one object in `Sdk` is [IDEA-048](../jobs/IDEA-048.md),
+- **`IContext` itself.** Making the response one object in `Sdk` is [IDEA-048](../backlog/IDEA-048.md),
   raised while this plan was written: it is the same split seen from the contract side, and the two
   collaborators below are what its implementation would be built over. It is a contract change with a
   migration of its own, so it waits until this has landed, rather than moving the members twice.

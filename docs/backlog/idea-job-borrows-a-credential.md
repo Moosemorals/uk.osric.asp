@@ -3,16 +3,20 @@ SPDX-FileCopyrightText: Copyright 2026 Osric Wilkinson <osric@fluffypeople.com>
 SPDX-License-Identifier: MIT
 -->
 
-# IDEA-056 — A job acts with its starter's credential, and loses it when that credential dies
+# A job acts with its starter's credential, and loses it when that credential dies
 
 | | |
 | --- | --- |
-| Size | L — a credential captured at start, a liveness check on every identity-bearing action, the write offered to a job, and the tests, manual, prompt and records for each. It wants a plan of its own |
+| Difficulty | persistent-salmon |
+| Utility | high |
+| Status | blocked |
+| Blocked by | `idea-one-write-per-render` |
+| Plan | — |
 | Area | Sdk, Web (work and authentication), docs, assistant |
 | Location | `src/uk.osric.asp.Web/Work/PageJob.cs`, `PageJobRunner.cs`, `PageJobs.cs`, `src/uk.osric.asp.Web/Pages/PageJobsScope.cs`, `PageWritesScope.cs`, `PageJobEnvironment.cs`, `src/uk.osric.asp.Sdk/IWorkerContext.cs` |
 
 > **Written 2026-11-18** at the owner's direction. Its prerequisite is
-> [IDEA-047](IDEA-047.md), which the owner also moved up the order the same day: a job cannot be
+> [`idea-one-write-per-render`](`idea-one-write-per-render`.md), which the owner also moved up the order the same day: a job cannot be
 > offered a writer while one action per render is the rule. Nothing is built until a plan answers the
 > open questions below.
 
@@ -22,7 +26,7 @@ A job carries `PageUser Owner` and every check compares the name, so a job's aut
 that never expires. A page has the same authority but holds it through a live request: the cookie's
 ticket is a row that sign-out deletes, and the account's security stamp is compared on every request.
 A job outlives the request that started it, so "the caller" is a snapshot, not a credential — and
-that is the whole reason `IPageWrites` is withheld ([IDEA-025](IDEA-025.md) §4). Give a job the
+that is the whole reason `IPageWrites` is withheld ([`idea-conversation-is-not-a-page`](`idea-conversation-is-not-a-page`.md) §4). Give a job the
 credential and revocation comes with it.
 
 The credential is whichever one the starting render presented: the cookie's ticket key
@@ -44,7 +48,7 @@ leak and nothing new on the page contract.
    The two checks are the ones `OnValidatePrincipal` and `ViewAuthenticationHandler` already make, so
    there is no second definition of "signed in".
 3. **The writer.** `PageJobRunner` offers `IPageWrites` bound to the **starting page** through the
-   same `PageWritesScope`, once [IDEA-047](IDEA-047.md) has replaced the one-action counter with a
+   same `PageWritesScope`, once [`idea-one-write-per-render`](`idea-one-write-per-render`.md) has replaced the one-action counter with a
    policy the caller names. The first version offers the batch and the bound self-save; the named
    save follows the same answer the page store already gives.
 4. **The clocks.** A write is activity: it re-arms `Pages:Jobs:SilenceSeconds` as `Publish` does, or
@@ -84,16 +88,16 @@ leak and nothing new on the page contract.
   not by distrust: a job has no request and no document, so there is nothing to bind them to.
 - **Fetch credentials.** Bound to the worker key, not the caller, so revocation does not apply.
 - **Durable jobs and a jobs table.** `pages-a-job-is-not-durable` stands.
-- **A configured worker account.** Rejected in [IDEA-025](IDEA-025.md): the authority is the starter's
+- **A configured worker account.** Rejected in [`idea-conversation-is-not-a-page`](`idea-conversation-is-not-a-page`.md): the authority is the starter's
   credential or nothing, never a configured name.
 
 ## What would make it unnecessary
 
-If the write a job needs belonged to an account-scoped store ([IDEA-033](IDEA-033.md)) rather than to
+If the write a job needs belonged to an account-scoped store ([`idea-no-account-store`](`idea-no-account-store`.md)) rather than to
 the page store, the job would write rows and not source, and no page-store authority would be
 involved.
 
 **Origin:** the owner, 2026-11-18 — "the worker/job gets to write with all the authority of the
 caller, and I'd really like to terminate that authority if the caller logs out or otherwise
 invalidates their session, so probably going to need to hand the job a token". The withheld writer is
-[IDEA-025](IDEA-025.md) §4; the batch it needs is [IDEA-047](IDEA-047.md).
+[`idea-conversation-is-not-a-page`](`idea-conversation-is-not-a-page`.md) §4; the batch it needs is [`idea-one-write-per-render`](`idea-one-write-per-render`.md).

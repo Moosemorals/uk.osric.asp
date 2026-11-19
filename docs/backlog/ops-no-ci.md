@@ -3,11 +3,16 @@ SPDX-FileCopyrightText: Copyright 2026 Osric Wilkinson <osric@fluffypeople.com>
 SPDX-License-Identifier: MIT
 -->
 
-# OPS-03 — There is no CI pipeline
+# There is no CI pipeline
 
 | | |
 | --- | --- |
+| Difficulty | caffeinated-squirrel |
+| Utility | high |
 | Severity | Medium |
+| Status | open |
+| Blocked by | — |
+| Plan | — |
 | Area | Operations, quality |
 | Location | `.github/` (no `workflows/`), `Makefile` |
 

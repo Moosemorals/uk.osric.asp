@@ -5,7 +5,7 @@ SPDX-License-Identifier: MIT
 
 # Semantic HTML and accessibility across the shell
 
-Implementation plan for BUG-16, now closed and recorded in [the jobs list](../../jobs/README.md) —
+Implementation plan for BUG-16, now closed and recorded in [the jobs list](../../backlog/README.md) —
 audit every server-rendered view for the semantics it claims, replace generic wrappers where an
 element already means the right thing, and make the parts of accessibility that can be asserted into
 tests rather than a habit. The markup is also where the shell's duplication is worst, so the audit
@@ -17,7 +17,7 @@ antiforgery field, one URL builder.
 **Implemented, and archived on 2026-11-06.** Written on 2026-11-04 against `trunk` at `d3d602b`;
 steps 1–6 are `7d69d1e` and `33f640e`, step 7's walk is recorded under
 [Verification](#verification), and step 8 closed BUG-16 in
-[the jobs list](../../jobs/closed.md). `make test` is green at 263 core, 68 runtime, 561 web
+[the jobs list](../../backlog/closed.md). `make test` is green at 263 core, 68 runtime, 561 web
 and 106 integration tests, `make format-check` and `make license-check` are clean, and `make audit`
 reports "no vulnerable or deprecated packages".
 
@@ -516,7 +516,7 @@ Not touched: `PageAssetSeeder` picks the new seed up from its existing directory
 ## Not in this phase
 
 - axe-core, pa11y, or any browser-driven accessibility run. It belongs with the Playwright suite in
-  [IDEA-001](../../jobs/IDEA-001.md) and CI in [OPS-03](../../jobs/OPS-03.md).
+  [IDEA-001](../../backlog/idea-editor-is-a-textarea.md) and CI in [OPS-03](../../backlog/ops-no-ci.md).
 - Wrapping *page* content in the site layout. Pages own their markup and a layout would be a product
   change, not a semantics fix.
 - `<section aria-labelledby>` on each `/status` panel. Sixteen named regions is not navigation.

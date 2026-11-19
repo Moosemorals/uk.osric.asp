@@ -51,7 +51,7 @@ depend on these names, so they join the contract.
 after three failures, and the report's `pages` check turns unhealthy once too many renders have been
 abandoned. That is detection and restart, not observation — nothing keeps history, so a problem that
 recovers leaves no trace, and "was it slow this morning?" has no answer. This plan supplies that
-history; alerting stays with [OPS-05](../../jobs/OPS-05.md).
+history; alerting stays with [OPS-05](../../backlog/ops-no-outage-notification.md).
 
 ## Decisions
 

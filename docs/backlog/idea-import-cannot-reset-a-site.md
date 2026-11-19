@@ -3,11 +3,15 @@ SPDX-FileCopyrightText: Copyright 2026 Osric Wilkinson <osric@fluffypeople.com>
 SPDX-License-Identifier: MIT
 -->
 
-# IDEA-020 — Import only adds and overwrites, so an archive cannot reset a site
+# Import only adds and overwrites, so an archive cannot reset a site
 
 | | |
 | --- | --- |
-| Size | Medium |
+| Difficulty | caffeinated-squirrel |
+| Utility | medium |
+| Status | open |
+| Blocked by | — |
+| Plan | — |
 | Area | Web, product, storage, operations |
 | Location | `src/uk.osric.asp.Web/Admin/`, `src/uk.osric.asp.Web/Pages/` |
 

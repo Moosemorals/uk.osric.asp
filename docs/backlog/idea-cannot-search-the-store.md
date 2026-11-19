@@ -3,11 +3,15 @@ SPDX-FileCopyrightText: Copyright 2026 Osric Wilkinson <osric@fluffypeople.com>
 SPDX-License-Identifier: MIT
 -->
 
-# IDEA-038 — A page cannot search the store's source
+# A page cannot search the store's source
 
 | | |
 | --- | --- |
-| Size | M — one read on the catalog, one request and result value, a budget of its own, the seam lifted out of the assistant, and the tests and manual entry for each |
+| Difficulty | eager-beaver |
+| Utility | medium |
+| Status | open |
+| Blocked by | — |
+| Plan | [ide-host](../plans/ide-host.md) |
 | Area | Sdk, Core, Web (pages, assistant), docs |
 | Location | `src/uk.osric.asp.Sdk/IPageCatalog.cs`, `src/uk.osric.asp.Web/Pages/PageCatalogScope.cs`, `src/uk.osric.asp.Web/Assistant/PageSourceSearch.cs`, `src/uk.osric.asp.Web/Assistant/PageStoreReader.cs`, `src/uk.osric.asp.Core/Pages/PageScope.cs`, `src/uk.osric.asp.Web/Pages/Seeds/help`, `src/uk.osric.asp.Web/Assistant/PageAuthorPrompt.cs` |
 
@@ -55,7 +59,7 @@ Encoding that as the editor's find box is what makes it look like editor work.
    applies to a listing.
 
 4. **A cursor in key-then-line order.** Results are ordered by key and then by line, and the cursor names
-   the last match returned, so the next call resumes rather than repeats. That is [IDEA-039](IDEA-039.md)
+   the last match returned, so the next call resumes rather than repeats. That is [`idea-listing-has-no-cursor`](`idea-listing-has-no-cursor`.md)
    applied to a scan; the two ship best together, because a scan with no cursor is a scan of the first
    page and nothing else.
 
@@ -72,7 +76,7 @@ Encoding that as the editor's find box is what makes it look like editor work.
 ## Open questions
 
 1. **What a pattern may be.** A substring is trivial; a regular expression invites catastrophic
-   backtracking, which is the one thing that cannot be stopped inside .NET (`SEC-03`). A literal with a
+   backtracking, which is the one thing that cannot be stopped inside .NET (`sec-page-runs-in-process`). A literal with a
    case option and a whole-word flag may be the whole of the first version, with a regular expression
    left to a `timeout`-bounded match or declined.
 2. **Whether a scan is charged to the assistant's bounds or its own.** The assistant has
@@ -89,7 +93,7 @@ Encoding that as the editor's find box is what makes it look like editor work.
 
 - **Replace.** A search that edits is IDEA-043's batch with this scan choosing the edits; the two are
   separate capabilities and separate decisions.
-- **An index.** FTS5 over page source is the mechanism IDEA-033 chose for per-account data, and it is a
+- **An index.** FTS5 over page source is the mechanism `idea-no-account-store` chose for per-account data, and it is a
   store migration with triggers to maintain. `n` pages is a linear scan until a measurement says
   otherwise (`code-n-is-small`).
 - **Searching a revision's history.** One live source per key, as the tools do.
@@ -102,4 +106,4 @@ budget, because a worker's `ReadBudget` is built once per job (`PageJobRunner.cs
 request.
 
 The plan that places it is [host support for the IDE](../plans/ide-host.md); this is slice 5 there, after the
-cursor it resumes from ([IDEA-039](IDEA-039.md)).
+cursor it resumes from ([`idea-listing-has-no-cursor`](`idea-listing-has-no-cursor`.md)).

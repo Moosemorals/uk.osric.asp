@@ -543,7 +543,7 @@ fallback hands the page the same `IContext` type the host is using. It throws ra
 default context" — the exact escape the type exists to close.
 
 This is isolation from the site's internals, not a sandbox: a page still runs in-process with the
-site's identity and the whole base class library. The process boundary is [SEC-03](jobs/SEC-03.md),
+site's identity and the whole base class library. The process boundary is [`sec-page-runs-in-process`](backlog/sec-page-runs-in-process.md),
 and it is deliberately not built — see "Page execution budget" below for what stands in its place.
 
 ## Page execution budget
@@ -604,7 +604,7 @@ with a sentence naming the key, its range and the shipped value. See
 [configuration](architecture.md#configuration).
 
 The handler still runs in the site's process, and the `IContext` it writes to is unchanged, so a page
-can still mutate process-wide state; that is the residual SEC-03 records.
+can still mutate process-wide state; that is the residual `sec-page-runs-in-process` records.
 
 ## Health and restarts
 

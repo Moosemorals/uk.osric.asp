@@ -53,7 +53,7 @@ design and an implementation plan; the phases below are what was built.
 - **Wrapping the shell's own views in the stored layout.** Recovery, error, health, sign-in and the
   editor must answer when the page pipeline is broken (IDEA-017's bootstrap trap, `shell-nobody-is-handed-a-blank-failure`).
 - **A content menu.** The menu lists the site's *tools*, not its pages; a "pages by title" menu
-  needs the store read of [IDEA-015](../../jobs/closed.md).
+  needs the store read of [IDEA-015](../../backlog/closed.md).
 - **A nav editor.** The items are written where the document is written: the shell's composition for
   shell views, the stored layout for pages.
 - **Signing out with a `GET` that changes state.** The menu links to a confirmation view; the action
@@ -101,12 +101,12 @@ Checked against the code on 2026-11-08.
 
 | Job or decision | What it already says | What this plan does |
 | --- | --- | --- |
-| [IDEA-005](../../jobs/IDEA-005.md) | Phase 2 is a layout *page* rendered around a page; `SetLayout`, `WriteBody`, title/head slots; depth limit and seen-set; one budget for the chain; a layout is presentation, not a guard | **Implements phase 2**, with the layout's slots on a capability instead of `IContext`, and the default on. Shared *types* stay deferred |
-| [IDEA-018](../../jobs/README.md) | The document builder and its fragments should move to `Sdk` | **Implements it** in phase 1, scoped to `PageDocument`, `Nav` and `NavLink` (see "Scope") |
-| [IDEA-015](../../jobs/closed.md) | The listing, history and revision views need a layout to leave the shell | Unblocks it: those views become fragments the default layout wraps. The store read is still its own job |
-| [IDEA-017](../../jobs/IDEA-017.md) | The editor is the recovery path; do not let it depend on page code | Preserved: shell views never use the stored layout, so a broken layout cannot lock the owner out |
-| [IDEA-001](../../jobs/IDEA-001.md) | The editor is mostly markup | The editor loses its ad-hoc sign-out form; its page menu stays |
-| [IDEA-022](../../jobs/IDEA-022.md) | `SimpleContext` does five jobs | Gains a constructor argument (the layout state), not a contract member |
+| [IDEA-005](../../backlog/IDEA-005.md) | Phase 2 is a layout *page* rendered around a page; `SetLayout`, `WriteBody`, title/head slots; depth limit and seen-set; one budget for the chain; a layout is presentation, not a guard | **Implements phase 2**, with the layout's slots on a capability instead of `IContext`, and the default on. Shared *types* stay deferred |
+| [IDEA-018](../../backlog/README.md) | The document builder and its fragments should move to `Sdk` | **Implements it** in phase 1, scoped to `PageDocument`, `Nav` and `NavLink` (see "Scope") |
+| [IDEA-015](../../backlog/closed.md) | The listing, history and revision views need a layout to leave the shell | Unblocks it: those views become fragments the default layout wraps. The store read is still its own job |
+| [IDEA-017](../../backlog/IDEA-017.md) | The editor is the recovery path; do not let it depend on page code | Preserved: shell views never use the stored layout, so a broken layout cannot lock the owner out |
+| [IDEA-001](../../backlog/idea-editor-is-a-textarea.md) | The editor is mostly markup | The editor loses its ad-hoc sign-out form; its page menu stays |
+| [IDEA-022](../../backlog/IDEA-022.md) | `SimpleContext` does five jobs | Gains a constructor argument (the layout state), not a contract member |
 | [the shell](../../shell.md#error-responses) | Every failure is a document a person can read | Error documents gain the menu above the recovery nav |
 | `pages-the-document-is-the-shells` | No skip link until chrome precedes `main` | Superseded: the chrome arrives |
 | `pages-the-document-is-the-shells`, `pages-one-base-sheet` | One writer owns the head and the landmark; sheet order is fixed | Extended to the banner and the skip link, for both the shell and the layout, and to layers: a page's sheets are last |
@@ -473,7 +473,7 @@ Each phase ends with `make test` green and `make format-check` clean.
 
 1. **The builder.** `Sdk/PageDocument`, `Sdk/NavLink`, `PageLayout.Nav` and `ShellDocument` as
    adapters. Nothing renders differently; a stored page can already write a document. This is
-   [IDEA-018](../../jobs/README.md).
+   [IDEA-018](../../backlog/README.md).
 2. **The layout and the default.** `IPageLayout`, `PageLayoutState`, the chain in `PageEndpoint`,
    the render session, `Pages:Layout` switched on, the shared body budget, the configured depth
    limit, the fallbacks, and the `/_layout` seed with head/`main`/body only. The bundled seeds are
