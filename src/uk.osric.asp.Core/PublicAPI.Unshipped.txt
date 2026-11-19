@@ -831,3 +831,115 @@ static uk.osric.asp.Core.Assistant.MemorySecrets.LooksLikeSecret(string! content
 uk.osric.asp.Core.Text.JsonSerialization
 static uk.osric.asp.Core.Text.JsonSerialization.Encoder.get -> System.Text.Encodings.Web.JavaScriptEncoder!
 static uk.osric.asp.Core.Text.JsonSerialization.Options.get -> System.Text.Json.JsonSerializerOptions!
+override uk.osric.asp.Core.Assistant.OwnerAnswer.Equals(object? obj) -> bool
+override uk.osric.asp.Core.Assistant.OwnerAnswer.GetHashCode() -> int
+override uk.osric.asp.Core.Assistant.OwnerAnswerInput.Equals(object? obj) -> bool
+override uk.osric.asp.Core.Assistant.OwnerAnswerInput.GetHashCode() -> int
+override uk.osric.asp.Core.Assistant.OwnerAnswerInput.ToString() -> string!
+override uk.osric.asp.Core.Assistant.OwnerAnswerSet.Equals(object? obj) -> bool
+override uk.osric.asp.Core.Assistant.OwnerAnswerSet.GetHashCode() -> int
+override uk.osric.asp.Core.Assistant.OwnerAnswerSet.ToString() -> string!
+override uk.osric.asp.Core.Assistant.OwnerAnswersResult.Equals(object? obj) -> bool
+override uk.osric.asp.Core.Assistant.OwnerAnswersResult.GetHashCode() -> int
+override uk.osric.asp.Core.Assistant.OwnerAnswersResult.ToString() -> string!
+override uk.osric.asp.Core.Assistant.OwnerAnswer.ToString() -> string!
+override uk.osric.asp.Core.Assistant.OwnerQuestion.Equals(object? obj) -> bool
+override uk.osric.asp.Core.Assistant.OwnerQuestion.GetHashCode() -> int
+override uk.osric.asp.Core.Assistant.OwnerQuestionOption.Equals(object? obj) -> bool
+override uk.osric.asp.Core.Assistant.OwnerQuestionOption.GetHashCode() -> int
+override uk.osric.asp.Core.Assistant.OwnerQuestionOption.ToString() -> string!
+override uk.osric.asp.Core.Assistant.OwnerQuestionSet.Equals(object? obj) -> bool
+override uk.osric.asp.Core.Assistant.OwnerQuestionSet.GetHashCode() -> int
+override uk.osric.asp.Core.Assistant.OwnerQuestionSet.ToString() -> string!
+override uk.osric.asp.Core.Assistant.OwnerQuestion.ToString() -> string!
+static uk.osric.asp.Core.Assistant.OwnerAnswerInput.operator !=(uk.osric.asp.Core.Assistant.OwnerAnswerInput? left, uk.osric.asp.Core.Assistant.OwnerAnswerInput? right) -> bool
+static uk.osric.asp.Core.Assistant.OwnerAnswerInput.operator ==(uk.osric.asp.Core.Assistant.OwnerAnswerInput? left, uk.osric.asp.Core.Assistant.OwnerAnswerInput? right) -> bool
+static uk.osric.asp.Core.Assistant.OwnerAnswer.operator !=(uk.osric.asp.Core.Assistant.OwnerAnswer? left, uk.osric.asp.Core.Assistant.OwnerAnswer? right) -> bool
+static uk.osric.asp.Core.Assistant.OwnerAnswer.operator ==(uk.osric.asp.Core.Assistant.OwnerAnswer? left, uk.osric.asp.Core.Assistant.OwnerAnswer? right) -> bool
+static uk.osric.asp.Core.Assistant.OwnerAnswerSet.operator !=(uk.osric.asp.Core.Assistant.OwnerAnswerSet? left, uk.osric.asp.Core.Assistant.OwnerAnswerSet? right) -> bool
+static uk.osric.asp.Core.Assistant.OwnerAnswerSet.operator ==(uk.osric.asp.Core.Assistant.OwnerAnswerSet? left, uk.osric.asp.Core.Assistant.OwnerAnswerSet? right) -> bool
+static uk.osric.asp.Core.Assistant.OwnerAnswersResult.operator !=(uk.osric.asp.Core.Assistant.OwnerAnswersResult? left, uk.osric.asp.Core.Assistant.OwnerAnswersResult? right) -> bool
+static uk.osric.asp.Core.Assistant.OwnerAnswersResult.operator ==(uk.osric.asp.Core.Assistant.OwnerAnswersResult? left, uk.osric.asp.Core.Assistant.OwnerAnswersResult? right) -> bool
+static uk.osric.asp.Core.Assistant.OwnerQuestion.operator !=(uk.osric.asp.Core.Assistant.OwnerQuestion? left, uk.osric.asp.Core.Assistant.OwnerQuestion? right) -> bool
+static uk.osric.asp.Core.Assistant.OwnerQuestion.operator ==(uk.osric.asp.Core.Assistant.OwnerQuestion? left, uk.osric.asp.Core.Assistant.OwnerQuestion? right) -> bool
+static uk.osric.asp.Core.Assistant.OwnerQuestionOption.operator !=(uk.osric.asp.Core.Assistant.OwnerQuestionOption? left, uk.osric.asp.Core.Assistant.OwnerQuestionOption? right) -> bool
+static uk.osric.asp.Core.Assistant.OwnerQuestionOption.operator ==(uk.osric.asp.Core.Assistant.OwnerQuestionOption? left, uk.osric.asp.Core.Assistant.OwnerQuestionOption? right) -> bool
+static uk.osric.asp.Core.Assistant.OwnerQuestions.Answer(uk.osric.asp.Core.Assistant.OwnerQuestionSet! questions, System.Collections.Generic.IReadOnlyList<uk.osric.asp.Core.Assistant.OwnerAnswerInput!>! inputs, long maximumChars) -> uk.osric.asp.Core.Assistant.OwnerAnswersResult!
+static uk.osric.asp.Core.Assistant.OwnerQuestionSet.operator !=(uk.osric.asp.Core.Assistant.OwnerQuestionSet? left, uk.osric.asp.Core.Assistant.OwnerQuestionSet? right) -> bool
+static uk.osric.asp.Core.Assistant.OwnerQuestionSet.operator ==(uk.osric.asp.Core.Assistant.OwnerQuestionSet? left, uk.osric.asp.Core.Assistant.OwnerQuestionSet? right) -> bool
+static uk.osric.asp.Core.Assistant.OwnerQuestions.ReadAnswers(string? json) -> uk.osric.asp.Core.Assistant.OwnerAnswerSet?
+static uk.osric.asp.Core.Assistant.OwnerQuestions.Read(string? json) -> uk.osric.asp.Core.Assistant.OwnerQuestionSet?
+static uk.osric.asp.Core.Assistant.OwnerQuestions.Validate(uk.osric.asp.Core.Assistant.OwnerQuestionSet! questions, int maximumQuestions, int maximumOptions, int maximumChars) -> string?
+static uk.osric.asp.Core.Assistant.OwnerQuestions.WriteAnswers(uk.osric.asp.Core.Assistant.OwnerAnswerSet! answers) -> string!
+static uk.osric.asp.Core.Assistant.OwnerQuestions.Write(uk.osric.asp.Core.Assistant.OwnerQuestionSet! questions) -> string!
+uk.osric.asp.Core.Assistant.OwnerAnswer
+uk.osric.asp.Core.Assistant.OwnerAnswer.<Clone>$() -> uk.osric.asp.Core.Assistant.OwnerAnswer!
+uk.osric.asp.Core.Assistant.OwnerAnswer.Deconstruct(out string! Question, out string? Header, out System.Collections.Generic.IReadOnlyList<string!>! Selected, out string! Text) -> void
+uk.osric.asp.Core.Assistant.OwnerAnswer.Equals(uk.osric.asp.Core.Assistant.OwnerAnswer? other) -> bool
+uk.osric.asp.Core.Assistant.OwnerAnswer.Header.get -> string?
+uk.osric.asp.Core.Assistant.OwnerAnswer.Header.init -> void
+uk.osric.asp.Core.Assistant.OwnerAnswerInput
+uk.osric.asp.Core.Assistant.OwnerAnswerInput.<Clone>$() -> uk.osric.asp.Core.Assistant.OwnerAnswerInput!
+uk.osric.asp.Core.Assistant.OwnerAnswerInput.Deconstruct(out System.Collections.Generic.IReadOnlyList<string!>! Selected, out string! Text) -> void
+uk.osric.asp.Core.Assistant.OwnerAnswerInput.Equals(uk.osric.asp.Core.Assistant.OwnerAnswerInput? other) -> bool
+uk.osric.asp.Core.Assistant.OwnerAnswerInput.OwnerAnswerInput(System.Collections.Generic.IReadOnlyList<string!>! Selected, string! Text) -> void
+uk.osric.asp.Core.Assistant.OwnerAnswerInput.Selected.get -> System.Collections.Generic.IReadOnlyList<string!>!
+uk.osric.asp.Core.Assistant.OwnerAnswerInput.Selected.init -> void
+uk.osric.asp.Core.Assistant.OwnerAnswerInput.Text.get -> string!
+uk.osric.asp.Core.Assistant.OwnerAnswerInput.Text.init -> void
+uk.osric.asp.Core.Assistant.OwnerAnswer.OwnerAnswer(string! Question, string? Header, System.Collections.Generic.IReadOnlyList<string!>! Selected, string! Text) -> void
+uk.osric.asp.Core.Assistant.OwnerAnswer.Question.get -> string!
+uk.osric.asp.Core.Assistant.OwnerAnswer.Question.init -> void
+uk.osric.asp.Core.Assistant.OwnerAnswer.Selected.get -> System.Collections.Generic.IReadOnlyList<string!>!
+uk.osric.asp.Core.Assistant.OwnerAnswer.Selected.init -> void
+uk.osric.asp.Core.Assistant.OwnerAnswerSet
+uk.osric.asp.Core.Assistant.OwnerAnswerSet.Answers.get -> System.Collections.Generic.IReadOnlyList<uk.osric.asp.Core.Assistant.OwnerAnswer!>!
+uk.osric.asp.Core.Assistant.OwnerAnswerSet.Answers.init -> void
+uk.osric.asp.Core.Assistant.OwnerAnswerSet.<Clone>$() -> uk.osric.asp.Core.Assistant.OwnerAnswerSet!
+uk.osric.asp.Core.Assistant.OwnerAnswerSet.Deconstruct(out System.Collections.Generic.IReadOnlyList<uk.osric.asp.Core.Assistant.OwnerAnswer!>! Answers) -> void
+uk.osric.asp.Core.Assistant.OwnerAnswerSet.Equals(uk.osric.asp.Core.Assistant.OwnerAnswerSet? other) -> bool
+uk.osric.asp.Core.Assistant.OwnerAnswerSet.OwnerAnswerSet(System.Collections.Generic.IReadOnlyList<uk.osric.asp.Core.Assistant.OwnerAnswer!>! Answers) -> void
+uk.osric.asp.Core.Assistant.OwnerAnswersResult
+uk.osric.asp.Core.Assistant.OwnerAnswersResult.Answers.get -> uk.osric.asp.Core.Assistant.OwnerAnswerSet?
+uk.osric.asp.Core.Assistant.OwnerAnswersResult.Answers.init -> void
+uk.osric.asp.Core.Assistant.OwnerAnswersResult.<Clone>$() -> uk.osric.asp.Core.Assistant.OwnerAnswersResult!
+uk.osric.asp.Core.Assistant.OwnerAnswersResult.Deconstruct(out uk.osric.asp.Core.Assistant.OwnerAnswerSet? Answers, out string? Error) -> void
+uk.osric.asp.Core.Assistant.OwnerAnswersResult.Equals(uk.osric.asp.Core.Assistant.OwnerAnswersResult? other) -> bool
+uk.osric.asp.Core.Assistant.OwnerAnswersResult.Error.get -> string?
+uk.osric.asp.Core.Assistant.OwnerAnswersResult.Error.init -> void
+uk.osric.asp.Core.Assistant.OwnerAnswersResult.IsSuccess.get -> bool
+uk.osric.asp.Core.Assistant.OwnerAnswersResult.OwnerAnswersResult(uk.osric.asp.Core.Assistant.OwnerAnswerSet? Answers, string? Error) -> void
+uk.osric.asp.Core.Assistant.OwnerAnswer.Text.get -> string!
+uk.osric.asp.Core.Assistant.OwnerAnswer.Text.init -> void
+uk.osric.asp.Core.Assistant.OwnerQuestion
+uk.osric.asp.Core.Assistant.OwnerQuestion.<Clone>$() -> uk.osric.asp.Core.Assistant.OwnerQuestion!
+uk.osric.asp.Core.Assistant.OwnerQuestion.Deconstruct(out string! Question, out string? Header, out System.Collections.Generic.IReadOnlyList<uk.osric.asp.Core.Assistant.OwnerQuestionOption!>! Options, out bool MultiSelect) -> void
+uk.osric.asp.Core.Assistant.OwnerQuestion.Equals(uk.osric.asp.Core.Assistant.OwnerQuestion? other) -> bool
+uk.osric.asp.Core.Assistant.OwnerQuestion.Header.get -> string?
+uk.osric.asp.Core.Assistant.OwnerQuestion.Header.init -> void
+uk.osric.asp.Core.Assistant.OwnerQuestion.MultiSelect.get -> bool
+uk.osric.asp.Core.Assistant.OwnerQuestion.MultiSelect.init -> void
+uk.osric.asp.Core.Assistant.OwnerQuestionOption
+uk.osric.asp.Core.Assistant.OwnerQuestionOption.<Clone>$() -> uk.osric.asp.Core.Assistant.OwnerQuestionOption!
+uk.osric.asp.Core.Assistant.OwnerQuestionOption.Deconstruct(out string! Label, out string? Description) -> void
+uk.osric.asp.Core.Assistant.OwnerQuestionOption.Description.get -> string?
+uk.osric.asp.Core.Assistant.OwnerQuestionOption.Description.init -> void
+uk.osric.asp.Core.Assistant.OwnerQuestionOption.Equals(uk.osric.asp.Core.Assistant.OwnerQuestionOption? other) -> bool
+uk.osric.asp.Core.Assistant.OwnerQuestionOption.Label.get -> string!
+uk.osric.asp.Core.Assistant.OwnerQuestionOption.Label.init -> void
+uk.osric.asp.Core.Assistant.OwnerQuestionOption.OwnerQuestionOption(string! Label, string? Description) -> void
+uk.osric.asp.Core.Assistant.OwnerQuestion.Options.get -> System.Collections.Generic.IReadOnlyList<uk.osric.asp.Core.Assistant.OwnerQuestionOption!>!
+uk.osric.asp.Core.Assistant.OwnerQuestion.Options.init -> void
+uk.osric.asp.Core.Assistant.OwnerQuestion.OwnerQuestion(string! Question, string? Header, System.Collections.Generic.IReadOnlyList<uk.osric.asp.Core.Assistant.OwnerQuestionOption!>! Options, bool MultiSelect) -> void
+uk.osric.asp.Core.Assistant.OwnerQuestion.Question.get -> string!
+uk.osric.asp.Core.Assistant.OwnerQuestion.Question.init -> void
+uk.osric.asp.Core.Assistant.OwnerQuestions
+uk.osric.asp.Core.Assistant.OwnerQuestionSet
+uk.osric.asp.Core.Assistant.OwnerQuestionSet.<Clone>$() -> uk.osric.asp.Core.Assistant.OwnerQuestionSet!
+uk.osric.asp.Core.Assistant.OwnerQuestionSet.Deconstruct(out System.Collections.Generic.IReadOnlyList<uk.osric.asp.Core.Assistant.OwnerQuestion!>! Questions) -> void
+uk.osric.asp.Core.Assistant.OwnerQuestionSet.Equals(uk.osric.asp.Core.Assistant.OwnerQuestionSet? other) -> bool
+uk.osric.asp.Core.Assistant.OwnerQuestionSet.OwnerQuestionSet(System.Collections.Generic.IReadOnlyList<uk.osric.asp.Core.Assistant.OwnerQuestion!>! Questions) -> void
+uk.osric.asp.Core.Assistant.OwnerQuestionSet.Questions.get -> System.Collections.Generic.IReadOnlyList<uk.osric.asp.Core.Assistant.OwnerQuestion!>!
+uk.osric.asp.Core.Assistant.OwnerQuestionSet.Questions.init -> void
+uk.osric.asp.Core.Assistant.ToolArgumentSchema.Description.get -> string?
+uk.osric.asp.Core.Assistant.ToolArgumentSchema.Description.init -> void

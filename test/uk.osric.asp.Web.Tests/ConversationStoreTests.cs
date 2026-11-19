@@ -625,11 +625,91 @@ public sealed class ConversationStoreTests {
         });
     }
 
+    [Test]
+    public async Task AQuestionIsAnsweredOnlyByAnOwnerWhoseRunIsWaitingAsync() {
+        await using StorageDbContext database = new(_options);
+        IConversationStore conversations = NewStore(database);
+        Conversation conversation = await conversations.CreateAsync("owner");
+        RunStartResult start = await conversations.StartRunAsync(conversation.Id, "owner", "ask", "model", "prompt-v1");
+        await conversations.SetRunStatusAsync(start.RunId!, RunStatus.Running);
+        Assert.That(await conversations.OpenInterruptAsync(
+            start.RunId!, OwnerInterruptKind.Question, "call-1", Question()), Is.True);
+
+        InterruptResolutionResult resolved = await conversations.ResolveInterruptAsync(
+            conversation.Id, "owner", start.RunId!, OwnerInterruptKind.Question, "call-1", Answers());
+
+        IReadOnlyList<OwnerInterrupt> answered = await conversations.GetAnsweredQuestionsAsync(conversation.Id, "owner");
+        IReadOnlyList<OwnerInterrupt> stranger = await conversations.GetAnsweredQuestionsAsync(conversation.Id, "someone");
+        Run run = (await conversations.GetRunAsync(conversation.Id, "owner", start.RunId!))!;
+        Assert.Multiple(() => {
+            Assert.That(resolved, Is.EqualTo(InterruptResolutionResult.Resolved));
+            Assert.That(run.Status, Is.EqualTo(RunStatus.Running));
+            Assert.That(answered, Has.Count.EqualTo(1));
+            Assert.That(InterruptPayloads.Answers(answered[0].ResolutionJson)?.Answers[1].Text, Is.EqualTo("The first"));
+            Assert.That(stranger, Is.Empty, "another account's conversation is not there at all");
+        });
+    }
+
+    [Test]
+    public async Task AnAnsweredQuestionCannotBeAnsweredTwiceAsync() {
+        await using StorageDbContext database = new(_options);
+        IConversationStore conversations = NewStore(database);
+        Conversation conversation = await conversations.CreateAsync("owner");
+        RunStartResult start = await conversations.StartRunAsync(conversation.Id, "owner", "ask", "model", "prompt-v1");
+        await conversations.SetRunStatusAsync(start.RunId!, RunStatus.Running);
+        await conversations.OpenInterruptAsync(start.RunId!, OwnerInterruptKind.Question, "call-1", Question());
+        await conversations.ResolveInterruptAsync(
+            conversation.Id, "owner", start.RunId!, OwnerInterruptKind.Question, "call-1", Answers());
+        await conversations.SetRunStatusAsync(start.RunId!, RunStatus.Running);
+
+        InterruptResolutionResult again = await conversations.ResolveInterruptAsync(
+            conversation.Id, "owner", start.RunId!, OwnerInterruptKind.Question, "call-1",
+            OwnerQuestions.WriteAnswers(new OwnerAnswerSet([new OwnerAnswer("Which?", null, [], "Changed my mind")])));
+
+        OwnerInterrupt stored = (await conversations.GetAnsweredQuestionsAsync(conversation.Id, "owner")).Single();
+        Assert.Multiple(() => {
+            Assert.That(again, Is.EqualTo(InterruptResolutionResult.Conflict));
+            Assert.That(InterruptPayloads.Answers(stored.ResolutionJson)?.Answers[1].Text, Is.EqualTo("The first"),
+                "the first answer is the one the record keeps");
+        });
+    }
+
+    [Test]
+    public async Task RecoveringARunFailsItsPendingQuestionAsync() {
+        await using StorageDbContext database = new(_options);
+        IConversationStore conversations = NewStore(database);
+        Conversation conversation = await conversations.CreateAsync("owner");
+        RunStartResult start = await conversations.StartRunAsync(conversation.Id, "owner", "ask", "model", "prompt-v1");
+        await conversations.SetRunStatusAsync(start.RunId!, RunStatus.Running);
+        await conversations.OpenInterruptAsync(start.RunId!, OwnerInterruptKind.Question, "call-1", Question());
+
+        Assert.That(await conversations.RecoverInterruptedRunsAsync(), Is.EqualTo(1));
+
+        OwnerInterrupt interrupt = await database.Set<OwnerInterrupt>().AsNoTracking().SingleAsync();
+        IReadOnlyList<OwnerInterrupt> answered = await conversations.GetAnsweredQuestionsAsync(conversation.Id, "owner");
+        Assert.Multiple(() => {
+            Assert.That(interrupt.Status, Is.EqualTo(OwnerInterruptStatus.Failed));
+            Assert.That(interrupt.FailureCode, Is.EqualTo("restart"));
+            Assert.That(answered, Is.Empty,
+                "a question the restart killed is not a card the transcript reads as answered");
+        });
+    }
+
     private static string Approval() =>
         InterruptPayloads.Write(new ApprovalRequest("write_page", "Writes a page.", "{}"));
 
     private static string Continuation(string budget, int limit, int window) =>
         InterruptPayloads.Write(new ContinuationRequest(budget, limit, window, RunBudget.Sentence(budget, limit, window)));
+
+    private static string Question() => OwnerQuestions.Write(new OwnerQuestionSet([
+        new OwnerQuestion("Which?", null, [new OwnerQuestionOption("Alpha", null), new OwnerQuestionOption("Beta", null)], false),
+        new OwnerQuestion("Anything to add?", null, [], false),
+    ]));
+
+    private static string Answers() => OwnerQuestions.WriteAnswers(new OwnerAnswerSet([
+        new OwnerAnswer("Which?", null, ["Alpha"], ""),
+        new OwnerAnswer("Anything to add?", null, [], "The first"),
+    ]));
 
     private static IConversationStore NewStore(StorageDbContext database) =>
         new SqliteConversationStore(database, TimeProvider.System, NullLogger<SqliteConversationStore>.Instance);

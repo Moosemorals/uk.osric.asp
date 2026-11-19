@@ -32,10 +32,27 @@ internal sealed class PageToolExecutor(
     public static bool ChangesPages(string? toolName) =>
         toolName is not null && ToolRegistry.Default.Find(toolName)?.Spec.Writes == true;
 
+    /// <summary>Whether the named tool stops until the owner answers it.</summary>
+    /// <param name="toolName">The tool the model called, as the transcript stored it.</param>
+    /// <remarks>
+    /// The run asks the tool's own declaration rather than naming it, so the wait's one fact lives on
+    /// the tool beside the rest of what it is.
+    /// </remarks>
+    public static bool WaitsForOwner(string? toolName) =>
+        toolName is not null && ToolRegistry.Default.Find(toolName)?.Spec.WaitsForOwner == true;
+
+    public Task<ToolExecutionResult> ExecuteAsync(
+        string name,
+        string argumentsJson,
+        ToolContext context,
+        CancellationToken cancellationToken) =>
+        ExecuteAsync(name, argumentsJson, context, questions: null, cancellationToken);
+
     public async Task<ToolExecutionResult> ExecuteAsync(
         string name,
         string argumentsJson,
         ToolContext context,
+        IOwnerQuestions? questions,
         CancellationToken cancellationToken) {
         ArgumentNullException.ThrowIfNull(context);
 
@@ -58,7 +75,7 @@ internal sealed class PageToolExecutor(
         }
 
         await using AsyncServiceScope scope = scopeFactory.CreateAsyncScope();
-        ToolServices services = new(scope.ServiceProvider, context, paths, options, budget, metrics, fetcher);
+        ToolServices services = new(scope.ServiceProvider, context, paths, options, budget, metrics, fetcher, questions);
         return await tool.RunAsync(new ToolValues(parsed.Values), services, cancellationToken);
     }
 
@@ -67,7 +84,7 @@ internal sealed class PageToolExecutor(
     /// The approval gate asks this before it prompts. An approval the policy has already refused is
     /// one the owner could only deny, so it is not worth their attention. An unknown tool, a tool
     /// that writes nothing or names no path, bad arguments and a permitted path all answer null,
-    /// because <see cref="ExecuteAsync"/> owns those refusals and the owner may still want to see the
+    /// because <see cref="ExecuteAsync(string, string, ToolContext, IOwnerQuestions?, CancellationToken)"/> owns those refusals and the owner may still want to see the
     /// call. <c>fetch</c> is approval-gated and has no path, so its URL is the prompt's to show.
     /// </remarks>
     /// <param name="name">The tool the model called.</param>

@@ -211,7 +211,13 @@ public sealed class AssistantTranscriptTests {
         });
     }
 
-    private static async Task<string> RenderAsync(Run? lastRun, params Message[] messages) {
+    private static Task<string> RenderAsync(Run? lastRun, params Message[] messages) =>
+        RenderTurnAsync(lastRun, answeredQuestions: null, messages);
+
+    private static async Task<string> RenderTurnAsync(
+        Run? lastRun,
+        IReadOnlyList<OwnerInterrupt>? answeredQuestions,
+        params Message[] messages) {
         DefaultHttpContext context = TestHttp.CreateContext(null, "GET", "/assistant/1");
         context.User = new ClaimsPrincipal(new ClaimsIdentity(
             [new Claim(ClaimTypes.NameIdentifier, "owner")], "test"));
@@ -219,7 +225,7 @@ public sealed class AssistantTranscriptTests {
         await AssistantConversationPage.ConversationAsync(
             context,
             1,
-            new ShellConversationStore(messages, lastRun: lastRun),
+            new ShellConversationStore(messages, lastRun: lastRun, answeredQuestions: answeredQuestions),
             new TestAntiforgery(),
             new RunRegistry(TestOptions.Assistant, TimeProvider.System),
             TestOptions.Assistant,
@@ -228,6 +234,101 @@ public sealed class AssistantTranscriptTests {
 
         return await TestHttp.ReadBodyAsync(context);
     }
+
+
+    [Test]
+    public async Task APendingQuestionRendersOneFieldsetPerQuestionWithALabelForEveryOptionAsync() {
+        string html = await RenderPendingAsync(QuestionInterrupt());
+
+        Assert.Multiple(() => {
+            Assert.That(html, Does.Contain("section class=\"assistant-question\""));
+            Assert.That(html, Does.Contain("data-interrupt-kind=\"question\""));
+            Assert.That(html, Does.Contain("<legend><span class=\"assistant-question-header\">Page</span> Which page?</legend>"));
+            Assert.That(html, Does.Contain("type=\"radio\" name=\"answer0\" value=\"Alpha\""));
+            Assert.That(html, Does.Contain("The first option"));
+            Assert.That(html, Does.Contain("name=\"other1\""));
+            Assert.That(html, Does.Contain("name=\"toolCallId\" value=\"call-1\""));
+            Assert.That(html, Does.Not.Contain("type=\"text\" name=\"other1\" required"), "a blank question is an answer");
+        });
+    }
+
+    [Test]
+    public async Task AnAnsweredQuestionReadsAsTheQuestionAndTheOwnersAnswerAsync() {
+        string html = await RenderTurnAsync(
+            FinishedRun(), [AnsweredQuestion()], User("Ask me", "run-1"), Assistant("Asked", "run-1"));
+
+        Assert.Multiple(() => {
+            Assert.That(html, Does.Contain("section class=\"assistant-question-answers\""));
+            Assert.That(html, Does.Contain("<dt>Page: Which page?</dt>"));
+            Assert.That(html, Does.Contain("<dd>Alpha</dd>"));
+            Assert.That(html, Does.Contain("<dd>About us</dd>"));
+        });
+    }
+
+    [Test]
+    public async Task ASkippedQuestionReadsAsNoAnswerAsync() {
+        string html = await RenderTurnAsync(
+            FinishedRun(), [AnsweredQuestion(answers: new OwnerAnswerSet([
+                new OwnerAnswer("Which page?", "Page", [], ""),
+                new OwnerAnswer("Anything to add?", null, [], ""),
+            ]))], User("Ask me", "run-1"), Assistant("Asked", "run-1"));
+
+        Assert.That(html, Does.Contain("<span class=\"assistant-question-unanswered\">No answer</span>"));
+    }
+
+    [Test]
+    public async Task TheOwnersAnswerIsEscapedAsync() {
+        string html = await RenderTurnAsync(
+            FinishedRun(), [AnsweredQuestion(answers: new OwnerAnswerSet([
+                new OwnerAnswer("Which page?", "Page", [], ""),
+                new OwnerAnswer("Anything to add?", null, [], "<b>not markup</b>"),
+            ]))], User("Ask me", "run-1"), Assistant("Asked", "run-1"));
+
+        Assert.Multiple(() => {
+            Assert.That(html, Does.Contain("&lt;b&gt;not markup&lt;/b&gt;"));
+            Assert.That(html, Does.Not.Contain("<b>not markup</b>"));
+        });
+    }
+
+    private static Run FinishedRun() => new() {
+        Id = "run-1",
+        ConversationId = 1,
+        Status = RunStatus.Completed,
+        Model = "test-model",
+        ApprovalMode = ApprovalMode.RequireApproval.ToString(),
+        PromptVersion = PageAuthorPrompt.Version,
+    };
+
+    private static OwnerInterrupt QuestionInterrupt() => new() {
+        RunId = "run-1",
+        Kind = OwnerInterruptKind.Question,
+        Status = OwnerInterruptStatus.Pending,
+        ToolCallId = "call-1",
+        RequestJson = OwnerQuestions.Write(new OwnerQuestionSet([
+            new OwnerQuestion("Which page?", "Page",
+                [new OwnerQuestionOption("Alpha", "The first option"), new OwnerQuestionOption("Beta", null)], false),
+            new OwnerQuestion("Anything to add?", null, [], false),
+        ])),
+        CreatedAt = DateTimeOffset.UtcNow,
+    };
+
+    private static OwnerInterrupt AnsweredQuestion(OwnerAnswerSet? answers = null) => new() {
+        RunId = "run-1",
+        Kind = OwnerInterruptKind.Question,
+        Status = OwnerInterruptStatus.Resolved,
+        ToolCallId = "call-1",
+        RequestJson = OwnerQuestions.Write(new OwnerQuestionSet([
+            new OwnerQuestion("Which page?", "Page",
+                [new OwnerQuestionOption("Alpha", null), new OwnerQuestionOption("Beta", null)], false),
+            new OwnerQuestion("Anything to add?", null, [], false),
+        ])),
+        ResolutionJson = OwnerQuestions.WriteAnswers(answers ?? new OwnerAnswerSet([
+            new OwnerAnswer("Which page?", "Page", ["Alpha"], ""),
+            new OwnerAnswer("Anything to add?", null, [], "About us"),
+        ])),
+        CreatedAt = DateTimeOffset.UtcNow,
+        ResolvedAt = DateTimeOffset.UtcNow,
+    };
 
     private static Task<string> RenderAsync(params Message[] messages) => RenderAsync(null, messages);
 

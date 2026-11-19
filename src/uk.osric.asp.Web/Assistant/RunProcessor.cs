@@ -431,6 +431,17 @@ internal sealed class RunProcessor(
                         PublishBudgets(stream, budgets, usageTotals, budget, stepLimit, toolCallLimit);
 
                         long toolStart = Stopwatch.GetTimestamp();
+                        // The owner's wait is theirs, not the tool's, so it is measured on its own and
+                        // taken off the duration the metric and the event report.
+                        TimeSpan ownerWait = TimeSpan.Zero;
+                        IOwnerQuestions questions = new RunOwnerQuestions(async (set, token) => {
+                            long askStart = Stopwatch.GetTimestamp();
+                            try {
+                                return await AskOwnerAsync(queued, stream, step, call, set, token);
+                            } finally {
+                                ownerWait += Stopwatch.GetElapsedTime(askStart);
+                            }
+                        });
                         // An approval the path policy has already refused is one the owner could only
                         // deny, so the policy decides first and the prompt never appears.
                         ToolExecutionResult? refused = requiresApproval
@@ -440,15 +451,16 @@ internal sealed class RunProcessor(
                             result = refused;
                         } else if (requiresApproval) {
                             result = await WhilePaused(() =>
-                                ResolveApprovalAsync(queued, stream, step, call, definition!, toolContext, runTimeout.Token));
+                                ResolveApprovalAsync(queued, stream, step, call, definition!, toolContext, questions, runTimeout.Token));
                         } else {
                             result = await WhilePaused(() =>
-                                ExecuteToolAsync(call, toolContext, stream, runTimeout.Token));
+                                ExecuteToolAsync(call, toolContext, questions, stream, runTimeout.Token));
                         }
 
+                        TimeSpan toolDuration = Stopwatch.GetElapsedTime(toolStart) - ownerWait;
                         toolCallCount++;
                         await StoreAsync(store => store.RecordToolCallAsync(queued.RunId, runTimeout.Token));
-                        metrics.RecordTool(definition, result.IsSuccess, Stopwatch.GetElapsedTime(toolStart));
+                        metrics.RecordTool(definition, result.IsSuccess, toolDuration);
                         await StoreAsync(store => store.AppendMessageAsync(
                             queued.ConversationId,
                             queued.RunId,
@@ -462,7 +474,7 @@ internal sealed class RunProcessor(
                             ok = result.IsSuccess,
                             summary = result.Summary,
                             content = result.Content,
-                            durationMs = (long)Stopwatch.GetElapsedTime(toolStart).TotalMilliseconds,
+                            durationMs = (long)toolDuration.TotalMilliseconds,
                         });
 
                         // The stored result is what the page measures, so a longer one moves the row now.
@@ -610,6 +622,7 @@ internal sealed class RunProcessor(
         PreparedToolCall call,
         ToolDefinition definition,
         ToolContext context,
+        IOwnerQuestions questions,
         CancellationToken cancellationToken) {
         OwnerInterrupt? interrupt = await WaitAsync(
             queued, stream, step, OwnerInterruptKind.Approval, call.Id,
@@ -620,8 +633,46 @@ internal sealed class RunProcessor(
 
         bool approved = InterruptPayloads.Resolution(interrupt.ResolutionJson)?.Decision == "approve";
         return approved
-            ? await ExecuteToolAsync(call, context, stream, cancellationToken)
+            ? await ExecuteToolAsync(call, context, questions, stream, cancellationToken)
             : ToolResults.Refusal("The owner denied this tool call.", $"{call.DisplayName}: denied");
+    }
+
+    /// <summary>Puts a waiting tool's questions to the owner and returns the answers the run woke to.</summary>
+    private async Task<OwnerAnswerSet?> AskOwnerAsync(
+        QueuedRun queued,
+        RunStream stream,
+        int step,
+        PreparedToolCall call,
+        OwnerQuestionSet questions,
+        CancellationToken cancellationToken) {
+        int askedChars = questions.Questions.Sum(question =>
+            question.Question.Length
+            + (question.Header?.Length ?? 0)
+            + question.Options.Sum(option => option.Label.Length + (option.Description?.Length ?? 0)));
+        logger.LogInformation("Assistant run {RunId} asked its owner {Questions} questions ({Chars} chars)",
+            queued.RunId, questions.Questions.Count, askedChars);
+
+        OwnerInterrupt? interrupt = await WaitAsync(
+            queued, stream, step, OwnerInterruptKind.Question, call.Id, questions, cancellationToken);
+        if (interrupt is null) {
+            return null;
+        }
+
+        OwnerAnswerSet? answers = InterruptPayloads.Answers(interrupt.ResolutionJson);
+        if (answers is null) {
+            logger.LogWarning("Assistant run {RunId} woke to a question without an answer it could read", queued.RunId);
+            return null;
+        }
+
+        // The text and the answer are never logged: the owner types into that box.
+        int answeredChars = answers.Answers.Sum(answer =>
+            answer.Text.Length + answer.Selected.Sum(label => label.Length));
+        int blank = answers.Answers.Count(answer => answer.Selected.Count == 0 && answer.Text.Length == 0);
+        logger.LogInformation(
+            "Assistant run {RunId} was answered on {Questions} questions ({Chars} chars, {Blank} left blank)",
+            queued.RunId, answers.Answers.Count, answeredChars, blank);
+
+        return answers;
     }
 
     /// <summary>Stops the run until its owner resolves the interrupt this opens.</summary>
@@ -668,12 +719,17 @@ internal sealed class RunProcessor(
     private async Task<ToolExecutionResult> ExecuteToolAsync(
         PreparedToolCall call,
         ToolContext context,
+        IOwnerQuestions questions,
         RunStream stream,
         CancellationToken cancellationToken) {
         using CancellationTokenSource timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-        timeout.CancelAfter(TimeSpan.FromSeconds(options.ToolTimeoutSeconds));
+        // A question is the owner's to answer, so it is not a tool overrunning: the run's own token
+        // still cancels it, which is what Stop and a restart use.
+        if (!PageToolExecutor.WaitsForOwner(call.Name)) {
+            timeout.CancelAfter(TimeSpan.FromSeconds(options.ToolTimeoutSeconds));
+        }
         try {
-            return await tools.ExecuteAsync(call.Name, call.Arguments, context, timeout.Token);
+            return await tools.ExecuteAsync(call.Name, call.Arguments, context, questions, timeout.Token);
         } catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested) {
             return ToolResults.Refusal("The tool exceeded its configured time limit.", $"{call.DisplayName}: timeout");
         } catch (OperationCanceledException) {
@@ -861,5 +917,11 @@ internal sealed class RunProcessor(
     private sealed record PreparedToolCall(string Id, string Name, string Arguments) {
 
         public string DisplayName => MessageText.Sanitize(Name);
+    }
+
+    private sealed class RunOwnerQuestions(Func<OwnerQuestionSet, CancellationToken, Task<OwnerAnswerSet?>> ask) : IOwnerQuestions {
+
+        public Task<OwnerAnswerSet?> AskAsync(OwnerQuestionSet questions, CancellationToken cancellationToken) =>
+            ask(questions, cancellationToken);
     }
 }

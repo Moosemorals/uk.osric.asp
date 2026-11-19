@@ -38,6 +38,9 @@ internal static class OwnerInterruptKind {
 
     /// <summary>A run that spent a budget waits for the owner to tell it to carry on.</summary>
     public const string Continuation = "continuation";
+
+    /// <summary>A tool call waits for the owner's answer, which is the call's result.</summary>
+    public const string Question = "question";
 }
 
 /// <summary>The states an interrupt can be in.</summary>

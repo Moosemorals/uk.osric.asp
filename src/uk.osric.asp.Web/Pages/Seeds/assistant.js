@@ -229,6 +229,8 @@ if (root) {
             addApproval(data);
         } else if (data.kind === 'continuation') {
             addContinuation(data);
+        } else if (data.kind === 'question') {
+            addQuestion(data);
         }
     }
 
@@ -422,6 +424,90 @@ if (root) {
         statusLine.textContent = 'Run paused: it needs your answer';
     }
 
+    // The same card the server renders on a reload: every question a fieldset, every option a label
+    // wrapping its control, and a text input the owner can always use. Nothing is required, because a
+    // question left blank is an answer the model is told to decide for itself.
+    function addQuestion(data) {
+        const questions = data.request?.questions ?? [];
+        transcript.querySelector('section.assistant-question')?.remove();
+        const section = document.createElement('section');
+        section.className = 'assistant-question';
+        section.dataset.interruptKind = data.kind;
+        section.setAttribute('aria-label', 'Questions from the assistant');
+        const heading = document.createElement('h2');
+        heading.textContent = 'The assistant is asking you';
+
+        const form = document.createElement('form');
+        form.method = 'post';
+        form.action = interruptAction(data.runId);
+        const csrf = document.createElement('input');
+        csrf.type = 'hidden';
+        csrf.name = '__RequestVerificationToken';
+        csrf.value = token;
+        const call = document.createElement('input');
+        call.type = 'hidden';
+        call.name = 'toolCallId';
+        call.value = data.toolCallId ?? '';
+        form.append(csrf, call);
+
+        questions.forEach((question, index) => {
+            const fieldset = document.createElement('fieldset');
+            const legend = document.createElement('legend');
+            if (question.header) {
+                legend.append(element('span', 'assistant-question-header', `${question.header}: `));
+            }
+            legend.append(document.createTextNode(question.question));
+            fieldset.append(legend);
+            for (const option of question.options ?? []) {
+                const label = element('label', 'assistant-question-option');
+                const input = document.createElement('input');
+                input.type = question.multiSelect ? 'checkbox' : 'radio';
+                input.name = `answer${index}`;
+                input.value = option.label;
+                label.append(input, document.createTextNode(` ${option.label}`));
+                if (option.description) {
+                    label.append(element('span', 'assistant-question-option-description', option.description));
+                }
+                fieldset.append(label);
+            }
+            const other = element('label', 'assistant-question-other');
+            const text = document.createElement('input');
+            text.type = 'text';
+            text.name = `other${index}`;
+            other.append(document.createTextNode('Your own answer '), text);
+            fieldset.append(other);
+            form.append(fieldset);
+        });
+
+        const button = document.createElement('button');
+        button.type = 'submit';
+        button.textContent = 'Send answer';
+        form.append(button);
+        form.addEventListener('submit', async event => {
+            event.preventDefault();
+            button.disabled = true;
+            try {
+                const response = await fetch(form.action, { method: 'POST', body: new FormData(form) });
+                if (!response.ok) {
+                    button.disabled = false;
+                    statusLine.textContent = 'The answer could not be recorded. Reload to check its status.';
+                    return;
+                }
+                statusLine.textContent = 'Answer sent';
+            } catch {
+                button.disabled = false;
+                statusLine.textContent = 'The answer could not be recorded.';
+            }
+        });
+
+        const note = document.createElement('p');
+        note.className = 'assistant-question-note';
+        note.textContent = 'Nothing here is required: a question you leave blank is one the assistant decides for you.';
+        section.append(heading, form, note);
+        prepend(section);
+        statusLine.textContent = 'The assistant is waiting for your answer';
+    }
+
     // The usage list is a different question from the budgets: what the provider reported, not what
     // a limit allows. The totals are already summed by the host, so the page only formats them.
     function applyUsage(usage) {
@@ -501,7 +587,8 @@ if (root) {
         source.addEventListener('interrupt.resolved', event => {
             const data = JSON.parse(event.data);
             transcript.querySelector(`[data-interrupt-kind="${CSS.escape(data.kind)}"]`)?.remove();
-            statusLine.textContent = data.kind === 'approval' ? 'Approval recorded' : 'Continuing';
+            statusLine.textContent = data.kind === 'approval' ? 'Approval recorded'
+                : data.kind === 'question' ? 'Answer recorded' : 'Continuing';
         });
         source.addEventListener('tool.finished', event => {
             const data = JSON.parse(event.data);

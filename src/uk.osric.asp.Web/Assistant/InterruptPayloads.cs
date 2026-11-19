@@ -4,6 +4,7 @@
 namespace uk.osric.asp.Web.Assistant;
 
 using System.Text.Json;
+using uk.osric.asp.Core.Assistant;
 
 /// <summary>A flagged tool call the owner is asked to allow or refuse.</summary>
 /// <param name="Name">The tool the call names.</param>
@@ -44,6 +45,14 @@ internal static class InterruptPayloads {
     /// <summary>The continuation a request describes, or null when it is not one this build understands.</summary>
     /// <param name="requestJson">The stored request.</param>
     public static ContinuationRequest? Continuation(string? requestJson) => Read<ContinuationRequest>(requestJson);
+
+    /// <summary>The questions a request describes, or null when it is not one this build understands.</summary>
+    /// <param name="requestJson">The stored request.</param>
+    public static OwnerQuestionSet? Question(string? requestJson) => OwnerQuestions.Read(requestJson);
+
+    /// <summary>The answers a resolution records, or null when it is not one this build understands.</summary>
+    /// <param name="resolutionJson">The stored resolution.</param>
+    public static OwnerAnswerSet? Answers(string? resolutionJson) => OwnerQuestions.ReadAnswers(resolutionJson);
 
     /// <summary>The decision a resolution records, or null when it is not one this build understands.</summary>
     /// <param name="resolutionJson">The stored resolution.</param>

@@ -334,7 +334,8 @@ internal static class AssistantEndpoint {
         long id,
         string runId,
         IConversationStore conversations,
-        OwnerInterruptCoordinator coordinator) {
+        OwnerInterruptCoordinator coordinator,
+        ModelWindowSource windows) {
         ArgumentNullException.ThrowIfNull(context);
 
         SecurityHeaders.NoStore(context);
@@ -401,6 +402,39 @@ internal static class AssistantEndpoint {
                     ? InterruptResolutionResult.Resolved
                     : InterruptResolutionResult.Conflict;
                 break;
+            case OwnerInterruptKind.Question: {
+                    if (InterruptPayloads.Question(pending.RequestJson) is not { } questions) {
+                        await WriteInterruptConflictAsync(context);
+                        return;
+                    }
+                    // The form is built from this record, so a field it does not ask for, or a call
+                    // id that is not this record's, is a form built for another card.
+                    if (!HasOnlyFields(context, [.. QuestionFields(questions)])
+                        || !QuestionFieldsAreWellFormed(context, questions)
+                        || !string.Equals(OneField(context, "toolCallId"), pending.ToolCallId, StringComparison.Ordinal)) {
+                        await WriteInterruptConflictAsync(context);
+                        return;
+                    }
+                    if (windows.Budget is not { } budget) {
+                        await WriteJsonErrorAsync(context, StatusCodes.Status409Conflict,
+                            "assistant.model_window_unknown", "The model's window is not reported",
+                            "The provider has not reported this model's context window, so the answer cannot be measured.");
+                        return;
+                    }
+
+                    OwnerAnswerInput[] inputs = [.. questions.Questions.Select((_, index) => AnswerInput(context, index))];
+                    OwnerAnswersResult answers = OwnerQuestions.Answer(questions, inputs, budget.MessageChars);
+                    if (!answers.IsSuccess) {
+                        await WriteJsonErrorAsync(context, StatusCodes.Status400BadRequest,
+                            "assistant.answer_invalid", "The answer could not be recorded", answers.Error!);
+                        return;
+                    }
+
+                    result = await conversations.ResolveInterruptAsync(
+                        id, owner, runId, pending.Kind, pending.ToolCallId,
+                        OwnerQuestions.WriteAnswers(answers.Answers!), context.RequestAborted);
+                    break;
+                }
             default:
                 // A kind this build does not answer: a record written by a newer deploy, or a form
                 // for a wait that has already gone.
@@ -431,6 +465,44 @@ internal static class AssistantEndpoint {
             && values.Count == 1
             ? values[0]
             : null;
+
+    // The fields a question card asks for, by the index the form uses. An option field exists only
+    // where there is a choice to make; every question always has room for the owner's own words.
+    private static IEnumerable<string> QuestionFields(OwnerQuestionSet questions) {
+        yield return "toolCallId";
+        for (int index = 0; index < questions.Questions.Count; index++) {
+            if ((questions.Questions[index].Options?.Count ?? 0) > 0) {
+                yield return $"answer{index}";
+            }
+            yield return $"other{index}";
+        }
+    }
+
+    // A text field names one answer, so a repeated one is a form built for a different card. A
+    // choice may repeat, because a multi-select question asks for exactly that.
+    private static bool QuestionFieldsAreWellFormed(HttpContext context, OwnerQuestionSet questions) {
+        for (int index = 0; index < questions.Questions.Count; index++) {
+            if (context.Request.Form.TryGetValue($"other{index}", out Microsoft.Extensions.Primitives.StringValues values)
+                && values.Count != 1) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    private static OwnerAnswerInput AnswerInput(HttpContext context, int index) {
+        List<string> selected = [];
+        if (context.Request.Form.TryGetValue($"answer{index}", out Microsoft.Extensions.Primitives.StringValues values)) {
+            foreach (string? value in values) {
+                if (value is not null) {
+                    selected.Add(value);
+                }
+            }
+        }
+
+        return new OwnerAnswerInput(selected, OneField(context, $"other{index}") ?? string.Empty);
+    }
 
     // The framework's own fields start with `__`, so the antiforgery token is the only name this does
     // not have to know; everything else must be a field the kind asked for.

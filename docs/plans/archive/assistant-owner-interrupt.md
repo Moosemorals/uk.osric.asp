@@ -74,7 +74,7 @@ the route a form posts to, the events the page listens to — and those are the 
 
 ## Non-goals
 
-- **The question tool.** That is [the next plan](../assistant-ask-owner.md); this one only makes room for
+- **The question tool.** That is [the next plan](assistant-ask-owner.md); this one only makes room for
   it. Nothing here knows what a question's request or resolution contains.
 - **Changing when the owner is asked.** `ApprovalMode`, the budgets and their windows are untouched.
 - **Resuming a run across a restart.** The record makes the *request* durable; the run is still not
@@ -240,7 +240,7 @@ the same results it writes today, because it derives them from the transcript, n
 - **`ApprovalMode`.** `AlwaysApprove` still asks nothing; `RequireApproval` still asks before a flagged
   call. The policy is not the record.
 - **The budgets.** The same windows, the same sentence, the same `StepLimit`/`ToolCallLimit` on the run.
-- **The ask tool's design.** [The next plan](../assistant-ask-owner.md) is unchanged by this one except
+- **The ask tool's design.** [The next plan](assistant-ask-owner.md) is unchanged by this one except
   that it is now small.
 
 ## What it touches

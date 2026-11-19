@@ -451,6 +451,25 @@ internal sealed class SqliteConversationStore(
             .FirstOrDefaultAsync(cancellationToken);
     }
 
+    public async Task<IReadOnlyList<OwnerInterrupt>> GetAnsweredQuestionsAsync(
+        long conversationId,
+        string owner,
+        CancellationToken cancellationToken = default) {
+        ArgumentException.ThrowIfNullOrWhiteSpace(owner);
+        if (!await OwnsConversationAsync(conversationId, owner, cancellationToken)) {
+            return [];
+        }
+
+        // SQLite cannot order a DateTimeOffset column, and the rows are few enough to sort here.
+        List<OwnerInterrupt> answered = await database.Set<OwnerInterrupt>().AsNoTracking()
+            .Where(interrupt => interrupt.Kind == OwnerInterruptKind.Question
+                && interrupt.Status == OwnerInterruptStatus.Resolved
+                && database.Set<Run>().Any(run => run.Id == interrupt.RunId && run.ConversationId == conversationId))
+            .ToListAsync(cancellationToken);
+
+        return [.. answered.OrderBy(interrupt => interrupt.CreatedAt).ThenBy(interrupt => interrupt.RunId, StringComparer.Ordinal)];
+    }
+
     public async Task<InterruptResolutionResult> ResolveInterruptAsync(
         long conversationId,
         string owner,

@@ -55,7 +55,8 @@ internal sealed class ToolRegistry {
         new UpdateMemoryTool(),
         new ForgetMemoryTool(),
         new SearchMemoriesTool(),
-        new ReferenceTool());
+        new ReferenceTool(),
+        new AskUserTool());
 
     /// <summary>Every tool, in declaration order.</summary>
     public IReadOnlyList<AssistantTool> All { get; }
@@ -86,10 +87,21 @@ internal sealed class ToolRegistry {
         };
     }
 
-    private static object ValueSchema(ToolArgumentSchema argument) => argument.Type switch {
-        ToolArgumentType.Array => new { type = "array", items = ObjectSchema(argument.Items ?? []) },
-        _ => new { type = JsonTypeOf(argument.Type) },
-    };
+    private static Dictionary<string, object?> ValueSchema(ToolArgumentSchema argument) {
+        Dictionary<string, object?> schema = new(StringComparer.Ordinal) {
+            ["type"] = JsonTypeOf(argument.Type),
+        };
+        if (argument.Type == ToolArgumentType.Array) {
+            schema["items"] = ObjectSchema(argument.Items ?? []);
+        }
+        // Emitted only when it is set, so every tool that describes no argument sends the bytes it
+        // has always sent and the provider's cached prefix does not move.
+        if (argument.Description is { } description) {
+            schema["description"] = description;
+        }
+
+        return schema;
+    }
 
     private static string JsonTypeOf(ToolArgumentType type) => type switch {
         ToolArgumentType.String => "string",

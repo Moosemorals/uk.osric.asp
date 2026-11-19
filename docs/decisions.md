@@ -2549,6 +2549,24 @@ figure left is `Assistant:MinOutputTokens`.
 
 *Recorded in [assistant](assistant.md), [glossary](glossary.md), [RunUsage](../src/uk.osric.asp.Core/Assistant/RunUsage.cs).*
 
+### assistant-a-question-is-a-tool-call
+
+The assistant asks its owner with a tool, `ask_user`, whose result is the answer: one to four questions
+in one call, each with two to five choices or none and always room for the owner's own words, returned
+in the order asked. The wait is the owner interrupt's third kind — a `question` request, a card
+rendered from the record, and a resolution the tool reads after the run wakes — so a reload, a second
+device or a disconnected browser changes nothing, and no clock judges it: the tool timeout does not
+apply and the owner's wait is taken off `assistant.tool.duration`. A question left blank is an answer
+(`selected: []`, `text: ""`), the owner leaving the decision to the model, with no second flag to
+interpret. The card is one form holding every question, so the owner can read the whole set before
+answering any of it, and a finished turn reads the question and the answer from the resolved records
+rather than the tool result, which may be cut at its cap. The questions are bounded by
+`Assistant:MaxQuestionsPerCall`, `MaxQuestionOptions` and `MaxQuestionChars`, and the answer by the
+owner message's share of the budget. A tool argument may describe itself in the schema, emitted only
+when set, and this tool's arguments do.
+
+*Recorded in [the assistant](assistant.md#ai-page-assistant), [the ask-owner plan](plans/archive/assistant-ask-owner.md), [OwnerQuestions](../src/uk.osric.asp.Core/Assistant/OwnerQuestions.cs).*
+
 ## Deploy
 
 ### deploy-one-small-host

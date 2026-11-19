@@ -49,6 +49,14 @@ internal sealed class MetricCapture : IDisposable {
         }
     }
 
+    /// <summary>Returns the measurements of one instrument for one tool.</summary>
+    public IReadOnlyList<Measurement> ForTool(string instrument, string tool) {
+        lock (_gate) {
+            return [.. _measurements.Where(measurement => measurement.Instrument == instrument
+                && measurement.HasTag("tool", tool))];
+        }
+    }
+
     public void Dispose() {
         _listener.Dispose();
     }

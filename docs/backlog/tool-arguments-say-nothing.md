@@ -17,7 +17,7 @@ SPDX-License-Identifier: MIT
 
 ## Idea
 
-`ToolArgumentSchema` gained an optional `Description` for [the ask tool](../plans/assistant-ask-owner.md),
+`ToolArgumentSchema` gained an optional `Description` for [the ask tool](../plans/archive/assistant-ask-owner.md),
 so `ask_user`'s arguments explain themselves in the model's request body. Every other tool — twenty of
 them — carries names only: the model reads `source`, `path`, `query`, `edits`, `content`, `kind` and
 the rest with no sentence saying what goes in them or when they differ from a near neighbour.

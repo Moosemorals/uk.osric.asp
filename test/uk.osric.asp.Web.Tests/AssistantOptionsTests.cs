@@ -158,6 +158,35 @@ public sealed class AssistantOptionsTests {
         });
     }
 
+    [Test]
+    public void TheQuestionLimitsShipAtFourFiveAndFiveHundred() {
+        Assert.Multiple(() => {
+            Assert.That(TestOptions.Assistant.MaxQuestionsPerCall, Is.EqualTo(4));
+            Assert.That(TestOptions.Assistant.MaxQuestionOptions, Is.EqualTo(5));
+            Assert.That(TestOptions.Assistant.MaxQuestionChars, Is.EqualTo(500));
+        });
+    }
+
+    [Test]
+    public void AQuestionLimitCanBeOverridden() {
+        AssistantOptions options = AssistantOptions.FromConfiguration(ShippedConfiguration.Read(
+            ("Assistant:ApiKey", "test-key"), ("Assistant:MaxQuestionsPerCall", "8")));
+
+        Assert.That(options.MaxQuestionsPerCall, Is.EqualTo(8));
+    }
+
+    [Test]
+    public void AQuestionLimitOutsideItsRangeStopsTheSite() {
+        ConfigurationException error = Assert.Throws<ConfigurationException>(() => AssistantOptions.FromConfiguration(
+            ShippedConfiguration.Read(("Assistant:ApiKey", "test-key"), ("Assistant:MaxQuestionOptions", "1"))))!;
+
+        Assert.Multiple(() => {
+            Assert.That(error.Message, Does.Contain("Assistant:MaxQuestionOptions is 1"));
+            Assert.That(error.Message, Does.Contain("2 to 10"));
+            Assert.That(error.Message, Does.Contain("5 is recommended"));
+        });
+    }
+
     private void AssertValid(AssistantOptions options) => Assert.That(Validate(options).Failed, Is.False);
 
     private ValidateOptionsResult Validate(AssistantOptions options) => _validator.Validate(name: null, options);

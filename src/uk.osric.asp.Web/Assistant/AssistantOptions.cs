@@ -73,6 +73,15 @@ internal sealed record AssistantOptions {
     /// <summary>The most terms one message contributes to a recall query.</summary>
     public required int MaxMemoryQueryTerms { get; init; }
 
+    /// <summary>The most questions one <c>ask_user</c> call may put to the owner.</summary>
+    public required int MaxQuestionsPerCall { get; init; }
+
+    /// <summary>The most options one question may offer before it is a menu.</summary>
+    public required int MaxQuestionOptions { get; init; }
+
+    /// <summary>The longest question, header, option label or option description may be.</summary>
+    public required int MaxQuestionChars { get; init; }
+
     public required int HeartbeatSeconds { get; init; }
     public required int JournalMaxEvents { get; init; }
     public required int JournalMaxBytes { get; init; }
@@ -145,6 +154,9 @@ internal sealed record AssistantOptions {
             MaxMemoryChars = reader.Number("MaxMemoryChars", recommended: 1_000, minimum: 1, maximum: 100_000),
             MaxMemorySearchResults = reader.Number("MaxMemorySearchResults", recommended: 50, minimum: 1, maximum: 1_000),
             MaxMemoryQueryTerms = reader.Number("MaxMemoryQueryTerms", recommended: 12, minimum: 2, maximum: 100),
+            MaxQuestionsPerCall = reader.Number("MaxQuestionsPerCall", recommended: 4, minimum: 1, maximum: 8),
+            MaxQuestionOptions = reader.Number("MaxQuestionOptions", recommended: 5, minimum: 2, maximum: 10),
+            MaxQuestionChars = reader.Number("MaxQuestionChars", recommended: 500, minimum: 20, maximum: 4_000),
             HeartbeatSeconds = reader.Number("HeartbeatSeconds", recommended: 15, minimum: 1, maximum: 300),
             JournalMaxEvents = reader.Number("JournalMaxEvents", recommended: 20_000, minimum: 1, maximum: 1_000_000),
             JournalMaxBytes = reader.Number("JournalMaxBytes", recommended: 4_194_304, minimum: 1_024, maximum: 1_073_741_824),
