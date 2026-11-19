@@ -9,9 +9,9 @@ SPDX-License-Identifier: MIT
 | --- | --- |
 | Difficulty | eager-beaver |
 | Utility | medium |
-| Status | open |
+| Status | planned |
 | Blocked by | — |
-| Plan | — |
+| Plan | [block-with-no-code-warns](../plans/block-with-no-code-warns.md) |
 | Area | Core (Compilation), tools, docs |
 | Location | `src/uk.osric.asp.Core/Compilation/TemplateShapeCheck.cs`, `test/uk.osric.asp.Core.Tests/TemplateShapeCheckTests.cs`, `tools/check-pages/Program.cs`, `docs/architecture.md`, `docs/pages.md`, `src/uk.osric.asp.Web/Pages/Seeds/help` |
 

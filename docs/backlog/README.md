@@ -110,7 +110,7 @@ its reason, and that no item sits above something that blocks it.
 
 | Slug | Title | Difficulty | Utility | Status | Blocked by |
 | --- | --- | --- | --- | --- | --- |
-| [`block-that-is-not-code-compiles`](block-that-is-not-code-compiles.md) | A block that is not code still compiles | eager-beaver ⚙️🦫 | medium | open | — |
+| [`block-that-is-not-code-compiles`](block-that-is-not-code-compiles.md) | A block that is not code still compiles | eager-beaver ⚙️🦫 | medium | [planned](../plans/block-with-no-code-warns.md) | — |
 | | *The same complaint as the diagnostics above one layer down: a shape the compiler cannot see, and the seeds are the proof the warnings stay quiet.* | | | | |
 | [`ops-no-ci`](ops-no-ci.md) | There is no CI pipeline | caffeinated-squirrel ☕🐿️ | high | open | — |
 | | *Turns the gate from a habit into a rule, which makes every step below it cheaper.* | | | | |
