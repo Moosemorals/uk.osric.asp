@@ -7,13 +7,15 @@ SPDX-License-Identifier: MIT
 
 | | |
 | --- | --- |
-| Status | Built 2026-11-19 — the owner's yes was given and the work is on its branch, awaiting the merge. The decision entry is written at the merge |
-| Size | Medium — one tool, one interrupt kind, a card in two renderers, three configuration values, a prompt version and five suites. The wait, the record, the status and the route are [the owner interrupt's](archive/assistant-owner-interrupt.md) |
+| Status | Merged 2026-11-19 — built on *assistant-ask-owner* and merged into trunk with `make check` green. The recorded name is `assistant-a-question-is-a-tool-call` |
+| Size | Medium — one tool, one interrupt kind, a card in two renderers, three configuration values, a prompt version and five suites. The wait, the record, the status and the route are [the owner interrupt's](assistant-owner-interrupt.md) |
 | Area | Core (Assistant), Web (assistant), docs |
-| Spike | [The ask tool's shape](../spikes/ask-tool-shape.md) read MCP elicitation, Claude Code, VS Code, Cline, Roo Code, OpenAI, DeepSeek, LangGraph and AutoGen; it recommends the schema and the caps this plan adopts, and names the two levers — the description and the parameter descriptions — that the evidence says matter most. The plan adds one thing it would not: a question the owner may skip (D4) |
-| Backlog | [`cannot-ask-the-owner`](../backlog/cannot-ask-the-owner.md) |
-| Depends on | [The owner interrupt](archive/assistant-owner-interrupt.md) (ARCH-17), landed 2026-11-18 |
-| Decisions | New name proposed: **assistant-a-question-is-a-tool-call**. Relies on `assistant-a-run-waits-on-one-owner-interrupt` and `assistant-a-tool-is-one-type`; edits nothing |
+| Spike | [The ask tool's shape](../../spikes/ask-tool-shape.md) read MCP elicitation, Claude Code, VS Code, Cline, Roo Code, OpenAI, DeepSeek, LangGraph and AutoGen; it recommends the schema and the caps this plan adopts, and names the two levers — the description and the parameter descriptions — that the evidence says matter most. The plan adds one thing it would not: a question the owner may skip (D4) |
+| Backlog | [`cannot-ask-the-owner`](../../backlog/closed.md), closed at the merge |
+| Depends on | [The owner interrupt](assistant-owner-interrupt.md) (ARCH-17), landed 2026-11-18 |
+| Decisions | Taken at the merge: `assistant-a-question-is-a-tool-call`. Relies on `assistant-a-run-waits-on-one-owner-interrupt` and `assistant-a-tool-is-one-type`; edits nothing |
+
+The name this plan proposed is in [the decisions record](../../decisions.md#assistant-a-question-is-a-tool-call).
 
 ## The short version
 
@@ -23,7 +25,7 @@ should say, whether a section is still wanted — has no way to ask. It guesses,
 with the question in prose and loses the work it had queued behind the answer.
 
 This adds the missing turn: a tool, `ask_user`, whose **result is the owner's answer**. It is the third
-kind of [owner interrupt](archive/assistant-owner-interrupt.md), so the wait already exists: the run opens a
+kind of [owner interrupt](assistant-owner-interrupt.md), so the wait already exists: the run opens a
 question interrupt, the owner's card is rendered from the stored request, their answer is the stored
 resolution, and the run carries on in the same step. What this plan adds is the kind, the tool, the
 card, the prompt and three limits. The owner chose the name `ask_user` and no alias for it (D1).
@@ -87,7 +89,7 @@ Four choices are load-bearing:
   say not to ask for secrets instead.
 - **Per-parameter descriptions for the other twenty tools.** The capability lands in `Core`; using it
   everywhere rewrites the provider's cached prefix and is a separate job with a measurement —
-  [`tool-arguments-say-nothing`](../backlog/tool-arguments-say-nothing.md).
+  [`tool-arguments-say-nothing`](../../backlog/tool-arguments-say-nothing.md).
 
 ## The design
 
@@ -432,7 +434,7 @@ The plan asked five questions on 2026-11-18; these are the answers, and this rev
 | 2 | Batch or one at a time? | Batch, up to four in one call. The owner has met seven or eight questions at a time before, so four is not a long card; the accepted range reaches eight. |
 | 3 | Should an unanswered question be skippable? | Yes, without a flag: the owner wants to read the whole set before answering any of it, and to be able to leave a question. An empty answer is an answer (D4). |
 | 4 | Should the wait be excluded from `assistant.tool.duration`? | Yes — "waiting for the user is not the assistant's budget" (D9). |
-| 5 | Should parameter descriptions be added to every tool? | Not in this change, and it is written down: [`tool-arguments-say-nothing`](../backlog/tool-arguments-say-nothing.md). |
+| 5 | Should parameter descriptions be added to every tool? | Not in this change, and it is written down: [`tool-arguments-say-nothing`](../../backlog/tool-arguments-say-nothing.md). |
 
 ## Considered and rejected
 
