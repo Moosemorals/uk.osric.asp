@@ -344,6 +344,115 @@ public sealed class PageEditorPageTests {
         });
     }
 
+    [Test]
+    public async Task TheMovePageAsksForTheDestinationAsync() {
+        Store("/about", "old");
+
+        Rendered rendered = await RenderAsync("?edit=%2Fabout&cmd=move");
+
+        Assert.Multiple(() => {
+            Assert.That(rendered.Status, Is.EqualTo(200));
+            Assert.That(rendered.Body, Does.Contain("Move /about"));
+            Assert.That(rendered.Body, Does.Contain("id=\"move-to\" name=\"to\""), "the form asks for the new key");
+            Assert.That(rendered.Body, Does.Contain("name=\"expected\" value=\"" + HashOf("/about") + "\""),
+                "the form names the head it was drawn from");
+            Assert.That(rendered.Body, Does.Contain("action=\"/pages?edit=%2Fabout&amp;cmd=move\""));
+        });
+    }
+
+    [Test]
+    public async Task TheConfirmationSaysTheOldKeyStopsAnsweringAsync() {
+        Store("/about", "old");
+
+        Rendered rendered = await RenderAsync("?edit=%2Fabout&cmd=move");
+
+        Assert.That(rendered.Body, Does.Contain("The old key stops answering"));
+    }
+
+    [Test]
+    public async Task TheEditorMovesAPageAndLinksToItAsync() {
+        Store("/about", "old");
+
+        Rendered rendered = await RenderAsync("?edit=%2Fabout&cmd=move", "POST",
+            Form(("to", "/notes"), ("expected", HashOf("/about"))));
+
+        Assert.Multiple(() => {
+            Assert.That(rendered.Status, Is.EqualTo(200));
+            Assert.That(rendered.Body, Does.Contain("Moved /about to /notes"));
+            Assert.That(rendered.Body, Does.Contain("<a href=\"/notes\">View /notes</a>"), "the answer links to the new key");
+            Assert.That(_storage["/about"], Is.Null);
+            Assert.That(_storage["/notes"]?.Template, Is.EqualTo("old"));
+        });
+    }
+
+    [Test]
+    public async Task AMoveOntoALivePageIsAnsweredAndWritesNothingAsync() {
+        Store("/about", "old");
+        Store("/notes", "occupied");
+
+        Rendered rendered = await RenderAsync("?edit=%2Fabout&cmd=move", "POST",
+            Form(("to", "/notes"), ("expected", HashOf("/about"))));
+
+        Assert.Multiple(() => {
+            Assert.That(rendered.Status, Is.EqualTo(409));
+            Assert.That(rendered.Body, Does.Contain("/notes already has a page"));
+            Assert.That(_storage["/about"]?.Template, Is.EqualTo("old"));
+            Assert.That(_storage["/notes"]?.Template, Is.EqualTo("occupied"));
+        });
+    }
+
+    [Test]
+    public async Task AStaleMoveKeepsThePageWhereItIsAsync() {
+        Store("/about", "old");
+
+        Rendered rendered = await RenderAsync("?edit=%2Fabout&cmd=move", "POST",
+            Form(("to", "/notes"), ("expected", "not-the-head")));
+
+        Assert.Multiple(() => {
+            Assert.That(rendered.Status, Is.EqualTo(409));
+            Assert.That(rendered.Body, Does.Contain("changed while this confirmation was open"));
+            Assert.That(_storage["/about"]?.Template, Is.EqualTo("old"));
+            Assert.That(_storage["/notes"], Is.Null);
+        });
+    }
+
+    [Test]
+    public async Task AMoveOfAFolderNamesItsChildrenAsync() {
+        Store("/folder", "the folder's own page");
+        Store("/folder/child", "the child");
+
+        Rendered rendered = await RenderAsync("?edit=%2Ffolder&cmd=move", "POST",
+            Form(("to", "/other"), ("expected", HashOf("/folder"))));
+
+        Assert.Multiple(() => {
+            Assert.That(rendered.Status, Is.EqualTo(409));
+            Assert.That(rendered.Body, Does.Contain("/folder/child"), "the answer names what to move first");
+            Assert.That(_storage["/folder"]?.Template, Is.EqualTo("the folder's own page"));
+        });
+    }
+
+    [Test]
+    public async Task TheListingOffersNoMoveForTheEditorItselfAsync() {
+        Rendered rendered = await RenderAsync();
+
+        Assert.Multiple(() => {
+            Assert.That(rendered.Body, Does.Contain("/pages?edit=%2Fpages"), "the editor can edit itself");
+            Assert.That(rendered.Body, Does.Not.Contain("/pages?edit=%2Fpages&amp;cmd=move"),
+                "the capability would refuse it, so the row offers no such link");
+        });
+    }
+
+    [Test]
+    public async Task TheListingOffersNoMoveForALibraryAsync() {
+        Rendered rendered = await RenderAsync();
+
+        Assert.Multiple(() => {
+            Assert.That(rendered.Body, Does.Contain("/_lib/document"), "a library is listed");
+            Assert.That(rendered.Body, Does.Not.Contain("aria-label=\"Move /_lib/document\""),
+                "a library move is refused, so the row offers no link");
+        });
+    }
+
     private static Dictionary<string, string> Form(params (string Name, string Value)[] fields) =>
         fields.ToDictionary(field => field.Name, field => field.Value, StringComparer.Ordinal);
 
