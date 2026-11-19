@@ -163,12 +163,19 @@ worktree.
 
 ### A step stops, and the owner answers
 
-Every step is proposed to the owner and waits. Nothing merges on its own evidence. There are two
-stops, and a step makes the first only when it wants a plan:
+Every step is proposed to the owner and waits. Nothing merges on its own evidence. There are three
+stops, in this order, and a step makes the second only when it wants a plan:
 
-1. **The plan.** A step that is large enough to want a plan writes it on the branch, commits it and
+1. **The questions.** An item or a plan that puts a choice to the owner — an `## Open questions`
+   section, or the same thing under another heading: *what the owner decides*, a question left in the
+   sketch, a value only they can pick — is asked before anything is planned or built from it. The
+   questions go to the owner, and their answers are what the next step is written against. Asking
+   after the plan or the code exists is the wrong order: an answer usually changes the shape of the
+   work rather than qualifying it at the end. A question whose answer is not needed yet stays in the
+   document with a line saying why it can wait.
+2. **The plan.** A step that is large enough to want a plan writes it on the branch, commits it and
    stops. The answer is yes, or what to change; nothing is built until it is yes.
-2. **The merge.** Every step stops here, with or without a plan. The branch is finished, its gate is
+3. **The merge.** Every step stops here, with or without a plan. The branch is finished, its gate is
    run, and the step says what changed, what proved it and what it is unsure of. It stays on its
    branch until the owner says yes.
 

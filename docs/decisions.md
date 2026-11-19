@@ -166,11 +166,12 @@ that were rejected. Plans are not rewritten into marketing copy afterwards.
 
 ### product-steps-wait-for-the-owner
 
-A step of the programme is proposed twice and the owner answers both: the plan, for a step that wants
-one, before anything is built, and the merge, for every step, once its gate is run. The branch waits
-on the answer. A green gate, a finished plan, the next step being ready and silence are evidence or
-expectation, never permission: an agent does not merge its own work and does not start the step after
-it.
+A step of the programme is proposed and the owner answers, in order: the questions an item or a plan
+puts to them, before anything is planned or built from it, because an answer usually changes the shape
+of the work rather than qualifying it at the end; the plan, for a step that wants one, before anything
+is built; and the merge, for every step, once its gate is run. The branch waits on each answer. A
+green gate, a finished plan, the next step being ready and silence are evidence or expectation, never
+permission: an agent does not merge its own work and does not start the step after it.
 
 *Recorded in [the programme](backlog/README.md#a-step-stops-and-the-owner-answers), [how to work](../CONTRIBUTING.md#working-on-it).*
 

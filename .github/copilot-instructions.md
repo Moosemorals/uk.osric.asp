@@ -46,10 +46,13 @@ folds them into one entry or narrows one of the names, and updates every citatio
 entry with no "Recorded in" line, a retired name taken again and a citation of a decision that is not
 there all fail it. See [decisions](../docs/decisions.md).
 
-Every step of the programme is proposed and waits for the owner: the plan, before anything is built,
-and the merge, for every step, once its gate is run (`product-steps-wait-for-the-owner`). Working on a
-branch in its own worktree, a green `make check`, a finished plan and an obvious next step are not
-permission to merge, to push, or to start the next step — ask, and stop.
+Every step of the programme is proposed and waits for the owner: the questions an item or a plan puts
+to them, before anything is planned or built from it; then the plan, before anything is built; then
+the merge, for every step, once its gate is run (`product-steps-wait-for-the-owner`). An item or a
+plan that carries `## Open questions` — or puts the same choice under another heading — is asked
+first: writing the plan or the code and asking afterwards is the wrong order. Working on a branch in
+its own worktree, a green `make check`, a finished plan and an obvious next step are not permission to
+merge, to push, or to start the next step — ask, and stop.
 
 The work itself is the backlog in `docs/backlog`: an item is a slug and a title, where a defect's
 slug states its kind and an idea's states none, and `job` is the host's word for a `PageJob` rather
