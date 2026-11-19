@@ -24,6 +24,7 @@ using Site.Editor;
     string EditUrl(string name) => self + "?edit=" + System.Uri.EscapeDataString(name);
     string RevisionUrl(string name, string hash) => ReadUrl(name) + "&rev=" + System.Uri.EscapeDataString(hash);
     string DeleteUrl(string name) => EditUrl(name) + "&cmd=delete";
+    string MoveUrl(string name) => EditUrl(name) + "&cmd=move";
     string InstallUrl(string name) => EditUrl(name) + "&cmd=install";
     string AdoptAction(string name) => self + "?edit=" + System.Uri.EscapeDataString(name) + "&cmd=adopt";
     string RestoreUrl(string name, string hash) => RevisionUrl(name, hash) + "&cmd=restore";
@@ -63,6 +64,11 @@ using Site.Editor;
         : entry.IsWorker ? "Worker"
         : entry.IsAsset ? "Text"
         : "Page";
+
+    static string BelowWords(IReadOnlyList<string> below) =>
+        below.Count <= 5
+            ? string.Join(", ", below)
+            : string.Join(", ", below.Take(5)) + " and " + (below.Count - 5).ToString(System.Globalization.CultureInfo.InvariantCulture) + " more";
 
     static string Stamped(System.DateTimeOffset when) =>
         when.ToUniversalTime().ToString("yyyy-MM-dd HH:mm 'UTC'", System.Globalization.CultureInfo.InvariantCulture);
@@ -113,6 +119,8 @@ using Site.Editor;
     string? renderedDiff = null;
     string? seedSource = null;
     string? toHash = null;
+    string? movedTo = null;
+    IReadOnlyList<string> movedBelow = [];
 
     IReadOnlyList<PageDiagnostic> diagnostics = [];
     IReadOnlyList<PageEntry> entries = [];
@@ -204,6 +212,59 @@ using Site.Editor;
     async Task PostActionAsync() {
         if (!hasKey) {
             Problem(400, "That action needs a page", "The request named no page to act on, so nothing was changed.");
+            return;
+        }
+
+        if (command == "move") {
+            string? destination = One(ctx.Request.Form, "to");
+            expected = One(ctx.Request.Form, "expected");
+            if (destination is null) {
+                Problem(400, "A destination is required", "The form did not say where to move the page, so nothing was moved.");
+                return;
+            }
+
+            if (expected is null) {
+                Problem(400, "The form was incomplete",
+                    "The form did not say which revision it was rendered from, so nothing was moved. Reload the editor and try again.");
+                return;
+            }
+
+            PageKeyResolution target = writes.Resolve(destination);
+            if (!target.IsSuccess) {
+                Problem(400, "That is not a page address", target.Error ?? "That is not a page address.");
+                return;
+            }
+
+            if (target.IsReserved) {
+                Problem(400, "That is a shell file",
+                    target.Key + " is answered by the site itself, so no page is stored there. Nothing was moved.");
+                return;
+            }
+
+            PageMoveResult moved = await writes.MoveAsync(key, target.Key!, expected);
+            live = await catalog.ReadAsync(key);
+            expected = live?.Hash;
+            stage = "move";
+
+            if (moved.Outcome == PageMoveOutcome.Moved) {
+                stage = "moved";
+                movedTo = target.Key;
+            } else if (moved.Outcome == PageMoveOutcome.FolderNotEmpty) {
+                status = 409;
+                movedBelow = moved.Below;
+                notice = key + " names a folder: " + BelowWords(moved.Below) + " live below it. Move or scrub those first, then move this page.";
+            } else if (moved.Outcome == PageMoveOutcome.Unchanged) {
+                notice = key + " is already " + target.Key + ", so nothing was moved.";
+            } else if (moved.Outcome == PageMoveOutcome.Stale) {
+                status = 409;
+                notice = "The page changed while this confirmation was open, so nothing was moved. Check it and try again.";
+            } else if (moved.Outcome == PageMoveOutcome.SourceNotFound) {
+                status = 409;
+                notice = key + " has no live page, so nothing was moved.";
+            } else {
+                status = 409;
+                notice = target.Key + " already has a page, so nothing was moved. Choose another key.";
+            }
             return;
         }
 
@@ -320,6 +381,21 @@ using Site.Editor;
             // the site's layout, so an empty page is a document from the first save.
             text = live?.Source ?? Starter;
             expected = live?.Hash;
+            return;
+        }
+
+        if (command == "move") {
+            revisions = await catalog.RevisionsAsync(key);
+            live = await catalog.ReadAsync(key);
+            deleted = live is null && revisions.Count > 0;
+            if (live is null) {
+                Problem(400, "That page has no live source",
+                    deleted ? key + " is deleted, so there is nothing to move." : key + " has no page to move.");
+                return;
+            }
+
+            stage = "move";
+            expected = live.Hash;
             return;
         }
 
@@ -455,7 +531,7 @@ using Site.Editor;
 
     // The listing shares the sheet too, so its kind and status columns are marked the same way
     // every other stage's table is.
-    if (stage is "listing" or "editor" or "read" or "revision" or "diff" or "install" or "restore") {
+    if (stage is "listing" or "editor" or "read" or "revision" or "diff" or "install" or "restore" or "move" or "moved") {
         layout.AddStylesheet("/editor.css");
     }
 
@@ -543,6 +619,9 @@ run.</p>
                     } else {
                         %><a href="<%= EditUrl(entry.Key) %>" aria-label="Edit <%= entry.Key %>">Edit</a>
 <a href="<%= ReadUrl(entry.Key) %>" aria-label="History of <%= entry.Key %>">History</a><%
+                        if (!string.Equals(entry.Key, ctx.Path, System.StringComparison.Ordinal) && !entry.IsLibrary) {
+                            %><a href="<%= MoveUrl(entry.Key) %>" aria-label="Move <%= entry.Key %>">Move</a><%
+                        }
                         if (!string.Equals(entry.Key, ctx.Path, System.StringComparison.Ordinal)) {
                             %><a href="<%= DeleteUrl(entry.Key) %>" aria-label="Delete <%= entry.Key %>">Delete</a><%
                         }
@@ -563,11 +642,14 @@ run.</p>
     } else if (stage == "editor") {
         layout.Title = "Editing " + key;
         bool isEditorItself = string.Equals(key, ctx.Path, System.StringComparison.Ordinal);
+        PageEntry? row = (await catalog.ListAsync(new(key))).Entries.FirstOrDefault(item => string.Equals(item.Key, key, System.StringComparison.Ordinal));
         List<NavLink> menu = [new(self, "Page list"), new(ReadUrl(key), "History")];
+        if (!isEditorItself && row?.IsLibrary != true) {
+            menu.Add(new(MoveUrl(key), "Move"));
+        }
         if (!isEditorItself) {
             menu.Add(new(DeleteUrl(key), "Delete"));
         }
-        PageEntry? row = (await catalog.ListAsync(new(key))).Entries.FirstOrDefault(item => string.Equals(item.Key, key, System.StringComparison.Ordinal));
         if (row?.Seed?.CanApply == true) {
             menu.Add(new(InstallUrl(key), "Install from seed"));
         }
@@ -721,6 +803,34 @@ is on its own page.</p>
         %><h1>Changes to <%= key %></h1>
 <p>From revision <%= fromHash! %> to revision <%= toHash! %>.</p><%
         ctx.Response.WriteRaw(renderedDiff!);
+    } else if (stage == "move") {
+        layout.Title = "Move " + key;
+        %><h1>Move <%= key %></h1><%
+        if (notice is not null) {
+            %><p class="notice"><%= notice %></p><%
+        }
+        if (movedBelow.Count > 0) {
+            %><p>Move or scrub these first:</p>
+<ul><% foreach (string below in movedBelow) { %><li><a href="<%= EditUrl(below) %>"><%= below %></a></li><% } %></ul><%
+        }
+        %><p>The page, its revision history and its state move to the new key in one step, and every revision keeps its hash.</p>
+<p><strong>The old key stops answering.</strong> Links to <%= key %> will not be found, a versioned link answers only at the new key, and a seed this release still ships at <%= key %> will be installed there again.</p>
+<form method="post" action="<%= MoveUrl(key) %>" class="form">
+    <%== ctx.Response.AntiforgeryField %>
+    <input type="hidden" name="expected" value="<%= expected ?? "" %>">
+    <dl>
+        <dt><label for="move-to">New key</label></dt>
+        <dd><input id="move-to" name="to" required></dd>
+    </dl>
+    <button type="submit">Move page</button>
+</form><%
+        Menu("Confirmation navigation", [new(EditUrl(key), "Cancel"), new(ReadUrl(key), "History")]);
+    } else if (stage == "moved") {
+        layout.Title = "Moved " + key;
+        %><h1>Moved <%= key %> to <%= movedTo! %></h1>
+<p>The history and the page state moved with it, and every revision keeps its hash. <a href="<%= movedTo! %>">View <%= movedTo! %></a> · <a href="<%= EditUrl(movedTo!) %>">Edit it</a></p>
+<p>Links to <%= key %> now answer &quot;not found&quot;.</p><%
+        Menu("Editor navigation", [new(self, "Page list"), new(ReadUrl(movedTo!), "History")]);
     } else if (stage == "delete") {
         layout.Title = "Delete " + key;
         %><h1>Delete <%= key %>?</h1><%

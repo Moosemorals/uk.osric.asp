@@ -8,10 +8,13 @@ using uk.osric.asp.Core.Assistant;
 using uk.osric.asp.Core.Compilation;
 using uk.osric.asp.Core.Diff;
 using uk.osric.asp.Core.Pages;
+using uk.osric.asp.Core.Text;
 using uk.osric.asp.Runtime;
 using uk.osric.asp.Web.Assistant.Shell;
 using uk.osric.asp.Web.Editor;
 using uk.osric.asp.Web.Pages;
+using PageMoveOutcome = uk.osric.asp.Sdk.PageMoveOutcome;
+using PageMoveResult = uk.osric.asp.Sdk.PageMoveResult;
 
 /// <summary>Lists the live pages and shell files under an optional prefix.</summary>
 internal sealed class ListPagesTool : AssistantTool {
@@ -431,6 +434,77 @@ internal sealed class SearchPagesTool : AssistantTool {
         })];
 
         return services.Results.Success(new { query, matches, truncated = found.Truncated }, $"Found {matches.Length} matches");
+    }
+}
+
+/// <summary>Moves a page, its history and its state to another key.</summary>
+internal sealed class MovePageTool : AssistantTool {
+
+    public override ToolSpec Spec { get; } = new(
+        "move_page",
+        "Rename a page by moving it, its revision history and its state to another key. Pass the revision hash read from the source, so a page that changed underneath is not moved. A shell file, a library and a key with pages below it are refused. Nothing is left at the old key.",
+        true,
+        [
+            new("from", ToolArgumentType.String, true),
+            new("to", ToolArgumentType.String, true),
+            new("expectedHash", ToolArgumentType.String, true),
+        ]) {
+        Verb = "Move",
+        Writes = true,
+        PathArgument = "from",
+    };
+
+    public override async Task<ToolExecutionResult> RunAsync(
+        ToolValues values,
+        ToolServices services,
+        CancellationToken cancellationToken) {
+        (PagePath? from, ToolExecutionResult? refusal) = ToolPaths.ResolveWrite(Spec, values, "from", services);
+        if (refusal is not null) {
+            return refusal;
+        }
+
+        (PagePath? to, refusal) = ToolPaths.ResolveWrite(Spec, values, "to", services);
+        if (refusal is not null) {
+            return refusal;
+        }
+
+        string expectedHash = values.RequiredString("expectedHash");
+        PagePath source = from!;
+        PagePath target = to!;
+
+        PageMoveResult moved;
+        try {
+            moved = PageMoveAnswer.From(
+                await services.Pages.MoveAsync(source, target, expectedHash, cancellationToken), source);
+        } catch (InvalidOperationException exception) {
+            // The capability's page-bug rules — a library and a page moving itself — are refusals the
+            // model reports, not a fault that ends the run.
+            return services.Results.Failure(exception.Message, $"{Spec.Verb} {source.Describe()}: refused");
+        }
+
+        if (moved.Outcome == PageMoveOutcome.Moved) {
+            return services.Results.Success(
+                new { path = target.Key, fromPath = source.Key, revisionHash = moved.Hash },
+                $"Moved {source.Describe()} to {target.Describe()}");
+        }
+
+        return moved.Outcome switch {
+            PageMoveOutcome.Unchanged => services.Results.Failure(
+                $"{source.Describe()} and {target.Describe()} are the same key, so nothing was moved.",
+                $"{Spec.Verb} {source.Describe()}: unchanged"),
+            PageMoveOutcome.Stale => services.Results.Failure(
+                $"{source.Describe()} changed since it was read, so nothing was moved. Read it again and pass the new revision hash.",
+                $"{Spec.Verb} {source.Describe()}: stale"),
+            PageMoveOutcome.SourceNotFound => services.Results.Failure(
+                $"Page {source.Describe()} was not found.",
+                $"{Spec.Verb} {source.Describe()}: not found"),
+            PageMoveOutcome.TargetExists => services.Results.Failure(
+                $"{target.Describe()} already has a page, so nothing was moved.",
+                $"{Spec.Verb} {source.Describe()}: target exists"),
+            _ => services.Results.Failure(
+                $"{source.Describe()} names a folder: {string.Join(", ", moved.Below.Select(key => MessageText.Sanitize(key)))} live below it. Move or scrub those first.",
+                $"{Spec.Verb} {source.Describe()}: a folder"),
+        };
     }
 }
 

@@ -486,6 +486,7 @@ uk.osric.asp.Core.Shell.ShellOperand.Name.get -> string!
 uk.osric.asp.Core.Shell.ShellOperand.Name.init -> void
 uk.osric.asp.Core.Shell.ShellOperand.ShellOperand(string! Name, uk.osric.asp.Core.Shell.ShellOperandKind Kind, int Minimum = 1, int Maximum = 1) -> void
 uk.osric.asp.Core.Shell.ShellOperandKind
+uk.osric.asp.Core.Shell.ShellOperandKind.Destination = 3 -> uk.osric.asp.Core.Shell.ShellOperandKind
 uk.osric.asp.Core.Shell.ShellOperandKind.Path = 1 -> uk.osric.asp.Core.Shell.ShellOperandKind
 uk.osric.asp.Core.Shell.ShellOperandKind.Prefix = 2 -> uk.osric.asp.Core.Shell.ShellOperandKind
 uk.osric.asp.Core.Shell.ShellOperandKind.Text = 0 -> uk.osric.asp.Core.Shell.ShellOperandKind

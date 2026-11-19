@@ -102,6 +102,34 @@ internal sealed class PageWritesScope(
     }
 
     /// <inheritdoc/>
+    public async Task<PageMoveResult> MoveAsync(string from, string to, string expectedHash) {
+        ArgumentException.ThrowIfNullOrWhiteSpace(from);
+        ArgumentException.ThrowIfNullOrWhiteSpace(to);
+        ArgumentException.ThrowIfNullOrWhiteSpace(expectedHash);
+
+        PagePath source = ResolveForWrite(from);
+        PagePath target = ResolveForWrite(to);
+
+        if (string.Equals(source.Key, path.Key, StringComparison.Ordinal)) {
+            throw new InvalidOperationException(
+                $"{path.Key} cannot move itself: the rest of this render answers for that key, and the response in hand is the page as it was.");
+        }
+
+        if (string.Equals(source.Key, target.Key, StringComparison.Ordinal)) {
+            Acted();
+            return new PageMoveResult(PageMoveOutcome.Unchanged, null, []);
+        }
+
+        // The render's deadline, not CancellationToken.None: a move compiles nothing and is four
+        // statements, so one that outlives the render rolls back and the caller still has the hash.
+        PageMoveStoreResult moved = await pages.MoveAsync(source, target, expectedHash, Deadline);
+        PageMoveResult answer = PageMoveAnswer.From(moved, source);
+        Acted();
+
+        return answer;
+    }
+
+    /// <inheritdoc/>
     public async Task<PageEditResult?> RestoreRevisionAsync(string key, string hash, string? expectedHash) {
         ArgumentException.ThrowIfNullOrWhiteSpace(hash);
 

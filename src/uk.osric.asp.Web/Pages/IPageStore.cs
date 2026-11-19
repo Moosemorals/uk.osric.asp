@@ -86,6 +86,23 @@ internal interface IPageStore {
 
     Task<bool> DeletePageAsync(PagePath path, CancellationToken cancellationToken = default);
 
+    /// <summary>Moves a page, its history and its state to another key in one transaction.</summary>
+    /// <param name="from">The key the page has.</param>
+    /// <param name="to">The key it should have.</param>
+    /// <param name="expectedHash">The live head the caller read.</param>
+    /// <param name="cancellationToken">Cancels the move.</param>
+    /// <returns>What the store did, or why it moved nothing.</returns>
+    /// <remarks>
+    /// Every revision is re-filed under the new key and keeps its hash, the anchor and the content
+    /// hash follow the head, and nothing is left at the old key. A tombstone at the new key is cleared
+    /// first and keeps the history it retained; its state belongs to the dead page and is discarded.
+    /// </remarks>
+    Task<PageMoveStoreResult> MovePageAsync(
+        PagePath from,
+        PagePath to,
+        string expectedHash,
+        CancellationToken cancellationToken = default);
+
     /// <summary>Removes a deleted page head and all of its revisions.</summary>
     /// <param name="path">The canonical key of a deleted page.</param>
     /// <param name="cancellationToken">Cancels the cleanup.</param>

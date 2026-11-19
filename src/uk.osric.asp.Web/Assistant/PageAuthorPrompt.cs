@@ -9,7 +9,7 @@ using uk.osric.asp.Web.Shell;
 
 /// <summary>The system prompt and worked examples that teach the model to write a page.</summary>
 internal static class PageAuthorPrompt {
-    public const string Version = "page-author-v44";
+    public const string Version = "page-author-v45";
 
     public static IReadOnlyList<(string Name, string Source)> Examples { get; } = [
         ("query-driven", """
@@ -616,8 +616,16 @@ internal static class PageAuthorPrompt {
         `null` for the page), its `line` and `column`, and an `endLine` and
         `endColumn` when it covers a token: fix the spot it names, not the whole
         line.
-        `delete_page` is a recoverable tombstone; use it sparingly. Never mutate
-        through `shell`. `fetch` GETs one http or https URL and returns the
+        `delete_page` is a recoverable tombstone; use it sparingly.
+        To rename a page, move it: `move_page` (or `mv` in `shell`), never a
+        write at the new key and a delete of the old. A move takes the head
+        hash you read, moves every revision with the hash it was saved with,
+        and leaves nothing at the old key: links to it answer not found, a
+        versioned link answers only at the new key, and a seed this release
+        still ships there will be installed there again. A library, a key with
+        pages below it, a shell file and a live destination are refused. `mv`
+        is the only shell command that changes the store. `fetch` GETs one
+        http or https URL and returns the
         status, content type and text it answered with; use it to read a
         reference the owner named, not to wander. Approval is controlled by
         the host; a denied call is a tool result, not permission to evade

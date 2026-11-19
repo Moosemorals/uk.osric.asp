@@ -68,7 +68,7 @@ public sealed class ToolSpecsTests {
 
     [Test]
     public void TheRegistryHoldsEveryTool() {
-        Assert.That(ToolRegistry.Default.All, Has.Count.EqualTo(21));
+        Assert.That(ToolRegistry.Default.All, Has.Count.EqualTo(22));
     }
 
     [Test]

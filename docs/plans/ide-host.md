@@ -11,7 +11,7 @@ SPDX-License-Identifier: MIT
 | Size | Large as a programme, small as a step: eight capabilities, each its own job and its own branch, ordered so that each ships on its own and can be backed out on its own |
 | Spike | None. Every claim about what exists was read off `trunk` on 2026-11-15: `IPageCatalog`, `IPageEditor`, `PageEditorScope`, `PageWriterScope`, `PageCompiler.MapDiagnostics`, `PageDiagnostics.ToSdk` and `PageJobRunner` |
 | Decisions | `pages-a-diagnostic-names-its-source` (041), recorded at its merge. The rest are named at the merge (`product-plan-before-building`); this branch states the names it intends. One entry is retired rather than revised — the one that made the editor's registration the authority — and `pages-a-page-may-save-itself` is revised twice, once by 043 and once by 047 |
-| Backlog | [`check-without-storing`](../backlog/check-without-storing.md), [`cannot-search-the-store`](../backlog/cannot-search-the-store.md), [`listing-has-no-cursor`](../backlog/closed.md), [`library-edit-cost-is-invisible`](../backlog/closed.md), [IDEA-041](../backlog/closed.md), [`page-cannot-move`](../backlog/page-cannot-move.md), [IDEA-043](../backlog/closed.md), [`one-write-per-render`](../backlog/one-write-per-render.md) |
+| Backlog | [`check-without-storing`](../backlog/check-without-storing.md), [`cannot-search-the-store`](../backlog/cannot-search-the-store.md), [`listing-has-no-cursor`](../backlog/closed.md), [`library-edit-cost-is-invisible`](../backlog/closed.md), [IDEA-041](../backlog/closed.md), [`page-cannot-move`](../backlog/closed.md), [IDEA-043](../backlog/closed.md), [`one-write-per-render`](../backlog/one-write-per-render.md) |
 
 ## The short version
 
@@ -160,8 +160,13 @@ smallest changes come first because they are what every later slice is written a
    that reads every source, so it comes after the budget rules are settled.
    Proves: a scan finds a literal in a scope, is bounded, resumes from a cursor and never hands a
    source to the page.
-6. **042 — the move.** Last of the reads, because it is the only operation that writes more than one row
-   and the only one that needs the others to be honest: 040 for the dependents, 038 for the link report.
+6. **042 — the move.** Built on `idea/page-cannot-move` and waiting for the merge; the intended record
+   is **pages-a-key-moves-with-its-history**. It turned out not to need 040 and 038: a library move is
+   refused rather than recompiled, and the broken-link report is
+   [`cannot-search-the-store`](../backlog/cannot-search-the-store.md)'s work. It is the only operation
+   that writes more than one row, and nothing is left at the old key. Proved: a page moves with its
+   history and state and keeps every hash, the old key answers `404`, and the editor, `move_page` and
+   `mv` all move a page.
 7. **047 — the batch.** Last, and the largest: it changes the shape of every save, so it lands after the
    saves it batches are settled. Proves: All with a stale edit writes nothing; FirstRefusal writes the
    prefix; Continue writes the rest and reports each refusal; one save behaves exactly as it did.

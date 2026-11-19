@@ -640,6 +640,293 @@ public sealed class SqlitePageStoreTests {
         await Assert.CatchAsync<OperationCanceledException>(() => storage.TrySetImageAsync(Guid.NewGuid().ToString("N"), "template", image, cancelled));
     }
 
+    [Test]
+    public async Task AMoveLeavesThePageAtTheNewKeyAndNothingAtTheOldAsync() {
+        await using StorageDbContext database = new(_options);
+        IPageStore storage = new SqlitePageStore(database, NullLogger<SqlitePageStore>.Instance);
+        PagePath from = Key("/before");
+        PagePath to = Key("/after");
+        await storage.SavePageAsync(new PageTemplate(from, "the source"));
+        string expected = (await storage.GetPageAsync(from))!.Hash;
+
+        PageMoveStoreResult moved = await storage.MovePageAsync(from, to, expected);
+        PageTemplate? was = await storage.GetPageAsync(from);
+        PageTemplate? now = await storage.GetPageAsync(to);
+
+        Assert.Multiple(() => {
+            Assert.That(moved.Outcome, Is.EqualTo(PageMoveStoreOutcome.Moved));
+            Assert.That(moved.Hash, Is.EqualTo(expected));
+            Assert.That(was, Is.Null);
+            Assert.That(now?.Template, Is.EqualTo("the source"));
+        });
+    }
+
+    [Test]
+    public async Task AMoveKeepsEveryHashAsync() {
+        await using StorageDbContext database = new(_options);
+        IPageStore storage = new SqlitePageStore(database, NullLogger<SqlitePageStore>.Instance);
+        PagePath from = Key("/before");
+        PagePath to = Key("/after");
+        await storage.SavePageAsync(new PageTemplate(from, "first"));
+        await storage.SavePageAsync(new PageTemplate(from, "second"));
+        string[] hashes = [.. (await storage.ListRevisionsAsync(from)).Select(revision => revision.Hash)];
+        string expected = (await storage.GetPageAsync(from))!.Hash;
+
+        await storage.MovePageAsync(from, to, expected);
+
+        IReadOnlyList<PageRevisionSummary> moved = await storage.ListRevisionsAsync(to);
+        Assert.Multiple(() => {
+            Assert.That(moved.Select(revision => revision.Hash), Is.EquivalentTo(hashes));
+            Assert.That(moved.Single(revision => revision.IsCurrent).Hash, Is.EqualTo(expected));
+        });
+    }
+
+    [Test]
+    public async Task TheOldKeyReadsAsAKeyThatNeverExistedAsync() {
+        await using StorageDbContext database = new(_options);
+        IPageStore storage = new SqlitePageStore(database, NullLogger<SqlitePageStore>.Instance);
+        PagePath from = Key("/before");
+        await storage.SavePageAsync(new PageTemplate(from, "the source"));
+        string expected = (await storage.GetPageAsync(from))!.Hash;
+
+        await storage.MovePageAsync(from, Key("/after"), expected);
+        PageTemplate? page = await storage.GetPageAsync(from);
+        PageHeadSummary? head = await storage.GetHeadAsync(from);
+        IReadOnlyList<PageRevisionSummary> revisions = await storage.ListRevisionsAsync(from);
+
+        Assert.Multiple(() => {
+            Assert.That(page, Is.Null);
+            Assert.That(head, Is.Null);
+            Assert.That(revisions, Is.Empty);
+        });
+    }
+
+    [Test]
+    public async Task TheAnchorFollowsThePageAsync() {
+        string seed = TemplateFingerprint.Of("released");
+        await using StorageDbContext database = new(_options);
+        IPageStore storage = new SqlitePageStore(database, NullLogger<SqlitePageStore>.Instance);
+        PagePath from = Key("/before");
+        await storage.SavePageAsync(new PageTemplate(from, "released") { SeedHash = seed });
+        string expected = (await storage.GetPageAsync(from))!.Hash;
+
+        await storage.MovePageAsync(from, Key("/after"), expected);
+        PageHeadSummary head = (await storage.GetHeadAsync(Key("/after")))!;
+
+        Assert.Multiple(() => {
+            Assert.That(head.SeedHash, Is.EqualTo(seed));
+            Assert.That(head.ContentHash, Is.EqualTo(TemplateFingerprint.Of("released")));
+        });
+    }
+
+    [Test]
+    public async Task AMoveReusesTheStoredImageAsync() {
+        const string Source = "<% ctx.Response.Write(\"hi\"); %>";
+        await using StorageDbContext database = new(_options);
+        IPageStore storage = new SqlitePageStore(database, NullLogger<SqlitePageStore>.Instance);
+        PagePath from = Key("/before");
+        PagePath to = Key("/after");
+        await storage.SavePageAsync(new PageTemplate(from, Source));
+        PageTemplate stored = (await storage.GetPageAsync(from))!;
+        PageImage image = new(TemplateFingerprint.Of(Source), "1:build", [1], [2], []);
+        Assert.That(await storage.TrySetImageAsync(stored.RevisionId, Source, image), Is.True);
+
+        await storage.MovePageAsync(from, to, stored.Hash);
+
+        PageTemplate moved = (await storage.GetPageAsync(to))!;
+        Assert.Multiple(() => {
+            Assert.That(moved.Hash, Is.EqualTo(stored.Hash));
+            Assert.That(moved.Image?.Bytes, Is.EqualTo(new byte[] { 1 }));
+            Assert.That(moved.Kind, Is.EqualTo(PageKind.Page));
+        });
+    }
+
+    [Test]
+    public async Task ThePagesStateFollowsTheKeyAsync() {
+        await using StorageDbContext database = new(_options);
+        IPageStore storage = new SqlitePageStore(database, NullLogger<SqlitePageStore>.Instance);
+        PagePath from = Key("/before");
+        PagePath to = Key("/after");
+        await storage.SavePageAsync(new PageTemplate(from, "the source"));
+        string expected = (await storage.GetPageAsync(from))!.Hash;
+        database.Set<PageStateEntry>().Add(new PageStateEntry {
+            PagePath = from.Key,
+            Key = "colour",
+            Value = "\"red\"",
+            UpdatedAt = DateTimeOffset.UtcNow,
+        });
+        await database.SaveChangesAsync();
+
+        await storage.MovePageAsync(from, to, expected);
+
+        string[] paths = await database.Set<PageStateEntry>()
+            .Select(entry => entry.PagePath)
+            .ToArrayAsync();
+        Assert.That(paths, Is.EqualTo<string[]>([to.Key]));
+    }
+
+    [Test]
+    public async Task AMoveOntoATombstoneKeepsTheHistoryThatKeyRetainedAsync() {
+        await using StorageDbContext database = new(_options);
+        IPageStore storage = new SqlitePageStore(database, NullLogger<SqlitePageStore>.Instance);
+        PagePath from = Key("/before");
+        PagePath to = Key("/after");
+        await storage.SavePageAsync(new PageTemplate(from, "the source"));
+        string expected = (await storage.GetPageAsync(from))!.Hash;
+        await storage.SavePageAsync(new PageTemplate(to, "what was there"));
+        string retired = (await storage.GetPageAsync(to))!.Hash;
+        await storage.DeletePageAsync(to);
+
+        await storage.MovePageAsync(from, to, expected);
+
+        IReadOnlyList<PageRevisionSummary> history = await storage.ListRevisionsAsync(to);
+        PageHeadSummary head = (await storage.GetHeadAsync(to))!;
+        Assert.Multiple(() => {
+            Assert.That(head.IsDeleted, Is.False);
+            Assert.That(history.Select(revision => revision.Hash), Does.Contain(retired));
+            Assert.That(history.Single(revision => revision.IsCurrent).Hash, Is.EqualTo(expected));
+        });
+    }
+
+    [Test]
+    public async Task AMoveOntoALivePageWritesNothingAsync() {
+        await using StorageDbContext database = new(_options);
+        IPageStore storage = new SqlitePageStore(database, NullLogger<SqlitePageStore>.Instance);
+        PagePath from = Key("/before");
+        PagePath to = Key("/after");
+        await storage.SavePageAsync(new PageTemplate(from, "the source"));
+        string expected = (await storage.GetPageAsync(from))!.Hash;
+        await storage.SavePageAsync(new PageTemplate(to, "occupied"));
+
+        PageMoveStoreResult moved = await storage.MovePageAsync(from, to, expected);
+
+        PageTemplate? was = await storage.GetPageAsync(from);
+        PageTemplate? now = await storage.GetPageAsync(to);
+        Assert.Multiple(() => {
+            Assert.That(moved.Outcome, Is.EqualTo(PageMoveStoreOutcome.TargetExists));
+            Assert.That(was?.Template, Is.EqualTo("the source"));
+            Assert.That(now?.Template, Is.EqualTo("occupied"));
+        });
+    }
+
+    [Test]
+    public async Task AStaleMoveWritesNothingAsync() {
+        await using StorageDbContext database = new(_options);
+        IPageStore storage = new SqlitePageStore(database, NullLogger<SqlitePageStore>.Instance);
+        PagePath from = Key("/before");
+        PagePath to = Key("/after");
+        await storage.SavePageAsync(new PageTemplate(from, "first"));
+        string stale = (await storage.GetPageAsync(from))!.Hash;
+        await storage.SavePageAsync(new PageTemplate(from, "second"));
+
+        PageMoveStoreResult moved = await storage.MovePageAsync(from, to, stale);
+
+        PageTemplate? was = await storage.GetPageAsync(from);
+        PageHeadSummary? target = await storage.GetHeadAsync(to);
+        Assert.Multiple(() => {
+            Assert.That(moved.Outcome, Is.EqualTo(PageMoveStoreOutcome.Stale));
+            Assert.That(was?.Template, Is.EqualTo("second"));
+            Assert.That(target, Is.Null);
+        });
+    }
+
+    [Test]
+    public async Task AMoveOfAMovedPageWorksAgainAsync() {
+        await using StorageDbContext database = new(_options);
+        IPageStore storage = new SqlitePageStore(database, NullLogger<SqlitePageStore>.Instance);
+        PagePath from = Key("/before");
+        PagePath middle = Key("/middle");
+        PagePath to = Key("/after");
+        await storage.SavePageAsync(new PageTemplate(from, "the source"));
+        string expected = (await storage.GetPageAsync(from))!.Hash;
+
+        await storage.MovePageAsync(from, middle, expected);
+        PageMoveStoreResult second = await storage.MovePageAsync(middle, to, expected);
+
+        PageHeadSummary? left = await storage.GetHeadAsync(middle);
+        PageTemplate? page = await storage.GetPageAsync(to);
+        Assert.Multiple(() => {
+            Assert.That(second.Outcome, Is.EqualTo(PageMoveStoreOutcome.Moved));
+            Assert.That(left, Is.Null);
+            Assert.That(page?.Template, Is.EqualTo("the source"));
+        });
+    }
+
+    [Test]
+    public async Task ALibraryCannotBeMovedAsync() {
+        await using StorageDbContext database = new(_options);
+        IPageStore storage = new SqlitePageStore(database, NullLogger<SqlitePageStore>.Instance);
+        PagePath from = Key("/_lib/thing");
+        await storage.SavePageAsync(new PageTemplate(from, "public static class Thing { }") { Kind = PageKind.Library });
+        string expected = (await storage.GetPageAsync(from))!.Hash;
+
+        PageMoveStoreResult moved = await storage.MovePageAsync(from, Key("/_lib/other"), expected);
+
+        PageTemplate? page = await storage.GetPageAsync(from);
+        Assert.Multiple(() => {
+            Assert.That(moved.Outcome, Is.EqualTo(PageMoveStoreOutcome.IsLibrary));
+            Assert.That(page?.Template, Is.EqualTo("public static class Thing { }"));
+        });
+    }
+
+    [Test]
+    public async Task AKeyWithPagesBelowItCannotBeMovedAsync() {
+        await using StorageDbContext database = new(_options);
+        IPageStore storage = new SqlitePageStore(database, NullLogger<SqlitePageStore>.Instance);
+        PagePath from = Key("/folder");
+        await storage.SavePageAsync(new PageTemplate(from, "the folder's own page"));
+        await storage.SavePageAsync(new PageTemplate(Key("/folder/child"), "the child"));
+        string expected = (await storage.GetPageAsync(from))!.Hash;
+
+        PageMoveStoreResult moved = await storage.MovePageAsync(from, Key("/other"), expected);
+        List<string> children = ["/folder/child"];
+
+        Assert.Multiple(() => {
+            Assert.That(moved.Outcome, Is.EqualTo(PageMoveStoreOutcome.FolderNotEmpty));
+            Assert.That(moved.Below, Is.EqualTo(children));
+        });
+    }
+
+    [Test]
+    public async Task AFailedMoveWritesNothingAsync() {
+        await using StorageDbContext database = new(_options);
+        IPageStore storage = new SqlitePageStore(database, NullLogger<SqlitePageStore>.Instance);
+        PagePath from = Key("/before");
+        PagePath to = Key("/after");
+        await storage.SavePageAsync(new PageTemplate(from, "the source"));
+        string expected = (await storage.GetPageAsync(from))!.Hash;
+        await database.Database.ExecuteSqlAsync($"""
+            CREATE TRIGGER "refuse_move" BEFORE INSERT ON "PageHeads"
+            WHEN NEW."Path" = '/after'
+            BEGIN SELECT RAISE(ABORT, 'the move was interrupted'); END;
+            """);
+
+        _ = await Assert.ThrowsAsync<SqliteException>(() => storage.MovePageAsync(from, to, expected));
+
+        PageTemplate? was = await storage.GetPageAsync(from);
+        PageHeadSummary? target = await storage.GetHeadAsync(to);
+        Assert.Multiple(() => {
+            Assert.That(was?.Template, Is.EqualTo("the source"));
+            Assert.That(target, Is.Null);
+        });
+    }
+
+    [Test]
+    public async Task ASeedWhoseKeyMovedIsANewSeedThereAgainAsync() {
+        // What the seed plan reads is the head: a key with no head is a new seed, so leaving nothing
+        // behind is exactly what makes the release re-install a seed it still ships at the old key.
+        string seed = TemplateFingerprint.Of("released");
+        await using StorageDbContext database = new(_options);
+        IPageStore storage = new SqlitePageStore(database, NullLogger<SqlitePageStore>.Instance);
+        PagePath from = Key("/before");
+        await storage.SavePageAsync(new PageTemplate(from, "released") { SeedHash = seed });
+        string expected = (await storage.GetPageAsync(from))!.Hash;
+
+        await storage.MovePageAsync(from, Key("/after"), expected);
+
+        Assert.That(await storage.GetHeadAsync(from), Is.Null);
+    }
+
     private static PagePath Key(string path) => PagePath.Normalize(path);
 
     [Test]

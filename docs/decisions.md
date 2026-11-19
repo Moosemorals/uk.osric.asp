@@ -1293,7 +1293,7 @@ One capability has two saves. The bound one is a page's own source (`pages-a-pag
 named one is any key the shell does not route, conditional on the head hash the form was drawn from,
 answering `PageEditResult` with Saved, Stale or Unchanged, so a mismatch writes nothing and the page
 shows the author what changed. A `null` expectation means the form was drawn from a page with no live
-source, so a create cannot overwrite one. `Resolve`, `DeleteAsync`, `RestoreRevisionAsync`,
+source, so a create cannot overwrite one. `Resolve`, `MoveAsync`, `DeleteAsync`, `RestoreRevisionAsync`,
 `AdoptSeedAsync`, `InstallSeedAsync` and `SeedSourceAsync` are the same authority on the same handle, and
 they spend the same one action a save does.
 
@@ -1303,6 +1303,25 @@ owner's decision — a page the assistant writes can rewrite the site — and th
 rules are what stop it from doing so by accident (`assistant-edit-page-is-safe`).
 
 *Recorded in [page writes](plans/archive/page-writes.md), [IPageWrites](../src/uk.osric.asp.Sdk/IPageWrites.cs).*
+
+### pages-a-key-moves-with-its-history
+
+A key is a page's identity, and `MoveAsync(from, to, expectedHash)` is the one operation that changes
+it. One transaction deletes the head, re-files every revision under the new key with the hash it was
+saved with, re-keys the page state and inserts the head again with the anchor and the content hash it
+already had; nothing is compiled, and one render moves once. **Nothing is left at the old key**: `/a`
+answers `404` after it moves to `/b`, so no row remembers where the page went. That is the owner's
+decision of 2026-11-16, and its one consequence is that a seed the release still ships at the old key
+is a new seed there again, so a release that renames a seed moves the seed too.
+
+The rules are the store's own. A reserved key, a library — whose key is in every dependent's closure —
+and the page moving itself are page bugs and throw; the same key, a stale expectation, a missing
+source, a live target and a key with pages below it are answers. A key with children is refused rather
+than moved, because a folder is a batch of moves (`one-write-per-render`), and the expectation is spent
+in the statement that deletes the head, so a move never applies to a page that changed underneath it.
+The alternatives — a copied history, and a marker row at the old key — were declined with the marker.
+
+*Recorded in [the move plan](plans/archive/page-move.md#the-design), [IPageWrites](../src/uk.osric.asp.Sdk/IPageWrites.cs).*
 
 ### pages-delete-install-and-restore
 

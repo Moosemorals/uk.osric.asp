@@ -1905,6 +1905,122 @@ public sealed class PageToolExecutorTests {
     private static string Output(ToolExecutionResult result) =>
         Data(result).GetProperty("output").GetString()!;
 
+    [Test]
+    public async Task MovePageMovesThePageAndReportsTheNewKeyAsync() {
+        FakePageStore storage = new();
+        PageTemplate original = new(PageHarness.Key("/notes"), "the source");
+        storage["/notes"] = original;
+        using PageHarness pages = new(storage);
+        using ServiceProvider services = Services(pages.Editor);
+        PageToolExecutor tools = CreateTools(services);
+        string arguments = JsonSerializer.Serialize(new { from = "/notes", to = "/renamed", expectedHash = original.Hash });
+
+        ToolExecutionResult result = await tools.ExecuteAsync("move_page", arguments, Context, CancellationToken.None);
+
+        Assert.Multiple(() => {
+            Assert.That(result.IsSuccess, Is.True, result.Content);
+            Assert.That(Data(result).GetProperty("path").GetString(), Is.EqualTo("/renamed"));
+            Assert.That(storage["/notes"], Is.Null);
+            Assert.That(storage["/renamed"]?.Template, Is.EqualTo("the source"));
+        });
+    }
+
+    [Test]
+    public async Task MovePageRefusesAStaleHashAsync() {
+        FakePageStore storage = new();
+        storage["/notes"] = new PageTemplate(PageHarness.Key("/notes"), "the source");
+        using PageHarness pages = new(storage);
+        using ServiceProvider services = Services(pages.Editor);
+        PageToolExecutor tools = CreateTools(services);
+        string arguments = JsonSerializer.Serialize(new { from = "/notes", to = "/renamed", expectedHash = "not-the-head" });
+
+        ToolExecutionResult result = await tools.ExecuteAsync("move_page", arguments, Context, CancellationToken.None);
+
+        Assert.Multiple(() => {
+            Assert.That(result.IsSuccess, Is.False);
+            Assert.That(result.Content, Does.Contain("changed since it was read"));
+            Assert.That(storage["/notes"]?.Template, Is.EqualTo("the source"));
+            Assert.That(storage["/renamed"], Is.Null);
+        });
+    }
+
+    [Test]
+    public async Task MovePageRefusesALiveTargetAsync() {
+        FakePageStore storage = new();
+        PageTemplate original = new(PageHarness.Key("/notes"), "the source");
+        storage["/notes"] = original;
+        storage["/other"] = new PageTemplate(PageHarness.Key("/other"), "occupied");
+        using PageHarness pages = new(storage);
+        using ServiceProvider services = Services(pages.Editor);
+        PageToolExecutor tools = CreateTools(services);
+        string arguments = JsonSerializer.Serialize(new { from = "/notes", to = "/other", expectedHash = original.Hash });
+
+        ToolExecutionResult result = await tools.ExecuteAsync("move_page", arguments, Context, CancellationToken.None);
+
+        Assert.Multiple(() => {
+            Assert.That(result.IsSuccess, Is.False);
+            Assert.That(result.Content, Does.Contain("already has a page"));
+            Assert.That(storage["/other"]?.Template, Is.EqualTo("occupied"));
+        });
+    }
+
+    [Test]
+    public async Task MovePageRefusesALibraryAsync() {
+        FakePageStore storage = new();
+        PageTemplate library = new(PageHarness.Key("/_lib/thing"), "public static class Thing { }") { Kind = PageKind.Library };
+        storage["/_lib/thing"] = library;
+        using PageHarness pages = new(storage);
+        using ServiceProvider services = Services(pages.Editor);
+        PageToolExecutor tools = CreateTools(services);
+        string arguments = JsonSerializer.Serialize(new { from = "/_lib/thing", to = "/_lib/other", expectedHash = library.Hash });
+
+        ToolExecutionResult result = await tools.ExecuteAsync("move_page", arguments, Context, CancellationToken.None);
+
+        Assert.Multiple(() => {
+            Assert.That(result.IsSuccess, Is.False);
+            Assert.That(result.Content, Does.Contain("library"));
+            Assert.That(storage["/_lib/thing"]?.Template, Is.EqualTo("public static class Thing { }"));
+        });
+    }
+
+    [Test]
+    public async Task MovePageNamesTheChildrenOfAFolderAsync() {
+        FakePageStore storage = new();
+        PageTemplate folder = new(PageHarness.Key("/folder"), "the folder's own page");
+        storage["/folder"] = folder;
+        storage["/folder/child"] = new PageTemplate(PageHarness.Key("/folder/child"), "the child");
+        using PageHarness pages = new(storage);
+        using ServiceProvider services = Services(pages.Editor);
+        PageToolExecutor tools = CreateTools(services);
+        string arguments = JsonSerializer.Serialize(new { from = "/folder", to = "/other", expectedHash = folder.Hash });
+
+        ToolExecutionResult result = await tools.ExecuteAsync("move_page", arguments, Context, CancellationToken.None);
+
+        Assert.Multiple(() => {
+            Assert.That(result.IsSuccess, Is.False);
+            Assert.That(result.Content, Does.Contain("/folder/child"));
+            Assert.That(storage["/folder"]?.Template, Is.EqualTo("the folder's own page"));
+        });
+    }
+
+    [Test]
+    public async Task MovePageRefusesAShellFileAsync() {
+        FakePageStore storage = new();
+        storage["/notes"] = new PageTemplate(PageHarness.Key("/notes"), "the source");
+        using PageHarness pages = new(storage);
+        using ServiceProvider services = Services(pages.Editor);
+        PageToolExecutor tools = CreateTools(services);
+        string arguments = JsonSerializer.Serialize(new { from = "/notes", to = "/login", expectedHash = "any" });
+
+        ToolExecutionResult result = await tools.ExecuteAsync("move_page", arguments, Context, CancellationToken.None);
+
+        Assert.Multiple(() => {
+            Assert.That(result.IsSuccess, Is.False);
+            Assert.That(result.Content, Does.Contain("shell file"));
+            Assert.That(storage["/notes"]?.Template, Is.EqualTo("the source"));
+        });
+    }
+
     private static JsonElement Data(ToolExecutionResult result) {
         using JsonDocument document = JsonDocument.Parse(result.Content);
         return document.RootElement.GetProperty("data").Clone();
