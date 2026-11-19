@@ -1159,6 +1159,22 @@ which pages name this library — is a listing filtered on the fact, not a secon
 
 *Recorded in [pages](pages.md), [PageEntry](../src/uk.osric.asp.Sdk/PageEntry.cs), [the plan](plans/ide-host.md).*
 
+### pages-a-block-with-no-code-warns
+
+A code or declaration block that holds no code — only whitespace, or only a comment — is a warning,
+because it is decisive and invisible: it is what makes a template a page, or, as a declaration, a
+library that is never served. The two kinds are two codes rather than two wordings of one, because the
+fix differs — the note the author meant is `<%# … %>`, which leaves the template as it was — and each
+says the consequence when it is the block that decided the kind. A block that ends inside a literal or
+a comment is a warning too: the block ends at the first `%>`, so the author is told where the cause is,
+at the literal, and what to write instead, rather than being shown a stray closer in the text that
+follows and told the symptom is the cause. All of them are warnings in template space
+(`pages-the-shape-check`) and none stops a page being served. A shape warning names its block by the
+block's opener, so a block whose opener stands on another line from its content still points at the
+line the author will look at.
+
+*Recorded in [pages](pages.md), [TemplateShapeCheck](../src/uk.osric.asp.Core/Compilation/TemplateShapeCheck.cs), [the plan](plans/archive/block-with-no-code-warns.md).*
+
 ### pages-a-listing-resumes-from-a-key
 
 A listing is one slice, asked for by a prefix, a cursor and a limit, and answered with its rows and

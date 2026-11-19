@@ -432,8 +432,14 @@ in a page's own markup. Rewriting rendered HTML is not something the host does.<
     as neither code nor text, so a page of text and comments has no code and is served with the
     comments removed, and a library that carries one is still a library. <code>&lt;% /* … */ %&gt;</code>
     is a C# comment inside a code block instead, which makes the template code — the two are not
-    interchangeable.</dd>
+    interchangeable, and a code block that holds only a comment warns to say so: it is what turns
+    text into a page, or declarations into a library.</dd>
 </dl>
+<p>A block ends at the first <code>%&gt;</code> whatever it holds, so a string that contains one
+ends the block early and the rest of the line becomes text. An ordinary string writes the character
+instead of the pair: <code>"%\u003e"</code>, or <code>"%" + "&gt;"</code>, which also works in a
+verbatim or raw string, where <code>\u</code> escapes are not processed. In literal text write
+<code>%&gt;</code>; it reaches the browser as <code>%&gt;</code>.</p>
 <pre class="source" tabindex="0"><code>&lt;h1&gt;Hello&lt;/h1&gt;
 &lt;p&gt;You asked for &lt;%= ctx.Path %&gt;.&lt;/p&gt;
 &lt;% for (int i = 1; i &lt;= 3; i++) { %&gt;

@@ -9,8 +9,8 @@ SPDX-License-Identifier: MIT
 | --- | --- |
 | Difficulty | protective-dragon |
 | Utility | medium |
-| Status | blocked |
-| Blocked by | `block-that-is-not-code-compiles` |
+| Status | open |
+| Blocked by | — |
 | Plan | — |
 | Area | Core (Compilation), tools (VS Code grammar), Web (seeds), docs |
 | Location | `src/uk.osric.asp.Core/Compilation/TemplateTokenizer.cs`, `Token.cs`, `TemplateScriptSkeleton.cs`, `TemplateShapeCheck.cs`, `tools/vscode-asp/syntaxes/asp.tmLanguage.json`, `src/uk.osric.asp.Web/Pages/Seeds/`, `docs/architecture.md`, `src/uk.osric.asp.Web/Pages/Seeds/help` |
@@ -76,7 +76,7 @@ rule and a footgun.
 
    That is the capability an escaped closer was going to buy, arriving free, where it is actually
    wanted: declarations are where regexes, format strings and documentation live. Code blocks still
-   end at the first `%>`, so `TEMPLATE007` and the `\u003e` note from [`block-that-is-not-code-compiles`](block-that-is-not-code-compiles.md) keep
+   end at the first `%>`, so `TEMPLATE008` and the `\u003e` note from [`block-that-is-not-code-compiles`](closed.md) keep
    their place.
 
 6. **Writes and comments keep the echo optional.** An expression cannot end in `=` or `==`, and a
@@ -99,7 +99,7 @@ rule and a footgun.
    declaration.
 
 9. **The gate.** `make check-pages` compiles the seeds with the product's compiler, so it carries
-   `TEMPLATE009`/`TEMPLATE010` to every seed without new code once [`block-that-is-not-code-compiles`](block-that-is-not-code-compiles.md)'s
+   `TEMPLATE009`/`TEMPLATE010` to every seed without new code once [`block-that-is-not-code-compiles`](closed.md)'s
    consumer lands.
 
 10. **The record.** A plan proposes **pages-declarations-close-with-a-bang**, citing

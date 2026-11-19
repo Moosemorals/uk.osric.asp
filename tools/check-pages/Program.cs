@@ -8,15 +8,16 @@ using uk.osric.asp.Runtime;
 // Compiles page templates with the product's own compiler and prints one line per diagnostic in the
 // file:line:column-endLine:endColumn shape the `check pages` task's problem matcher reads; a
 // diagnostic that names one spot prints just its start, so the task underlines a token when the
-// compiler gave one and marks a point when it did not. A template with no code is skipped, because
-// the host never compiles one either.
+// compiler gave one and marks a point when it did not. A template with no code is not compiled,
+// because the host never compiles one either, but it is still asked for its shape, as the host does.
+// A warning fails the run, because a warning is an error everywhere else in this repository.
 if (args.Length == 0) {
     Console.Error.WriteLine("usage: check-pages <file-or-directory>...");
     return 2;
 }
 
 PageCompiler compiler = new();
-List<(string File, string Key, PageKind Kind, GeneratedSource? Source, IReadOnlyList<PageDiagnostic> Errors)> templates = [];
+List<(string File, string Key, PageKind Kind, string Template, GeneratedSource? Source, IReadOnlyList<PageDiagnostic> Errors)> templates = [];
 foreach ((string file, string key) in Files(args)) {
     string template = File.ReadAllText(file);
     TemplateGenerationResult generated = TemplateSourceGenerator.Generate(template);
@@ -27,13 +28,13 @@ foreach ((string file, string key) in Files(args)) {
         ? TemplateSourceGenerator.GenerateLibrary(template).Source
         : generated.Source;
 
-    templates.Add((file, key, generated.Kind, source, generated.Errors));
+    templates.Add((file, key, generated.Kind, template, source, generated.Errors));
 }
 
 // A declaration-only source is a library or a worker, and only the compiler can see which. One pass
 // classifies them, so every page and worker is offered the libraries and none of the workers.
 List<LibrarySource> libraries = [];
-foreach ((_, string key, PageKind kind, GeneratedSource? source, _) in templates) {
+foreach ((_, string key, PageKind kind, _, GeneratedSource? source, _) in templates) {
     if (kind is PageKind.Library && source is not null
         && compiler.CompileWorker(source, []).Kind is not PageKind.Worker) {
         libraries.Add(new LibrarySource(key, source));
@@ -44,16 +45,15 @@ bool failed = false;
 // A library is compiled into every page that reaches it, so the same diagnostic can arrive once per
 // dependent; the file it names is printed once.
 HashSet<string> printed = [];
-foreach ((string file, _, PageKind kind, GeneratedSource? source, IReadOnlyList<PageDiagnostic> errors) in templates) {
-    if (kind is PageKind.Text) {
-        continue;
-    }
-
-    IReadOnlyList<PageDiagnostic> diagnostics = source is null
-        ? errors
-        : kind is PageKind.Library
-            ? compiler.CompileWorker(source, libraries).Diagnostics
-            : compiler.Compile(source, libraries).Diagnostics;
+foreach ((string file, _, PageKind kind, string template, GeneratedSource? source, IReadOnlyList<PageDiagnostic> errors) in templates) {
+    IReadOnlyList<PageDiagnostic> compiled = kind is PageKind.Text
+        ? []
+        : source is null
+            ? errors
+            : kind is PageKind.Library
+                ? compiler.CompileWorker(source, libraries).Diagnostics
+                : compiler.Compile(source, libraries).Diagnostics;
+    IReadOnlyList<PageDiagnostic> diagnostics = [.. TemplateShapeCheck.Check(template), .. compiled];
     foreach (PageDiagnostic diagnostic in PageDiagnostic.SortedForDisplay(diagnostics)) {
         string severity = diagnostic.Severity == PageDiagnosticSeverity.Error ? "error" : "warning";
         TemplatePosition start = diagnostic.Position ?? new TemplatePosition(1, 1);
@@ -70,7 +70,7 @@ foreach ((string file, _, PageKind kind, GeneratedSource? source, IReadOnlyList<
             Console.WriteLine(line);
         }
 
-        failed |= diagnostic.Severity == PageDiagnosticSeverity.Error;
+        failed |= diagnostic.Severity is PageDiagnosticSeverity.Error or PageDiagnosticSeverity.Warning;
     }
 }
 

@@ -110,8 +110,6 @@ its reason, and that no item sits above something that blocks it.
 
 | Slug | Title | Difficulty | Utility | Status | Blocked by |
 | --- | --- | --- | --- | --- | --- |
-| [`block-that-is-not-code-compiles`](block-that-is-not-code-compiles.md) | A block that is not code still compiles | eager-beaver ⚙️🦫 | medium | open | — |
-| | *The same complaint as the diagnostics above one layer down: a shape the compiler cannot see, and the seeds are the proof the warnings stay quiet.* | | | | |
 | [`ops-no-ci`](ops-no-ci.md) | There is no CI pipeline | caffeinated-squirrel ☕🐿️ | high | open | — |
 | | *Turns the gate from a habit into a rule, which makes every step below it cheaper.* | | | | |
 | [`cannot-ask-the-owner`](cannot-ask-the-owner.md) | The assistant cannot ask the owner a question | caffeinated-squirrel ☕🐿️ | high | [planned](../plans/assistant-ask-owner.md) | — |
@@ -146,8 +144,8 @@ its reason, and that no item sits above something that blocks it.
 | | *A spike, a sidecar and a capability for a question the server's own answer often settles.* | | | | |
 | [`nothing-checks-page-assets`](nothing-checks-page-assets.md) | Nothing checks a page's CSS, HTML or SVG | persistent-salmon ⬆️🐟 | low | open | — |
 | | *Pays off once pages write their own CSS and SVG, and each checker is a parser we write, so it waits for that reason rather than a hunch.* | | | | |
-| [`declaration-does-not-name-its-close`](declaration-does-not-name-its-close.md) | A declaration block does not name its close | protective-dragon 🔥🐉 | medium | blocked | `block-that-is-not-code-compiles` |
-| | *A language change in two releases that rewrites every declaration in the store; it waits for [`block-that-is-not-code-compiles`](block-that-is-not-code-compiles.md) to have proved the warning that carries release 1.* | | | | |
+| [`declaration-does-not-name-its-close`](declaration-does-not-name-its-close.md) | A declaration block does not name its close | protective-dragon 🔥🐉 | medium | open | — |
+| | *A language change in two releases that rewrites every declaration in the store; the warning that carries release 1 has landed, so this now waits only on its own plan.* | | | | |
 | [`vscode-cannot-check-a-page`](vscode-cannot-check-a-page.md) | VS Code cannot check a page as it is typed | determined-mountain-goat 💪🐐 | low | open | — |
 | | *Developer-only, and `make check-pages` already compiles the seeds.* | | | | |
 | [`old-response-spelling`](old-response-spelling.md) | The old response spelling is still on `IContext` | contented-capybara 😌🦫 | low | open | — |
