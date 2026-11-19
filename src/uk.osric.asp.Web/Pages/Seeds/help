@@ -30,10 +30,11 @@ can improve it at <a href="<%= ctx.EditorPath %>?edit=<%= System.Uri.EscapeDataS
 <h2 id="editor">The editor</h2>
 <p>The editor is <a href="<%= ctx.EditorPath %>"><%= ctx.EditorPath %></a>. The page list has a form to create or open a page by
 its path, and every live and deleted page has its own editor at
-<code><%= ctx.EditorPath %>?edit=&lt;path&gt;</code>. History, the diff and the three confirmations are the same
+<code><%= ctx.EditorPath %>?edit=&lt;path&gt;</code>. History, the diff and the four confirmations are the same
 page, so a bookmark is a query value rather than a route:
-<code>?page=&lt;path&gt;</code> shows the source and history, <code>?edit=&lt;path&gt;&amp;cmd=delete</code>
-confirms a delete, <code>?edit=&lt;path&gt;&amp;cmd=install</code> confirms a seed install, and
+<code>?page=&lt;path&gt;</code> shows the source and history, <code>?edit=&lt;path&gt;&amp;cmd=move</code>
+confirms a move, <code>?edit=&lt;path&gt;&amp;cmd=delete</code> confirms a delete,
+<code>?edit=&lt;path&gt;&amp;cmd=install</code> confirms a seed install, and
 <code>?page=&lt;path&gt;&amp;rev=&lt;hash&gt;&amp;cmd=restore</code> confirms a restore.</p>
 <ul>
     <li><strong>Save</strong> compiles the template and stores the source and the compiled image.
@@ -53,6 +54,12 @@ confirms a delete, <code>?edit=&lt;path&gt;&amp;cmd=install</code> confirms a se
     <strong>Restore</strong> for every revision except the current one: the confirmation shows the
     change it will make, and restoring saves that source as a new revision, compiled by this build.
     Nothing is rewound, and a revision whose source the page already holds cannot be restored.</li>
+    <li><strong>Move</strong> renames a page: it opens a confirmation that asks for the new key. The
+    page, its revision history and its page state move together, every revision keeping its hash, and
+    nothing is compiled. <strong>The old key stops answering</strong>, so links to it are not found and
+    a versioned link answers only at the new key; a seed this release still ships at the old key will be
+    installed there again. A library cannot be moved, and neither can a key with pages below it: move
+    those first.</li>
     <li><strong>Delete</strong> hides a page but keeps its template and history. <strong>Scrub</strong>
     permanently removes a deleted page and its retained history; use it only when you mean it. It is
     the site's own route rather than an action here, because it cannot be undone: the page's row
@@ -687,15 +694,29 @@ broken.</p>
 <p>A save belongs to the <em>next</em> request: the running page is already compiled, so the response
 you are writing is still the page as it was. Save on a <code>POST</code>, write the answer you were
 given, and let the next request serve the new source. A <code>HEAD</code> never writes, because it runs
-the page once per validator, and one render writes once: a save, a delete, a restore or an install
-spends the one action. A write that has started is never abandoned: if the page runs out of time the
+the page once per validator, and one render writes once: a save, a move, a delete, a restore or an
+install spends the one action. A write that has started is never abandoned: if the page runs out of time the
 revision is still stored, and the next request serves it.</p>
 <p>A layout is offered the read and not the write, because it is markup: one that saved itself would
 add a revision to every page it wraps. The sample above is the whole of a bound save: show the source,
 save it, report the diagnostics and compare the form's hash before you overwrite a newer revision.</p>
+<p><code>MoveAsync(from, to, expectedHash)</code> renames a page. It takes the head hash the form was
+drawn from, so a move never applies to a page that changed underneath it, and it answers a
+<a href="/admin/reference/sdk#t-PageMoveResult"><code>PageMoveResult</code></a>: <em>Moved</em> with the
+head's hash, or <em>Unchanged</em>, <em>Stale</em>, <em>SourceNotFound</em>, <em>TargetExists</em> or
+<em>FolderNotEmpty</em> with the keys below the old one. A reserved key, a library and the page moving
+itself throw, because no argument makes those legal. Every revision is re-filed under the new key and
+keeps the hash it was saved with, the seed anchor and the content hash follow the page, the page state
+moves with it, and <strong>nothing is left at the old key</strong>: it answers as a key that never had a
+page, so a link to it is not found and a versioned link answers at the new key or not at all. Nothing is
+compiled, so the page serves the image it already had. A move onto a tombstoned key clears the tombstone
+and keeps the history that key retained. One consequence is worth saying plainly: with no head at the old
+key, a seed this release still ships there is a <em>new</em> seed again, so a release that moves a seeded
+page must move the seed in the same release.</p>
 <p>The rest of the capability is the editor's toolbox: <code>Resolve</code> says whether a key is
 usable, <code>DeleteAsync</code> tombstones a page, <code>RestoreRevisionAsync</code> saves a retained
-revision as a new one, <code>InstallSeedAsync</code> stores the source a release ships,
+revision as a new one, <code>MoveAsync</code> moves a page with its history and state to another key,
+<code>InstallSeedAsync</code> stores the source a release ships,
 <code>AdoptSeedAsync</code> records a page as already holding it, and <code>SeedSourceAsync</code>
 reads a seed so a confirmation can show the diff. The seeded
 <a href="<%= ctx.EditorPath %>"><%= ctx.EditorPath %></a> is the worked example of those.</p>

@@ -239,7 +239,7 @@ Two more callers, because both are places the workaround lives today.
   outcome in the shell's own words. A reserved key, a library, a page with children and a target that
   exists are refusals with the capability's sentence.
 - **The prompt** gains both: the paragraph says rename by moving, never by writing the new key and
-  deleting the old, and names `move_page` and `mv` (`page-author-v36`).
+  deleting the old, and names `move_page` and `mv` (`page-author-v45`).
 
 ## The contract
 
@@ -278,13 +278,13 @@ Task<PageMoveResult> MoveAsync(string from, string to, string expectedHash);
 | --- | --- |
 | `src/uk.osric.asp.Sdk/IPageWrites.cs` | `MoveAsync`, and the remarks gain the move's three sentences |
 | `src/uk.osric.asp.Sdk/PageMoveResult.cs` | New: `PageMoveOutcome` and `PageMoveResult` |
-| `src/uk.osric.asp.Sdk/PublicAPI.Unshipped.txt` | Three lines: the member, the enum and its values, the record |
+| `src/uk.osric.asp.Sdk/PublicAPI.Unshipped.txt` | The member, the enum and its values, the record and its generated members |
 | `src/uk.osric.asp.Web/Pages/IPageStore.cs`, `SqlitePageStore.cs` | `MovePageAsync`, the transaction of §2, and the store's own result value |
 | `src/uk.osric.asp.Web/Pages/PageEditor.cs` | `MoveAsync`, a straight call: no compile, no saver |
 | `src/uk.osric.asp.Web/Pages/PageWritesScope.cs` | `MoveAsync`: the checks and the mapping of the store's answer to `PageMoveResult`, then `Acted()` |
 | `src/uk.osric.asp.Web/Pages/Seeds/pages` | The Move action, its confirmation page, and the own-row hiding |
 | `src/uk.osric.asp.Web/Pages/Seeds/help` | The write section, and one sentence in the editor section |
-| `src/uk.osric.asp.Web/Assistant/PageAuthorPrompt.cs` | The move paragraph, and `Version` → `page-author-v36` |
+| `src/uk.osric.asp.Web/Assistant/PageAuthorPrompt.cs` | The move paragraph, and `Version` → `page-author-v45` |
 | `src/uk.osric.asp.Web/Assistant/Tools/PageTools.cs` | `MovePageTool`, beside write and delete |
 | `src/uk.osric.asp.Web/Assistant/Tools/ToolRegistry.cs` | One row for `move_page` |
 | `src/uk.osric.asp.Web/Assistant/Tools/ShellTool.cs` | No longer read-only: `Writes` true, and the description says `mv` changes the store |
@@ -341,7 +341,7 @@ transaction is proved):
 `TheConfirmationSaysTheOldKeyStopsAnsweringAsync`.
 
 **The prompt and the manual** (`PageAuthorPromptTests`, `HelpReferenceLinksTests`): the version
-assertion moves to `page-author-v36`, the prompt contains `MoveAsync`, and every `/help` link still
+assertion moves to `page-author-v45`, the prompt contains `MoveAsync`, and every `/help` link still
 names a documented member — the new anchor is `#m-IPageWrites.MoveAsync`.
 
 **The assistant** (`PageToolExecutorTests`, beside the other write tools): a move answers the new key
@@ -404,7 +404,7 @@ One branch, one gate, six commits, each readable on its own.
    `PageEditor`, `PageWritesScope`, `FakePageStore`, and the scope's tests.
 3. **The editor.** The Move action, its confirmation page, and the editor and integration tests.
 4. **The assistant and the shell.** `move_page`, `mv`, `ShellTool`, and their tests.
-5. **The manual and the prompt.** `/help`'s two sections, `PageAuthorPrompt` and `page-author-v36`, and
+5. **The manual and the prompt.** `/help`'s two sections, `PageAuthorPrompt` and `page-author-v45`, and
    their tests.
 6. **The docs.** [pages](../pages.md), [storage](../storage.md), [assistant](../assistant.md),
    [`page-cannot-move`](../backlog/page-cannot-move.md), [`one-write-per-render`](../backlog/one-write-per-render.md)'s
