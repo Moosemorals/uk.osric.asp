@@ -12,7 +12,7 @@ SPDX-License-Identifier: MIT
 | Area | `docs/jobs` → `docs/backlog`, `docs/plans`, the live documents that cite an item, `CONTRIBUTING.md`, `.github/copilot-instructions.md`, `Makefile`, `uk.osric.asp.slnx`, a new `tools/check-backlog` |
 | Spike | None. Every claim about what exists was read off `trunk` on 2026-11-18: the 26 item files and the two tables in [the index](../backlog/README.md), [the closed list](../backlog/closed.md), [the whims](../backlog/WHIMS.md), the `Backlog` rows of the live plans, and the citations the live documents and comments carry |
 | Decisions | At the merge: **product-backlog-items-are-slugs**, **product-a-difficulty-is-not-a-duration** and **code-the-gate-checks-the-backlog** |
-| Backlog | This plan is the whole of the work. Nothing about the site is wrong, so there is no item file: the record is what changes. [WHIM-03](../backlog/WHIMS.md) — the backlog is not on the site — is adjacent and stays a whim |
+| Backlog | This plan is the whole of the work. Nothing about the site is wrong, so there is no item file: the record is what changes. [`whim-backlog-on-the-site`](../backlog/WHIMS.md) is adjacent and stays a whim |
 
 ## The short version
 
@@ -413,7 +413,7 @@ owner would rather merge the folder and the slugs first, slice 1 stands alone an
 
 - **GitHub Issues, Projects or Azure DevOps.** They model every field above and do it well; they move
   the record out of the repository, out of the diff and out of the gate, and that is the property
-  this plan is keeping. A board is a view, and a view can be generated later ([WHIM-03](../backlog/WHIMS.md)).
+  this plan is keeping. A board is a view, and a view can be generated later ([`whim-backlog-on-the-site`](../backlog/WHIMS.md)).
 - **A tracker tool.** A checker is a pure function over a folder of text; a tracker with transitions,
   filters and a UI is a second product.
 - **A computed priority score.** The order with a reason per row is the decision; a score is a
