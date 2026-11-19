@@ -82,4 +82,29 @@ public sealed class PageLibraryClosureTests {
         PageTemplate stored = PageHarness.Stored(pages.Storage, "/uses");
         Assert.That(stored.Image?.Libraries, Does.Contain("/_lib/document@"));
     }
+
+    [TestCase(null)]
+    [TestCase("")]
+    public void APageThatNamedNoLibraryHasAnEmptyClosure(string? fingerprint) {
+        Assert.That(PageLibraryFingerprint.KeysOf(fingerprint), Is.Empty);
+    }
+
+    [Test]
+    public void AReadingOfTheFingerprintIsItsKeysInOrder() {
+        string fingerprint = PageLibraryFingerprint.Of([
+            ("/_lib/zebra", "hash-z"),
+            ("/_lib/document", "hash-d"),
+        ]);
+
+        string[] keys = ["/_lib/document", "/_lib/zebra"];
+        Assert.That(PageLibraryFingerprint.KeysOf(fingerprint), Is.EqualTo(keys));
+    }
+
+    [Test]
+    public void AKeyThatContainsAnAtSignSurvivesTheReading() {
+        string fingerprint = PageLibraryFingerprint.Of([("/_lib/at@sign", "hash-a")]);
+
+        string[] keys = ["/_lib/at@sign"];
+        Assert.That(PageLibraryFingerprint.KeysOf(fingerprint), Is.EqualTo(keys));
+    }
 }

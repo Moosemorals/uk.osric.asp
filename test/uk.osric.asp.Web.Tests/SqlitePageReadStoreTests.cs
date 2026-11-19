@@ -110,6 +110,20 @@ public sealed class SqlitePageReadStoreTests {
     }
 
     [Test]
+    public async Task TheListingCarriesTheClosureTheHeadWasCompiledAgainstAsync() {
+        await DatabaseTemplate.SavePageAsync(_options, "/uses", "uses");
+        await using (StorageDbContext database = new(_options)) {
+            PageRevision revision = await database.Set<PageRevision>().SingleAsync(row => row.Path == "/uses");
+            revision.TemplateLibraries = "/_lib/document@hash-d";
+            await database.SaveChangesAsync();
+        }
+
+        PageReadHead row = (await ReadStore().ListAsync("/", after: null, 10)).Single();
+
+        Assert.That(row.TemplateLibraries, Is.EqualTo("/_lib/document@hash-d"));
+    }
+
+    [Test]
     public async Task APrefixContainingAWildcardIsNotAWildcardAsync() {
         await DatabaseTemplate.SavePageAsync(_options, "/100%", "percent");
         await DatabaseTemplate.SavePageAsync(_options, "/100x", "letter");

@@ -11,7 +11,7 @@ SPDX-License-Identifier: MIT
 | Size | M — one member and one outcome on the write capability, one store transaction, the seeded editor's action, and the tests, manual and prompt for each. No migration: the owner's answer of 2026-11-16 leaves nothing at the old key, which removes the column the job expected |
 | Spike | None. Every claim about what exists was read off `trunk` on 2026-11-16: `IPageWrites`, `PageWritesScope`, `PageEditor`, `PageSaver`, `SqlitePageStore`, `PageHead`, `PageRevision`, `PageTemplate`, `PageSeedInstaller`, `ApplySeedsEndpoint`, `RestoreEndpoint`, `PageTree`, `RevisionHash`, `ToolRegistry` and the migrations |
 | Decisions | At the merge: **pages-a-key-moves-with-its-history** is new, and `pages-any-page-may-write-the-store` is edited in place to name the new member |
-| Backlog | [`page-cannot-move`](../backlog/page-cannot-move.md) is this step; [`library-edit-cost-is-invisible`](../backlog/library-edit-cost-is-invisible.md), [`cannot-search-the-store`](../backlog/cannot-search-the-store.md), [`listing-has-no-cursor`](../backlog/closed.md), [IDEA-041](../backlog/closed.md), [`check-without-storing`](../backlog/check-without-storing.md), [IDEA-043](../backlog/closed.md) and [`one-write-per-render`](../backlog/one-write-per-render.md) are its neighbours in [the IDE plan](ide-host.md) |
+| Backlog | [`page-cannot-move`](../backlog/page-cannot-move.md) is this step; [`library-edit-cost-is-invisible`](../backlog/closed.md), [`cannot-search-the-store`](../backlog/cannot-search-the-store.md), [`listing-has-no-cursor`](../backlog/closed.md), [IDEA-041](../backlog/closed.md), [`check-without-storing`](../backlog/check-without-storing.md), [IDEA-043](../backlog/closed.md) and [`one-write-per-render`](../backlog/one-write-per-render.md) are its neighbours in [the IDE plan](ide-host.md) |
 
 ## The short version
 
@@ -430,7 +430,7 @@ overrule them cheaply.
   ([`one-write-per-render`](../backlog/one-write-per-render.md)).
 - **Rewriting inbound links.** A search plus a batch save, and a decision about editing pages the
   caller never opened ([`cannot-search-the-store`](../backlog/cannot-search-the-store.md)).
-- **Moving a library.** Refused until the dependents are readable ([`library-edit-cost-is-invisible`](../backlog/library-edit-cost-is-invisible.md)) and
+- **Moving a library.** Refused until the dependents are readable ([`library-edit-cost-is-invisible`](../backlog/closed.md)) and
   a batch can recompile them ([`one-write-per-render`](../backlog/one-write-per-render.md)).
 - **An alias or a redirect.** A key that `301`s is a response rule and a store column, and the owner
   declined even the store's memory of the move; a redirect is a different job with a different security

@@ -107,13 +107,6 @@ foreach (Row row in rows) {
     }
 }
 
-for (int i = 0; i < rows.Count; i++) {
-    if (rows[i].Number != i + 1) {
-        problems.Add(new(shownIndex, rows[i].Line, $"the order runs 1..{rows.Count} in the table and this row is {rows[i].Number}"));
-        break;
-    }
-}
-
 foreach (Item item in items) {
     if (!rowOf.TryGetValue(item.Slug, out Row? row)) {
         problems.Add(new(item.File, item.Line, $"`{item.Slug}` is not in the order"));
@@ -337,9 +330,14 @@ static List<Row> Order(string[] lines) {
             slugs.Add(token.Groups["slug"].Value);
         }
 
-        int number = int.Parse(match.Groups["number"].Value, CultureInfo.InvariantCulture);
+        // The header and the separator are shaped like a row now that a number no longer opens one,
+        // and a row that names no item is the table's furniture rather than an entry.
+        if (slugs.Count == 0) {
+            continue;
+        }
+
         string status = Status(match.Groups["status"].Value);
-        found.Add(new(i + 1, number, match.Groups["title"].Value.Trim(), Level(match.Groups["difficulty"].Value),
+        found.Add(new(i + 1, found.Count + 1, match.Groups["title"].Value.Trim(), Level(match.Groups["difficulty"].Value),
             match.Groups["utility"].Value.Trim(), status, PlanName(match.Groups["status"].Value),
             slugs, Reason(lines, i)));
     }
@@ -569,6 +567,8 @@ internal sealed record Item(string File, string Slug, int Line, string Title, Di
     internal int HeaderLine(string key) => Rows.GetValueOrDefault(key, Line);
 }
 
+// Number is the row's position in the table, so the messages can name one without the table carrying a
+// column that has to be renumbered by hand.
 internal sealed record Row(int Line, int Number, string Title, string Difficulty, string Utility, string Status, string Plan, List<string> Slugs, bool Reason);
 
 internal sealed record Problem(string File, int Line, string Message);
@@ -584,7 +584,7 @@ internal static partial class Program {
     [GeneratedRegex(@"^\| (?<key>[^|]+?) \| (?<value>.*) \|$")]
     internal static partial Regex HeaderRow();
 
-    [GeneratedRegex(@"^\| (?<number>\d+) \| (?<slugs>[^|]+) \| (?<title>[^|]+) \| (?<difficulty>[^|]+) \| (?<utility>[^|]+) \| (?<status>[^|]+) \| (?<blocked>[^|]+) \|")]
+    [GeneratedRegex(@"^\| (?<slugs>[^|]+) \| (?<title>[^|]+) \| (?<difficulty>[^|]+) \| (?<utility>[^|]+) \| (?<status>[^|]+) \| (?<blocked>[^|]+) \|")]
     internal static partial Regex OrderRow();
 
     [GeneratedRegex(@"^\| \d+ \| `(?<level>[a-z-]+)` \|")]

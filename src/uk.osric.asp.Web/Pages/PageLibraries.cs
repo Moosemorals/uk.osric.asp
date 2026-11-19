@@ -64,4 +64,26 @@ internal static class PageLibraryFingerprint {
             .OrderBy(library => library.Key, StringComparer.Ordinal)
             .Select(library => $"{library.Key}@{library.Hash}"));
     }
+
+    /// <summary>The library keys a fingerprint names, in the order it wrote them.</summary>
+    /// <param name="fingerprint">A fingerprint <see cref="Of"/> produced, or <see langword="null"/>.</param>
+    /// <returns>The keys alone, or an empty list when the page named no library.</returns>
+    /// <remarks>
+    /// The hash is dropped because a page asks which pages a library edit recompiles, not which
+    /// revision they were built from. A key may contain <c>@</c>, so the split is at the last one.
+    /// Parsing sits beside the writer, so a change to the format cannot desynchronise the two.
+    /// </remarks>
+    public static IReadOnlyList<string> KeysOf(string? fingerprint) {
+        if (string.IsNullOrEmpty(fingerprint)) {
+            return [];
+        }
+
+        List<string> keys = [];
+        foreach (string entry in fingerprint.Split('\n', StringSplitOptions.RemoveEmptyEntries)) {
+            int at = entry.LastIndexOf('@');
+            keys.Add(at < 0 ? entry : entry[..at]);
+        }
+
+        return keys;
+    }
 }

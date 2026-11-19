@@ -99,7 +99,11 @@ pure renderers, and one that is a fact about the build:
   host's rules, and carries the head's image state in `State` — the host's own words, judged against
   the running build — so a page's listing says what the editor's says without reading source
   (`pages-a-page-has-a-state`). The class the shell's own list marks it with stays in the shell: how a view presents a
-  state is the view's business. A listing is a `PageListingRequest(prefix, after, limit)` answered by a
+  state is the view's business. `Libraries` is the keys of the head's closure, transitively — what a
+  save to one of those keys would recompile — parsed from the revision's stored fingerprint where that
+  fingerprint is written, so the two cannot spell one fact twice; a library the page has not
+  recompiled without is still named and the row's `State` says what happened to the compile
+  (`pages-a-page-names-its-libraries`). A listing is a `PageListingRequest(prefix, after, limit)` answered by a
   `PageListing`: `after` is the last key the caller was given and is exclusive, so the next call resumes
   where the last one stopped and a save between two calls neither skips nor repeats a row; `limit` is
   bounded by `Pages:Read:MaxRowsPerList`, which an absent limit takes, and a larger one is refused with

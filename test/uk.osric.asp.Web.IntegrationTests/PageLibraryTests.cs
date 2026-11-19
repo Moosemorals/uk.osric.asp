@@ -44,4 +44,33 @@ public sealed class PageLibraryTests : IntegrationTest {
         string body = await (await client.GetAsync("/uses-library")).Content.ReadAsStringAsync();
         Assert.That(body, Does.Contain("from the library"));
     }
+
+    // What a library edit recompiles, read off the listing: the closure is the compiler's, so the
+    // page that names the library carries its key and the page that does not carries nothing.
+    [Test]
+    public async Task AListingSaysWhichLibrariesAPageNamesAsync() {
+        using HttpClient client = await CreateSignedInClientAsync();
+
+        HttpResponseMessage library = await PostEditorAsync(client, "lib/greeting",
+            "<%! namespace Site { public static class Greeting { public static string Text() => \"hi\"; } } %>");
+        Assert.That(library.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+        Assert.That((await PostEditorAsync(client, "uses-library",
+            "<%! using Site; %><h1><% ctx.Response.Write(Greeting.Text()); %></h1>")).StatusCode,
+            Is.EqualTo(HttpStatusCode.OK));
+        Assert.That((await PostEditorAsync(client, "plain-page", "<h1>Plain</h1>")).StatusCode,
+            Is.EqualTo(HttpStatusCode.OK));
+        HttpResponseMessage listing = await PostEditorAsync(client, "closure-listing", """
+            <% foreach (PageEntry entry in (await ctx.Capabilities.GetRequired<IPageCatalog>().ListAsync(new())).Entries) { %>
+            <p><%= entry.Key %>|<%= string.Join(",", entry.Libraries) %>|</p>
+            <% } %>
+            """);
+        Assert.That(listing.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+
+        string body = await (await client.GetAsync("/closure-listing")).Content.ReadAsStringAsync();
+
+        Assert.Multiple(() => {
+            Assert.That(body, Does.Contain("/uses-library|/lib/greeting|"));
+            Assert.That(body, Does.Contain("/plain-page||"));
+        });
+    }
 }

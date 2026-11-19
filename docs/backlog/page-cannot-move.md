@@ -61,7 +61,7 @@ and every caller that needs it today does it badly:
 
 4. **A library is the hard case.** Moving a library changes every dependent's closure: the dependents
    keep naming the old key and go stale, or the move recompiles them all, or the move is refused while
-   dependents exist. That choice needs [`library-edit-cost-is-invisible`](library-edit-cost-is-invisible.md) to know who the dependents are, and the
+   dependents exist. That choice needs [`library-edit-cost-is-invisible`](closed.md) to know who the dependents are, and the
    answer is probably "refuse, name them, and let the caller move them too" — with a batch
    ([IDEA-043](closed.md)) making that one request.
 
@@ -108,5 +108,5 @@ workaround "done deliberately, with the inbound links edited by hand"; the same 
 assistant's tools and from a release that renames a seed.
 
 The plan that places it is [host support for the IDE](../plans/ide-host.md); this is slice 6 there, last because it
-needs the closure ([`library-edit-cost-is-invisible`](library-edit-cost-is-invisible.md)), the search ([`cannot-search-the-store`](cannot-search-the-store.md)) and the batch
+needs the closure ([`library-edit-cost-is-invisible`](closed.md)), the search ([`cannot-search-the-store`](cannot-search-the-store.md)) and the batch
 ([IDEA-043](closed.md)) to be honest.

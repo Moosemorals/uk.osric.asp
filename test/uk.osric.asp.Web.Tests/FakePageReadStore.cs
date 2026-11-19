@@ -44,7 +44,8 @@ internal sealed class FakePageReadStore : IPageReadStore {
         bool hasDiagnostics = false,
         string? hash = null,
         string? seedHash = null,
-        string? contentHash = null) {
+        string? contentHash = null,
+        string? templateLibraries = null) {
         DateTimeOffset when = savedAt ?? _clock.AddMinutes(1);
         _clock = when > _clock ? when : _clock;
 
@@ -54,7 +55,9 @@ internal sealed class FakePageReadStore : IPageReadStore {
 
         hash ??= "hash-" + revisions.Count.ToString(System.Globalization.CultureInfo.InvariantCulture) + "-" + key;
         contentHash ??= TemplateFingerprint.Of(template);
-        revisions.Add(new FakeRevision(hash, when, template, templateKind, runtimeId, hasImage, hasDiagnostics, seedHash, contentHash));
+        revisions.Add(new FakeRevision(
+            hash, when, template, templateKind, runtimeId, hasImage, hasDiagnostics, seedHash, contentHash,
+            templateLibraries));
 
         return hash;
     }
@@ -95,7 +98,8 @@ internal sealed class FakePageReadStore : IPageReadStore {
                 FakeRevision latest = item.Value[^1];
                 return new PageReadHead(
                     item.Key, latest.SavedAt, latest.Hash, _deleted.Contains(item.Key), latest.TemplateKind,
-                    latest.RuntimeId, latest.HasImage, latest.HasDiagnostics, latest.SeedHash, latest.ContentHash);
+                    latest.RuntimeId, latest.HasImage, latest.HasDiagnostics, latest.SeedHash, latest.ContentHash,
+                    latest.TemplateLibraries);
             })];
     }
 
@@ -176,5 +180,6 @@ internal sealed class FakePageReadStore : IPageReadStore {
         bool HasImage,
         bool HasDiagnostics,
         string? SeedHash,
-        string? ContentHash);
+        string? ContentHash,
+        string? TemplateLibraries);
 }
