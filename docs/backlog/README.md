@@ -120,6 +120,10 @@ its reason, and that no item sits above something that blocks it.
 | | *A job's writer is only safe once [`one-write-per-render`](one-write-per-render.md) has replaced the one-action rule with a policy the caller names; revocation is the other half of the same decision.* | | | | |
 | [`cannot-check-a-page`](cannot-check-a-page.md), with [`tool-arguments-say-nothing`](tool-arguments-say-nothing.md) as its first slice | The assistant can check a script but not a page | determined-mountain-goat 💪🐐 | high | blocked | `check-without-storing` |
 | | *The compiler [`check-without-storing`](check-without-storing.md) adds gives the editor answers the model's most-asked question; the same step retires two tools that are one tool twice, so the definitions it describes are described once.* | | | | |
+| [`tool-surface-is-one-shell`](tool-surface-is-one-shell.md) | The assistant's tool surface is one shell, one question and one memory | protective-dragon 🔥🐉 | high | [planned](../plans/assistant-shell-tool.md) | — |
+| | *The shell already carries eleven of the twenty-two commands; making it POSIX, composable and the preferred surface leaves three tools and buys back the ceiling.* | | | | |
+| [`view-cannot-submit-a-form`](view-cannot-submit-a-form.md) | A run can look at the site but cannot submit one of its forms | determined-mountain-goat 💪🐐 | medium | open | — |
+| | *Testing a page's own form is the one read the view cannot make; it needs a write-scoped credential before it can be a tool.* | | | | |
 | [`cannot-search-the-store`](cannot-search-the-store.md) | A page cannot search the store's source | eager-beaver ⚙️🦫 | medium | [planned](../plans/ide-host.md) | — |
 | | *Lifts the assistant's own search into the contract rather than inventing anything.* | | | | |
 | [`ops-no-outage-notification`](ops-no-outage-notification.md) | No outbound notifications when the site breaks | eager-beaver ⚙️🦫 | medium | open | — |
@@ -130,6 +134,8 @@ its reason, and that no item sits above something that blocks it.
 | | *The most useful large item, with a plan and a first customer, and a plan's yes is the only thing it waits on.* | | | | |
 | [`editor-is-a-textarea`](editor-is-a-textarea.md) | The editor is a plain textarea | determined-mountain-goat 💪🐐 | high | open | — |
 | | *High use and high cost; the gutter, the diagnostics and the row state already cover the worst of it.* | | | | |
+| [`terminal-cannot-reach-the-shell`](terminal-cannot-reach-the-shell.md) | A person cannot type into the shell the assistant uses | protective-dragon 🔥🐉 | medium | open | — |
+| | *The kernel already takes an input and an output; a terminal is the other end, and the editor's `/vim.js` is the start of the `vi` it needs.* | | | | |
 | [`conversation-is-not-a-page`](conversation-is-not-a-page.md) | The assistant's conversation is a stream and a set of host actions, not a page | protective-dragon 🔥🐉 | medium | blocked | `no-account-store` |
 | | *The assistant's conversation as a page needs the account store beneath it, and that is [`no-account-store`](no-account-store.md).* | | | | |
 | [`archive-is-not-a-form`](archive-is-not-a-form.md) | `/admin/import` and `/admin/export` are shell code because an archive is not a form | caffeinated-squirrel ☕🐿️ | low | open | — |

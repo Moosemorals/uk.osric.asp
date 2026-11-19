@@ -1,0 +1,63 @@
+<!--
+SPDX-FileCopyrightText: Copyright 2026 Osric Wilkinson <osric@fluffypeople.com>
+SPDX-License-Identifier: MIT
+-->
+
+# The assistant's tool surface is one shell, one question and one memory
+
+| | |
+| --- | --- |
+| Difficulty | protective-dragon |
+| Utility | high |
+| Status | planned |
+| Blocked by | — |
+| Plan | [assistant-shell-tool](../plans/assistant-shell-tool.md) |
+| Area | Core (Shell, Assistant), Web (assistant, site), docs |
+| Location | `src/uk.osric.asp.Web/Assistant/Tools/ToolRegistry.cs`, `src/uk.osric.asp.Web/Assistant/Shell/`, `src/uk.osric.asp.Core/Shell/` |
+| Spike | — |
+
+## Idea
+
+The registry holds twenty-two tools, and a contract test pins the count at the soft ceiling the
+provider guidance quotes. Eleven commands a model already knows by another name sit inside `shell`:
+`ls`, `cat`, `grep`, `find`, `head`, `tail`, `diff`, `stat`, `wc`, `mv` and `help`. Beside it,
+`list_pages`, `read_page`, `search_pages`, `diff_page`, `move_page`, `list_revisions`, `read_revision`
+and two check tools exist again as typed tools. `tool-arguments-say-nothing` found the same pressure
+from the other side: twenty-two schemas with no parameter descriptions, because describing them
+rewrites the provider's cached prefix.
+
+The shell is the better shape. A model has seen `grep -rn`, `cat -n` and `diff -u` more often than it
+has seen this site's tool schemas, and one tool with a grammar can carry a dozen capabilities without
+spending a slot each. What it needs is to be a real shell: POSIX commands, pipes, redirects, a
+scratch directory, and history as paths rather than three more tools.
+
+## Sketch
+
+1. **One shell tool, and two more.** `shell`, `ask_user` and `memory`. Everything with an obvious
+   POSIX equivalent is a command, not a tool.
+2. **The commands are POSIX.** POSIX.1-2008 plus the GNU options models emit; a flag that is not
+   implemented is refused by name, never ignored silently.
+3. **Composition.** `|`, `>`, `>>`, `<`, `2>`, `&&`, `||`, `;`, `$?`, globs, quoting and heredocs.
+4. **A scratch mount.** `/tmp` is per run, in memory, bounded and never persisted, so a draft costs
+   no revision.
+5. **History as a mount.** `/snapshots/<key>/<hash>` makes `ls`, `cat`, `diff` and `cp` answer what
+   three history tools answer today; an edit is a patch that carries the hash it was made from.
+6. **Memory stays a tool.** Kinds, versions, pinning, caps and FTS5 recall are too much to shoehorn
+   into files; one action-dispatched tool replaces four.
+7. **A write is planned before it is approved.** The kernel resolves every operand and classifies
+   every effect, so one approval covers the line and the changed-pages card still knows what changed.
+
+[The plan](../plans/assistant-shell-tool.md) carries the detail, the phases and the risks.
+
+## Not in scope
+
+- **A POSTing view.** [`view-cannot-submit-a-form`](view-cannot-submit-a-form.md) is its own security
+  problem: the run's token reads and never writes, and that is what lets a view run unapproved.
+- **The terminal.** [`terminal-cannot-reach-the-shell`](terminal-cannot-reach-the-shell.md) is the
+  owner's own way into the same kernel.
+- **`mv`.** [`page-cannot-move`](closed.md) has landed; the shell's applet is already there, and this
+  item removes the typed `move_page` beside it.
+- **More than one page write per call.** [`one-write-per-render`](one-write-per-render.md) is the
+  blocker; v1 refuses a plan that names two pages and says so.
+- **A page capability.** A page that runs shell commands is a different decision and a different
+  threat model.

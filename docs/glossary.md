@@ -16,7 +16,7 @@ The entries are alphabetical across all three vocabularies. A term is defined on
 was used for two different units, so **exchange** and **step** replace it.
 
 ## Asset
-A revision with no code: it is a complete representation, the shell writes no chrome around it, and
+A revision with no code: it is a complete representation, the site writes no chrome around it, and
 a URL naming one revision may promise never to change.
 
 **Not** every stored page with a file extension. A page with code is never an asset, even if it is a
@@ -24,13 +24,13 @@ stylesheet or writes its own whole document, and a library is never one at all. 
 `PageAssetPolicy`, `PageRevisions.TemplateKind` and `PageAssetMap`.
 
 ## Bootstrap route
-A shell route that exists so the site can be repaired when a page is what is broken: `/login` and
+A site route that exists so the site can be repaired when a page is what is broken: `/login` and
 `/logout`, `/admin/status` with its chart, and the two recovery routes `/admin/seeds` and `/admin/scrub`.
 
 **Not** a view that has not been ported yet. A route for a view a page could serve today is a page,
 and a route for one a page cannot serve yet has a job behind it (`pages-page-first`); bootstrap is the reason
 that is never in the page column, because a page cannot answer when the page pipeline is what failed.
-**Owner:** shell — `LoginEndpoint`, `StatusEndpoint`, `ChartEndpoint`, `SeedsEndpoint` and
+**Owner:** site — `LoginEndpoint`, `StatusEndpoint`, `ChartEndpoint`, `SeedsEndpoint` and
 `ScrubEndpoint`; the audit is in [architecture](architecture.md#where-a-view-lives).
 
 ## Budget
@@ -49,10 +49,10 @@ stream leaves the budget for its own clocks in `Pages:Stream`.
 
 ## Build fact
 Something the image carries that describes the build serving it — the changelist and the XML
-documentation — served by a shell route (`/admin/changes`, `/admin/reference`) because a page cannot
+documentation — served by a site route (`/admin/changes`, `/admin/reference`) because a page cannot
 read a file beside the assembly.
 
-**Not** a page, a seed or an asset. **Owner:** shell — `ChangesEndpoint` and `ReferenceEndpoint`; the
+**Not** a page, a seed or an asset. **Owner:** site — `ChangesEndpoint` and `ReferenceEndpoint`; the
 audit is in [architecture](architecture.md#where-a-view-lives).
 
 ## Response
@@ -81,7 +81,7 @@ something a third party adds; a capability is something one render offers a page
 absent from the next. The accessor was called `ctx.Features` until the capability seam took its name, and the old name went with the alias.
 
 **Owner:** pages — `IPageCapabilities`, `IContext.Capabilities` and the ten `Sdk` interfaces a page
-may ask for; `PageCapabilities` is the shell's registry (`pages-capabilities-are-one-seam`).
+may ask for; `PageCapabilities` is the site's registry (`pages-capabilities-are-one-seam`).
 
 ## Composition
 Rendering one stored page inside another. An **embed** includes the page where the call is and
@@ -121,7 +121,7 @@ the source: a diff is computed from two retained templates when it is asked for.
 
 ## Document
 The whole representation a page with no code serves: the stored source is the response, and the
-author writes `<html>`, `<head>` and `<body>` because the shell injects nothing.
+author writes `<html>`, `<head>` and `<body>` because the site injects nothing.
 
 **Not** a separate kind declared by an extension list. A page with code may write a whole document
 by declaring no wrapper, but it is still a fragment another page could have wrapped, so it is not an
@@ -182,7 +182,7 @@ trailing slash except at the root.
 a key containing `?` or `#` is not addressable at all.
 
 **Owner:** pages — `PagePath.Key` and `PagePath.Normalize`; the `Path` and `PagePath` columns in
-`PageHeads`, `PageRevisions` and `PageState`; the shell's route table (`ShellCatalogue`).
+`PageHeads`, `PageRevisions` and `PageState`; the site's route table (`ShellCatalogue`).
 
 ## Library page
 A stored page whose only blocks are declarations: it has nothing to render, so it is never served and
@@ -254,9 +254,9 @@ answer. It is written only by a `remember` call the transcript shows, never by a
 The owner's own view of the assistant's memory: `/assistant/memory`, where every note is listed by
 kind, corrected, pinned or forgotten.
 
-**Not** a stored page, and not a capability of its own. It is shell code under the reserved
+**Not** a stored page, and not a capability of its own. It is the site's code under the reserved
 `/assistant` prefix, server-rendered like the editor and `/admin/status`, so a page cannot claim the key and
-the assistant reads it as a shell file it may not save. The view moves with the assistant page
+the assistant reads it as a site file it may not save. The view moves with the assistant page
 (`conversation-is-not-a-page`) rather than becoming a capability of its own; `assistant-memory-belongs-to-the-assistant`, which proposed one, was withdrawn.
 
 **Owner:** assistant — `AssistantMemoryEndpoint`, `/assistant.css` and `assistant-memory-page`.
@@ -319,7 +319,7 @@ but two panels never draw the same instrument.
 **Owner:** observability — `Panel`, `StatusCatalogue` and `Dashboard`.
 
 ## Path
-The URL path a request carries, which the shell resolves to a page key.
+The URL path a request carries, which the site resolves to a page key.
 
 **Not** a key. A path is what the visitor typed or linked to and may be non-canonical; the key is the
 normalised identity the store knows. `PageRequest.Path` carries the key a page runs under, not the
@@ -467,25 +467,16 @@ it is not ASP.NET Core's session, has no in-process cache and survives a restart
 **Owner:** pages — `IPageSession`, `PageSessionScope`, the `PageSessions` tables, the
 `Pages:Session` configuration and the `s` cookie.
 
-## Shell file
-A key the site's own routes answer — `/login`, `/assistant`, `/admin/scrub`, `/metrics` and the rest of
-the shell's route table — which the assistant may list and read but never save over.
+## Shell
+The assistant's fake command interpreter: its kernel, its applets and the `shell` tool, under
+`Core/Shell` and `Web/Assistant/Shell`.
 
-**Not** a page or a seed. A shell file has no stored source, revision or compile state: the assistant
-reads a host-written record of what the route does, because the running image has no source tree.
+**Not** the site's own code. `/login` is a site file, the document the site's own views are served in
+is a site document, and the code that answers them is the site's. The `shell` decision area and the
+names beginning `shell-` were recorded before this rule and are names rather than prose, so they keep
+their history.
 
-**Owner:** assistant — `ShellCatalogue` for the records, `PagePathPolicy` for the permission, and
-`ReservedPaths` for the list itself.
-
-## Shell page
-A document the site's own code writes: it carries `body.shell` and a visible **Site tools** label, and
-its menu is the shell's routes rather than the pages the store holds.
-
-**Not** a page that cannot be edited. A shell page answers when the page store or the page pipeline is
-what failed, which is why none of them is a stored page; a view the store could serve is a page
-(`pages-page-first`, `shell-the-shell-is-marked`).
-
-**Owner:** shell — `ShellDocument`, `SiteNavigation` and `AdminNavigation`.
+**Owner:** assistant — `ShellTool`, `ShellRunner`, `ShellApplet`, `ShellLine` and the applets.
 
 ## Series
 One metric at one set of label values, sampled over time.
@@ -496,6 +487,29 @@ rather than with the requested path.
 
 **Owner:** observability — Prometheus; label values come from instrument tags such as `page.path`,
 `outcome` and `cache`.
+
+## Site file
+A key the site's own routes answer — `/login`, `/assistant`, `/admin/scrub`, `/metrics` and the rest of
+the site's route table — which the assistant may list and read but never save over.
+
+**Not** a page or a seed. A site file has no stored source, revision or compile state: the assistant
+reads a record of the route's methods, access and purpose, written by the site, because the running
+image has no source tree.
+
+**Owner:** assistant — `ShellCatalogue` for the records, renamed to `SiteCatalogue` by
+[the shell plan](plans/assistant-shell-tool.md); `PagePathPolicy` for the permission, and
+`ReservedPaths` for the list itself.
+
+## Site page
+A document the site's own code writes: it carries the site's body class and a visible **Site tools**
+label, and its menu is the site's routes rather than the pages the store holds.
+
+**Not** a page that cannot be edited. A site page answers when the page store or the page pipeline is
+what failed, which is why none of them is a stored page; a view the store could serve is a page
+(`pages-page-first`, `shell-the-shell-is-marked`).
+
+**Owner:** site — `ShellDocument`, renamed to `SiteDocument` by
+[the shell plan](plans/assistant-shell-tool.md), `SiteNavigation` and `AdminNavigation`.
 
 ## Slot
 A permit to run one render or one compile, with requests waiting without a thread until one is free
@@ -632,7 +646,7 @@ body's own bytes read as UTF-8, and the redirects it took. A view reads and neve
 
 **Not** a sign-in, a session or an account: nothing is stored, nothing survives the run, and a
 browser cannot present one. **Not** `fetch`, which is anonymous, reaches any host, keeps nine headers
-and decodes text by the charset the response declares. **Owner:** shell — `ViewTokenStore`, the `View`
+and decodes text by the charset the response declares. **Owner:** site — `ViewTokenStore`, the `View`
 scheme, `ViewGuard`, `SiteOptions` and `ViewCredential`.
 
 ## Versioned URL
