@@ -67,6 +67,9 @@ override uk.osric.asp.Sdk.PageListing.ToString() -> string!
 override uk.osric.asp.Sdk.PageListingRequest.Equals(object? obj) -> bool
 override uk.osric.asp.Sdk.PageListingRequest.GetHashCode() -> int
 override uk.osric.asp.Sdk.PageListingRequest.ToString() -> string!
+override uk.osric.asp.Sdk.PageMoveResult.Equals(object? obj) -> bool
+override uk.osric.asp.Sdk.PageMoveResult.GetHashCode() -> int
+override uk.osric.asp.Sdk.PageMoveResult.ToString() -> string!
 override uk.osric.asp.Sdk.PageRevisionInfo.GetHashCode() -> int
 override uk.osric.asp.Sdk.PageSaveResult.Equals(object? obj) -> bool
 override uk.osric.asp.Sdk.PageSaveResult.GetHashCode() -> int
@@ -110,6 +113,8 @@ static uk.osric.asp.Sdk.PageListing.operator !=(uk.osric.asp.Sdk.PageListing? le
 static uk.osric.asp.Sdk.PageListing.operator ==(uk.osric.asp.Sdk.PageListing? left, uk.osric.asp.Sdk.PageListing? right) -> bool
 static uk.osric.asp.Sdk.PageListingRequest.operator !=(uk.osric.asp.Sdk.PageListingRequest? left, uk.osric.asp.Sdk.PageListingRequest? right) -> bool
 static uk.osric.asp.Sdk.PageListingRequest.operator ==(uk.osric.asp.Sdk.PageListingRequest? left, uk.osric.asp.Sdk.PageListingRequest? right) -> bool
+static uk.osric.asp.Sdk.PageMoveResult.operator !=(uk.osric.asp.Sdk.PageMoveResult? left, uk.osric.asp.Sdk.PageMoveResult? right) -> bool
+static uk.osric.asp.Sdk.PageMoveResult.operator ==(uk.osric.asp.Sdk.PageMoveResult? left, uk.osric.asp.Sdk.PageMoveResult? right) -> bool
 static uk.osric.asp.Sdk.PageRequestExtensions.WithAnotherQuery(this uk.osric.asp.Sdk.PageRequest! request, string! name, string! value) -> uk.osric.asp.Sdk.PageRequest!
 static uk.osric.asp.Sdk.PageRequestExtensions.WithQuery(this uk.osric.asp.Sdk.PageRequest! request, System.Collections.Generic.IReadOnlyList<System.Collections.Generic.KeyValuePair<string!, string!>>! query) -> uk.osric.asp.Sdk.PageRequest!
 static uk.osric.asp.Sdk.PageRequestExtensions.WithQuery(this uk.osric.asp.Sdk.PageRequest! request, string! name, string! value) -> uk.osric.asp.Sdk.PageRequest!
@@ -188,6 +193,7 @@ uk.osric.asp.Sdk.IPageWrites
 uk.osric.asp.Sdk.IPageWrites.AdoptSeedAsync(string! key) -> System.Threading.Tasks.Task<uk.osric.asp.Sdk.PageEditResult?>!
 uk.osric.asp.Sdk.IPageWrites.DeleteAsync(string! key) -> System.Threading.Tasks.Task<uk.osric.asp.Sdk.PageDeleteResult!>!
 uk.osric.asp.Sdk.IPageWrites.InstallSeedAsync(string! key, string? expectedHash) -> System.Threading.Tasks.Task<uk.osric.asp.Sdk.PageEditResult?>!
+uk.osric.asp.Sdk.IPageWrites.MoveAsync(string! from, string! to, string! expectedHash) -> System.Threading.Tasks.Task<uk.osric.asp.Sdk.PageMoveResult!>!
 uk.osric.asp.Sdk.IPageWrites.Resolve(string! key) -> uk.osric.asp.Sdk.PageKeyResolution!
 uk.osric.asp.Sdk.IPageWrites.RestoreRevisionAsync(string! key, string! hash, string? expectedHash) -> System.Threading.Tasks.Task<uk.osric.asp.Sdk.PageEditResult?>!
 uk.osric.asp.Sdk.IPageWrites.SaveAsync(string! key, string! template, string? expectedHash) -> System.Threading.Tasks.Task<uk.osric.asp.Sdk.PageEditResult!>!
@@ -427,6 +433,24 @@ uk.osric.asp.Sdk.PageListingRequest.Limit.init -> void
 uk.osric.asp.Sdk.PageListingRequest.PageListingRequest(string! Prefix = "", string? After = null, int? Limit = null) -> void
 uk.osric.asp.Sdk.PageListingRequest.Prefix.get -> string!
 uk.osric.asp.Sdk.PageListingRequest.Prefix.init -> void
+uk.osric.asp.Sdk.PageMoveOutcome
+uk.osric.asp.Sdk.PageMoveOutcome.FolderNotEmpty = 5 -> uk.osric.asp.Sdk.PageMoveOutcome
+uk.osric.asp.Sdk.PageMoveOutcome.Moved = 0 -> uk.osric.asp.Sdk.PageMoveOutcome
+uk.osric.asp.Sdk.PageMoveOutcome.SourceNotFound = 3 -> uk.osric.asp.Sdk.PageMoveOutcome
+uk.osric.asp.Sdk.PageMoveOutcome.Stale = 2 -> uk.osric.asp.Sdk.PageMoveOutcome
+uk.osric.asp.Sdk.PageMoveOutcome.TargetExists = 4 -> uk.osric.asp.Sdk.PageMoveOutcome
+uk.osric.asp.Sdk.PageMoveOutcome.Unchanged = 1 -> uk.osric.asp.Sdk.PageMoveOutcome
+uk.osric.asp.Sdk.PageMoveResult
+uk.osric.asp.Sdk.PageMoveResult.<Clone>$() -> uk.osric.asp.Sdk.PageMoveResult!
+uk.osric.asp.Sdk.PageMoveResult.Below.get -> System.Collections.Generic.IReadOnlyList<string!>!
+uk.osric.asp.Sdk.PageMoveResult.Below.init -> void
+uk.osric.asp.Sdk.PageMoveResult.Deconstruct(out uk.osric.asp.Sdk.PageMoveOutcome Outcome, out string? Hash, out System.Collections.Generic.IReadOnlyList<string!>! Below) -> void
+uk.osric.asp.Sdk.PageMoveResult.Equals(uk.osric.asp.Sdk.PageMoveResult? other) -> bool
+uk.osric.asp.Sdk.PageMoveResult.Hash.get -> string?
+uk.osric.asp.Sdk.PageMoveResult.Hash.init -> void
+uk.osric.asp.Sdk.PageMoveResult.Outcome.get -> uk.osric.asp.Sdk.PageMoveOutcome
+uk.osric.asp.Sdk.PageMoveResult.Outcome.init -> void
+uk.osric.asp.Sdk.PageMoveResult.PageMoveResult(uk.osric.asp.Sdk.PageMoveOutcome Outcome, string? Hash, System.Collections.Generic.IReadOnlyList<string!>! Below) -> void
 uk.osric.asp.Sdk.PageRequest.Deconstruct(out string! Method, out string! Path, out System.Collections.Generic.IReadOnlyDictionary<string!, string!>! Query, out System.Collections.Generic.IReadOnlyDictionary<string!, string!>! Form, out System.Collections.Generic.IReadOnlyDictionary<string!, string!>! Headers, out System.Collections.Generic.IReadOnlyDictionary<string!, string!>! Cookies, out System.Collections.Generic.IReadOnlyDictionary<string!, System.Collections.Generic.IReadOnlyList<string!>!>! QueryValues, out System.Collections.Generic.IReadOnlyDictionary<string!, System.Collections.Generic.IReadOnlyList<string!>!>! FormValues) -> void
 uk.osric.asp.Sdk.PageRequest.FormValues.get -> System.Collections.Generic.IReadOnlyDictionary<string!, System.Collections.Generic.IReadOnlyList<string!>!>!
 uk.osric.asp.Sdk.PageRequest.FormValues.init -> void

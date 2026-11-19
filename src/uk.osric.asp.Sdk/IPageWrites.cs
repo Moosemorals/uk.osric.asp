@@ -102,6 +102,33 @@ public interface IPageWrites {
     /// <exception cref="InvalidOperationException">A reserved key, a <c>HEAD</c>, an ended render or a second write.</exception>
     Task<PageDeleteResult> DeleteAsync(string key);
 
+    /// <summary>Moves a page, its history and its state to another key.</summary>
+    /// <param name="from">The key the page has; normalised and checked.</param>
+    /// <param name="to">The key it should have; normalised and checked.</param>
+    /// <param name="expectedHash">The head hash the caller read, so a move never applies to a page that changed underneath it.</param>
+    /// <returns>
+    /// Moved, or the reason it did not move. A move onto a tombstoned key clears the tombstone and
+    /// keeps the history that key retained; a move onto a live page is
+    /// <see cref="PageMoveOutcome.TargetExists"/> and writes nothing.
+    /// </returns>
+    /// <remarks>
+    /// <para>
+    /// Every revision moves and keeps the hash it was saved with, so the page's history is one
+    /// history under its new name. Nothing is left at the old key: it answers as a key that never had
+    /// a page, and a versioned link that named a revision answers at the new key or not at all.
+    /// Nothing is compiled — the page serves the image it already had.
+    /// </para>
+    /// <para>
+    /// The rules: a reserved key at either end, a page moving itself, and a library are page bugs and
+    /// throw; the same key, a stale hash, a missing source, an occupied target and a key with pages
+    /// below it are answers. A move spends the render's one action, like every other write.
+    /// </para>
+    /// </remarks>
+    /// <exception cref="ArgumentException">A key cannot name a page.</exception>
+    /// <exception cref="UserFacingException">This render has no signed-in visitor, so nothing was moved.</exception>
+    /// <exception cref="InvalidOperationException">A reserved key, a library, this page's own key, a <c>HEAD</c>, an ended render or a second write.</exception>
+    Task<PageMoveResult> MoveAsync(string from, string to, string expectedHash);
+
     /// <summary>Saves a retained revision's source as a new revision.</summary>
     /// <param name="key">The page's key; normalised and checked.</param>
     /// <param name="hash">The retained revision's hash, as the catalog reported it.</param>

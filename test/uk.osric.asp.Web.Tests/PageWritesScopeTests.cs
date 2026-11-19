@@ -617,6 +617,209 @@ public sealed class PageWritesScopeTests {
         });
     }
 
+    [Test]
+    public async Task AMoveMovesThePageAndAnswersItsHashAsync() {
+        FakePageStore storage = new();
+        using PageHarness pages = new(storage);
+        SavedRevision first = await pages.Editor.SaveAsync(PageHarness.Key("/page"), "first");
+        PageWritesScope scope = Scope(pages);
+
+        PageMoveResult moved = await scope.MoveAsync("/page", "/moved", first.Revision.Hash);
+
+        Assert.Multiple(() => {
+            Assert.That(moved.Outcome, Is.EqualTo(PageMoveOutcome.Moved));
+            Assert.That(moved.Hash, Is.EqualTo(first.Revision.Hash));
+            Assert.That(storage["/page"], Is.Null);
+            Assert.That(storage["/moved"]?.Template, Is.EqualTo("first"));
+            Assert.That(moved.Below, Is.Empty);
+        });
+    }
+
+    [Test]
+    public async Task AnAnonymousMoveIsRefusedBeforeAnythingIsMovedAsync() {
+        FakePageStore storage = new();
+        using PageHarness pages = new(storage);
+        SavedRevision first = await pages.Editor.SaveAsync(PageHarness.Key("/page"), "first");
+
+        await Assert.ThrowsAsync<UserFacingException>(
+            async () => await Scope(pages, signedIn: false).MoveAsync("/page", "/moved", first.Revision.Hash));
+
+        Assert.That(storage.WriteCount, Is.EqualTo(1), "only the setup save wrote");
+    }
+
+    [Test]
+    public async Task AHeadCannotMoveAsync() {
+        FakePageStore storage = new();
+        using PageHarness pages = new(storage);
+        SavedRevision first = await pages.Editor.SaveAsync(PageHarness.Key("/page"), "first");
+
+        await Assert.ThrowsAsync<InvalidOperationException>(
+            async () => await Scope(pages, writable: false).MoveAsync("/page", "/moved", first.Revision.Hash));
+
+        Assert.That(storage["/page"]?.Template, Is.EqualTo("first"));
+    }
+
+    [Test]
+    public async Task AnAbandonedRenderCannotMoveAsync() {
+        FakePageStore storage = new();
+        using PageHarness pages = new(storage);
+        SavedRevision first = await pages.Editor.SaveAsync(PageHarness.Key("/page"), "first");
+        PageWritesScope scope = Scope(pages);
+        scope.Abandon();
+
+        await Assert.ThrowsAsync<InvalidOperationException>(
+            async () => await scope.MoveAsync("/page", "/moved", first.Revision.Hash));
+    }
+
+    [Test]
+    public async Task ADeadlineThatPassedCannotMoveAsync() {
+        FakePageStore storage = new();
+        using PageHarness pages = new(storage);
+        SavedRevision first = await pages.Editor.SaveAsync(PageHarness.Key("/page"), "first");
+        PageWritesScope scope = Scope(pages);
+        scope.AttachDeadline(new CancellationToken(canceled: true));
+
+        await Assert.ThrowsAsync<InvalidOperationException>(
+            async () => await scope.MoveAsync("/page", "/moved", first.Revision.Hash));
+    }
+
+    [Test]
+    public async Task AMoveSpendsTheOneActionAsync() {
+        FakePageStore storage = new();
+        using PageHarness pages = new(storage);
+        SavedRevision first = await pages.Editor.SaveAsync(PageHarness.Key("/page"), "first");
+        PageWritesScope scope = Scope(pages);
+
+        _ = await scope.MoveAsync("/page", "/moved", first.Revision.Hash);
+
+        InvalidOperationException? refused = await Assert.ThrowsAsync<InvalidOperationException>(
+            () => scope.SaveAsync("/other", "text", null));
+
+        Assert.That(refused?.Message, Does.Contain("already edited"));
+    }
+
+    [Test]
+    public async Task AShellFileCannotBeMovedAsync() {
+        FakePageStore storage = new();
+        using PageHarness pages = new(storage);
+        SavedRevision first = await pages.Editor.SaveAsync(PageHarness.Key("/page"), "first");
+
+        await Assert.ThrowsAsync<InvalidOperationException>(
+            async () => await Scope(pages).MoveAsync("/page", "/login", first.Revision.Hash));
+        await Assert.ThrowsAsync<InvalidOperationException>(
+            async () => await Scope(pages).MoveAsync("/login", "/page", first.Revision.Hash));
+
+        Assert.That(storage["/page"]?.Template, Is.EqualTo("first"));
+    }
+
+    [Test]
+    public async Task APageCannotMoveItselfAsync() {
+        FakePageStore storage = new();
+        using PageHarness pages = new(storage);
+        SavedRevision first = await pages.Editor.SaveAsync(PageHarness.Key("/self"), "first");
+
+        InvalidOperationException? refused = await Assert.ThrowsAsync<InvalidOperationException>(
+            async () => await Scope(pages, path: "/self").MoveAsync("/self", "/moved", first.Revision.Hash));
+
+        Assert.Multiple(() => {
+            Assert.That(refused?.Message, Does.Contain("cannot move itself"));
+            Assert.That(storage["/self"]?.Template, Is.EqualTo("first"));
+        });
+    }
+
+    [Test]
+    public async Task AMoveToTheSameKeyChangesNothingAsync() {
+        FakePageStore storage = new();
+        using PageHarness pages = new(storage);
+        SavedRevision first = await pages.Editor.SaveAsync(PageHarness.Key("/page"), "first");
+        int writes = storage.WriteCount;
+
+        PageMoveResult same = await Scope(pages).MoveAsync("/page", "/page", first.Revision.Hash);
+        PageMoveResult caseOnly = await Scope(pages).MoveAsync("/page", "/PAGE", first.Revision.Hash);
+
+        Assert.Multiple(() => {
+            Assert.That(same.Outcome, Is.EqualTo(PageMoveOutcome.Unchanged));
+            Assert.That(caseOnly.Outcome, Is.EqualTo(PageMoveOutcome.Unchanged), "a key is lowercase by construction");
+            Assert.That(same.Hash, Is.Null);
+            Assert.That(storage.WriteCount, Is.EqualTo(writes));
+        });
+    }
+
+    [Test]
+    public async Task AMoveOfAMissingPageIsNotFoundAsync() {
+        FakePageStore storage = new();
+        using PageHarness pages = new(storage);
+
+        PageMoveResult moved = await Scope(pages).MoveAsync("/missing", "/moved", "any-hash");
+
+        Assert.That(moved.Outcome, Is.EqualTo(PageMoveOutcome.SourceNotFound));
+    }
+
+    [Test]
+    public async Task AMoveOntoALivePageAnswersTargetExistsAsync() {
+        FakePageStore storage = new();
+        using PageHarness pages = new(storage);
+        SavedRevision source = await pages.Editor.SaveAsync(PageHarness.Key("/page"), "source");
+        _ = await pages.Editor.SaveAsync(PageHarness.Key("/other"), "occupied");
+
+        PageMoveResult moved = await Scope(pages).MoveAsync("/page", "/other", source.Revision.Hash);
+
+        Assert.Multiple(() => {
+            Assert.That(moved.Outcome, Is.EqualTo(PageMoveOutcome.TargetExists));
+            Assert.That(moved.Hash, Is.Null);
+            Assert.That(storage["/other"]?.Template, Is.EqualTo("occupied"));
+        });
+    }
+
+    [Test]
+    public async Task AMoveOfAKeyWithPagesBelowItNamesThemAsync() {
+        FakePageStore storage = new();
+        using PageHarness pages = new(storage);
+        SavedRevision source = await pages.Editor.SaveAsync(PageHarness.Key("/folder"), "folder");
+        _ = await pages.Editor.SaveAsync(PageHarness.Key("/folder/child"), "child");
+
+        PageMoveResult moved = await Scope(pages).MoveAsync("/folder", "/moved", source.Revision.Hash);
+
+        Assert.Multiple(() => {
+            Assert.That(moved.Outcome, Is.EqualTo(PageMoveOutcome.FolderNotEmpty));
+            Assert.That(moved.Below, Is.EqualTo<string[]>(["/folder/child"]));
+        });
+    }
+
+    [Test]
+    public async Task ALibraryCannotBeMovedAsync() {
+        FakePageStore storage = new();
+        using PageHarness pages = new(storage);
+        PagePath key = PageHarness.Key("/_lib/thing");
+        storage["/_lib/thing"] = new PageTemplate(key, "public static class Thing { }") { Kind = PageKind.Library };
+        string hash = PageHarness.Stored(storage, "/_lib/thing").Hash;
+
+        InvalidOperationException? refused = await Assert.ThrowsAsync<InvalidOperationException>(
+            async () => await Scope(pages).MoveAsync("/_lib/thing", "/_lib/other", hash));
+
+        Assert.That(refused?.Message, Does.Contain("library"));
+    }
+
+    [Test]
+    public async Task OnlyAMoveAnswersWithAHashAsync() {
+        FakePageStore storage = new();
+        using PageHarness pages = new(storage);
+        SavedRevision first = await pages.Editor.SaveAsync(PageHarness.Key("/page"), "first");
+        _ = await pages.Editor.SaveAsync(PageHarness.Key("/other"), "occupied");
+
+        PageMoveResult stale = await Scope(pages).MoveAsync("/page", "/third", "not-the-head");
+        PageMoveResult target = await Scope(pages).MoveAsync("/page", "/other", first.Revision.Hash);
+        PageMoveResult missing = await Scope(pages).MoveAsync("/missing", "/third", first.Revision.Hash);
+        PageMoveResult moved = await Scope(pages).MoveAsync("/page", "/third", first.Revision.Hash);
+
+        Assert.Multiple(() => {
+            Assert.That(stale.Hash, Is.Null);
+            Assert.That(target.Hash, Is.Null);
+            Assert.That(missing.Hash, Is.Null);
+            Assert.That(moved.Hash, Is.EqualTo(first.Revision.Hash));
+        });
+    }
+
     private static PageWritesScope Scope(
         PageHarness pages,
         bool writable = true,

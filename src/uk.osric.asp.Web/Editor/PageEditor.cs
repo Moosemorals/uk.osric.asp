@@ -84,6 +84,24 @@ internal sealed class PageEditor(
         return storage.DeletePageAsync(path, cancellationToken);
     }
 
+    /// <summary>Moves a page, its history and its state to another key.</summary>
+    /// <param name="from">The key the page has.</param>
+    /// <param name="to">The key it should have.</param>
+    /// <param name="expectedHash">The live head the caller read.</param>
+    /// <param name="cancellationToken">Cancels the move.</param>
+    /// <remarks>A move compiles nothing, so this is the store's transaction and no more.</remarks>
+    public Task<PageMoveStoreResult> MoveAsync(
+        PagePath from,
+        PagePath to,
+        string expectedHash,
+        CancellationToken cancellationToken = default) {
+        ArgumentNullException.ThrowIfNull(from);
+        ArgumentNullException.ThrowIfNull(to);
+        ArgumentException.ThrowIfNullOrWhiteSpace(expectedHash);
+
+        return storage.MovePageAsync(from, to, expectedHash, cancellationToken);
+    }
+
     public Task<bool> ScrubAsync(PagePath path, CancellationToken cancellationToken = default) {
         return storage.ScrubPageAsync(path, cancellationToken);
     }
