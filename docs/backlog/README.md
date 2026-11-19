@@ -110,7 +110,7 @@ it.
 
 | # | Slug | Title | Difficulty | Utility | Status | Blocked by |
 | --- | --- | --- | --- | --- | --- | --- |
-| 1 | [`policy-is-a-constant`](policy-is-a-constant.md) | Some policy is still a constant in code | contented-capybara 😌🦫 | medium | open | — |
+| 1 | [`policy-is-a-constant`](policy-is-a-constant.md) | Some policy is still a constant in code | contented-capybara 😌🦫 | medium | [planned](../plans/policy-values.md) | — |
 | | | *Closes the policy exceptions the configuration rule still names, and tightening a guarantee always outranks tidying.* | | | | |
 | 2 | [`listing-has-no-cursor`](listing-has-no-cursor.md) | A page cannot ask a listing for the next page | eager-beaver ⚙️🦫 | medium | [planned](../plans/ide-host.md) | — |
 | | | *A listing that refuses past the cap is hit by every store that grows; a keyset cursor is small.* | | | | |
