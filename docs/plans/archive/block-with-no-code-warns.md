@@ -7,12 +7,12 @@ SPDX-License-Identifier: MIT
 
 | | |
 | --- | --- |
-| Status | Proposed 2026-11-19 — waits for the owner. Nothing below is built |
+| Status | Merged 2026-11-19 — the owner answered the four questions and said build; the record is `pages-a-block-with-no-code-warns` |
 | Size | Small — two warnings in a `Core` checker, one consumer in `tools`, three documents and their tests; no host change, no migration |
 | Area | Core (Compilation), tools, docs |
 | Spike | None. Every claim below was read off `trunk` on 2026-11-19: `TemplateShapeCheck`, `TemplateTokenizer`, `TokenType`, `TemplateSourceGenerator.IsLibrary`, `PageImageBuilder.Build`, `tools/check-pages` and the shape-check tests |
 | Backlog | [`block-that-is-not-code-compiles`](../backlog/block-that-is-not-code-compiles.md) is this step, and it closes at the merge |
-| Decisions | At the merge: **pages-a-block-with-no-code-warns** is new. It cites `pages-the-shape-check`, `pages-a-comment-is-not-code` and `pages-a-warning-never-stops-a-page` and edits none |
+| Decisions | `pages-a-block-with-no-code-warns` is new. It cites `pages-the-shape-check`, `pages-a-comment-is-not-code` and `pages-a-warning-never-stops-a-page` and edits none |
 
 ## The short version
 
@@ -51,36 +51,47 @@ and the scanner's own literal tracking already knows the second.
    the consequence differs: *"this block holds no code"* when the template has code elsewhere, and
    *"…and it is what makes this template a page"* when this block is the only one. An empty `<%= %>`
    is already `TEMPLATE002`, an error, and an empty `<%# %>` is a legitimate note: neither is touched.
-   The position is the block's content start, the character after the opener.
 
-2. **`TEMPLATE007` — the block ends inside a literal.** The scanner learns to say *a literal never
-   closed* rather than only *the scan ended here*: each skip answers whether it found its terminator,
-   and an unclosed one warns at the literal's opening quote. The message carries the way out, because
-   the author has nowhere else to look: *"the block ends inside a string literal; a block ends at the
-   first `%>`, so write the character as `\u003e`, or join `"%"` and `">"`."* The `\u003e` is spelled
-   so the C# source writes the character sequence rather than the character.
+2. **`TEMPLATE007` — the block holds only a comment.** Its own code, because the fix is different: the
+   note the author meant is `<%# … %>`, which leaves the template as it was. The same consequence
+   clause, in the template's own words — a lone code block makes it a *page*, a lone declaration makes
+   it a *library, which is never served*.
 
-3. **One mistake, one warning.** The text run after such a block continues the same string, so its
+3. **`TEMPLATE008` — the block ends inside a literal or a comment.** The scanner learns to say *a
+   literal never closed* rather than only *the scan ended here*: each skip answers whether it found its
+   terminator, and an unclosed one warns at the literal's opening quote. The message carries the way
+   out, because the author has nowhere else to look: *"the block ends inside a literal; a block ends at
+   the first `%>`, so write the character as `\u003e`, or join `"%"` and `">"`"* — and, inside a
+   comment, *"close it with `*/`"*. The `\u003e` is spelled so the C# source writes the character
+   sequence rather than the character.
+
+4. **The position is the opener.** A `Token` now carries where its opener starts for every block kind,
+   not only writes, so a dead block whose opener stands on another line from its content still points
+   at the line the author will look at.
+
+5. **One mistake, one warning.** The text run after a cut block continues the same string, so its
    first `%>` is the closer the author meant. `AddStrayClosers` skips that one occurrence; a later `%>`
    in the same run is still `TEMPLATE003`. A template the tokenizer refused keeps today's behaviour —
    the error at the opener, and none of the new guesses beside it.
 
 ## The change
 
-1. **`TemplateShapeCheck`** gains the two rules. The scanner's skips change from `int` to a value that
-   says whether the literal closed, which is the only structural change in `Core`; `Check` keeps its
-   signature and its ordering, so `PageImageBuilder` and every existing test compile unchanged.
+1. **`TemplateShapeCheck`** gains the three rules. The scanner's skips change from `int` to a value
+   that says whether the literal closed, and `Token` carries its opener for every block kind; `Check`
+   keeps its signature and its ordering, so `PageImageBuilder` needs no change.
 2. **`tools/check-pages`** stops skipping `Text` and asks the shape check for every file: shape
    warnings and the compile's diagnostics go out through the one `file:line:column` line it already
-   emits, deduplicated as it already does, and the tool still fails only on an error.
+   emits, deduplicated as it already does. It **fails on a warning as well as an error**, because a
+   warning is an error everywhere else in this repository and this tool should not be the exception.
 3. **`/help`** gains the paragraph beside the `<%#` entry: a block ends at the first `%>`, so a string
    holding one ends the block early and the rest of the line becomes text; write the character as
    `"%\u003e"`, or join `"%"` and `">"`, which also works in a verbatim or raw string; in literal text
    write `%&gt;`.
 4. **`architecture.md`** gains `TEMPLATE006` and `TEMPLATE007` in the diagnostics table and a sentence
    under it for the two shapes; **`pages.md`**'s shape-warning sentence names them.
-5. **The assistant's prompt** gets one clause after "It ends at the first `%>`" with `Version` bumped.
-   The item calls this a separate yes, so it is question 4 below.
+5. **The assistant's prompt** gets one clause after "It ends at the first `%>`" — a `%>` in a string
+   ends the block early, the two spellings of the character, and `TEMPLATE007` — with `Version`
+   bumped to `page-author-v42`.
 6. **The record**: the item closes, and **pages-a-block-with-no-code-warns** is written at the merge,
    stating the rule rather than restating `pages-the-shape-check`, which it cites. `TEMPLATE007` is
    that entry's second face: "a block ends at the first `%>`" is unchanged and only its diagnosis moves.
@@ -104,22 +115,14 @@ The seeds' silence is the gate's job: `make check-pages` now asks the shape chec
 so a rule that is louder than the corpus shows up as a new line in the gate rather than as a test that
 hard-codes today's answer. `check-pages` has no test project, and this change does not add one.
 
-## Open questions
+## What the owner decided
 
-1. **What a comment-only declaration is told.** "This block holds no code" is true and unhelpful for
-   `<%! /* … */ %>`, where the fix is either *delete it* or *write the declaration*. The plan proposes
-   one wording for both kinds, and a second clause for the declaration case only if the first reads
-   badly against the seeds.
-2. **A block whose opener is on another line from its content.** The position is the content start,
-   which is right for the author and wrong when the two differ. Reporting at the opener needs `Token`
-   to carry an opener position for every kind, which is a `Core` change; the plan reports the content
-   start and says so in the manual's diagnostics sentence.
-3. **Whether `make check-pages` should fail on a warning.** It does not today, warning severity does
-   not stop a page, and the gate's habit is to encourage quiet rather than enforce it. The plan keeps
-   the tool failing only on an error.
-4. **Whether the assistant's prompt changes in this step.** The item calls it a separate yes. The plan
-   would make the edit here, because it is one clause and a version bump beside the manual entry the
-   same change already writes — and would leave it out on the owner's word.
+| Question | Answer | What it settled |
+| --- | --- | --- |
+| The comment-only declaration | **A separate warning** | `TEMPLATE007` rather than a second wording of `TEMPLATE006`, because the fix is a different construct; the literal case moved to `TEMPLATE008` |
+| A block whose opener is on another line | **Update `Core`** | `Token.OpenerPosition` is set for every block kind, and both dead-block warnings report the opener |
+| Whether `check-pages` fails on a warning | **Yes — warnings are errors everywhere else** | the tool fails on any diagnostic, so the seeds' silence is now a gate rather than an observation |
+| The assistant's prompt | **Yes, update the assistant** | the clause and `page-author-v42` ship in this step |
 
 ## Not in scope
 

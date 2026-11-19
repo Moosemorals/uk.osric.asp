@@ -36,7 +36,7 @@ public sealed class TemplateTokenizerTests {
         IReadOnlyList<Token> tokens = TemplateTokenizer.Tokenize(input).Tokens;
 
         Assert.That(tokens, Is.EqualTo(new Token[] {
-            new(TokenType.Code, expected, new TemplatePosition(1, 3)),
+            new(TokenType.Code, expected, new TemplatePosition(1, 3), new TemplatePosition(1, 1)),
         }));
     }
 
@@ -47,7 +47,7 @@ public sealed class TemplateTokenizerTests {
         IReadOnlyList<Token> tokens = TemplateTokenizer.Tokenize(input).Tokens;
 
         Assert.That(tokens, Is.EqualTo(new Token[] {
-            new(TokenType.Declaration, expected, new TemplatePosition(1, 4)),
+            new(TokenType.Declaration, expected, new TemplatePosition(1, 4), new TemplatePosition(1, 1)),
         }));
     }
 
@@ -58,7 +58,7 @@ public sealed class TemplateTokenizerTests {
         IReadOnlyList<Token> tokens = TemplateTokenizer.Tokenize("<%!" + content + "%>").Tokens;
 
         Assert.That(tokens, Is.EqualTo(new Token[] {
-            new(TokenType.Declaration, content, new TemplatePosition(1, 4)),
+            new(TokenType.Declaration, content, new TemplatePosition(1, 4), new TemplatePosition(1, 1)),
         }));
     }
 
@@ -90,7 +90,7 @@ public sealed class TemplateTokenizerTests {
         IReadOnlyList<Token> tokens = TemplateTokenizer.Tokenize("<% = value %>").Tokens;
 
         Assert.That(tokens, Is.EqualTo(new Token[] {
-            new(TokenType.Code, " = value ", new TemplatePosition(1, 3)),
+            new(TokenType.Code, " = value ", new TemplatePosition(1, 3), new TemplatePosition(1, 1)),
         }));
     }
 
@@ -113,7 +113,7 @@ public sealed class TemplateTokenizerTests {
         IReadOnlyList<Token> tokens = TemplateTokenizer.Tokenize(input).Tokens;
 
         Assert.That(tokens, Is.EqualTo(new Token[] {
-            new(TokenType.Code, input[2..^2], new TemplatePosition(1, 3)),
+            new(TokenType.Code, input[2..^2], new TemplatePosition(1, 3), new TemplatePosition(1, 1)),
         }));
     }
 
@@ -123,9 +123,9 @@ public sealed class TemplateTokenizerTests {
 
         Assert.That(tokens, Is.EqualTo(new Token[] {
             new(TokenType.Text, "before", new TemplatePosition(1, 1)),
-            new(TokenType.Code, "first();", new TemplatePosition(1, 9)),
+            new(TokenType.Code, "first();", new TemplatePosition(1, 9), new TemplatePosition(1, 7)),
             new(TokenType.Text, "between", new TemplatePosition(1, 19)),
-            new(TokenType.Code, "second();", new TemplatePosition(1, 28)),
+            new(TokenType.Code, "second();", new TemplatePosition(1, 28), new TemplatePosition(1, 26)),
             new(TokenType.Text, "after", new TemplatePosition(1, 39)),
         }));
     }
@@ -135,9 +135,9 @@ public sealed class TemplateTokenizerTests {
         IReadOnlyList<Token> tokens = TemplateTokenizer.Tokenize("<%first();%><%%><%second();%>").Tokens;
 
         Assert.That(tokens, Is.EqualTo(new Token[] {
-            new(TokenType.Code, "first();", new TemplatePosition(1, 3)),
-            new(TokenType.Code, "", new TemplatePosition(1, 15)),
-            new(TokenType.Code, "second();", new TemplatePosition(1, 19)),
+            new(TokenType.Code, "first();", new TemplatePosition(1, 3), new TemplatePosition(1, 1)),
+            new(TokenType.Code, "", new TemplatePosition(1, 15), new TemplatePosition(1, 13)),
+            new(TokenType.Code, "second();", new TemplatePosition(1, 19), new TemplatePosition(1, 17)),
         }));
     }
 
@@ -147,7 +147,7 @@ public sealed class TemplateTokenizerTests {
 
         Assert.That(tokens, Is.EqualTo(new Token[] {
             new(TokenType.Text, "before", new TemplatePosition(1, 1)),
-            new(TokenType.Code, "code", new TemplatePosition(1, 9)),
+            new(TokenType.Code, "code", new TemplatePosition(1, 9), new TemplatePosition(1, 7)),
         }));
     }
 
@@ -160,7 +160,7 @@ public sealed class TemplateTokenizerTests {
         int textStart = input.IndexOf("%>", StringComparison.Ordinal) + 2;
 
         Assert.That(tokens, Is.EqualTo(new Token[] {
-            new(TokenType.Code, before, new TemplatePosition(1, 3)),
+            new(TokenType.Code, before, new TemplatePosition(1, 3), new TemplatePosition(1, 1)),
             new(TokenType.Text, after, new TemplatePosition(1, textStart + 1)),
         }));
     }
@@ -229,7 +229,7 @@ public sealed class TemplateTokenizerTests {
         TokenizeResult result = TemplateTokenizer.Tokenize("<%complete%><%unfinished");
 
         Assert.That(result.Tokens, Is.EqualTo(new Token[] {
-            new(TokenType.Code, "complete", new TemplatePosition(1, 3)),
+            new(TokenType.Code, "complete", new TemplatePosition(1, 3), new TemplatePosition(1, 1)),
         }));
     }
 
@@ -240,7 +240,7 @@ public sealed class TemplateTokenizerTests {
         IReadOnlyList<Token> tokens = TemplateTokenizer.Tokenize(input).Tokens;
 
         Assert.That(tokens, Is.EqualTo(new Token[] {
-            new(TokenType.Comment, expected, new TemplatePosition(1, 4)),
+            new(TokenType.Comment, expected, new TemplatePosition(1, 4), new TemplatePosition(1, 1)),
         }));
     }
 
@@ -250,9 +250,9 @@ public sealed class TemplateTokenizerTests {
 
         Assert.That(tokens, Is.EqualTo(new Token[] {
             new(TokenType.Text, "before", new TemplatePosition(1, 1)),
-            new(TokenType.Comment, " note ", new TemplatePosition(1, 10)),
+            new(TokenType.Comment, " note ", new TemplatePosition(1, 10), new TemplatePosition(1, 7)),
             new(TokenType.Text, "between", new TemplatePosition(1, 18)),
-            new(TokenType.Code, " first(); ", new TemplatePosition(1, 27)),
+            new(TokenType.Code, " first(); ", new TemplatePosition(1, 27), new TemplatePosition(1, 25)),
             new(TokenType.Text, "after", new TemplatePosition(1, 39)),
         }));
     }
@@ -263,7 +263,7 @@ public sealed class TemplateTokenizerTests {
 
         Assert.That(tokens, Is.EqualTo(new Token[] {
             new(TokenType.Text, "before", new TemplatePosition(1, 1)),
-            new(TokenType.Comment, " note ", new TemplatePosition(1, 10)),
+            new(TokenType.Comment, " note ", new TemplatePosition(1, 10), new TemplatePosition(1, 7)),
             new(TokenType.Text, "after", new TemplatePosition(1, 18)),
         }));
     }
@@ -275,7 +275,7 @@ public sealed class TemplateTokenizerTests {
         IReadOnlyList<Token> tokens = TemplateTokenizer.Tokenize(input).Tokens;
 
         Assert.That(tokens, Is.EqualTo(new Token[] {
-            new(TokenType.Code, input[2..^2], new TemplatePosition(1, 3)),
+            new(TokenType.Code, input[2..^2], new TemplatePosition(1, 3), new TemplatePosition(1, 1)),
         }));
     }
 

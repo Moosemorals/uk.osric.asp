@@ -48,13 +48,10 @@ internal static class TemplateTokenizer {
             if (codeEnd == -1) {
                 return new TokenizeResult(tokens, [UnterminatedBlock(input, codeStart, type)]);
             }
-            TemplatePosition? openerPosition = type is TokenType.Write or TokenType.WriteRaw
-                ? TemplateLines.PositionOf(input, codeStart)
-                : null;
             tokens.Add(new Token(type,
                 input[contentStart..codeEnd],
                 TemplateLines.PositionOf(input, contentStart),
-                openerPosition));
+                TemplateLines.PositionOf(input, codeStart)));
             index = codeEnd + 2;
         }
 

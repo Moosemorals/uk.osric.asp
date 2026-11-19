@@ -98,6 +98,9 @@ and the logs quote them:
 | `TEMPLATE003` | `TemplateShapeCheck` | literal text holds a `%>` with no matching `<%` |
 | `TEMPLATE004` | `TemplateShapeCheck` | a `{` in page code is never closed |
 | `TEMPLATE005` | `TemplateShapeCheck` | a `}` in page code has no matching `{` |
+| `TEMPLATE006` | `TemplateShapeCheck` | a code or declaration block holds no code |
+| `TEMPLATE007` | `TemplateShapeCheck` | a code or declaration block holds only a comment |
+| `TEMPLATE008` | `TemplateShapeCheck` | a block ends inside a literal or a comment |
 | `PAGE001` | `PageApiPolicy` | the page used an API it may not use |
 | `PAGE002` | `PageApiChecker` | page code escaped its method, or a declaration block declared something other than a type |
 | `PAGE003` | `PageImageBuilder` | the page waited too long for a compile slot |
@@ -110,8 +113,10 @@ and the logs quote them:
 `PAGE005` is retired with the alias it named and is never reused for a different meaning (`pages-capabilities-are-one-seam`).
 `PAGE009` is a warning rather than an error and is retired with the members it names
 (`pages-the-response-is-one-object`).
-`TEMPLATE003`–`TEMPLATE005` are warnings: they are stored beside the compiler's diagnostics, so a
+`TEMPLATE003`–`TEMPLATE008` are warnings: they are stored beside the compiler's diagnostics, so a
 clean compile does not hide them, and they never stop a page being served (`pages-the-shape-check`).
+A shape warning names its block by the block's opener rather than by its content, so a block whose
+opener stands on another line from what it holds still points at the line the author will look at.
 
 ## Where does code go?
 
