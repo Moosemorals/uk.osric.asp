@@ -21,7 +21,7 @@ and shares one file, [WHIMS.md](WHIMS.md); a resolved job moves to [closed.md](c
 | [IDEA-020](IDEA-020.md) | M | — | — | Import only adds and overwrites, so an archive cannot reset a site |
 | [IDEA-024](IDEA-024.md) | L | — | — | `/admin/import` and `/admin/export` are shell code because an archive is not a form |
 | [IDEA-025](IDEA-025.md) | L | — | [page-apps](../plans/archive/page-apps.md) | The assistant's conversation is a stream and a set of host actions, not a page |
-| [IDEA-027](IDEA-027.md) | S | — | — | A page cannot leave a message for a page it sends a visitor to |
+| [IDEA-027](IDEA-027.md) | L | — | [page-inbox](../plans/page-inbox.md) | A page cannot leave a message for a page it sends a visitor to |
 | [IDEA-029](IDEA-029.md) | L | — | — | VS Code cannot check a page as it is typed |
 | [IDEA-031](IDEA-031.md) | S | — | — | Some policy is still a constant in code |
 | [IDEA-033](IDEA-033.md) | L | — | [account-store](../plans/account-store.md) | A page has no persistent per-account store |
