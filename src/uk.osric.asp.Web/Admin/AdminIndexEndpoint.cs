@@ -65,9 +65,9 @@ internal static class AdminIndexEndpoint {
                 cancellationToken);
         } else {
             await context.Response.WriteAsync(
-                "<p>The <a href=\"/help\">author manual</a> explains each tool, and "
-                + "<a href=\"/admin/seed-apply\">Apply seed updates</a> is the routine way a release "
-                + "moves a page.</p>",
+                "<p>The <a href=\"/help\">author manual</a> explains each tool, and the "
+                + "<a href=\"/admin/seeds\">seed page</a> lists every page this release ships, the "
+                + "rows you tick, and the stored pages at shell paths.</p>",
                 cancellationToken);
         }
 

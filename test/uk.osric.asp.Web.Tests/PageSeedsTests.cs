@@ -51,4 +51,13 @@ public sealed class PageSeedsTests {
 
         Assert.That(seeds.Find(PagePath.Normalize("/_lib/document"))?.Name, Is.EqualTo("_lib/document"));
     }
+
+    [Test]
+    public void NoShippedSeedIsAShellPath() {
+        ReservedPaths reserved = new(ReservedPaths.Default);
+
+        foreach (PagePath path in TestOptions.Seeds.Paths) {
+            Assert.That(reserved.IsReserved(path), Is.False, path.Key);
+        }
+    }
 }

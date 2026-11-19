@@ -397,9 +397,10 @@ Prometheus by name, so neither service is reachable from the internet.
 - **The shell's own files come with the image.** `/admin.css`, `/admin.js`, `/status.css`,
   `/reference.css` and `/rocket.svg` are served from the web root, not the page store, so a deploy
   replaces them and no restore is needed. An installation that predates the move still has a seeded
-  row at each of those keys; the file shadows it, `seeds list` reports it as a seed the release no
-  longer ships, and the owner deletes or scrubs it in the editor. The five keys are reserved, so the
-  editor refuses to save a new page there.
+  row at each of those keys; the file shadows it, and `/admin/seeds` lists it under **Stored pages at
+  shell paths** for the owner to scrub with a tick and the typed word. The editor cannot remove it:
+  its write path refuses a reserved key. The five keys are reserved, so the editor refuses to save a
+  new page there.
 - **Restore `/assistant.css` and `/assistant.js` after deploying a change to them.** They are still
   seeded pages (`pages-delete-install-and-restore`), so an installation keeps the old sheet and
   script until the owner restores them, and a paused run shows no continuation card until then.

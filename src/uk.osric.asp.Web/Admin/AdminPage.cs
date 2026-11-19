@@ -6,11 +6,11 @@ namespace uk.osric.asp.Web.Admin;
 using System.Net;
 using uk.osric.asp.Web.Http;
 
-/// <summary>The bare document the two routine seed pages are written in.</summary>
+/// <summary>The bare document the seed page is written in.</summary>
 /// <remarks>
-/// These two are the way back when the site is broken, so they cannot be rendered through a stored
-/// layout or the page pipeline: their document is written here, with no stylesheet and no navigation
-/// beyond the way back to the shell's own pages. Every other admin page is a shell document.
+/// It is the way back when the site is broken, so it cannot be rendered through a stored layout or
+/// the page pipeline: its document is written here, with no stylesheet and no navigation beyond the
+/// way back to the shell's own pages. Every other admin page is a shell document.
 /// </remarks>
 internal static class AdminPage {
 

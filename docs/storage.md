@@ -87,11 +87,13 @@ deleted pages; a versioned read deliberately does not.
 Deletion marks a head as a tombstone without removing its revision pointer or history. Saving again
 at the same path appends a revision and clears the tombstone. Startup seeding checks whether a head
 exists, so a deleted seeded asset stays deleted across restarts. Explicit scrub removes the head and
-all revisions for one path, but only after deletion; live pages must be deleted first. Scrub then
-performs SQLite secure-delete and WAL checkpoint cleanup where applicable. This is best-effort
-cleanup, not forensic erasure: it cannot revoke running code or erase browser/CDN copies, exported
-archives, backups or filesystem snapshots. Rotate exposed secrets and clean external copies
-separately. Runtime-change cleanup of obsolete images and symbols is future work; source and
+all revisions for one path, but only after deletion; live pages must be deleted first. The one
+exception is a stored path at a key the shell answers: no page surface can delete or scrub it, so
+`/admin/seeds` proves the key is reserved and scrubs its head, revisions and state without a
+tombstone. Scrub then performs SQLite secure-delete and WAL checkpoint cleanup where applicable. This
+is best-effort cleanup, not forensic erasure: it cannot revoke running code or erase browser/CDN
+copies, exported archives, backups or filesystem snapshots. Rotate exposed secrets and clean external
+copies separately. Runtime-change cleanup of obsolete images and symbols is future work; source and
 revision identity are retained unless explicitly scrubbed.
 
 A stored page may read the same store through `ctx.Capabilities.GetRequired<IPageCatalog>()`

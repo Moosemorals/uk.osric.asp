@@ -17,8 +17,7 @@ public sealed class AdminIndexEndpointTests {
         Assert.Multiple(() => {
             Assert.That(body, Does.Contain(">Import pages</a>"));
             Assert.That(body, Does.Contain(">Export pages</a>"));
-            Assert.That(body, Does.Contain(">Restore seeds</a>"));
-            Assert.That(body, Does.Contain(">Apply seed updates</a>"));
+            Assert.That(body, Does.Contain(">Seeds</a>"));
             Assert.That(body, Does.Contain(">Status</a>"));
             Assert.That(body, Does.Contain(">Page list</a>"));
             Assert.That(body, Does.Not.Contain("The rest of the administration is for the owner"));
@@ -36,7 +35,7 @@ public sealed class AdminIndexEndpointTests {
             Assert.That(body, Does.Contain(">Help</a>"));
             Assert.That(body, Does.Not.Contain(">Import pages</a>"));
             Assert.That(body, Does.Not.Contain(">Status</a>"));
-            Assert.That(body, Does.Not.Contain(">Restore seeds</a>"));
+            Assert.That(body, Does.Not.Contain(">Seeds</a>"));
             Assert.That(body, Does.Contain("The rest of the administration is for the owner"));
         });
     }

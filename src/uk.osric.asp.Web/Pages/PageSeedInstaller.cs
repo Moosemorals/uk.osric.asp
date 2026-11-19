@@ -10,20 +10,21 @@ using uk.osric.asp.Web.Editor;
 
 /// <summary>The rule for comparing a bundled seed with the live head, and for installing it.</summary>
 /// <remarks>
-/// The emergency restore and the routine apply ask the same questions of the same pack — what does
-/// the store hold, and what would writing the seed do — so they ask them here. Every write goes
-/// through <see cref="PageEditor.SaveSeedAsync"/>, which records the seed hash as the page's anchor.
+/// The seed page asks the same questions of the same pack — what does the store hold, and what would
+/// writing the seed do — so it asks them here. Every write goes through
+/// <see cref="PageEditor.SaveSeedAsync"/>, which records the seed hash as the page's anchor.
 /// </remarks>
 internal static class PageSeedInstaller {
 
     /// <summary>What one seed's install did.</summary>
     internal enum SeedOutcome {
         Unchanged,
-        Restored,
+        Written,
+        WrittenWithErrors,
         Adopted,
-        SavedWithErrors,
+        NotTicked,
+        Stale,
         Failed,
-        Stopped,
     }
 
     /// <summary>One seed, its bundled source, and what the store holds now.</summary>
@@ -32,7 +33,14 @@ internal static class PageSeedInstaller {
     /// <param name="SeedHash">The hash of the bundled source.</param>
     /// <param name="Summary">The verdict and the actions it permits.</param>
     /// <param name="HoldsSeed">Whether the live content already equals the bundled source.</param>
-    internal sealed record SeedPlan(PagePath Path, string Source, string SeedHash, PageSeedSummary Summary, bool HoldsSeed);
+    /// <param name="Head">The head the plan compared, or null when the store has no page at the key.</param>
+    internal sealed record SeedPlan(
+        PagePath Path,
+        string Source,
+        string SeedHash,
+        PageSeedSummary Summary,
+        bool HoldsSeed,
+        PageHeadSummary? Head);
 
     /// <summary>One seed and the outcome of trying to install it.</summary>
     /// <param name="Path">The page's key.</param>
@@ -58,12 +66,12 @@ internal static class PageSeedInstaller {
             PageHeadSummary? head = await pages.GetHeadAsync(seed.Path, cancellationToken);
 
             if (head is null) {
-                plan.Add(new SeedPlan(seed.Path, seed.Source, seed.Hash, SeedVerdictWords.New(), HoldsSeed: false));
+                plan.Add(new SeedPlan(seed.Path, seed.Source, seed.Hash, SeedVerdictWords.New(), HoldsSeed: false, Head: null));
                 continue;
             }
 
             if (head.IsDeleted) {
-                plan.Add(new SeedPlan(seed.Path, seed.Source, seed.Hash, SeedVerdictWords.Deleted(), HoldsSeed: false));
+                plan.Add(new SeedPlan(seed.Path, seed.Source, seed.Hash, SeedVerdictWords.Deleted(), HoldsSeed: false, Head: head));
                 continue;
             }
 
@@ -73,7 +81,8 @@ internal static class PageSeedInstaller {
                 seed.Source,
                 seed.Hash,
                 comparison.Describe(seed.Hash),
-                HoldsSeed: string.Equals(head.ContentHash, seed.Hash, StringComparison.Ordinal)));
+                HoldsSeed: string.Equals(head.ContentHash, seed.Hash, StringComparison.Ordinal),
+                Head: head));
         }
 
         return plan;
@@ -89,7 +98,7 @@ internal static class PageSeedInstaller {
         ArgumentNullException.ThrowIfNull(seed);
 
         SavedRevision saved = await pages.SaveSeedAsync(seed.Path, seed.Source, seed.SeedHash, cancellationToken);
-        SeedOutcome outcome = HasErrors(saved.Diagnostics) ? SeedOutcome.SavedWithErrors : SeedOutcome.Restored;
+        SeedOutcome outcome = HasErrors(saved.Diagnostics) ? SeedOutcome.WrittenWithErrors : SeedOutcome.Written;
 
         return new SeedResult(seed.Path, seed.Summary, outcome, saved.Revision.Hash);
     }

@@ -380,6 +380,22 @@ internal class Program {
             IPageStore pages = scope.ServiceProvider.GetRequiredService<IPageStore>();
             await PageAssetSeeder.SeedAsync(
                 pages, scope.ServiceProvider.GetRequiredService<PageSeeds>(), app.Lifetime.ApplicationStopping);
+
+            // A stored page at a key the shell answers can never be served. It is what a seed that
+            // became a shell file leaves behind, and the editor cannot remove it; point the owner at
+            // the one page that can. The scan reports and never writes, and it is the web host's:
+            // a command's stdout is its result, and the warning would land in it.
+            if (!isCommand) {
+                IReadOnlyList<PagePath> strays = await ReservedPageScan.FindAsync(
+                    pages, reserved, app.Lifetime.ApplicationStopping);
+                if (strays.Count > 0) {
+                    app.Logger.LogWarning(
+                        "Stored pages are at {Count} key(s) the shell answers and cannot serve: {Paths}. Open {Path} to review and scrub them.",
+                        strays.Count,
+                        string.Join(", ", strays.Select(path => path.Key)),
+                        SeedsEndpoint.Path);
+                }
+            }
         }
 
         if (isCommand) {
@@ -513,14 +529,9 @@ internal class Program {
         // Public for the same reason as the reference: the licence of published source is for
         // whoever asks, and the notices are what the image ships.
         app.MapGet("/admin/copyright", CopyrightEndpoint.HandleAsync);
-        app.MapGet("/admin/restore", RestoreEndpoint.PreviewAsync)
+        app.MapGet("/admin/seeds", SeedsEndpoint.GetAsync)
             .RequireAuthorization(EditorPolicy.Name);
-        app.MapPost("/admin/restore", RestoreEndpoint.RestoreAsync)
-            .RequireAuthorization(EditorPolicy.Name)
-            .WithMetadata(new RequireAntiforgeryTokenAttribute(true));
-        app.MapGet("/admin/seed-apply", ApplySeedsEndpoint.PreviewAsync)
-            .RequireAuthorization(EditorPolicy.Name);
-        app.MapPost("/admin/seed-apply", ApplySeedsEndpoint.ApplyAsync)
+        app.MapPost("/admin/seeds", SeedsEndpoint.PostAsync)
             .RequireAuthorization(EditorPolicy.Name)
             .WithMetadata(new RequireAntiforgeryTokenAttribute(true));
         app.MapGet("/admin/export", ExportEndpoint.ListAsync)

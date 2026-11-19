@@ -92,6 +92,15 @@ internal sealed class FakePageStore : IPageStore {
         return Task.FromResult(result);
     }
 
+    public Task<IReadOnlyList<PagePath>> ListStoredPathsAsync(CancellationToken cancellationToken = default) {
+        Check(cancellationToken);
+        IReadOnlyList<PagePath> result = [.. _heads.Keys
+            .Union(_revisions.Values.Select(page => page.Path.Key), StringComparer.Ordinal)
+            .Order(StringComparer.Ordinal)
+            .Select(PagePath.Normalize)];
+        return Task.FromResult(result);
+    }
+
     public Task<PageHeadSummary?> GetHeadAsync(PagePath path, CancellationToken cancellationToken = default) {
         Check(cancellationToken);
         if (!_heads.TryGetValue(path.Key, out bool isDeleted)) {
@@ -247,20 +256,30 @@ internal sealed class FakePageStore : IPageStore {
         return Task.FromResult(true);
     }
 
-    public Task<bool> ScrubPageAsync(PagePath path, CancellationToken cancellationToken = default) {
+    public async Task<bool> ScrubPageAsync(PagePath path, CancellationToken cancellationToken = default) {
         Check(cancellationToken);
         if (!_heads.TryGetValue(path.Key, out bool isDeleted) || !isDeleted) {
-            return Task.FromResult(false);
+            return false;
         }
 
-        _heads.Remove(path.Key);
+        PageScrubResult result = await ScrubStoredPathAsync(path, cancellationToken);
+        return result.Head;
+    }
+
+    public Task<PageScrubResult> ScrubStoredPathAsync(PagePath path, CancellationToken cancellationToken = default) {
+        Check(cancellationToken);
+
+        bool head = _heads.Remove(path.Key);
         _pages.Remove(path.Key);
         _anchors.Remove(path.Key);
-        bool removed = true;
-        foreach (string hash in _revisions.Where(item => item.Value.Path == path).Select(item => item.Key).ToArray()) {
-            removed |= _revisions.Remove(hash);
+        string[] hashes = [.. _revisions
+            .Where(item => item.Value.Path == path)
+            .Select(item => item.Key)];
+        foreach (string hash in hashes) {
+            _revisions.Remove(hash);
         }
-        return Task.FromResult(removed);
+
+        return Task.FromResult(new PageScrubResult(head, hashes.Length, 0));
     }
 
     private PageImageState StateOf(PageImage? image) => PageImageStatus.Describe(

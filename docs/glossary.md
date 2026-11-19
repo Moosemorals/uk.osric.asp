@@ -25,12 +25,12 @@ stylesheet or writes its own whole document, and a library is never one at all. 
 
 ## Bootstrap route
 A shell route that exists so the site can be repaired when a page is what is broken: `/login` and
-`/logout`, `/admin/status` with its chart, and the two recovery routes `/admin/restore` and `/admin/scrub`.
+`/logout`, `/admin/status` with its chart, and the two recovery routes `/admin/seeds` and `/admin/scrub`.
 
 **Not** a view that has not been ported yet. A route for a view a page could serve today is a page,
 and a route for one a page cannot serve yet has a job behind it (`pages-page-first`); bootstrap is the reason
 that is never in the page column, because a page cannot answer when the page pipeline is what failed.
-**Owner:** shell — `LoginEndpoint`, `StatusEndpoint`, `ChartEndpoint`, `RestoreEndpoint` and
+**Owner:** shell — `LoginEndpoint`, `StatusEndpoint`, `ChartEndpoint`, `SeedsEndpoint` and
 `ScrubEndpoint`; the audit is in [architecture](architecture.md#where-a-view-lives).
 
 ## Budget

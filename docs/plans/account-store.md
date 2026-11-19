@@ -366,7 +366,7 @@ phase so a regression is bisectable, and its branch goes when its last slice is 
   which is the revisions. A visitor reading `/privacy` learns the same thing without opening the editor.
 - **A broken declaration stops the page, not the save.** That is the owner's rule and it is the right
   one, and its cost is that a page can be saved into a state where it does not serve. The editor must
-  say so on the same save, in the diagnostics it already shows, and `/admin/restore` plus the scrub are
+  say so on the same save, in the diagnostics it already shows, and `/admin/seeds` plus the scrub are
   the ways back. No page state is invented: a declaration error is a compile failure, which the listing
   already speaks.
 - **A column nobody declares is invisible but still there.** An operator reading the database sees
@@ -376,7 +376,7 @@ phase so a regression is bisectable, and its branch goes when its last slice is 
   mechanical once 1 and 2 are in.
 - **A contract change.** `Sdk` gains five public types, so the page contract's version moves and every
   stored image recompiles on its next request — the ordinary cost of a change here, and recoverable in
-  the editor and from `/admin/restore`.
+  the editor and from `/admin/seeds`.
 
 ## Open questions
 

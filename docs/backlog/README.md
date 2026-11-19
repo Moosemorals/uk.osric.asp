@@ -116,6 +116,8 @@ its reason, and that no item sits above something that blocks it.
 | | *A rename is two histories and silent breakage today; a common act for moderate work.* | | | | |
 | [`check-without-storing`](check-without-storing.md) | A page cannot check a template without saving it | caffeinated-squirrel ☕🐿️ | high | [planned](../plans/ide-host.md) | — |
 | | *Stops "check my work" storing a revision, so no history carries a test save.* | | | | |
+| [`seed-auto-apply-at-startup`](seed-auto-apply-at-startup.md) | A release applies the seeds it moved at startup | eager-beaver ⚙️🦫 | high | open | — |
+| | *The one automatic write the store already permits is the release-newer row; a deploy should finish it without the owner opening a page.* | | | | |
 | [`one-write-per-render`](one-write-per-render.md) | A render may write a batch of pages, and the caller names the policy | protective-dragon 🔥🐉 | high | blocked | `check-without-storing` |
 | | *The one-save rule is what the assistant hits on every multi-file edit, and the owner has decided it goes; it borrows [`check-without-storing`](check-without-storing.md)'s compile-without-store, so it follows that step.* | | | | |
 | [`job-borrows-a-credential`](job-borrows-a-credential.md) | A job acts with its starter's credential, and loses it when that credential dies | persistent-salmon ⬆️🐟 | high | blocked | `one-write-per-render` |

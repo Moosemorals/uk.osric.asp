@@ -9,7 +9,7 @@ using uk.osric.asp.Web.Shell;
 
 /// <summary>The system prompt and worked examples that teach the model to write a page.</summary>
 internal static class PageAuthorPrompt {
-    public const string Version = "page-author-v42";
+    public const string Version = "page-author-v43";
 
     public static IReadOnlyList<(string Name, string Source)> Examples { get; } = [
         ("query-driven", """
@@ -409,8 +409,10 @@ internal static class PageAuthorPrompt {
         is the authority, not the page: any page may save any key the shell
         does not route, and `Pages:Editor:Key` only says where the editor is
         served (`ctx.EditorPath`). Reserved keys are refused. The editor's own
-        page is ordinary too, and `/admin/restore` puts the seeded editor back
-        if it is deleted or broken.
+        page is ordinary too, and `/admin/seeds` puts the seeded editor back
+        if it is deleted or broken. The same page writes the seed rows the
+        owner ticks — including a row the release did not move — and scrubs a
+        stored row at a key the shell answers, after the owner types `scrub`.
 
         Save on a `POST`, never on a `GET`, and never during a `HEAD`. The save
         belongs to the next request: the response in hand is still the page as
