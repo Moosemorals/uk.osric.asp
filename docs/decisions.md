@@ -1297,7 +1297,7 @@ source, so a create cannot overwrite one. `Resolve`, `DeleteAsync`, `RestoreRevi
 `AdoptSeedAsync`, `InstallSeedAsync` and `SeedSourceAsync` are the same authority on the same handle, and
 they spend the same one action a save does.
 
-What guards it: the signed-in visitor before anything is compiled, the reserved keys, `/admin/restore`
+What guards it: the signed-in visitor before anything is compiled, the reserved keys, `/admin/seeds`
 for a deleted or broken editor, and `/admin/scrub` for the irreversible delete. The blast radius is the
 owner's decision — a page the assistant writes can rewrite the site — and the assistant's own edit-safety
 rules are what stop it from doing so by accident (`assistant-edit-page-is-safe`).
@@ -1321,9 +1321,9 @@ page list and a restore on the editor, where its diagnostics are legible; the se
 is disabled when the seed matches and stays enabled for a deleted seeded page, and there is no
 confirmation step and no restore-all action.
 
-One seed rule serves both the page and the recovery route: `PageSeedInstaller` owns "does this seed
-differ" and "what happened", so `/admin/restore` keeps its preview and summary while the capability
-installs a single seed, and there is no second comparison and no batch store in either.
+One seed rule serves both the page and the seed page: `PageSeedInstaller` owns "does this seed
+differ" and "what happened", so `/admin/seeds` lists every row and writes the ticked ones while the
+capability installs a single seed, and there is no second comparison and no batch store in either.
 
 *Recorded in [page editor](plans/archive/page-editor.md), [revision restore](plans/archive/revision-restore.md), [PageSeedInstaller](../src/uk.osric.asp.Web/Pages/PageSeedInstaller.cs).*
 
@@ -1382,7 +1382,12 @@ editing: the same typed-key confirmation, behind the editor policy and antiforge
 deleted row rather than offered as a page action. Its `POST` answers with its own document and a link
 back to the editor page instead of writing a flash no view reads.
 
-*Recorded in [page editor](plans/archive/page-editor.md), D7.*
+The one other scrub is the repair for a row no page surface can reach: a stored path at a key the shell
+answers cannot be deleted through the editor, so the seed page proves the key is reserved and removes
+the head, revisions and state after a tick and the typed word. It is the same irreversible, shell-owned
+act, with the route and the words in `shell-reserved-rows-are-scrubbed-not-served`.
+
+*Recorded in [page editor](plans/archive/page-editor.md), D7, [one seed page](plans/archive/seed-page.md), [SeedsEndpoint](../src/uk.osric.asp.Web/Admin/SeedsEndpoint.cs).*
 
 ### pages-the-session
 
@@ -1793,11 +1798,32 @@ that; a longer list would have to invent a route that does not exist. This is th
 `code-policy-values-are-configuration` names — a security policy configuration may only keep or tighten
 — and [configuration](architecture.md#configuration) lists it with the other invariants.
 
+The list stops a new write. A row that predates the reservation, or one an import or an older build
+wrote, is unreachable rather than served; `shell-reserved-rows-are-scrubbed-not-served` is the
+maintenance page that removes it.
+
 *Recorded in [the route catalogue](plans/archive/shell-route-catalogue.md#d4--reservedpaths-derives-its-keys), [ReservedPaths](../src/uk.osric.asp.Web/Pages/ReservedPaths.cs), [the shell](shell.md).*
+
+### shell-reserved-rows-are-scrubbed-not-served
+
+A stored row at a key the shell answers can never be served: `PageEndpoint` writes `404` for a
+reserved key before it reads the store. It is what a seed that became a shell file leaves behind, or
+what an older build or an import wrote at a key the shell had taken, and the editor cannot delete it
+because its write path refuses a reserved key and `/admin/scrub` needs a tombstone.
+
+The seed page's **Stored pages at shell paths** section lists every path in `PageHeads`,
+`PageRevisions` or `PageState` that `ReservedPaths` answers for, with its head and revision count. A
+tick selects the rows and the owner types `scrub`; the `POST` re-scans and refuses the whole batch if
+any selected key is no longer reserved, so the repair can never be a second way to delete a normal
+page. The scrub removes the head, every revision and the page state in one transaction, with the same
+secure delete and WAL checkpoint the editor's scrub uses, and it has no tombstone precondition because
+no page surface can delete a reserved row. A startup scan logs the keys and never writes.
+
+*Recorded in [one seed page](plans/archive/seed-page.md), [SeedsEndpoint](../src/uk.osric.asp.Web/Admin/SeedsEndpoint.cs), [IPageStore](../src/uk.osric.asp.Web/Pages/IPageStore.cs), [SqlitePageStore](../src/uk.osric.asp.Web/Pages/SqlitePageStore.cs), [the shell](shell.md), [storage](storage.md).*
 
 ### shell-the-admin-tools
 
-Three things stay in the shell because a page cannot do them or must not: **changes**, **restore** and
+Three things stay in the shell because a page cannot do them or must not: **changes**, **seeds** and
 **scrub**.
 
 `/admin/changes` serves the deployed commit's history from a file `make changelist` writes and the image
@@ -1805,15 +1831,15 @@ packs, because the running container has no source tree and a page has no file a
 the full hash so the page can link the commit, the route is owner-only, and the file is reserved like the
 other administration tools.
 
-The emergency restore is one shell page, `/admin/restore`: a `GET` lists every page the release ships
-with and how it differs, and one `POST` writes each changed, missing or tombstoned seed through the
-ordinary saver, reporting every outcome rather than stopping at a failure. It is not a reset and not an
-import — a seed that already matches is not written and a page the owner made is never touched. It draws
-its own document and carries no stylesheet or script, because the shell's document links the base sheet
-and a single rule there would hide the page that can repair it. It is the recovery path that lets the
-editor stop being shell.
+The seed page is one shell page, `/admin/seeds`: a `GET` lists every page the release ships with its
+verdict and a tick per row, and one `POST` writes exactly the ticked rows. It is not a reset and not an
+import — a seed that already matches is not written and a page the owner made is never touched unless
+its own row is ticked. It draws its own document and carries no stylesheet or script, because the
+shell's document links the base sheet and a single rule there would hide the page that can repair it.
+The same page finds the stored rows at shell paths and scrubs the ticked ones. It is the recovery path
+that lets the editor stop being shell.
 
-*Recorded in [the shell](shell.md), [ChangesEndpoint](../src/uk.osric.asp.Web/Admin/ChangesEndpoint.cs), [RestoreEndpoint](../src/uk.osric.asp.Web/Admin/RestoreEndpoint.cs).*
+*Recorded in [the shell](shell.md), [SeedsEndpoint](../src/uk.osric.asp.Web/Admin/SeedsEndpoint.cs), [ChangesEndpoint](../src/uk.osric.asp.Web/Admin/ChangesEndpoint.cs), [ScrubEndpoint](../src/uk.osric.asp.Web/Admin/ScrubEndpoint.cs).*
 
 ### shell-the-pack-comes-home
 
@@ -1833,23 +1859,39 @@ over an edit is the one thing the command can destroy. `make remote-seeds-list` 
 
 *Recorded in [seed provenance](plans/archive/seed-provenance.md), [the shell](shell.md), [SeedCommands](../src/uk.osric.asp.Web/Pages/SeedCommands.cs), [Makefile](../Makefile).*
 
+### shell-seeds-are-chosen-row-by-row
+
+The seed page writes the rows the owner ticks and nothing else. A `GET` lists every page the release
+ships with its verdict and a tick per row; the safe rows — *new*, *release newer* and every adoptable
+row — start ticked, and the rows that could replace the owner's source — *edited*, *conflict*,
+*deleted* and differing *unknown* — are offered unticked. A tick is the authority for a write the
+automatic seed gate refuses, and the write is an ordinary seed save, so the source it replaces stays
+in the page's history.
+
+A row that changed after the page loaded is refused by the four facts the form carries, and the other
+ticked rows still run. A failure is reported and the rest still run: there is no stop at the first
+drift, because an unticked drifted row is a deliberate omission, not a half-applied pack the operator
+believes is applied. `?diff=<key>` renders one row's change in the same bare document the page uses,
+so the diff works when the editor does not.
+
+*Recorded in [one seed page](plans/archive/seed-page.md), [SeedsEndpoint](../src/uk.osric.asp.Web/Admin/SeedsEndpoint.cs), [PageSeedInstaller](../src/uk.osric.asp.Web/Pages/PageSeedInstaller.cs), [the shell](shell.md), [the manual](../src/uk.osric.asp.Web/Pages/Seeds/help).*
+
 ### shell-the-seed-apply-is-a-route
 
-A release that moves a seed needs a way to write it that is not the emergency route, so
-`/admin/seed-apply` is its own shell page: a `GET` lists the pack in ordinal key order with each row's
-verdict and what would stop the run, and one `POST` writes every *release newer* row, creates every
-*new* one, records every row whose content already is the shipped seed, and skips *in sync*,
-*deleted* and *retired*, which are not its business.
+A release that moves a seed needs a way to write it that is not the recovery path for a broken page, so
+the seed page at `/admin/seeds` is its own shell route. Its `GET` lists the pack in ordinal key order
+with each row's verdict and a tick; its `POST` writes exactly the rows the owner ticks, as
+`shell-seeds-are-chosen-row-by-row` says. The `?diff` view on the same route shows one row against the
+bundled source.
 
-It stops at the first row that has drifted — *edited*, *conflict*, or *unknown* with content that is
-not the seed — and writes nothing after it, because a half-applied pack that the operator believes is
-applied is worse than a stopped run. `/admin/restore` keeps its job as the way back when the site is
-broken: it writes everything the release ships and reports every outcome. The capability is gated the
-same way: `InstallSeedAsync` refuses unless the verdict says the release moved the seed and the page
-still holds the one it came from, and a page that already holds the shipped bytes is adopted — the
-anchor recorded, no revision written — rather than installed.
+The heading is historical: the route is the seed page now, not a separate apply page, and the name is
+the id rather than the URL. The capability is still gated the same way: `InstallSeedAsync` refuses
+unless the verdict says the release moved the seed and the page still holds the one it came from, and a
+page that already holds the shipped bytes is adopted — the anchor recorded, no revision written —
+rather than installed. A row the owner ticks can be *edited*, *conflict*, *deleted* or *unknown*; that
+is the owner's explicit authority, and the write is the ordinary seed save.
 
-*Recorded in [seed provenance](plans/archive/seed-provenance.md), [the shell](shell.md), [ApplySeedsEndpoint](../src/uk.osric.asp.Web/Admin/ApplySeedsEndpoint.cs), [PageEditorScope](../src/uk.osric.asp.Web/Pages/PageEditorScope.cs).*
+*Recorded in [one seed page](plans/archive/seed-page.md), [the shell](shell.md), [SeedsEndpoint](../src/uk.osric.asp.Web/Admin/SeedsEndpoint.cs), [PageEditorScope](../src/uk.osric.asp.Web/Pages/PageEditorScope.cs).*
 
 ### shell-sign-out-is-a-post
 

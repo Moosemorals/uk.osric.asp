@@ -7,16 +7,15 @@ SPDX-License-Identifier: MIT
 
 | | |
 | --- | --- |
-| Status | Built 2026-11-19 — waits for the owner's merge. The work is on this branch; nothing is merged. |
+| Status | Merged 2026-11-19 — built on *seed-page* and merged into trunk with `make check` green. |
 | Size | Large — one shell endpoint replacing two, two storage reads and one storage write, one startup scan, one route and menu row, the author manual, the assistant prompt, the docs and the tests. No `Core`, `Runtime`, `Sdk`, configuration or migration change. |
 | Area | `Web` shell and page storage, `/help`, the assistant prompt, docs and tests |
 | Spike | None. Every claim about what exists was read off `trunk` on 2026-11-19: `ApplySeedsEndpoint`, `RestoreEndpoint`, `PageSeedInstaller`, `SeedComparison`, `SeedVerdictWords`, `PageSeeds`, `PageEditor`/`PageSaver`, `PageWritesScope`, `ScrubEndpoint`, `IPageStore`/`SqlitePageStore`, `PageContentHashRepair`, `AdminPage`, `ShellCatalogue`, `Program.cs`, `DiffRenderer`, the tests, `/help`, the docs and `deploy/operations.md`. |
-| Backlog | None for this plan. The owner's follow-up idea, [`seed-auto-apply-at-startup`](../backlog/seed-auto-apply-at-startup.md), is recorded separately on 2026-11-19. |
-| Decisions | At the merge: **shell-seeds-are-chosen-row-by-row** and **shell-reserved-rows-are-scrubbed-not-served** are new; `shell-the-seed-apply-is-a-route`, `shell-the-admin-tools`, `shell-reserved-keys-are-an-invariant` and `pages-scrubbing-is-not-editing` are edited in place; the `/admin/restore` mentions in `pages-any-page-may-write-the-store` and `pages-delete-install-and-restore` become `/admin/seeds`. No name is retired. |
+| Backlog | None for this plan. The owner's follow-up idea, [`seed-auto-apply-at-startup`](../../backlog/seed-auto-apply-at-startup.md), is recorded separately on 2026-11-19. |
+| Decisions | Taken at the merge: `shell-seeds-are-chosen-row-by-row` and `shell-reserved-rows-are-scrubbed-not-served`; `shell-the-seed-apply-is-a-route`, `shell-the-admin-tools`, `shell-reserved-keys-are-an-invariant` and `pages-scrubbing-is-not-editing` were edited in place; the `/admin/restore` mentions in `pages-any-page-may-write-the-store` and `pages-delete-install-and-restore` became `/admin/seeds`. No name was retired. |
 
-The two new names are in bold because `make decisions` reads a backticked name as a citation and
-does not know it until the merge; the merge writes the entries and turns them into backticked
-citations.
+The two names this plan proposed are in [the decisions record](../../decisions.md):
+`shell-seeds-are-chosen-row-by-row` and `shell-reserved-rows-are-scrubbed-not-served`.
 
 ## The short version
 
