@@ -17,6 +17,10 @@ Image=docker.io/library/caddy:2.11.7
 Network=host
 # Root-owned: a rootful service must not consume configuration the deploy user can rewrite.
 Volume=/etc/caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+# The host's CI status, written by the ci account. The directory is mounted rather than the file so
+# the writer's atomic rename is visible inside the container; it is read-only because Caddy only
+# serves it. `make deploy` creates the directory and seeds the file, and `ci-install` owns it.
+Volume=/var/lib/uk.osric.asp-ci:/srv/ci-status:ro
 Volume=caddy-data:/data
 Volume=caddy-config:/config
 NoNewPrivileges=true

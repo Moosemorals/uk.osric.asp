@@ -1,0 +1,20 @@
+#!/bin/bash
+# SPDX-FileCopyrightText: Copyright 2026 Osric Wilkinson <osric@fluffypeople.com>
+# SPDX-License-Identifier: MIT
+
+# Pushes the host's branches and tags to GitHub. The host is the source of truth; this is a one-way,
+# pruned copy. The lock keeps a push's mirror and the timer from overlapping.
+set -euo pipefail
+
+home=${CI_HOME:-/home/ci}
+repo=${CI_REPO:-$home/repo.git}
+lock=$home/.mirror.lock
+
+export HOME=$home
+export PATH=/usr/local/bin:/usr/bin:/bin
+
+exec 9>"$lock"
+flock -w 600 9
+
+git --git-dir="$repo" push --prune github \
+    '+refs/heads/*:refs/heads/*' '+refs/tags/*:refs/tags/*'

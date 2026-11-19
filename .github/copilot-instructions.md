@@ -134,8 +134,11 @@ structures, caching or premature abstraction. Optimise only what a measurement s
 
 ## Deployment
 
-Detail is in `deploy/README.md`. The quadlets in `deploy/` are the source of truth for the server —
-edit them there, not on the host. The image is built by the SDK's container targets
+Detail is in `deploy/README.md`. The quadlets, the Caddyfile and the CI files under `deploy/ci` are
+the source of truth for the server — edit them there, not on the host. A push to `trunk` on the host
+runs `make ci` in a separate `ci` account and publishes the result at
+`https://moosemorals.com/ci/status.json`; `make deploy` is still the release command, and
+`make ci-install` prepares that account. The image is built by the SDK's container targets
 (`dotnet publish -t:PublishContainer`) around the publish output for
 `linux-musl-arm64`/`linux/arm64` (the Hetzner CAX21 host; override both in the Makefile for x86),
 the SDK never enters the image, the app runs rootless as the `deploy` user, and Caddy is the only

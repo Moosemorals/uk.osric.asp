@@ -10,6 +10,7 @@ path = [
   "LICENSE",
   "global.json",
   ".config/dotnet-tools.json",
+  "deploy/ci/status-never-run.json",
   "src/uk.osric.asp.Web/appsettings.json",
   "src/uk.osric.asp.Web/appsettings.Development.json",
   ".vscode/launch.json",

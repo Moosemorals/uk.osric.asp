@@ -30,6 +30,13 @@ users:
     ssh_authorized_keys:
       - ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIA8mzVwKRsF2RcKGo9EYHfQTavwD+Y+zM1YB7BbZvXTY osric@lucy
       - ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIJW4Kmr2GndxBJ13y1udp20C9MvnLzlbnPbgDWbzWu1z osric@Carrot
+  # The CI account: no sudo and a login shell that only carries git, so an SSH key that reaches the
+  # host can push but cannot run a command there. `make ci-install` owns the repository and the units.
+  - name: ci
+    shell: /usr/bin/git-shell
+    ssh_authorized_keys:
+      - ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIA8mzVwKRsF2RcKGo9EYHfQTavwD+Y+zM1YB7BbZvXTY osric@lucy
+      - ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIJW4Kmr2GndxBJ13y1udp20C9MvnLzlbnPbgDWbzWu1z osric@Carrot
 
 packages:
   # Rootless podman: id mapping, user-mode networking, and an overlay driver for user namespaces.
@@ -43,6 +50,12 @@ packages:
   - fuse-overlayfs
   - dbus-user-session
   - ufw
+  # The CI account runs the gate from a bare clone: git and make are the task runner, reuse is the
+  # licence check, and libicu is what the .NET SDK the tree pins needs on Debian.
+  - git
+  - make
+  - reuse
+  - libicu-dev
   # Bans an address that keeps failing the site's authentication, and the SSH brute force Debian's
   # own jail catches. The package is only half of it: `make deploy` installs the jails and the filter
   # and starts the service, and runcmd below stops the service the package starts for itself, so
@@ -83,6 +96,12 @@ runcmd:
   # Rootless podman needs subordinate id ranges and a user manager that outlives the login session.
   - grep -q '^deploy:' /etc/subuid && grep -q '^deploy:' /etc/subgid || usermod --add-subuids 100000-165535 --add-subgids 100000-165535 deploy
   - loginctl enable-linger deploy
+  # The ci account gets its own ranges, disjoint from deploy's, and the same linger so its timers and
+  # transient check units survive a logout.
+  - grep -q '^ci:' /etc/subuid && grep -q '^ci:' /etc/subgid || usermod --add-subuids 200000-265535 --add-subgids 200000-265535 ci
+  - loginctl enable-linger ci
+  - chmod 0700 /home/ci
+  - install -d -o ci -g ci -m 0755 /var/lib/uk.osric.asp-ci
   # install(1) applies owner and mode to the last component only, so every level is named here.
   - install -d -o deploy -g deploy -m 0755 /home/deploy/.config /home/deploy/.config/containers
   - install -d -o deploy -g deploy -m 0755 /home/deploy/.config/containers/systemd
@@ -106,3 +125,4 @@ runcmd:
   # Proves the rootless stack works before the first deploy; runcmd reports a failure through
   # `cloud-init status --long` and nothing later depends on this.
   - su - deploy -c 'podman info --format "{{.Host.Security.Rootless}}"'
+  - runuser -u ci -- env HOME=/home/ci XDG_RUNTIME_DIR=/run/user/$(id -u ci) podman info --format "{{.Host.Security.Rootless}}"

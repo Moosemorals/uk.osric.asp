@@ -1,0 +1,15 @@
+#!/bin/bash
+# SPDX-FileCopyrightText: Copyright 2026 Osric Wilkinson <osric@fluffypeople.com>
+# SPDX-License-Identifier: MIT
+
+# The one thing a trunk push may not do: delete trunk. The check is asynchronous, so this is the
+# only pre-receive rule; everything else is accepted and then checked.
+set -euo pipefail
+
+zero=0000000000000000000000000000000000000000
+while read -r old new ref; do
+    if [ "$ref" = "refs/heads/trunk" ] && [ "$new" = "$zero" ]; then
+        echo "refusing to delete trunk; push a commit instead" >&2
+        exit 1
+    fi
+done

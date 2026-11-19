@@ -36,8 +36,11 @@ The branch is `kind/filename`, and the name comes from the work:
 
 Work lands as a merge commit (`git merge --no-ff`) rather than a fast-forward, so the branch and the
 work it carries stay one unit in the history. After the merge its worktree is removed and the branch
-deleted; nothing is pushed to `origin` until asked. A decision is named rather than numbered and its
-name is taken when the work merges
+deleted; nothing is pushed to `origin` until asked. With the host as `origin`
+([deploy](deploy/README.md#ci-on-the-host)), a push to `trunk` is what runs `make ci` in the host's
+`ci` account; GitHub is a one-way mirror. The check is asynchronous, so
+`https://moosemorals.com/ci/status.json` is the answer, and a red trunk is fixed forward. A decision
+is named rather than numbered and its name is taken when the work merges
 ([the record](docs/decisions.md)), so a branch states the name it intends until then and the merge
 writes the entry. The merge also closes the plan: its Status becomes merged and it moves to
 [docs/plans/archive](docs/plans/archive), with every link into it retargeted in the same change.

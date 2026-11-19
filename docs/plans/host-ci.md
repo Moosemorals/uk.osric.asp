@@ -7,8 +7,8 @@ SPDX-License-Identifier: MIT
 
 | | |
 | --- | --- |
-| Status | Proposed 2026-11-19 — waits for the owner. Nothing below is built |
-| Size | M/L — one host account, a bare repository and four small scripts, two user units and a slice, one Makefile target, one static route served by Caddy from a host directory, the Caddy mount and header, and the docs; no page, endpoint or storage behaviour changes |
+| Status | Built 2026-11-19 — waits for the owner's merge. The local gate is green; the host steps in §Tests, `ci-install` and the first pushed trunk are the proof this checkout cannot run |
+| Size | M/L — one host account, a bare repository, the two hooks, the check and mirror scripts and their installer, two user units and a slice, one Makefile target, one static route served by Caddy from a host directory, the Caddy mount and header, and the docs; no page, endpoint or storage behaviour changes |
 | Area | Deploy (host); the shell's one table of routes |
 | Spike | None. The Makefile targets, the static-file pipeline, the shell catalogue, the Caddyfile and the host's existing shape were read off `trunk` on 2026-11-19. The host itself was not reachable from that checkout, so step 1 of the build starts by proving the assumptions it makes about the account, packages and podman |
 | Decisions | At the merge: **deploy-ci-is-its-own-account**, **deploy-trunk-is-checked-after-the-push** and **deploy-github-mirrors-the-host** are new; `code-one-gate`, `deploy-quadlets-are-the-source-of-truth` and `deploy-one-small-host` are edited in place. The first says the gate is the same target on a different machine; the second says a push is accepted before it is checked; the third says the host is the upstream and GitHub a pruned copy |
@@ -434,6 +434,8 @@ the scripts are checked where they run, as the backup scripts were:
 | `deploy/ci/post-receive` | New: start the check for trunk and the mirror for every ref |
 | `deploy/ci/check-push` | New: lock, worktree, `make ci`, status write |
 | `deploy/ci/mirror` | New: pruned heads and tags to GitHub |
+| `deploy/ci/install-host` | New: the root-side account, SDK, repository, key and unit installation |
+| `deploy/ci/status-never-run.json` | New: the `never-run` body `make deploy` and `ci-install` seed |
 | `deploy/ci/uk.osric.asp-ci.slice` | New: the 2 vCPU / 4 GiB cap |
 | `deploy/ci/uk.osric.asp-mirror.service`, `.timer` | New: the mirror's oneshot and its fifteen-minute clock |
 | `deploy/cloud-init.yaml` | `ci` user, `git` and `reuse`, subuid/subgid and lingering for the new host |
@@ -441,6 +443,7 @@ the scripts are checked where they run, as the backup scripts were:
 | `deploy/Caddyfile` | The `/ci/status.json` route and its `Cache-Control: no-store` |
 | `Makefile` | `ci-install`; the `ci` comment no longer says there is no service; the `make deploy` seed |
 | `src/uk.osric.asp.Web/Shell/ShellCatalogue.cs` | The reserved `/ci/status.json` key, described as Caddy's |
+| `REUSE.toml` | The JSON seed's annotation, because JSON cannot carry a comment |
 | `docs/plans/host-ci.md` | This plan |
 | `docs/backlog/ops-no-ci.md`, `docs/backlog/ship-the-tested-image.md`, `docs/backlog/README.md` | `ops-no-ci` planned now and closed at the merge; the release half recorded and blocked by it |
 | `docs/decisions.md` | Three new entries and three edits |
@@ -509,6 +512,38 @@ target named and the full output in the journal; it still answers with the app s
 tag appear on GitHub and a branch deleted on the host disappears on the next mirror; the local `origin`
 is the host and `github` is GitHub; `make deploy` still gates a release; and `make check`,
 `make decisions`, `make backlog` and `make license-check` are green.
+
+## What changed while building
+
+- **Caddy's handle group.** The status route is a `handle @ciStatus` before a catch-all `handle`; the
+  existing `/metrics` 404 moved inside the catch-all, because a top-level `respond` is ordered after
+  `handle` and the proxy would otherwise swallow it. `caddy validate` is green.
+- **The shell entry is a reservation, not a route.** The app has no mount and no endpoint; the
+  catalogue entry keeps `/ci/status.json` out of the page store and tells the assistant whose path it
+  is. `make check` is green with it.
+- **The account setup is a script.** `install-host` runs as root and owns the packages, the account,
+  the SDK, the bare clone, the deploy key, the hooks, the units and the seed. `ci-install` copies
+  `deploy/ci` up and runs it; the Makefile only orchestrates. The ci user's subuid range is
+  `200000-265535`, disjoint from `deploy`'s `100000-165535`. Only `deploy`'s unrestricted keys are
+  copied: a line with a forced `command=`, such as the backup host's read-only `rrsync` key, is
+  filtered out, and `git-shell` is the restriction on the account.
+- **The scripts are testable without the host.** `check-push` and `mirror` take `CI_HOME`, `CI_REPO`
+  and `CI_STATUS_DIR` overrides; the local harness pushed a real commit through both hooks, proved
+  pre-receive refuses a trunk deletion, post-receive starts one check for trunk and only the mirror
+  for a branch, `check-push` writes `running` → `passed`/`failed` and leaves a superseded commit
+  alone, and the mirror pushes and prunes a branch.
+- **The local gate.** `make check` passed: `backlog` 24 items in 23 rows with 200 citations,
+  `decisions` 198 entries in 8 areas with 1,505 citations, `license-check` 1,081/1,081 files,
+  `check-pages`, Core 890, Runtime 187, Web 2,062 and Integration 260 tests, and a Release publish.
+  `cloud-init.yaml` parses as YAML.
+- **What the checkout could not prove.** `make ci-install`, the first `make ci` on the host, the
+  host's `podman`/cgroup containment, the Caddy status with the app stopped and the GitHub mirror
+  need the server. The plan's §Tests and §Delivered when are the checklist for that run; the first
+  pushed trunk is the real proof.
+- **The merge owns the record.** The three new decision entries, the three edits in
+  `docs/decisions.md`, the `ops-no-ci` closure and unblocking `ship-the-tested-image` are the merge's
+  work, not the branch's: the names are taken when the work lands, and `make decisions` is green
+  without them because this plan cites them in bold rather than in backticks.
 
 ## The names this plan proposed
 

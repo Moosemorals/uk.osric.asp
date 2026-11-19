@@ -1,0 +1,15 @@
+# SPDX-FileCopyrightText: Copyright 2026 Osric Wilkinson <osric@fluffypeople.com>
+# SPDX-License-Identifier: MIT
+
+[Unit]
+Description=Mirror the host's branches and tags to GitHub every fifteen minutes
+
+[Timer]
+OnBootSec=2min
+OnUnitActiveSec=15min
+# A host that was down takes the mirror when it comes back rather than waiting for the next tick.
+Persistent=true
+RandomizedDelaySec=30s
+
+[Install]
+WantedBy=timers.target

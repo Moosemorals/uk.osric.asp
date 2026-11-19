@@ -33,10 +33,13 @@ deploy/
   fail2ban/jail.local       the jails: Debian's sshd, and the site's own
   fail2ban/filter.d/        the app's refusal line, which the site's jail matches
   uk.osric.asp-fail2ban-metrics.service, .timer   the collector's clock, system units
+  ci/                       the host's CI account: hooks, check and mirror scripts, slice and units;
+                            `make ci-install` copies them up
 ```
 
-The quadlets, the Caddyfile and the fail2ban configuration are the source of truth for the server:
-`make deploy` copies them up and applies them.
+The quadlets, the Caddyfile, the fail2ban configuration and the CI files under `deploy/ci` are the
+source of truth for the server: `make deploy` copies the quadlets and the Caddyfile up and applies
+them, and `make ci-install` installs the CI account, the hooks and the units.
 
 ## First deployment
 
@@ -109,21 +112,44 @@ The quadlets, the Caddyfile and the fail2ban configuration are the source of tru
    The quadlet's `Image=` names the commit, so the host answers "what is running?" without anyone
    guessing, and rolling back is a tag rather than a rebuild.
 
+6. Prepare the CI account, once:
+
+   ```bash
+   make ci-install HOST=deploy@<server-ip>
+   ```
+
+   It creates the `ci` account, clones the host's bare repository from GitHub, installs the hooks,
+   the scripts and the units, and prints the GitHub deploy key. Add that key to GitHub (Settings →
+   Deploy keys) with **Allow write access**, then make the host the upstream:
+
+   ```bash
+   git remote rename origin github
+   git remote add origin ci@<server-ip>:repo.git
+   git fetch origin
+   git branch --set-upstream-to=origin/trunk trunk
+   ```
+
+   The first `git push` after that is checked by the host; the result is at
+   `https://moosemorals.com/ci/status.json`. See [CI on the host](#ci-on-the-host) for the status,
+   the journal, the mirror and the failure shapes.
+
 ## Day-to-day
 
-- **New code:** commit it, then `make deploy HOST=deploy@<server-ip>`
-  (guards, checks, runs the browser suite, builds, pushes, pulls, restarts, waits for `/health`, then
-  says so if the commit it deployed is not on the remote yet). Take a snapshot first when the release
+- **New code:** commit it, push it to the host (`git push`, once the remotes are switched), then
+  `make deploy HOST=deploy@<server-ip>` once `/ci/status.json` is green. The push runs the gate in
+  the host's `ci` account asynchronously ([CI on the host](#ci-on-the-host)); `make deploy` still runs
+  the full gate and the browser suite, builds, pushes, pulls, restarts, waits for `/health`, and says
+  so if the commit it deployed is not on the upstream yet. Take a snapshot first when the release
   could migrate: `ssh deploy@<server-ip> systemctl --user start uk.osric.asp-backup.service`. The daily
   timer covers every other night — [backups](operations.md#backups) has what that keeps and how it is
   pulled off the host.
 - **The offsite copy:** it is not this host's job. The backup host pulls the newest snapshot on its own
   timer, and `make pull-install HOST=osric@<backuphost>` is how that side is installed or updated. A pull
   that has stopped shows up there, not here — [backups](operations.md#backups) has both halves.
-- **The gate:** `make check`, run by hand when you want it — `make deploy` runs it anyway, with the
-  browser suite after it. `make ci` is the slower version that starts from `make clean` and fails if
-  the build dirties the tree; run it before a release, or from any machine that is asked to prove the
-  tree. Neither needs a CI service, an account or a secret, and nothing runs them behind a `git push`.
+- **The gate:** `make check` is the gate; `make ci` is the same target from a clean tree with the
+  reproducibility proof; `make deploy` runs `check` and then the browser suite. The host runs `make ci`
+  after a push to `trunk` in its own account ([CI on the host](#ci-on-the-host)), and `make deploy`
+  remains the release command. The status, the journal and the mirror are below.
 - **Domain or TLS settings:** edit `deploy/Caddyfile`, then `make deploy HOST=...`.
 - **Page assistant:** the host requires a provider key at startup (`assistant-always-on`). `make deploy` keeps a mode `0600`
   `~/.config/uk.osric.asp/assistant.env` for the `deploy` user, because the container cannot start
@@ -253,6 +279,51 @@ The quadlets, the Caddyfile and the fail2ban configuration are the source of tru
 
 The limits, storage, backups, metrics and proxy trust are in [running it](operations.md): they are
 read when something is wrong rather than when a release ships.
+
+## CI on the host
+
+`make ci-install HOST=deploy@<server>` prepares a separate `ci` account on the same host. A push to
+`trunk` is accepted, a `post-receive` hook starts `make ci` in a transient systemd unit, and the
+result is written to `/var/lib/uk.osric.asp-ci/status.json` and served by Caddy at
+`https://moosemorals.com/ci/status.json`. The app has no route or mount for it, and the status still
+answers when the app is down.
+
+- **The address:** `ci@<server>:repo.git` is the bare repository. The account's login shell is
+  `git-shell` and it has no sudo; the owner's unrestricted keys are copied, so the same SSH identity
+  that reaches `deploy` can push, and that is all it can do. The backup host's restricted read key is
+  not copied.
+- **The gate:** `make ci` is the same target as always. `uk.osric.asp-ci.slice` caps it at 2 vCPU and
+  4 GiB and deprioritizes it against the app. The full output is the journal of the unit the push
+  names; `sudo journalctl _SYSTEMD_USER_UNIT=uk.osric.asp-ci-<short>-<pid>` reads it.
+- **The deploy key:** `ci-install` generates `~ci/.ssh/id_ed25519_github` and prints its public half.
+  Add it to GitHub with **Allow write access**. It is the only GitHub credential on the host, and it
+  can write this repository and nothing else.
+- **The mirror:** `post-receive` starts `uk.osric.asp-mirror.service`, and a fifteen-minute timer
+  retries. It pushes the host's branches and tags with `--prune`, so a branch deleted on the host is
+  deleted on GitHub. The bare repository is cloned from GitHub at install, so the first mirror has
+  nothing to delete.
+- **The status:** `never-run` before the first push, `running` while `make ci` is in the unit, then
+  `passed` or `failed` with the commit, the times and the failing target. The file is written with an
+  atomic rename; Caddy sends `Cache-Control: no-store`.
+- **The remote switch:** after `ci-install`, make the host the upstream:
+
+  ```bash
+  git remote rename origin github
+  git remote add origin ci@<server>:repo.git
+  git fetch origin
+  git branch --set-upstream-to=origin/trunk trunk
+  ```
+
+  `git push` is then a push to the host; `git push github trunk` is the deliberate, ungated
+  exception when the host is unreachable.
+- **A red status:** trunk is accepted before it is checked. A failed status is fixed forward; there
+  is no automatic revert. `make deploy` still runs the full gate and the browser suite, so a red
+  status is a signal to look, not a lock on the release.
+
+`ci-install` checks for `git`, `make`, `jq`, `reuse`, `curl`, `libicu-dev` and the rootless podman
+pieces, and installs what `apt` has; the SDK is the version in `global.json`, under `~ci/.dotnet`.
+`deploy/ci/` is the source of truth for the hooks, the scripts and the units, as `deploy/` is for the
+quadlets.
 
 ## Local accounts
 

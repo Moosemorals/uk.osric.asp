@@ -92,6 +92,11 @@ internal static class ShellCatalogue {
         new ShellRoute("/status.css", "GET", ShellAudience.Everyone,
             "The status dashboard's sheet, served from the web root: the banner, the window nav and the panels."),
 
+        // Served by Caddy from the host's CI status directory, not by this app: the entry reserves the
+        // key so a stored page cannot shadow it, and tells the assistant what the path is.
+        new ShellRoute("/ci/status.json", "GET", ShellAudience.Everyone,
+            "The host's CI status: the commit the last trunk push checked, when it ran and whether it passed. Caddy serves it; the app does not answer this path."),
+
         // Routes with no menu: reached from a confirmation, or not reached at all.
         new ShellRoute("/admin/scrub", "GET, POST", ShellAudience.Owner,
             "Scrubs a deleted page and every revision it retained, once the page's key is typed to confirm."),
