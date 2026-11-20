@@ -11,14 +11,30 @@ SPDX-License-Identifier: MIT
 | Utility | high |
 | Status | blocked |
 | Blocked by | `one-write-per-render` |
-| Plan | — |
+| Plan | [job-borrows-a-credential](../plans/job-borrows-a-credential.md) |
 | Area | Sdk, Web (work and authentication), docs, assistant |
-| Location | `src/uk.osric.asp.Web/Work/PageJob.cs`, `PageJobRunner.cs`, `PageJobs.cs`, `src/uk.osric.asp.Web/Pages/PageJobsScope.cs`, `PageWritesScope.cs`, `PageJobEnvironment.cs`, `src/uk.osric.asp.Sdk/IWorkerContext.cs` |
+| Location | `src/uk.osric.asp.Web/Work/PageJob.cs`, `PageJobRunner.cs`, `PageJobs.cs`, `src/uk.osric.asp.Web/Pages/PageJobsScope.cs`, `PageWritesScope.cs`, `PageJobEnvironment.cs`, `src/uk.osric.asp.Web/Authentication/PageJobAuthority.cs`, `PageJobAuthorityVerifier.cs`, `src/uk.osric.asp.Sdk/IWorkerContext.cs` |
 
 > **Written 2026-11-18** at the owner's direction. Its prerequisite is
 > [`one-write-per-render`](one-write-per-render.md), which the owner also moved up the order the same day: a job cannot be
-> offered a writer while one action per render is the rule. Nothing is built until a plan answers the
-> open questions below.
+> offered a writer while a render has no transaction to write in. The plan is written and waits for the
+> owner; nothing is built until it is agreed.
+
+> **The five questions are answered — 2026-11-20.** The owner's answers are what the plan is written
+> against, in the order the questions were asked:
+>
+> 1. **Any key it has permission for, no arbitrary restrictions.** A job gets the same `IPageWrites` a
+>    page does over the whole key space the shell routes; only the reserved keys are refused, and the
+>    bound save is the starting page whatever else a worker writes.
+> 2. **Once per write, and once per commit when transactions land.** A lone write checks at its own
+>    commit; a transaction checks once, at its commit, not per staged call.
+> 3. **Refuse and let the worker decide, and not an exception.** A dead authority answers a value —
+>    `Revoked` — and stores nothing; the worker chooses whether to stop, retry or publish what it has.
+>    The code is not broken because a sign-in ended, so nothing throws.
+> 4. **A handle, not the token.** A job started from a run's view holds the run's id and asks
+>    `ViewTokenStore` whether it is still live; the bearer secret never reaches the job.
+> 5. **A job may start a job.** No depth or key restriction; a child inherits the same dead-able
+>    credential, and its start is checked the same way.
 
 ## Idea
 
@@ -30,17 +46,18 @@ that is the whole reason `IPageWrites` is withheld ([`conversation-is-not-a-page
 credential and revocation comes with it.
 
 The credential is whichever one the starting render presented: the cookie's ticket key
-(`AuthTicket.Key`) or a run's view secret (`ViewToken.Secret`). Both are revocable today, by deleting
-the row (`users` changes, sign-out, a new sign-in on the same browser) or by forgetting the view
-token when the run ends. The worker never sees either secret: the capability is constructed bound,
-exactly as `PageWritesScope` is bound to `user` today, so there is nothing in stored page code to
-leak and nothing new on the page contract.
+(`AuthTicket.Key`) or a run's view, held by its run id rather than the bearer secret the request
+presented (`ViewToken.Secret`). Both are revocable today, by deleting the row (`users` changes,
+sign-out, a new sign-in on the same browser) or by forgetting the view token when the run ends. The
+worker never sees either secret or the run id: the capability is constructed bound, exactly as
+`PageWritesScope` is bound to `user` today, so there is nothing in stored page code to leak and nothing
+new on the page contract.
 
 ## Sketch
 
-1. **The credential, not the name.** At start, `PageJobsScope` captures a `PageJobAuthority` from the
-   request — owner, security stamp and the credential handle (ticket key, or view secret) — and
-   `PageJob` holds it for the job's life. `IWorkerContext.User` stays the plain `PageUser` it is: a
+1. **The credential, not the name.** `PageEndpoint` captures a `PageJobAuthority` from the request —
+   owner, security stamp and the credential handle (ticket key, or run id) — `PageChain` hands it to
+   every layer's `PageJobsScope`, and `PageJob` holds it for the job's life. `IWorkerContext.User` stays the plain `PageUser` it is: a
    label, not the authority. A job started from a `GET` render is possible today, so the run's view
    scheme is a branch of this and not a later idea.
 2. **The check.** One host-side call answers live or dead: the ticket row still exists and the
@@ -48,39 +65,27 @@ leak and nothing new on the page contract.
    The two checks are the ones `OnValidatePrincipal` and `ViewAuthenticationHandler` already make, so
    there is no second definition of "signed in".
 3. **The writer.** `PageJobRunner` offers `IPageWrites` bound to the **starting page** through the
-   same `PageWritesScope`, once [`one-write-per-render`](one-write-per-render.md) has replaced the one-action counter with a
-   policy the caller names. The first version offers the batch and the bound self-save; the named
-   save follows the same answer the page store already gives.
+   same `PageWritesScope`, once [`one-write-per-render`](one-write-per-render.md) has removed the one-action counter and
+   given a page a transaction to write in. The first version offers the transaction and the bound
+   self-save; the named save follows the same answer the page store already gives.
 4. **The clocks.** A write is activity: it re-arms `Pages:Jobs:SilenceSeconds` as `Publish` does, or
    a compile longer than the silence limit cuts the job mid-save. A save that has begun is still
    never abandoned (`pages-a-page-may-save-itself`).
-5. **The refusal.** A dead authority throws `UserFacingException` in the existing house style
-   ("The account that started this job is no longer signed in. Nothing was saved."); a worker that
-   lets it escape fails the job with that reason on the journal. The job's own child `StartAsync` is
-   gated by the same check. Storage, publishing and `ReceiveAsync` are not identity-bearing and keep
-   working: the authority dies, the job does not have to.
+5. **The refusal.** A dead authority answers `Revoked` and writes nothing: every row of a commit says
+   so, the bound save and the single writes answer it through their own shapes, and nothing throws —
+   the code is not broken because a sign-in ended. The worker decides whether to stop, retry or
+   publish what it has, and the job keeps its storage, journal and channel. The job's own child
+   `StartAsync` is gated by the same check and refused `Revoked` once the authority is dead. Storage,
+   publishing and `ReceiveAsync` are not identity-bearing and keep working: the authority dies, the
+   job does not have to.
 6. **The records.** The merge writes **pages-a-jobs-authority-is-its-starters-credential** and edits:
    `pages-a-worker-gets-no-response` (the renderer and the layout stay out by shape; the writer comes
    in by authority), `pages-any-page-may-write-the-store` (the authority is the presented credential),
    `pages-jobs-run-a-worker-for-the-page` ("owned by the visitor" becomes "owned by the credential"),
-   and `auth-sign-in-is-long-lived-and-revocable` (a job's authority ends with its own ticket, not
-   with a stamp rotation, so other devices keep theirs). `/help` and `PageAuthorPrompt` gain the rule,
+   `auth-sign-in-is-long-lived-and-revocable` (a job's authority ends with the ticket it borrowed, so
+   signing out one browser ends only that browser's jobs) and `auth-a-view-token-names-its-run` (the
+   run's end is what ends a job started under its view). `/help` and `PageAuthorPrompt` gain the rule,
    with the prompt's `Version` bumped (`product-manual-is-a-page`).
-
-## Open questions
-
-1. **Which keys a job may write.** Any unreserved key is what the page store already allows; only the
-   starting page is the smallest first version. The bound self-save is the starting page either way.
-2. **Check cadence.** Once per batch is cheap and closes most of the window; per edit is stricter and
-   costs one indexed read each time. A write is the only place the answer changes anything.
-3. **What a dead authority does to the job.** Refuse the action and let the worker decide, or end the
-   job with the reason. The first terminates the authority; the second terminates the work.
-4. **The view-scheme handle.** A job started from a run's view would hold a live bearer secret in
-   memory. It never leaves the process, but whether it is the secret itself or an in-process handle
-   minted from it is the plan's decision.
-5. **Whether a job may start a job at all** once a child's authority is checked the same way. Today it
-   can; a child would inherit the same dead-able credential, which is probably right but is the plan's
-   to confirm.
 
 ## Not in scope
 
@@ -100,4 +105,4 @@ involved.
 **Origin:** the owner, 2026-11-18 — "the worker/job gets to write with all the authority of the
 caller, and I'd really like to terminate that authority if the caller logs out or otherwise
 invalidates their session, so probably going to need to hand the job a token". The withheld writer is
-[`conversation-is-not-a-page`](conversation-is-not-a-page.md) §4; the batch it needs is [`one-write-per-render`](one-write-per-render.md).
+[`conversation-is-not-a-page`](conversation-is-not-a-page.md) §4; the transaction it needs is [`one-write-per-render`](one-write-per-render.md).
