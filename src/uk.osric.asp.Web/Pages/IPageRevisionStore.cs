@@ -29,4 +29,16 @@ internal interface IPageRevisionStore {
     /// <param name="cancellationToken">Cancels the write.</param>
     /// <returns><see langword="false"/> when the head is missing, tombstoned or another hash, so nothing was written.</returns>
     Task<bool> TrySaveAsync(PageTemplate revision, string expectedHash, CancellationToken cancellationToken = default);
+
+    /// <summary>Writes several operations as one store transaction, or none of them.</summary>
+    /// <param name="operations">The operations, already compiled and in the order the page staged them.</param>
+    /// <param name="cancellationToken">Cancels the commit.</param>
+    /// <returns>One answer per operation, in the same order.</returns>
+    /// <remarks>
+    /// A lone write is this method with one operation, so a save cannot behave one way alone and
+    /// another way inside a transaction.
+    /// </remarks>
+    Task<IReadOnlyList<PageCommitAnswer>> CommitAsync(
+        IReadOnlyList<PageCommit> operations,
+        CancellationToken cancellationToken = default);
 }

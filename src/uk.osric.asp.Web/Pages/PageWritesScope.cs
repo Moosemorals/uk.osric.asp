@@ -22,10 +22,10 @@ using uk.osric.asp.Web.Editor;
 /// <see cref="Resolve"/>, so a typo in a query value is a message the page renders.
 /// </para>
 /// <para>
-/// The two saves share one action: a page that saved itself cannot then edit another page in the same
-/// render. A save is conditional on the head hash the form carried when it names a key, and a save that
-/// has begun is not abandoned: the render's deadline bounds the wait for a compile slot, not the
-/// author's edit (`pages-a-page-may-save-itself`).
+/// Every member here is a transaction of one, and <see cref="BeginTransaction"/> is several writes that
+/// become the store's state together. A save is conditional on the head hash the form carried when it
+/// names a key, and a write that has begun is not abandoned: the render's deadline bounds the wait for
+/// a compile slot, not the author's edit (`pages-a-page-may-save-itself`).
 /// </para>
 /// </remarks>
 internal sealed class PageWritesScope(
@@ -35,7 +35,22 @@ internal sealed class PageWritesScope(
     bool writable,
     ReservedPaths reserved,
     PageSeeds seeds,
-    PageWriteAction action) : RenderBoundCapability, IPageWrites {
+    PageTransactionGate gate) : RenderBoundCapability, IPageWrites {
+
+    /// <inheritdoc/>
+    public IPageTransaction BeginTransaction() {
+        ThrowIfCannotWrite();
+
+        if (!gate.TryOpen()) {
+            throw new InvalidOperationException(
+                $"{path.Key} already has a transaction open: the store has one, and a transaction does not nest.");
+        }
+
+        PageTransactionScope transaction = new(path, pages, reserved, seeds, gate, Deadline);
+        transaction.AttachDeadline(Deadline);
+
+        return transaction;
+    }
 
     /// <inheritdoc/>
     public PageKeyResolution Resolve(string key) {
@@ -66,217 +81,93 @@ internal sealed class PageWritesScope(
     /// <inheritdoc/>
     public async Task<PageSaveResult> SaveAsync(string template) {
         ArgumentNullException.ThrowIfNull(template);
-        ThrowIfCannotWrite();
 
-        // The render's token is deliberately not passed as the save's token: the deadline bounds the
-        // queue for a compile slot, not the author's edit (`pages-a-page-may-save-itself`).
-        SavedRevision saved = await pages.SaveAsync(path, template, CancellationToken.None, Deadline);
-        Acted();
+        PageWriteResult row = await OneAsync(transaction => transaction.SaveAsync(template));
 
-        return new PageSaveResult(saved.Revision.Hash, PageDiagnostics.ToSdk(saved.Diagnostics));
+        return new PageSaveResult(row.Hash ?? string.Empty, row.Diagnostics);
     }
 
     /// <inheritdoc/>
     public async Task<PageEditResult> SaveAsync(string key, string template, string? expectedHash) {
         ArgumentNullException.ThrowIfNull(template);
 
-        PagePath target = ResolveForWrite(key);
-        PageEditResult result = expectedHash is null
-            ? await CreateAsync(target, template)
-            : await SaveConditionalAsync(target, template, expectedHash);
-        Acted();
+        PageWriteResult row = await OneAsync(transaction => transaction.SaveAsync(key, template, expectedHash));
 
-        return result;
+        return new PageEditResult(EditOutcome(row.Outcome), row.Hash, row.Diagnostics);
     }
 
     /// <inheritdoc/>
     public async Task<PageDeleteResult> DeleteAsync(string key) {
-        PagePath target = ResolveForWrite(key);
+        ThrowIfCannotWrite();
 
+        PagePath target = ResolveForWrite(key);
         PageHeadSummary? head = await pages.GetHeadAsync(target, Deadline);
         bool wasLive = head is { IsDeleted: false };
-        bool deleted = await pages.DeleteAsync(target, Deadline);
-        Acted();
 
-        return new PageDeleteResult(deleted, wasLive);
+        PageWriteResult row = await OneAsync(transaction => transaction.DeleteAsync(key));
+
+        return new PageDeleteResult(row.Outcome == PageWriteOutcome.Deleted, wasLive);
     }
 
     /// <inheritdoc/>
     public async Task<PageMoveResult> MoveAsync(string from, string to, string expectedHash) {
-        ArgumentException.ThrowIfNullOrWhiteSpace(from);
-        ArgumentException.ThrowIfNullOrWhiteSpace(to);
-        ArgumentException.ThrowIfNullOrWhiteSpace(expectedHash);
+        PageWriteResult row = await OneAsync(transaction => transaction.MoveAsync(from, to, expectedHash));
 
-        PagePath source = ResolveForWrite(from);
-        PagePath target = ResolveForWrite(to);
-
-        if (string.Equals(source.Key, path.Key, StringComparison.Ordinal)) {
-            throw new InvalidOperationException(
-                $"{path.Key} cannot move itself: the rest of this render answers for that key, and the response in hand is the page as it was.");
-        }
-
-        if (string.Equals(source.Key, target.Key, StringComparison.Ordinal)) {
-            Acted();
-            return new PageMoveResult(PageMoveOutcome.Unchanged, null, []);
-        }
-
-        // The render's deadline, not CancellationToken.None: a move compiles nothing and is four
-        // statements, so one that outlives the render rolls back and the caller still has the hash.
-        PageMoveStoreResult moved = await pages.MoveAsync(source, target, expectedHash, Deadline);
-        PageMoveResult answer = PageMoveAnswer.From(moved, source);
-        Acted();
-
-        return answer;
+        return new PageMoveResult(MoveOutcome(row.Outcome), row.Hash, row.Below ?? []);
     }
 
     /// <inheritdoc/>
     public async Task<PageEditResult?> RestoreRevisionAsync(string key, string hash, string? expectedHash) {
         ArgumentException.ThrowIfNullOrWhiteSpace(hash);
 
-        PagePath target = ResolveForWrite(key);
-        PageRevisionTemplate? revision = await pages.GetRevisionAsync(target, hash, Deadline);
-        if (revision is null) {
-            return null;
-        }
+        PageWriteResult row = await OneAsync(transaction => transaction.RestoreRevisionAsync(key, hash, expectedHash));
 
-        PageTemplate? live = await pages.GetAsync(target, Deadline);
-        if (PageSourceChange.IsNoOp(live?.Template, revision.Template)) {
-            Acted();
-            return Unchanged(live?.Hash);
-        }
-
-        PageEditResult result = live is not null
-            ? await SaveConditionalAsync(target, revision.Template, expectedHash)
-            : await SaveUnconditionalAsync(target, revision.Template);
-        Acted();
-
-        return result;
+        return row.Outcome == PageWriteOutcome.Missing
+            ? null
+            : new PageEditResult(EditOutcome(row.Outcome), row.Hash, row.Diagnostics);
     }
 
     /// <inheritdoc/>
     public async Task<PageEditResult?> AdoptSeedAsync(string key) {
-        PagePath target = ResolveForWrite(key);
-        SeedFile? seed = seeds.Find(target);
-        if (seed is null) {
-            return null;
-        }
+        PageWriteResult row = await OneAsync(transaction => transaction.AdoptSeedAsync(key));
 
-        PageHeadSummary? head = await pages.GetHeadAsync(target, Deadline);
-        SeedComparison comparison = SeedComparison.Of(head?.SeedHash, seed.Hash, head?.ContentHash);
-
-        if (head is null || head.IsDeleted) {
-            throw new InvalidOperationException(
-                $"{target.Key} is {Words(SeedComparison.Of(head?.SeedHash, seed.Hash, head?.ContentHash), seed.Hash)}; only a live page that already holds the seed can be recorded as installed.");
-        }
-
-        if (string.Equals(head.SeedHash, seed.Hash, StringComparison.Ordinal)) {
-            PageTemplate? already = await pages.GetAsync(target, Deadline);
-            Acted();
-            return Unchanged(already?.Hash);
-        }
-
-        if (!comparison.CanAdopt) {
-            throw new InvalidOperationException(
-                $"{target.Key} is {Words(comparison, seed.Hash)}; only a page that already holds the shipped seed can be recorded as installed.");
-        }
-
-        bool adopted = await pages.AdoptAsync(target, seed.Hash, Deadline);
-        PageTemplate? live = await pages.GetAsync(target, Deadline);
-        Acted();
-
-        return adopted
-            ? new PageEditResult(PageEditOutcome.Saved, live?.Hash, [])
-            : new PageEditResult(PageEditOutcome.Stale, null, []);
+        return row.Outcome == PageWriteOutcome.Missing
+            ? null
+            : new PageEditResult(EditOutcome(row.Outcome), row.Hash, row.Diagnostics);
     }
 
     /// <inheritdoc/>
     public async Task<PageEditResult?> InstallSeedAsync(string key, string? expectedHash) {
-        PagePath target = ResolveForWrite(key);
-        SeedFile? seed = seeds.Find(target);
-        if (seed is null) {
-            return null;
-        }
+        PageWriteResult row = await OneAsync(transaction => transaction.InstallSeedAsync(key, expectedHash));
 
-        PageHeadSummary? head = await pages.GetHeadAsync(target, Deadline);
-        if (head is null) {
-            PageEditResult created = await SaveSeedUnconditionalAsync(target, seed);
-            Acted();
-            return created;
-        }
-
-        SeedComparison comparison = SeedComparison.Of(head.SeedHash, seed.Hash, head.ContentHash);
-
-        if (comparison.Verdict == SeedVerdict.InSync) {
-            PageTemplate? already = await pages.GetAsync(target, Deadline);
-            Acted();
-            return Unchanged(already?.Hash);
-        }
-
-        if (!comparison.CanApply) {
-            throw new InvalidOperationException(
-                $"{target.Key} is {Words(comparison, seed.Hash)}; the release does not overwrite it automatically.");
-        }
-
-        PageEditResult result = await SaveSeedConditionalAsync(target, seed, expectedHash);
-        Acted();
-
-        return result;
+        return row.Outcome == PageWriteOutcome.Missing
+            ? null
+            : new PageEditResult(EditOutcome(row.Outcome), row.Hash, row.Diagnostics);
     }
 
-    // A form rendered from a page with no live source carries no expectation, so the save applies
-    // only while that is still true: a create never overwrites a page that appeared in the meantime.
-    private async Task<PageEditResult> CreateAsync(PagePath target, string template) {
-        PageTemplate? live = await pages.GetAsync(target, Deadline);
+    /// <summary>Makes one write as a transaction of one, so every write has one path.</summary>
+    private async Task<PageWriteResult> OneAsync(Func<IPageTransaction, Task<PageWriteResult>> stage) {
+        await using IPageTransaction transaction = BeginTransaction();
+        _ = await stage(transaction);
+        IReadOnlyList<PageWriteResult> report = await transaction.CommitAsync();
 
-        return live is not null
-            ? new PageEditResult(PageEditOutcome.Stale, null, [])
-            : await SaveUnconditionalAsync(target, template);
+        return report[0];
     }
 
-    private async Task<PageEditResult> SaveConditionalAsync(PagePath target, string template, string? expectedHash) {
-        if (string.IsNullOrWhiteSpace(expectedHash)) {
-            return new PageEditResult(PageEditOutcome.Stale, null, []);
-        }
+    private static PageEditOutcome EditOutcome(PageWriteOutcome outcome) => outcome switch {
+        PageWriteOutcome.Saved => PageEditOutcome.Saved,
+        PageWriteOutcome.Unchanged => PageEditOutcome.Unchanged,
+        _ => PageEditOutcome.Stale,
+    };
 
-        // The render's token is deliberately not the save's token: the deadline bounds the wait for
-        // a compile slot, not the author's edit (`pages-a-page-may-save-itself`).
-        ConditionalPageSaveResult saved = await pages.SaveIfRevisionAsync(
-            target, template, expectedHash, CancellationToken.None, Deadline);
-
-        return saved.Saved
-            ? new PageEditResult(PageEditOutcome.Saved, saved.RevisionHash, PageDiagnostics.ToSdk(saved.Diagnostics))
-            : new PageEditResult(PageEditOutcome.Stale, null, []);
-    }
-
-    private async Task<PageEditResult> SaveUnconditionalAsync(PagePath target, string template) {
-        SavedRevision saved = await pages.SaveAsync(target, template, CancellationToken.None, Deadline);
-
-        return new PageEditResult(PageEditOutcome.Saved, saved.Revision.Hash, PageDiagnostics.ToSdk(saved.Diagnostics));
-    }
-
-    private async Task<PageEditResult> SaveSeedUnconditionalAsync(PagePath target, SeedFile seed) {
-        SavedRevision saved = await pages.SaveSeedAsync(target, seed.Source, seed.Hash, CancellationToken.None, Deadline);
-
-        return new PageEditResult(PageEditOutcome.Saved, saved.Revision.Hash, PageDiagnostics.ToSdk(saved.Diagnostics));
-    }
-
-    private async Task<PageEditResult> SaveSeedConditionalAsync(PagePath target, SeedFile seed, string? expectedHash) {
-        if (string.IsNullOrWhiteSpace(expectedHash)) {
-            return new PageEditResult(PageEditOutcome.Stale, null, []);
-        }
-
-        ConditionalPageSaveResult saved = await pages.SaveSeedIfRevisionAsync(
-            target, seed.Source, expectedHash, seed.Hash, CancellationToken.None, Deadline);
-
-        return saved.Saved
-            ? new PageEditResult(PageEditOutcome.Saved, saved.RevisionHash, PageDiagnostics.ToSdk(saved.Diagnostics))
-            : new PageEditResult(PageEditOutcome.Stale, null, []);
-    }
-
-    private static string Words(SeedComparison comparison, string shipped) =>
-        comparison.Describe(shipped).Verdict;
-
-    private static PageEditResult Unchanged(string? hash) => new(PageEditOutcome.Unchanged, hash, []);
+    private static PageMoveOutcome MoveOutcome(PageWriteOutcome outcome) => outcome switch {
+        PageWriteOutcome.Moved => PageMoveOutcome.Moved,
+        PageWriteOutcome.Unchanged => PageMoveOutcome.Unchanged,
+        PageWriteOutcome.SourceNotFound => PageMoveOutcome.SourceNotFound,
+        PageWriteOutcome.TargetExists => PageMoveOutcome.TargetExists,
+        PageWriteOutcome.FolderNotEmpty => PageMoveOutcome.FolderNotEmpty,
+        _ => PageMoveOutcome.Stale,
+    };
 
     private PagePath ResolveForWrite(string key) {
         ThrowIfCannotWrite();
@@ -297,13 +188,12 @@ internal sealed class PageWritesScope(
         return target;
     }
 
-    // The bound save names no key, so it skips the key checks and keeps the four that every write
-    // makes. The order is the writer's: a visitor state, then the two render bugs, then the action.
+    // The bound save names no key, so it skips the key checks and keeps the three that every write
+    // makes: a visitor state, then the two render bugs.
     private void ThrowIfCannotWrite() {
         ThrowIfAnonymous();
         ThrowIfReadOnly();
         ThrowIfEnded();
-        ThrowIfActed();
     }
 
     private void ThrowIfAnonymous() {
@@ -327,12 +217,4 @@ internal sealed class PageWritesScope(
             throw new InvalidOperationException($"{path.Key} has run out of time; it cannot edit a page.");
         }
     }
-
-    private void ThrowIfActed() {
-        if (action.HasActed) {
-            throw new InvalidOperationException($"{path.Key} has already edited a page in this render.");
-        }
-    }
-
-    private void Acted() => action.Act();
 }

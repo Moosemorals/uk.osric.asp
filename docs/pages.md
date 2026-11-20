@@ -139,6 +139,16 @@ pure renderers, and one that is a fact about the build:
   (`pages-a-check-stores-nothing`, `pages-a-check-names-its-language`, `pages-a-check-needs-a-visitor`).
 - `IPageWrites` is the store's write capability, and every page that is not a layout is offered it:
   the authority is the signed-in visitor's, not the page's (`pages-any-page-may-write-the-store`).
+  Each of its members is one write and, under the seam, a transaction of one: it compiles, checks its
+  condition and commits before it answers. `BeginTransaction()` answers an `IPageTransaction` carrying
+  the same members: the writes are staged, each save compiles as it is staged, and `CommitAsync()`
+  proves every condition again and applies them in one store transaction or none of them, answering one
+  `PageWriteResult` per operation — the key, the operation, the outcome, the hash and the diagnostics.
+  A refusal writes nothing and reports the writes it cost as NotAttempted; contention is a row the page
+  answers, and the host does not retry on its behalf. A transaction that is disposed without a commit
+  writes nothing, one page holds one open at a time, and a render may commit as many as it has work
+  for. A staged save reads the libraries staged before it as well as the store's, so staging order is
+  what a page gets and nothing is reordered behind it.
   It has two saves. `SaveAsync(template)` saves the calling page's own source, bound to `ctx.Path`, and
   answers a `PageSaveResult` — the new revision's hash and the compiler's diagnostics as
   `PageDiagnostic` values. `SaveAsync(key, template, expectedHash)` saves any key the shell does not

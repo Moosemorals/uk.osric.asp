@@ -729,9 +729,37 @@ broken.</p>
 <p>A save belongs to the <em>next</em> request: the running page is already compiled, so the response
 you are writing is still the page as it was. Save on a <code>POST</code>, write the answer you were
 given, and let the next request serve the new source. A <code>HEAD</code> never writes, because it runs
-the page once per validator, and one render writes once: a save, a move, a delete, a restore or an
-install spends the one action. A write that has started is never abandoned: if the page runs out of time the
-revision is still stored, and the next request serves it.</p>
+the page once per validator. A write that has started is never abandoned: if the page runs out of time
+the revision is still stored, and the next request serves it.</p>
+
+<h3 id="transactions">Several writes that land together</h3>
+<p><code>BeginTransaction()</code> answers an
+<a href="/admin/reference/sdk#t-IPageTransaction"><code>IPageTransaction</code></a> with the same write
+members, and <code>CommitAsync()</code> writes them in one transaction or none of them. It is what a
+Save all, a multi-file edit and a folder rename use: stage the writes, then commit once.</p>
+<pre class="source" tabindex="0"><code>&lt;% await using IPageTransaction batch = ctx.Capabilities.GetRequired&lt;IPageWrites&gt;()
+        .BeginTransaction();
+   _ = await batch.SaveAsync("/blog/one", first, firstHash);
+   _ = await batch.SaveAsync("/blog/two", second, secondHash);
+   var report = await batch.CommitAsync(); %&gt;</code></pre>
+<p>A staged call compiles and answers a
+<a href="/admin/reference/sdk#t-PageWriteResult"><code>PageWriteResult</code></a> — the key, the
+operation, the outcome, the hash and the diagnostics — and the outcome is <em>Staged</em> until the
+commit decides it. The commit answers one row per operation in the order you staged them.
+<strong>A refusal writes nothing at all</strong>: the row says <em>Stale</em>, <em>TargetExists</em>,
+<em>FolderNotEmpty</em>, <em>SourceNotFound</em> or <em>Refused</em>, and every write the refusal cost
+reports <em>NotAttempted</em>, so a Save all can show every conflict in one answer. Stage the rest again
+in a new transaction if you want them. A page bug — a reserved key, two operations on one key, a library
+move — throws while staging, before anything is at risk.</p>
+<p>A transaction that is disposed without a commit writes nothing, so a page that forgets
+<code>CommitAsync</code> changes nothing. A page holds one open at a time, and a render may commit as
+many transactions as it has work for. One save, move, delete or restore is already a transaction of one
+and answers as it always did; use a transaction for writes that must land together, not for every
+write.</p>
+<p><em>Busy</em> means another writer held the store; nothing was written. Retrying, splitting the work
+or telling the owner is your choice, and the host does not retry on your behalf. Staging order is the
+order you get: a save reads the libraries staged before it as well as the store's, so stage a library
+before the pages that use it, or commit the library first and the pages in a second transaction.</p>
 <p>A layout is offered the read and not the write, because it is markup: one that saved itself would
 add a revision to every page it wraps. The sample above is the whole of a bound save: show the source,
 save it, report the diagnostics and compare the form's hash before you overwrite a newer revision.</p>

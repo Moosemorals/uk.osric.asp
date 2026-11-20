@@ -127,6 +127,10 @@ internal class Program {
         settings.Complete();
         ReservedPaths reserved = new(ReservedPaths.Default);
 
+        // The store's busy timeout is the page's, not the client's thirty-second default: a commit
+        // that cannot take the writer answers "busy" after the time the owner chose.
+        connection.DefaultTimeout = storage.BusyTimeoutSeconds;
+
         // Configuration: the database, its options, and the proxy trust the host depends on.
         // The scoped context is what the stores on the request inject; the factory is what lets a
         // page's storage call own its context and outlive the request scope safely. The options are
@@ -254,6 +258,7 @@ internal class Program {
         builder.Services.AddSingleton<IPageCompiler, PageCompiler>();
         builder.Services.AddSingleton<IPageFetcher, PageFetcher>();
         builder.Services.AddSingleton<IPageReadStore, SqlitePageReadStore>();
+        builder.Services.AddSingleton<IPageCommitStore, SqlitePageCommitStore>();
         builder.Services.AddSingleton<IPageRevisionStore, SqlitePageRevisionStore>();
         builder.Services.AddSingleton<IPageSessionStore, SqlitePageSessionStore>();
         builder.Services.AddSingleton<IPageStateStore, SqlitePageStateStore>();
@@ -369,6 +374,8 @@ internal class Program {
         await using (AsyncServiceScope scope = app.Services.CreateAsyncScope()) {
             StorageDbContext database = scope.ServiceProvider.GetRequiredService<StorageDbContext>();
             await database.Database.MigrateAsync(app.Lifetime.ApplicationStopping);
+            // WAL before anything else serves: a reader must never be able to fail a page's commit.
+            await SqliteJournalMode.EnsureWriteAheadLogAsync(database, app.Lifetime.ApplicationStopping);
             // A restart interrupts a provider request rather than resuming it, so the runs that were
             // in flight are closed out before anything can answer for them.
             IConversationStore assistantConversations = scope.ServiceProvider.GetRequiredService<IConversationStore>();

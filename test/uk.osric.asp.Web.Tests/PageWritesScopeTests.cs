@@ -148,14 +148,91 @@ public sealed class PageWritesScopeTests {
     }
 
     [Test]
-    public async Task OneRenderMakesOneActionAsync() {
-        using PageHarness pages = new(new FakePageStore());
-        SavedRevision first = await pages.Editor.SaveAsync(PageHarness.Key("/page"), "first");
+    public async Task ARenderMayCommitSeveralTransactionsAsync() {
+        FakePageStore storage = new();
+        using PageHarness pages = new(storage);
         PageWritesScope scope = Scope(pages);
 
-        _ = await scope.SaveAsync("/page", "second", first.Revision.Hash);
+        PageEditResult first = await scope.SaveAsync("/page", "first", null);
+        PageEditResult second = await scope.SaveAsync("/other", "second", null);
 
-        await Assert.ThrowsAsync<InvalidOperationException>(async () => await scope.SaveAsync("/page", "third", "hash"));
+        Assert.Multiple(() => {
+            Assert.That(first.Outcome, Is.EqualTo(PageEditOutcome.Saved));
+            Assert.That(second.Outcome, Is.EqualTo(PageEditOutcome.Saved));
+            Assert.That(storage["/page"]?.Template, Is.EqualTo("first"));
+            Assert.That(storage["/other"]?.Template, Is.EqualTo("second"));
+        });
+    }
+
+    [Test]
+    public async Task ATransactionThatIsDisposedWithoutCommittingWritesNothingAsync() {
+        FakePageStore storage = new();
+        using PageHarness pages = new(storage);
+        PageWritesScope scope = Scope(pages);
+
+        await using (IPageTransaction transaction = scope.BeginTransaction()) {
+            _ = await transaction.SaveAsync("/page", "staged", null);
+            _ = await transaction.SaveAsync("/other", "also staged", null);
+        }
+
+        Assert.Multiple(() => {
+            Assert.That(storage["/page"], Is.Null);
+            Assert.That(storage["/other"], Is.Null);
+            Assert.That(pages.Revisions.SaveCount, Is.Zero);
+        });
+    }
+
+    [Test]
+    public async Task ACommitOfSeveralWritesReportsOneRowEachAsync() {
+        FakePageStore storage = new();
+        using PageHarness pages = new(storage);
+        PageWritesScope scope = Scope(pages);
+
+        await using IPageTransaction transaction = scope.BeginTransaction();
+        _ = await transaction.SaveAsync("/page", "first", null);
+        _ = await transaction.SaveAsync("/other", "second", null);
+        IReadOnlyList<PageWriteResult> report = await transaction.CommitAsync();
+
+        Assert.Multiple(() => {
+            Assert.That(report.Select(row => row.Key), Is.EqualTo(["/page", "/other"]));
+            Assert.That(report.Select(row => row.Outcome), Is.EqualTo([PageWriteOutcome.Saved, PageWriteOutcome.Saved]));
+            Assert.That(storage["/page"]?.Template, Is.EqualTo("first"));
+            Assert.That(storage["/other"]?.Template, Is.EqualTo("second"));
+        });
+    }
+
+    [Test]
+    public async Task ARefusedOperationWritesNothingAndNamesItselfAsync() {
+        FakePageStore storage = new();
+        using PageHarness pages = new(storage);
+        SavedRevision first = await pages.Editor.SaveAsync(PageHarness.Key("/page"), "first");
+        string head = first.Revision.Hash;
+        _ = await pages.Editor.SaveAsync(PageHarness.Key("/page"), "moved on");
+        PageWritesScope scope = Scope(pages);
+
+        await using IPageTransaction transaction = scope.BeginTransaction();
+        _ = await transaction.SaveAsync("/other", "second", null);
+        _ = await transaction.SaveAsync("/page", "third", head);
+        IReadOnlyList<PageWriteResult> report = await transaction.CommitAsync();
+
+        Assert.Multiple(() => {
+            Assert.That(report[0].Outcome, Is.EqualTo(PageWriteOutcome.NotAttempted), "the refusal cost it its write");
+            Assert.That(report[1].Outcome, Is.EqualTo(PageWriteOutcome.Stale));
+            Assert.That(storage["/other"], Is.Null, "a refusal writes nothing at all");
+            Assert.That(storage["/page"]?.Template, Is.EqualTo("moved on"));
+        });
+    }
+
+    [Test]
+    public async Task ATransactionDoesNotNestAsync() {
+        using PageHarness pages = new(new FakePageStore());
+        PageWritesScope scope = Scope(pages);
+
+        await using IPageTransaction transaction = scope.BeginTransaction();
+
+        InvalidOperationException? refused = Assert.Throws<InvalidOperationException>(() => scope.BeginTransaction());
+
+        Assert.That(refused?.Message, Does.Contain("does not nest"));
     }
 
     [Test]
@@ -426,16 +503,20 @@ public sealed class PageWritesScopeTests {
     }
 
     [Test]
-    public async Task ASecondSaveInOneRenderIsRefusedAsync() {
-        using PageHarness pages = new(new FakePageStore());
+    public async Task APageMaySaveItselfTwiceInOneRenderAsync() {
+        FakePageStore storage = new();
+        using PageHarness pages = new(storage);
         PageWritesScope writes = Scope(pages, path: "/self");
-        await writes.SaveAsync("First.");
 
-        InvalidOperationException? refused = await Assert.ThrowsAsync<InvalidOperationException>(
-            () => writes.SaveAsync("Second."));
+        PageSaveResult first = await writes.SaveAsync("First.");
+        PageSaveResult second = await writes.SaveAsync("Second.");
 
-        Assert.That(refused?.Message, Does.Contain("already edited"));
-        Assert.That(pages.Revisions.SaveCount, Is.EqualTo(1));
+        Assert.Multiple(() => {
+            Assert.That(first.Hash, Is.Not.Empty);
+            Assert.That(second.Hash, Is.Not.Empty.And.Not.EqualTo(first.Hash));
+            Assert.That(storage["/self"]?.Template, Is.EqualTo("Second."));
+            Assert.That(pages.Revisions.SaveCount, Is.EqualTo(2));
+        });
     }
 
     [Test]
@@ -602,19 +683,18 @@ public sealed class PageWritesScopeTests {
     }
 
     [Test]
-    public async Task TheBoundSaveAndTheNamedSaveShareOneActionAsync() {
+    public async Task TheBoundSaveAndTheNamedSaveAreTheSamePathAsync() {
         FakePageStore storage = new();
         using PageHarness pages = new(storage);
         PageWritesScope writes = Scope(pages, path: "/self");
 
-        await writes.SaveAsync("first");
-
-        InvalidOperationException? refused = await Assert.ThrowsAsync<InvalidOperationException>(
-            () => writes.SaveAsync("/other", "second", null));
+        _ = await writes.SaveAsync("first");
+        PageEditResult named = await writes.SaveAsync("/other", "second", null);
 
         Assert.Multiple(() => {
-            Assert.That(refused?.Message, Does.Contain("already edited"));
-            Assert.That(pages.Revisions.SaveCount, Is.EqualTo(1), "one render makes one write, whichever save it uses");
+            Assert.That(named.Outcome, Is.EqualTo(PageEditOutcome.Saved));
+            Assert.That(storage["/self"]?.Template, Is.EqualTo("first"));
+            Assert.That(storage["/other"]?.Template, Is.EqualTo("second"));
         });
     }
 
@@ -685,18 +765,23 @@ public sealed class PageWritesScopeTests {
     }
 
     [Test]
-    public async Task AMoveSpendsTheOneActionAsync() {
+    public async Task AMoveAndASaveInOneTransactionBothLandAsync() {
         FakePageStore storage = new();
         using PageHarness pages = new(storage);
         SavedRevision first = await pages.Editor.SaveAsync(PageHarness.Key("/page"), "first");
         PageWritesScope scope = Scope(pages);
 
-        _ = await scope.MoveAsync("/page", "/moved", first.Revision.Hash);
+        await using IPageTransaction transaction = scope.BeginTransaction();
+        _ = await transaction.MoveAsync("/page", "/moved", first.Revision.Hash);
+        _ = await transaction.SaveAsync("/other", "text", null);
+        IReadOnlyList<PageWriteResult> report = await transaction.CommitAsync();
 
-        InvalidOperationException? refused = await Assert.ThrowsAsync<InvalidOperationException>(
-            () => scope.SaveAsync("/other", "text", null));
-
-        Assert.That(refused?.Message, Does.Contain("already edited"));
+        Assert.Multiple(() => {
+            Assert.That(report.Select(row => row.Outcome), Is.EqualTo([PageWriteOutcome.Moved, PageWriteOutcome.Saved]));
+            Assert.That(storage["/page"], Is.Null);
+            Assert.That(storage["/moved"]?.Template, Is.EqualTo("first"));
+            Assert.That(storage["/other"]?.Template, Is.EqualTo("text"));
+        });
     }
 
     [Test]
@@ -833,7 +918,7 @@ public sealed class PageWritesScopeTests {
         writable,
         new ReservedPaths(ReservedPaths.Default),
         TestOptions.Seeds,
-        new PageWriteAction());
+        new PageTransactionGate());
 
     /// <summary>Reports one diagnostic the way a compile timeout does: with no position at all.</summary>
     private sealed class PositionlessCompiler : IPageCompiler {

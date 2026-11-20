@@ -355,7 +355,7 @@ public sealed class PageCompositionTests {
     }
 
     [Test]
-    public async Task TwoEmbeddedWritersSpendTheRendersOneWrite() {
+    public async Task TwoEmbeddedWritersEachWriteTheirOwnPage() {
         Store("/saver", """
             <% if (ctx.User is not null) {
                    await ctx.Capabilities.GetRequired<IPageWrites>().SaveAsync(ctx.Path, "saved", null);
@@ -368,14 +368,14 @@ public sealed class PageCompositionTests {
                        _ = await ctx.Capabilities.GetRequired<IPageComposition>().EmbedAsync("/saver");
                        ctx.Response.Write("two writes");
                    } catch (System.InvalidOperationException) {
-                       ctx.Response.Write("one write");
+                       ctx.Response.Write("refused");
                    }
                } %>
             """);
 
         Rendered rendered = await RenderAsync("/page", signedIn: true);
 
-        Assert.That(rendered.Body.Trim(), Is.EqualTo("savedone write"), rendered.Body);
+        Assert.That(rendered.Body.Trim(), Is.EqualTo("savedsavedtwo writes"), rendered.Body);
     }
 
     [Test]

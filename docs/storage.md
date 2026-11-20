@@ -69,6 +69,15 @@ recompile exactly its dependents. A lazy compile fills a
 `NULL` verdict on the revision it compiled. Nothing backfills a row that already exists — including
 the seeded assets — so a revision keeps `NULL` until it is next saved, restored or first generated.
 
+A transaction is the store's own SQLite transaction, taken with `BEGIN IMMEDIATE` and therefore
+holding the one writer from its first statement, so the heads it re-proves its expectations against
+cannot move under it. Everything slow happens outside it: a staged save compiles first, and the commit
+is statements only. The store runs in WAL, which is set and verified at startup — a reader never blocks
+a commit and a commit never blocks a reader — and a commit that cannot take the writer answers that it
+is busy after `Pages:Storage:BusyTimeoutSeconds` rather than waiting the client's default out. A
+refusal writes nothing: every operation's condition is proved before the first row is written, so the
+report can name every conflict and the transaction rolls back whole.
+
 A save inserts the revision and advances its `PageHeads` row in one transaction. The head is the
 authoritative current-page pointer; reads do not guess the current row from timestamps. The source
 identity and hash stay fixed while conditional

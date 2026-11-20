@@ -30,6 +30,9 @@ internal sealed class FakePageStore : IPageStore {
 
     public bool DeleteOnImageWrite { get; set; }
 
+    /// <summary>Every key this store holds a live page for, ordered.</summary>
+    public IEnumerable<string> Keys => _pages.Keys.OrderBy(key => key, StringComparer.Ordinal);
+
     public int ReadCount { get; private set; }
 
     public int WriteCount { get; private set; }

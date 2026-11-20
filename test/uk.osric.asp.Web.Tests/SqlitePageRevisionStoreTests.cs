@@ -132,7 +132,7 @@ public sealed class SqlitePageRevisionStoreTests {
     }
 
     private IPageRevisionStore Store() =>
-        new SqlitePageRevisionStore(DatabaseTemplate.Factory(_options), NullLogger<SqlitePageRevisionStore>.Instance);
+        new SqlitePageRevisionStore(new SqlitePageCommitStore(DatabaseTemplate.Factory(_options), NullLogger<SqlitePageCommitStore>.Instance));
 
     private async Task<string?> HeadRevisionAsync(string path) {
         await using StorageDbContext database = new(_options);
