@@ -7,7 +7,7 @@ SPDX-License-Identifier: MIT
 
 | | |
 | --- | --- |
-| Status | Revised 2026-11-20 — the owner answered the six questions and said to build it. Slices 1–2 are merged and the three names are recorded; slices 3–4 are not started |
+| Status | Revised 2026-11-20 — the owner answered the six questions and said to build it. Slices 1–3 are merged and the three names are recorded; slice 4 is not started |
 | Size | Large as a programme, small as a step: one Sdk capability with two types and one closed set, a Web adapter over the compiler, the assistant's tool surface rewritten once, and an editor for the repository over the same tier. Four slices, each its own branch and each stopping for the owner |
 | Area | Sdk, Runtime, Core (Assistant), Web (pages, editor, assistant), tools, docs |
 | Spike | [Teaching VS Code the template language](../spikes/vscode-template-language.md) — the half that has not landed |
