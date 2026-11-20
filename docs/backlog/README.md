@@ -110,8 +110,14 @@ its reason, and that no item sits above something that blocks it.
 
 | Slug | Title | Difficulty | Utility | Status | Blocked by |
 | --- | --- | --- | --- | --- | --- |
+| [`listing-does-not-date-itself`](listing-does-not-date-itself.md) | A listing cannot say the store moved under it | caffeinated-squirrel ☕🐿️ | medium | [planned](../plans/listing-fingerprint.md) | — |
+| | *The cursor answered where a walk is; this answers whether it is still the same walk, and the write paths are the price.* | | | | |
+| [`cannot-search-the-store`](cannot-search-the-store.md) | A page cannot search the store's source | caffeinated-squirrel ☕🐿️ | medium | blocked | `listing-does-not-date-itself` |
+| | *The IDE's find in files, now with the shell's own pattern language; it waits on the version token a cursor has to carry before a scan of a store that may move under it can be trusted.* | | | | |
 | [`a-page-cannot-list-folders`](a-page-cannot-list-folders.md) | A page cannot list the store's folders | eager-beaver ⚙️🦫 | medium | open | — |
 | | *A listing returns heads, so every caller that wants a tree folds keys by hand; the shell, the IDE's tree and a site map all want the same rows.* | | | | |
+| [`tool-surface-is-one-shell`](tool-surface-is-one-shell.md) | The assistant's tool surface is one shell, one question and one memory | protective-dragon 🔥🐉 | high | blocked | `check-without-storing`, `cannot-search-the-store`, `a-page-cannot-list-folders` |
+| | *The shell already carries eleven of the twenty-two commands; making it POSIX, composable and the preferred surface leaves three tools and buys back the ceiling, and building it from the page capabilities names the three gaps in front of it.* | | | | |
 | [`revision-hides-its-diagnostics`](revision-hides-its-diagnostics.md) | A page cannot read a revision's diagnostics | eager-beaver ⚙️🦫 | medium | open | — |
 | | *The store keeps the last compile's answer and the catalog drops it, so a reloaded editor, a history view and a page explaining a broken library can say a revision failed but not what it said.* | | | | |
 | [`view-cannot-submit-a-form`](view-cannot-submit-a-form.md) | A run can look at the site but cannot submit one of its forms | determined-mountain-goat 💪🐐 | medium | open | — |
@@ -142,12 +148,6 @@ its reason, and that no item sits above something that blocks it.
 | | *Waits for a release: the alias has to have been out long enough that nothing in the store reports `PAGE009` before it is deleted.* | | | | |
 | [`message-does-not-survive-a-redirect`](message-does-not-survive-a-redirect.md) | A page cannot leave a message for a page it sends a visitor to | protective-dragon 🔥🐉 | high | [planned](../plans/page-inbox.md) | — |
 | | *Planned, but a plan is not urgency: nothing blocks it and no page stops working without it, so it waits below everything that does.* | | | | |
-| [`listing-does-not-date-itself`](listing-does-not-date-itself.md) | A listing cannot say the store moved under it | caffeinated-squirrel ☕🐿️ | medium | [planned](../plans/listing-fingerprint.md) | — |
-| | *The cursor answered where a walk is; this answers whether it is still the same walk, and the write paths are the price.* | | | | |
-| [`cannot-search-the-store`](cannot-search-the-store.md) | A page cannot search the store's source | caffeinated-squirrel ☕🐿️ | medium | blocked | `listing-does-not-date-itself` |
-| | *The IDE's find in files, now with the shell's own pattern language; it waits on the version token a cursor has to carry before a scan of a store that may move under it can be trusted.* | | | | |
-| [`tool-surface-is-one-shell`](tool-surface-is-one-shell.md) | The assistant's tool surface is one shell, one question and one memory | protective-dragon 🔥🐉 | high | blocked | `check-without-storing`, `cannot-search-the-store`, `a-page-cannot-list-folders` |
-| | *The shell already carries eleven of the twenty-two commands; making it POSIX, composable and the preferred surface leaves three tools and buys back the ceiling, and building it from the page capabilities names the three gaps in front of it.* | | | | |
 | [`ship-the-tested-image`](ship-the-tested-image.md) | A release does not ship the image the tests passed | persistent-salmon ⬆️🐟 | high | open | — |
 | | *The browser suite drives a source build while the deploy ships an image built later; this makes the promoted image the one the browser drove, and the host gate now keeps one.* | | | | |
 | [`formatter-cannot-align`](formatter-cannot-align.md) | The formatter cannot align a run of declarations, and deletes one aligned by hand | caffeinated-squirrel ☕🐿️ | low | parked | — |
