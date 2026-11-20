@@ -205,9 +205,11 @@ smallest changes come first because they are what every later slice is written a
    - **The assistant's `save_page`, `delete_page` and `move_page`** write one page per call by their own
      rule. A command that writes several is [`tool-surface-is-one-shell`](../backlog/tool-surface-is-one-shell.md)'s,
      which already names this item as the blocker it is waiting for.
-   - **`seed-auto-apply-at-startup`** applies a release's moved seeds at startup and would benefit, but
-     it is being built on `idea/seed-auto-apply-at-startup` now: whoever merges second should make that
-     apply one transaction, and this plan does not reach into that branch.
+   - **`seed-auto-apply-at-startup`** landed on trunk before this branch merged, and it applies a
+     release's moved seeds one at a time, reporting a failure and carrying on. Its whole point is that
+     one broken seed does not stop the rest, so it is a deliberate *not* here rather than a candidate:
+     making it one commit would turn a single bad seed into a host that starts with none of them
+     applied.
 
    The owner's stored pages — the IDE, `/ide-plan` — live in the site rather than in this repository, so
    they are a note rather than an edit: each one that writes several pages can now make it one commit.

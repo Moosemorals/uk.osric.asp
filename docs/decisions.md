@@ -1450,6 +1450,27 @@ only the caller knows whether the key is shipped.
 
 *Recorded in [seed provenance](plans/archive/seed-provenance.md), [pages](pages.md), [SeedComparison](../src/uk.osric.asp.Core/Pages/SeedComparison.cs), [SeedVerdictWords](../src/uk.osric.asp.Web/Pages/SeedVerdictWords.cs), [PageSeedSummary](../src/uk.osric.asp.Sdk/PageSeedSummary.cs).*
 
+### pages-startup-applies-the-release-seed
+
+A seed update that needs no decision is not left waiting for the owner to open the seed page. The host
+plans the pack on every start, after the create-seeder and before it listens, and writes the rows whose
+verdict is *release newer* — **H = R and S ≠ R**, the one row the seed gate marks `CanApply` and whose
+head exists — through the ordinary seed save, so the write compiles first, records the shipped hash as
+the anchor and appends a revision like any other install. Nothing is remembered between starts: after a
+write the row is in sync and the next start does nothing, so a marker would only add a way for the step
+to be skipped — and a store can leave the rule again with nobody watching, through a restore, an
+import or a page re-created while the host was down. A page put back on the seed it came from is
+*release newer* again and is written again, which is the record doing what it already says; an owner
+who wants to keep an older source edits the page, and *edited* is never automatic.
+
+Everything else keeps its tick: a key with no head is the create-seeder's, and a tombstone, an
+*edited* or *conflict* page, a differing *unknown* page and an adoptable row each replace or
+resurrect something the owner chose, or record a provenance the host cannot check. A command gets the
+create-seeder and none of this, because `seeds pull` exists to take the store's bytes into the working
+tree and this step would empty the row it was asked for first.
+
+*Recorded in [seed auto apply](plans/archive/seed-auto-apply-at-startup.md), [the shell](shell.md), [storage](storage.md), [PageSeedApplier](../src/uk.osric.asp.Web/Pages/PageSeedApplier.cs), [Program](../src/uk.osric.asp.Web/Program.cs).*
+
 ### pages-an-archive-carries-provenance
 
 An archive's format version 2 puts the page's anchor in its `Pages` table beside the source, so an

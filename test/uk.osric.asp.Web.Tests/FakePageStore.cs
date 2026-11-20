@@ -68,6 +68,11 @@ internal sealed class FakePageStore : IPageStore {
         }
     }
 
+    /// <summary>
+    /// Fails the write of one key, so a test can prove that a caller writing many rows carries on.
+    /// </summary>
+    public Func<PagePath, Exception?>? FailOnWrite { get; set; }
+
     public int ReadCount { get; private set; }
 
     public int WriteCount { get; private set; }
@@ -187,6 +192,10 @@ internal sealed class FakePageStore : IPageStore {
     public Task SavePageAsync(PageTemplate page, CancellationToken cancellationToken = default) {
         ArgumentNullException.ThrowIfNull(page);
         Check(cancellationToken);
+
+        if (FailOnWrite?.Invoke(page.Path) is { } failure) {
+            throw failure;
+        }
 
         WriteCount++;
         LastWritePath = page.Path;

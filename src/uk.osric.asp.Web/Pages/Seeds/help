@@ -67,11 +67,13 @@ confirms a move, <code>?edit=&lt;path&gt;&amp;cmd=delete</code> confirms a delet
     links to <code>/admin/scrub</code>, which asks you to type the page's key to confirm, and refuses
     a page that has not been deleted first.</li>
     <li><strong>Install from seed</strong> is offered only when the release has moved a seed and the
-    page still holds the seed it was installed from — the row says <em>release newer</em>. It opens
-    the same kind of confirmation as a restore and saves the bundled source as a new revision. A page
-    you have changed since its seed set it, or one whose seed the release moved as well, is shown
-    with the diff and no install: the row says why. A seed is installed; a saved revision is
-    restored.</li>
+    page still holds the seed it was installed from — the row says <em>release newer</em>. A page in
+    that state is normally updated by the site itself the next time it starts, with no click from you;
+    this action is for a page a start has not reached, or for one you want to write now. It opens the
+    same kind of confirmation as a restore and saves the bundled source as a new revision. A page you
+    have changed since its seed set it, or one whose seed the release moved as well, is shown with the
+    diff and no install: the row says why, and the site never touches it. A seed is installed; a saved
+    revision is restored.</li>
     <li><strong>Seeds</strong> on <a href="/admin/seeds">/admin/seeds</a> is the page for the pack this
     release ships. It lists every page with its verdict and a tick for each row that can be written;
     the safe rows start ticked, and the rows that could replace your own source &mdash; edited,

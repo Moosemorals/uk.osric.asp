@@ -110,8 +110,6 @@ its reason, and that no item sits above something that blocks it.
 
 | Slug | Title | Difficulty | Utility | Status | Blocked by |
 | --- | --- | --- | --- | --- | --- |
-| [`seed-auto-apply-at-startup`](seed-auto-apply-at-startup.md) | A release applies the seeds it moved at startup | eager-beaver ⚙️🦫 | high | [planned](../plans/seed-auto-apply-at-startup.md) | — |
-| | *The one automatic write the store already permits is the release-newer row; a deploy should finish it without the owner opening a page.* | | | | |
 | [`job-borrows-a-credential`](job-borrows-a-credential.md) | A job acts with its starter's credential, and loses it when that credential dies | persistent-salmon ⬆️🐟 | high | open | — |
 | | *The page transaction it waited on has landed, so a job can be offered a writer; what is left is carrying the starter's credential into the run and revoking it when the credential dies.* | | | | |
 | [`cannot-search-the-store`](cannot-search-the-store.md) | A page cannot search the store's source | eager-beaver ⚙️🦫 | medium | [planned](../plans/ide-host.md) | — |
