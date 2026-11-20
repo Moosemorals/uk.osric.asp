@@ -49,7 +49,7 @@ internal sealed class PageFetcher(
 
         PagePath path = PagePath.Normalize(pagePath);
         long start = Stopwatch.GetTimestamp();
-        if (!TryResolveCredential(request, path, out PageCredential? credential)) {
+        if (!TryResolveCredential(request, path, out FetchCredential? credential)) {
             return new EmptyHttpFetchStream(HttpFetchFailure.InvalidRequest, stream =>
                 metrics.RecordFetch(path, OutcomeOf(stream), Stopwatch.GetElapsedTime(start)));
         }
@@ -69,14 +69,14 @@ internal sealed class PageFetcher(
         PagePath path,
         CancellationToken aborted,
         CancellationToken deadline) {
-        if (!TryResolveCredential(request, path, out PageCredential? credential)) {
+        if (!TryResolveCredential(request, path, out FetchCredential? credential)) {
             return Empty(HttpFetchFailure.InvalidRequest);
         }
 
         return await fetcher.FetchAsync(request, path.Key, OutboundOrigin.Page, credential, aborted, deadline);
     }
 
-    private bool TryResolveCredential(HttpFetchRequest request, PagePath path, out PageCredential? credential) {
+    private bool TryResolveCredential(HttpFetchRequest request, PagePath path, out FetchCredential? credential) {
         credential = null;
         if (request.Credential is null) {
             return true;

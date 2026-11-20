@@ -13,7 +13,7 @@ using uk.osric.asp.Web.Authentication;
 /// because a token minted for <c>127.0.0.1:8080</c> has no business reaching <c>127.0.0.1:9090</c>.
 /// </para>
 /// <para>
-/// A class rather than a record, for the reason <see cref="PageCredential"/> is one: the generated
+/// A class rather than a record, for the reason <see cref="FetchCredential"/> is one: the generated
 /// <c>ToString</c> would print the secret, and this type finds its way into log scopes.
 /// </para>
 /// </remarks>
