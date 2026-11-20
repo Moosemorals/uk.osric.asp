@@ -737,11 +737,14 @@ the revision is still stored, and the next request serves it.</p>
 <a href="/admin/reference/sdk#t-IPageTransaction"><code>IPageTransaction</code></a> with the same write
 members, and <code>CommitAsync()</code> writes them in one transaction or none of them. It is what a
 Save all, a multi-file edit and a folder rename use: stage the writes, then commit once.</p>
-<pre class="source" tabindex="0"><code>&lt;% await using IPageTransaction batch = ctx.Capabilities.GetRequired&lt;IPageWrites&gt;()
-        .BeginTransaction();
-   _ = await batch.SaveAsync("/blog/one", first, firstHash);
-   _ = await batch.SaveAsync("/blog/two", second, secondHash);
+<pre class="source" tabindex="0"><code>&lt;% IPageWrites writes = ctx.Capabilities.GetRequired&lt;IPageWrites&gt;();
+   await using IPageTransaction batch = writes.BeginTransaction();
+   _ = await writes.SaveAsync("/blog/one", first, firstHash);
+   _ = await writes.SaveAsync("/blog/two", second, secondHash);
    var report = await batch.CommitAsync(); %&gt;</code></pre>
+<p>The writes are the ones you already know: <code>BeginTransaction</code> opens the unit and every
+<code>IPageWrites</code> call made while it is open joins it — there is no second set of members to
+learn. Each of those calls answers <em>Staged</em>, and <code>CommitAsync</code> answers the report.</p>
 <p>A staged call compiles and answers a
 <a href="/admin/reference/sdk#t-PageWriteResult"><code>PageWriteResult</code></a> — the key, the
 operation, the outcome, the hash and the diagnostics — and the outcome is <em>Staged</em> until the

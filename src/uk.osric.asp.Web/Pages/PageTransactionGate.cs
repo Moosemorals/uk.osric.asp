@@ -3,37 +3,38 @@
 
 namespace uk.osric.asp.Web.Pages;
 
-/// <summary>The outermost transaction a render has open, shared by its content layer and every embedded layer.</summary>
+/// <summary>The transaction a render's writes join, shared by its content layer and every embedded layer.</summary>
 /// <remarks>
-/// A render has one outer transaction at a time, and a layer may open a transaction inside it: the
-/// nested one merges its writes into this one, so they land with it or not at all. The gate is shared
-/// rather than per layer because an embedded page is another layer of the same render, and its
-/// transaction must be part of the page's rather than a second transaction writing underneath it.
+/// A write joins the innermost transaction that is open, so a nested transaction owns the writes made
+/// while it is open — which is what makes its rollback take only those — and committing it merges them
+/// into the one it nests inside. The gate is shared rather than per layer because an embedded page is
+/// another layer of the same render: its writes belong to the page's unit, not to a second one writing
+/// alongside it.
 /// </remarks>
 internal sealed class PageTransactionGate {
 
-    private PageTransactionScope? _root;
+    private PageWriteTransaction? _current;
 
-    /// <summary>The outermost transaction, or <see langword="null"/> when the render has none open.</summary>
-    public PageTransactionScope? Root => Volatile.Read(ref _root);
+    /// <summary>The innermost transaction that is open, or <see langword="null"/> when none is.</summary>
+    public PageWriteTransaction? Current => Volatile.Read(ref _current);
 
-    /// <summary>Records the transaction a later one nests inside.</summary>
-    /// <param name="root">The outermost transaction.</param>
-    public void Open(PageTransactionScope root) {
-        ArgumentNullException.ThrowIfNull(root);
+    /// <summary>Makes a transaction the one later writes join.</summary>
+    /// <param name="transaction">The transaction that has just opened.</param>
+    public void Open(PageWriteTransaction transaction) {
+        ArgumentNullException.ThrowIfNull(transaction);
 
-        Volatile.Write(ref _root, root);
+        Volatile.Write(ref _current, transaction);
     }
 
-    /// <summary>Forgets the outermost transaction once it is committed or disposed.</summary>
-    /// <param name="root">The transaction that is closing.</param>
-    public void Close(PageTransactionScope root) {
-        ArgumentNullException.ThrowIfNull(root);
+    /// <summary>Puts the transaction a closing one nests inside back in charge.</summary>
+    /// <param name="transaction">The transaction that is closing.</param>
+    public void Close(PageWriteTransaction transaction) {
+        ArgumentNullException.ThrowIfNull(transaction);
 
-        // Only the transaction that opened the render's transaction closes it: a nested one that is
-        // disposed must leave the outer one exactly as it was.
-        if (ReferenceEquals(Root, root)) {
-            Volatile.Write(ref _root, null);
+        // Only the innermost one closing matters: an outer transaction that is disposed while a nested
+        // one is open leaves the nested one exactly as it was.
+        if (ReferenceEquals(Current, transaction)) {
+            Volatile.Write(ref _current, transaction.Parent);
         }
     }
 }

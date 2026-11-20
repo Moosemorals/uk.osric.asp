@@ -23,9 +23,11 @@ using uk.osric.asp.Web.Editor;
 /// </para>
 /// <para>
 /// Every member here is a transaction of one, and <see cref="BeginTransaction"/> is several writes that
-/// become the store's state together. A save is conditional on the head hash the form carried when it
-/// names a key, and a write that has begun is not abandoned: the render's deadline bounds the wait for
-/// a compile slot, not the author's edit (`pages-a-page-may-save-itself`).
+/// become the store's state together — a write made while that transaction is open joins it, so the
+/// members are not repeated on <see cref="IPageTransaction"/>. A save is conditional on the head hash
+/// the form carried when it names a key, and a write that has begun is not abandoned: the render's
+/// deadline bounds the wait for a compile slot, not the author's edit
+/// (`pages-a-page-may-save-itself`).
 /// </para>
 /// </remarks>
 internal sealed class PageWritesScope(
@@ -41,16 +43,17 @@ internal sealed class PageWritesScope(
     public IPageTransaction BeginTransaction() {
         ThrowIfCannotWrite();
 
-        // A transaction opened while one is already open nests inside it: its writes become the outer
-        // one's and land when it commits. That is what an embedded
-        // page's transaction is, and it is why nothing here is refused.
-        PageTransactionScope? root = gate.Root;
+        return Open();
+    }
 
-        PageTransactionScope transaction = new(path, pages, reserved, seeds, gate, Deadline, root);
-        transaction.AttachDeadline(Deadline);
-        if (root is null) {
-            gate.Open(transaction);
-        }
+    // A transaction opened while one is already open nests inside it: its writes become the outer
+    // one's and land when it commits. That is what an embedded page's transaction is, and it is why
+    // nothing here is refused.
+    private PageWriteTransaction Open() {
+        // Whatever is open now becomes the parent, and this one is what later writes join until it
+        // closes — which is what lets a nested transaction own the writes made while it is open.
+        PageWriteTransaction transaction = new(pages, seeds, gate, gate.Current, Deadline);
+        gate.Open(transaction);
 
         return transaction;
     }
@@ -85,36 +88,47 @@ internal sealed class PageWritesScope(
     public async Task<PageSaveResult> SaveAsync(string template) {
         ArgumentNullException.ThrowIfNull(template);
 
-        PageWriteResult row = await OneAsync(transaction => transaction.SaveAsync(template));
+        PageWriteResult row = await OneAsync(transaction => transaction.SaveOwnAsync(path, template));
 
-        return new PageSaveResult(row.Hash ?? string.Empty, row.Diagnostics);
+        return new PageSaveResult(row.Hash ?? string.Empty, row.Diagnostics, EditOutcome(row.Outcome));
     }
 
     /// <inheritdoc/>
     public async Task<PageEditResult> SaveAsync(string key, string template, string? expectedHash) {
         ArgumentNullException.ThrowIfNull(template);
 
-        PageWriteResult row = await OneAsync(transaction => transaction.SaveAsync(key, template, expectedHash));
+        PagePath target = ResolveForWrite(key);
+        PageWriteResult row = await OneAsync(transaction => transaction.SaveAsync(target, template, expectedHash));
 
         return new PageEditResult(EditOutcome(row.Outcome), row.Hash, row.Diagnostics);
     }
 
     /// <inheritdoc/>
     public async Task<PageDeleteResult> DeleteAsync(string key) {
-        ThrowIfCannotWrite();
-
         PagePath target = ResolveForWrite(key);
+
         PageHeadSummary? head = await pages.GetHeadAsync(target, Deadline);
         bool wasLive = head is { IsDeleted: false };
+        PageWriteResult row = await OneAsync(transaction => transaction.DeleteAsync(target));
 
-        PageWriteResult row = await OneAsync(transaction => transaction.DeleteAsync(key));
-
-        return new PageDeleteResult(DeleteOutcome(row.Outcome), wasLive);
+        // A delete that tombstoned the page found it live, whether that was in the store or in a write
+        // this transaction made earlier.
+        return new PageDeleteResult(DeleteOutcome(row.Outcome), wasLive || row.Outcome == PageWriteOutcome.Deleted);
     }
 
     /// <inheritdoc/>
     public async Task<PageMoveResult> MoveAsync(string from, string to, string expectedHash) {
-        PageWriteResult row = await OneAsync(transaction => transaction.MoveAsync(from, to, expectedHash));
+        ArgumentException.ThrowIfNullOrWhiteSpace(expectedHash);
+
+        PagePath source = ResolveForWrite(from);
+        PagePath target = ResolveForWrite(to);
+
+        if (string.Equals(source.Key, path.Key, StringComparison.Ordinal)) {
+            throw new InvalidOperationException(
+                $"{path.Key} cannot move itself: the rest of this render answers for that key, and the response in hand is the page as it was.");
+        }
+
+        PageWriteResult row = await OneAsync(transaction => transaction.MoveAsync(source, target, expectedHash));
 
         return new PageMoveResult(MoveOutcome(row.Outcome), row.Hash, row.Below ?? []);
     }
@@ -123,7 +137,8 @@ internal sealed class PageWritesScope(
     public async Task<PageEditResult?> RestoreRevisionAsync(string key, string hash, string? expectedHash) {
         ArgumentException.ThrowIfNullOrWhiteSpace(hash);
 
-        PageWriteResult row = await OneAsync(transaction => transaction.RestoreRevisionAsync(key, hash, expectedHash));
+        PagePath target = ResolveForWrite(key);
+        PageWriteResult row = await OneAsync(transaction => transaction.RestoreAsync(target, hash, expectedHash));
 
         return row.Outcome == PageWriteOutcome.Missing
             ? null
@@ -132,7 +147,8 @@ internal sealed class PageWritesScope(
 
     /// <inheritdoc/>
     public async Task<PageEditResult?> AdoptSeedAsync(string key) {
-        PageWriteResult row = await OneAsync(transaction => transaction.AdoptSeedAsync(key));
+        PagePath target = ResolveForWrite(key);
+        PageWriteResult row = await OneAsync(transaction => transaction.AdoptAsync(target));
 
         return row.Outcome == PageWriteOutcome.Missing
             ? null
@@ -141,25 +157,34 @@ internal sealed class PageWritesScope(
 
     /// <inheritdoc/>
     public async Task<PageEditResult?> InstallSeedAsync(string key, string? expectedHash) {
-        PageWriteResult row = await OneAsync(transaction => transaction.InstallSeedAsync(key, expectedHash));
+        PagePath target = ResolveForWrite(key);
+        PageWriteResult row = await OneAsync(transaction => transaction.InstallAsync(target, expectedHash));
 
         return row.Outcome == PageWriteOutcome.Missing
             ? null
             : new PageEditResult(EditOutcome(row.Outcome), row.Hash, row.Diagnostics);
     }
 
-    /// <summary>Makes one write as a transaction of one, so every write has one path.</summary>
+    /// <summary>Makes one write, in the transaction this render has open or in one of its own.</summary>
     /// <remarks>
-    /// A lone write joins the transaction this render already has open, because an embedded page's
-    /// write must be rolled back by the page's abort rather than surviving it. Its answer then says
-    /// Staged rather than Saved: nothing is stored until the page commits.
+    /// A lone write joins the transaction the render already has open, because an embedded page's write
+    /// must be rolled back by the page's abort rather than surviving it. Its answer then says Staged
+    /// rather than Saved: nothing is stored until the page commits.
     /// </remarks>
-    private async Task<PageWriteResult> OneAsync(Func<IPageTransaction, Task<PageWriteResult>> stage) {
-        await using IPageTransaction transaction = BeginTransaction();
-        _ = await stage(transaction);
-        IReadOnlyList<PageWriteResult> report = await transaction.CommitAsync();
+    private async Task<PageWriteResult> OneAsync(Func<PageWriteTransaction, Task<PageWriteResult>> stage) {
+        ThrowIfCannotWrite();
 
-        return report[0];
+        if (gate.Current is { } open) {
+            return await stage(open);
+        }
+
+        PageWriteTransaction own = Open();
+        await using (own) {
+            _ = await stage(own);
+            IReadOnlyList<PageWriteResult> report = await own.CommitAsync();
+
+            return report[^1];
+        }
     }
 
     private static PageEditOutcome EditOutcome(PageWriteOutcome outcome) => outcome switch {

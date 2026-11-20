@@ -170,9 +170,9 @@ public sealed class PageWritesScopeTests {
         using PageHarness pages = new(storage);
         PageWritesScope scope = Scope(pages);
 
-        await using (IPageTransaction transaction = scope.BeginTransaction()) {
-            _ = await transaction.SaveAsync("/page", "staged", null);
-            _ = await transaction.SaveAsync("/other", "also staged", null);
+        await using (scope.BeginTransaction()) {
+            _ = await scope.SaveAsync("/page", "staged", null);
+            _ = await scope.SaveAsync("/other", "also staged", null);
         }
 
         Assert.Multiple(() => {
@@ -189,8 +189,8 @@ public sealed class PageWritesScopeTests {
         PageWritesScope scope = Scope(pages);
 
         await using IPageTransaction transaction = scope.BeginTransaction();
-        _ = await transaction.SaveAsync("/page", "first", null);
-        _ = await transaction.SaveAsync("/other", "second", null);
+        _ = await scope.SaveAsync("/page", "first", null);
+        _ = await scope.SaveAsync("/other", "second", null);
         IReadOnlyList<PageWriteResult> report = await transaction.CommitAsync();
 
         Assert.Multiple(() => {
@@ -211,8 +211,8 @@ public sealed class PageWritesScopeTests {
         PageWritesScope scope = Scope(pages);
 
         await using IPageTransaction transaction = scope.BeginTransaction();
-        _ = await transaction.SaveAsync("/other", "second", null);
-        _ = await transaction.SaveAsync("/page", "third", head);
+        _ = await scope.SaveAsync("/other", "second", null);
+        _ = await scope.SaveAsync("/page", "third", head);
         IReadOnlyList<PageWriteResult> report = await transaction.CommitAsync();
 
         Assert.Multiple(() => {
@@ -230,9 +230,9 @@ public sealed class PageWritesScopeTests {
         PageWritesScope scope = Scope(pages);
 
         await using IPageTransaction transaction = scope.BeginTransaction();
-        PageWriteResult created = await transaction.SaveAsync("/a", "first", null);
-        PageWriteResult moved = await transaction.MoveAsync("/a", "/b", created.Hash!);
-        PageWriteResult deleted = await transaction.DeleteAsync("/b");
+        PageEditResult created = await scope.SaveAsync("/a", "first", null);
+        PageMoveResult moved = await scope.MoveAsync("/a", "/b", created.Hash!);
+        PageDeleteResult deleted = await scope.DeleteAsync("/b");
         IReadOnlyList<PageWriteResult> report = await transaction.CommitAsync();
 
         Assert.Multiple(() => {
@@ -252,8 +252,8 @@ public sealed class PageWritesScopeTests {
         PageWritesScope scope = Scope(pages);
 
         await using IPageTransaction transaction = scope.BeginTransaction();
-        PageWriteResult first = await transaction.SaveAsync("/page", "first", null);
-        PageWriteResult second = await transaction.SaveAsync("/page", "second", first.Hash);
+        PageEditResult first = await scope.SaveAsync("/page", "first", null);
+        PageEditResult second = await scope.SaveAsync("/page", "second", first.Hash);
         IReadOnlyList<PageWriteResult> report = await transaction.CommitAsync();
 
         Assert.Multiple(() => {
@@ -269,9 +269,9 @@ public sealed class PageWritesScopeTests {
         PageWritesScope scope = Scope(pages);
 
         await using IPageTransaction transaction = scope.BeginTransaction();
-        _ = await transaction.SaveAsync("/one", "first", null);
-        _ = await transaction.SaveAsync("/two", "second", null);
-        _ = await transaction.SaveAsync("/one", "third", "a-hash-from-before-the-transaction");
+        _ = await scope.SaveAsync("/one", "first", null);
+        _ = await scope.SaveAsync("/two", "second", null);
+        _ = await scope.SaveAsync("/one", "third", "a-hash-from-before-the-transaction");
         IReadOnlyList<PageWriteResult> report = await transaction.CommitAsync();
 
         Assert.Multiple(() => {
@@ -290,7 +290,7 @@ public sealed class PageWritesScopeTests {
         PageWritesScope scope = Scope(pages);
 
         await using (IPageTransaction held = scope.BeginTransaction()) {
-            _ = await held.SaveAsync("/batched", "batched", null);
+            _ = await scope.SaveAsync("/batched", "batched", null);
             PageEditResult lone = await scope.SaveAsync("/lone", "lone", null);
 
             Assert.Multiple(() => {
@@ -327,7 +327,7 @@ public sealed class PageWritesScopeTests {
         PageWritesScope scope = Scope(pages);
 
         await using IPageTransaction transaction = scope.BeginTransaction();
-        _ = await transaction.SaveAsync("/page", "first", null);
+        _ = await scope.SaveAsync("/page", "first", null);
         IReadOnlyList<PageWriteResult> report = await transaction.RollbackAsync();
 
         Assert.Multiple(() => {
@@ -343,10 +343,10 @@ public sealed class PageWritesScopeTests {
         PageWritesScope scope = Scope(pages);
 
         await using IPageTransaction outer = scope.BeginTransaction();
-        _ = await outer.SaveAsync("/outer", "outer", null);
+        _ = await scope.SaveAsync("/outer", "outer", null);
 
         await using (IPageTransaction inner = scope.BeginTransaction()) {
-            _ = await inner.SaveAsync("/inner", "inner", null);
+            _ = await scope.SaveAsync("/inner", "inner", null);
             _ = await inner.RollbackAsync();
         }
 
@@ -365,10 +365,10 @@ public sealed class PageWritesScopeTests {
         PageWritesScope scope = Scope(pages);
 
         await using IPageTransaction outer = scope.BeginTransaction();
-        _ = await outer.SaveAsync("/outer", "outer", null);
+        _ = await scope.SaveAsync("/outer", "outer", null);
 
         await using (IPageTransaction inner = scope.BeginTransaction()) {
-            _ = await inner.SaveAsync("/inner", "inner", null);
+            _ = await scope.SaveAsync("/inner", "inner", null);
             IReadOnlyList<PageWriteResult> nested = await inner.CommitAsync();
 
             Assert.Multiple(() => {
@@ -395,10 +395,10 @@ public sealed class PageWritesScopeTests {
         PageWritesScope scope = Scope(pages);
 
         await using (IPageTransaction outer = scope.BeginTransaction()) {
-            _ = await outer.SaveAsync("/outer", "outer", null);
+            _ = await scope.SaveAsync("/outer", "outer", null);
 
             await using (IPageTransaction inner = scope.BeginTransaction()) {
-                _ = await inner.SaveAsync("/inner", "inner", null);
+                _ = await scope.SaveAsync("/inner", "inner", null);
                 _ = await inner.CommitAsync();
             }
         }
@@ -946,8 +946,8 @@ public sealed class PageWritesScopeTests {
         PageWritesScope scope = Scope(pages);
 
         await using IPageTransaction transaction = scope.BeginTransaction();
-        _ = await transaction.MoveAsync("/page", "/moved", first.Revision.Hash);
-        _ = await transaction.SaveAsync("/other", "text", null);
+        _ = await scope.MoveAsync("/page", "/moved", first.Revision.Hash);
+        _ = await scope.SaveAsync("/other", "text", null);
         IReadOnlyList<PageWriteResult> report = await transaction.CommitAsync();
 
         Assert.Multiple(() => {

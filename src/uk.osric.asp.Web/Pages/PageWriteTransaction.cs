@@ -11,23 +11,21 @@ using uk.osric.asp.Web.Editor;
 using PageDiagnostic = uk.osric.asp.Sdk.PageDiagnostic;
 using PageKind = uk.osric.asp.Core.Pages.PageKind;
 
-/// <summary>The capability's transaction: writes staged against the render, committed once.</summary>
+/// <summary>One render's transaction: the writes staged in it, and its one commit.</summary>
 /// <remarks>
 /// <para>
-/// Staging resolves keys, reads what a write needs to decide and compiles a save, and never writes:
-/// the store is touched at <see cref="CommitAsync"/>, where every condition is proved again before
-/// anything is stored. That is what lets a page hold several writes without holding the store's
-/// writer, which a compile inside a transaction would keep for the length of a compile slot.
+/// A page opens it with <see cref="IPageWrites.BeginTransaction"/> and writes with the members it
+/// already knows — a write made while this is open joins it here rather than keeping a second spelling
+/// of every member. Staging resolves the key, reads what the write needs to decide and compiles a save,
+/// and never writes: the store is touched at <see cref="CommitAsync"/>, which is what lets a page hold
+/// several writes without holding the store's writer for the length of a compile slot.
 /// </para>
 /// <para>
-/// A refusal is the report's answer, not an exception: nothing is written and the rows say what each
-/// operation saw. Page bugs — a reserved key, a key that is not addressable, a library moved — throw
-/// while staging, before anything is at risk.
-/// </para>
-/// <para>
-/// Staging order is application order, and each operation is proved against what the ones before it
-/// wrote: create a page, move it and delete it, and all three succeed. Two writes to one key are
-/// therefore a sequence rather than a conflict, and the second one sees the first one's result.
+/// The commit applies the operations in the order they were staged, each proved against what the ones
+/// before it wrote: create a page, move it and delete it, and all three succeed. A refusal is the
+/// report's answer, not an exception: nothing is stored, and the rows say what each operation became.
+/// Page bugs — a reserved key, a key that is not addressable, a library moved — throw while staging,
+/// before anything is at risk.
 /// </para>
 /// <para>
 /// A staged save reads the libraries staged before it as well as the store's, in the order the page
@@ -36,13 +34,13 @@ using PageKind = uk.osric.asp.Core.Pages.PageKind;
 /// transaction is.
 /// </para>
 /// </remarks>
-internal sealed class PageTransactionScope : RenderBoundCapability, IPageTransaction {
+internal sealed class PageWriteTransaction(
+    PageEditor pages,
+    PageSeeds seeds,
+    PageTransactionGate gate,
+    PageWriteTransaction? root,
+    CancellationToken deadline) : IPageTransaction {
 
-    private readonly PagePath _path;
-    private readonly PageEditor _pages;
-    private readonly ReservedPaths _reserved;
-    private readonly PageSeeds _seeds;
-    private readonly PageTransactionGate? _gate;
     private readonly List<PageWriteResult> _rows = [];
     private readonly List<PageCommit> _operations = [];
     private readonly List<int> _rowOfOperation = [];
@@ -50,72 +48,28 @@ internal sealed class PageTransactionScope : RenderBoundCapability, IPageTransac
     private Exception? _fault;
     private bool _committed;
 
-    private readonly PageTransactionScope? _root;
+    /// <summary>The transaction this one nests inside, or <see langword="null"/> when it is the outermost.</summary>
+    internal PageWriteTransaction? Parent => root;
 
-    /// <summary>Opens a transaction for one render.</summary>
-    /// <param name="path">The page whose render opened it.</param>
-    /// <param name="pages">The store's write capability, for compiling and committing.</param>
-    /// <param name="reserved">The shell's route table, which no page may write.</param>
-    /// <param name="seeds">The pages this release ships, for an install or an adopt.</param>
-    /// <param name="gate">
-    /// The render's transaction gate, which this transaction registers with, or <see langword="null"/>
-    /// when it is a lone write's own transaction and no render transaction can see it.
-    /// </param>
-    /// <param name="deadline">The render's deadline, which bounds a compile slot and nothing else.</param>
-    /// <param name="root">
-    /// The transaction this one nests inside, or <see langword="null"/> when it is the render's
-    /// outermost. A nested transaction merges its writes into the root when it commits, so they land
-    /// with the root or not at all.
-    /// </param>
-    public PageTransactionScope(
-        PagePath path,
-        PageEditor pages,
-        ReservedPaths reserved,
-        PageSeeds seeds,
-        PageTransactionGate? gate,
-        CancellationToken deadline,
-        PageTransactionScope? root = null) {
-        _path = path;
-        _pages = pages;
-        _reserved = reserved;
-        _seeds = seeds;
-        _gate = gate;
-        _root = root;
-        AttachDeadline(deadline);
-    }
+    /// <summary>Stages this page's own source, bound to the layer's key.</summary>
+    /// <param name="path">The key of the page that is saving itself.</param>
+    /// <param name="template">The template text.</param>
+    public Task<PageWriteResult> SaveOwnAsync(PagePath path, string template) =>
+        StageSaveAsync(path, template, null, null, PageWriteOperation.Save, PageCommitKind.Put);
 
-    /// <inheritdoc/>
-    public async Task<PageWriteResult> SaveAsync(string template) {
-        ArgumentNullException.ThrowIfNull(template);
+    /// <summary>Stages a page, only while its head still has the expected revision.</summary>
+    /// <param name="target">The key to save.</param>
+    /// <param name="template">The template text.</param>
+    /// <param name="expectedHash">The head hash the form was rendered from, or <see langword="null"/> for a create.</param>
+    public Task<PageWriteResult> SaveAsync(PagePath target, string template, string? expectedHash) =>
+        StageSaveAsync(target, template, expectedHash, null, PageWriteOperation.Edit);
+
+    /// <summary>Stages a move of a page, its history and its state.</summary>
+    /// <param name="source">The key the page has.</param>
+    /// <param name="target">The key it should have.</param>
+    /// <param name="expectedHash">The head the caller read.</param>
+    public Task<PageWriteResult> MoveAsync(PagePath source, PagePath target, string expectedHash) {
         ThrowIfCommitted();
-
-        return await StageSaveAsync(_path, template, null, null, PageWriteOperation.Save, PageCommitKind.Put);
-    }
-
-    /// <inheritdoc/>
-    public async Task<PageWriteResult> SaveAsync(string key, string template, string? expectedHash) {
-        ArgumentNullException.ThrowIfNull(template);
-        ThrowIfCommitted();
-
-        PagePath target = ResolveForWrite(key);
-
-        return await StageSaveAsync(target, template, expectedHash, null, PageWriteOperation.Edit);
-    }
-
-    /// <inheritdoc/>
-    public Task<PageWriteResult> MoveAsync(string from, string to, string expectedHash) {
-        ArgumentException.ThrowIfNullOrWhiteSpace(from);
-        ArgumentException.ThrowIfNullOrWhiteSpace(to);
-        ArgumentException.ThrowIfNullOrWhiteSpace(expectedHash);
-        ThrowIfCommitted();
-
-        PagePath source = ResolveForWrite(from);
-        PagePath target = ResolveForWrite(to);
-
-        if (string.Equals(source.Key, _path.Key, StringComparison.Ordinal)) {
-            throw new InvalidOperationException(
-                $"{_path.Key} cannot move itself: the rest of this render answers for that key, and the response in hand is the page as it was.");
-        }
 
         if (string.Equals(source.Key, target.Key, StringComparison.Ordinal)) {
             return Task.FromResult(Remember(target, PageWriteOperation.Move, PageWriteOutcome.Unchanged, null, []));
@@ -125,27 +79,27 @@ internal sealed class PageTransactionScope : RenderBoundCapability, IPageTransac
             target, PageWriteOperation.Move, null, []));
     }
 
-    /// <inheritdoc/>
-    public Task<PageWriteResult> DeleteAsync(string key) {
+    /// <summary>Stages a tombstone for a page, keeping its history.</summary>
+    /// <param name="target">The key to tombstone.</param>
+    public Task<PageWriteResult> DeleteAsync(PagePath target) {
         ThrowIfCommitted();
-
-        PagePath target = ResolveForWrite(key);
 
         return Task.FromResult(Stage(new PageCommit(PageCommitKind.Delete, target), target, PageWriteOperation.Delete, null, []));
     }
 
-    /// <inheritdoc/>
-    public async Task<PageWriteResult> RestoreRevisionAsync(string key, string hash, string? expectedHash) {
-        ArgumentException.ThrowIfNullOrWhiteSpace(hash);
+    /// <summary>Stages a retained revision's source as a new revision.</summary>
+    /// <param name="target">The page's key.</param>
+    /// <param name="hash">The retained revision's hash.</param>
+    /// <param name="expectedHash">The live head the form was rendered from, or null for a tombstone.</param>
+    public async Task<PageWriteResult> RestoreAsync(PagePath target, string hash, string? expectedHash) {
         ThrowIfCommitted();
 
-        PagePath target = ResolveForWrite(key);
-        PageRevisionTemplate? revision = await _pages.GetRevisionAsync(target, hash, Deadline);
+        PageRevisionTemplate? revision = await pages.GetRevisionAsync(target, hash, deadline);
         if (revision is null) {
             return Remember(target, PageWriteOperation.Restore, PageWriteOutcome.Missing, null, []);
         }
 
-        PageTemplate? live = await _pages.GetAsync(target, Deadline);
+        PageTemplate? live = await pages.GetAsync(target, deadline);
         if (PageSourceChange.IsNoOp(live?.Template, revision.Template)) {
             return Remember(target, PageWriteOperation.Restore, PageWriteOutcome.Unchanged, live?.Hash, []);
         }
@@ -153,17 +107,17 @@ internal sealed class PageTransactionScope : RenderBoundCapability, IPageTransac
         return await StageSaveAsync(target, revision.Template, live is null ? null : expectedHash, null, PageWriteOperation.Restore);
     }
 
-    /// <inheritdoc/>
-    public async Task<PageWriteResult> AdoptSeedAsync(string key) {
+    /// <summary>Stages recording a seed as installed without storing a revision.</summary>
+    /// <param name="target">The page's key.</param>
+    public async Task<PageWriteResult> AdoptAsync(PagePath target) {
         ThrowIfCommitted();
 
-        PagePath target = ResolveForWrite(key);
-        SeedFile? seed = _seeds.Find(target);
+        SeedFile? seed = seeds.Find(target);
         if (seed is null) {
             return Remember(target, PageWriteOperation.Adopt, PageWriteOutcome.Missing, null, []);
         }
 
-        PageHeadSummary? head = await _pages.GetHeadAsync(target, Deadline);
+        PageHeadSummary? head = await pages.GetHeadAsync(target, deadline);
         SeedComparison comparison = SeedComparison.Of(head?.SeedHash, seed.Hash, head?.ContentHash);
 
         if (head is null || head.IsDeleted) {
@@ -172,7 +126,7 @@ internal sealed class PageTransactionScope : RenderBoundCapability, IPageTransac
         }
 
         if (string.Equals(head.SeedHash, seed.Hash, StringComparison.Ordinal)) {
-            PageTemplate? already = await _pages.GetAsync(target, Deadline);
+            PageTemplate? already = await pages.GetAsync(target, deadline);
             return Remember(target, PageWriteOperation.Adopt, PageWriteOutcome.Unchanged, already?.Hash, []);
         }
 
@@ -185,21 +139,22 @@ internal sealed class PageTransactionScope : RenderBoundCapability, IPageTransac
             target, PageWriteOperation.Adopt, null, []);
     }
 
-    /// <inheritdoc/>
-    public async Task<PageWriteResult> InstallSeedAsync(string key, string? expectedHash) {
+    /// <summary>Stages a page the release ships with from its bundled source.</summary>
+    /// <param name="target">The page's key.</param>
+    /// <param name="expectedHash">The live head the form was rendered from, or null for a tombstone.</param>
+    public async Task<PageWriteResult> InstallAsync(PagePath target, string? expectedHash) {
         ThrowIfCommitted();
 
-        PagePath target = ResolveForWrite(key);
-        SeedFile? seed = _seeds.Find(target);
+        SeedFile? seed = seeds.Find(target);
         if (seed is null) {
             return Remember(target, PageWriteOperation.Install, PageWriteOutcome.Missing, null, []);
         }
 
-        PageHeadSummary? head = await _pages.GetHeadAsync(target, Deadline);
+        PageHeadSummary? head = await pages.GetHeadAsync(target, deadline);
         if (head is not null) {
             SeedComparison comparison = SeedComparison.Of(head.SeedHash, seed.Hash, head.ContentHash);
             if (comparison.Verdict == SeedVerdict.InSync) {
-                PageTemplate? already = await _pages.GetAsync(target, Deadline);
+                PageTemplate? already = await pages.GetAsync(target, deadline);
                 return Remember(target, PageWriteOperation.Install, PageWriteOutcome.Unchanged, already?.Hash, []);
             }
 
@@ -218,15 +173,15 @@ internal sealed class PageTransactionScope : RenderBoundCapability, IPageTransac
 
         _committed = true;
 
-        if (_root is not null) {
+        if (root is not null) {
             // A nested transaction does not touch the store: its writes become the outer one's, so
             // they land when it commits and vanish if it is disposed. Its own rows stay Staged,
             // because nothing is stored until the outermost commit says so.
-            _root.Absorb(this);
+            root.Absorb(this);
             return [.. _rows];
         }
 
-        _gate?.Close(this);
+        gate.Close(this);
 
         if (_operations.Count == 0) {
             return [.. _rows];
@@ -234,7 +189,7 @@ internal sealed class PageTransactionScope : RenderBoundCapability, IPageTransac
 
         // A write that has begun is never abandoned: the render's deadline bounds a compile slot,
         // not the author's edit (`pages-a-page-may-save-itself`).
-        IReadOnlyList<PageCommitAnswer> answers = await _pages.CommitAsync(_operations, CancellationToken.None);
+        IReadOnlyList<PageCommitAnswer> answers = await pages.CommitAsync(_operations, CancellationToken.None);
 
         for (int index = 0; index < answers.Count && index < _rowOfOperation.Count; index++) {
             int row = _rowOfOperation[index];
@@ -257,8 +212,8 @@ internal sealed class PageTransactionScope : RenderBoundCapability, IPageTransac
         ThrowIfCommitted();
 
         _committed = true;
-        if (_root is null) {
-            _gate?.Close(this);
+        if (root is null) {
+            gate.Close(this);
         }
 
         foreach (int row in _rowOfOperation) {
@@ -272,8 +227,8 @@ internal sealed class PageTransactionScope : RenderBoundCapability, IPageTransac
     public ValueTask DisposeAsync() {
         if (!_committed) {
             _committed = true;
-            if (_root is null) {
-                _gate?.Close(this);
+            if (root is null) {
+                gate.Close(this);
             }
         }
 
@@ -288,7 +243,7 @@ internal sealed class PageTransactionScope : RenderBoundCapability, IPageTransac
     /// transaction already has: a create, a move and a delete of the same page in one unit is a
     /// sequence, not a conflict.
     /// </remarks>
-    internal void Absorb(PageTransactionScope child) {
+    internal void Absorb(PageWriteTransaction child) {
         ArgumentNullException.ThrowIfNull(child);
 
         int offset = _rows.Count;
@@ -327,11 +282,13 @@ internal sealed class PageTransactionScope : RenderBoundCapability, IPageTransac
         string? seedHash,
         PageWriteOperation operation,
         PageCommitKind? unconditional = null) {
+        ThrowIfCommitted();
+
         // A staged save sees the libraries staged before it as well as the store's, in the order the
         // page made the calls: what it names is what it saw, and its closure says so.
         IReadOnlyList<PageLibrary> staged = [.. _stagedLibraries.Values];
-        StagedRevision built = await _pages.BuildAsync(
-            target, template, seedHash, staged, CancellationToken.None, Deadline);
+        StagedRevision built = await pages.BuildAsync(
+            target, template, seedHash, staged, CancellationToken.None, deadline);
 
         bool creates = string.IsNullOrWhiteSpace(expectedHash);
         PageCommit commit = new(
@@ -371,30 +328,5 @@ internal sealed class PageTransactionScope : RenderBoundCapability, IPageTransac
         if (_committed) {
             throw new InvalidOperationException("This transaction has been committed or disposed; nothing more can be staged on it.");
         }
-    }
-
-    private PagePath ResolveForWrite(string key) {
-        if (IsAbandoned) {
-            throw new InvalidOperationException($"The render of {_path.Key} was abandoned; it cannot edit a page.");
-        }
-
-        if (Deadline.IsCancellationRequested) {
-            throw new InvalidOperationException($"{_path.Key} has run out of time; it cannot edit a page.");
-        }
-
-        if (string.IsNullOrWhiteSpace(key)) {
-            throw new ArgumentException("A page key is required.", nameof(key));
-        }
-
-        PagePath target = PagePath.Normalize(key);
-        if (!target.IsAddressable) {
-            throw new ArgumentException("The page key is not addressable.", nameof(key));
-        }
-
-        if (_reserved.IsReserved(target)) {
-            throw new InvalidOperationException($"{target.Key} is a shell file; no page is stored there.");
-        }
-
-        return target;
     }
 }

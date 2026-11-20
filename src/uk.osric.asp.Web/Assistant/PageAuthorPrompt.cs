@@ -9,7 +9,7 @@ using uk.osric.asp.Web.Shell;
 
 /// <summary>The system prompt and worked examples that teach the model to write a page.</summary>
 internal static class PageAuthorPrompt {
-    public const string Version = "page-author-v52";
+    public const string Version = "page-author-v53";
 
     public static IReadOnlyList<(string Name, string Source)> Examples { get; } = [
         ("query-driven", """
@@ -429,12 +429,11 @@ internal static class PageAuthorPrompt {
         read and not the write.
 
         ## Several writes that land together
-        `BeginTransaction()` on `IPageWrites` answers an `IPageTransaction` with
-        the same write members, and `CommitAsync()` writes them in one store
-        transaction or none of them. Stage the writes, then commit once:
-        `SaveAsync`, `MoveAsync`, `DeleteAsync`, `RestoreRevisionAsync`,
-        `AdoptSeedAsync` and `InstallSeedAsync` on the transaction take the same
-        arguments as the ones on the capability. A staged call compiles and
+        `BeginTransaction()` on `IPageWrites` answers an `IPageTransaction`,
+        and every write you make through `IPageWrites` while it is open joins
+        it: there is no second set of members, so stage with the calls you
+        already use and then `CommitAsync()` writes them in one store
+        transaction or none of them. A staged call compiles and
         answers a `PageWriteResult` — the key, the operation, the outcome, the
         hash and the diagnostics — and the commit answers one row per operation
         in the order you staged them. Before the commit `Outcome` is `Staged`;

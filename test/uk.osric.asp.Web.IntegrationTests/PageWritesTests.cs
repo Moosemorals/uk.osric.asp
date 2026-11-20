@@ -15,9 +15,10 @@ public sealed class PageWritesTests : IntegrationTest {
         await SavePageAsync("/batch", """
             <% if (ctx.User is null) { ctx.Response.RedirectToLogin(); return; } %>
             <% if (ctx.Request.Method == "POST") {
-                   await using IPageTransaction batch = ctx.Capabilities.GetRequired<IPageWrites>().BeginTransaction();
-                   _ = await batch.SaveAsync("/one", "first", null);
-                   _ = await batch.SaveAsync("/two", "second", null);
+                   IPageWrites writes = ctx.Capabilities.GetRequired<IPageWrites>();
+                   await using IPageTransaction batch = writes.BeginTransaction();
+                   _ = await writes.SaveAsync("/one", "first", null);
+                   _ = await writes.SaveAsync("/two", "second", null);
                    var report = await batch.CommitAsync();
                    foreach (PageWriteResult row in report) {
                        ctx.Response.Write(row.Key + ":" + row.Outcome + " ");

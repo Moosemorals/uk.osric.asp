@@ -388,8 +388,9 @@ public sealed class PageCompositionTests {
             """);
         Store("/page", """
             <% if (ctx.User is not null) {
-                   await using IPageTransaction held = ctx.Capabilities.GetRequired<IPageWrites>().BeginTransaction();
-                   _ = await held.SaveAsync("/page-saved", "page", null);
+                   IPageWrites writes = ctx.Capabilities.GetRequired<IPageWrites>();
+                   await using IPageTransaction held = writes.BeginTransaction();
+                   _ = await writes.SaveAsync("/page-saved", "page", null);
                    _ = await ctx.Capabilities.GetRequired<IPageComposition>().EmbedAsync("/widget");
                } %>
             """);
@@ -407,8 +408,9 @@ public sealed class PageCompositionTests {
     public async Task AnEmbeddedWriteInsideThePagesTransactionLandsWithIt() {
         Store("/widget", """
             <% if (ctx.User is not null) {
-                   await using (IPageTransaction own = ctx.Capabilities.GetRequired<IPageWrites>().BeginTransaction()) {
-                       _ = await own.SaveAsync("/widget-saved", "text", null);
+                   IPageWrites writes = ctx.Capabilities.GetRequired<IPageWrites>();
+                   await using (IPageTransaction own = writes.BeginTransaction()) {
+                       _ = await writes.SaveAsync("/widget-saved", "text", null);
                        _ = await own.CommitAsync();
                    }
                    ctx.Response.Write("wrote");
@@ -416,8 +418,9 @@ public sealed class PageCompositionTests {
             """);
         Store("/page", """
             <% if (ctx.User is not null) {
-                   await using IPageTransaction held = ctx.Capabilities.GetRequired<IPageWrites>().BeginTransaction();
-                   _ = await held.SaveAsync("/page-saved", "page", null);
+                   IPageWrites writes = ctx.Capabilities.GetRequired<IPageWrites>();
+                   await using IPageTransaction held = writes.BeginTransaction();
+                   _ = await writes.SaveAsync("/page-saved", "page", null);
                    _ = await ctx.Capabilities.GetRequired<IPageComposition>().EmbedAsync("/widget");
                    _ = await held.CommitAsync();
                } %>
@@ -436,16 +439,18 @@ public sealed class PageCompositionTests {
     public async Task AnEmbeddedWriteIsLostWhenThePagesTransactionIsDisposed() {
         Store("/widget", """
             <% if (ctx.User is not null) {
-                   await using (IPageTransaction own = ctx.Capabilities.GetRequired<IPageWrites>().BeginTransaction()) {
-                       _ = await own.SaveAsync("/widget-saved", "text", null);
+                   IPageWrites writes = ctx.Capabilities.GetRequired<IPageWrites>();
+                   await using (IPageTransaction own = writes.BeginTransaction()) {
+                       _ = await writes.SaveAsync("/widget-saved", "text", null);
                        _ = await own.CommitAsync();
                    }
                } %>
             """);
         Store("/page", """
             <% if (ctx.User is not null) {
-                   await using IPageTransaction held = ctx.Capabilities.GetRequired<IPageWrites>().BeginTransaction();
-                   _ = await held.SaveAsync("/page-saved", "page", null);
+                   IPageWrites writes = ctx.Capabilities.GetRequired<IPageWrites>();
+                   await using IPageTransaction held = writes.BeginTransaction();
+                   _ = await writes.SaveAsync("/page-saved", "page", null);
                    _ = await ctx.Capabilities.GetRequired<IPageComposition>().EmbedAsync("/widget");
                } %>
             """);
@@ -468,8 +473,9 @@ public sealed class PageCompositionTests {
             """);
         Store("/page", """
             <% if (ctx.User is not null) {
-                   await using (IPageTransaction held = ctx.Capabilities.GetRequired<IPageWrites>().BeginTransaction()) {
-                       _ = await held.SaveAsync("/page-saved", "page", null);
+                   IPageWrites writes = ctx.Capabilities.GetRequired<IPageWrites>();
+                   await using (IPageTransaction held = writes.BeginTransaction()) {
+                       _ = await writes.SaveAsync("/page-saved", "page", null);
                        _ = await held.CommitAsync();
                    }
                    _ = await ctx.Capabilities.GetRequired<IPageComposition>().EmbedAsync("/widget");

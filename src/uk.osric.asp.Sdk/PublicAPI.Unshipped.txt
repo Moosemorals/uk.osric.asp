@@ -496,7 +496,6 @@ uk.osric.asp.Sdk.PageRevisionInfo.SavedAt.get -> System.DateTimeOffset
 uk.osric.asp.Sdk.PageRevisionInfo.SavedAt.init -> void
 uk.osric.asp.Sdk.PageSaveResult
 uk.osric.asp.Sdk.PageSaveResult.<Clone>$() -> uk.osric.asp.Sdk.PageSaveResult!
-uk.osric.asp.Sdk.PageSaveResult.Deconstruct(out string! Hash, out System.Collections.Generic.IReadOnlyList<uk.osric.asp.Sdk.PageDiagnostic>! Diagnostics) -> void
 uk.osric.asp.Sdk.PageSaveResult.Diagnostics.get -> System.Collections.Generic.IReadOnlyList<uk.osric.asp.Sdk.PageDiagnostic>!
 uk.osric.asp.Sdk.PageSaveResult.Diagnostics.init -> void
 uk.osric.asp.Sdk.PageSaveResult.Equals(uk.osric.asp.Sdk.PageSaveResult? other) -> bool
@@ -504,7 +503,6 @@ uk.osric.asp.Sdk.PageSaveResult.HasErrors.get -> bool
 uk.osric.asp.Sdk.PageSaveResult.HasWarnings.get -> bool
 uk.osric.asp.Sdk.PageSaveResult.Hash.get -> string!
 uk.osric.asp.Sdk.PageSaveResult.Hash.init -> void
-uk.osric.asp.Sdk.PageSaveResult.PageSaveResult(string! Hash, System.Collections.Generic.IReadOnlyList<uk.osric.asp.Sdk.PageDiagnostic>! Diagnostics) -> void
 uk.osric.asp.Sdk.PageSeedSummary
 uk.osric.asp.Sdk.PageSeedSummary.<Clone>$() -> uk.osric.asp.Sdk.PageSeedSummary!
 uk.osric.asp.Sdk.PageSeedSummary.CanAdopt.get -> bool
@@ -591,14 +589,7 @@ override uk.osric.asp.Sdk.PageWriteResult.ToString() -> string!
 static uk.osric.asp.Sdk.PageWriteResult.operator !=(uk.osric.asp.Sdk.PageWriteResult? left, uk.osric.asp.Sdk.PageWriteResult? right) -> bool
 static uk.osric.asp.Sdk.PageWriteResult.operator ==(uk.osric.asp.Sdk.PageWriteResult? left, uk.osric.asp.Sdk.PageWriteResult? right) -> bool
 uk.osric.asp.Sdk.IPageTransaction
-uk.osric.asp.Sdk.IPageTransaction.AdoptSeedAsync(string! key) -> System.Threading.Tasks.Task<uk.osric.asp.Sdk.PageWriteResult!>!
 uk.osric.asp.Sdk.IPageTransaction.CommitAsync() -> System.Threading.Tasks.Task<System.Collections.Generic.IReadOnlyList<uk.osric.asp.Sdk.PageWriteResult!>!>!
-uk.osric.asp.Sdk.IPageTransaction.DeleteAsync(string! key) -> System.Threading.Tasks.Task<uk.osric.asp.Sdk.PageWriteResult!>!
-uk.osric.asp.Sdk.IPageTransaction.InstallSeedAsync(string! key, string? expectedHash) -> System.Threading.Tasks.Task<uk.osric.asp.Sdk.PageWriteResult!>!
-uk.osric.asp.Sdk.IPageTransaction.MoveAsync(string! from, string! to, string! expectedHash) -> System.Threading.Tasks.Task<uk.osric.asp.Sdk.PageWriteResult!>!
-uk.osric.asp.Sdk.IPageTransaction.RestoreRevisionAsync(string! key, string! hash, string? expectedHash) -> System.Threading.Tasks.Task<uk.osric.asp.Sdk.PageWriteResult!>!
-uk.osric.asp.Sdk.IPageTransaction.SaveAsync(string! key, string! template, string? expectedHash) -> System.Threading.Tasks.Task<uk.osric.asp.Sdk.PageWriteResult!>!
-uk.osric.asp.Sdk.IPageTransaction.SaveAsync(string! template) -> System.Threading.Tasks.Task<uk.osric.asp.Sdk.PageWriteResult!>!
 uk.osric.asp.Sdk.IPageWrites.BeginTransaction() -> uk.osric.asp.Sdk.IPageTransaction!
 uk.osric.asp.Sdk.PageWriteOperation
 uk.osric.asp.Sdk.PageWriteOperation.Adopt = 6 -> uk.osric.asp.Sdk.PageWriteOperation
@@ -658,3 +649,7 @@ uk.osric.asp.Sdk.PageDeleteResult.Deleted.get -> bool
 uk.osric.asp.Sdk.IPageTransaction.RollbackAsync() -> System.Threading.Tasks.Task<System.Collections.Generic.IReadOnlyList<uk.osric.asp.Sdk.PageWriteResult!>!>!
 uk.osric.asp.Sdk.PageDeleteOutcome.Busy = 3 -> uk.osric.asp.Sdk.PageDeleteOutcome
 uk.osric.asp.Sdk.PageWriteOutcome.RolledBack = 13 -> uk.osric.asp.Sdk.PageWriteOutcome
+uk.osric.asp.Sdk.PageSaveResult.Deconstruct(out string! Hash, out System.Collections.Generic.IReadOnlyList<uk.osric.asp.Sdk.PageDiagnostic>! Diagnostics, out uk.osric.asp.Sdk.PageEditOutcome Outcome) -> void
+uk.osric.asp.Sdk.PageSaveResult.Outcome.get -> uk.osric.asp.Sdk.PageEditOutcome
+uk.osric.asp.Sdk.PageSaveResult.Outcome.init -> void
+uk.osric.asp.Sdk.PageSaveResult.PageSaveResult(string! Hash, System.Collections.Generic.IReadOnlyList<uk.osric.asp.Sdk.PageDiagnostic>! Diagnostics, uk.osric.asp.Sdk.PageEditOutcome Outcome = uk.osric.asp.Sdk.PageEditOutcome.Saved) -> void

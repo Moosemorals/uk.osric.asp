@@ -12,7 +12,14 @@ namespace uk.osric.asp.Sdk;
 /// </remarks>
 /// <param name="Hash">The new revision's hash, as <see cref="IPageCatalog.RevisionsAsync"/> reports it.</param>
 /// <param name="Diagnostics">The compiler's author-facing answer, ordered by template position.</param>
-public sealed record PageSaveResult(string Hash, IReadOnlyList<PageDiagnostic> Diagnostics) {
+/// <param name="Outcome">
+/// Whether the source was stored, or joined a transaction this render has open and will land with its
+/// commit. A compile that faulted still answers here: the source is stored and the fault rethrown.
+/// </param>
+public sealed record PageSaveResult(
+    string Hash,
+    IReadOnlyList<PageDiagnostic> Diagnostics,
+    PageEditOutcome Outcome = PageEditOutcome.Saved) {
 
     /// <summary>Whether the save found an error, which leaves the page unservable until it is fixed.</summary>
     public bool HasErrors => Diagnostics.Any(diagnostic => diagnostic.Severity == PageDiagnosticSeverity.Error);

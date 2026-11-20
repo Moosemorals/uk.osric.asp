@@ -97,13 +97,12 @@ writes, one commit, one report. Building it for Save all alone would be building
 
 ## Sketch
 
-1. **A transaction sits beside the writes.** `IPageWrites` keeps everything it has — the reads
-   `Resolve` and `SeedSourceAsync`, beside the seven write members — and gains `BeginTransaction()`,
-   which answers an `IPageTransaction`. A single write stays one call and is a transaction of one
-   under the seam: it stages, commits and answers before it returns, exactly as it does today. A
-   transaction carries the same seven members and stages them, so a page that needs several writes in
-   one unit calls `BeginTransaction`, makes the calls it already knows, and commits once; the members
-   keep their names and their arguments, so a page that can do one can do several.
+1. **A transaction is the frame, and the writes stay where they are.** `IPageWrites` keeps everything
+   it has — the reads `Resolve` and `SeedSourceAsync`, beside the seven write members — and gains
+   `BeginTransaction()`, which answers an `IPageTransaction` with `CommitAsync` and `RollbackAsync` and
+   nothing else. The seven members are not repeated on it: a write made through `IPageWrites` while it
+   is open joins it, so a page that needs several writes in one unit opens one, makes the calls it
+   already knows, and commits once. One name for one write, and no second vocabulary to learn.
 
    A transaction that is disposed without a commit — or never disposed at all — writes nothing. A
    render holds one open at a time and commits as many as it has work for, which is what ends

@@ -35,11 +35,11 @@ namespace uk.osric.asp.Sdk;
 /// <para>
 /// Each member here is one write and, under the seam, a transaction of one. A page that needs several
 /// writes to become the store's state together opens an <see cref="IPageTransaction"/> with
-/// <see cref="BeginTransaction"/>, stages the same members on it and commits once; a render may commit
-/// as many transactions as it has work for. A write made through this interface while the render has a
-/// transaction open joins that transaction, so it answers <see cref="PageEditOutcome.Staged"/> and
-/// lands with the commit — which is what makes an embedded page's write part of the page's unit rather
-/// than something that survives the page's abort.
+/// <see cref="BeginTransaction"/> and commits once; a render may commit as many transactions as it has
+/// work for. <strong>A write made while that transaction is open joins it</strong>, using the same
+/// members rather than a second set on the transaction: it answers
+/// <see cref="PageEditOutcome.Staged"/> and lands with the commit, which is what makes an embedded
+/// page's write part of the page's unit rather than something that survives the page's abort.
 /// </para>
 /// </remarks>
 public interface IPageWrites {
@@ -47,9 +47,9 @@ public interface IPageWrites {
     /// <summary>Opens a transaction for several writes that become the store's state together.</summary>
     /// <returns>The transaction, which writes nothing unless <see cref="IPageTransaction.CommitAsync"/> is called.</returns>
     /// <remarks>
-    /// A page holds one open at a time, and a transaction is not nestable: the store has one
-    /// transaction and no second model. Opening one spends none of the render's writes, so a page may
-    /// commit one transaction and open another.
+    /// The writes are the ones on this interface, made while the transaction is open. Opening one
+    /// spends no write, so a page may commit a transaction and open another, and one opened while
+    /// another is open nests inside it.
     /// </remarks>
     /// <exception cref="UserFacingException">This render has no signed-in visitor, so nothing can be written.</exception>
     /// <exception cref="InvalidOperationException">
