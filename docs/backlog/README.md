@@ -98,11 +98,15 @@ left of the item is new.
 The one table is both the inventory and the order. **A row's place is its priority** — the first row
 is next — and there is no number column, because a number that every close has to renumber is churn with
 nothing to show for it. The line under a row in italics is the reason it sits there: markdown has no
-merged cells, so the reason takes a row of its own under the title and the data above stays narrow. The
-order spends the easy utility first, and the owner moves an item above its difficulty when it is a rule
-other work is written against rather than a tidy-up. A `planned` item carries its plan in its status,
-so the list says at a glance which items are a yes away — but a plan says an item is ready, not that it
-is urgent, and a planned item sits where its utility puts it.
+merged cells, so the reason takes a row of its own under the title and the data above stays narrow.
+
+Below its head the order spends the easy utility first: a blocker sits above the item it blocks, and
+everything else sorts by utility descending and then by difficulty ascending, so the most valuable work
+that is cheapest to do comes first. The head is the owner's exception — the assistant's two steps and
+the items in front of them, one programme rather than the next rows of that rule. A `parked` item sorts
+last whatever its utility, because the owner has said it is not work. A `planned` item carries its plan
+in its status, so the list says at a glance which items are a yes away — but a plan says an item is
+ready, not that it is urgent, and a planned item sorts by its utility and difficulty like any other.
 
 `make backlog` checks that every open item appears exactly once, that a row's difficulty, utility and
 status are the item's, that a `planned` row links the plan its item names, that every row is followed by
@@ -122,34 +126,34 @@ its reason, and that no item sits above something that blocks it.
 | | *The most useful large item, with a plan and a first customer, and a plan's yes is the only thing it waits on.* | | | | |
 | [`conversation-is-not-a-page`](conversation-is-not-a-page.md) | The assistant's conversation is a stream and a set of host actions, not a page | protective-dragon 🔥🐉 | medium | blocked | `no-account-store` |
 | | *The assistant's conversation as a page needs the account store beneath it, and that is [`no-account-store`](no-account-store.md).* | | | | |
+| [`editor-is-a-textarea`](editor-is-a-textarea.md) | The editor is a plain textarea | determined-mountain-goat 💪🐐 | high | open | — |
+| | *High use and high cost; the gutter, the diagnostics and the row state already cover the worst of it.* | | | | |
+| [`ship-the-tested-image`](ship-the-tested-image.md) | A release does not ship the image the tests passed | persistent-salmon ⬆️🐟 | high | open | — |
+| | *The browser suite drives a source build while the deploy ships an image built later; this makes the promoted image the one the browser drove, and the host gate now keeps one.* | | | | |
+| [`message-does-not-survive-a-redirect`](message-does-not-survive-a-redirect.md) | A page cannot leave a message for a page it sends a visitor to | protective-dragon 🔥🐉 | high | [planned](../plans/page-inbox.md) | — |
+| | *High use for a capability the page session half gave: a page that sends a visitor somewhere usually has something to tell it, and the plan answers what the sketch left open, so nothing but a yes stands in front of it.* | | | | |
+| [`sec-page-runs-in-process`](sec-page-runs-in-process.md) | Page code has no execution budget and no process boundary | cornered-porcupine 📍🦔 | high | open | — |
+| | *Medium severity and a redesign of how a page runs; the trimmed API policy and the sign-in guard already carry much of it.* | | | | |
 | [`revision-hides-its-diagnostics`](revision-hides-its-diagnostics.md) | A page cannot read a revision's diagnostics | eager-beaver ⚙️🦫 | medium | open | — |
 | | *The store keeps the last compile's answer and the catalog drops it, so a reloaded editor, a history view and a page explaining a broken library can say a revision failed but not what it said.* | | | | |
-| [`view-cannot-submit-a-form`](view-cannot-submit-a-form.md) | A run can look at the site but cannot submit one of its forms | determined-mountain-goat 💪🐐 | medium | open | — |
-| | *Testing a page's own form is the one read the view cannot make; it needs a write-scoped credential before it can be a tool.* | | | | |
 | [`ops-no-outage-notification`](ops-no-outage-notification.md) | No outbound notifications when the site breaks | eager-beaver ⚙️🦫 | medium | open | — |
 | | *Useful, but one owner and a unit that restarts already notices most outages.* | | | | |
 | [`import-cannot-reset-a-site`](import-cannot-reset-a-site.md) | Import only adds and overwrites, so an archive cannot reset a site | caffeinated-squirrel ☕🐿️ | medium | open | — |
 | | *A destructive reset has to be designed carefully; the additive import is the safe default until it is.* | | | | |
-| [`editor-is-a-textarea`](editor-is-a-textarea.md) | The editor is a plain textarea | determined-mountain-goat 💪🐐 | high | open | — |
-| | *High use and high cost; the gutter, the diagnostics and the row state already cover the worst of it.* | | | | |
+| [`view-cannot-submit-a-form`](view-cannot-submit-a-form.md) | A run can look at the site but cannot submit one of its forms | determined-mountain-goat 💪🐐 | medium | open | — |
+| | *Testing a page's own form is the one read the view cannot make; it needs a write-scoped credential before it can be a tool.* | | | | |
 | [`terminal-cannot-reach-the-shell`](terminal-cannot-reach-the-shell.md) | A person cannot type into the shell the assistant uses | protective-dragon 🔥🐉 | medium | open | — |
 | | *The kernel already takes an input and an output; a terminal is the other end, and the editor's `/vim.js` is the start of the `vi` it needs.* | | | | |
-| [`archive-is-not-a-form`](archive-is-not-a-form.md) | `/admin/import` and `/admin/export` are shell code because an archive is not a form | caffeinated-squirrel ☕🐿️ | low | open | — |
-| | *The two admin routes already work; making them pages buys consistency, not capability.* | | | | |
-| [`sec-page-runs-in-process`](sec-page-runs-in-process.md) | Page code has no execution budget and no process boundary | cornered-porcupine 📍🦔 | high | open | — |
-| | *Medium severity and a redesign of how a page runs; the trimmed API policy and the sign-in guard already carry much of it.* | | | | |
-| [`no-browser-render`](no-browser-render.md) | A page cannot render a page in a browser | persistent-salmon ⬆️🐟 | low | open | — |
-| | *A spike, a sidecar and a capability for a question the server's own answer often settles.* | | | | |
-| [`nothing-checks-page-assets`](nothing-checks-page-assets.md) | Nothing checks a page's CSS, HTML or SVG | persistent-salmon ⬆️🐟 | low | open | — |
-| | *Pays off once pages write their own CSS and SVG, and each checker is a parser we write, so it waits for that reason rather than a hunch.* | | | | |
 | [`declaration-does-not-name-its-close`](declaration-does-not-name-its-close.md) | A declaration block does not name its close | protective-dragon 🔥🐉 | medium | open | — |
 | | *A language change in two releases that rewrites every declaration in the store; the warning that carries release 1 has landed, so this now waits only on its own plan.* | | | | |
 | [`old-response-spelling`](old-response-spelling.md) | The old response spelling is still on `IContext` | contented-capybara 😌🦫 | low | open | — |
 | | *Waits for a release: the alias has to have been out long enough that nothing in the store reports `PAGE009` before it is deleted.* | | | | |
-| [`message-does-not-survive-a-redirect`](message-does-not-survive-a-redirect.md) | A page cannot leave a message for a page it sends a visitor to | protective-dragon 🔥🐉 | high | [planned](../plans/page-inbox.md) | — |
-| | *Planned, but a plan is not urgency: nothing blocks it and no page stops working without it, so it waits below everything that does.* | | | | |
-| [`ship-the-tested-image`](ship-the-tested-image.md) | A release does not ship the image the tests passed | persistent-salmon ⬆️🐟 | high | open | — |
-| | *The browser suite drives a source build while the deploy ships an image built later; this makes the promoted image the one the browser drove, and the host gate now keeps one.* | | | | |
+| [`archive-is-not-a-form`](archive-is-not-a-form.md) | `/admin/import` and `/admin/export` are shell code because an archive is not a form | caffeinated-squirrel ☕🐿️ | low | open | — |
+| | *The two admin routes already work; making them pages buys consistency, not capability.* | | | | |
+| [`no-browser-render`](no-browser-render.md) | A page cannot render a page in a browser | persistent-salmon ⬆️🐟 | low | open | — |
+| | *A spike, a sidecar and a capability for a question the server's own answer often settles.* | | | | |
+| [`nothing-checks-page-assets`](nothing-checks-page-assets.md) | Nothing checks a page's CSS, HTML or SVG | persistent-salmon ⬆️🐟 | low | open | — |
+| | *Pays off once pages write their own CSS and SVG, and each checker is a parser we write, so it waits for that reason rather than a hunch.* | | | | |
 | [`formatter-cannot-align`](formatter-cannot-align.md) | The formatter cannot align a run of declarations, and deletes one aligned by hand | caffeinated-squirrel ☕🐿️ | low | parked | — |
 | | *The owner parked it on 2026-11-20: Roslyn deletes the padding and clang-format corrupts raw strings, so it waits for one of them to move rather than for work here.* | | | | |
 
