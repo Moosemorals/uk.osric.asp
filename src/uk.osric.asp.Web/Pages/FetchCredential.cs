@@ -21,7 +21,7 @@ using uk.osric.asp.Core.Pages;
 /// property, the value included.
 /// </para>
 /// </remarks>
-internal sealed class PageCredential(
+internal sealed class FetchCredential(
     string name,
     string host,
     string header,

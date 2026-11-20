@@ -13,7 +13,7 @@ using System.Security.Cryptography;
 /// nothing to rotate and nothing to leak.
 /// </para>
 /// <para>
-/// A class rather than a record, for the reason <c>PageCredential</c> is one: the generated
+/// A class rather than a record, for the reason <c>FetchCredential</c> is one: the generated
 /// <c>ToString</c> would print <see cref="Secret"/>, and a record's is printed by every scope that
 /// holds it.
 /// </para>

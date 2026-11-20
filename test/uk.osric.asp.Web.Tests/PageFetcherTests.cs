@@ -737,7 +737,7 @@ public sealed class PageFetcherTests {
         string page,
         bool includesDescendants,
         string scope) {
-        PageCredential credential = Options(CredentialConfiguration(configured)).Credentials["assistant"];
+        FetchCredential credential = Options(CredentialConfiguration(configured)).Credentials["assistant"];
 
         Assert.Multiple(() => {
             Assert.That(credential.Page.Key, Is.EqualTo(page));
@@ -759,7 +759,7 @@ public sealed class PageFetcherTests {
         Dictionary<string, string?> values = CredentialConfiguration("/Assistant/");
         values["Pages:Fetch:Credentials:assistant:Scheme"] = "Bearer";
 
-        PageCredential credential = Options(values).Credentials["assistant"];
+        FetchCredential credential = Options(values).Credentials["assistant"];
 
         Assert.Multiple(() => {
             Assert.That(credential.Host, Is.EqualTo("api.deepseek.com"));
@@ -823,7 +823,7 @@ public sealed class PageFetcherTests {
 
     [Test]
     public void ACredentialNeverPrintsItsValue() {
-        PageCredential credential = Options(CredentialConfiguration()).Credentials["assistant"];
+        FetchCredential credential = Options(CredentialConfiguration()).Credentials["assistant"];
 
         Assert.That(credential.ToString(), Does.Not.Contain("secret-value"));
     }
@@ -927,7 +927,7 @@ public sealed class PageFetcherTests {
         string page = "/page",
         bool includesDescendants = false) {
         return TestOptions.Fetch with {
-            Credentials = new Dictionary<string, PageCredential>(StringComparer.OrdinalIgnoreCase) {
+            Credentials = new Dictionary<string, FetchCredential>(StringComparer.OrdinalIgnoreCase) {
                 ["assistant"] = new("assistant", host, header, scheme, value, PagePath.Normalize(page), includesDescendants),
             },
         };
