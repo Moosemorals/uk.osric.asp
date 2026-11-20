@@ -60,6 +60,9 @@ internal enum PageCommitOutcome {
     /// <summary>An earlier operation refused, so this one was never attempted.</summary>
     NotAttempted,
 
+    /// <summary>The operation was applied and then a later refusal rolled the whole transaction back.</summary>
+    RolledBack,
+
     /// <summary>Another writer held the store, so nothing was written.</summary>
     Busy,
 }
@@ -96,11 +99,16 @@ internal sealed record PageCommitAnswer(
 
 /// <summary>Writes several operations as one store transaction, all of them or none.</summary>
 /// <remarks>
-/// Every condition is proved before anything is written, so a refusal names every operation that
-/// refused rather than only the first, and a refusal writes nothing at all. The transaction is the
-/// store's own: it is opened once, held for statements only — a compile never happens inside it — and
-/// a commit that cannot take the writer answers <see cref="PageCommitOutcome.Busy"/> instead of
-/// waiting the busy timeout out silently.
+/// The operations are applied in the order the page staged them, each proving its own condition
+/// against what the transaction has written so far: create a page, move it and delete it, and the
+/// move sees the page the create made. A refusal rolls the whole transaction back, so nothing is
+/// stored; the report says which operation refused, which ones were applied and undone, and which
+/// were never attempted.
+/// <para>
+/// The transaction is the store's own: it is opened once, holds the writer from its first statement,
+/// and is statements only — a compile never happens inside it. A commit that cannot take the writer
+/// answers <see cref="PageCommitOutcome.Busy"/> instead of waiting the busy timeout out silently.
+/// </para>
 /// </remarks>
 internal interface IPageCommitStore {
 

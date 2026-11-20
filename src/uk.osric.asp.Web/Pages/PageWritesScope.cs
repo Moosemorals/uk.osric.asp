@@ -167,7 +167,6 @@ internal sealed class PageWritesScope(
         PageWriteOutcome.Unchanged => PageEditOutcome.Unchanged,
         PageWriteOutcome.Busy => PageEditOutcome.Busy,
         PageWriteOutcome.Staged => PageEditOutcome.Staged,
-        PageWriteOutcome.AlreadyStaged => PageEditOutcome.AlreadyStaged,
         _ => PageEditOutcome.Stale,
     };
 
@@ -176,7 +175,6 @@ internal sealed class PageWritesScope(
         PageWriteOutcome.SourceNotFound => PageDeleteOutcome.Missing,
         PageWriteOutcome.Busy => PageDeleteOutcome.Busy,
         PageWriteOutcome.Staged => PageDeleteOutcome.Staged,
-        PageWriteOutcome.AlreadyStaged => PageDeleteOutcome.AlreadyStaged,
         _ => PageDeleteOutcome.Missing,
     };
 
@@ -188,7 +186,6 @@ internal sealed class PageWritesScope(
         PageWriteOutcome.FolderNotEmpty => PageMoveOutcome.FolderNotEmpty,
         PageWriteOutcome.Busy => PageMoveOutcome.Busy,
         PageWriteOutcome.Staged => PageMoveOutcome.Staged,
-        PageWriteOutcome.AlreadyStaged => PageMoveOutcome.AlreadyStaged,
         _ => PageMoveOutcome.Stale,
     };
 

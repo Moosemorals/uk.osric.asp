@@ -305,41 +305,64 @@ internal sealed class SqlitePageStore(
             PageRevision row = ToRevision(revision);
             try {
                 await using IDbContextTransaction transaction = await database.Database.BeginTransactionAsync(cancellationToken);
-                int matched = await database.Database.ExecuteSqlAsync($"""
-                    UPDATE "PageHeads" SET "RevisionId" = "RevisionId"
-                    WHERE "Path" = {revision.Path.Key} AND "IsDeleted" = 0
-                        AND EXISTS (
-                            SELECT 1 FROM "PageRevisions" AS revision
-                            WHERE revision."RevisionId" = "PageHeads"."RevisionId"
-                                AND revision."Path" = "PageHeads"."Path"
-                                AND revision."Hash" = {expectedHash})
-                    """, cancellationToken);
-                if (matched == 0) {
+                bool written = await TryWriteRevisionAsync(database, revision, row, expectedHash, cancellationToken);
+                if (!written) {
                     await transaction.RollbackAsync(cancellationToken);
                     return false;
                 }
 
-                database.Add(row);
-                await database.SaveChangesAsync(cancellationToken);
-                await database.Database.ExecuteSqlAsync($"""
-                    UPDATE "PageHeads" SET
-                        "RevisionId" = {revision.RevisionId},
-                        "SeedHash" = COALESCE({revision.SeedHash}, "PageHeads"."SeedHash"),
-                        "ContentHash" = {TemplateFingerprint.Of(revision.Template)}
-                    WHERE "Path" = {revision.Path.Key} AND "IsDeleted" = 0
-                    """, cancellationToken);
                 await transaction.CommitAsync(cancellationToken);
                 return true;
             } catch (DbUpdateException exception) when (attempt + 1 < SqliteErrors.RetryCount && SqliteErrors.IsUniqueViolation(exception)) {
                 logger.LogDebug("A concurrent write took the revision id for {Path}; saving it again", revision.Path.Key);
                 database.Entry(row).State = EntityState.Detached;
-                string revisionId = Guid.NewGuid().ToString("N");
-                revision = revision with {
-                    RevisionId = revisionId,
-                    Hash = RevisionHash.Of(revision.Template, revision.CreationRuntimeId, revision.SavedAt, revisionId),
-                };
+                revision = RegenerateRevision(revision);
             }
         }
+    }
+
+    /// <summary>Stores a revision inside the caller's transaction, only while the head still matches.</summary>
+    /// <param name="database">The context whose transaction the write belongs to.</param>
+    /// <param name="revision">The revision to store.</param>
+    /// <param name="row">The revision's row, built by <see cref="ToRevision"/>.</param>
+    /// <param name="expectedHash">The hash the caller saw as the head.</param>
+    /// <param name="cancellationToken">Cancels the write.</param>
+    /// <returns><see langword="false"/> when the head is missing, tombstoned or another hash, so nothing was written.</returns>
+    /// <remarks>
+    /// The guard and the write are one sequence, so a conditional save and a conditional save inside a
+    /// transaction cannot drift. A commit runs its operations in order, so the head this reads is the
+    /// one the transaction's earlier writes left.
+    /// </remarks>
+    internal static async Task<bool> TryWriteRevisionAsync(
+        StorageDbContext database,
+        PageTemplate revision,
+        PageRevision row,
+        string expectedHash,
+        CancellationToken cancellationToken) {
+        int matched = await database.Database.ExecuteSqlAsync($"""
+            UPDATE "PageHeads" SET "RevisionId" = "RevisionId"
+            WHERE "Path" = {revision.Path.Key} AND "IsDeleted" = 0
+                AND EXISTS (
+                    SELECT 1 FROM "PageRevisions" AS revision
+                    WHERE revision."RevisionId" = "PageHeads"."RevisionId"
+                        AND revision."Path" = "PageHeads"."Path"
+                        AND revision."Hash" = {expectedHash})
+            """, cancellationToken);
+        if (matched == 0) {
+            return false;
+        }
+
+        database.Add(row);
+        await database.SaveChangesAsync(cancellationToken);
+        await database.Database.ExecuteSqlAsync($"""
+            UPDATE "PageHeads" SET
+                "RevisionId" = {revision.RevisionId},
+                "SeedHash" = COALESCE({revision.SeedHash}, "PageHeads"."SeedHash"),
+                "ContentHash" = {TemplateFingerprint.Of(revision.Template)}
+            WHERE "Path" = {revision.Path.Key} AND "IsDeleted" = 0
+            """, cancellationToken);
+
+        return true;
     }
 
     public async Task<bool> TrySetImageAsync(string revisionId, string expectedTemplate, PageImage image, CancellationToken cancellationToken = default) {
@@ -677,7 +700,9 @@ internal sealed class SqlitePageStore(
         };
     }
 
-    private static PageRevision ToRevision(PageTemplate template) {
+    /// <summary>Builds the row a revision is stored as.</summary>
+    /// <param name="template">The revision to store.</param>
+    internal static PageRevision ToRevision(PageTemplate template) {
         PageImage? image = template.Image;
         return new PageRevision {
             RevisionId = template.RevisionId,

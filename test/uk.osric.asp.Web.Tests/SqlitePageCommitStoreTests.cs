@@ -59,7 +59,7 @@ public sealed class SqlitePageCommitStoreTests {
     }
 
     [Test]
-    public async Task ARefusedOperationWritesNothingAndCostsTheOthersTheirWritesAsync() {
+    public async Task ARefusedOperationWritesNothingAndUndoesWhatWentBeforeItAsync() {
         PageTemplate head = new(Key("/one"), "first");
         _ = await Store().CommitAsync([new PageCommit(PageCommitKind.Create, head.Path, Revision: head)]);
         PageTemplate second = new(Key("/two"), "second");
@@ -70,10 +70,30 @@ public sealed class SqlitePageCommitStoreTests {
         ]);
 
         Assert.Multiple(() => {
-            Assert.That(answers[0].Outcome, Is.EqualTo(PageCommitOutcome.NotAttempted));
+            Assert.That(answers[0].Outcome, Is.EqualTo(PageCommitOutcome.RolledBack), "it was applied, then undone");
             Assert.That(answers[1].Outcome, Is.EqualTo(PageCommitOutcome.Stale));
             Assert.That(SourceOf("/one"), Is.EqualTo("first"), "a refusal writes nothing at all");
             Assert.That(SourceOf("/two"), Is.Null);
+        });
+    }
+
+    [Test]
+    public async Task ACreateAMoveAndADeleteOfOneKeyLandInOrderAsync() {
+        PageTemplate created = new(Key("/a"), "first");
+
+        IReadOnlyList<PageCommitAnswer> answers = await Store().CommitAsync([
+            new PageCommit(PageCommitKind.Create, created.Path, Revision: created),
+            new PageCommit(PageCommitKind.Move, Key("/b"), created.Hash, From: Key("/a"), Target: Key("/b")),
+            new PageCommit(PageCommitKind.Delete, Key("/b")),
+        ]);
+
+        Assert.Multiple(() => {
+            Assert.That(answers.Select(answer => answer.Outcome),
+                Is.EqualTo([PageCommitOutcome.Saved, PageCommitOutcome.Moved, PageCommitOutcome.Deleted]),
+                "the move read the page the create wrote, and the delete the head the move left");
+            Assert.That(RevisionsAt("/a"), Is.Zero, "nothing is left at the old key");
+            Assert.That(RevisionsAt("/b"), Is.EqualTo(1), "the revision the move re-filed is under the new key");
+            Assert.That(DeletedAt("/b"), Is.True, "and the head there is the tombstone the delete left");
         });
     }
 
@@ -114,6 +134,15 @@ public sealed class SqlitePageCommitStoreTests {
                 """)
             .AsEnumerable()
             .SingleOrDefault();
+    }
+
+    private int RevisionsAt(string path) {
+        using StorageDbContext database = new(_options);
+
+        return database.Database
+            .SqlQuery<int>($"""SELECT COUNT(*) AS "Value" FROM "PageRevisions" WHERE "Path" = {path}""")
+            .AsEnumerable()
+            .Single();
     }
 
     private bool DeletedAt(string path) {

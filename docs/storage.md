@@ -75,10 +75,12 @@ cannot move under it. Everything slow happens outside it: a staged save compiles
 is statements only. The store runs in WAL, which is set and verified at startup — a reader never blocks
 a commit and a commit never blocks a reader — and a commit that cannot take the writer answers that it
 is busy after `Pages:Storage:BusyTimeoutSeconds` rather than waiting the client's default out. A
-refusal writes nothing: every operation's condition is proved before the first row is written, so the
-report can name every conflict and the transaction rolls back whole. A transaction nested inside
-another is not a second store transaction: it merges its operations into the outer one and is decided
-by its commit, so the store still has exactly one transaction per commit.
+refusal writes nothing: the operations are applied in the order the page staged them, each proving its
+own condition against the rows the ones before it wrote — so a create, a move and a delete of one page
+in one transaction are a sequence that succeeds — and a refusal rolls the whole transaction back and
+the report says which operations were applied and undone and which were never reached. A transaction
+nested inside another is not a second store transaction: it merges its operations into the outer one
+and is decided by its commit, so the store still has exactly one transaction per commit.
 
 A save inserts the revision and advances its `PageHeads` row in one transaction. The head is the
 authoritative current-page pointer; reads do not guess the current row from timestamps. The source

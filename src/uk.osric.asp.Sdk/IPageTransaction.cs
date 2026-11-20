@@ -26,9 +26,9 @@ namespace uk.osric.asp.Sdk;
 /// operation, including the nested ones, and its report holds a row for each.
 /// </para>
 /// <para>
-/// One operation per key, in one transaction or in one nested inside it: a write on a key that
-/// already has one staged answers <see cref="PageWriteOutcome.AlreadyStaged"/> when it is made, and
-/// nothing is retried, merged or replaced on the page's behalf.
+/// The operations are applied in the order they were staged, each one seeing what the ones before it
+/// wrote: create a page, move it and delete it in one transaction and all three succeed, because the
+/// move reads the page the create made and the delete tombstones the head the move left.
 /// </para>
 /// <para>
 /// The members keep the arguments of the matching <see cref="IPageWrites"/> members, so a page that

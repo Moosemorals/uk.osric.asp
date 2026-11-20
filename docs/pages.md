@@ -146,10 +146,11 @@ pure renderers, and one that is a fact about the build:
   the same members: the writes are staged, each save compiles as it is staged, and `CommitAsync()`
   proves every condition again and applies them in one store transaction or none of them, answering one
   `PageWriteResult` per operation — the key, the operation, the outcome, the hash and the diagnostics.
-  A refusal writes nothing and reports the writes it cost as NotAttempted; contention is a row the page
-  answers, and the host does not retry on its behalf. One operation per key, across a nested
-  transaction too: a write on a key that already has one staged answers AlreadyStaged at the call and
-  is not compiled. A transaction that is disposed without a commit
+  A refusal writes nothing: the operations are applied in order and each is proved against what the
+  ones before it wrote, so a create, a move and a delete of one page in one transaction all succeed,
+  while a write that refused rolls everything back and the report says RolledBack for what was applied
+  and undone and NotAttempted for what was never reached. Contention is a row the page answers, and the
+  host does not retry on its behalf. A transaction that is disposed without a commit
   writes nothing, one page holds one open at a time, and a render may commit as many as it has work
   for. A staged save reads the libraries staged before it as well as the store's, so staging order is
   what a page gets and nothing is reordered behind it.

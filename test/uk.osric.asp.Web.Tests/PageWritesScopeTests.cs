@@ -202,7 +202,7 @@ public sealed class PageWritesScopeTests {
     }
 
     [Test]
-    public async Task ARefusedOperationWritesNothingAndNamesItselfAsync() {
+    public async Task ARefusedOperationWritesNothingAndUndoesWhatWentBeforeItAsync() {
         FakePageStore storage = new();
         using PageHarness pages = new(storage);
         SavedRevision first = await pages.Editor.SaveAsync(PageHarness.Key("/page"), "first");
@@ -216,7 +216,7 @@ public sealed class PageWritesScopeTests {
         IReadOnlyList<PageWriteResult> report = await transaction.CommitAsync();
 
         Assert.Multiple(() => {
-            Assert.That(report[0].Outcome, Is.EqualTo(PageWriteOutcome.NotAttempted), "the refusal cost it its write");
+            Assert.That(report[0].Outcome, Is.EqualTo(PageWriteOutcome.RolledBack), "the refusal cost it its write");
             Assert.That(report[1].Outcome, Is.EqualTo(PageWriteOutcome.Stale));
             Assert.That(storage["/other"], Is.Null, "a refusal writes nothing at all");
             Assert.That(storage["/page"]?.Template, Is.EqualTo("moved on"));
@@ -224,64 +224,62 @@ public sealed class PageWritesScopeTests {
     }
 
     [Test]
-    public async Task ASecondWriteToOneKeyInATransactionIsAlreadyStagedAsync() {
+    public async Task ACreateAMoveAndADeleteOfOneKeyInATransactionAllSucceedAsync() {
         FakePageStore storage = new();
         using PageHarness pages = new(storage);
         PageWritesScope scope = Scope(pages);
 
         await using IPageTransaction transaction = scope.BeginTransaction();
-        _ = await transaction.SaveAsync("/page", "first", null);
-        PageWriteResult second = await transaction.SaveAsync("/page", "second", null);
+        PageWriteResult created = await transaction.SaveAsync("/a", "first", null);
+        PageWriteResult moved = await transaction.MoveAsync("/a", "/b", created.Hash!);
+        PageWriteResult deleted = await transaction.DeleteAsync("/b");
         IReadOnlyList<PageWriteResult> report = await transaction.CommitAsync();
 
         Assert.Multiple(() => {
-            Assert.That(second.Outcome, Is.EqualTo(PageWriteOutcome.AlreadyStaged), "answered at the call, not at the commit");
-            Assert.That(second.Hash, Is.Null, "a refused write is never compiled");
-            Assert.That(report.Select(row => row.Outcome), Is.EqualTo([PageWriteOutcome.NotAttempted, PageWriteOutcome.AlreadyStaged]));
-            Assert.That(storage["/page"], Is.Null, "a refusal writes nothing at all");
+            Assert.That(report.Select(row => row.Outcome),
+                Is.EqualTo([PageWriteOutcome.Saved, PageWriteOutcome.Moved, PageWriteOutcome.Deleted]),
+                "each operation sees what the ones before it wrote");
+            Assert.That(storage["/a"], Is.Null, "nothing is left at the old key");
+            Assert.That(storage["/b"], Is.Not.Null, "the head is a tombstone at the key the move left");
+            Assert.That((storage.GetHeadAsync(PageHarness.Key("/b"))).Result?.IsDeleted, Is.True);
         });
     }
 
     [Test]
-    public async Task AMoveOntoAKeyWithAWriteStagedIsAlreadyStagedAsync() {
+    public async Task ASecondWriteToOneKeyInATransactionSeesTheFirstAsync() {
         FakePageStore storage = new();
         using PageHarness pages = new(storage);
-        SavedRevision first = await pages.Editor.SaveAsync(PageHarness.Key("/page"), "first");
         PageWritesScope scope = Scope(pages);
 
         await using IPageTransaction transaction = scope.BeginTransaction();
-        _ = await transaction.SaveAsync("/target", "text", null);
-        PageWriteResult moved = await transaction.MoveAsync("/page", "/target", first.Revision.Hash);
+        PageWriteResult first = await transaction.SaveAsync("/page", "first", null);
+        PageWriteResult second = await transaction.SaveAsync("/page", "second", first.Hash);
+        IReadOnlyList<PageWriteResult> report = await transaction.CommitAsync();
 
         Assert.Multiple(() => {
-            Assert.That(moved.Outcome, Is.EqualTo(PageWriteOutcome.AlreadyStaged));
-            Assert.That(storage["/page"]?.Template, Is.EqualTo("first"), "the refused move wrote nothing");
+            Assert.That(report.Select(row => row.Outcome), Is.EqualTo([PageWriteOutcome.Saved, PageWriteOutcome.Saved]));
+            Assert.That(storage["/page"]?.Template, Is.EqualTo("second"));
         });
     }
 
     [Test]
-    public async Task ANestedWriteToOneKeyTheOuterOneHoldsIsAlreadyStagedAsync() {
+    public async Task AWriteAgainstTheStateBeforeAnEarlierOperationRefusesAndUndoesEverythingAsync() {
         FakePageStore storage = new();
         using PageHarness pages = new(storage);
         PageWritesScope scope = Scope(pages);
 
-        await using IPageTransaction outer = scope.BeginTransaction();
-        _ = await outer.SaveAsync("/page", "outer", null);
-
-        await using (IPageTransaction inner = scope.BeginTransaction()) {
-            PageWriteResult nested = await inner.SaveAsync("/page", "inner", null);
-
-            Assert.That(nested.Outcome, Is.EqualTo(PageWriteOutcome.AlreadyStaged), "the outer write stays the one on that key");
-
-            IReadOnlyList<PageWriteResult> report = await inner.CommitAsync();
-            Assert.That(report[0].Outcome, Is.EqualTo(PageWriteOutcome.AlreadyStaged));
-        }
-
-        IReadOnlyList<PageWriteResult> outerReport = await outer.CommitAsync();
+        await using IPageTransaction transaction = scope.BeginTransaction();
+        _ = await transaction.SaveAsync("/one", "first", null);
+        _ = await transaction.SaveAsync("/two", "second", null);
+        _ = await transaction.SaveAsync("/one", "third", "a-hash-from-before-the-transaction");
+        IReadOnlyList<PageWriteResult> report = await transaction.CommitAsync();
 
         Assert.Multiple(() => {
-            Assert.That(outerReport.Select(row => row.Outcome), Is.EqualTo([PageWriteOutcome.NotAttempted, PageWriteOutcome.AlreadyStaged]));
-            Assert.That(storage["/page"], Is.Null, "the refusal takes the outer write with it, because nothing is stored");
+            Assert.That(report.Select(row => row.Outcome),
+                Is.EqualTo([PageWriteOutcome.RolledBack, PageWriteOutcome.RolledBack, PageWriteOutcome.Stale]),
+                "the writes before the refusal were applied and undone, not skipped");
+            Assert.That(storage["/one"], Is.Null);
+            Assert.That(storage["/two"], Is.Null);
         });
     }
 

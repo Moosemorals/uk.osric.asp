@@ -24,11 +24,6 @@ public enum PageEditOutcome {
     /// </summary>
     Staged,
 
-    /// <summary>
-    /// The key already has a write staged in the transaction this render has open, so this one was
-    /// refused. Two operations on one key cannot both hold its head.
-    /// </summary>
-    AlreadyStaged,
 }
 
 /// <summary>What an edit answered with.</summary>

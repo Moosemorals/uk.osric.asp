@@ -9,7 +9,7 @@ using uk.osric.asp.Web.Shell;
 
 /// <summary>The system prompt and worked examples that teach the model to write a page.</summary>
 internal static class PageAuthorPrompt {
-    public const string Version = "page-author-v51";
+    public const string Version = "page-author-v52";
 
     public static IReadOnlyList<(string Name, string Source)> Examples { get; } = [
         ("query-driven", """
@@ -442,9 +442,11 @@ internal static class PageAuthorPrompt {
         `SourceNotFound`, `Refused`, `Busy`) and writes nothing, with
         `NotAttempted` for the writes the refusal cost. A page bug — a reserved
         key, a key that is not addressable, a library move — throws while
-        staging. One operation per key: a write on a key that already has one
-        staged answers `AlreadyStaged` at the call, is not compiled, and costs
-        the transaction its writes, because a refusal writes nothing.
+        staging. The commit applies the operations in the order you staged them,
+        each seeing what the ones before it wrote: create a page, move it and
+        delete it in one transaction and all three succeed. Every write a
+        refusal undid answers `RolledBack`; every one it never reached answers
+        `NotAttempted`.
         A transaction that is disposed without a commit writes nothing, and
         a transaction opened while one is already open nests inside it: its
         writes land with the outer one, its rows stay Staged, and disposing the

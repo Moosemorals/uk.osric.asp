@@ -18,9 +18,6 @@ public enum PageDeleteOutcome {
     /// </summary>
     Staged,
 
-    /// <summary>The key already has a write staged in the transaction this render has open, so this one was refused.</summary>
-    AlreadyStaged,
-
     /// <summary>Another writer held the store, so nothing was written.</summary>
     Busy,
 }

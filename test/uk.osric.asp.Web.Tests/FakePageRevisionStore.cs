@@ -81,39 +81,53 @@ internal sealed class FakePageRevisionStore(FakePageStore pages) : IPageRevision
         CancellationToken cancellationToken = default) {
         ArgumentNullException.ThrowIfNull(operations);
 
-        // The store proves every condition before it writes anything, so the fixture does too: a
-        // refusal must be able to report the writes it cost, and nothing may be written first.
-        List<PageCommitAnswer> proved = [];
-        foreach (PageCommit operation in operations) {
-            proved.Add(Check(operation));
-        }
-
-        PageCommitAnswer? refused = proved.FirstOrDefault(answer => answer.Outcome is
-            PageCommitOutcome.Stale or PageCommitOutcome.SourceNotFound or
-            PageCommitOutcome.TargetExists or PageCommitOutcome.FolderNotEmpty or PageCommitOutcome.Refused);
-
-        if (refused is not null) {
-            return [.. proved.Select(answer => answer.Outcome is PageCommitOutcome.Unchanged
-                ? answer
-                : answer.Key == refused.Key ? answer : answer with { Outcome = PageCommitOutcome.NotAttempted })];
-        }
-
+        // Applied in order against the store this fixture has already changed, so a later operation
+        // sees what an earlier one wrote, exactly as the store's own commit does. A refusal puts the
+        // store back, because a refused transaction writes nothing.
+        FakePageStoreSnapshot snapshot = pages.Snapshot();
         List<PageCommitAnswer> answers = [];
+
         foreach (PageCommit operation in operations) {
-            answers.Add(operation.Kind switch {
-                PageCommitKind.Put => await PutAsync(operation, cancellationToken),
-                PageCommitKind.Create => await PutAsync(operation, cancellationToken),
-                PageCommitKind.Save => await PutAsync(operation, cancellationToken),
-                PageCommitKind.Delete => await DeleteAsync(operation, cancellationToken),
-                PageCommitKind.Move => await MoveAsync(operation, cancellationToken),
-                _ => await pages.AdoptSeedAsync(operation.Key, operation.SeedHash!, cancellationToken)
-                    ? new PageCommitAnswer(operation.Key, PageCommitOutcome.Saved)
-                    : new PageCommitAnswer(operation.Key, PageCommitOutcome.Refused),
-            });
+            PageCommitAnswer answer = Check(operation);
+            if (answer.Outcome is PageCommitOutcome.Stale or PageCommitOutcome.SourceNotFound
+                or PageCommitOutcome.TargetExists or PageCommitOutcome.FolderNotEmpty or PageCommitOutcome.Refused) {
+                pages.Restore(snapshot);
+                return Report(operations, answers, answer);
+            }
+
+            answers.Add(await ApplyAsync(operation, cancellationToken));
         }
 
         return answers;
     }
+
+    private static PageCommitAnswer[] Report(
+        IReadOnlyList<PageCommit> operations,
+        List<PageCommitAnswer> attempts,
+        PageCommitAnswer refused) {
+        PageCommitAnswer[] rows = new PageCommitAnswer[operations.Count];
+
+        for (int index = 0; index < operations.Count; index++) {
+            rows[index] = index < attempts.Count
+                ? attempts[index] with {
+                    Outcome = attempts[index].Outcome == PageCommitOutcome.Unchanged
+                        ? PageCommitOutcome.Unchanged
+                        : PageCommitOutcome.RolledBack,
+                }
+                : index == attempts.Count ? refused : new PageCommitAnswer(operations[index].Key, PageCommitOutcome.NotAttempted);
+        }
+
+        return rows;
+    }
+
+    private async Task<PageCommitAnswer> ApplyAsync(PageCommit operation, CancellationToken cancellationToken) => operation.Kind switch {
+        PageCommitKind.Put or PageCommitKind.Create or PageCommitKind.Save => await PutAsync(operation, cancellationToken),
+        PageCommitKind.Delete => await DeleteAsync(operation, cancellationToken),
+        PageCommitKind.Move => await MoveAsync(operation, cancellationToken),
+        _ => await pages.AdoptSeedAsync(operation.Key, operation.SeedHash!, cancellationToken)
+            ? new PageCommitAnswer(operation.Key, PageCommitOutcome.Saved)
+            : new PageCommitAnswer(operation.Key, PageCommitOutcome.Refused),
+    };
 
     private PageCommitAnswer Check(PageCommit operation) {
         PageTemplate? head = pages[operation.Key.Key];

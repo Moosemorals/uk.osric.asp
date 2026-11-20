@@ -49,9 +49,8 @@ public enum PageWriteOutcome {
     NotAttempted,
 
     /// <summary>
-    /// The key already has a write staged in this transaction, so this one was refused. Two
-    /// operations on one key cannot both hold its head, and the second is neither merged into the
-    /// first nor allowed to replace it.
+    /// The operation was applied and then a later refusal rolled the whole transaction back, so
+    /// nothing it wrote is in the store.
     /// </summary>
-    AlreadyStaged,
+    RolledBack,
 }

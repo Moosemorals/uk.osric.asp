@@ -33,11 +33,6 @@ public enum PageMoveOutcome {
     /// </summary>
     Staged,
 
-    /// <summary>
-    /// A key involved already has a write staged in the transaction this render has open, so the move
-    /// was refused.
-    /// </summary>
-    AlreadyStaged,
 }
 
 /// <summary>What a move answered with.</summary>

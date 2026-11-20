@@ -164,14 +164,18 @@ writes, one commit, one report. Building it for Save all alone would be building
    rather than a file copy and the WAL can hold committed data. A single host with a local volume is
    what makes it safe: WAL is not for a network filesystem.
 
-6. **A transaction is all of it or none of it.** A stale expectation, a target that has appeared, a
-   source that has gone — any refusal writes nothing, and the report names every operation that
-   refused — with the head it saw, when the head moved — so a Save all can show all of its conflicts
-   in one answer. A page that wants to commit the rest disposes that transaction and opens another
-   with the operations it still wants; that is page code, not a policy the host enumerates. Refusals
-   that are page bugs — a reserved key, a key that is not addressable, a library moved — throw at the
-   call, as they do today; a second operation on a key the transaction already holds is not a bug, so
-   it is refused as AlreadyStaged instead.
+6. **A transaction is all of it or none of it, and its operations are serialised.** The commit applies
+   them in the order the page staged them, each proved against what the ones before it wrote: create a
+   page, move it and delete it in one unit and all three succeed, leaving a tombstone where the move
+   put it, with the revisions the move re-filed. Two writes to one key are therefore a sequence rather
+   than a conflict, and each answers what that step became — a second save whose expectation is the
+   first save's hash is Saved, one that expects the head from before the transaction is Stale. Any
+   refusal writes nothing: the report names the operation that refused, says RolledBack for the ones
+   applied and undone and NotAttempted for the ones never reached, so a Save all can show all of its
+   conflicts in one answer. A page that wants to commit the rest disposes that transaction and opens
+   another with the operations it still wants; that is page code, not a policy the host enumerates.
+   Refusals that are page bugs — a reserved key, a key that is not addressable, a library moved —
+   throw at the call, as they do today.
 
 7. **The report is one row per operation, and the row is one type.** The commit answers what each
    operation became — the key, which member ran, the outcome, the revision hash and the diagnostics
@@ -180,10 +184,8 @@ writes, one commit, one report. Building it for Save all alone would be building
    views of that row rather than parallel definitions, so a save, a move and a delete cannot describe
    themselves one way alone and another way in a batch, and a page iterating a mixed report needs no
    test per entry. A staged call answers only what the compile knows — the hash and the diagnostics —
-   because the outcome is not decided until the commit. The key is the row, so a second operation on
-   one key cannot be staged: it is refused as AlreadyStaged when it is made — stupid rather than a
-   bug, so an answer and not an exception — because one of the two expectations cannot hold. A page
-   that does not
+   because the outcome is not decided until the commit. The row is per operation and in staging order,
+   so two operations on one key are two rows describing two steps. A page that does not
    compile still commits — a save stores its source with its diagnostics, and a compiler fault still
    stores the source without an image — exactly as a single save does today
    (`pages-a-warning-never-stops-a-page`, `pages-a-compiler-fault-is-ours`).

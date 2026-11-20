@@ -7,6 +7,17 @@ using uk.osric.asp.Core.Compilation;
 using uk.osric.asp.Core.Pages;
 using uk.osric.asp.Web.Pages;
 
+/// <summary>What a <see cref="FakePageStore"/> held at one moment.</summary>
+/// <param name="Pages">Every live page.</param>
+/// <param name="Heads">Which keys have a live head.</param>
+/// <param name="Revisions">Every revision, by hash.</param>
+/// <param name="Anchors">The seed anchor each key carries.</param>
+internal sealed record FakePageStoreSnapshot(
+    Dictionary<string, PageTemplate> Pages,
+    Dictionary<string, bool> Heads,
+    Dictionary<string, PageTemplate> Revisions,
+    Dictionary<string, string> Anchors);
+
 /// <summary>An in-memory <see cref="IPageStore"/> that records what the shell asked of it.</summary>
 internal sealed class FakePageStore : IPageStore {
     private readonly Dictionary<string, PageTemplate> _pages = [];
@@ -32,6 +43,30 @@ internal sealed class FakePageStore : IPageStore {
 
     /// <summary>Every key this store holds a live page for, ordered.</summary>
     public IEnumerable<string> Keys => _pages.Keys.OrderBy(key => key, StringComparer.Ordinal);
+
+    /// <summary>Takes a copy of everything, so a refused commit can be undone.</summary>
+    /// <returns>A token to hand to <see cref="Restore"/>.</returns>
+    public FakePageStoreSnapshot Snapshot() =>
+        new([with(_pages)], [with(_heads)], [with(_revisions)], [with(_anchors)]);
+
+    /// <summary>Puts the store back the way a snapshot found it.</summary>
+    /// <param name="snapshot">What <see cref="Snapshot"/> returned.</param>
+    public void Restore(FakePageStoreSnapshot snapshot) {
+        ArgumentNullException.ThrowIfNull(snapshot);
+
+        Replace(_pages, snapshot.Pages);
+        Replace(_heads, snapshot.Heads);
+        Replace(_revisions, snapshot.Revisions);
+        Replace(_anchors, snapshot.Anchors);
+    }
+
+    private static void Replace<TKey, TValue>(Dictionary<TKey, TValue> target, Dictionary<TKey, TValue> source)
+        where TKey : notnull {
+        target.Clear();
+        foreach ((TKey key, TValue value) in source) {
+            target[key] = value;
+        }
+    }
 
     public int ReadCount { get; private set; }
 
