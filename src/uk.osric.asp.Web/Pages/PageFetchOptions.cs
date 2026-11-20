@@ -46,7 +46,7 @@ internal sealed record PageFetchOptions {
     public required int MaxRedirects { get; init; }
 
     /// <summary>The operator-configured credentials a page may name, by name.</summary>
-    public required IReadOnlyDictionary<string, PageCredential> Credentials { get; init; }
+    public required IReadOnlyDictionary<string, FetchCredential> Credentials { get; init; }
 
     /// <summary>The per-fetch budget as a time span.</summary>
     public TimeSpan Timeout => TimeSpan.FromSeconds(TimeoutSeconds);
@@ -95,7 +95,7 @@ internal sealed record PageFetchOptions {
 
     // The section is optional: no page naming a credential needs one, and the shipped file carries an
     // empty object rather than omitting it only so an operator can see the shape to copy.
-    private static IReadOnlyDictionary<string, PageCredential> ReadCredentials(IConfigurationSection section) {
+    private static IReadOnlyDictionary<string, FetchCredential> ReadCredentials(IConfigurationSection section) {
         return section.GetChildren().ToDictionary(
             entry => entry.Key,
             ReadCredential,
@@ -105,7 +105,7 @@ internal sealed record PageFetchOptions {
     // Every rule fails here, at startup, rather than at the first request: an operator who mistypes a
     // credential should see it in the journal, not in a page that cannot reach its provider. No message
     // includes the value.
-    private static PageCredential ReadCredential(IConfigurationSection entry) {
+    private static FetchCredential ReadCredential(IConfigurationSection entry) {
         string name = entry.Key;
         if (name.Length is 0 or > MaximumCredentialNameLength || name.Any(char.IsControl)) {
             throw new ConfigurationException($"{entry.Path}: the name must be 1 to {MaximumCredentialNameLength} characters with no control characters.");
@@ -113,7 +113,7 @@ internal sealed record PageFetchOptions {
 
         (PagePath page, bool includesDescendants) = ReadPage(entry);
 
-        return new PageCredential(
+        return new FetchCredential(
             name,
             ReadHost(entry),
             ReadHeader(entry),

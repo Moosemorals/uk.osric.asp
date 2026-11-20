@@ -16,7 +16,7 @@ using uk.osric.asp.Web.Configuration;
 /// </para>
 /// <para>
 /// Plaintext is allowed only to loopback. The token a run presents over it never leaves the machine's
-/// own network namespace, which is the same trade <c>PageCredential.AppliesTo</c> already makes for an
+/// own network namespace, which is the same trade <c>FetchCredential.AppliesTo</c> already makes for an
 /// operator-configured credential.
 /// </para>
 /// </remarks>
