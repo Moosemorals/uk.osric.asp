@@ -110,12 +110,10 @@ its reason, and that no item sits above something that blocks it.
 
 | Slug | Title | Difficulty | Utility | Status | Blocked by |
 | --- | --- | --- | --- | --- | --- |
-| [`check-without-storing`](check-without-storing.md) | A template cannot be checked without saving it, and the three callers ask a different way | determined-mountain-goat 💪🐐 | high | [planned](../plans/one-check.md) | — |
-| | *One capability answers the question the assistant asks most and the editor cannot ask at all: a page, the assistant and VS Code stop growing a check of their own, and no history carries a test save.* | | | | |
 | [`seed-auto-apply-at-startup`](seed-auto-apply-at-startup.md) | A release applies the seeds it moved at startup | eager-beaver ⚙️🦫 | high | open | — |
 | | *The one automatic write the store already permits is the release-newer row; a deploy should finish it without the owner opening a page.* | | | | |
-| [`one-write-per-render`](one-write-per-render.md) | A render may write a batch of pages, and the caller names the policy | protective-dragon 🔥🐉 | high | blocked | `check-without-storing` |
-| | *The one-save rule is what the assistant hits on every multi-file edit, and the owner has decided it goes; it borrows [`check-without-storing`](check-without-storing.md)'s compile-without-store, so it follows that step.* | | | | |
+| [`one-write-per-render`](one-write-per-render.md) | A render may write a batch of pages, and the caller names the policy | protective-dragon 🔥🐉 | high | [planned](../plans/ide-host.md) | — |
+| | *The one-save rule is what the assistant hits on every multi-file edit, and the owner has decided it goes; `check-without-storing`'s compile-without-store landed, so nothing stands in front of it.* | | | | |
 | [`job-borrows-a-credential`](job-borrows-a-credential.md) | A job acts with its starter's credential, and loses it when that credential dies | persistent-salmon ⬆️🐟 | high | blocked | `one-write-per-render` |
 | | *A job's writer is only safe once [`one-write-per-render`](one-write-per-render.md) has replaced the one-action rule with a policy the caller names; revocation is the other half of the same decision.* | | | | |
 | [`cannot-search-the-store`](cannot-search-the-store.md) | A page cannot search the store's source | eager-beaver ⚙️🦫 | medium | [planned](../plans/ide-host.md) | — |

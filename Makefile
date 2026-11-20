@@ -30,6 +30,7 @@ CHANGELIST := $(ARTIFACTS)/changes.txt
 WEB_PROJECT := src/uk.osric.asp.Web/uk.osric.asp.Web.csproj
 CORE_TESTS := test/uk.osric.asp.Core.Tests/uk.osric.asp.Core.Tests.csproj
 RUNTIME_TESTS := test/uk.osric.asp.Runtime.Tests/uk.osric.asp.Runtime.Tests.csproj
+LANGUAGE_SERVER_TESTS := test/asp-language-server.Tests/asp-language-server.Tests.csproj
 WEB_TESTS := test/uk.osric.asp.Web.Tests/uk.osric.asp.Web.Tests.csproj
 INTEGRATION_TESTS := test/uk.osric.asp.Web.IntegrationTests/uk.osric.asp.Web.IntegrationTests.csproj
 BROWSER_TESTS := test/uk.osric.asp.Web.BrowserTests/uk.osric.asp.Web.BrowserTests.csproj
@@ -129,7 +130,7 @@ BUILD_INPUTS := $(shell find src test tools -type f 2>/dev/null) \
 	Directory.Build.props Directory.Build.targets Directory.Packages.props $(SOLUTION) \
 	$(wildcard $(ARTIFACTS)/bin $(ARTIFACTS)/obj)
 
-.PHONY: help build restore check ci ci-install drift-check audit check-pages decisions backlog test test-core test-runtime test-web test-integration test-browser test-browser-live browsers vscode-extension migration user-add user-passwd user-list user-remove remote-user-add remote-user-passwd remote-user-list remote-user-remove seeds-list seeds-pull remote-seeds-list remote-seeds-pull run publish image image-check deploy deploy-guard pull-install format format-check license-check mutation-core mutation-runtime mutation-sdk mutation-web worktree worktrees worktree-remove changelist clean
+.PHONY: help build restore check ci ci-install drift-check audit check-pages decisions backlog test test-core test-runtime test-language-server test-web test-integration test-browser test-browser-live browsers vscode-extension migration user-add user-passwd user-list user-remove remote-user-add remote-user-passwd remote-user-list remote-user-remove seeds-list seeds-pull remote-seeds-list remote-seeds-pull run publish image image-check deploy deploy-guard pull-install format format-check license-check mutation-core mutation-runtime mutation-sdk mutation-web worktree worktrees worktree-remove changelist clean
 .DELETE_ON_ERROR:
 
 # ssh will not create the directory its control socket lives in.
@@ -149,9 +150,10 @@ help:
 		'check-pages        Compile the seeded pages and print compiler diagnostics.' \
 		'decisions          Check the decision record: names, areas, duplicates, citations.' \
 		'backlog            Check the backlog record: slugs, fields, the order, plans and citations.' \
-		'test               Run every suite: core, runtime, web and integration (no browser required).' \
+		'test               Run every suite: core, runtime, language server, web and integration (no browser required).' \
 		'test-core          Run the NUnit core tests only.' \
 		'test-runtime       Run the NUnit runtime tests only.' \
+		'test-language-server  Run the language server protocol tests only.' \
 		'test-web           Run the NUnit web shell and storage tests only.' \
 		'test-integration   Run the composed pipeline tests against a throwaway database.' \
 		'test-browser       Drive the real host in Firefox with Playwright (needs a browser download).' \
@@ -204,7 +206,7 @@ $(BUILD_STAMP): $(BUILD_INPUTS) $(RESTORE_STAMP)
 	@mkdir -p $(dir $@)
 	@touch $@
 
-test: test-core test-runtime test-web test-integration
+test: test-core test-runtime test-language-server test-web test-integration
 
 # A suite that wedges should fail the gate rather than sit in it. NUnit's own timeout would not help
 # here: the budget tests burn a wall clock on purpose, so only a whole-run ceiling is safe.
@@ -281,6 +283,11 @@ test-core: build
 
 test-runtime: build
 	$(DOTNET) test $(RUNTIME_TESTS) -c $(CONFIGURATION) --no-build $(TEST_FAST_ARGS)
+
+# The editor's server is a tool rather than part of the site, but the protocol it speaks is the one
+# feature of it nobody types by hand, so its suite runs with the rest.
+test-language-server: build
+	$(DOTNET) test $(LANGUAGE_SERVER_TESTS) -c $(CONFIGURATION) --no-build $(TEST_FAST_ARGS)
 
 test-web: build
 	$(DOTNET) test $(WEB_TESTS) -c $(CONFIGURATION) --no-build $(TEST_FAST_ARGS)

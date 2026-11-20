@@ -23,7 +23,7 @@ with, so a new required key and a forgotten row fail here rather than at the fir
 `ConfigurationStartupTests` drives the real host with several bad values in several sections and
 asserts that one report names all of them.
 
-## The five suites
+## The six suites
 
 | Project | Tool | Scope | Speed |
 | --- | --- | --- | --- |
@@ -32,13 +32,16 @@ asserts that one report names all of them.
 | `test/uk.osric.asp.Web.Tests` | NUnit | The endpoints and storage of the web shell | Milliseconds to seconds |
 | `test/uk.osric.asp.Web.IntegrationTests` | NUnit + `WebApplicationFactory` | The composed pipeline: routing, middleware, error handling, startup | Seconds |
 | `test/uk.osric.asp.Web.BrowserTests` | NUnit + Playwright | The real host driven in Firefox: the shell pages, the editor and the assistant | Seconds to a couple of minutes |
+| `test/asp-language-server.Tests` | NUnit | The editor's server: framing, template positions and version bookkeeping | Milliseconds to a second |
 
 `tools/check-pages` is outside the suites: it is the product's compiler run over the seeds, with no
-assertions, and `make check-pages` puts it in the gate. The VS Code extension in `tools/vscode-asp`
-is data rather than code, so no suite covers it: the tokenizer that proved its rules needs a TextMate
-engine and is not part of the repository. A change to the grammar is checked by opening a seed and
-reading **Developer: Inspect Editor Tokens and Scopes**, and by keeping every C# rule `match`-only so
-`%>` stays reachable.
+assertions, and `make check-pages` puts it in the gate. The VS Code extension's grammars in
+`tools/vscode-asp` are data, and no suite covers them: the tokenizer that proved their rules needs a
+TextMate engine and is not part of the repository. A change to the grammar is checked by opening a seed
+and reading **Developer: Inspect Editor Tokens and Scopes**, and by keeping every C# rule `match`-only
+so `%>` stays reachable. The extension's other half is code: `test/asp-language-server.Tests` drives
+the server the client spawns, over the same messages, so the protocol is proven even though no suite can
+start VS Code.
 
 - **Core tests** cover one rule at a time and exercise `Core` directly. `Sdk` has no suite of its
 own: it is the page contract — interfaces and plain values with documentation and no host behaviour —
@@ -270,11 +273,12 @@ Every test is an NUnit test. Assert the behaviour, not the method, and keep one 
 ## Running them
 
 ```bash
-make check             # the gate: formatting, licences, package audit, all four suites, Release publish
+make check             # the gate: formatting, licences, package audit, every suite, Release publish
 make ci                # the same from `make clean`, plus "the build wrote no tracked file"
-make test              # the four suites that need no browser
+make test              # the five suites that need no browser
 make test-core         # core tests only
 make test-runtime      # runtime tests only
+make test-language-server  # the editor's server only
 make test-web          # web tests only
 make test-integration  # the composed pipeline only, against a throwaway database
 make browsers          # download the Firefox build the browser suite drives, once

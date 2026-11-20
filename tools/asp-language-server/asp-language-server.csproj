@@ -1,0 +1,26 @@
+<!--
+SPDX-FileCopyrightText: Copyright 2026 Osric Wilkinson <osric@fluffypeople.com>
+SPDX-License-Identifier: MIT
+-->
+
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    The editor's half of the compiler: a Language Server Protocol server over stdio, so VS Code shows
+    a template's diagnostics while it is typed. It is a tool rather than part of the site: a
+    repository needs it and the site never does.
+  -->
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../../src/uk.osric.asp.Runtime/uk.osric.asp.Runtime.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="asp-language-server.Tests" />
+  </ItemGroup>
+
+</Project>

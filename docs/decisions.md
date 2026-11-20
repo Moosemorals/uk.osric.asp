@@ -1266,7 +1266,7 @@ have reported. A check spends a compile slot and no `PageWritesScope` action, an
 render's deadline or the compile timeout answers a `PAGE010` error rather than hanging: there is no
 author's edit to protect, so an abandoned check loses nothing.
 
-*Recorded in [pages](pages.md#page-contract), [PageCheckScope](../src/uk.osric.asp.Web/Pages/PageCheckScope.cs), [one check](plans/one-check.md).*
+*Recorded in [pages](pages.md#page-contract), [PageCheckScope](../src/uk.osric.asp.Web/Pages/PageCheckScope.cs), [one check](plans/archive/one-check.md).*
 
 ### pages-a-check-names-its-language
 
@@ -1277,7 +1277,7 @@ extension, because an extension is a content type and not a validator: a `.html`
 template or an asset. `template` is the first value, and the set grows with the checker that answers for
 a new one, so a name this build does not answer for is refused by name rather than guessed at.
 
-*Recorded in [pages](pages.md#page-contract), [PageCheckLanguages](../src/uk.osric.asp.Sdk/PageCheckLanguages.cs), [one check](plans/one-check.md).*
+*Recorded in [pages](pages.md#page-contract), [PageCheckLanguages](../src/uk.osric.asp.Sdk/PageCheckLanguages.cs), [one check](plans/archive/one-check.md).*
 
 ### pages-a-check-needs-a-visitor
 
@@ -1288,7 +1288,7 @@ cost is a save's cost; its wait and its compile also end at the render's deadlin
 `PAGE010` when that happens rather than hanging. An anonymous render is simply not offered the
 capability, so a page reads `ctx.User` only to decide what to show.
 
-*Recorded in [pages](pages.md#page-contract), [PageChain](../src/uk.osric.asp.Web/Pages/PageChain.cs), [PageCheckScope](../src/uk.osric.asp.Web/Pages/PageCheckScope.cs), [one check](plans/one-check.md).*
+*Recorded in [pages](pages.md#page-contract), [PageChain](../src/uk.osric.asp.Web/Pages/PageChain.cs), [PageCheckScope](../src/uk.osric.asp.Web/Pages/PageCheckScope.cs), [one check](plans/archive/one-check.md).*
 
 ### pages-scratch-saves-itself
 
