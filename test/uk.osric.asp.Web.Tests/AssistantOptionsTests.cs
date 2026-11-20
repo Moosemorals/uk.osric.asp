@@ -25,6 +25,7 @@ public sealed class AssistantOptionsTests {
         Assert.Multiple(() => {
             Assert.That(error.Message, Does.Contain("Assistant:MaxSteps is not set."));
             Assert.That(error.Message, Does.Contain("Assistant:MaxSearchMatches is not set."));
+            Assert.That(error.Message, Does.Contain("Assistant:MaxCheckDiagnostics is not set."));
         });
     }
 
@@ -36,6 +37,30 @@ public sealed class AssistantOptionsTests {
         Assert.Multiple(() => {
             Assert.That(error.Message, Does.Contain("Assistant:MaxSteps is 0"));
             Assert.That(error.Message, Does.Contain("160 is recommended"));
+        });
+    }
+
+    [Test]
+    public void TheCheckDiagnosticCapShipsAtOneHundred() {
+        Assert.That(TestOptions.Assistant.MaxCheckDiagnostics, Is.EqualTo(100));
+    }
+
+    [Test]
+    public void TheCheckDiagnosticCapMayBeOverridden() {
+        AssistantOptions options = AssistantOptions.FromConfiguration(
+            ShippedConfiguration.Read(("Assistant:RequireApiKey", "false"), ("Assistant:MaxCheckDiagnostics", "25")));
+
+        Assert.That(options.MaxCheckDiagnostics, Is.EqualTo(25));
+    }
+
+    [Test]
+    public void ACheckDiagnosticCapOutOfRangeStopsTheSite() {
+        ConfigurationException error = Assert.Throws<ConfigurationException>(() => AssistantOptions.FromConfiguration(
+            ShippedConfiguration.Read(("Assistant:RequireApiKey", "false"), ("Assistant:MaxCheckDiagnostics", "0"))))!;
+
+        Assert.Multiple(() => {
+            Assert.That(error.Message, Does.Contain("Assistant:MaxCheckDiagnostics is 0"));
+            Assert.That(error.Message, Does.Contain("100 is recommended"));
         });
     }
 

@@ -11,7 +11,7 @@ SPDX-License-Identifier: MIT
 | Size | Large as a programme, small as a step: one Sdk capability with two types and one closed set, a Web adapter over the compiler, the assistant's tool surface rewritten once, and an editor for the repository over the same tier. Four slices, each its own branch and each stopping for the owner |
 | Area | Sdk, Runtime, Core (Assistant), Web (pages, editor, assistant), tools, docs |
 | Spike | [Teaching VS Code the template language](../spikes/vscode-template-language.md) — the half that has not landed |
-| Backlog | [`check-without-storing`](../backlog/check-without-storing.md) is this step; [`tool-arguments-say-nothing`](../backlog/tool-arguments-say-nothing.md) opens its third slice; [`nothing-checks-page-assets`](../backlog/nothing-checks-page-assets.md) and [`revision-hides-its-diagnostics`](../backlog/revision-hides-its-diagnostics.md) are its neighbours and neither is this plan |
+| Backlog | [`check-without-storing`](../backlog/check-without-storing.md) is this step; `tool-arguments-say-nothing` opened its third slice; [`nothing-checks-page-assets`](../backlog/nothing-checks-page-assets.md) and [`revision-hides-its-diagnostics`](../backlog/revision-hides-its-diagnostics.md) are its neighbours and neither is this plan |
 | Decisions | `pages-a-check-stores-nothing`, `pages-a-check-names-its-language` and `pages-a-check-needs-a-visitor`, recorded with slice 1. Relies on `pages-a-diagnostic-names-its-source`, `pages-a-page-may-save-itself`, `pages-reading-the-store-is-public`, `pages-the-store-is-read-through-one-seam`, `pages-a-warning-never-stops-a-page`, `code-policy-values-are-configuration`, `code-n-is-small`, `assistant-script-checks`, `assistant-a-tool-is-one-type`, `assistant-tool-results-are-cut-not-refused` and `product-manual-is-a-page` |
 
 ## The short version
@@ -153,7 +153,7 @@ with its test for the shipped value, an override and a refusal; the prompt's two
 and its `Version` moving; [assistant](../assistant.md) following. The answer is
 `{ valid, checks: [{ language, kind, valid, diagnostics }] }`, so the kind travels with the check that
 discovered it.
-[`tool-arguments-say-nothing`](../backlog/tool-arguments-say-nothing.md) opens this slice, because both
+`tool-arguments-say-nothing` opened this slice, because both
 rewrite the tool definitions and so the provider's cached prefix; its other argument descriptions ride
 with it.
 
@@ -220,8 +220,8 @@ The owner answered these on 2026-11-20; this revision carries the answers and wa
 
 - The merged item [`check-without-storing`](../backlog/check-without-storing.md) already carries the
   three callers and the settled shape; it takes this plan and becomes `planned`.
-- [`tool-arguments-say-nothing`](../backlog/tool-arguments-say-nothing.md) takes this plan and stays
-  `blocked` on the item whose tool it describes.
+- `tool-arguments-say-nothing` closed with slice 3: the schema's `enum` and the argument
+  descriptions landed with the tool that needed them.
 - [`ide-host`](ide-host.md) has lost slice 3 and says where it went; [the shell plan](assistant-shell-tool.md)
   no longer claims the check's name and consumes its tool instead.
 - At each merge the names this plan intends are written into [the record](../decisions.md) with their

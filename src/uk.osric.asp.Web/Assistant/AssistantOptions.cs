@@ -105,6 +105,13 @@ internal sealed record AssistantOptions {
     /// <summary>Lines <c>head</c> and <c>tail</c> show when no count is given.</summary>
     public required int ShellDefaultLines { get; init; }
 
+    /// <summary>
+    /// The most diagnostics one <c>check</c> answer carries. Roslyn cannot stop at a count — the
+    /// compile returns its whole set — so this cuts the answer rather than the work, and the shipped
+    /// hundred is <c>csc</c>'s own default error limit.
+    /// </summary>
+    public required int MaxCheckDiagnostics { get; init; }
+
     /// <summary>Reads <c>Assistant</c>.</summary>
     /// <param name="configuration">The application configuration.</param>
     /// <exception cref="ConfigurationException">A value is missing or unusable.</exception>
@@ -168,6 +175,7 @@ internal sealed record AssistantOptions {
             MaxListLimit = reader.Number("MaxListLimit", recommended: 500, minimum: 1, maximum: 1_000),
             ShellMatchLimit = reader.Number("ShellMatchLimit", recommended: 100, minimum: 1, maximum: 1_000),
             ShellDefaultLines = reader.Number("ShellDefaultLines", recommended: 10, minimum: 1, maximum: 1_000),
+            MaxCheckDiagnostics = reader.Number("MaxCheckDiagnostics", recommended: 100, minimum: 1, maximum: 10_000),
         };
 
         reader.FailIf(requireApiKey && options.ApiKey is null, "ApiKey",

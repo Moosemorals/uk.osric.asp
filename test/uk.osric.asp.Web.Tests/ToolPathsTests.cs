@@ -68,11 +68,11 @@ public sealed class ToolPathsTests {
     [Test]
     public void AShellFileHasNoPageSourceAndTheRefusalSaysWhatTheToolReads() {
         ToolExecutionResult? refusal = ToolPaths.RequirePageSource(
-            Spec("check_script", "Check"), PagePath.Normalize("/admin/scrub"), "reads page source", Services());
+            Spec("check", "Check"), PagePath.Normalize("/admin/scrub"), "reads page source", Services());
 
         Assert.Multiple(() => {
             Assert.That(refusal?.IsSuccess, Is.False);
-            Assert.That(refusal?.Content, Does.Contain("check_script reads page source"));
+            Assert.That(refusal?.Content, Does.Contain("check reads page source"));
             Assert.That(refusal?.Summary, Is.EqualTo("Check refused"));
         });
     }
@@ -80,7 +80,7 @@ public sealed class ToolPathsTests {
     [Test]
     public void APageIsPageSource() {
         ToolExecutionResult? refusal = ToolPaths.RequirePageSource(
-            Spec("check_script", "Check"), PagePath.Normalize("/notes"), "reads page source", Services());
+            Spec("check", "Check"), PagePath.Normalize("/notes"), "reads page source", Services());
 
         Assert.That(refusal, Is.Null);
     }

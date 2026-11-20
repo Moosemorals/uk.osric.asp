@@ -15,7 +15,7 @@ using SdkDiagnostic = uk.osric.asp.Sdk.PageDiagnostic;
 using SdkKind = uk.osric.asp.Sdk.PageKind;
 using SdkSeverity = uk.osric.asp.Sdk.PageDiagnosticSeverity;
 
-/// <summary>One layer's <see cref="IPageCheck"/>, bound to that render's deadline and abandonment.</summary>
+/// <summary>A check, bound to one render's or one tool call's deadline and abandonment.</summary>
 /// <remarks>
 /// <para>
 /// A template is the save's front half without the store: generate the source, generate each library
@@ -32,11 +32,13 @@ using SdkSeverity = uk.osric.asp.Sdk.PageDiagnosticSeverity;
 /// <c>PAGE010</c> error instead of throwing when that happens.
 /// </para>
 /// <para>
-/// Records <c>page.compile.duration</c> under the calling page's key with the reason <c>check</c>.
+/// Records <c>page.compile.duration</c> with the reason <c>check</c> when the check names a page: an
+/// assistant tool checks supplied text for no page, and a metric tagged with a key that does not exist
+/// would be worse than none.
 /// </para>
 /// </remarks>
 internal sealed class PageCheckScope(
-    PagePath path,
+    PagePath? path,
     IPageCompiler compiler,
     PageLibraries libraries,
     PageBudget budget,
@@ -121,7 +123,7 @@ internal sealed class PageCheckScope(
             string why = Stopped
                 ? "the check was given up on while it read the libraries"
                 : "the check ran out of time before it could compile";
-            logger.LogWarning("Checking a template for {Path} stopped before compiling: {Reason}", path.Key, why);
+            logger.LogWarning("Checking a template for {Subject} stopped before compiling: {Reason}", Subject, why);
             return Unfinished(why);
         }
 
@@ -132,7 +134,7 @@ internal sealed class PageCheckScope(
             string why = Stopped
                 ? "the check was given up on while it waited for a compile slot"
                 : $"the check waited longer than {PageBudget.DescribeSeconds(budget.CompileOptions.Timeout)} s for a compile slot";
-            logger.LogWarning("Checking a template for {Path} stopped: {Reason}", path.Key, why);
+            logger.LogWarning("Checking a template for {Subject} stopped: {Reason}", Subject, why);
             return Unfinished(why);
         }
 
@@ -150,7 +152,7 @@ internal sealed class PageCheckScope(
                 string why = Stopped
                     ? "the check was given up on before it finished compiling"
                     : $"the check took longer than {PageBudget.DescribeSeconds(budget.CompileOptions.Timeout)} s to compile";
-                logger.LogWarning("Checking a template for {Path} stopped: {Reason}", path.Key, why);
+                logger.LogWarning("Checking a template for {Subject} stopped: {Reason}", Subject, why);
                 return Unfinished(why);
             }
         } finally {
@@ -158,13 +160,15 @@ internal sealed class PageCheckScope(
         }
 
         TimeSpan duration = Stopwatch.GetElapsedTime(start);
-        metrics.RecordCompile(path, result.IsSuccess, PageMetrics.ReasonCheck, duration);
-
-        if (!result.IsSuccess) {
-            logger.LogDebug("Generated source for a check for {Path}:{NewLine}{Source}", path.Key, Environment.NewLine, source.Text);
+        if (path is { } checkedPath) {
+            metrics.RecordCompile(checkedPath, result.IsSuccess, PageMetrics.ReasonCheck, duration);
         }
 
-        logger.LogDebug("Checked a template for {Path} in {ElapsedMs:0.0} ms ({Outcome})", path.Key,
+        if (!result.IsSuccess) {
+            logger.LogDebug("Generated source for a check for {Subject}:{NewLine}{Source}", Subject, Environment.NewLine, source.Text);
+        }
+
+        logger.LogDebug("Checked a template for {Subject} in {ElapsedMs:0.0} ms ({Outcome})", Subject,
             duration.TotalMilliseconds, result.IsSuccess ? "ok" : "error");
 
         // The compiler refines a declaration-only source: a library stays a library unless it declares
@@ -184,6 +188,9 @@ internal sealed class PageCheckScope(
     // An abandoned render and an expiring compile budget are different facts that answer the one
     // code, so the sentence says which happened; the caller reads PAGE010 either way.
     private bool Stopped => IsAbandoned || Deadline.IsCancellationRequested;
+
+    // A check the assistant asked for has no page; the logs still need to say what was checked.
+    private string Subject => path?.Key ?? "supplied text";
 
     private static PageCheckResult Unfinished(string why) =>
         new(null, false, PageDiagnostics.ToSdk([

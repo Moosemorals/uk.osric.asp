@@ -19,7 +19,7 @@ public sealed class PageToolExecutorHistoryTests {
     private static readonly ToolContext Context = new("owner", ConversationId: 1, RunId: "run-1");
 
     [TestCase("list_revisions", ExpectedResult = false)]
-    [TestCase("read_revision", ExpectedResult = false)]
+    [TestCase("read_page", ExpectedResult = false)]
     [TestCase("restore_revision", ExpectedResult = true)]
     public bool OnlyTheRestoreIsApprovalGated(string name) =>
         PageToolExecutor.Definitions.Single(item => item.Name == name).NeedsApproval;
@@ -29,19 +29,19 @@ public sealed class PageToolExecutorHistoryTests {
         string[] names = [.. PageToolExecutor.Definitions.Select(definition => definition.Name)];
         int diff = Array.IndexOf(names, "diff_page");
 
-        Assert.That(names[diff..(diff + 4)], Is.EqualTo<string[]>(["diff_page", "list_revisions", "read_revision", "restore_revision"]));
+        Assert.That(names[diff..(diff + 3)], Is.EqualTo<string[]>(["diff_page", "list_revisions", "restore_revision"]));
     }
 
     [Test]
     public void TheDefinitionsCarryTheDeclaredArguments() {
         ToolDefinition listing = PageToolExecutor.Definitions.Single(item => item.Name == "list_revisions");
-        ToolDefinition reading = PageToolExecutor.Definitions.Single(item => item.Name == "read_revision");
+        ToolDefinition reading = PageToolExecutor.Definitions.Single(item => item.Name == "read_page");
         ToolDefinition restoring = PageToolExecutor.Definitions.Single(item => item.Name == "restore_revision");
 
         Assert.Multiple(() => {
             Assert.That(Required(listing), Is.EqualTo<string[]>(["path"]));
             Assert.That(Properties(listing), Is.EqualTo<string[]>(["path", "limit", "before"]));
-            Assert.That(Required(reading), Is.EqualTo<string[]>(["path", "hash"]));
+            Assert.That(Required(reading), Is.EqualTo<string[]>(["path"]));
             Assert.That(Properties(reading), Is.EqualTo<string[]>(["path", "hash", "startLine", "endLine"]));
             Assert.That(Required(restoring), Is.EqualTo<string[]>(["path", "hash"]));
         });
@@ -146,14 +146,14 @@ public sealed class PageToolExecutorHistoryTests {
     }
 
     [Test]
-    public async Task ReadRevisionAnswersTheStoredSourceWithOneBasedLinesAsync() {
+    public async Task ReadPageReadsARetainedRevisionWithOneBasedLinesAsync() {
         FakePageStore storage = new();
         PageTemplate revision = new(PagePath.Normalize("/notes"), "first\nsecond\nthird");
         await storage.SavePageAsync(revision);
         await storage.SavePageAsync(new PageTemplate(PagePath.Normalize("/notes"), "later"));
 
         ToolExecutionResult result = await RunAsync(
-            storage, "read_revision", $$"""{"path":"/notes","hash":"{{revision.Hash}}","startLine":2,"endLine":3}""");
+            storage, "read_page", $$"""{"path":"/notes","hash":"{{revision.Hash}}","startLine":2,"endLine":3}""");
 
         JsonElement data = Data(result);
         Assert.Multiple(() => {
@@ -164,22 +164,23 @@ public sealed class PageToolExecutorHistoryTests {
             Assert.That(data.GetProperty("totalLines").GetInt32(), Is.EqualTo(3));
             Assert.That(data.GetProperty("hash").GetString(), Is.EqualTo(revision.Hash));
             Assert.That(data.GetProperty("editorUrl").GetString(), Does.Contain(revision.Hash));
+            Assert.That(data.TryGetProperty("diagnostics", out _), Is.False, "a retained revision carries no stored diagnostics");
             Assert.That(data.TryGetProperty("isCurrent", out _), Is.False, "the listing answers whether a revision is the head");
         });
     }
 
     [Test]
-    public async Task ReadRevisionRefusesAForeignOrMalformedHashAsync() {
+    public async Task ReadPageRefusesAForeignOrMalformedRevisionHashAsync() {
         FakePageStore storage = new();
         PageTemplate mine = new(PagePath.Normalize("/notes"), "mine");
         PageTemplate other = new(PagePath.Normalize("/other"), "other");
         await storage.SavePageAsync(mine);
         await storage.SavePageAsync(other);
 
-        ToolExecutionResult foreign = await RunAsync(storage, "read_revision", $$"""{"path":"/notes","hash":"{{other.Hash}}"}""");
-        ToolExecutionResult malformed = await RunAsync(storage, "read_revision", """{"path":"/notes","hash":"NOPE"}""");
+        ToolExecutionResult foreign = await RunAsync(storage, "read_page", $$"""{"path":"/notes","hash":"{{other.Hash}}"}""");
+        ToolExecutionResult malformed = await RunAsync(storage, "read_page", """{"path":"/notes","hash":"NOPE"}""");
         ToolExecutionResult uppercase = await RunAsync(
-            storage, "read_revision", $$"""{"path":"/notes","hash":"{{mine.Hash.ToUpperInvariant()}}"}""");
+            storage, "read_page", $$"""{"path":"/notes","hash":"{{mine.Hash.ToUpperInvariant()}}"}""");
 
         Assert.Multiple(() => {
             Assert.That(foreign.IsSuccess, Is.False);
@@ -190,7 +191,7 @@ public sealed class PageToolExecutorHistoryTests {
     }
 
     [Test]
-    public async Task ReadRevisionWindowsASourceExactlyAsReadPageDoesAsync() {
+    public async Task ReadPageWindowsARevisionExactlyAsTheLivePageAsync() {
         FakePageStore storage = new();
         string source = string.Join('\n', Enumerable.Range(0, 400).Select(index => $"line {index}"));
         PageTemplate revision = new(PagePath.Normalize("/notes"), source);
@@ -198,7 +199,7 @@ public sealed class PageToolExecutorHistoryTests {
 
         ContextBudget small = TestOptions.BudgetOfResultChars(4_096);
         ToolExecutionResult whole = await RunAsync(
-            storage, "read_revision", $$"""{"path":"/notes","hash":"{{revision.Hash}}"}""", SmallBudget(), small);
+            storage, "read_page", $$"""{"path":"/notes","hash":"{{revision.Hash}}"}""", SmallBudget(), small);
         ToolExecutionResult live = await RunAsync(storage, "read_page", """{"path":"/notes"}""", SmallBudget(), small);
 
         JsonElement read = Data(whole).GetProperty("truncated").GetBoolean() ? Data(whole) : default;

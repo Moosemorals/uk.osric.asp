@@ -381,7 +381,7 @@ deleted page comes back with its history. Nor is it an install: a seed is *insta
 revision is *restored*, and both refuse the change that would leave the live source as it is.
 
 **Owner:** pages — the editor's `?cmd=restore&hash=`, `PageEditor.SaveAsync` and
-`PageSaver.SaveAsync`; the assistant's `restore_revision` and `list_revisions` / `read_revision`.
+`PageSaver.SaveAsync`; the assistant's `restore_revision`, `list_revisions` and `read_page` with a `hash`.
 
 ## Revision
 An immutable saved row holding one template, the image built from it, its hash and the runtime id

@@ -112,8 +112,6 @@ its reason, and that no item sits above something that blocks it.
 | --- | --- | --- | --- | --- | --- |
 | [`check-without-storing`](check-without-storing.md) | A template cannot be checked without saving it, and the three callers ask a different way | determined-mountain-goat 💪🐐 | high | [planned](../plans/one-check.md) | — |
 | | *One capability answers the question the assistant asks most and the editor cannot ask at all: a page, the assistant and VS Code stop growing a check of their own, and no history carries a test save.* | | | | |
-| [`tool-arguments-say-nothing`](tool-arguments-say-nothing.md) | The tools' arguments say nothing about themselves | contented-capybara 😌🦫 | high | blocked | `check-without-storing` |
-| | *The `enum` it adds has no argument to describe until `check` exists, and both rewrite the provider's cached prefix, so it opens that tool's slice.* | | | | |
 | [`seed-auto-apply-at-startup`](seed-auto-apply-at-startup.md) | A release applies the seeds it moved at startup | eager-beaver ⚙️🦫 | high | open | — |
 | | *The one automatic write the store already permits is the release-newer row; a deploy should finish it without the owner opening a page.* | | | | |
 | [`one-write-per-render`](one-write-per-render.md) | A render may write a batch of pages, and the caller names the policy | protective-dragon 🔥🐉 | high | blocked | `check-without-storing` |

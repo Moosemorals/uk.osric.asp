@@ -4,6 +4,7 @@
 namespace uk.osric.asp.Web.Tests;
 
 using System.Reflection;
+using System.Text.Json;
 using uk.osric.asp.Core.Assistant;
 using uk.osric.asp.Web.Assistant;
 using uk.osric.asp.Web.Assistant.Tools;
@@ -68,7 +69,7 @@ public sealed class ToolSpecsTests {
 
     [Test]
     public void TheRegistryHoldsEveryTool() {
-        Assert.That(ToolRegistry.Default.All, Has.Count.EqualTo(22));
+        Assert.That(ToolRegistry.Default.All, Has.Count.EqualTo(20));
     }
 
     [Test]
@@ -119,14 +120,53 @@ public sealed class ToolSpecsTests {
         Assert.That(undescribed, Is.Empty);
     }
 
-    // A tool that describes no argument sends the schema it always sent, so the provider's cached
-    // prefix does not move for the twenty tools this change leaves alone.
+    // A tool that describes no argument and names no closed set sends the schema it always sent, so
+    // the provider's cached prefix does not move for the tools this change leaves alone.
     [Test]
-    public void AToolWithNoArgumentDescriptionsIsUnchangedOnTheWire() {
-        ToolDefinition readPage = PageToolExecutor.Definitions.Single(tool => tool.Name == "read_page");
+    public void AToolWithNoDescriptionsOrValuesIsUnchangedOnTheWire() {
+        ToolDefinition listing = PageToolExecutor.Definitions.Single(tool => tool.Name == "list_revisions");
 
-        Assert.That(readPage.ParametersJson, Is.EqualTo(
-            """{"type":"object","properties":{"path":{"type":"string"},"startLine":{"type":"integer"},"endLine":{"type":"integer"}},"required":["path"],"additionalProperties":false}"""));
+        Assert.That(listing.ParametersJson, Is.EqualTo(
+            """{"type":"object","properties":{"path":{"type":"string"},"limit":{"type":"integer"},"before":{"type":"string"}},"required":["path"],"additionalProperties":false}"""));
+    }
+
+    // The declaration is the one source: the schema renders whatever set the tool names, and a tool
+    // that names none carries no `enum` at all.
+    [Test]
+    public void EveryClosedSetRendersFromItsDeclaration() {
+        List<string> wrong = [];
+        foreach (ToolSpec spec in Specs) {
+            using JsonDocument parameters = JsonDocument.Parse(
+                PageToolExecutor.Definitions.Single(tool => tool.Name == spec.Name).ParametersJson);
+            foreach (ToolArgumentSchema argument in spec.Arguments) {
+                JsonElement property = parameters.RootElement.GetProperty("properties").GetProperty(argument.Name);
+                bool carries = property.TryGetProperty("enum", out JsonElement values);
+                if (argument.Values is { Count: > 0 } declared) {
+                    if (!carries || !values.EnumerateArray().Select(item => item.GetString()).SequenceEqual(declared)) {
+                        wrong.Add($"{spec.Name}.{argument.Name}");
+                    }
+                } else if (carries) {
+                    wrong.Add($"{spec.Name}.{argument.Name}");
+                }
+            }
+        }
+
+        Assert.That(wrong, Is.Empty);
+    }
+
+    [Test]
+    public void AClosedSetIsValidatedBeforeTheToolRuns() {
+        IReadOnlyList<ToolArgumentSchema> check = ToolRegistry.Default.Find("check")!.Spec.Arguments;
+
+        ToolArgumentsResult refused = ToolArguments.Parse(
+            """{"language":"css","content":"body { color: red; }"}""", check, maximumChars: 4_096);
+        ToolArgumentsResult accepted = ToolArguments.Parse(
+            """{"language":"javascript","content":"export const answer = 42;"}""", check, maximumChars: 4_096);
+
+        Assert.Multiple(() => {
+            Assert.That(refused.Error, Does.Contain("must be one of template, javascript"));
+            Assert.That(accepted.IsSuccess, Is.True, accepted.Error);
+        });
     }
 
     private static IEnumerable<string> Undescribed(IEnumerable<ToolArgumentSchema> arguments, string prefix) {
@@ -145,7 +185,6 @@ public sealed class ToolSpecsTests {
     [TestCase("edit_page", ExpectedResult = true)]
     [TestCase("restore_revision", ExpectedResult = true)]
     [TestCase("list_revisions", ExpectedResult = false)]
-    [TestCase("read_revision", ExpectedResult = false)]
     [TestCase("delete_page", ExpectedResult = false)]
     [TestCase("read_page", ExpectedResult = false)]
     public bool OnlyThePageWritingToolsChangeAPage(string toolName) =>
