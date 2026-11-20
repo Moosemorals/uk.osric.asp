@@ -112,10 +112,10 @@ its reason, and that no item sits above something that blocks it.
 | --- | --- | --- | --- | --- | --- |
 | [`seed-auto-apply-at-startup`](seed-auto-apply-at-startup.md) | A release applies the seeds it moved at startup | eager-beaver ⚙️🦫 | high | [planned](../plans/seed-auto-apply-at-startup.md) | — |
 | | *The one automatic write the store already permits is the release-newer row; a deploy should finish it without the owner opening a page.* | | | | |
-| [`one-write-per-render`](one-write-per-render.md) | A render may write a batch of pages, and the caller names the policy | protective-dragon 🔥🐉 | high | [planned](../plans/ide-host.md) | — |
-| | *The one-save rule is what the assistant hits on every multi-file edit, and the owner has decided it goes; `check-without-storing`'s compile-without-store landed, so nothing stands in front of it.* | | | | |
+| [`one-write-per-render`](one-write-per-render.md) | A render cannot write several pages as one transaction | protective-dragon 🔥🐉 | high | [planned](../plans/ide-host.md) | — |
+| | *The one-write rule is what the assistant hits on every multi-file edit, and the owner has decided it goes; `check-without-storing`'s compile-without-store landed, so nothing stands in front of it.* | | | | |
 | [`job-borrows-a-credential`](job-borrows-a-credential.md) | A job acts with its starter's credential, and loses it when that credential dies | persistent-salmon ⬆️🐟 | high | blocked | `one-write-per-render` |
-| | *A job's writer is only safe once [`one-write-per-render`](one-write-per-render.md) has replaced the one-action rule with a policy the caller names; revocation is the other half of the same decision.* | | | | |
+| | *A job's writer is only safe once [`one-write-per-render`](one-write-per-render.md) has replaced the one-action rule with a transaction a page opens and commits; revocation is the other half of the same decision.* | | | | |
 | [`cannot-search-the-store`](cannot-search-the-store.md) | A page cannot search the store's source | eager-beaver ⚙️🦫 | medium | [planned](../plans/ide-host.md) | — |
 | | *Lifts the assistant's own search into the contract rather than inventing anything.* | | | | |
 | [`a-page-cannot-list-folders`](a-page-cannot-list-folders.md) | A page cannot list the store's folders | eager-beaver ⚙️🦫 | medium | open | — |

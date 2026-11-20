@@ -17,8 +17,8 @@ SPDX-License-Identifier: MIT
 
 > **Written 2026-11-18** at the owner's direction. Its prerequisite is
 > [`one-write-per-render`](one-write-per-render.md), which the owner also moved up the order the same day: a job cannot be
-> offered a writer while one action per render is the rule. Nothing is built until a plan answers the
-> open questions below.
+> offered a writer while a render has no transaction to write in. Nothing is built until a plan answers
+> the open questions below.
 
 ## Idea
 
@@ -48,9 +48,9 @@ leak and nothing new on the page contract.
    The two checks are the ones `OnValidatePrincipal` and `ViewAuthenticationHandler` already make, so
    there is no second definition of "signed in".
 3. **The writer.** `PageJobRunner` offers `IPageWrites` bound to the **starting page** through the
-   same `PageWritesScope`, once [`one-write-per-render`](one-write-per-render.md) has replaced the one-action counter with a
-   policy the caller names. The first version offers the batch and the bound self-save; the named
-   save follows the same answer the page store already gives.
+   same `PageWritesScope`, once [`one-write-per-render`](one-write-per-render.md) has removed the one-action counter and
+   given a page a transaction to write in. The first version offers the transaction and the bound
+   self-save; the named save follows the same answer the page store already gives.
 4. **The clocks.** A write is activity: it re-arms `Pages:Jobs:SilenceSeconds` as `Publish` does, or
    a compile longer than the silence limit cuts the job mid-save. A save that has begun is still
    never abandoned (`pages-a-page-may-save-itself`).
@@ -100,4 +100,4 @@ involved.
 **Origin:** the owner, 2026-11-18 — "the worker/job gets to write with all the authority of the
 caller, and I'd really like to terminate that authority if the caller logs out or otherwise
 invalidates their session, so probably going to need to hand the job a token". The withheld writer is
-[`conversation-is-not-a-page`](conversation-is-not-a-page.md) §4; the batch it needs is [`one-write-per-render`](one-write-per-render.md).
+[`conversation-is-not-a-page`](conversation-is-not-a-page.md) §4; the transaction it needs is [`one-write-per-render`](one-write-per-render.md).

@@ -1250,8 +1250,9 @@ the named save cannot drift.
 A save belongs to the next request: the running image is not re-read, the response in hand is the old
 page unless the page shows the result the save returned, the save is committed before the rest of the
 render, and one render makes at most one write, whichever member it uses. The canonical pattern is a
-`POST` that saves and answers with the diagnostics, or saves and redirects with `303`. A batch that
-names its own policy is [`one-write-per-render`](backlog/one-write-per-render.md)'s work.
+`POST` that saves and answers with the diagnostics, or saves and redirects with `303`. Writing several
+pages in one render as one transaction is [`one-write-per-render`](backlog/one-write-per-render.md)'s
+work.
 
 *Recorded in [page self-save](plans/archive/page-self-save.md), [page writes](plans/archive/page-writes.md), [IPageWrites](../src/uk.osric.asp.Sdk/IPageWrites.cs).*
 
