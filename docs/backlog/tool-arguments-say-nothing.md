@@ -3,23 +3,22 @@ SPDX-FileCopyrightText: Copyright 2026 Osric Wilkinson <osric@fluffypeople.com>
 SPDX-License-Identifier: MIT
 -->
 
-# Twenty tools' arguments say nothing about themselves
+# The tools' arguments say nothing about themselves
 
 | | |
 | --- | --- |
 | Difficulty | contented-capybara |
 | Utility | high |
-| Status | open |
-| Blocked by | — |
-| Plan | — |
+| Status | blocked |
+| Blocked by | `check-without-storing` |
+| Plan | [one-check](../plans/one-check.md) |
 | Area | Core (Assistant), Web (assistant), docs |
 | Location | `src/uk.osric.asp.Web/Assistant/Tools/`, `src/uk.osric.asp.Core/Assistant/ToolArguments.cs` |
 
 ## Idea
 
 `ToolArgumentSchema` gained an optional `Description` for [the ask tool](../plans/archive/assistant-ask-owner.md),
-so `ask_user`'s arguments explain themselves in the model's request body. Every other tool — twenty of
-them — carries names only: the model reads `source`, `path`, `query`, `edits`, `content`, `kind` and
+so `ask_user`'s arguments explain themselves in the model's request body. Every other tool carries names only: the model reads `source`, `path`, `query`, `edits`, `content`, `kind` and
 the rest with no sentence saying what goes in them or when they differ from a near neighbour.
 
 [The survey](../spikes/ask-tool-shape.md) found the same two levers in every vendor's guidance, and put
@@ -30,7 +29,7 @@ one tool.
 ## Why it is not in `cannot-ask-the-owner`
 
 The tool list is part of the request body, and its declaration order is part of the provider's cached
-prefix (`assistant-a-tool-is-one-type`). Adding a sentence to twenty schemas rewrites that prefix, so
+prefix (`assistant-a-tool-is-one-type`). Adding a sentence to every schema rewrites that prefix, so
 the change is a choice about the tool definitions, not a by-product of adding one tool — and it wants a
 before and after rather than an opinion.
 
@@ -51,7 +50,7 @@ before and after rather than an opinion.
 
 ## The one argument a description cannot fix
 
-[`cannot-check-a-page`](cannot-check-a-page.md)'s `check` takes `language`, one of a closed set that grows as validators land
+[`check-without-storing`](check-without-storing.md)'s `check` takes `language`, one of a closed set that grows as validators land
 ([`nothing-checks-page-assets`](nothing-checks-page-assets.md)). Prose can enumerate it, and prose goes stale: the tool's description would
 have to be edited every time a language arrived, which is the drift `help` avoids by rendering the shell
 registry. `enum` states the set where the model reads it as a constraint rather than a sentence, and
@@ -70,8 +69,7 @@ declaration that uses it, and a new language later costs a row rather than a rew
 
 ## Where it lands
 
-Slice 1 of the assistant tool surface plan, `docs/plans/assistant-tool-surface.md`, written once
-[`check-without-storing`](check-without-storing.md) has merged, with [`cannot-check-a-page`](cannot-check-a-page.md) as slice 2. The two are one step
-because both rewrite the tool definitions and so the provider's cached prefix, and because the `enum`
-this job adds has no argument to describe until `check` exists. This job closes at that merge; the
-sketch above is unchanged.
+Slice 3 of [the check plan](../plans/one-check.md), which it opens: `check` and the argument
+descriptions land together because both rewrite the tool definitions and so the provider's cached
+prefix, and because the `enum` this job adds has no argument to describe until `check` exists. This
+job closes at that merge; the sketch above is unchanged.

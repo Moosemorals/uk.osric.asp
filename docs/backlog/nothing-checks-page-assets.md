@@ -19,9 +19,9 @@ SPDX-License-Identifier: MIT
 
 A page is four languages in one file: C#, the literal markup, the CSS in a `<style>` block or a
 `.css` asset page, and the JavaScript in its script blocks. Two of the four are checked —
-[`check-without-storing`](check-without-storing.md) and [`cannot-check-a-page`](cannot-check-a-page.md) cover the C# by compiling the template, and
-`JavaScriptValidator` covers the script — and the other two are checked by loading the page and looking
-at it, which is the most expensive way to learn that a brace is missing.
+One item, [`check-without-storing`](check-without-storing.md), covers the C# by compiling the template,
+and `JavaScriptValidator` covers the script — and the other two are checked by loading the page and
+looking at it, which is the most expensive way to learn that a brace is missing.
 
 The gap is not the assistant's alone. A validator is a pure function over text, so the same three serve
 the editor's underline, the assistant's `check` and, one day, `make check-pages`. What does not exist

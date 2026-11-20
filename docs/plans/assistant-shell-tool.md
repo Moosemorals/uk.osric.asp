@@ -11,9 +11,9 @@ SPDX-License-Identifier: MIT
 | Size | Large — a new `Shell` project, a capability client built per call, a shell kernel, a mount table, a planner, a rewritten applet set, the shell tool rebuilt and the memory tool reshaped, the prompt, and the removal of nineteen tools. The largest change to the assistant since it landed |
 | Area | Core (Shell, Assistant), Shell, Web (assistant, site), docs, build |
 | Spike | None. The claims about today's shell were read off `trunk` on 2026-11-19: [`ShellRunner`](../../src/uk.osric.asp.Web/Assistant/Shell/ShellRunner.cs), the eleven applets, [`ShellApplet`](../../src/uk.osric.asp.Web/Assistant/Shell/ShellApplet.cs), [`ShellTool`](../../src/uk.osric.asp.Web/Assistant/Tools/ShellTool.cs), [`PageStoreReader`](../../src/uk.osric.asp.Web/Assistant/PageStoreReader.cs) and [`PagePathPolicy`](../../src/uk.osric.asp.Web/Assistant/PagePathPolicy.cs). The tool-count evidence is [the ask tool's shape](../spikes/ask-tool-shape.md). The capability evidence was read the same day: [`IPageCatalog`](../../src/uk.osric.asp.Sdk/IPageCatalog.cs), [`IPageWrites`](../../src/uk.osric.asp.Sdk/IPageWrites.cs), [`PageCatalogScope`](../../src/uk.osric.asp.Web/Pages/PageCatalogScope.cs), [`PageWritesScope`](../../src/uk.osric.asp.Web/Pages/PageWritesScope.cs) and the worker's capability set in [`PageJobRunner`](../../src/uk.osric.asp.Web/Work/PageJobRunner.cs:140) |
-| Backlog | [`tool-surface-is-one-shell`](../backlog/tool-surface-is-one-shell.md) is this plan; [`cannot-ask-the-owner`](../backlog/closed.md) was a dependency and has landed; [`tool-arguments-say-nothing`](../backlog/tool-arguments-say-nothing.md) is superseded. Three items land first and are not this plan: [`cannot-search-the-store`](../backlog/cannot-search-the-store.md), [`check-without-storing`](../backlog/check-without-storing.md) — extended here to one check capability that names its language — and [`a-page-cannot-list-folders`](../backlog/a-page-cannot-list-folders.md). [`cannot-check-a-page`](../backlog/cannot-check-a-page.md) is subsumed: its capability half is the check above and its tool half is this plan. [`nothing-checks-page-assets`](../backlog/nothing-checks-page-assets.md) grows the language set later, [`one-write-per-render`](../backlog/one-write-per-render.md) stays the capability's own limit, and [`page-cannot-move`](../backlog/closed.md) has landed, so `mv` is already an applet; [`view-cannot-submit-a-form`](../backlog/view-cannot-submit-a-form.md) and [`terminal-cannot-reach-the-shell`](../backlog/terminal-cannot-reach-the-shell.md) are named here and are not this plan |
+| Backlog | [`tool-surface-is-one-shell`](../backlog/tool-surface-is-one-shell.md) is this plan; [`cannot-ask-the-owner`](../backlog/closed.md) was a dependency and has landed; [`tool-arguments-say-nothing`](../backlog/tool-arguments-say-nothing.md) is superseded. Three items land first and are not this plan: [`cannot-search-the-store`](../backlog/cannot-search-the-store.md), [`check-without-storing`](../backlog/check-without-storing.md) — extended here to one check capability that names its language — and [`a-page-cannot-list-folders`](../backlog/a-page-cannot-list-folders.md). The old assistant check item is subsumed: its capability half is the check above and its tool half is this plan. [`nothing-checks-page-assets`](../backlog/nothing-checks-page-assets.md) grows the language set later, [`one-write-per-render`](../backlog/one-write-per-render.md) stays the capability's own limit, and [`page-cannot-move`](../backlog/closed.md) has landed, so `mv` is already an applet; [`view-cannot-submit-a-form`](../backlog/view-cannot-submit-a-form.md) and [`terminal-cannot-reach-the-shell`](../backlog/terminal-cannot-reach-the-shell.md) are named here and are not this plan |
 | Depends on | `ask_user` and `mv` have landed ([the ask plan](archive/assistant-ask-owner.md), [the move plan](archive/page-move.md)); three page capabilities land before phase 0: [`cannot-search-the-store`](../backlog/cannot-search-the-store.md) for `grep`, [`check-without-storing`](../backlog/check-without-storing.md) for `check`, and [`a-page-cannot-list-folders`](../backlog/a-page-cannot-list-folders.md) for `ls` |
-| Decisions | New names proposed: **code-a-shell-is-the-interpreter**, **assistant-the-shell-is-the-tool**, **assistant-a-command-is-posix**, **assistant-a-write-is-planned-before-it-approves**, **assistant-scratch-is-not-persistent**, **assistant-a-snapshot-is-a-path**, **assistant-patch-carries-the-hash**, **assistant-memory-is-one-tool**, **assistant-man-is-the-reference**, **assistant-a-command-uses-page-capabilities** and **pages-a-capability-serves-one-caller**; **assistant-a-check-names-its-language** is [`cannot-check-a-page`](../backlog/cannot-check-a-page.md)'s proposed name and is taken here, for the one check capability. Relies on `assistant-a-tool-is-one-type`, `assistant-the-shell-is-applets`, `assistant-the-shell-lexes-before-it-judges`, `assistant-the-shell-is-posix`, `assistant-writes-are-revisions`, `assistant-edit-page-is-safe`, `assistant-reads-history`, `assistant-script-checks`, `assistant-reads-the-shell-files`, `assistant-memory-is-the-owners`, `assistant-memory-recall-is-fts5`, `assistant-memory-page`, `assistant-a-view-is-a-read`, `assistant-a-view-is-the-response`, `assistant-tool-results-are-cut-not-refused`, `assistant-old-tool-results-are-masked`, `pages-the-store-is-read-through-one-seam`, `pages-outbound-fetch`, `auth-a-view-token-reads-only` and `code-policy-values-are-configuration`. Edits `assistant-the-shell-is-posix` in place to name the conformance target, `pages-the-store-is-read-through-one-seam` in place because the seam the shell asks is now `IPageCatalog`, and `assistant-the-shell-is-applets` in place to name the capabilities in an applet's context |
+| Decisions | New names proposed: **code-a-shell-is-the-interpreter**, **assistant-the-shell-is-the-tool**, **assistant-a-command-is-posix**, **assistant-a-write-is-planned-before-it-approves**, **assistant-scratch-is-not-persistent**, **assistant-a-snapshot-is-a-path**, **assistant-patch-carries-the-hash**, **assistant-memory-is-one-tool**, **assistant-man-is-the-reference**, **assistant-a-command-uses-page-capabilities** and **pages-a-capability-serves-one-caller**; the check's own name, **pages-a-check-names-its-language**, belongs to [`check-without-storing`](../backlog/check-without-storing.md) and is not taken here. Relies on `assistant-a-tool-is-one-type`, `assistant-the-shell-is-applets`, `assistant-the-shell-lexes-before-it-judges`, `assistant-the-shell-is-posix`, `assistant-writes-are-revisions`, `assistant-edit-page-is-safe`, `assistant-reads-history`, `assistant-script-checks`, `assistant-reads-the-shell-files`, `assistant-memory-is-the-owners`, `assistant-memory-recall-is-fts5`, `assistant-memory-page`, `assistant-a-view-is-a-read`, `assistant-a-view-is-the-response`, `assistant-tool-results-are-cut-not-refused`, `assistant-old-tool-results-are-masked`, `pages-the-store-is-read-through-one-seam`, `pages-outbound-fetch`, `auth-a-view-token-reads-only` and `code-policy-values-are-configuration`. Edits `assistant-the-shell-is-posix` in place to name the conformance target, `pages-the-store-is-read-through-one-seam` in place because the seam the shell asks is now `IPageCatalog`, and `assistant-the-shell-is-applets` in place to name the capabilities in an applet's context |
 
 ## The short version
 
@@ -395,11 +395,10 @@ a type's summary, remarks and members. `man -k cookie` searches names and summar
 command that is not in the registry cannot be in the help.
 
 `check -l javascript <path|->` and `check -l template <path|->` are one command over one capability,
-`CheckAsync(language, key, template)`, which `check-without-storing` lands with a closed language
-set; the shell is its second caller and the reason the capability names its language rather than its
-source. `help check` renders the set, and a language with no checker is refused by name. The proposed
-name **assistant-a-check-names-its-language** is taken here, and
-[`cannot-check-a-page`](../backlog/cannot-check-a-page.md)'s tool half is this plan.
+`CheckAsync(language, source)`, which `check-without-storing` lands with a closed language set. The
+shell reads a page and passes its source, so the capability needs no key; `help check` renders the
+set, and a language with no checker is refused by name. The check's own name,
+**pages-a-check-names-its-language**, belongs to that item and is not taken here.
 
 ### D10 — Memory stays a tool, and becomes one
 
@@ -519,7 +518,7 @@ call, as `PageJobRunner` builds one for a worker:
 
 | Capability | Built with | Bound by |
 | --- | --- | --- |
-| `IPageCatalog` | the run's owner, an empty link list — a call has no request and no visitor to show a menu — and the call's `ReadBudget` | the call's deadline and token |
+| `IPageCatalog` | a caller label — the key the call is acting in (`/`) — an empty link list, because a call has no request and no visitor to show a menu, and the call's `ReadBudget` | the call's deadline and token |
 | `IPageWrites` | `new PageUser(context.Owner)`, so the authority is still the signed-in visitor's, and one `PageWriteAction` | the call |
 | `IHttpFetch` | only when `curl` lands; the anonymous leg is unbound (D11) | the call |
 
@@ -701,15 +700,13 @@ to pretend otherwise.
 | --- | --- |
 | [`tool-surface-is-one-shell`](../backlog/tool-surface-is-one-shell.md) | this plan |
 | [`tool-arguments-say-nothing`](../backlog/tool-arguments-say-nothing.md) | superseded: with three tools there is no long prefix to describe; closes at this merge |
-| [`cannot-check-a-page`](../backlog/cannot-check-a-page.md) | subsumed: its capability half is the one check capability in [`check-without-storing`](../backlog/check-without-storing.md), extended to name a language, and its tool half is this plan; closes at this merge |
 | [`nothing-checks-page-assets`](../backlog/nothing-checks-page-assets.md) | grows `check`'s language set once the capability exists; unchanged |
 | [`one-write-per-render`](../backlog/one-write-per-render.md) | the capability's own limit: v1 writes one page per call because a call is one action, and a plan that names two names this item; not closed here |
 | [`page-cannot-move`](../backlog/closed.md) | landed 2026-11-19; the shell's `mv` is already there, and the typed `move_page` goes with the rest |
 | [`cannot-ask-the-owner`](../backlog/closed.md) | a dependency; landed 2026-11-19 |
 | [`cannot-search-the-store`](../backlog/cannot-search-the-store.md) | a hard dependency: `grep` refuses until it lands, and the shell is its second caller. It also settles the item's open question 2 — a scan is charged to its caller's bound, not the render's |
 | [`a-page-cannot-list-folders`](../backlog/a-page-cannot-list-folders.md) | new, and a hard dependency: `ls` needs the folder rows and there is no honest way to fold them in the shell that a page could also use. It lands first |
-| [`check-without-storing`](../backlog/check-without-storing.md) | a hard dependency, extended by this plan from a template compile to one check capability that names its language; `check` refuses until it lands |
-| [`vscode-cannot-check-a-page`](../backlog/vscode-cannot-check-a-page.md) | editor-only; unchanged |
+| [`check-without-storing`](../backlog/check-without-storing.md) | a hard dependency, extended by this plan from a template compile to one check capability that names its language; `check` refuses until it lands, and the capability's tool half is this plan |
 | [`editor-is-a-textarea`](../backlog/editor-is-a-textarea.md) | the terminal's `vi` may share `/vim.js`; unchanged |
 | [`conversation-is-not-a-page`](../backlog/conversation-is-not-a-page.md) | the assistant's own UI; unchanged |
 | [`listing-does-not-date-itself`](../backlog/listing-does-not-date-itself.md) | a shell listing is one shot; unchanged |
@@ -717,9 +714,9 @@ to pretend otherwise.
 | [`terminal-cannot-reach-the-shell`](../backlog/terminal-cannot-reach-the-shell.md) | new, and not this plan |
 
 At the merge the record is updated in the same change: `tool-surface-is-one-shell` moves to
-[closed.md](../backlog/closed.md), `tool-arguments-say-nothing` closes, `cannot-check-a-page` closes
-with its capability half already landed, the new folder item keeps its place above this one in the
-order, and the reasons follow.
+[closed.md](../backlog/closed.md), `tool-arguments-say-nothing` closes, the old check item's tool
+half lands here while its capability half stays with [`check-without-storing`](../backlog/check-without-storing.md),
+the new folder item keeps its place above this one in the order, and the reasons follow.
 
 ## Close-out
 

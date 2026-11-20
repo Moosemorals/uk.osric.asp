@@ -7,11 +7,11 @@ SPDX-License-Identifier: MIT
 
 | | |
 | --- | --- |
-| Status | Proposed 2026-11-15 — waits for the owner. Slices 0, 1 and 2 are built and merged; the other five are unbuilt, and nothing below is the IDE |
-| Size | Large as a programme, small as a step: eight capabilities, each its own job and its own branch, ordered so that each ships on its own and can be backed out on its own |
+| Status | Proposed 2026-11-15 — waits for the owner. Slices 0, 1 and 2 are built and merged; the other four are unbuilt, and nothing below is the IDE |
+| Size | Large as a programme, small as a step: seven capabilities, each its own job and its own branch, ordered so that each ships on its own and can be backed out on its own |
 | Spike | None. Every claim about what exists was read off `trunk` on 2026-11-15: `IPageCatalog`, `IPageEditor`, `PageEditorScope`, `PageWriterScope`, `PageCompiler.MapDiagnostics`, `PageDiagnostics.ToSdk` and `PageJobRunner` |
 | Decisions | `pages-a-diagnostic-names-its-source` (041), recorded at its merge. The rest are named at the merge (`product-plan-before-building`); this branch states the names it intends. One entry is retired rather than revised — the one that made the editor's registration the authority — and `pages-a-page-may-save-itself` is revised twice, once by 043 and once by 047 |
-| Backlog | [`check-without-storing`](../backlog/check-without-storing.md), [`cannot-search-the-store`](../backlog/cannot-search-the-store.md), [`listing-has-no-cursor`](../backlog/closed.md), [`library-edit-cost-is-invisible`](../backlog/closed.md), [IDEA-041](../backlog/closed.md), [`page-cannot-move`](../backlog/closed.md), [IDEA-043](../backlog/closed.md), [`one-write-per-render`](../backlog/one-write-per-render.md) |
+| Backlog | [`cannot-search-the-store`](../backlog/cannot-search-the-store.md), [`listing-has-no-cursor`](../backlog/closed.md), [`library-edit-cost-is-invisible`](../backlog/closed.md), [IDEA-041](../backlog/closed.md), [`page-cannot-move`](../backlog/closed.md), [IDEA-043](../backlog/closed.md), [`one-write-per-render`](../backlog/one-write-per-render.md) |
 
 ## The short version
 
@@ -19,7 +19,7 @@ SPDX-License-Identifier: MIT
 stored page that is not in this repository, served at
 [moosemorals.com/ide-plan](https://moosemorals.com/ide-plan) — and its
 slices T0–T10 are page work: a document, a grid, tabs, a menu bar, keys, a phone layout, a tree, a
-statusline. The host's part is the eight things the page contract cannot do today, and nothing more —
+statusline. The host's part is the seven things the page contract cannot do today, and nothing more —
 no editor route, no shell-rendered tree, no `Ide` capability.
 
 That split is not a courtesy, it is the rule: anything a page can serve is a page (`pages-page-first`),
@@ -30,13 +30,13 @@ assistant cannot do for itself is widen the contract, and that is this plan.
 The comparison that produced the backlog is worth stating once: of the IDE plan's twelve wishes, two
 were already jobs ([`no-account-store`](../backlog/no-account-store.md) for per-account preferences and favourites,
 [`editor-is-a-textarea`](../backlog/editor-is-a-textarea.md) for highlighting), one was not the host's business, and seven had
-nothing behind them. One of those seven split into two jobs, so the list above is eight.
+nothing behind them. One of those seven split into two jobs, and the check it produced now has a
+plan of its own, so the list above is seven.
 
 ## What the host does, and what it does not
 
 | The host builds | The assistant builds |
 | --- | --- |
-| A check that stores nothing (037) | The page that writes its own document |
 | A search that returns matches (038) | The shell, the grid, the menu bar |
 | A listing that resumes (039) | Tabs, and the URL grammar that holds them |
 | The closure a page names (040) | Dirty state, Save all, the conflict panel |
@@ -61,7 +61,7 @@ for eight of the eleven, and those eight are why the page can start before any o
 | T1 — the page writes its own document | Nothing. `Layout` is a settable `string?` and streaming already requires clearing it | — |
 | T2 — the shell, one pane | Nothing | — |
 | T3 — tabs | Nothing. Tabs live in the URL and presentation in `sessionStorage` | — |
-| T4 — dirty, Save all, the conflict panel | A batch write with a policy, and a compile that stores nothing for the dry run | 047, 037 |
+| T4 — dirty, Save all, the conflict panel | A batch write with a policy; its dry run waits on the check, which is no longer this plan's | 047 |
 | T5 — the old stages become panels | Nothing. Every existing URL keeps working | — |
 | T6 — keys | Nothing for the handlers; a span makes F8 underline rather than point | 041 (optional) |
 | T7 — the phone | Nothing. Container queries, `dvh`, a drawer — all page work | — |
@@ -99,7 +99,6 @@ The names this plan intends, taken at the merge — bold rather than in backtick
 decisions` fails on a cited name the record does not have yet. The one already taken is cited in
 backticks beside the slice that took it:
 
-- **pages-a-check-stores-nothing** (037)
 - **pages-a-search-returns-matches** (038)
 - `pages-a-diagnostic-names-its-source` (041) — recorded: the span and the key are one rule, a
   diagnostic points at the thing in the file it is in
@@ -118,7 +117,6 @@ generic problem — applied one job at a time, and it is what decides several of
 
 | Capability | The IDE asks for | What it actually answers |
 | --- | --- | --- |
-| A check that stores nothing (037) | Underline a mistake while typing | The assistant checking before it writes; a save that refuses what certainly fails; a bulk "does the site still compile" |
 | A search that returns matches (038) | Find in files | "Who names this library", a link audit after a move, a seed-harvest check, the assistant's search before an edit |
 | A listing that resumes (039) | A tree that survives 500 pages | Every bounded read: a history, a folder, a scan's matches |
 | The closure (040) | A mark in the tree | What an edit invalidates, before and after it; the order a batch writes in; which dependents a library move breaks |
@@ -127,7 +125,7 @@ generic problem — applied one job at a time, and it is what decides several of
 | A batch write (047) | Save all | The assistant's multi-file edit; an import; a bulk restore; a folder move; a find-and-replace |
 
 A capability shaped around one caller is the failure mode this table exists to prevent: the editor is
-the first customer of all eight and the owner of none.
+the first customer of all seven and the owner of none.
 
 ## Slices
 
@@ -147,32 +145,33 @@ smallest changes come first because they are what every later slice is written a
    is what makes a tree's marks true. Proved: a page that names a library reports it, the page that
    names none reports nothing, and the closure is the one the save stored rather than a second parse
    of the source.
-3. **037 — the check.** The loop the editor is built around. The cheap answer to its "spends the action"
-   question is no — a check is a read that compiles — because 047 removes the action rule entirely.
-   Proves: a check stores nothing and the head hash is unchanged; a broken template answers its
-   diagnostics; the compile budget is charged and refused when the queue is full.
-4. **043 — the widened authority.** The step with its own plan ([page writes](archive/page-writes.md)), because
+3. **043 — the widened authority.** The step with its own plan ([page writes](archive/page-writes.md)), because
    it renames two public interfaces and breaks every stored page that names them. Proves: an anonymous
    render is refused; a layout never gets the handle; every content page does; two saves answer with
    their own values; a page writes another key; one render still makes one write; the editor's key is
    deletable and `/admin/seeds` is the way back.
-5. **038 — the search.** Needs 039 for its cursor; it shares nothing with 043, but it is the last thing
+4. **038 — the search.** Needs 039 for its cursor; it shares nothing with 043, but it is the last thing
    that reads every source, so it comes after the budget rules are settled.
    Proves: a scan finds a literal in a scope, is bounded, resumes from a cursor and never hands a
    source to the page.
-6. **042 — the move.** Built on `idea/page-cannot-move` and waiting for the merge; the intended record
+5. **042 — the move.** Built on `idea/page-cannot-move` and waiting for the merge; the intended record
    is **pages-a-key-moves-with-its-history**. It turned out not to need 040 and 038: a library move is
    refused rather than recompiled, and the broken-link report is
    [`cannot-search-the-store`](../backlog/cannot-search-the-store.md)'s work. It is the only operation
    that writes more than one row, and nothing is left at the old key. Proved: a page moves with its
    history and state and keeps every hash, the old key answers `404`, and the editor, `move_page` and
    `mv` all move a page.
-7. **047 — the batch.** Last, and the largest: it changes the shape of every save, so it lands after the
+6. **047 — the batch.** Last, and the largest: it changes the shape of every save, so it lands after the
    saves it batches are settled. Proves: All with a stale edit writes nothing; FirstRefusal writes the
    prefix; Continue writes the rest and reports each refusal; one save behaves exactly as it did.
-   *The owner re-prioritised it on 2026-11-18 to just after 037, ahead of this plan: it is the
+   *The owner re-prioritised it on 2026-11-18 to ahead of this plan: it is the
    assistant's daily friction and the gate in front of a job writer. If it lands first, this step
    shrinks to wiring Save all to the batch, and T4 loses its last dependency.*
+
+**037 — the check — has left this plan.** The assistant and VS Code want the same seam, so the
+owner folded all three callers into one item, [`check-without-storing`](../backlog/check-without-storing.md),
+which gets its own plan. The IDE is still its first customer and no longer its owner: the editor's
+underline is page work on top of a capability this plan does not carry.
 
 ## Tests
 
@@ -190,7 +189,7 @@ smallest changes come first because they are what every later slice is written a
 
 - **`/help` in the same change**, for every capability and its words — the policies, the cursor, the
   span's limits, the closure, the move's refusals (`product-manual-is-a-page`).
-- **`PageAuthorPrompt` and its `Version`**, so the assistant knows a check, a scan, a cursor, a batch
+- **`PageAuthorPrompt` and its `Version`**, so the assistant knows a scan, a cursor, a batch
   and a move exist. Without that the assistant keeps the workaround the IDE plan calls "save, read,
   accept the noise".
 - **[pages](../pages.md)** for the contract, **[storage](../storage.md)** for the move's transaction,
