@@ -1319,9 +1319,11 @@ are seeds too.
 
 ### pages-any-page-may-write-the-store
 
-The authority to write the page store is the signed-in visitor's, not the page's. `IPageWrites` is
-offered to every content layer and to no layout, every named call says which key it writes, and an
-anonymous render is refused in the capability before anything is compiled or stored. There is no
+The authority to write the page store is the credential the request presented, not the page's.
+`IPageWrites` is offered to every content layer and to no layout, every named call says which key it
+writes, and an anonymous render is refused in the capability before anything is compiled or stored. A
+worker is offered the same capability bound to the credential that started its job, which its commits
+prove and which may end before the job does (`pages-a-jobs-credential-is-borrowed`). There is no
 registration gate: `Pages:Editor:Key` says where the editor is served — which is all `ctx.EditorPath`
 and the shell's remedy links ever needed from it — and the editor's own key is an ordinary key. The
 narrowing it replaces kept a handle that names a key away from every page; the owner removed it on
@@ -1337,8 +1339,9 @@ source, so a create cannot overwrite one. `Resolve`, `MoveAsync`, `DeleteAsync`,
 every one of them is a transaction of one, or part of the render's open transaction
 (`pages-writes-are-transactions`).
 
-What guards it: the signed-in visitor before anything is compiled, the reserved keys, `/admin/seeds`
-for a deleted or broken editor, and `/admin/scrub` for the irreversible delete. The blast radius is the
+What guards it: the signed-in visitor before anything is compiled, that credential on every commit
+for a job, the reserved keys, `/admin/seeds` for a deleted or broken editor, and `/admin/scrub` for the
+irreversible delete. The blast radius is the
 owner's decision — a page the assistant writes can rewrite the site — and the assistant's own edit-safety
 rules are what stop it from doing so by accident (`assistant-edit-page-is-safe`).
 
@@ -1621,17 +1624,19 @@ into a collectible context for one job and unloaded when it ends.
 
 ### pages-jobs-run-a-worker-for-the-page
 
-A job is one run of a worker, started by a page and owned by the visitor who started it.
-`StartAsync(workerKey, firstMessage)` runs it as the signed-in owner; a missing key, a page, an asset, a
-library, a reserved key, an anonymous render and a full queue are refused as values, because the kind is
-known at save and the start needs no compile to say no. The job works *for the starting page*: the page is
-the principal and the worker is the code, so its storage is the page's.
+A job is one run of a worker, started by a page and owned by the credential that started it.
+`StartAsync(workerKey, firstMessage)` runs it as that credential's owner; a missing key, a page, an asset,
+a library, a reserved key, an anonymous render and a full queue are refused as values, because the kind is
+known at save and the start needs no compile to say no, and a credential that has stopped being live is
+refused `Revoked` (`pages-a-jobs-credential-is-borrowed`). The job works *for the starting page*: the page
+is the principal and the worker is the code, so its storage is the page's.
 
 `IPageJobs` is six calls — `StartAsync`, `SendAsync`, `GetAsync`, `ListAsync`, `ReadEventsAsync` and
 `CancelAsync` — offered to every page and never to a layout, because a layout that started work would
 start it once per page it wraps; a `HEAD` is offered the reads and not the three that write. No call takes
-an owner: the handle is bound to the render's visitor, so another account's job reads as an unknown one
-rather than as a refusal that admits it exists.
+an owner: the handle is bound to the render's credential, so another account's job reads as an unknown
+one rather than as a refusal that admits it exists, and every call but a start is filtered by the owner's
+name without a liveness check, because none of them writes.
 
 A viewer waits, it does not sleep: `ReadEventsAsync(jobId, after, waitSeconds)` returns when there are
 events, when the job ends or when the wait elapses, whichever is first, with `Events`, `Next`, `Reset`,
@@ -1669,12 +1674,47 @@ A job's capabilities split data from code, and there is no second route to them.
 `Write`, `FlushAsync`, `SetStatus`, `SetContentType`, `SetHeader`, `Redirect`, `AntiforgeryField` or
 layout; its capabilities are the same seam a page reaches, offering storage bound to the **starting page**
 — the data, which a job and its view share — and fetch, the catalog and the job handle bound to the
-**worker**, so a credential bound to the worker stays the worker's. The markdown renderer and the writer
-are not offered: a worker publishes text or JSON and the page renders it. Constructor injection into the
-worker is refused, because it would be a second, silent route to the same four capabilities that
-`check-pages` cannot see, and would raise a lifetime question the collectible context cannot answer.
+**worker**, so a credential bound to the worker stays the worker's. The markdown renderer is not offered:
+a worker publishes text or JSON and the page renders it.
+
+The writer is offered, and it is the exception that proves the split: `IPageWrites` bound to the
+**starting page** and to the credential the job borrowed, so the code is the page's and the authority is
+the starter's (`pages-a-jobs-credential-is-borrowed`). What stays out is out by shape rather than by
+distrust — a job has no request and no document, so there is nothing to bind a response, a layout or a
+renderer to. Constructor injection into the worker is still refused, because it would be a second, silent
+route to the same capabilities that `check-pages` cannot see, and would raise a lifetime question the
+collectible context cannot answer.
 
 *Recorded in [pages](pages.md#jobs), [IWorkerContext](../src/uk.osric.asp.Sdk/IWorkerContext.cs).*
+
+### pages-a-jobs-credential-is-borrowed
+
+A job outlives the request that started it, so its authority is the credential that request presented
+rather than the visitor's name. `PageEndpoint` captures a `PageJobAuthority` once per render — the
+owner, the account's revocation stamp, and one handle: the sign-in's ticket key, or the id of the run
+whose view presented the request — and the job keeps it for its life. The worker never meets it: the
+writer is constructed around it, exactly as `PageWritesScope` is constructed around a render's visitor,
+so there is nothing in stored page code to leak. A run's handle is the id and not the bearer secret, so
+a job started under a view cannot present the run's token itself.
+
+The writer a job is offered is the store's own `IPageWrites`, bound to the **starting page** and to
+that credential, and it may write any key the store allows; the reserved keys are the only refusal a
+page has, so they are the only one a job has. A commit proves the credential the way a request proves
+it — the account exists with the stamp it captured, and the ticket row or the run still resolves, with
+the ticket's expiry compared rather than left to the hourly sweep — and one check is made per commit,
+not per staged call, because the commit is where the answer changes anything. When it is no, nothing
+is stored: every staged operation answers `PageWriteOutcome.Revoked`, the bound save and the single
+writes answer the same through their own outcomes, and a start asks the same question and answers
+`PageJobRefusal.Revoked`, so a job's child inherits a credential that can die.
+
+**A refusal is a value, not an exception.** The code is not broken because a sign-in ended, so nothing
+throws: the worker keeps its storage, journal and channel and decides whether to stop, retry or publish
+what it has, and a job whose authority died still reads and cancels its own work. A write is activity
+and re-arms `Pages:Jobs:SilenceSeconds`, while a commit that has begun is never cut, for the reason a
+page's save is not abandoned (`pages-a-page-may-save-itself`). A worker makes one write at a time,
+because the transaction gate is a frame and not a lock — the page's rule, unchanged.
+
+*Recorded in [pages](pages.md#jobs), [PageJobAuthority](../src/uk.osric.asp.Web/Authentication/PageJobAuthority.cs), [PageJobAuthorityVerifier](../src/uk.osric.asp.Web/Authentication/PageJobAuthorityVerifier.cs), [IPageWriteCredential](../src/uk.osric.asp.Web/Pages/IPageWriteCredential.cs), [PageWriteTransaction](../src/uk.osric.asp.Web/Pages/PageWriteTransaction.cs), [the plan](plans/archive/job-borrows-a-credential.md).*
 
 ### pages-the-first-flush-commits
 
@@ -2070,7 +2110,9 @@ Sign-in lasts: a 30-day sliding ticket, with **Keep me signed in** checked by de
 carries the 30-day ticket but dies with the browser, for a shared machine. The cookie is `Secure` only in
 production, so local development stays plain HTTP. Revocation is a security stamp compared on every
 authenticated request: `users passwd` and `users remove` revoke every session, while signing in again
-does not, so several devices can hold a valid session at once.
+does not, so several devices can hold a valid session at once. A job that borrowed a session's ticket
+ends with that ticket rather than with the stamp: signing out one browser ends only that browser's jobs,
+and a stamp rotation ends every job as it ends every sign-in (`pages-a-jobs-credential-is-borrowed`).
 
 *Recorded in [editor authentication](plans/archive/editor-authentication.md#4-long-term-sign-in-revocable-by-a-security-stamp).*
 
@@ -2112,7 +2154,9 @@ file, no key ring, no configuration key — minted when the processor starts the
 secret would need generating, placing and rotating, and an account of the assistant's own would be the
 same authority under another name while any account is an owner (`product-one-owner`). Nothing stored
 means nothing to leak, and the token is not a sign-in: it cannot become a session and no browser can
-present one.
+present one. A job a page starts while a run is viewing the site borrows the run as its credential, held
+as the run's id rather than the secret; the run ending forgets the token, and every write the job makes
+afterwards answers `Revoked` (`pages-a-jobs-credential-is-borrowed`).
 
 *Recorded in [the shell](shell.md#a-runs-view), [ViewTokenStore](../src/uk.osric.asp.Web/Authentication/ViewTokenStore.cs).*
 

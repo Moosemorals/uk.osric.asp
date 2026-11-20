@@ -110,8 +110,6 @@ its reason, and that no item sits above something that blocks it.
 
 | Slug | Title | Difficulty | Utility | Status | Blocked by |
 | --- | --- | --- | --- | --- | --- |
-| [`job-borrows-a-credential`](job-borrows-a-credential.md) | A job acts with its starter's credential, and loses it when that credential dies | persistent-salmon ⬆️🐟 | high | [planned](../plans/job-borrows-a-credential.md) | — |
-| | *The page transaction it waited on has landed, so a job can be offered a writer; what is left is carrying the starter's credential into the run and revoking it when the credential dies.* | | | | |
 | [`cannot-search-the-store`](cannot-search-the-store.md) | A page cannot search the store's source | eager-beaver ⚙️🦫 | medium | [planned](../plans/ide-host.md) | — |
 | | *Lifts the assistant's own search into the contract rather than inventing anything.* | | | | |
 | [`a-page-cannot-list-folders`](a-page-cannot-list-folders.md) | A page cannot list the store's folders | eager-beaver ⚙️🦫 | medium | open | — |

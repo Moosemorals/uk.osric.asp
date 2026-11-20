@@ -7,19 +7,19 @@ SPDX-License-Identifier: MIT
 
 | | |
 | --- | --- |
-| Status | Approved 2026-11-20 — the owner said to build it. Being built on `idea/job-borrows-a-credential`; nothing below is merged |
+| Status | Merged 2026-11-20 — built on *idea/job-borrows-a-credential* and merged into trunk with `make check` green. The recorded name is `pages-a-jobs-credential-is-borrowed`, and this plan is frozen with the work: a statement here the code has since overtaken is expected rather than a defect |
 | Size | Medium: one captured authority, one verifier, one credential seam, a writer on a job's capability list, one outcome on five enums, one refusal on job calls, three docs, `/help`, the prompt and its version, one decision and five edits |
 | Area | Sdk, Web (work, authentication, pages), docs, assistant, tests |
 | Spike | None. Every claim below was read off `trunk` at `4428e4a` on 2026-11-20 |
-| Backlog | [`job-borrows-a-credential`](../backlog/job-borrows-a-credential.md) is this step |
-| Decisions | New name proposed: **pages-a-jobs-authority-is-its-starters-credential**. Edits `pages-a-worker-gets-no-response`, `pages-any-page-may-write-the-store`, `pages-jobs-run-a-worker-for-the-page`, `auth-sign-in-is-long-lived-and-revocable` and `auth-a-view-token-names-its-run`; relies on `pages-writes-are-transactions`, `pages-a-page-may-save-itself`, `auth-a-view-that-does-not-verify-is-refused`, `pages-a-job-is-not-durable`, `product-manual-is-a-page` and `product-steps-wait-for-the-owner` |
+| Backlog | [`job-borrows-a-credential`](../../backlog/closed.md) was this step, and it closed with this plan |
+| Decisions | `pages-a-jobs-credential-is-borrowed`, recorded with this plan. It revises `pages-a-worker-gets-no-response`, `pages-any-page-may-write-the-store`, `pages-jobs-run-a-worker-for-the-page`, `auth-sign-in-is-long-lived-and-revocable` and `auth-a-view-token-names-its-run`, and relies on `pages-writes-are-transactions`, `pages-a-page-may-save-itself`, `auth-a-view-that-does-not-verify-is-refused`, `pages-a-job-is-not-durable`, `product-manual-is-a-page` and `product-steps-wait-for-the-owner` |
 
 > **Reconciled with the landed transaction — 2026-11-20.** The page transaction merged as `4428e4a`
 > with a frame rather than a second set of write members: `IPageTransaction` carries only
 > `CommitAsync` and `RollbackAsync`, and a write made on `IPageWrites` while it is open joins it and
 > answers `Staged` (`pages-writes-are-transactions`). The plan is written against that shape — the
 > class is `PageWriteTransaction`, the gate is `PageTransactionGate`, and the check lives in the
-> commit. The item is `planned`, not blocked.
+> commit. The item was `planned` rather than blocked once that landed.
 
 ## The short version
 
@@ -72,36 +72,36 @@ design below is written against, and the merge records them in the decision:
 
 ## What exists today
 
-- **A job carries a name.** [`PageJobsScope`](../../src/uk.osric.asp.Web/Pages/PageJobsScope.cs) holds
-  `PageUser? user` and passes it to [`PageJobs.StartAsync`](../../src/uk.osric.asp.Web/Work/PageJobs.cs),
-  which stores it as [`PageJob.Owner`](../../src/uk.osric.asp.Web/Work/PageJob.cs); every job call is
+- **A job carries a name.** [`PageJobsScope`](../../../src/uk.osric.asp.Web/Pages/PageJobsScope.cs) holds
+  `PageUser? user` and passes it to [`PageJobs.StartAsync`](../../../src/uk.osric.asp.Web/Work/PageJobs.cs),
+  which stores it as [`PageJob.Owner`](../../../src/uk.osric.asp.Web/Work/PageJob.cs); every job call is
   filtered by `job.Owner.Name`, so another account's id reads as unknown.
-  [`PageJobRunner.Context`](../../src/uk.osric.asp.Web/Work/PageJobRunner.cs) builds the worker's
+  [`PageJobRunner.Context`](../../../src/uk.osric.asp.Web/Work/PageJobRunner.cs) builds the worker's
   capabilities without `IPageWrites` and with `PageJobsScope` bound to `job.Owner`.
 - **A write is one path, and the transaction is a frame.**
-  [`PageWritesScope`](../../src/uk.osric.asp.Web/Pages/PageWritesScope.cs) refuses an anonymous render
+  [`PageWritesScope`](../../../src/uk.osric.asp.Web/Pages/PageWritesScope.cs) refuses an anonymous render
   with `UserFacingException`; a member called with no transaction open opens a
-  [`PageWriteTransaction`](../../src/uk.osric.asp.Web/Pages/PageWriteTransaction.cs), stages, commits
+  [`PageWriteTransaction`](../../../src/uk.osric.asp.Web/Pages/PageWriteTransaction.cs), stages, commits
   and answers, and one called while the render has a transaction open joins it and answers `Staged`
   (`pages-writes-are-transactions`). `PageWriteTransaction.CommitAsync` is where every write, lone or
   batched, reaches the store, applies its operations in order and passes `CancellationToken.None`, so
   a write that has begun is not abandoned.
 - **The two checks already exist.** `OnValidatePrincipal`
-  ([`AuthenticationExtensions`](../../src/uk.osric.asp.Web/Authentication/AuthenticationExtensions.cs))
+  ([`AuthenticationExtensions`](../../../src/uk.osric.asp.Web/Authentication/AuthenticationExtensions.cs))
   compares the account's live security stamp, and the cookie is a row: `AuthTicketStore.Find(key)`
   answers it and `AuthTicket.ExpiresAt` is swept hourly. `ViewTokenStore.ForRun(runId)` answers a
   live run's token, `Forget` is what makes it dead, and
-  [`ViewAuthenticationHandler`](../../src/uk.osric.asp.Web/Authentication/ViewAuthenticationHandler.cs)
+  [`ViewAuthenticationHandler`](../../../src/uk.osric.asp.Web/Authentication/ViewAuthenticationHandler.cs)
   compares the account's stamp with the token's.
-- **The endpoint holds the principal and the request.** [`PageEndpoint`](../../src/uk.osric.asp.Web/Pages/PageEndpoint.cs)
-  maps the principal to `PageUser` once; [`PageChain`](../../src/uk.osric.asp.Web/Pages/PageChain.cs)
+- **The endpoint holds the principal and the request.** [`PageEndpoint`](../../../src/uk.osric.asp.Web/Pages/PageEndpoint.cs)
+  maps the principal to `PageUser` once; [`PageChain`](../../../src/uk.osric.asp.Web/Pages/PageChain.cs)
   builds a `PageJobsScope` for every layer that is not a layout.
 - **Nothing else counts as activity.** `WorkerContext.Publish` re-arms a job's silence clock; a
   returned `ReceiveAsync` does; a write does not, because there is no write.
 - **The answers are the row's views.** `PageSaveResult`, `PageEditResult`, `PageMoveResult` and
   `PageDeleteResult` already carry an outcome mapped from the row
-  ([`PageWriteResult`](../../src/uk.osric.asp.Sdk/PageWriteResult.cs),
-  [`PageWriteOutcome`](../../src/uk.osric.asp.Sdk/PageWriteOutcome.cs)); `PageDeleteResult` is already
+  ([`PageWriteResult`](../../../src/uk.osric.asp.Sdk/PageWriteResult.cs),
+  [`PageWriteOutcome`](../../../src/uk.osric.asp.Sdk/PageWriteOutcome.cs)); `PageDeleteResult` is already
   the row's view, and `PageEditOutcome`, `PageMoveOutcome` and `PageDeleteOutcome` already carry
   `Busy` and `Staged` beside the write's own outcomes.
 - **The writer is documented as absent.** `IWorkerContext`'s remarks, `docs/pages.md` §Jobs, the
@@ -302,14 +302,14 @@ caller; and a journal is the job's own. The authority dies; the job does not hav
 
 | File | Change |
 | --- | --- |
-| [`PageWriteOutcome.cs`](../../src/uk.osric.asp.Sdk/PageWriteOutcome.cs) | `Revoked` |
-| [`PageEditResult.cs`](../../src/uk.osric.asp.Sdk/PageEditResult.cs) | `PageEditOutcome.Revoked` |
-| [`PageMoveResult.cs`](../../src/uk.osric.asp.Sdk/PageMoveResult.cs) | `PageMoveOutcome.Revoked` |
-| [`PageDeleteResult.cs`](../../src/uk.osric.asp.Sdk/PageDeleteResult.cs) | `PageDeleteOutcome.Revoked` |
-| [`PageJobRefusal.cs`](../../src/uk.osric.asp.Sdk/PageJobRefusal.cs) | `Revoked` |
-| [`PageSaveResult.cs`](../../src/uk.osric.asp.Sdk/PageSaveResult.cs) | doc comment: `Hash` is empty when nothing was stored |
-| [`IWorkerContext.cs`](../../src/uk.osric.asp.Sdk/IWorkerContext.cs) | remarks: the writer is offered, bound to the starting page and the starting credential |
-| [`IPageWrites.cs`](../../src/uk.osric.asp.Sdk/IPageWrites.cs), [`IPageTransaction.cs`](../../src/uk.osric.asp.Sdk/IPageTransaction.cs) | the `Revoked` answer, and that a render never sees it |
+| [`PageWriteOutcome.cs`](../../../src/uk.osric.asp.Sdk/PageWriteOutcome.cs) | `Revoked` |
+| [`PageEditResult.cs`](../../../src/uk.osric.asp.Sdk/PageEditResult.cs) | `PageEditOutcome.Revoked` |
+| [`PageMoveResult.cs`](../../../src/uk.osric.asp.Sdk/PageMoveResult.cs) | `PageMoveOutcome.Revoked` |
+| [`PageDeleteResult.cs`](../../../src/uk.osric.asp.Sdk/PageDeleteResult.cs) | `PageDeleteOutcome.Revoked` |
+| [`PageJobRefusal.cs`](../../../src/uk.osric.asp.Sdk/PageJobRefusal.cs) | `Revoked` |
+| [`PageSaveResult.cs`](../../../src/uk.osric.asp.Sdk/PageSaveResult.cs) | doc comment: `Hash` is empty when nothing was stored |
+| [`IWorkerContext.cs`](../../../src/uk.osric.asp.Sdk/IWorkerContext.cs) | remarks: the writer is offered, bound to the starting page and the starting credential |
+| [`IPageWrites.cs`](../../../src/uk.osric.asp.Sdk/IPageWrites.cs), [`IPageTransaction.cs`](../../../src/uk.osric.asp.Sdk/IPageTransaction.cs) | the `Revoked` answer, and that a render never sees it |
 | `src/uk.osric.asp.Sdk/PublicAPI.Unshipped.txt` | the new members |
 
 ## The checks
@@ -323,9 +323,10 @@ caller; and a journal is the job's own. The authority dies; the job does not hav
   its own terms; a transaction of three writes reports three `Revoked` rows after one check (a counting
   credential proves the cadence); a refused commit does not throw; a worker whose credential is dead
   is refused `Revoked` for a child start.
-- **`PageWritesScopeTests`**, **`PageTransactionTests`**: a render's write holds no credential and
-  the existing answers do not change; a lone write made while a transaction is open answers `Staged`,
-  the commit asks the credential once, and every staged row answers `Revoked` when it says no.
+- **`PageWritesScopeTests`**: a render's write holds no credential and the existing answers do not
+  change; a lone write made while a transaction is open answers `Staged`, the commit asks the credential
+  once for every staged operation, every staged row answers `Revoked` when it says no — and clears the
+  hash it would have left — and each staging call plus the commit touches the clock.
 - **`PageJobRenderTests`**, **`PageHarness`**: a render's `PageJobsScope` and `PageWritesScope` gain the
   authority and neither of the job's two collaborators; the principal that starts a job carries a
   cookie row.
@@ -333,10 +334,10 @@ caller; and a journal is the job's own. The authority dies; the job does not hav
   it saves is served on the next request — one test proving the wiring, not the revocation.
 - **`PageAuthorPromptTests`**: the prompt's jobs section carries the rule and the version moved.
 
-## What the merge records
+## What the merge recorded
 
-The merge writes **pages-a-jobs-authority-is-its-starters-credential** — a job's authority is the
-credential the starting render presented, checked at each commit, not the visitor's name — and edits:
+The merge wrote `pages-a-jobs-credential-is-borrowed` — a job's authority is the credential the starting
+render presented, checked at each commit, not the visitor's name — and edited:
 
 - `pages-a-worker-gets-no-response`: the renderer, layout and response stay out by shape; the writer
   comes in, bound to the credential.
@@ -350,15 +351,15 @@ credential the starting render presented, checked at each commit, not the visito
 - `auth-a-view-token-names-its-run`: a job started under a view holds the run's id, so the run's end
   is what ends the job's writes.
 
-Until the merge the name is bold here and in the code's comments; the merge writes the entry and turns
-every citation into a backticked one, because `make decisions` fails on a cited name the record does
-not have.
+The name this plan proposed was eight words where the record allows two to six, so it was narrowed at the
+merge to `pages-a-jobs-credential-is-borrowed`, which states the same rule and fits. Nothing on trunk
+cited the longer form, so nothing moved with it.
 
 ## Not in scope
 
 - **A durable job, a jobs table or a stored authority.** `pages-a-job-is-not-durable` stands: the
   authority lives in memory with the job, and a restart ends both.
-- **A configured worker account.** Rejected in [`conversation-is-not-a-page`](../backlog/conversation-is-not-a-page.md):
+- **A configured worker account.** Rejected in [`conversation-is-not-a-page`](../../backlog/conversation-is-not-a-page.md):
   the authority is the starter's credential or nothing.
 - **A per-key restriction.** The owner answered for the whole key space; the reserved keys are the
   only refusal, as they are for a page.
@@ -372,11 +373,11 @@ not have.
 ## What would make it unnecessary
 
 If the write a job needs belonged to an account-scoped store
-([`no-account-store`](../backlog/no-account-store.md)) rather than to the page store, the job would write
+([`no-account-store`](../../backlog/no-account-store.md)) rather than to the page store, the job would write
 rows and not source, and no page-store authority would be involved.
 
 **Origin:** the owner, 2026-11-18 — "the worker/job gets to write with all the authority of the
 caller, and I'd really like to terminate that authority if the caller logs out or otherwise
 invalidates their session, so probably going to need to hand the job a token". The withheld writer is
-[`conversation-is-not-a-page`](../backlog/conversation-is-not-a-page.md) §4; the transaction it needed has
+[`conversation-is-not-a-page`](../../backlog/conversation-is-not-a-page.md) §4; the transaction it needed has
 landed (`pages-writes-are-transactions`).
