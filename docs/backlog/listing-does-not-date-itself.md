@@ -90,7 +90,8 @@ names a version its own slice did not come from.
 
 - **A snapshot for the life of a walk.** Rejected above, and it would be a decision of its own.
 - **A search cursor's version.** [`cannot-search-the-store`](cannot-search-the-store.md) has the same
-  gap one layer up; it can carry the same token once this exists.
+  gap one layer up and carries the same token rather than inventing a second signal: it waits on this
+  item, and a walk that finds the store moved starts again.
 - **A page's history.** `RevisionsAsync` is bounded by saves rather than by the store, and its order
   cannot move; nothing is needed there.
 
