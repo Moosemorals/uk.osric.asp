@@ -142,7 +142,7 @@ its reason, and that no item sits above something that blocks it.
 | | *Waits for a release: the alias has to have been out long enough that nothing in the store reports `PAGE009` before it is deleted.* | | | | |
 | [`message-does-not-survive-a-redirect`](message-does-not-survive-a-redirect.md) | A page cannot leave a message for a page it sends a visitor to | protective-dragon 🔥🐉 | high | [planned](../plans/page-inbox.md) | — |
 | | *Planned, but a plan is not urgency: nothing blocks it and no page stops working without it, so it waits below everything that does.* | | | | |
-| [`listing-does-not-date-itself`](listing-does-not-date-itself.md) | A listing cannot say the store moved under it | caffeinated-squirrel ☕🐿️ | medium | open | — |
+| [`listing-does-not-date-itself`](listing-does-not-date-itself.md) | A listing cannot say the store moved under it | caffeinated-squirrel ☕🐿️ | medium | [planned](../plans/listing-fingerprint.md) | — |
 | | *The cursor answered where a walk is; this answers whether it is still the same walk, and the write paths are the price.* | | | | |
 | [`cannot-search-the-store`](cannot-search-the-store.md) | A page cannot search the store's source | caffeinated-squirrel ☕🐿️ | medium | blocked | `listing-does-not-date-itself` |
 | | *The IDE's find in files, now with the shell's own pattern language; it waits on the version token a cursor has to carry before a scan of a store that may move under it can be trusted.* | | | | |

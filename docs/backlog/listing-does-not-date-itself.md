@@ -9,11 +9,11 @@ SPDX-License-Identifier: MIT
 | --- | --- |
 | Difficulty | caffeinated-squirrel |
 | Utility | medium |
-| Status | open |
+| Status | planned |
 | Blocked by | — |
-| Plan | — |
-| Area | Storage, Sdk, Web (pages, assistant), docs |
-| Location | `src/uk.osric.asp.Web/Storage/`, `src/uk.osric.asp.Web/Pages/SqlitePageStore.cs`, `src/uk.osric.asp.Web/Pages/SqlitePageReadStore.cs`, `src/uk.osric.asp.Web/Pages/PageCatalogScope.cs`, `src/uk.osric.asp.Sdk/PageListing.cs`, `src/uk.osric.asp.Sdk/PageListingRequest.cs`, `src/uk.osric.asp.Web/Assistant/PageTools.cs` |
+| Plan | [listing-fingerprint](../plans/listing-fingerprint.md) |
+| Area | Core, Sdk, Web (pages, assistant), docs |
+| Location | `src/uk.osric.asp.Core/Pages/`, `src/uk.osric.asp.Sdk/PageListing.cs`, `src/uk.osric.asp.Sdk/PageListingRequest.cs`, `src/uk.osric.asp.Web/Pages/IPageReadStore.cs`, `src/uk.osric.asp.Web/Pages/SqlitePageReadStore.cs`, `src/uk.osric.asp.Web/Pages/PageCatalogScope.cs`, `src/uk.osric.asp.Web/Assistant/PageStoreReader.cs`, `src/uk.osric.asp.Web/Assistant/Tools/PageTools.cs` |
 | Spike | — |
 
 ## Idea
@@ -50,7 +50,8 @@ So the deliverable is a warning, and the honest ones are:
 2. **A version per prefix.** Each head carries a `ChangeSeq`, and a slice answers the largest one in
    its subtree. A walk of `/blog` is then not invalidated by an edit under `/assistant`, which is the
    common case on this site: the assistant writes while the owner reads. It costs a column, a
-   migration and the same bump discipline, and it is the version a real tree wants.
+   migration and the same bump discipline, and it is the version a real tree wants. *The owner chose
+   this semantics on 2026-11-20 and the version derived rather than stored — see the answers below.*
 3. **A cheap heuristic.** The head count, the largest `SavedAt`, or SQLite's `PRAGMA data_version`.
    Each is a lie in a different way — a delete changes neither of the first two, and `data_version` is
    per connection and moves for writes in another store — so none of them is proposed.
@@ -68,23 +69,31 @@ names a version its own slice did not come from.
 - **The assistant gets it too.** `list_pages` already pages with `after`; a token there is what lets a
   run notice that a page it was about to write moved under its own read — which is the same fact
   `edit_page`'s expected hash answers one page at a time.
-- **The write paths are the work.** Each write's bump belongs inside the transaction it already has,
-  so a refused write leaves the version alone, and each path needs a test that says so. The rollback
-  path is the one most likely to be forgotten.
+- **There is no write path to change.** A stored sequence would make each write's bump the work, and
+  a bump belongs inside the transaction the write already has, so a refused write leaves the version
+  alone and the rollback path is the one most likely to be forgotten. Deriving the version from the
+  rows removes the whole class: no write participates, so no write can forget.
 
-## Open questions
+## What the owner answered
 
-1. **Store-wide or per prefix.** The first is a row and a bump; the second is a column, a migration
-   and a query. The second is the one that stops an unrelated edit from crying wolf, and the site's
-   own traffic — the assistant writing while the owner reads — is what makes that matter.
-2. **A warning or a refusal.** `PageListing.Changed` says the fact; whether a slice in flight should
-   then be refused with a restart rather than answered is a caller's policy, and both are reasonable.
-3. **Whether a delete is a change for a walk in progress.** It removes a row the caller would have
-   seen, so yes — which is what makes the store-wide counter necessary rather than a page's own head
-   hash.
-4. **Whether the token is a security claim.** It says the store moved, not what moved, and it must
-   not become a way to watch another visitor's writes: a page may already list anything it may read
-   (`pages-reading-the-store-is-public`), so the answer discloses no more than the listing does.
+Put to the owner on 2026-11-20, before any plan was written.
+
+1. **Per prefix, not store-wide.** A walk of `/blog` is not invalidated by an edit under `/assistant`,
+   which is the traffic this site actually has: the assistant writes while the owner reads. The item's
+   open questions 3 and 4 fall out of it — a delete is a change, and the token is not a security claim.
+2. **A warning, not a refusal.** `PageListing.Changed` states the fact and the caller decides; a host
+   refusal inside a capability would be the invisible second gate `pages-reading-the-store-is-public`
+   rejects.
+3. **The version is derived, not stored.** The owner's Merkle intuition was right about the aggregate
+   and wrong about the tree: nothing verifies membership, so a tree buys cost without a customer. The
+   aggregate is computed from the heads when a slice is read — no column, no counter, no migration and
+   no write path to forget, which is what makes an adopt and a content-hash repair visible without
+   anyone being told about them.
+4. **Seeds are untouched.** The three-hash verdict stays; a seed write and an adopt move the derived
+   token for free. The plan's §Seeds answers this at length.
+
+The plan is [listing-fingerprint](../plans/listing-fingerprint.md), which also carries the measured cost
+of the derived answer against keeping a sequence on write, and the threshold at which that would change.
 
 ## Not in scope
 
