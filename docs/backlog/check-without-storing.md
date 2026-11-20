@@ -150,16 +150,16 @@ One plan, one branch, four slices that each ship on their own, in this order:
    `enum` in the schema, `Assistant:MaxCheckDiagnostics` (100 shipped: Roslyn cannot stop at a
    diagnostic count, so a low cap would only hide feedback), the prompt's two lines becoming one and
    its `Version` moving, and [assistant](../assistant.md).
-   [`tool-arguments-say-nothing`](tool-arguments-say-nothing.md) opens this slice, because both
-   rewrite the tool definitions and so the provider's cached prefix; its other argument descriptions
-   ride with it.
+   `tool-arguments-say-nothing` opened this slice, because both rewrite the tool definitions and so
+   the provider's cached prefix; its other argument descriptions rode with it.
 4. **VS Code.** The LSP server and client, on the same tier, from files: a
    `tools/asp-language-server` project beside `tools/vscode-asp`, never the Web app, with diagnostics
    only first. Last because it is developer-only and nothing else waits on it.
 
-**Slices 1 and 2 merged 2026-11-20.** `IPageCheck`, `PageCheckResult`, Sdk's `PageKind` and the closed
+**Slices 1–3 merged 2026-11-20.** `IPageCheck`, `PageCheckResult`, Sdk's `PageKind` and the closed
 language set are in the contract, `PageCheckScope` answers `template` and `javascript` without storing,
-and `/help` and [pages](../pages.md) document both. Slices 3–4 are what remains.
+`/help` and [pages](../pages.md) document both, and the assistant checks through one `check` tool
+whose schema carries the set as an `enum`. Slice 4, the language server, is what remains.
 
 ## The composite is not this
 

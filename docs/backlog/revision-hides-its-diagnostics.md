@@ -83,10 +83,10 @@ Wait for the plan — the owner's answers choose the shape, not the intent.
    (the catalog's rule for source).
 3. **How much a history row carries.** The state word only, a count, or the list — the first is
    cheap, the last makes the history of a broken page expensive.
-4. **Whether the assistant's `read_revision` follows here.** `read_page` already reports head
-   diagnostics through its own seam; `read_revision` reports only `imageState`, and
-   [`check-without-storing`](check-without-storing.md) merges the two reads anyway. The tool half can
-   ride with that merge rather than this item.
+4. **Whether the assistant's revision read follows here.** `read_page` reports head diagnostics
+   through its own seam; the same tool with a `hash` reports only `imageState`, because a retained
+   revision carries no diagnostics of its own. [`check-without-storing`](check-without-storing.md) has
+   merged the two reads, so this item decides whether that read grows what it answers.
 5. **Whether a stale revision's answer is marked.** The stored diagnostics are the last compile, and
    a library move can make them out of date before anything recompiles the page; the listing's state
    already ignores that, and this read should say what it is answering about rather than imply

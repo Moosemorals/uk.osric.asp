@@ -34,6 +34,16 @@ public sealed record ToolArgumentSchema(string Name, ToolArgumentType Type, bool
     /// emitted only when it is set, so a tool that carries none sends the schema it always sent.
     /// </summary>
     public string? Description { get; init; }
+
+    /// <summary>
+    /// The closed set of values a string argument accepts, or null for an open string.
+    /// </summary>
+    /// <remarks>
+    /// Emitted as the schema's <c>enum</c> and enforced by <see cref="ToolArguments.Parse"/>, so a
+    /// set that grows costs a row rather than a rewritten sentence. A description may say more, but
+    /// the set is the constraint the provider reads.
+    /// </remarks>
+    public IReadOnlyList<string>? Values { get; init; }
 }
 
 /// <summary>A validated argument object or a safe validation error.</summary>
@@ -126,9 +136,7 @@ public static class ToolArguments {
     }
 
     private static string? ValidateValue(JsonElement value, ToolArgumentSchema definition, string name) => definition.Type switch {
-        ToolArgumentType.String => value.ValueKind == JsonValueKind.String
-            ? null
-            : $"Tool argument '{name}' must be a string.",
+        ToolArgumentType.String => ValidateString(value, definition, name),
         ToolArgumentType.Integer => value.ValueKind == JsonValueKind.Number && value.TryGetInt32(out _)
             ? null
             : $"Tool argument '{name}' must be an integer.",
@@ -138,6 +146,19 @@ public static class ToolArguments {
         ToolArgumentType.Array => ValidateArray(value, definition.Items, name),
         _ => null,
     };
+
+    private static string? ValidateString(JsonElement value, ToolArgumentSchema definition, string name) {
+        if (value.ValueKind != JsonValueKind.String) {
+            return $"Tool argument '{name}' must be a string.";
+        }
+
+        if (definition.Values is { Count: > 0 } allowed
+            && !allowed.Contains(value.GetString(), StringComparer.Ordinal)) {
+            return $"Tool argument '{name}' must be one of {string.Join(", ", allowed)}.";
+        }
+
+        return null;
+    }
 
     private static string? ValidateArray(JsonElement value, IReadOnlyList<ToolArgumentSchema>? items, string name) {
         if (value.ValueKind != JsonValueKind.Array) {

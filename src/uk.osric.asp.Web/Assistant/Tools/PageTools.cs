@@ -12,6 +12,7 @@ using uk.osric.asp.Core.Text;
 using uk.osric.asp.Runtime;
 using uk.osric.asp.Web.Assistant.Shell;
 using uk.osric.asp.Web.Editor;
+using uk.osric.asp.Web.Http;
 using uk.osric.asp.Web.Pages;
 using PageMoveOutcome = uk.osric.asp.Sdk.PageMoveOutcome;
 using PageMoveResult = uk.osric.asp.Sdk.PageMoveResult;
@@ -83,10 +84,15 @@ internal sealed class ReadPageTool : AssistantTool {
 
     public override ToolSpec Spec { get; } = new(
         "read_page",
-        "Read a page, its revision hash, compile status and diagnostics. Optional 1-based line numbers refer to physical lines of the stored template source. Each line in `source` is prefixed with its line number and `| `, which is not part of the source and must not be copied into a replacement. A shell file returns a record of what the route does instead, which can also be read by line.",
+        "Read a page, its revision hash, compile status and diagnostics, or one of its retained revisions. Optional 1-based line numbers refer to physical lines of the stored template source. Each line in `source` is prefixed with its line number and `| `, which is not part of the source and must not be copied into a replacement. A shell file returns a record of what the route does instead, which can also be read by line; a shell file has no revisions, so `hash` is refused there. Leave `hash` out to read the live page and the hash an edit must quote; give a hash from list_revisions to read that revision as it was saved, which compiles nothing and edits nothing.",
         false,
         [
-            new("path", ToolArgumentType.String, true),
+            new("path", ToolArgumentType.String, true) {
+                Description = "The page's key, or a shell file's.",
+            },
+            new("hash", ToolArgumentType.String, false) {
+                Description = "A retained revision's hash from list_revisions; omit it to read the live page.",
+            },
             new("startLine", ToolArgumentType.Integer, false),
             new("endLine", ToolArgumentType.Integer, false),
         ]) { Verb = "Read" };
@@ -100,7 +106,10 @@ internal sealed class ReadPageTool : AssistantTool {
             return refusal;
         }
 
-        return await ReadAsync(path!, values.Integer("startLine"), values.Integer("endLine"), services, cancellationToken);
+        string? hash = values.String("hash");
+        return hash is null
+            ? await ReadAsync(path!, values.Integer("startLine"), values.Integer("endLine"), services, cancellationToken)
+            : await ReadRevisionAsync(path!, hash, values.Integer("startLine"), values.Integer("endLine"), services, cancellationToken);
     }
 
     // A shell file records no diagnostics; a page reports whatever the build that made its image wrote,
@@ -141,6 +150,58 @@ internal sealed class ReadPageTool : AssistantTool {
         };
         return services.Results.Success(data, $"{Spec.Verb} {path.Describe()}");
     }
+
+    // A revision is read exactly as the live page is, through the same line numbering and result
+    // budget, and the answer says which revision it was: `hash` is never the head an edit quotes.
+    private async Task<ToolExecutionResult> ReadRevisionAsync(
+        PagePath path,
+        string hash,
+        int? requestedStart,
+        int? requestedEnd,
+        ToolServices services,
+        CancellationToken cancellationToken) {
+        if (ToolPaths.RequirePageSource(Spec, path, "reads retained revisions", services) is { } noSource) {
+            return noSource;
+        }
+
+        if (!RevisionHash.IsCanonical(hash)) {
+            return services.Results.Failure(PageToolData.HashRefusal, "Invalid revision hash");
+        }
+
+        if (!(await services.Store.HistoryAsync(path, cancellationToken)).Exists) {
+            return services.Results.Failure($"Page {path.Describe()} was not found.", $"{Spec.Verb} {path.Describe()}: not found");
+        }
+
+        PageRevisionTemplate? revision = await services.Store.RevisionAsync(path, hash, cancellationToken);
+        if (revision is null) {
+            return services.Results.Failure(
+                $"That hash is not a revision of {path.Describe()}. Use a hash list_revisions returned.",
+                "Revision not found");
+        }
+
+        PageToolData.ProjectedSource? projected = PageToolData.ProjectSource(
+            revision.Template, requestedStart, requestedEnd, services.Budget);
+        if (projected is null) {
+            return services.Results.Failure(
+                "The requested line range is outside the revision.", $"{Spec.Verb} {path.Describe()}: invalid range");
+        }
+
+        object data = new {
+            path = path.Key,
+            kind = "page",
+            hash = revision.Hash,
+            savedAt = revision.SavedAt,
+            creationRuntimeId = revision.CreationRuntimeId,
+            compileStatus = revision.ImageState.Describe(),
+            startLine = projected.StartLine,
+            endLine = projected.EndLine,
+            totalLines = projected.TotalLines,
+            truncated = projected.Truncated,
+            source = projected.Text,
+            editorUrl = path.EditorRevision(revision.Hash, services.EditorPath),
+        };
+        return services.Results.Success(data, $"{Spec.Verb} revision {PageToolData.ShortHash(revision.Hash)} of {path.Describe()}");
+    }
 }
 
 /// <summary>Replaces physical template lines if the revision is still the one read.</summary>
@@ -163,12 +224,23 @@ internal sealed class EditPageTool : AssistantTool {
             new("expectFirst", ToolArgumentType.String, false),
             new("expectLast", ToolArgumentType.String, false),
             new("edits", ToolArgumentType.Array, false) {
+                Description = "Several hunks applied against the one revision hash; use this or a single startLine/replacement.",
                 Items = [
-                    new("startLine", ToolArgumentType.Integer, true),
-                    new("endLine", ToolArgumentType.Integer, false),
-                    new("replacement", ToolArgumentType.String, true),
-                    new("expectFirst", ToolArgumentType.String, false),
-                    new("expectLast", ToolArgumentType.String, false),
+                    new("startLine", ToolArgumentType.Integer, true) {
+                        Description = "The first physical line to replace, numbered as read_page answered it.",
+                    },
+                    new("endLine", ToolArgumentType.Integer, false) {
+                        Description = "The last physical line to replace; omit it to replace startLine alone.",
+                    },
+                    new("replacement", ToolArgumentType.String, true) {
+                        Description = "The lines to put in their place, with no line-number prefix.",
+                    },
+                    new("expectFirst", ToolArgumentType.String, false) {
+                        Description = "The exact text startLine must still hold, so an off-by-one is refused.",
+                    },
+                    new("expectLast", ToolArgumentType.String, false) {
+                        Description = "The exact text endLine must still hold, so an off-by-one is refused.",
+                    },
                 ],
             },
         ]) {
@@ -332,7 +404,9 @@ internal sealed class WritePageTool : AssistantTool {
         true,
         [
             new("path", ToolArgumentType.String, true),
-            new("content", ToolArgumentType.String, true),
+            new("content", ToolArgumentType.String, true) {
+                Description = "The complete template, exactly as it should be stored. A fragment is not a page.",
+            },
         ]) {
         Verb = "Write",
         Writes = true,
@@ -396,7 +470,9 @@ internal sealed class SearchPagesTool : AssistantTool {
         "Search live page source and the shell files' records for a literal substring.",
         false,
         [
-            new("query", ToolArgumentType.String, true),
+            new("query", ToolArgumentType.String, true) {
+                Description = "A literal substring, not a pattern; a page matches when its source or its shell record holds it.",
+            },
             new("prefix", ToolArgumentType.String, false),
             new("caseSensitive", ToolArgumentType.Boolean, false),
         ]) { Verb = "Search" };
@@ -511,6 +587,10 @@ internal sealed class MovePageTool : AssistantTool {
 /// <summary>What the page tools share: the line rule, the listing rows and the diagnostic shape.</summary>
 internal static class PageToolData {
 
+    /// <summary>A hash as a summary writes it: the first twelve characters.</summary>
+    /// <param name="hash">The canonical hash.</param>
+    public static string ShortHash(string hash) => hash[..Math.Min(12, hash.Length)];
+
     /// <summary>The refusal a hash that is not 64 lowercase hexadecimal characters gets.</summary>
     public const string HashRefusal =
         "A revision hash is 64 lowercase hexadecimal characters; use the hash list_revisions returned.";
@@ -567,8 +647,9 @@ internal static class PageToolData {
     /// <returns>The range, or null when it is outside the source.</returns>
     /// <remarks>
     /// <para>
-    /// `read_page` and `read_revision` read source through this one function, so a revision a tool
-    /// quotes is numbered and windowed exactly as the live page is (`assistant-line-numbers-are-physical`).
+    /// `read_page` reads a live page and a retained revision through this one function, so a
+    /// revision it quotes is numbered and windowed exactly as the live page is
+    /// (`assistant-line-numbers-are-physical`).
     /// </para>
     /// <para>
     /// Every line carries its number because the result is read as escaped JSON: counting lines in

@@ -18,13 +18,13 @@ SPDX-License-Identifier: MIT
 
 ## Idea
 
-The registry holds twenty-two tools, and a contract test pins the count at the soft ceiling the
+The registry holds twenty tools, and a contract test pins the count at the soft ceiling the
 provider guidance quotes. Eleven commands a model already knows by another name sit inside `shell`:
 `ls`, `cat`, `grep`, `find`, `head`, `tail`, `diff`, `stat`, `wc`, `mv` and `help`. Beside it,
-`list_pages`, `read_page`, `search_pages`, `diff_page`, `move_page`, `list_revisions`, `read_revision`
-and two check tools exist again as typed tools. `tool-arguments-say-nothing` found the same pressure
-from the other side: twenty-two schemas with no parameter descriptions, because describing them
-rewrites the provider's cached prefix.
+`list_pages`, `read_page`, `search_pages`, `diff_page`, `move_page`, `list_revisions`, `check` and
+`restore_revision` exist again as typed tools. `tool-arguments-say-nothing` found the same pressure
+from the other side — every schema a paragraph of prose in the provider's cached prefix — and closed
+with the closed `enum` and the described arguments that one check needed.
 
 The shell is the better shape. A model has seen `grep -rn`, `cat -n` and `diff -u` more often than it
 has seen this site's tool schemas, and one tool with a grammar can carry a dozen capabilities without

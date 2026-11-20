@@ -64,6 +64,9 @@ internal sealed class ToolServices(
     /// <summary>The editor's own key, so a tool's link lands on the page the owner moved it to.</summary>
     public string EditorPath => EditorPaths.Of(scope);
 
+    /// <summary>The compile tier <c>check</c> spends, resolved from the call's scope.</summary>
+    public PageChecks Checks => scope.GetRequiredService<PageChecks>();
+
     /// <summary>The owner's memories, resolved from the call's scope.</summary>
     public IMemoryStore Memories => scope.GetRequiredService<IMemoryStore>();
 

@@ -11,9 +11,7 @@ using uk.osric.asp.Core.Pages;
 using uk.osric.asp.Web.Assistant;
 using uk.osric.asp.Web.Editor;
 using uk.osric.asp.Web.Pages;
-// The page contract has a diagnostic and a check result of its own.
-using SdkDiagnostic = uk.osric.asp.Sdk.PageDiagnostic;
-using SdkPageCheckResult = uk.osric.asp.Sdk.PageCheckResult;
+using PageCheckLanguages = uk.osric.asp.Sdk.PageCheckLanguages;
 
 [TestFixture]
 [FixtureLifeCycle(LifeCycle.InstancePerTestCase)]
@@ -25,7 +23,7 @@ public sealed class PageToolExecutorTests {
         PageTemplate original = new(PageHarness.Key("/notes"), "first\r\nsecond\r\nthird");
         storage["/notes"] = original;
         using PageHarness pages = new(storage);
-        using ServiceProvider services = Services(pages.Editor);
+        using ServiceProvider services = Services(pages);
         PageToolExecutor tools = CreateTools(services);
         string arguments = JsonSerializer.Serialize(new {
             path = "/notes",
@@ -49,7 +47,7 @@ public sealed class PageToolExecutorTests {
         PageTemplate original = new(PageHarness.Key("/notes"), "first\r\nsecond\r\nthird");
         storage["/notes"] = original;
         using PageHarness pages = new(storage);
-        using ServiceProvider services = Services(pages.Editor);
+        using ServiceProvider services = Services(pages);
         PageToolExecutor tools = CreateTools(services);
         string arguments = JsonSerializer.Serialize(new {
             path = "/notes",
@@ -78,7 +76,7 @@ public sealed class PageToolExecutorTests {
         PageTemplate original = new(PageHarness.Key("/notes"), "first\nsecond\nthird");
         storage["/notes"] = original;
         using PageHarness pages = new(storage);
-        using ServiceProvider services = Services(pages.Editor);
+        using ServiceProvider services = Services(pages);
         PageToolExecutor tools = CreateTools(services);
         string arguments = JsonSerializer.Serialize(new {
             path = "/notes",
@@ -105,7 +103,7 @@ public sealed class PageToolExecutorTests {
         PageTemplate original = new(PageHarness.Key("/notes"), "one\ntwo\nthree\nfour");
         storage["/notes"] = original;
         using PageHarness pages = new(storage);
-        using ServiceProvider services = Services(pages.Editor);
+        using ServiceProvider services = Services(pages);
         PageToolExecutor tools = CreateTools(services);
         string arguments = JsonSerializer.Serialize(new {
             path = "/notes",
@@ -132,7 +130,7 @@ public sealed class PageToolExecutorTests {
         PageTemplate original = new(PageHarness.Key("/notes"), "one\ntwo\nthree");
         storage["/notes"] = original;
         using PageHarness pages = new(storage);
-        using ServiceProvider services = Services(pages.Editor);
+        using ServiceProvider services = Services(pages);
         PageToolExecutor tools = CreateTools(services);
         string arguments = JsonSerializer.Serialize(new {
             path = "/notes",
@@ -158,7 +156,7 @@ public sealed class PageToolExecutorTests {
         PageTemplate original = new(PageHarness.Key("/notes"), "one\ntwo");
         storage["/notes"] = original;
         using PageHarness pages = new(storage);
-        using ServiceProvider services = Services(pages.Editor);
+        using ServiceProvider services = Services(pages);
         PageToolExecutor tools = CreateTools(services);
         string arguments = JsonSerializer.Serialize(new {
             path = "/notes",
@@ -186,7 +184,7 @@ public sealed class PageToolExecutorTests {
         PageTemplate original = new(PageHarness.Key("/notes"), "one\ntwo");
         storage["/notes"] = original;
         using PageHarness pages = new(storage);
-        using ServiceProvider services = Services(pages.Editor);
+        using ServiceProvider services = Services(pages);
         PageToolExecutor tools = CreateTools(services);
         string arguments = JsonSerializer.Serialize(new {
             path = "/notes",
@@ -212,7 +210,7 @@ public sealed class PageToolExecutorTests {
         PageTemplate original = new(PageHarness.Key("/notes"), "one\ntwo\nthree");
         storage["/notes"] = original;
         using PageHarness pages = new(storage);
-        using ServiceProvider services = Services(pages.Editor);
+        using ServiceProvider services = Services(pages);
         PageToolExecutor tools = CreateTools(services);
         string arguments = JsonSerializer.Serialize(new {
             path = "/notes",
@@ -236,7 +234,7 @@ public sealed class PageToolExecutorTests {
         PageTemplate original = new(PageHarness.Key("/notes"), "one\ntwo");
         storage["/notes"] = original;
         using PageHarness pages = new(storage);
-        using ServiceProvider services = Services(pages.Editor);
+        using ServiceProvider services = Services(pages);
         PageToolExecutor tools = CreateTools(services);
         string arguments = JsonSerializer.Serialize(new {
             path = "/notes",
@@ -259,7 +257,7 @@ public sealed class PageToolExecutorTests {
         PageTemplate original = new(PageHarness.Key("/notes"), "one\ntwo");
         storage["/notes"] = original;
         using PageHarness pages = new(storage);
-        using ServiceProvider services = Services(pages.Editor);
+        using ServiceProvider services = Services(pages);
         PageToolExecutor tools = CreateTools(services);
         string arguments = JsonSerializer.Serialize(new {
             path = "/notes",
@@ -298,7 +296,7 @@ public sealed class PageToolExecutorTests {
         FakePageStore storage = new();
         storage["/notes"] = new PageTemplate(PageHarness.Key("/notes"), "original");
         using PageHarness pages = new(storage);
-        using ServiceProvider services = Services(pages.Editor);
+        using ServiceProvider services = Services(pages);
         PageToolExecutor tools = CreateTools(services);
 
         ToolExecutionResult result = await tools.ExecuteAsync(
@@ -316,7 +314,7 @@ public sealed class PageToolExecutorTests {
     public async Task ReadPageReturnsTheShellRecordInsteadOfSourceAsync() {
         FakePageStore storage = new();
         using PageHarness pages = new(storage);
-        using ServiceProvider services = Services(pages.Editor);
+        using ServiceProvider services = Services(pages);
         PageToolExecutor tools = CreateTools(services);
 
         ToolExecutionResult result = await tools.ExecuteAsync(
@@ -339,7 +337,7 @@ public sealed class PageToolExecutorTests {
     public async Task ReadPageSlicesTheShellRecordByLineAsync() {
         FakePageStore storage = new();
         using PageHarness pages = new(storage);
-        using ServiceProvider services = Services(pages.Editor);
+        using ServiceProvider services = Services(pages);
         PageToolExecutor tools = CreateTools(services);
 
         ToolExecutionResult result = await tools.ExecuteAsync(
@@ -352,7 +350,7 @@ public sealed class PageToolExecutorTests {
     public async Task ReadPageRefusesAKeyBeneathAShellFileAsync() {
         FakePageStore storage = new();
         using PageHarness pages = new(storage);
-        using ServiceProvider services = Services(pages.Editor);
+        using ServiceProvider services = Services(pages);
         PageToolExecutor tools = CreateTools(services);
 
         ToolExecutionResult result = await tools.ExecuteAsync(
@@ -369,7 +367,7 @@ public sealed class PageToolExecutorTests {
     public async Task WriteReturnsCompileDiagnosticsAndARevisionHashAsync() {
         FakePageStore storage = new();
         using PageHarness pages = new(storage);
-        using ServiceProvider services = Services(pages.Editor);
+        using ServiceProvider services = Services(pages);
         PageToolExecutor tools = CreateTools(services);
 
         ToolExecutionResult result = await tools.ExecuteAsync(
@@ -387,7 +385,7 @@ public sealed class PageToolExecutorTests {
         FakePageStore storage = new();
         storage["/notes"] = new PageTemplate(PageHarness.Key("/notes"), "source");
         using PageHarness pages = new(storage);
-        using ServiceProvider services = Services(pages.Editor);
+        using ServiceProvider services = Services(pages);
         PageToolExecutor tools = CreateTools(services);
 
         ToolExecutionResult result = await tools.ExecuteAsync(
@@ -405,7 +403,7 @@ public sealed class PageToolExecutorTests {
         storage["/template"] = new PageTemplate(PageHarness.Key("/template"),
             "<h1>Title</h1>\r\n<%\r\nif (true) {\r\n%>\r\n<%= \"value\" %>\r\n<% } %>");
         using PageHarness pages = new(storage);
-        using ServiceProvider services = Services(pages.Editor);
+        using ServiceProvider services = Services(pages);
         PageToolExecutor tools = CreateTools(services);
 
         ToolExecutionResult result = await tools.ExecuteAsync(
@@ -425,7 +423,7 @@ public sealed class PageToolExecutorTests {
         storage["/ab"] = new PageTemplate(PageHarness.Key("/ab"), "alpha");
         storage["/editor.js"] = new PageTemplate(PageHarness.Key("/editor.js"), "alpha");
         using PageHarness pages = new(storage);
-        using ServiceProvider services = Services(pages.Editor);
+        using ServiceProvider services = Services(pages);
         PageToolExecutor tools = CreateTools(services);
 
         ToolExecutionResult result = await tools.ExecuteAsync(
@@ -441,7 +439,7 @@ public sealed class PageToolExecutorTests {
         storage["/blog"] = new PageTemplate(PageHarness.Key("/blog"), "alpha");
         storage["/logout"] = new PageTemplate(PageHarness.Key("/logout"), "shadowed by the route");
         using PageHarness pages = new(storage);
-        using ServiceProvider services = Services(pages.Editor);
+        using ServiceProvider services = Services(pages);
         PageToolExecutor tools = CreateTools(services);
 
         ToolExecutionResult result = await tools.ExecuteAsync("list_pages", "{}", Context, CancellationToken.None);
@@ -470,7 +468,7 @@ public sealed class PageToolExecutorTests {
     public async Task RefuseBeforeApprovalRefusesASaveToAShellFileAsync() {
         FakePageStore storage = new();
         using PageHarness pages = new(storage);
-        using ServiceProvider services = Services(pages.Editor);
+        using ServiceProvider services = Services(pages);
         PageToolExecutor tools = CreateTools(services);
 
         ToolExecutionResult? refused = tools.RefuseBeforeApproval(
@@ -500,7 +498,7 @@ public sealed class PageToolExecutorTests {
         storage["/gone"] = new PageTemplate(PageHarness.Key("/gone"), "alpha");
         using PageHarness pages = new(storage);
         await pages.Editor.DeleteAsync(PageHarness.Key("/gone"));
-        using ServiceProvider services = Services(pages.Editor);
+        using ServiceProvider services = Services(pages);
         PageToolExecutor tools = CreateTools(services);
 
         ToolExecutionResult live = await tools.ExecuteAsync("list_pages", "{}", Context, CancellationToken.None);
@@ -515,7 +513,7 @@ public sealed class PageToolExecutorTests {
     public async Task ListPagesRefusesAPrefixThatIsNotAddressableAsync() {
         FakePageStore storage = new();
         using PageHarness pages = new(storage);
-        using ServiceProvider services = Services(pages.Editor);
+        using ServiceProvider services = Services(pages);
         PageToolExecutor tools = CreateTools(services);
 
         ToolExecutionResult result = await tools.ExecuteAsync(
@@ -537,7 +535,7 @@ public sealed class PageToolExecutorTests {
             TemplateFingerprint.Of("<% broken"), "1:3:elsewhere", null, null,
             [new PageDiagnostic(PageDiagnosticSeverity.Error, new TemplatePosition(1, 4), "CS1525: broken")]));
         using PageHarness pages = new(storage);
-        using ServiceProvider services = Services(pages.Editor);
+        using ServiceProvider services = Services(pages);
         PageToolExecutor tools = CreateTools(services);
 
         ToolExecutionResult result = await tools.ExecuteAsync("list_pages", "{}", Context, CancellationToken.None);
@@ -557,7 +555,7 @@ public sealed class PageToolExecutorTests {
                 TemplateFingerprint.Of("Loud."), "1:3:elsewhere", [1], [2], [])),
         };
         using PageHarness pages = new(storage);
-        using ServiceProvider services = Services(pages.Editor);
+        using ServiceProvider services = Services(pages);
         PageToolExecutor tools = CreateTools(services);
 
         ToolExecutionResult result = await tools.ExecuteAsync("list_pages", "{}", Context, CancellationToken.None);
@@ -573,7 +571,7 @@ public sealed class PageToolExecutorTests {
         using PageHarness pages = new(storage);
         storage["/loud"] = new PageTemplate(PageHarness.Key("/loud"), template, pages.Images.Build(
             PageHarness.Key("/loud"), template, PageMetrics.ReasonSave, [], CancellationToken.None));
-        using ServiceProvider services = Services(pages.Editor);
+        using ServiceProvider services = Services(pages);
         PageToolExecutor tools = CreateTools(services);
 
         ToolExecutionResult result = await tools.ExecuteAsync(
@@ -586,7 +584,7 @@ public sealed class PageToolExecutorTests {
     public async Task ASeededAssetIsAnOrdinaryWritablePageAsync() {
         FakePageStore storage = new();
         using PageHarness pages = new(storage);
-        using ServiceProvider services = Services(pages.Editor);
+        using ServiceProvider services = Services(pages);
         PageToolExecutor tools = CreateTools(services);
 
         ToolExecutionResult result = await tools.ExecuteAsync(
@@ -604,7 +602,7 @@ public sealed class PageToolExecutorTests {
     public async Task WritingAPageThatWarnsIsASuccessfulCallAsync() {
         FakePageStore storage = new();
         using PageHarness pages = new(storage);
-        using ServiceProvider services = Services(pages.Editor);
+        using ServiceProvider services = Services(pages);
         PageToolExecutor tools = CreateTools(services);
 
         ToolExecutionResult result = await tools.ExecuteAsync(
@@ -620,7 +618,7 @@ public sealed class PageToolExecutorTests {
     public async Task WritingABrokenPageReportsTheSpanOfTheTokenItNamesAsync() {
         FakePageStore storage = new();
         using PageHarness pages = new(storage);
-        using ServiceProvider services = Services(pages.Editor);
+        using ServiceProvider services = Services(pages);
         PageToolExecutor tools = CreateTools(services);
 
         ToolExecutionResult result = await tools.ExecuteAsync(
@@ -644,7 +642,7 @@ public sealed class PageToolExecutorTests {
         storage["/a"] = new PageTemplate(PageHarness.Key("/a"), "alpha\nbeta\nAlpha");
         storage["/b"] = new PageTemplate(PageHarness.Key("/b"), "gamma");
         using PageHarness pages = new(storage);
-        using ServiceProvider services = Services(pages.Editor);
+        using ServiceProvider services = Services(pages);
         PageToolExecutor tools = CreateTools(services);
 
         ToolExecutionResult result = await tools.ExecuteAsync(
@@ -659,7 +657,7 @@ public sealed class PageToolExecutorTests {
         FakePageStore storage = new();
         storage["/a"] = new PageTemplate(PageHarness.Key("/a"), "alpha\nbeta\nAlpha");
         using PageHarness pages = new(storage);
-        using ServiceProvider services = Services(pages.Editor);
+        using ServiceProvider services = Services(pages);
         PageToolExecutor tools = CreateTools(services);
 
         ToolExecutionResult result = await tools.ExecuteAsync(
@@ -673,7 +671,7 @@ public sealed class PageToolExecutorTests {
         FakePageStore storage = new();
         storage["/many"] = new PageTemplate(PageHarness.Key("/many"), string.Join('\n', Enumerable.Repeat("hit", 1_000)));
         using PageHarness pages = new(storage);
-        using ServiceProvider services = Services(pages.Editor);
+        using ServiceProvider services = Services(pages);
         PageToolExecutor tools = CreateTools(services);
 
         ToolExecutionResult result = await tools.ExecuteAsync(
@@ -690,7 +688,7 @@ public sealed class PageToolExecutorTests {
         FakePageStore storage = new();
         storage["/many"] = new PageTemplate(PageHarness.Key("/many"), string.Join('\n', Enumerable.Repeat("hit", 1_001)));
         using PageHarness pages = new(storage);
-        using ServiceProvider services = Services(pages.Editor);
+        using ServiceProvider services = Services(pages);
         PageToolExecutor tools = CreateTools(services);
 
         ToolExecutionResult result = await tools.ExecuteAsync(
@@ -704,7 +702,7 @@ public sealed class PageToolExecutorTests {
     public async Task SearchPagesRefusesAnEmptyQueryAsync() {
         FakePageStore storage = new();
         using PageHarness pages = new(storage);
-        using ServiceProvider services = Services(pages.Editor);
+        using ServiceProvider services = Services(pages);
         PageToolExecutor tools = CreateTools(services);
 
         ToolExecutionResult result = await tools.ExecuteAsync(
@@ -722,7 +720,7 @@ public sealed class PageToolExecutorTests {
         storage["/a/child"] = new PageTemplate(PageHarness.Key("/a/child"), "alpha");
         storage["/a/child/grandchild"] = new PageTemplate(PageHarness.Key("/a/child/grandchild"), "alpha");
         using PageHarness pages = new(storage);
-        using ServiceProvider services = Services(pages.Editor);
+        using ServiceProvider services = Services(pages);
         PageToolExecutor tools = CreateTools(services);
 
         ToolExecutionResult plain = await tools.ExecuteAsync(
@@ -744,7 +742,7 @@ public sealed class PageToolExecutorTests {
         storage["/b"] = new PageTemplate(PageHarness.Key("/b"), "beta");
         using PageHarness pages = new(storage);
         await pages.Editor.DeleteAsync(PageHarness.Key("/b"));
-        using ServiceProvider services = Services(pages.Editor);
+        using ServiceProvider services = Services(pages);
         PageToolExecutor tools = CreateTools(services);
 
         ToolExecutionResult root = await tools.ExecuteAsync(
@@ -765,7 +763,7 @@ public sealed class PageToolExecutorTests {
         storage["/a"] = new PageTemplate(PageHarness.Key("/a"), "alpha");
         storage["/a/b/c"] = new PageTemplate(PageHarness.Key("/a/b/c"), "alpha");
         using PageHarness pages = new(storage);
-        using ServiceProvider services = Services(pages.Editor);
+        using ServiceProvider services = Services(pages);
         PageToolExecutor tools = CreateTools(services);
 
         ToolExecutionResult all = await tools.ExecuteAsync(
@@ -784,7 +782,7 @@ public sealed class PageToolExecutorTests {
         FakePageStore storage = new();
         storage["/blog"] = new PageTemplate(PageHarness.Key("/blog"), "alpha");
         using PageHarness pages = new(storage);
-        using ServiceProvider services = Services(pages.Editor);
+        using ServiceProvider services = Services(pages);
         PageToolExecutor tools = CreateTools(services);
 
         ToolExecutionResult root = await tools.ExecuteAsync("shell", "{\"command\":\"ls -l /\"}", Context, CancellationToken.None);
@@ -802,7 +800,7 @@ public sealed class PageToolExecutorTests {
     public async Task ShellCatReadsAShellFileRecordAsync() {
         FakePageStore storage = new();
         using PageHarness pages = new(storage);
-        using ServiceProvider services = Services(pages.Editor);
+        using ServiceProvider services = Services(pages);
         PageToolExecutor tools = CreateTools(services);
 
         ToolExecutionResult result = await tools.ExecuteAsync(
@@ -820,7 +818,7 @@ public sealed class PageToolExecutorTests {
         FakePageStore storage = new();
         storage["/notes"] = new PageTemplate(PageHarness.Key("/notes"), "<h1>Title</h1>");
         using PageHarness pages = new(storage);
-        using ServiceProvider services = Services(pages.Editor);
+        using ServiceProvider services = Services(pages);
         PageToolExecutor tools = CreateTools(services);
 
         ToolExecutionResult result = await tools.ExecuteAsync(
@@ -835,7 +833,7 @@ public sealed class PageToolExecutorTests {
         FakePageStore storage = new();
         storage["/a"] = new PageTemplate(PageHarness.Key("/a"), "Alpha\nbeta");
         using PageHarness pages = new(storage);
-        using ServiceProvider services = Services(pages.Editor);
+        using ServiceProvider services = Services(pages);
         PageToolExecutor tools = CreateTools(services);
 
         ToolExecutionResult result = await tools.ExecuteAsync(
@@ -850,7 +848,7 @@ public sealed class PageToolExecutorTests {
         FakePageStore storage = new();
         storage["/notes"] = new PageTemplate(PageHarness.Key("/notes"), "<h1>Title</h1>\n<p>Body</p>");
         using PageHarness pages = new(storage);
-        using ServiceProvider services = Services(pages.Editor);
+        using ServiceProvider services = Services(pages);
         PageToolExecutor tools = CreateTools(services);
 
         ToolExecutionResult result = await tools.ExecuteAsync(
@@ -868,7 +866,7 @@ public sealed class PageToolExecutorTests {
         FakePageStore storage = new();
         storage["/a"] = new PageTemplate(PageHarness.Key("/a"), "Alpha\nbeta");
         using PageHarness pages = new(storage);
-        using ServiceProvider services = Services(pages.Editor);
+        using ServiceProvider services = Services(pages);
         PageToolExecutor tools = CreateTools(services);
 
         ToolExecutionResult result = await tools.ExecuteAsync(
@@ -885,7 +883,7 @@ public sealed class PageToolExecutorTests {
     public async Task ShellRefusalPointsAtHelpAsync() {
         FakePageStore storage = new();
         using PageHarness pages = new(storage);
-        using ServiceProvider services = Services(pages.Editor);
+        using ServiceProvider services = Services(pages);
         PageToolExecutor tools = CreateTools(services);
 
         // The shape of the production failures: an option the command has not got, refused, and the
@@ -906,7 +904,7 @@ public sealed class PageToolExecutorTests {
         storage["/top"] = new PageTemplate(PageHarness.Key("/top"), "needle here");
         storage["/folder/deep"] = new PageTemplate(PageHarness.Key("/folder/deep"), "needle below");
         using PageHarness pages = new(storage);
-        using ServiceProvider services = Services(pages.Editor);
+        using ServiceProvider services = Services(pages);
         PageToolExecutor tools = CreateTools(services);
 
         ToolExecutionResult flat = await tools.ExecuteAsync(
@@ -927,7 +925,7 @@ public sealed class PageToolExecutorTests {
         FakePageStore storage = new();
         storage["/folder/deep"] = new PageTemplate(PageHarness.Key("/folder/deep"), "needle below");
         using PageHarness pages = new(storage);
-        using ServiceProvider services = Services(pages.Editor);
+        using ServiceProvider services = Services(pages);
         PageToolExecutor tools = CreateTools(services);
 
         ToolExecutionResult result = await tools.ExecuteAsync(
@@ -947,7 +945,7 @@ public sealed class PageToolExecutorTests {
         storage["/b"] = new PageTemplate(PageHarness.Key("/b"), "alpha");
         storage["/c"] = new PageTemplate(PageHarness.Key("/c"), "alpha");
         using PageHarness pages = new(storage);
-        using ServiceProvider services = Services(pages.Editor);
+        using ServiceProvider services = Services(pages);
         PageToolExecutor tools = CreateTools(services);
 
         ToolExecutionResult result = await tools.ExecuteAsync(
@@ -960,7 +958,7 @@ public sealed class PageToolExecutorTests {
     public async Task ShellGrepReportsThePatternItCannotReadAsync() {
         FakePageStore storage = new();
         using PageHarness pages = new(storage);
-        using ServiceProvider services = Services(pages.Editor);
+        using ServiceProvider services = Services(pages);
         PageToolExecutor tools = CreateTools(services);
 
         ToolExecutionResult result = await tools.ExecuteAsync(
@@ -978,7 +976,7 @@ public sealed class PageToolExecutorTests {
         storage["/many"] = new PageTemplate(PageHarness.Key("/many"),
             string.Join('\n', Enumerable.Repeat("needle", 120)));
         using PageHarness pages = new(storage);
-        using ServiceProvider services = Services(pages.Editor);
+        using ServiceProvider services = Services(pages);
         PageToolExecutor tools = CreateTools(services);
 
         ToolExecutionResult result = await tools.ExecuteAsync(
@@ -999,7 +997,7 @@ public sealed class PageToolExecutorTests {
             storage[key] = new PageTemplate(PageHarness.Key(key), "alpha");
         }
         using PageHarness pages = new(storage);
-        using ServiceProvider services = Services(pages.Editor);
+        using ServiceProvider services = Services(pages);
         PageToolExecutor tools = CreateTools(
             services,
             TestOptions.Assistant with { MaxToolArgumentChars = 4096, MaxPageChars = 4096 },
@@ -1020,7 +1018,7 @@ public sealed class PageToolExecutorTests {
         FakePageStore storage = new();
         storage["/folder/deep"] = new PageTemplate(PageHarness.Key("/folder/deep"), "alpha");
         using PageHarness pages = new(storage);
-        using ServiceProvider services = Services(pages.Editor);
+        using ServiceProvider services = Services(pages);
         PageToolExecutor tools = CreateTools(services);
 
         ToolExecutionResult result = await tools.ExecuteAsync(
@@ -1038,7 +1036,7 @@ public sealed class PageToolExecutorTests {
         FakePageStore storage = new();
         storage["/notes"] = new PageTemplate(PageHarness.Key("/notes"), "alpha");
         using PageHarness pages = new(storage);
-        using ServiceProvider services = Services(pages.Editor);
+        using ServiceProvider services = Services(pages);
         PageToolExecutor tools = CreateTools(services);
 
         ToolExecutionResult result = await tools.ExecuteAsync(
@@ -1054,7 +1052,7 @@ public sealed class PageToolExecutorTests {
         storage["/d/b"] = new PageTemplate(PageHarness.Key("/d/b"), "alpha");
         storage["/d/c"] = new PageTemplate(PageHarness.Key("/d/c"), "alpha");
         using PageHarness pages = new(storage);
-        using ServiceProvider services = Services(pages.Editor);
+        using ServiceProvider services = Services(pages);
         PageToolExecutor tools = CreateTools(services);
 
         ToolExecutionResult forwards = await tools.ExecuteAsync(
@@ -1074,7 +1072,7 @@ public sealed class PageToolExecutorTests {
         storage["/a"] = new PageTemplate(PageHarness.Key("/a"), "one");
         storage["/b"] = new PageTemplate(PageHarness.Key("/b"), "two");
         using PageHarness pages = new(storage);
-        using ServiceProvider services = Services(pages.Editor);
+        using ServiceProvider services = Services(pages);
         PageToolExecutor tools = CreateTools(services);
 
         ToolExecutionResult cat = await tools.ExecuteAsync(
@@ -1099,7 +1097,7 @@ public sealed class PageToolExecutorTests {
         storage["/notes"] = new PageTemplate(PageHarness.Key("/notes"),
             string.Join('\n', Enumerable.Range(1, 15).Select(line => $"line {line}")));
         using PageHarness pages = new(storage);
-        using ServiceProvider services = Services(pages.Editor);
+        using ServiceProvider services = Services(pages);
         PageToolExecutor tools = CreateTools(services);
 
         ToolExecutionResult head = await tools.ExecuteAsync(
@@ -1130,7 +1128,7 @@ public sealed class PageToolExecutorTests {
         storage["/a"] = new PageTemplate(PageHarness.Key("/a"), "one\ntwo\nthree");
         storage["/b"] = new PageTemplate(PageHarness.Key("/b"), "one\nTWO\nthree");
         using PageHarness pages = new(storage);
-        using ServiceProvider services = Services(pages.Editor);
+        using ServiceProvider services = Services(pages);
         PageToolExecutor tools = CreateTools(services);
 
         ToolExecutionResult result = await tools.ExecuteAsync(
@@ -1149,7 +1147,7 @@ public sealed class PageToolExecutorTests {
         storage["/a"] = new PageTemplate(PageHarness.Key("/a"), "one\ntwo\nthree");
         storage["/b"] = new PageTemplate(PageHarness.Key("/b"), "one\nTWO\nthree");
         using PageHarness pages = new(storage);
-        using ServiceProvider services = Services(pages.Editor);
+        using ServiceProvider services = Services(pages);
         PageToolExecutor tools = CreateTools(services);
 
         ToolExecutionResult stock = await tools.ExecuteAsync(
@@ -1170,7 +1168,7 @@ public sealed class PageToolExecutorTests {
         storage["/a"] = new PageTemplate(PageHarness.Key("/a"), "one   \ntwo\t\nthree");
         storage["/b"] = new PageTemplate(PageHarness.Key("/b"), "one\ntwo\nthree");
         using PageHarness pages = new(storage);
-        using ServiceProvider services = Services(pages.Editor);
+        using ServiceProvider services = Services(pages);
         PageToolExecutor tools = CreateTools(services);
 
         ToolExecutionResult plain = await tools.ExecuteAsync(
@@ -1191,7 +1189,7 @@ public sealed class PageToolExecutorTests {
         storage["/a"] = new PageTemplate(PageHarness.Key("/a"), "one\ntwo");
         storage["/b"] = new PageTemplate(PageHarness.Key("/b"), "one\ntwo");
         using PageHarness pages = new(storage);
-        using ServiceProvider services = Services(pages.Editor);
+        using ServiceProvider services = Services(pages);
         PageToolExecutor tools = CreateTools(services);
 
         ToolExecutionResult result = await tools.ExecuteAsync(
@@ -1209,7 +1207,7 @@ public sealed class PageToolExecutorTests {
         storage["/a"] = new PageTemplate(PageHarness.Key("/a"), "one");
         storage["/folder/deep"] = new PageTemplate(PageHarness.Key("/folder/deep"), "one");
         using PageHarness pages = new(storage);
-        using ServiceProvider services = Services(pages.Editor);
+        using ServiceProvider services = Services(pages);
         PageToolExecutor tools = CreateTools(services);
 
         ToolExecutionResult missing = await tools.ExecuteAsync(
@@ -1232,7 +1230,7 @@ public sealed class PageToolExecutorTests {
         storage["/b"] = new PageTemplate(PageHarness.Key("/b"), "nothing");
         storage["/c"] = new PageTemplate(PageHarness.Key("/c"), "needle");
         using PageHarness pages = new(storage);
-        using ServiceProvider services = Services(pages.Editor);
+        using ServiceProvider services = Services(pages);
         PageToolExecutor tools = CreateTools(services);
 
         ToolExecutionResult names = await tools.ExecuteAsync(
@@ -1253,7 +1251,7 @@ public sealed class PageToolExecutorTests {
         FakePageStore storage = new();
         storage["/notes"] = new PageTemplate(PageHarness.Key("/notes"), "one");
         using PageHarness pages = new(storage);
-        using ServiceProvider services = Services(pages.Editor);
+        using ServiceProvider services = Services(pages);
         PageToolExecutor tools = CreateTools(services);
 
         ToolExecutionResult result = await tools.ExecuteAsync(
@@ -1272,7 +1270,7 @@ public sealed class PageToolExecutorTests {
     public async Task ShellHelpDescribesOneCommandAsync() {
         FakePageStore storage = new();
         using PageHarness pages = new(storage);
-        using ServiceProvider services = Services(pages.Editor);
+        using ServiceProvider services = Services(pages);
         PageToolExecutor tools = CreateTools(services);
 
         ToolExecutionResult result = await tools.ExecuteAsync(
@@ -1289,7 +1287,7 @@ public sealed class PageToolExecutorTests {
     public async Task ShellHelpRefusesAWordItDoesNotAnswerForAsync() {
         FakePageStore storage = new();
         using PageHarness pages = new(storage);
-        using ServiceProvider services = Services(pages.Editor);
+        using ServiceProvider services = Services(pages);
         PageToolExecutor tools = CreateTools(services);
 
         ToolExecutionResult result = await tools.ExecuteAsync(
@@ -1305,7 +1303,7 @@ public sealed class PageToolExecutorTests {
     public async Task ShellRefusesAnUnsupportedCommandAsync() {
         FakePageStore storage = new();
         using PageHarness pages = new(storage);
-        using ServiceProvider services = Services(pages.Editor);
+        using ServiceProvider services = Services(pages);
         PageToolExecutor tools = CreateTools(services);
 
         ToolExecutionResult result = await tools.ExecuteAsync(
@@ -1320,7 +1318,7 @@ public sealed class PageToolExecutorTests {
         FakePageStore storage = new();
         storage["/notes"] = new PageTemplate(PageHarness.Key("/notes"), "one\ntwo");
         using PageHarness pages = new(storage);
-        using ServiceProvider services = Services(pages.Editor);
+        using ServiceProvider services = Services(pages);
         PageToolExecutor tools = CreateTools(services);
 
         ToolExecutionResult result = await tools.ExecuteAsync(
@@ -1336,7 +1334,7 @@ public sealed class PageToolExecutorTests {
         string source = string.Join('\n', Enumerable.Range(1, 400).Select(line => new string('x', 40)));
         storage["/long"] = new PageTemplate(PageHarness.Key("/long"), source);
         using PageHarness pages = new(storage);
-        using ServiceProvider services = Services(pages.Editor);
+        using ServiceProvider services = Services(pages);
         PageToolExecutor tools = CreateTools(
             services,
             TestOptions.Assistant with { MaxToolArgumentChars = 4096, MaxPageChars = 4096 },
@@ -1357,7 +1355,7 @@ public sealed class PageToolExecutorTests {
     public async Task EditPageOnAMissingPagePointsAtWritePageAsync() {
         FakePageStore storage = new();
         using PageHarness pages = new(storage);
-        using ServiceProvider services = Services(pages.Editor);
+        using ServiceProvider services = Services(pages);
         PageToolExecutor tools = CreateTools(services);
 
         ToolExecutionResult result = await tools.ExecuteAsync(
@@ -1376,7 +1374,7 @@ public sealed class PageToolExecutorTests {
         PageTemplate original = new(PageHarness.Key("/notes"), "one");
         storage["/notes"] = original;
         using PageHarness pages = new(storage);
-        using ServiceProvider services = Services(pages.Editor);
+        using ServiceProvider services = Services(pages);
         PageToolExecutor tools = CreateTools(services);
         string arguments = JsonSerializer.Serialize(new {
             path = "/notes",
@@ -1397,7 +1395,7 @@ public sealed class PageToolExecutorTests {
     public async Task WriteRefusesAPageOverTheSizeLimitAsync() {
         FakePageStore storage = new();
         using PageHarness pages = new(storage);
-        using ServiceProvider services = Services(pages.Editor);
+        using ServiceProvider services = Services(pages);
         PageToolExecutor tools = CreateTools(services, TestOptions.Assistant with {
             MaxToolArgumentChars = 8192,
             MaxPageChars = 1024,
@@ -1415,7 +1413,7 @@ public sealed class PageToolExecutorTests {
     public async Task MissingRequiredArgumentIsRejectedBeforeStorageAsync() {
         FakePageStore storage = new();
         using PageHarness pages = new(storage);
-        using ServiceProvider services = Services(pages.Editor);
+        using ServiceProvider services = Services(pages);
         PageToolExecutor tools = CreateTools(services);
 
         ToolExecutionResult result = await tools.ExecuteAsync("read_page", "{}", Context, CancellationToken.None);
@@ -1431,7 +1429,7 @@ public sealed class PageToolExecutorTests {
     public async Task WritingToolRefusesAShellFileAsync(string tool, string arguments, string summary) {
         FakePageStore storage = new();
         using PageHarness pages = new(storage);
-        using ServiceProvider services = Services(pages.Editor);
+        using ServiceProvider services = Services(pages);
         PageToolExecutor tools = CreateTools(services);
 
         ToolExecutionResult result = await tools.ExecuteAsync(tool, arguments, Context, CancellationToken.None);
@@ -1448,7 +1446,7 @@ public sealed class PageToolExecutorTests {
     public async Task SearchPagesRefusesAPrefixThatIsNotAddressableAsync() {
         FakePageStore storage = new();
         using PageHarness pages = new(storage);
-        using ServiceProvider services = Services(pages.Editor);
+        using ServiceProvider services = Services(pages);
         PageToolExecutor tools = CreateTools(services);
 
         ToolExecutionResult result = await tools.ExecuteAsync(
@@ -1465,7 +1463,7 @@ public sealed class PageToolExecutorTests {
         storage["/gone"] = new PageTemplate(PageHarness.Key("/gone"), "alpha");
         using PageHarness pages = new(storage);
         await pages.Editor.DeleteAsync(PageHarness.Key("/gone"));
-        using ServiceProvider services = Services(pages.Editor);
+        using ServiceProvider services = Services(pages);
         PageToolExecutor tools = CreateTools(services);
 
         ToolExecutionResult result = await tools.ExecuteAsync(
@@ -1483,7 +1481,7 @@ public sealed class PageToolExecutorTests {
     public async Task ShellGrepSearchesShellRecordsAsync() {
         FakePageStore storage = new();
         using PageHarness pages = new(storage);
-        using ServiceProvider services = Services(pages.Editor);
+        using ServiceProvider services = Services(pages);
         PageToolExecutor tools = CreateTools(services);
 
         ToolExecutionResult result = await tools.ExecuteAsync(
@@ -1496,7 +1494,7 @@ public sealed class PageToolExecutorTests {
     public async Task ShellRefusesAPrefixThatIsNotAddressableAsync() {
         FakePageStore storage = new();
         using PageHarness pages = new(storage);
-        using ServiceProvider services = Services(pages.Editor);
+        using ServiceProvider services = Services(pages);
         PageToolExecutor tools = CreateTools(services);
 
         ToolExecutionResult result = await tools.ExecuteAsync(
@@ -1510,7 +1508,7 @@ public sealed class PageToolExecutorTests {
     public async Task ShellRefusesAPathThatIsNotAddressableAsync() {
         FakePageStore storage = new();
         using PageHarness pages = new(storage);
-        using ServiceProvider services = Services(pages.Editor);
+        using ServiceProvider services = Services(pages);
         PageToolExecutor tools = CreateTools(services);
 
         ToolExecutionResult result = await tools.ExecuteAsync(
@@ -1524,7 +1522,7 @@ public sealed class PageToolExecutorTests {
     public async Task ShellReportsAMissingPageAsync() {
         FakePageStore storage = new();
         using PageHarness pages = new(storage);
-        using ServiceProvider services = Services(pages.Editor);
+        using ServiceProvider services = Services(pages);
         PageToolExecutor tools = CreateTools(services);
 
         ToolExecutionResult result = await tools.ExecuteAsync(
@@ -1539,7 +1537,7 @@ public sealed class PageToolExecutorTests {
         FakePageStore storage = new();
         storage["/notes"] = new PageTemplate(PageHarness.Key("/notes"), "one\ntwo\nthree");
         using PageHarness pages = new(storage);
-        using ServiceProvider services = Services(pages.Editor);
+        using ServiceProvider services = Services(pages);
         PageToolExecutor tools = CreateTools(services);
 
         ToolExecutionResult head = await tools.ExecuteAsync(
@@ -1556,7 +1554,7 @@ public sealed class PageToolExecutorTests {
         FakePageStore storage = new();
         storage["/notes"] = new PageTemplate(PageHarness.Key("/notes"), "one\ntwo\n");
         using PageHarness pages = new(storage);
-        using ServiceProvider services = Services(pages.Editor);
+        using ServiceProvider services = Services(pages);
         PageToolExecutor tools = CreateTools(services);
 
         ToolExecutionResult result = await tools.ExecuteAsync(
@@ -1571,7 +1569,7 @@ public sealed class PageToolExecutorTests {
         PageTemplate page = new(PageHarness.Key("/notes"), "one");
         storage["/notes"] = page;
         using PageHarness pages = new(storage);
-        using ServiceProvider services = Services(pages.Editor);
+        using ServiceProvider services = Services(pages);
         PageToolExecutor tools = CreateTools(services);
 
         ToolExecutionResult result = await tools.ExecuteAsync(
@@ -1584,7 +1582,7 @@ public sealed class PageToolExecutorTests {
     public async Task ShellStatDescribesAShellFileWithoutARevisionAsync() {
         FakePageStore storage = new();
         using PageHarness pages = new(storage);
-        using ServiceProvider services = Services(pages.Editor);
+        using ServiceProvider services = Services(pages);
         PageToolExecutor tools = CreateTools(services);
 
         ToolExecutionResult result = await tools.ExecuteAsync(
@@ -1602,7 +1600,7 @@ public sealed class PageToolExecutorTests {
         FakePageStore storage = new();
         storage["/long"] = new PageTemplate(PageHarness.Key("/long"), new string('x', 2000));
         using PageHarness pages = new(storage);
-        using ServiceProvider services = Services(pages.Editor);
+        using ServiceProvider services = Services(pages);
         PageToolExecutor tools = CreateTools(
             services,
             TestOptions.Assistant with { MaxToolArgumentChars = 4096, MaxPageChars = 4096 },
@@ -1621,7 +1619,7 @@ public sealed class PageToolExecutorTests {
         FakePageStore storage = new();
         storage["/notes"] = new PageTemplate(PageHarness.Key("/notes"), "one\ntwo\n");
         using PageHarness pages = new(storage);
-        using ServiceProvider services = Services(pages.Editor);
+        using ServiceProvider services = Services(pages);
         PageToolExecutor tools = CreateTools(services);
 
         ToolExecutionResult result = await tools.ExecuteAsync(
@@ -1637,7 +1635,7 @@ public sealed class PageToolExecutorTests {
         storage["/notes"] = original;
         storage.ReplaceOnConditionalSave = path => new PageTemplate(path, "changed elsewhere");
         using PageHarness pages = new(storage);
-        using ServiceProvider services = Services(pages.Editor);
+        using ServiceProvider services = Services(pages);
         PageToolExecutor tools = CreateTools(services);
         string arguments = JsonSerializer.Serialize(new {
             path = "/notes",
@@ -1655,153 +1653,144 @@ public sealed class PageToolExecutorTests {
     }
 
     [Test]
-    public void CheckScriptIsAReadOnlyToolWithARequiredPath() {
-        ToolDefinition definition = PageToolExecutor.Definitions.Single(item => item.Name == "check_script");
+    public void CheckIsAReadOnlyToolWithAClosedLanguageSet() {
+        ToolDefinition definition = PageToolExecutor.Definitions.Single(item => item.Name == "check");
         using JsonDocument parameters = JsonDocument.Parse(definition.ParametersJson);
 
         Assert.Multiple(() => {
             Assert.That(definition.NeedsApproval, Is.False);
-            Assert.That(parameters.RootElement.GetProperty("properties").TryGetProperty("path", out _), Is.True);
-            Assert.That(parameters.RootElement.GetProperty("properties").TryGetProperty("content", out _), Is.False);
-            Assert.That(parameters.RootElement.GetProperty("required").EnumerateArray().Select(item => item.GetString()),
-                Is.EqualTo<string[]>(["path"]));
+            Assert.That(
+                parameters.RootElement.GetProperty("properties").GetProperty("language").GetProperty("enum")
+                    .EnumerateArray().Select(item => item.GetString()),
+                Is.EqualTo(PageCheckLanguages.Names),
+                "the enum is the declaration the manual, the schema and the refusal read");
+            Assert.That(
+                parameters.RootElement.GetProperty("required").EnumerateArray().Select(item => item.GetString()),
+                Is.EqualTo<string[]>(["language"]));
+            Assert.That(
+                parameters.RootElement.GetProperty("properties").EnumerateObject().Select(item => item.Name),
+                Is.EqualTo<string[]>(["language", "path", "content"]));
+            Assert.That(PageToolExecutor.Definitions.Select(item => item.Name), Has.None.StartsWith("check_script"));
         });
     }
 
     [Test]
-    public void CheckScriptTextIsAReadOnlyToolWithRequiredContent() {
-        ToolDefinition definition = PageToolExecutor.Definitions.Single(item => item.Name == "check_script_text");
-        using JsonDocument parameters = JsonDocument.Parse(definition.ParametersJson);
-
-        Assert.Multiple(() => {
-            Assert.That(definition.NeedsApproval, Is.False);
-            Assert.That(parameters.RootElement.GetProperty("properties").TryGetProperty("content", out _), Is.True);
-            Assert.That(parameters.RootElement.GetProperty("properties").TryGetProperty("path", out _), Is.False);
-            Assert.That(parameters.RootElement.GetProperty("required").EnumerateArray().Select(item => item.GetString()),
-                Is.EqualTo<string[]>(["content"]));
-        });
-    }
-
-    [Test]
-    public async Task CheckScriptAcceptsAValidStoredScriptAsync() {
+    public async Task CheckAcceptsAStoredScriptByPathAsync() {
         FakePageStore storage = new();
         storage["/app.js"] = new PageTemplate(PageHarness.Key("/app.js"), "export const answer = 42;\n");
         using PageHarness pages = new(storage);
-        using ServiceProvider services = Services(pages.Editor);
+        using ServiceProvider services = Services(pages);
         PageToolExecutor tools = CreateTools(services);
 
-        ToolExecutionResult result = await tools.ExecuteAsync("check_script", "{\"path\":\"/app.js\"}", Context, CancellationToken.None);
+        ToolExecutionResult result = await tools.ExecuteAsync(
+            "check", """{"language":"javascript","path":"/app.js"}""", Context, CancellationToken.None);
 
+        JsonElement check = CheckData(result);
         Assert.Multiple(() => {
             Assert.That(result.IsSuccess, Is.True, result.Content);
             Assert.That(Data(result).GetProperty("valid").GetBoolean(), Is.True);
-            Assert.That(Data(result).GetProperty("diagnostics").GetArrayLength(), Is.Zero);
-            Assert.That(Data(result).GetProperty("path").GetString(), Is.EqualTo("/app.js"));
+            Assert.That(check.GetProperty("language").GetString(), Is.EqualTo("javascript"));
+            Assert.That(check.GetProperty("kind").ValueKind, Is.EqualTo(JsonValueKind.Null), "a script has no page kind");
+            Assert.That(check.GetProperty("diagnostics").GetArrayLength(), Is.Zero);
+            Assert.That(check.GetProperty("truncated").GetBoolean(), Is.False);
             Assert.That(result.Summary, Is.EqualTo("Checked /app.js: valid"));
+            Assert.That(storage.WriteCount, Is.Zero, "a check stores nothing");
         });
     }
 
     [Test]
-    public async Task CheckScriptReportsASyntaxErrorAsASuccessfulCallAsync() {
+    public async Task CheckAcceptsATemplateByContentAndSaysItsKindAsync() {
         FakePageStore storage = new();
-        storage["/app.js"] = new PageTemplate(PageHarness.Key("/app.js"), "export function go() {\n    export const answer = 42;\n");
         using PageHarness pages = new(storage);
-        using ServiceProvider services = Services(pages.Editor);
+        using ServiceProvider services = Services(pages);
         PageToolExecutor tools = CreateTools(services);
-
-        ToolExecutionResult result = await tools.ExecuteAsync("check_script", "{\"path\":\"/app.js\"}", Context, CancellationToken.None);
-
-        JsonElement diagnostics = Data(result).GetProperty("diagnostics");
-        Assert.Multiple(() => {
-            Assert.That(result.IsSuccess, Is.True, result.Content);
-            Assert.That(Data(result).GetProperty("valid").GetBoolean(), Is.False);
-            Assert.That(diagnostics.EnumerateArray().Select(item => item.GetProperty("message").GetString()),
-                Has.Some.StartsWith("SCRIPT001: UnexpectedToken").And.Some.EqualTo("SCRIPT002: unclosed '{'."));
-            Assert.That(diagnostics[0].GetProperty("line").GetInt32(), Is.EqualTo(1));
-            Assert.That(result.Summary, Does.EndWith("problems"));
-            Assert.That(storage.WriteCount, Is.Zero);
-            Assert.That(storage.ImageWriteCount, Is.Zero);
+        string arguments = JsonSerializer.Serialize(new {
+            language = "template",
+            content = "<% ctx.Response.Write(\"hi\"); %>",
         });
-    }
 
-    [Test]
-    public async Task CheckScriptReportsAnUnterminatedTemplateBlockAsync() {
-        FakePageStore storage = new();
-        storage["/app.js"] = new PageTemplate(PageHarness.Key("/app.js"), "const a = 1;\n<% if (true) {");
-        using PageHarness pages = new(storage);
-        using ServiceProvider services = Services(pages.Editor);
-        PageToolExecutor tools = CreateTools(services);
+        ToolExecutionResult result = await tools.ExecuteAsync("check", arguments, Context, CancellationToken.None);
 
-        ToolExecutionResult result = await tools.ExecuteAsync("check_script", "{\"path\":\"/app.js\"}", Context, CancellationToken.None);
-
-        Assert.Multiple(() => {
-            Assert.That(result.IsSuccess, Is.True, result.Content);
-            Assert.That(Data(result).GetProperty("valid").GetBoolean(), Is.False);
-            Assert.That(Data(result).GetProperty("diagnostics")[0].GetProperty("message").GetString(),
-                Does.StartWith("TEMPLATE001:"));
-        });
-    }
-
-    [Test]
-    public async Task CheckScriptChecksMarkupAsJavaScriptAsync() {
-        FakePageStore storage = new();
-        storage["/page"] = new PageTemplate(PageHarness.Key("/page"), "<h1>Hello</h1>");
-        using PageHarness pages = new(storage);
-        using ServiceProvider services = Services(pages.Editor);
-        PageToolExecutor tools = CreateTools(services);
-
-        ToolExecutionResult result = await tools.ExecuteAsync("check_script", "{\"path\":\"/page\"}", Context, CancellationToken.None);
-
-        Assert.Multiple(() => {
-            Assert.That(result.IsSuccess, Is.True, result.Content);
-            Assert.That(Data(result).GetProperty("valid").GetBoolean(), Is.False);
-        });
-    }
-
-    [Test]
-    public async Task CheckScriptDoesNotConsultTheKeyExtensionAsync() {
-        FakePageStore storage = new();
-        storage["/script.html"] = new PageTemplate(PageHarness.Key("/script.html"), "export const answer = 42;\n");
-        using PageHarness pages = new(storage);
-        using ServiceProvider services = Services(pages.Editor);
-        PageToolExecutor tools = CreateTools(services);
-
-        ToolExecutionResult result = await tools.ExecuteAsync(
-            "check_script", "{\"path\":\"/script.html\"}", Context, CancellationToken.None);
-
+        JsonElement check = CheckData(result);
         Assert.Multiple(() => {
             Assert.That(result.IsSuccess, Is.True, result.Content);
             Assert.That(Data(result).GetProperty("valid").GetBoolean(), Is.True);
+            Assert.That(check.GetProperty("language").GetString(), Is.EqualTo("template"));
+            Assert.That(check.GetProperty("kind").GetString(), Is.EqualTo("Page"));
+            Assert.That(check.TryGetProperty("path", out _), Is.False);
+            Assert.That(result.Summary, Is.EqualTo("Checked supplied text: valid"));
         });
     }
 
     [Test]
-    public async Task CheckScriptRefusesAShellFileBeforeReadingStorageAsync() {
+    public async Task CheckReportsABrokenTemplateInContentAsync() {
         FakePageStore storage = new();
         using PageHarness pages = new(storage);
-        using ServiceProvider services = Services(pages.Editor);
+        using ServiceProvider services = Services(pages);
+        PageToolExecutor tools = CreateTools(services);
+        string arguments = JsonSerializer.Serialize(new { language = "template", content = "<% int broken = ; %>" });
+
+        ToolExecutionResult result = await tools.ExecuteAsync("check", arguments, Context, CancellationToken.None);
+
+        JsonElement error = CheckData(result).GetProperty("diagnostics").EnumerateArray()
+            .Single(item => item.GetProperty("severity").GetString() == "Error");
+        Assert.Multiple(() => {
+            Assert.That(result.IsSuccess, Is.True, "a source that does not compile is an answer, not a failed call");
+            Assert.That(Data(result).GetProperty("valid").GetBoolean(), Is.False);
+            Assert.That(error.GetProperty("line").GetInt32(), Is.EqualTo(1));
+            Assert.That(error.GetProperty("message").GetString(), Is.Not.Empty);
+        });
+    }
+
+    [Test]
+    public async Task APathAndAContentCheckOfTheSameTextAgreeAsync() {
+        const string Source = "<% int broken = ; %>";
+        FakePageStore storage = new();
+        storage["/same"] = new PageTemplate(PageHarness.Key("/same"), Source);
+        using PageHarness pages = new(storage);
+        using ServiceProvider services = Services(pages);
         PageToolExecutor tools = CreateTools(services);
 
-        ToolExecutionResult result = await tools.ExecuteAsync(
-            "check_script", "{\"path\":\"/login\"}", Context, CancellationToken.None);
+        ToolExecutionResult byPath = await tools.ExecuteAsync(
+            "check", """{"language":"template","path":"/same"}""", Context, CancellationToken.None);
+        ToolExecutionResult byContent = await tools.ExecuteAsync(
+            "check", JsonSerializer.Serialize(new { language = "template", content = Source }), Context, CancellationToken.None);
 
         Assert.Multiple(() => {
-            Assert.That(result.IsSuccess, Is.False);
-            Assert.That(result.Summary, Is.EqualTo("Check refused"));
-            Assert.That(result.Content, Does.Contain("no page source"));
-            Assert.That(storage.ReadCount, Is.Zero);
+            Assert.That(Valid(byContent), Is.EqualTo(Valid(byPath)), "the source is the subject, not its key");
+            Assert.That(Diagnostics(CheckData(byContent)), Is.EqualTo(Diagnostics(CheckData(byPath))));
         });
     }
 
     [Test]
-    public async Task CheckScriptReportsAMissingPageAsync() {
+    public async Task CheckRefusesAShellFileInEveryLanguageAsync() {
         FakePageStore storage = new();
         using PageHarness pages = new(storage);
-        using ServiceProvider services = Services(pages.Editor);
+        using ServiceProvider services = Services(pages);
+        PageToolExecutor tools = CreateTools(services);
+
+        ToolExecutionResult template = await tools.ExecuteAsync(
+            "check", """{"language":"template","path":"/login"}""", Context, CancellationToken.None);
+        ToolExecutionResult script = await tools.ExecuteAsync(
+            "check", """{"language":"javascript","path":"/login"}""", Context, CancellationToken.None);
+
+        Assert.Multiple(() => {
+            Assert.That(template.IsSuccess, Is.False);
+            Assert.That(template.Content, Does.Contain("shell file"));
+            Assert.That(script.IsSuccess, Is.False);
+            Assert.That(script.Content, Does.Contain("shell file"));
+        });
+    }
+
+    [Test]
+    public async Task CheckRefusesAMissingPageAsync() {
+        FakePageStore storage = new();
+        using PageHarness pages = new(storage);
+        using ServiceProvider services = Services(pages);
         PageToolExecutor tools = CreateTools(services);
 
         ToolExecutionResult result = await tools.ExecuteAsync(
-            "check_script", "{\"path\":\"/missing\"}", Context, CancellationToken.None);
+            "check", """{"language":"template","path":"/missing"}""", Context, CancellationToken.None);
 
         Assert.Multiple(() => {
             Assert.That(result.IsSuccess, Is.False);
@@ -1810,112 +1799,76 @@ public sealed class PageToolExecutorTests {
     }
 
     [Test]
-    public async Task CheckScriptTextChecksContentWithoutTouchingTheStoreAsync() {
+    public async Task CheckRefusesAnUnknownLanguageAsync() {
         FakePageStore storage = new();
         using PageHarness pages = new(storage);
-        using ServiceProvider services = Services(pages.Editor);
+        using ServiceProvider services = Services(pages);
         PageToolExecutor tools = CreateTools(services);
-        string arguments = JsonSerializer.Serialize(new { content = "export const answer = 42;\n" });
 
-        ToolExecutionResult result = await tools.ExecuteAsync("check_script_text", arguments, Context, CancellationToken.None);
+        ToolExecutionResult result = await tools.ExecuteAsync(
+            "check", """{"language":"css","content":"body { color: red; }"}""", Context, CancellationToken.None);
 
         Assert.Multiple(() => {
-            Assert.That(result.IsSuccess, Is.True, result.Content);
-            Assert.That(Data(result).GetProperty("valid").GetBoolean(), Is.True);
-            Assert.That(Data(result).GetProperty("diagnostics").GetArrayLength(), Is.Zero);
-            Assert.That(Data(result).TryGetProperty("path", out _), Is.False);
-            Assert.That(result.Summary, Is.EqualTo("Checked supplied text: valid"));
-            Assert.That(storage.ReadCount, Is.Zero);
-            Assert.That(storage.WriteCount, Is.Zero);
-            Assert.That(storage.ImageWriteCount, Is.Zero);
+            Assert.That(result.IsSuccess, Is.False);
+            Assert.That(result.Content, Does.Contain("must be one of template, javascript"));
         });
     }
 
     [Test]
-    public async Task CheckScriptTextReportsAnInvalidScriptAsASuccessfulCallAsync() {
+    public async Task CheckTakesExactlyOneOfPathAndContentAsync() {
         FakePageStore storage = new();
         using PageHarness pages = new(storage);
-        using ServiceProvider services = Services(pages.Editor);
+        using ServiceProvider services = Services(pages);
         PageToolExecutor tools = CreateTools(services);
-        string arguments = JsonSerializer.Serialize(new { content = "const a = { x: 1 y: 2 };" });
 
-        ToolExecutionResult result = await tools.ExecuteAsync("check_script_text", arguments, Context, CancellationToken.None);
+        ToolExecutionResult both = await tools.ExecuteAsync(
+            "check", """{"language":"template","path":"/notes","content":"<p>x</p>"}""", Context, CancellationToken.None);
+        ToolExecutionResult neither = await tools.ExecuteAsync(
+            "check", """{"language":"template"}""", Context, CancellationToken.None);
 
-        JsonElement diagnostics = Data(result).GetProperty("diagnostics");
-        JsonElement error = diagnostics.EnumerateArray()
-            .Single(item => item.GetProperty("message").GetString()!.StartsWith("SCRIPT001:", StringComparison.Ordinal));
         Assert.Multiple(() => {
-            Assert.That(result.IsSuccess, Is.True, result.Content);
-            Assert.That(Data(result).GetProperty("valid").GetBoolean(), Is.False);
-            Assert.That(error.GetProperty("line").GetInt32(), Is.EqualTo(1));
-            Assert.That(error.GetProperty("column").GetInt32(), Is.EqualTo(18));
-            Assert.That(storage.WriteCount, Is.Zero);
+            Assert.That(both.IsSuccess, Is.False);
+            Assert.That(both.Content, Does.Contain("exactly one"));
+            Assert.That(neither.IsSuccess, Is.False);
+            Assert.That(neither.Content, Does.Contain("exactly one"));
         });
     }
 
     [Test]
-    public async Task CheckScriptTextChecksTheLiteralTextAroundTemplateBlocksAsync() {
+    public async Task CheckCutsTheDiagnosticListAtTheConfiguredCapAsync() {
         FakePageStore storage = new();
         using PageHarness pages = new(storage);
-        using ServiceProvider services = Services(pages.Editor);
-        PageToolExecutor tools = CreateTools(services);
-        string content = "<% var when = DateTime.UtcNow; %>\nexport const label = \"<%= when %>\";\n";
-        string arguments = JsonSerializer.Serialize(new { content });
+        using ServiceProvider services = Services(pages);
+        PageToolExecutor tools = CreateTools(services, TestOptions.Assistant with {
+            MaxCheckDiagnostics = 2,
+            MaxToolArgumentChars = 4_096,
+        });
+        string arguments = JsonSerializer.Serialize(new {
+            language = "template",
+            content = "<% int a = ; int b = ; int c = ; int d = ; %>",
+        });
 
-        ToolExecutionResult result = await tools.ExecuteAsync("check_script_text", arguments, Context, CancellationToken.None);
+        ToolExecutionResult result = await tools.ExecuteAsync("check", arguments, Context, CancellationToken.None);
 
         Assert.Multiple(() => {
             Assert.That(result.IsSuccess, Is.True, result.Content);
-            Assert.That(Data(result).GetProperty("valid").GetBoolean(), Is.True);
+            Assert.That(CheckData(result).GetProperty("diagnostics").GetArrayLength(), Is.EqualTo(2));
+            Assert.That(CheckData(result).GetProperty("truncated").GetBoolean(), Is.True, "the list is cut, never refused");
         });
     }
 
-    [Test]
-    public async Task CheckScriptTextReportsALoneReturnAsIllegalAsync() {
-        FakePageStore storage = new();
-        using PageHarness pages = new(storage);
-        using ServiceProvider services = Services(pages.Editor);
-        PageToolExecutor tools = CreateTools(services);
-        string arguments = JsonSerializer.Serialize(new { content = "return 1;" });
+    private static bool Valid(ToolExecutionResult answer) => Data(answer).GetProperty("valid").GetBoolean();
 
-        ToolExecutionResult result = await tools.ExecuteAsync("check_script_text", arguments, Context, CancellationToken.None);
+    private static (string Code, string Message, int Line, int Column)[] Diagnostics(JsonElement check) => [.. check
+        .GetProperty("diagnostics")
+        .EnumerateArray()
+        .Select(item => (
+            item.GetProperty("code").GetString() ?? string.Empty,
+            item.GetProperty("message").GetString() ?? string.Empty,
+            item.GetProperty("line").GetInt32(),
+            item.GetProperty("column").GetInt32()))];
 
-        Assert.Multiple(() => {
-            Assert.That(result.IsSuccess, Is.True, result.Content);
-            Assert.That(Data(result).GetProperty("valid").GetBoolean(), Is.False);
-            Assert.That(Data(result).GetProperty("diagnostics")[0].GetProperty("message").GetString(),
-                Does.Contain("IllegalReturn"));
-        });
-    }
-
-    [Test]
-    public async Task TheCheckCapabilityAnswersWhatTheScriptToolAnswersAsync() {
-        FakePageStore storage = new();
-        using PageHarness pages = new(storage);
-        using ServiceProvider services = Services(pages.Editor);
-        PageToolExecutor tools = CreateTools(services);
-        const string Content = "const a = { x: 1 y: 2 };";
-        string arguments = JsonSerializer.Serialize(new { content = Content });
-
-        ToolExecutionResult result = await tools.ExecuteAsync("check_script_text", arguments, Context, CancellationToken.None);
-        SdkPageCheckResult check = await pages.Checks.For(PageHarness.Key("/checker"))
-            .CheckAsync("javascript", Content);
-
-        (int? Line, int? Column, string Message)[] fromTool = [.. Data(result)
-            .GetProperty("diagnostics")
-            .EnumerateArray()
-            .Select(item => (
-                (int?)item.GetProperty("line").GetInt32(),
-                (int?)item.GetProperty("column").GetInt32(),
-                item.GetProperty("message").GetString()!))];
-        (int? Line, int? Column, string Message)[] fromCheck = [.. check.Diagnostics
-            .Select(diagnostic => ((int?)diagnostic.Line, (int?)diagnostic.Column, WithCode(diagnostic)))];
-
-        Assert.That(fromCheck, Is.EqualTo(fromTool), "the tool and the capability are one tier");
-    }
-
-    private static string WithCode(SdkDiagnostic diagnostic) =>
-        diagnostic.Code.Length == 0 ? diagnostic.Message : $"{diagnostic.Code}: {diagnostic.Message}";
+    private static JsonElement CheckData(ToolExecutionResult result) => Data(result).GetProperty("checks")[0];
 
     private static string[] PagePaths(ToolExecutionResult result) => [.. Data(result)
         .GetProperty("pages").EnumerateArray()
@@ -1943,7 +1896,7 @@ public sealed class PageToolExecutorTests {
         PageTemplate original = new(PageHarness.Key("/notes"), "the source");
         storage["/notes"] = original;
         using PageHarness pages = new(storage);
-        using ServiceProvider services = Services(pages.Editor);
+        using ServiceProvider services = Services(pages);
         PageToolExecutor tools = CreateTools(services);
         string arguments = JsonSerializer.Serialize(new { from = "/notes", to = "/renamed", expectedHash = original.Hash });
 
@@ -1962,7 +1915,7 @@ public sealed class PageToolExecutorTests {
         FakePageStore storage = new();
         storage["/notes"] = new PageTemplate(PageHarness.Key("/notes"), "the source");
         using PageHarness pages = new(storage);
-        using ServiceProvider services = Services(pages.Editor);
+        using ServiceProvider services = Services(pages);
         PageToolExecutor tools = CreateTools(services);
         string arguments = JsonSerializer.Serialize(new { from = "/notes", to = "/renamed", expectedHash = "not-the-head" });
 
@@ -1983,7 +1936,7 @@ public sealed class PageToolExecutorTests {
         storage["/notes"] = original;
         storage["/other"] = new PageTemplate(PageHarness.Key("/other"), "occupied");
         using PageHarness pages = new(storage);
-        using ServiceProvider services = Services(pages.Editor);
+        using ServiceProvider services = Services(pages);
         PageToolExecutor tools = CreateTools(services);
         string arguments = JsonSerializer.Serialize(new { from = "/notes", to = "/other", expectedHash = original.Hash });
 
@@ -2002,7 +1955,7 @@ public sealed class PageToolExecutorTests {
         PageTemplate library = new(PageHarness.Key("/_lib/thing"), "public static class Thing { }") { Kind = PageKind.Library };
         storage["/_lib/thing"] = library;
         using PageHarness pages = new(storage);
-        using ServiceProvider services = Services(pages.Editor);
+        using ServiceProvider services = Services(pages);
         PageToolExecutor tools = CreateTools(services);
         string arguments = JsonSerializer.Serialize(new { from = "/_lib/thing", to = "/_lib/other", expectedHash = library.Hash });
 
@@ -2022,7 +1975,7 @@ public sealed class PageToolExecutorTests {
         storage["/folder"] = folder;
         storage["/folder/child"] = new PageTemplate(PageHarness.Key("/folder/child"), "the child");
         using PageHarness pages = new(storage);
-        using ServiceProvider services = Services(pages.Editor);
+        using ServiceProvider services = Services(pages);
         PageToolExecutor tools = CreateTools(services);
         string arguments = JsonSerializer.Serialize(new { from = "/folder", to = "/other", expectedHash = folder.Hash });
 
@@ -2040,7 +1993,7 @@ public sealed class PageToolExecutorTests {
         FakePageStore storage = new();
         storage["/notes"] = new PageTemplate(PageHarness.Key("/notes"), "the source");
         using PageHarness pages = new(storage);
-        using ServiceProvider services = Services(pages.Editor);
+        using ServiceProvider services = Services(pages);
         PageToolExecutor tools = CreateTools(services);
         string arguments = JsonSerializer.Serialize(new { from = "/notes", to = "/login", expectedHash = "any" });
 
@@ -2058,10 +2011,11 @@ public sealed class PageToolExecutorTests {
         return document.RootElement.GetProperty("data").Clone();
     }
 
-    private static ServiceProvider Services(PageEditor editor) =>
+    private static ServiceProvider Services(PageHarness pages) =>
         new ServiceCollection()
-            .AddScoped(_ => editor)
+            .AddScoped(_ => pages.Editor)
             .AddSingleton(TestOptions.Editor)
+            .AddSingleton(pages.Checks)
             .BuildServiceProvider();
 
     private static readonly ToolContext Context = new("owner", ConversationId: 1, RunId: "run-1");

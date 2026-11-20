@@ -944,3 +944,5 @@ uk.osric.asp.Core.Assistant.OwnerQuestionSet.Questions.get -> System.Collections
 uk.osric.asp.Core.Assistant.OwnerQuestionSet.Questions.init -> void
 uk.osric.asp.Core.Assistant.ToolArgumentSchema.Description.get -> string?
 uk.osric.asp.Core.Assistant.ToolArgumentSchema.Description.init -> void
+uk.osric.asp.Core.Assistant.ToolArgumentSchema.Values.get -> System.Collections.Generic.IReadOnlyList<string!>?
+uk.osric.asp.Core.Assistant.ToolArgumentSchema.Values.init -> void

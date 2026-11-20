@@ -23,7 +23,7 @@ closed, and dangling tool calls receive synthetic results rather than being repl
 
 The provider boundary is an explicitly configured OpenAI-compatible streaming chat-completions
 endpoint. A run sends the system prompt, conversation transcript, and page source read
-by tools to that provider. No provider SDK is used. The tools are twenty-two types under
+by tools to that provider. No provider SDK is used. The tools are twenty types under
 `Assistant/Tools`, each carrying its name, its description, its argument schema, its approval flag,
 whether it waits for the owner, the verb its refusals use, whether it changes a page and its own run,
 beside the code that runs it;
@@ -31,8 +31,8 @@ beside the code that runs it;
 cannot drift from each other (`assistant-a-tool-is-one-type`). Assistant tools reach the page store
 through one read seam, `PageStoreReader` — list/read/search, bounded template-source line edits with an
 atomic revision-hash check, whole-page writes, tombstone deletes, page moves, a virtual shell whose one
-writing command is `mv`, and two read-only script checks that parse a stored page or a supplied
-complete template as an ES module and change nothing — while every write is still `PageEditor`'s. The seam also answers the applets, so the
+writing command is `mv`, and one read-only `check` that compiles a template or parses its script as an
+ES module and changes nothing — while every write is still `PageEditor`'s. The seam also answers the applets, so the
 tree, the reserved keys, the tombstones, the key order and what a scope means are decided once
 (`pages-the-store-is-read-through-one-seam`, `pages-a-listing-carries-facts`, `pages-a-page-has-a-state`, `pages-the-store-is-a-tree`). It carries facts rather than words: a node says whether a save would be accepted and
 what the page compiled to, and `PageMode` and `PageImageStatus` spell them, so `ls -l`, `stat`,
@@ -68,13 +68,14 @@ editor URL — including for a tombstoned path, and takes `limit` with a `before
 last hash given, so a long history is read a slice at a time; a refusal names the accepted range and
 the default (`Assistant:MaxListLimit` and `Assistant:DefaultListLimit`);
 `truncated` says there is more. `list_pages` takes the same `limit` with an `after` cursor, because
-its listing is in key order rather than in time. `read_revision` answers one revision's stored
-source through the same 1-based physical lines, line ranges and result budget `read_page` uses,
-so the two cannot drift. Both are reads, change nothing and need no approval; both refuse a shell
-file, a missing page and a non-canonical hash, and `read_revision` refuses a hash from another
-path — the rules the editor's `cmd=revision` applies. Reading a revision sends its source to the
-provider exactly as `read_page` does. Every source line the two tools answer with is prefixed by
-its 1-based number and `| `, because counting lines in escaped JSON is guesswork; the prefix is not
+its listing is in key order rather than in time. `read_page` takes a hash from `list_revisions` and
+answers that revision's stored source through the same 1-based physical lines, line ranges and result
+budget the live page uses, so a revision and the head cannot drift; the answer carries the revision's
+own `hash`, which is never the head an edit quotes. It is a read, changes nothing and needs no
+approval; it refuses a shell file, a missing page, a non-canonical hash and a hash from another path,
+which are the rules the editor's `cmd=revision` applies. Reading a revision sends its source to the
+provider exactly as reading the live page does. Every source line `read_page` answers with is prefixed
+by its 1-based number and `| `, because counting lines in escaped JSON is guesswork; the prefix is not
 part of the stored source (`assistant-edit-page-is-safe`).
 
 `move_page` renames a page: it takes `from`, `to` and the head hash the model read, moves the history
@@ -85,6 +86,15 @@ library, a key with pages below it, a shell file and a live destination are refu
 shell twin is `mv <key> <new-key>`, the one applet that writes; because a writing tool is
 approval-gated (`assistant-a-tool-is-one-type`), the whole shell tool asks for approval in
 `RequireApproval` mode, every read command included.
+
+`check` answers "would this compile" without storing anything: `language` names a member of a closed
+set the schema carries as an `enum` (`template` and `javascript` today), and exactly one of `path` and
+`content` names the source — a stored page, or a complete template supplied in the call, never a
+fragment. It is a read: it needs no approval, writes no revision and runs nothing, and its answer is
+`valid` beside one entry per check with the language, the kind generation found (text, page, library
+or worker, and nothing for a script), whether that check is valid and its diagnostics. A template
+spends the compile budget a save spends; Roslyn cannot stop at a count, so `Assistant:MaxCheckDiagnostics`
+cuts the answer's list rather than the work, and `truncated` says it was cut.
 
 `edit_page` answers with what it changed: the added and removed line counts and the unified diff,
 so an edit that compiles but mangles a block is visible in the same turn. It takes either one line
@@ -137,8 +147,8 @@ tool time. The question and the answer are stored and sent to the provider like 
 description and the prompt forbid asking for a secret. The caps are `Assistant:MaxQuestionsPerCall`,
 `MaxQuestionOptions` and `MaxQuestionChars`, and a finished turn reads its questions and answers from
 the resolved interrupt records rather than the tool result, because a long result is cut at the tool
-cap. The per-parameter descriptions this tool carries are the schema's; the other tools still name
-their arguments only ([`tool-arguments-say-nothing`](backlog/tool-arguments-say-nothing.md)).
+cap. Its arguments are the schema's first per-parameter descriptions; the arguments whose names are
+ambiguous now describe themselves too, and a closed set is the schema's `enum` rather than a sentence.
 
 The tools also see the shell's own files, which are the site's routes (`assistant-reads-the-shell-files`).
 Every route in the shell's table — `/login`, `/assistant`, `/admin/scrub`, `/metrics` and the rest,
@@ -168,8 +178,8 @@ parsing and pattern expansion happen once. `find` is POSIX's, with `-name`, `-pa
 shell file answers "Not permitted": only the owner changes the shell, in code. The seeded assets
 are ordinary pages the assistant may edit, like every page the shell does not answer.
 `RequireApproval` asks the path policy before it asks the owner, so a save it has already
-refused never becomes an approval nobody can grant. `check_script` stays a page-source check, so
-a shell file is refused there.
+refused never becomes an approval nobody can grant. `check` stays a page-source check, so a shell
+file is refused there in every language.
 
 The assistant has a small memory of its own, one owner's and nobody else's (`assistant-memory-is-the-owners`, `assistant-memory-recall-is-fts5`). A memory
 is a note — a preference, a fact about this site, a correction, a reference to where something lives —
@@ -231,8 +241,8 @@ shows, so a model can link the owner to the line changes it read (`pages-diff`).
 
 The feature bounds run duration, concurrency, queue depth, steps, tool calls, arguments, page size,
 results, context and event replay. The shipped caps are 160 steps and 128 tool calls per run, a
-262,144-character page, 270,336 characters of tool-call arguments, and a reply floor of 131,072
-tokens. Everything the model reads is measured against one budget: the window the provider's model
+262,144-character page, 270,336 characters of tool-call arguments, 100 diagnostics in one `check`
+answer, and a reply floor of 131,072 tokens. Everything the model reads is measured against one budget: the window the provider's model
 list reports for the configured model, less that floor (`assistant-the-budget-is-window-minus-reply`).
 `deepseek-flash` reports a 1,048,576-token window and a 393,216-token output maximum, so the prompt's
 share is 917,504 tokens, one tool result is an eighth of it, the owner's message another eighth and a

@@ -48,7 +48,7 @@ until something writes CSS in a page is a reason to pay for a parser.
    `assistant-script-checks` already fixed for the script check.
 
 5. **The `language` values are added, not renamed.** `check` gains `css`, `html` and `svg`; nothing
-   else about the tool moves, and the `enum` [`tool-arguments-say-nothing`](tool-arguments-say-nothing.md) emits grows a value without the
+   else about the tool moves, and the `enum` `tool-arguments-say-nothing` emitted grows a value without the
    description being edited.
 
 ## What each costs

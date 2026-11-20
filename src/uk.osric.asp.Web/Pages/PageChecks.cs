@@ -19,13 +19,9 @@ internal sealed class PageChecks(
     PageMetrics metrics,
     ILoggerFactory loggerFactory) {
 
-    /// <summary>Binds the tier to one layer of a render.</summary>
-    /// <param name="path">The layer's key, which its logs and metrics are tagged with.</param>
-    /// <returns>The capability that layer is offered.</returns>
-    public PageCheckScope For(PagePath path) {
-        ArgumentNullException.ThrowIfNull(path);
-
-        return new PageCheckScope(
-            path, compiler, libraries, budget, metrics, loggerFactory.CreateLogger<PageCheckScope>());
-    }
+    /// <summary>Binds the tier to one layer of a render, or to a tool call with no page.</summary>
+    /// <param name="path">The layer's key, which its logs and metrics are tagged with, or null.</param>
+    /// <returns>The check that caller uses.</returns>
+    public PageCheckScope For(PagePath? path) =>
+        new(path, compiler, libraries, budget, metrics, loggerFactory.CreateLogger<PageCheckScope>());
 }

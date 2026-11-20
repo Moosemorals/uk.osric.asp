@@ -98,7 +98,12 @@ internal sealed class SearchMemoriesTool : AssistantTool {
         "Search the owner's memories by keyword. This is the escape hatch when what you remember does "
         + "not cover the current turn: search before saying you do not know.",
         false,
-        [new("query", ToolArgumentType.String, true), new("limit", ToolArgumentType.Integer, false)]) { Verb = "Search memories" };
+        [
+            new("query", ToolArgumentType.String, true) {
+                Description = "Keywords to match against the owner's memories, not a page key.",
+            },
+            new("limit", ToolArgumentType.Integer, false),
+        ]) { Verb = "Search memories" };
 
     public override async Task<ToolExecutionResult> RunAsync(
         ToolValues values,

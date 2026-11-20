@@ -40,15 +40,13 @@ internal sealed class ToolRegistry {
         new ReadPageTool(),
         new DiffPageTool(),
         new ListRevisionsTool(),
-        new ReadRevisionTool(),
         new RestoreRevisionTool(),
         new EditPageTool(),
         new WritePageTool(),
         new DeletePageTool(),
         new MovePageTool(),
         new SearchPagesTool(),
-        new CheckScriptTool(),
-        new CheckScriptTextTool(),
+        new CheckTool(),
         new FetchTool(),
         new ViewTool(),
         new ShellTool(),
@@ -99,6 +97,11 @@ internal sealed class ToolRegistry {
         // has always sent and the provider's cached prefix does not move.
         if (argument.Description is { } description) {
             schema["description"] = description;
+        }
+        // A closed set is a constraint rather than a sentence, so a language that arrives later
+        // costs a row in the set and no edit to a description.
+        if (argument.Values is { Count: > 0 } values) {
+            schema["enum"] = values;
         }
 
         return schema;

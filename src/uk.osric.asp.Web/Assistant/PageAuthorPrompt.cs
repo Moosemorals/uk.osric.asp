@@ -9,7 +9,7 @@ using uk.osric.asp.Web.Shell;
 
 /// <summary>The system prompt and worked examples that teach the model to write a page.</summary>
 internal static class PageAuthorPrompt {
-    public const string Version = "page-author-v45";
+    public const string Version = "page-author-v46";
 
     public static IReadOnlyList<(string Name, string Source)> Examples { get; } = [
         ("query-driven", """
@@ -233,16 +233,21 @@ internal static class PageAuthorPrompt {
         script writes `<script type="module" src="/…"></script>`; modules are
         deferred, so the script's position in the document does not matter.
         Inline scripts and event-handler attributes stay blocked.
-        Before `write_page`, call `check_script_text` with the complete
-        content. After `edit_page`, call `check_script` with the page's path.
-        Never check a replacement fragment on its own: a fragment can be
-        invalid alone even when the edit is correct. Both parse the page's
-        literal text as an ES module and return `valid` with a list of `line`,
-        `column` and `message`. Treat `valid: false` as unfinished work: use
-        the positions, especially any `SCRIPT002` unclosed-opener hint, to find
-        and fix the edit, then check again before reporting done. They check
-        syntax, not intent: a duplicated block that still parses is not
-        reported.
+        Before `write_page`, call `check` with `language: "template"` and the
+        complete content; after `edit_page`, call `check` with the page's path
+        and the same language. Use `language: "javascript"` for the script a
+        page serves: its template constructs are blanked and the literal text
+        is parsed as an ES module. Never check a replacement fragment on its
+        own: a fragment can be invalid alone even when the edit is correct.
+        Nothing is stored, so a check costs a compile rather than a revision.
+        The answer carries `valid` and one entry per check with `language`,
+        `kind`, `valid` and `diagnostics` — code, severity, line, column and
+        message. `kind` is text, page, library or worker for a template, and
+        nothing for a script. Treat `valid: false` as unfinished work: use the
+        positions, especially any `SCRIPT002` unclosed-opener hint, to find and
+        fix the edit, then check again before reporting done. A check answers
+        syntax and compilation, not intent: a duplicated block that still
+        parses is not reported.
 
         ## IContext and IPageResponse contract
         {{ContractSection()}} `Request` is a `PageRequest`: its `Query`, `Form`,
@@ -474,11 +479,12 @@ internal static class PageAuthorPrompt {
         slice. `list_pages` takes the same `limit` with an `after` cursor: its
         listing is in key order, so its cursor names a key rather than a hash.
 
-        `read_revision` returns one revision's stored source by the same 1-based
-        physical line numbers, line ranges and result budget `read_page` uses.
-        Every line carries its own number as `NNN| `. It sends that source to the provider,
-        exactly as `read_page` does, so read a range rather than a whole page when you
-        only need a line.
+        `read_page` with a `hash` from `list_revisions` returns one revision's
+        stored source by the same 1-based physical line numbers, line ranges and
+        result budget the live page uses, and answers that revision's `hash`,
+        which is never the head an edit quotes. It sends that source to the provider
+        exactly as reading the live page does, so read a range rather
+        than a whole page when you only need a line.
 
         `restore_revision` saves a revision's source as a new revision of the
         page, through the ordinary compile-and-save path: nothing is rewound, and
@@ -592,7 +598,7 @@ internal static class PageAuthorPrompt {
         break, as are bare CR and LF; a final line break creates an empty final
         line. These numbers never refer to generated C# or rendered HTML. A
         shell file's record is measured the same way: its lines are the ones
-        `cat` prints. Every line `read_page` and `read_revision` return starts
+        `cat` prints. Every line `read_page` returns starts
         with its own number and `| `; that prefix is not part of the source and
         must not appear in a replacement or a `write_page` argument. Do not count lines in the escaped
         JSON: use the number written on the line. Use `edit_page` with the
