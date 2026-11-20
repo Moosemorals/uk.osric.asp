@@ -7,7 +7,7 @@ SPDX-License-Identifier: MIT
 
 | | |
 | --- | --- |
-| Status | Proposed 2026-11-20 — waits for the owner. The page transaction landed on 2026-11-20, so nothing blocks it; nothing is built until the owner agrees |
+| Status | Approved 2026-11-20 — the owner said to build it. Being built on `idea/job-borrows-a-credential`; nothing below is merged |
 | Size | Medium: one captured authority, one verifier, one credential seam, a writer on a job's capability list, one outcome on five enums, one refusal on job calls, three docs, `/help`, the prompt and its version, one decision and five edits |
 | Area | Sdk, Web (work, authentication, pages), docs, assistant, tests |
 | Spike | None. Every claim below was read off `trunk` at `4428e4a` on 2026-11-20 |
@@ -257,11 +257,12 @@ for the reason above. The ceiling is untouched: a worker that writes forever sti
 
 ### 8. A job may start a job
 
-The runner's `PageJobsScope` gets the same authority, the same `IPageWriteCredential` and the same
-`touched` delegate; a render's gets the authority and neither. `StartAsync` in a job's scope touches
-the clock and asks the credential before it queues a child, and answers `PageJobRefusal.Revoked` when
-it is dead; a render's start does not check, because the request just did. The child holds the authority it was started with, so it dies with the
-same sign-in. There is no depth limit and no key restriction (the owner's answer).
+Every `PageJobsScope` gets the authority, and a job's also gets the `touched` delegate. `StartAsync`
+asks the credential whenever there is one before it queues a child, and answers
+`PageJobRefusal.Revoked` when it is dead. A render's start asks too, rather than branching on who is
+calling: it is one read the request made a moment ago, and one path is cheaper than a flag. The child
+holds the authority it was started with, so it dies with the same sign-in. There is no depth limit and
+no key restriction (the owner's answer).
 
 `SendAsync`, `GetAsync`, `ListAsync`, `ReadEventsAsync` and `CancelAsync` are not checked: they are
 not writes, they are already filtered by the owner's name, and a job whose credential died can still
