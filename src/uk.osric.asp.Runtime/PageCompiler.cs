@@ -14,6 +14,8 @@ using uk.osric.asp.Sdk;
 // The page contract has a diagnostic value of its own, so the compiler names its own type here.
 using PageDiagnostic = uk.osric.asp.Core.Compilation.PageDiagnostic;
 using PageDiagnosticSeverity = uk.osric.asp.Core.Compilation.PageDiagnosticSeverity;
+// The page contract has a page kind of its own too; the compiler answers with Core's.
+using PageKind = uk.osric.asp.Core.Pages.PageKind;
 
 /// <summary>Compiles generated page source into page images and loads them for execution.</summary>
 public sealed class PageCompiler : IPageCompiler {

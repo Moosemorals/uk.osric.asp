@@ -45,7 +45,7 @@ registered or absent, never `null` (`pages-capabilities-are-one-seam`). The type
 the old `Features` spelling was removed once its release was over, so a page that still says
 `ctx.Features` no longer compiles (`pages-capabilities-are-one-seam`).
 
-Twelve capabilities are registered today — seven that do I/O or work and are bounded by the render,
+Thirteen capabilities are registered today — eight that do I/O or work and are bounded by the render,
 one that is the page's slots in its document, one that renders other pages into this one, two that are
 pure renderers, and one that is a fact about the build:
 
@@ -121,6 +121,20 @@ pure renderers, and one that is a fact about the build:
   draws the site's menu from the same values, and the footer stays the layout's own chrome
   (`pages-the-catalog-knows-the-shell`). A worker has no request and no visitor, so its list is
   empty.
+- `IPageCheck` answers "would this source check" for text the caller already holds, and stores
+  nothing: no revision, head, image, closure fingerprint or seed record, and none of the recompiling a
+  save would cause. `CheckAsync(language, source)` names its language from the closed set in
+  `PageCheckLanguages` — `template` today, and never inferred from a key's extension — and answers a
+  `PageCheckResult`: what generation judged the source to be in `Kind` (text, page, library or
+  worker, or `null` when there is nothing to judge), whether it would be served in `Valid` (a warning
+  leaves it valid), and the compiler's diagnostics as `PageDiagnostic` values, each naming a library
+  when the problem is not in the page itself. There is no key: a caller that wants a saved page
+  checked reads it with `IPageCatalog.ReadAsync` and passes the template, so a source that has never
+  been saved is checked exactly as one that has. It needs a signed-in visitor, because a compile is a
+  shared resource; it spends the same `Pages:Compile:Slots` and `Pages:Compile:TimeoutSeconds` a save
+  does; and a check that waits past the render's deadline or the compile timeout answers a `PAGE010`
+  error rather than hanging, because it has no author's edit to protect
+  (`pages-a-check-stores-nothing`, `pages-a-check-names-its-language`, `pages-a-check-needs-a-visitor`).
 - `IPageWrites` is the store's write capability, and every page that is not a layout is offered it:
   the authority is the signed-in visitor's, not the page's (`pages-any-page-may-write-the-store`).
   It has two saves. `SaveAsync(template)` saves the calling page's own source, bound to `ctx.Path`, and
@@ -597,6 +611,8 @@ waits for it against one deadline that covers both queueing and running:
   a save it ends with a `PAGE003` error instead. Roslyn observes a cancellation token between
   operations rather than inside one, so the deadline is a coarse bound, and a compile that trips it is
   stored as a `PAGE004` error so the editor shows it and the page is not recompiled on every request.
+  A page's check spends the same slot and timeout but stores nothing, so its wait and its compile also
+  end at the render's deadline, and either timeout answers a `PAGE010` error instead.
 - A compile is *not* cancelled by the render's deadline. Throwing the work away would leave the page
   unservable — every request would pay the same compile — so it finishes, stores its image, and the
   request answers `504` without starting the page. The next request is served from the store.

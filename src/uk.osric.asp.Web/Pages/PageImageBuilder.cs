@@ -100,7 +100,7 @@ internal sealed class PageImageBuilder(
                         $"PAGE003: the page waited longer than {PageBudget.DescribeSeconds(budget.CompileOptions.Timeout)} s for a compile slot."),
                 ]);
             } else {
-                IReadOnlyList<LibrarySource> candidates = Candidates(path, libraries);
+                IReadOnlyList<LibrarySource> candidates = PageLibraries.Sources(libraries, logger, path.Key);
                 try {
                     try {
                         // A declaration-only source is compiled by the worker path, which decides
@@ -169,29 +169,5 @@ internal sealed class PageImageBuilder(
 
         return PageLibraryFingerprint.Of(
             used.Where(hashes.ContainsKey).Select(key => (Key: key, Hash: hashes[key])));
-    }
-
-    // A library is contributed in its own shape, without the handler a page's unit carries. A row
-    // that says library but no longer parses is left out: the page that names its namespace then
-    // fails with the compiler's own missing-type error, which is a diagnostic rather than a 500.
-    private IReadOnlyList<LibrarySource> Candidates(PagePath path, IReadOnlyList<PageLibrary> libraries) {
-        List<LibrarySource> candidates = [];
-
-        foreach (PageLibrary library in libraries) {
-            try {
-                TemplateGenerationResult generated = TemplateSourceGenerator.GenerateLibrary(library.Template);
-                if (generated.Source is { } source) {
-                    candidates.Add(new LibrarySource(library.Key.Key, source));
-                } else {
-                    logger.LogWarning("Library {Library} could not be generated, so it was left out of {Path}",
-                        library.Key.Key, path.Key);
-                }
-            } catch (ArgumentException ex) {
-                logger.LogWarning(ex, "Library {Library} is not declarations, so it was left out of {Path}",
-                    library.Key.Key, path.Key);
-            }
-        }
-
-        return candidates;
     }
 }

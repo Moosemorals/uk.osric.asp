@@ -1253,6 +1253,43 @@ names its own policy is [`one-write-per-render`](backlog/one-write-per-render.md
 
 *Recorded in [page self-save](plans/archive/page-self-save.md), [page writes](plans/archive/page-writes.md), [IPageWrites](../src/uk.osric.asp.Sdk/IPageWrites.cs).*
 
+### pages-a-check-stores-nothing
+
+`IPageCheck.CheckAsync(language, source)` answers "would this source check" for text the caller already
+holds, and writes nothing: no revision, head, image, closure fingerprint or seed record, and no
+dependent is recompiled, so the history stays the history. A caller that wants a stored page checked
+reads it with `IPageCatalog.ReadAsync` and passes the template; the source is the subject and there is
+no key, so a template that has never been saved answers exactly as one that has. The answer is a
+`PageCheckResult` — generation's `PageKind`, whether the source would be served, and the compiler's
+diagnostics as `PageDiagnostic` values, a warning leaving it valid — because that is what a save would
+have reported. A check spends a compile slot and no `PageWritesScope` action, and a wait past the
+render's deadline or the compile timeout answers a `PAGE010` error rather than hanging: there is no
+author's edit to protect, so an abandoned check loses nothing.
+
+*Recorded in [pages](pages.md#page-contract), [PageCheckScope](../src/uk.osric.asp.Web/Pages/PageCheckScope.cs), [one check](plans/one-check.md).*
+
+### pages-a-check-names-its-language
+
+A check's language is named by the caller and comes from a closed set declared once in `Sdk`
+(`PageCheckLanguage`, with `PageCheckLanguages.Names` as the wire names), so the manual, the assistant's
+tool schema and the host's refusal all render from one declaration. It is never inferred from a key's
+extension, because an extension is a content type and not a validator: a `.html` page can hold a
+template or an asset. `template` is the first value, and the set grows with the checker that answers for
+a new one, so a name this build does not answer for is refused by name rather than guessed at.
+
+*Recorded in [pages](pages.md#page-contract), [PageCheckLanguages](../src/uk.osric.asp.Sdk/PageCheckLanguages.cs), [one check](plans/one-check.md).*
+
+### pages-a-check-needs-a-visitor
+
+The check is offered only to a render with a signed-in visitor, because a compile is a shared resource
+and a check spends one: a check anyone could call is a denial of service with a friendly face. It takes
+a slot from `Pages:Compile:Slots` and is bounded by `Pages:Compile:TimeoutSeconds`, unchanged, so its
+cost is a save's cost; its wait and its compile also end at the render's deadline, and it answers
+`PAGE010` when that happens rather than hanging. An anonymous render is simply not offered the
+capability, so a page reads `ctx.User` only to decide what to show.
+
+*Recorded in [pages](pages.md#page-contract), [PageChain](../src/uk.osric.asp.Web/Pages/PageChain.cs), [PageCheckScope](../src/uk.osric.asp.Web/Pages/PageCheckScope.cs), [one check](plans/one-check.md).*
+
 ### pages-scratch-saves-itself
 
 A page that saves itself guards its own view, reads its own source, saves it, answers the save in the

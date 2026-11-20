@@ -18,7 +18,7 @@ the other half of the same question and live in [logging](logging.md).
 | `page.render.wait` | histogram | s | — time spent waiting for a render slot; site-wide, not per page |
 | `page.stream.duration` | histogram | s | `page.path`, `outcome` (`completed`, `silence`, `ceiling`, `client-left`, `error`) — the committed life of a streamed response |
 | `page.render.abandoned` | counter | — | `page.path` — renders given up on at the deadline |
-| `page.compile.duration` | histogram | s | `page.path`, `outcome`, `reason` (`save`, `lazy`) |
+| `page.compile.duration` | histogram | s | `page.path`, `outcome`, `reason` (`save`, `lazy`, `check`) |
 | `page.load.duration` | histogram | s | `page.path` |
 | `page.invoke.duration` | histogram | s | `page.path`, `outcome` |
 | `page.save.duration` | histogram | s | `page.path`, `outcome` |

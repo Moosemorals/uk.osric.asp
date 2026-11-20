@@ -11,6 +11,7 @@ using uk.osric.asp.Core.Compilation;
 using uk.osric.asp.Core.Pages;
 using uk.osric.asp.Sdk;
 using uk.osric.asp.Web.Pages;
+using PageKind = uk.osric.asp.Core.Pages.PageKind;
 
 /// <summary>The seeded `/pages` page: its listing, its editor and its refusals.</summary>
 /// <remarks>

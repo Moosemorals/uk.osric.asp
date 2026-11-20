@@ -7,6 +7,7 @@ using uk.osric.asp.Core.Pages;
 using uk.osric.asp.Sdk;
 using uk.osric.asp.Web.Pages;
 using uk.osric.asp.Web.Shell;
+using PageKind = uk.osric.asp.Core.Pages.PageKind;
 
 /// <summary>The capability a page reads the store through.</summary>
 [TestFixture]

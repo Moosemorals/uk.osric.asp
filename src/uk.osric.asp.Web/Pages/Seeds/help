@@ -17,6 +17,7 @@ can improve it at <a href="<%= ctx.EditorPath %>?edit=<%= System.Uri.EscapeDataS
         <li><a href="#api">What a page may use</a></li>
         <li><a href="#context">Context and capabilities</a></li>
         <li><a href="#catalog">Reading the page store</a></li>
+        <li><a href="#checking">Checking without saving</a></li>
         <li><a href="#writing">Saving the page you are</a></li>
         <li><a href="#markdown">Markdown</a></li>
         <li><a href="#diff">Diff</a></li>
@@ -650,6 +651,35 @@ refuses rather than truncating, and one render may pull in at most the configure
 page. A listing charges nothing, because its rows are metadata and the body cap bounds what a page
 can write out of them. Both limits are set under <code>Pages:Read</code>, and a missing or unusable
 value stops the site at startup rather than being quietly replaced.</p>
+
+<h2 id="checking">Checking without saving</h2>
+<p><a href="/admin/reference/sdk#t-IPageCheck"><code>IPageCheck</code></a> answers &ldquo;would this compile&rdquo; for text you already
+hold. It stores nothing: no revision, no image, no head, and none of the recompiling a save would
+cause, so the history stays the history:</p>
+<pre class="source" tabindex="0"><code>&lt;% IPageCheck check = ctx.Capabilities.GetRequired&lt;IPageCheck&gt;();
+   PageCheckResult result = await check.CheckAsync("template", source);
+   if (!result.Valid) { %&gt;
+&lt;ul&gt;
+&lt;% foreach (PageDiagnostic diagnostic in result.Diagnostics) { %&gt;
+    &lt;li&gt;&lt;%= diagnostic.Code %&gt; at line &lt;%= diagnostic.Line?.ToString() ?? "?" %&gt;: &lt;%= diagnostic.Message %&gt;&lt;/li&gt;
+&lt;% } %&gt;
+&lt;/ul&gt;
+&lt;% } %&gt;</code></pre>
+<p><code>CheckAsync(language, source)</code> names the language from a closed set &mdash;
+<code>template</code> today &mdash; and never guesses it from a key's extension. The source is the whole
+template, and there is no key: to check a stored page, read it with
+<a href="/admin/reference/sdk#m-IPageCatalog.ReadAsync-string"><code>IPageCatalog.ReadAsync</code></a> and pass what you
+read, so a source that has never been saved is checked exactly as one that has.</p>
+<p>A <a href="/admin/reference/sdk#t-PageCheckResult"><code>PageCheckResult</code></a> says what generation judged the
+source to be in <code>Kind</code> &mdash; text, page, library or worker, or nothing when there is
+nothing to judge &mdash; whether it would be served in <code>Valid</code>, and what the compiler found, in
+the same <a href="/admin/reference/sdk#t-PageDiagnostic"><code>PageDiagnostic</code></a> shape a save reports. A
+warning leaves a page valid; an error does not.</p>
+<p><strong>The check needs a signed-in visitor</strong>, because compiling is a shared resource: an anonymous
+render is not offered the capability. It spends the same compile budget a save does, so a check that
+waits past the render's deadline answers a <code>PAGE010</code> diagnostic rather than making you
+wait. Ask while the author is editing, save when the answer is valid, and let that save's own answer
+be what the editor shows.</p>
 
 <h2 id="writing">Writing the page store</h2>
 <p><a href="/admin/reference/sdk#t-IPageWrites"><code>IPageWrites</code></a> is the store's write

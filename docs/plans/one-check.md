@@ -7,12 +7,12 @@ SPDX-License-Identifier: MIT
 
 | | |
 | --- | --- |
-| Status | Revised 2026-11-20 — the owner answered the six questions; this revision carries the answers and waits for a yes. Nothing below is built |
+| Status | Revised 2026-11-20 — the owner answered the six questions and said to build it. Slice 1 is merged and its three names are recorded; slices 2–4 are not started |
 | Size | Large as a programme, small as a step: one Sdk capability with two types and one closed set, a Web adapter over the compiler, the assistant's tool surface rewritten once, and an editor for the repository over the same tier. Four slices, each its own branch and each stopping for the owner |
 | Area | Sdk, Runtime, Core (Assistant), Web (pages, editor, assistant), tools, docs |
 | Spike | [Teaching VS Code the template language](../spikes/vscode-template-language.md) — the half that has not landed |
 | Backlog | [`check-without-storing`](../backlog/check-without-storing.md) is this step; [`tool-arguments-say-nothing`](../backlog/tool-arguments-say-nothing.md) opens its third slice; [`nothing-checks-page-assets`](../backlog/nothing-checks-page-assets.md) and [`revision-hides-its-diagnostics`](../backlog/revision-hides-its-diagnostics.md) are its neighbours and neither is this plan |
-| Decisions | New names proposed: **pages-a-check-stores-nothing**, **pages-a-check-names-its-language** and **pages-a-check-needs-a-visitor**. Relies on `pages-a-diagnostic-names-its-source`, `pages-a-page-may-save-itself`, `pages-reading-the-store-is-public`, `pages-the-store-is-read-through-one-seam`, `pages-a-warning-never-stops-a-page`, `code-policy-values-are-configuration`, `code-n-is-small`, `assistant-script-checks`, `assistant-a-tool-is-one-type`, `assistant-tool-results-are-cut-not-refused` and `product-manual-is-a-page` |
+| Decisions | `pages-a-check-stores-nothing`, `pages-a-check-names-its-language` and `pages-a-check-needs-a-visitor`, recorded with slice 1. Relies on `pages-a-diagnostic-names-its-source`, `pages-a-page-may-save-itself`, `pages-reading-the-store-is-public`, `pages-the-store-is-read-through-one-seam`, `pages-a-warning-never-stops-a-page`, `code-policy-values-are-configuration`, `code-n-is-small`, `assistant-script-checks`, `assistant-a-tool-is-one-type`, `assistant-tool-results-are-cut-not-refused` and `product-manual-is-a-page` |
 
 ## The short version
 

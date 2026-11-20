@@ -8,8 +8,10 @@ using uk.osric.asp.Core.Pages;
 using uk.osric.asp.Runtime;
 using uk.osric.asp.Sdk;
 using uk.osric.asp.Web.Pages;
+// A job judges Core's diagnostics and page kind; the page contract has its own of each.
 using PageDiagnostic = uk.osric.asp.Core.Compilation.PageDiagnostic;
 using PageDiagnosticSeverity = uk.osric.asp.Core.Compilation.PageDiagnosticSeverity;
+using PageKind = uk.osric.asp.Core.Pages.PageKind;
 
 /// <summary>Runs queued jobs, a bounded number at a time, each with its own scope and load context.</summary>
 /// <remarks>

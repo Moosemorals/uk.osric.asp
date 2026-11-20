@@ -13,6 +13,7 @@ using uk.osric.asp.Web.Editor;
 using uk.osric.asp.Web.Pages;
 using uk.osric.asp.Web.Shell;
 using uk.osric.asp.Web.Work;
+using PageKind = uk.osric.asp.Core.Pages.PageKind;
 
 /// <summary>Builds the page classes over one storage and one counting compiler.</summary>
 /// <remarks>
@@ -65,6 +66,7 @@ internal sealed class PageHarness : IDisposable {
         Libraries = new PageLibraries(ReadStore);
         Revisions = revisionStore ?? new FakePageRevisionStore(storage);
         Saver = new PageSaver(Revisions, Images, Libraries, Metrics, NullLogger<PageSaver>.Instance);
+        Checks = new PageChecks(Compiler, Libraries, Budget, Metrics, NullLoggerFactory.Instance);
         Renderer = new PageRenderer(
             storage,
             Compiler,
@@ -149,6 +151,9 @@ internal sealed class PageHarness : IDisposable {
 
     /// <summary>The one save path every caller in this harness shares.</summary>
     public PageSaver Saver { get; }
+
+    /// <summary>Where a page's checks compile, sharing the harness's compiler, libraries and budget.</summary>
+    public PageChecks Checks { get; }
 
     public PageRenderer Renderer { get; }
 
