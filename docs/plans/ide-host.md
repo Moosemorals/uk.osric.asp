@@ -174,22 +174,47 @@ smallest changes come first because they are what every later slice is written a
    the assistant's daily friction and the gate in front of a job writer. If it lands first, this step
    shrinks to wiring Save all to the transaction, and T4 loses its last dependency.*
 
-7. **The pages that could use it.** The step that spends the capability, and the one that can honestly
-   find nothing: review every seeded page under `Pages/Seeds` and every store-writing route the shell
-   owns — `/pages` and `/admin/seeds` are the two that write today — and ask of each whether it makes
-   several writes that belong together, or makes them as N requests because it could only ever write
-   once. The shapes already visible: `/pages` refuses to move or delete a folder because the store
-   refuses a key with pages below it, and that is a transaction of moves or of tombstones; `/admin/seeds`
-   installs one page per confirmation, where "install everything this release moved" is one commit;
-   and the assistant's multi-file edit becomes one request rather than a sequence, which its prompt
-   already says. A page keeps its one call when one write is all it makes — the transaction is
-   all-or-nothing, so a page that wants partial success must not use one, and nothing here trades that
-   away to save a line.
+7. **The pages that could use it.** Surveyed on 2026-11-20, after the capability landed, by reading
+   every seeded page under `Pages/Seeds` and every route that writes the store. The finding is that
+   almost nothing converts — a page that makes one write keeps its one call, because a transaction is
+   all-or-nothing and trading away a partial success to save a line would be worse. Two things do
+   benefit, and both are new work rather than a conversion:
 
-   Proves: every page that gained a transaction has a test that a refusal writes nothing; `/help`
-   describes what those pages now do (`product-manual-is-a-page`); and a note names the owner's stored
-   pages — the IDE, the plan page — that could adopt it, because those live in the site rather than in
-   this repository and are edited there.
+   - **`/admin/seeds` — the ticked installs.** `SeedsEndpoint.ApplyAsync` walks the plan and installs
+     each ticked seed as its own transaction, catching a failure per row and carrying on. "Apply these
+     five" is one unit, and it is also the one place the ordering rule earns its keep: the editor and
+     `/help` name `Site.Document`, so a set containing `_lib/document` and its dependents must stage
+     the library first. Batching them is a decision rather than a tidy-up, because it changes what a
+     failure does: today the rows after it still land, and in one commit they would answer
+     `RolledBack` and `NotAttempted` instead. The report already says which is which, so the change is
+     small and the question is the owner's.
+   - **`/pages` — moving or deleting a folder.** The editor refuses both today, and the refusal is the
+     store's own (`FolderNotEmpty` names the keys below). A folder move is a transaction of moves and a
+     folder delete a transaction of tombstones, which is precisely the shape this capability was built
+     for. It needs a folder row to act from first, so it waits on
+     [`a-page-cannot-list-folders`](../backlog/a-page-cannot-list-folders.md).
+
+   Everything else the survey found makes one write or none:
+   - **`/pages`** saves, moves, deletes, installs, adopts and restores one page at a time. There is no
+     Save all in it — the IDE's T4 is that caller, and it is the page this capability was built for.
+   - **`/admin/import`** is already one transaction over a whole archive, through `IPageBatchStore`. It
+     is the proof the shape works rather than a caller that needs changing.
+   - **`/admin/seeds` scrub** removes stray rows at shell paths through the store's repair seam, not
+     through `IPageWrites`; no page can scrub, so it is not this capability's caller.
+   - **The assistant's `save_page`, `delete_page` and `move_page`** write one page per call by their own
+     rule. A command that writes several is [`tool-surface-is-one-shell`](../backlog/tool-surface-is-one-shell.md)'s,
+     which already names this item as the blocker it is waiting for.
+   - **`seed-auto-apply-at-startup`** applies a release's moved seeds at startup and would benefit, but
+     it is being built on `idea/seed-auto-apply-at-startup` now: whoever merges second should make that
+     apply one transaction, and this plan does not reach into that branch.
+
+   The owner's stored pages — the IDE, `/ide-plan` — live in the site rather than in this repository, so
+   they are a note rather than an edit: each one that writes several pages can now make it one commit.
+
+   Proves: for each page that takes a transaction, a test that a refusal writes nothing; `/help`
+   describes what those pages now do (`product-manual-is-a-page`); and the two candidates above are put
+   to the owner rather than built, because each changes behaviour a page already has
+   (`product-steps-wait-for-the-owner`).
 
 **037 — the check — has left this plan.** The assistant and VS Code want the same seam, so the
 owner folded all three callers into one item, `check-without-storing`,
