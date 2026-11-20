@@ -9,11 +9,11 @@ SPDX-License-Identifier: MIT
 | --- | --- |
 | Difficulty | protective-dragon |
 | Utility | high |
-| Status | planned |
-| Blocked by | — |
+| Status | blocked |
+| Blocked by | `check-without-storing`, `cannot-search-the-store`, `a-page-cannot-list-folders` |
 | Plan | [assistant-shell-tool](../plans/assistant-shell-tool.md) |
-| Area | Core (Shell, Assistant), Web (assistant, site), docs |
-| Location | `src/uk.osric.asp.Web/Assistant/Tools/ToolRegistry.cs`, `src/uk.osric.asp.Web/Assistant/Shell/`, `src/uk.osric.asp.Core/Shell/` |
+| Area | Core (Shell, Assistant), Shell, Web (assistant, site), docs, build |
+| Location | `src/uk.osric.asp.Web/Assistant/Tools/ToolRegistry.cs`, `src/uk.osric.asp.Web/Assistant/Shell/`, `src/uk.osric.asp.Core/Shell/`, `src/uk.osric.asp.Shell/` |
 | Spike | — |
 
 ## Idea
@@ -46,6 +46,9 @@ scratch directory, and history as paths rather than three more tools.
    into files; one action-dispatched tool replaces four.
 7. **A write is planned before it is approved.** The kernel resolves every operand and classifies
    every effect, so one approval covers the line and the changed-pages card still knows what changed.
+8. **Built from the page capabilities.** An applet reaches the store through `IPageCatalog` and
+   `IPageWrites`; a command that cannot be built is a gap in the page contract, not a private seam.
+   The three gaps it starts with are the three items that block it.
 
 [The plan](../plans/assistant-shell-tool.md) carries the detail, the phases and the risks.
 
@@ -59,5 +62,6 @@ scratch directory, and history as paths rather than three more tools.
   item removes the typed `move_page` beside it.
 - **More than one page write per call.** [`one-write-per-render`](one-write-per-render.md) is the
   blocker; v1 refuses a plan that names two pages and says so.
-- **A page capability.** A page that runs shell commands is a different decision and a different
-  threat model.
+- **A page that runs the shell.** The shell is host code and a page still cannot run a command; what
+  changes is that the shell is built from the capabilities a page is offered, so the two cannot drift
+  apart.

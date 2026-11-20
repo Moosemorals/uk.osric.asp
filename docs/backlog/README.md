@@ -120,12 +120,14 @@ its reason, and that no item sits above something that blocks it.
 | | *A job's writer is only safe once [`one-write-per-render`](one-write-per-render.md) has replaced the one-action rule with a policy the caller names; revocation is the other half of the same decision.* | | | | |
 | [`cannot-check-a-page`](cannot-check-a-page.md), with [`tool-arguments-say-nothing`](tool-arguments-say-nothing.md) as its first slice | The assistant can check a script but not a page | determined-mountain-goat 💪🐐 | high | blocked | `check-without-storing` |
 | | *The compiler [`check-without-storing`](check-without-storing.md) adds gives the editor answers the model's most-asked question; the same step retires two tools that are one tool twice, so the definitions it describes are described once.* | | | | |
-| [`tool-surface-is-one-shell`](tool-surface-is-one-shell.md) | The assistant's tool surface is one shell, one question and one memory | protective-dragon 🔥🐉 | high | [planned](../plans/assistant-shell-tool.md) | — |
-| | *The shell already carries eleven of the twenty-two commands; making it POSIX, composable and the preferred surface leaves three tools and buys back the ceiling.* | | | | |
-| [`view-cannot-submit-a-form`](view-cannot-submit-a-form.md) | A run can look at the site but cannot submit one of its forms | determined-mountain-goat 💪🐐 | medium | open | — |
-| | *Testing a page's own form is the one read the view cannot make; it needs a write-scoped credential before it can be a tool.* | | | | |
 | [`cannot-search-the-store`](cannot-search-the-store.md) | A page cannot search the store's source | eager-beaver ⚙️🦫 | medium | [planned](../plans/ide-host.md) | — |
 | | *Lifts the assistant's own search into the contract rather than inventing anything.* | | | | |
+| [`a-page-cannot-list-folders`](a-page-cannot-list-folders.md) | A page cannot list the store's folders | eager-beaver ⚙️🦫 | medium | open | — |
+| | *A listing returns heads, so every caller that wants a tree folds keys by hand; the shell, the IDE's tree and a site map all want the same rows.* | | | | |
+| [`tool-surface-is-one-shell`](tool-surface-is-one-shell.md) | The assistant's tool surface is one shell, one question and one memory | protective-dragon 🔥🐉 | high | blocked | `check-without-storing`, `cannot-search-the-store`, `a-page-cannot-list-folders` |
+| | *The shell already carries eleven of the twenty-two commands; making it POSIX, composable and the preferred surface leaves three tools and buys back the ceiling, and building it from the page capabilities names the three gaps in front of it.* | | | | |
+| [`view-cannot-submit-a-form`](view-cannot-submit-a-form.md) | A run can look at the site but cannot submit one of its forms | determined-mountain-goat 💪🐐 | medium | open | — |
+| | *Testing a page's own form is the one read the view cannot make; it needs a write-scoped credential before it can be a tool.* | | | | |
 | [`ops-no-outage-notification`](ops-no-outage-notification.md) | No outbound notifications when the site breaks | eager-beaver ⚙️🦫 | medium | open | — |
 | | *Useful, but one owner and a unit that restarts already notices most outages.* | | | | |
 | [`import-cannot-reset-a-site`](import-cannot-reset-a-site.md) | Import only adds and overwrites, so an archive cannot reset a site | caffeinated-squirrel ☕🐿️ | medium | open | — |

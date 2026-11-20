@@ -5,6 +5,12 @@ SPDX-License-Identifier: MIT
 
 # A page cannot check a template without saving it
 
+> **Extended by [the shell plan](../plans/assistant-shell-tool.md) — 2026-11-20.** The capability the
+> shell's `check` needs names its **language**, not its source: one `CheckAsync(language, key,
+> template)` over a closed set (`template`, `javascript`), so the two tools split by where the text
+> came from become one command and [`cannot-check-a-page`](cannot-check-a-page.md)'s tool half is the
+> shell plan. This item lands the capability, with the language set, before the shell can start.
+
 | | |
 | --- | --- |
 | Difficulty | caffeinated-squirrel |
