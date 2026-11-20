@@ -150,18 +150,37 @@ public sealed class TemplateShapeCheckTests {
     [TestCase("<% string v = @\"%>\"; %>")]
     [TestCase("<% string i = $\"%>\"; %>")]
     [TestCase("<% string r = \"\"\"%>\"; %>")]
-    public void ABlockCutShortInsideALiteralIsDiagnosedWhereItStarts(string template) {
+    public void ABlockCutShortInsideALiteralIsDiagnosedAtTheCloserThatEndedIt(string template) {
         IReadOnlyList<PageDiagnostic> diagnostics = TemplateShapeCheck.Check(template);
 
+        // The closer is where the fix goes: the author changes that delimiter, not the quote the
+        // literal opened with, so the warning and its extent cover it.
+        int closer = template.IndexOf("%>", StringComparison.Ordinal);
+        PageDiagnostic warning = diagnostics.Single(diagnostic => diagnostic is not null
+            && diagnostic.Message.StartsWith("TEMPLATE008:", StringComparison.Ordinal));
+
         Assert.Multiple(() => {
-            Assert.That(diagnostics, Has.Exactly(1).Matches<PageDiagnostic>(diagnostic =>
-                diagnostic is not null
-                && diagnostic.Message.StartsWith("TEMPLATE008:", StringComparison.Ordinal)
-                && diagnostic.Position?.Line == 1
-                && diagnostic.Message.Contains("\\u003e", StringComparison.Ordinal)));
+            Assert.That(warning.Message, Does.Contain("\\u003e"));
+            Assert.That(warning.Position, Is.EqualTo(new TemplatePosition(1, closer + 1)));
+            Assert.That(warning.End, Is.EqualTo(new TemplatePosition(1, closer + 3)), "the extent is the two characters of '%>'");
             Assert.That(diagnostics, Has.None.Matches<PageDiagnostic>(diagnostic =>
                 diagnostic is not null && diagnostic.Message.StartsWith("TEMPLATE003:", StringComparison.Ordinal)),
                 "the closer that ended the block is the one the author meant");
+        });
+    }
+
+    [Test]
+    public void ALongLiteralIsStillDiagnosedAtItsCloser() {
+        string padding = new('x', 400);
+        string template = $"<% string s = \"{padding}%>\"; %>";
+
+        PageDiagnostic warning = TemplateShapeCheck.Check(template).Single(diagnostic => diagnostic is not null
+            && diagnostic.Message.StartsWith("TEMPLATE008:", StringComparison.Ordinal));
+
+        Assert.Multiple(() => {
+            Assert.That(warning.Position, Is.EqualTo(new TemplatePosition(1, template.IndexOf("%>", StringComparison.Ordinal) + 1)),
+                "the author is taken to the delimiter, however far from the quote it is");
+            Assert.That(warning.End, Is.EqualTo(warning.Position!.Value with { Column = warning.Position.Value.Column + 2 }));
         });
     }
 
@@ -170,7 +189,10 @@ public sealed class TemplateShapeCheckTests {
         IReadOnlyList<PageDiagnostic> diagnostics = TemplateShapeCheck.Check("<% /* note %>");
 
         PageDiagnostic warning = diagnostics.Single(diagnostic => diagnostic is not null && diagnostic.Message.StartsWith("TEMPLATE008:", StringComparison.Ordinal));
-        Assert.That(warning.Message, Does.Contain("*/"));
+        Assert.Multiple(() => {
+            Assert.That(warning.Message, Does.Contain("*/"));
+            Assert.That(warning.Position, Is.EqualTo(new TemplatePosition(1, "<% /* note ".Length + 1)));
+        });
     }
 
     [Test]

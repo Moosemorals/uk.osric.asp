@@ -118,6 +118,8 @@ and the logs quote them:
 clean compile does not hide them, and they never stop a page being served (`pages-the-shape-check`).
 A shape warning names its block by the block's opener rather than by its content, so a block whose
 opener stands on another line from what it holds still points at the line the author will look at.
+`TEMPLATE008` is the exception: it names the `%>` that ended the block, because that is the character
+the fix moves, and it carries an extent covering the two of them.
 
 ## Where does code go?
 

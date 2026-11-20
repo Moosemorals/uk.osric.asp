@@ -366,8 +366,10 @@ Such a page has only the template-shape warnings `TemplateShapeCheck` can find w
 (`pages-the-shape-check`); a clean text page has none. Two of those are about a block that says
 nothing: `TEMPLATE006` for one that holds no code and `TEMPLATE007` for one that holds only a comment,
 each saying so loudly when it is the block that decided what the template is — a page, or a library
-that is never served. A block that ends inside a literal or a comment is `TEMPLATE008`, reported at
-the literal rather than at the text that follow it.
+that is never served. A block that ends inside a literal or a comment is `TEMPLATE008`, reported at the
+`%>` that ended the block rather than at the literal's opening quote or at the text that follows: that
+delimiter is the character the fix changes, and a long literal can put it hundreds of columns from the
+quote.
 
 A **comment**, `<%# … %>`, counts as neither code nor text (`pages-a-comment-is-not-code`): it
 writes no output, it is emitted into no generated source, it makes no page a page and no library a

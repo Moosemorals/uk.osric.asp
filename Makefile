@@ -181,7 +181,7 @@ help:
 		'mutation-sdk       Mutation-test the page contract, which the Web suite drives.' \
 		'mutation-web       Mutation-test the shell: the long one, hours rather than minutes.' \
 		'browsers           Install the Firefox build the browser suite drives.' \
-		'vscode-extension   Link tools/vscode-asp into VS Code, then reload the window.' \
+		'vscode-extension   Build, then link tools/vscode-asp into VS Code and reload the window.' \
 		'worktree           Create the branch and worktree for BRANCH=... (BASE=trunk).' \
 		'worktrees          List the worktrees.' \
 		'worktree-remove    Remove the worktree for BRANCH=... once its work has merged.' \
@@ -323,6 +323,10 @@ browsers: build
 # `--extensionDevelopmentPath` would load, without opening a second window, and it keeps the grammar
 # in the repository the one copy: an edit and a reload is the whole update loop.
 #
+# The client spawns the language server out of artifacts/, so the link is only worth making once the
+# build has put a server there: linking an extension whose first document opens a process that does
+# not exist reads as a broken editor rather than an unbuilt one.
+#
 # The icon is the site's rocket rather than a second copy of it, so it is rendered from the seed when
 # the tool that draws it is here; a checkout without rsvg-convert keeps the committed PNG.
 VSCODE_EXTENSIONS := $(HOME)/.vscode/extensions
@@ -330,7 +334,7 @@ VSCODE_EXTENSION := $(VSCODE_EXTENSIONS)/uk-osric-asp.asp-template-language-0.1.
 ROCKET_SVG := src/uk.osric.asp.Web/wwwroot/rocket.svg
 EXTENSION_ICON := tools/vscode-asp/icon.png
 
-vscode-extension:
+vscode-extension: build
 	@if command -v rsvg-convert >/dev/null; then \
 		rsvg-convert -w 128 -h 128 $(ROCKET_SVG) -o $(EXTENSION_ICON); \
 	fi
