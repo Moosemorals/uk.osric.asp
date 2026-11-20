@@ -232,7 +232,7 @@ public sealed class PageWritesScopeTests {
 
         InvalidOperationException? refused = Assert.Throws<InvalidOperationException>(() => scope.BeginTransaction());
 
-        Assert.That(refused?.Message, Does.Contain("does not nest"));
+        Assert.That(refused?.Message, Does.Contain("the store has one transaction"));
     }
 
     [Test]

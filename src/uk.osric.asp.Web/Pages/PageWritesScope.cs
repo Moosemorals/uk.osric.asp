@@ -43,7 +43,7 @@ internal sealed class PageWritesScope(
 
         if (!gate.TryOpen()) {
             throw new InvalidOperationException(
-                $"{path.Key} already has a transaction open: the store has one, and a transaction does not nest.");
+                $"{path.Key} cannot open a transaction: one is already open in this render (another layer may hold it), and the store has one transaction.");
         }
 
         PageTransactionScope transaction = new(path, pages, reserved, seeds, gate, Deadline);

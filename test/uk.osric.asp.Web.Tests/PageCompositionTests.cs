@@ -379,6 +379,63 @@ public sealed class PageCompositionTests {
     }
 
     [Test]
+    public async Task AnEmbeddedWriteIsRefusedWhileTheOuterPageHoldsATransaction() {
+        Store("/widget", """
+            <% if (ctx.User is not null) {
+                   try {
+                       _ = await ctx.Capabilities.GetRequired<IPageWrites>().SaveAsync("/widget-saved", "text", null);
+                       ctx.Response.Write("wrote");
+                   } catch (System.InvalidOperationException) {
+                       ctx.Response.Write("refused");
+                   }
+               } %>
+            """);
+        Store("/page", """
+            <% if (ctx.User is not null) {
+                   await using IPageTransaction held = ctx.Capabilities.GetRequired<IPageWrites>().BeginTransaction();
+                   _ = await held.SaveAsync("/page-saved", "page", null);
+                   _ = await ctx.Capabilities.GetRequired<IPageComposition>().EmbedAsync("/widget");
+                   _ = await held.CommitAsync();
+               } %>
+            """);
+
+        Rendered rendered = await RenderAsync("/page", signedIn: true);
+
+        Assert.Multiple(() => {
+            Assert.That(rendered.Body.Trim(), Is.EqualTo("refused"), rendered.Body);
+            Assert.That(_storage["/page-saved"]?.Template, Is.EqualTo("page"));
+            Assert.That(_storage["/widget-saved"], Is.Null, "the refused write wrote nothing");
+        });
+    }
+
+    [Test]
+    public async Task AnEmbeddedWriteLandsOnceTheOuterTransactionIsCommitted() {
+        Store("/widget", """
+            <% if (ctx.User is not null) {
+                   PageEditResult saved = await ctx.Capabilities.GetRequired<IPageWrites>().SaveAsync("/widget-saved", "text", null);
+                   ctx.Response.Write(saved.Outcome.ToString());
+               } %>
+            """);
+        Store("/page", """
+            <% if (ctx.User is not null) {
+                   await using (IPageTransaction held = ctx.Capabilities.GetRequired<IPageWrites>().BeginTransaction()) {
+                       _ = await held.SaveAsync("/page-saved", "page", null);
+                       _ = await held.CommitAsync();
+                   }
+                   _ = await ctx.Capabilities.GetRequired<IPageComposition>().EmbedAsync("/widget");
+               } %>
+            """);
+
+        Rendered rendered = await RenderAsync("/page", signedIn: true);
+
+        Assert.Multiple(() => {
+            Assert.That(rendered.Body.Trim(), Is.EqualTo("Saved"), rendered.Body);
+            Assert.That(_storage["/page-saved"]?.Template, Is.EqualTo("page"));
+            Assert.That(_storage["/widget-saved"]?.Template, Is.EqualTo("text"));
+        });
+    }
+
+    [Test]
     public async Task AnEmbeddedWriterIsOfferedTheWriteItself() {
         Store("/probe", """
             <%= ctx.Capabilities.Get<IPageWrites>() is null ? "absent" : "present" %>
