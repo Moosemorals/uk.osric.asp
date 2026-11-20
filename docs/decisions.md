@@ -1231,9 +1231,9 @@ generator depend on the page contract.
 
 Authority is asymmetric: the read is public and the write requires a signed-in visitor, because a
 disclosure and a change are not the same act. The capability refuses an anonymous render before it
-compiles or stores anything, with a `UserFacingException` whose message says to sign in; a `HEAD`, an
-ended render and a second write in one render are page bugs and throw. The check is the capability's, not
-the page's: a page's own `ctx.User` guard is only a nicer redirect in front of it.
+compiles or stores anything, with a `UserFacingException` whose message says to sign in; a `HEAD` and an
+ended render are page bugs and throw. The check is the capability's, not the page's: a page's own
+`ctx.User` guard is only a nicer redirect in front of it.
 
 A started save is never abandoned. An ended render, a `HEAD` or a missing identity refuses before the
 save begins; once it has begun the compile keeps its own timeout and the revision is stored even when the
@@ -1247,11 +1247,11 @@ singleton, `PageEditor` delegates to it, and `IPageRevisionStore` is a singleton
 its request has gone. The conditional save is the same algorithm on the same seam, so the bound save and
 the named save cannot drift.
 
-A save belongs to the next request: the running image is not re-read, the response in hand is the old
-page unless the page shows the result the save returned, the save is committed before the rest of the
-render, and one render makes at most one write, whichever member it uses. The canonical pattern is a
-`POST` that saves and answers with the diagnostics, or saves and redirects with `303`. A batch that
-names its own policy is [`one-write-per-render`](backlog/one-write-per-render.md)'s work.
+A save belongs to the next request: the running image is not re-read and the response in hand is the old
+page unless the page shows the result the save returned. The canonical pattern is a `POST` that saves
+and answers with the diagnostics, or saves and redirects with `303`. A page that writes several pages in
+one render opens a transaction and commits once (`pages-writes-are-transactions`); a write made with
+none open is a transaction of one and is stored before it answers.
 
 *Recorded in [page self-save](plans/archive/page-self-save.md), [page writes](plans/archive/page-writes.md), [IPageWrites](../src/uk.osric.asp.Sdk/IPageWrites.cs).*
 
@@ -1264,7 +1264,7 @@ reads it with `IPageCatalog.ReadAsync` and passes the template; the source is th
 no key, so a template that has never been saved answers exactly as one that has. The answer is a
 `PageCheckResult` — generation's `PageKind`, whether the source would be served, and the compiler's
 diagnostics as `PageDiagnostic` values, a warning leaving it valid — because that is what a save would
-have reported. A check spends a compile slot and no `PageWritesScope` action, and a wait past the
+have reported. A check spends a compile slot and writes nothing, so it spends no transaction either, and a wait past the
 render's deadline or the compile timeout answers a `PAGE010` error rather than hanging: there is no
 author's edit to protect, so an abandoned check loses nothing.
 
@@ -1334,7 +1334,8 @@ answering `PageEditResult` with Saved, Stale or Unchanged, so a mismatch writes 
 shows the author what changed. A `null` expectation means the form was drawn from a page with no live
 source, so a create cannot overwrite one. `Resolve`, `MoveAsync`, `DeleteAsync`, `RestoreRevisionAsync`,
 `AdoptSeedAsync`, `InstallSeedAsync` and `SeedSourceAsync` are the same authority on the same handle, and
-they spend the same one action a save does.
+every one of them is a transaction of one, or part of the render's open transaction
+(`pages-writes-are-transactions`).
 
 What guards it: the signed-in visitor before anything is compiled, the reserved keys, `/admin/seeds`
 for a deleted or broken editor, and `/admin/scrub` for the irreversible delete. The blast radius is the
@@ -1348,7 +1349,7 @@ rules are what stop it from doing so by accident (`assistant-edit-page-is-safe`)
 A key is a page's identity, and `MoveAsync(from, to, expectedHash)` is the one operation that changes
 it. One transaction deletes the head, re-files every revision under the new key with the hash it was
 saved with, re-keys the page state and inserts the head again with the anchor and the content hash it
-already had; nothing is compiled, and one render moves once. **Nothing is left at the old key**: `/a`
+already had; nothing is compiled. **Nothing is left at the old key**: `/a`
 answers `404` after it moves to `/b`, so no row remembers where the page went. That is the owner's
 decision of 2026-11-16, and its one consequence is that a seed the release still ships at the old key
 is a new seed there again, so a release that renames a seed moves the seed too.
@@ -1356,7 +1357,8 @@ is a new seed there again, so a release that renames a seed moves the seed too.
 The rules are the store's own. A reserved key, a library — whose key is in every dependent's closure —
 and the page moving itself are page bugs and throw; the same key, a stale expectation, a missing
 source, a live target and a key with pages below it are answers. A key with children is refused rather
-than moved, because a folder is a batch of moves (`one-write-per-render`), and the expectation is spent
+than moved, because a folder is a batch of moves in one transaction (`pages-writes-are-transactions`),
+and the expectation is spent
 in the statement that deletes the head, so a move never applies to a page that changed underneath it.
 The alternatives — a copied history, and a marker row at the old key — were declined with the marker.
 
@@ -1384,6 +1386,33 @@ differ" and "what happened", so `/admin/seeds` lists every row and writes the ti
 capability installs a single seed, and there is no second comparison and no batch store in either.
 
 *Recorded in [page editor](plans/archive/page-editor.md), [revision restore](plans/archive/revision-restore.md), [PageSeedInstaller](../src/uk.osric.asp.Web/Pages/PageSeedInstaller.cs).*
+
+### pages-writes-are-transactions
+
+A render's writes are transactions. `IPageWrites` keeps its members and gains `BeginTransaction()`,
+which answers an `IPageTransaction` carrying `CommitAsync` and `RollbackAsync` and nothing else: a
+write made while it is open joins it, so there is one spelling of every write and no second vocabulary.
+A write made with no transaction open is a transaction of one and commits before it answers. A commit
+applies its operations in the order the page staged them, each proved against what the ones before it
+wrote, so create `/a`, move it to `/b` and delete `/b` in one unit all succeed; a refusal writes
+nothing, and the report says which operation refused, which were applied and undone (`RolledBack`) and
+which were never reached (`NotAttempted`). A transaction opened while one is open nests inside it and
+merges into it at its commit, which is what makes an embedded page's write part of the page's unit
+rather than something that survives the page's abort.
+
+It is the store's own SQLite transaction, taken with `BEGIN IMMEDIATE` and held for statements only: a
+save compiles at staging, never inside a commit, because the writer is site-wide and a compile there
+would stall every other writer. Contention is a `Busy` row the page answers — the host does not retry on
+its behalf — and the wait before it is `Pages:Storage:BusyTimeoutSeconds` rather than a client default.
+The store runs WAL, set and verified at startup, so a reader can never fail a commit, and startup refuses
+in any other mode rather than serving with a weaker guarantee than this one.
+
+The one-write rule this replaces is gone: a render may commit as many transactions as it has work for,
+and `pages-a-page-may-save-itself` no longer says otherwise. A library and a dependent in one transaction
+follow the page's own order — the library staged first compiles the dependent against it — because
+nothing is reordered behind a page's back.
+
+*Recorded in [pages](pages.md#page-contract), [storage](storage.md#source-storage), [the IDE plan](plans/ide-host.md#slices), [IPageTransaction](../src/uk.osric.asp.Sdk/IPageTransaction.cs), [PageWriteTransaction](../src/uk.osric.asp.Web/Pages/PageWriteTransaction.cs).*
 
 ### pages-a-seed-write-records-its-hash
 

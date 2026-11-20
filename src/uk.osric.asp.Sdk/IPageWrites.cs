@@ -30,11 +30,33 @@ namespace uk.osric.asp.Sdk;
 /// <para>
 /// A write belongs to the next request: the running image is already loaded, so the response in hand is
 /// still the page as it was. A write that has begun is never abandoned — the render's deadline bounds
-/// the wait for a compile slot, not the author's edit — and one render makes one write, whichever member
-/// it uses (`pages-a-page-may-save-itself`).
+/// the wait for a compile slot, not the author's edit (`pages-a-page-may-save-itself`).
+/// </para>
+/// <para>
+/// Each member here is one write and, under the seam, a transaction of one. A page that needs several
+/// writes to become the store's state together opens an <see cref="IPageTransaction"/> with
+/// <see cref="BeginTransaction"/> and commits once; a render may commit as many transactions as it has
+/// work for. <strong>A write made while that transaction is open joins it</strong>, using the same
+/// members rather than a second set on the transaction: it answers
+/// <see cref="PageEditOutcome.Staged"/> and lands with the commit, which is what makes an embedded
+/// page's write part of the page's unit rather than something that survives the page's abort.
 /// </para>
 /// </remarks>
 public interface IPageWrites {
+
+    /// <summary>Opens a transaction for several writes that become the store's state together.</summary>
+    /// <returns>The transaction, which writes nothing unless <see cref="IPageTransaction.CommitAsync"/> is called.</returns>
+    /// <remarks>
+    /// The writes are the ones on this interface, made while the transaction is open. Opening one
+    /// spends no write, so a page may commit a transaction and open another, and one opened while
+    /// another is open nests inside it.
+    /// </remarks>
+    /// <exception cref="UserFacingException">This render has no signed-in visitor, so nothing can be written.</exception>
+    /// <exception cref="InvalidOperationException">
+    /// The request is a <c>HEAD</c>, the render was abandoned or its deadline passed, or a transaction
+    /// is already open.
+    /// </exception>
+    IPageTransaction BeginTransaction();
 
     /// <summary>Normalises a key and reports whether the site's own routes answer for it.</summary>
     /// <param name="key">The text the page was given.</param>

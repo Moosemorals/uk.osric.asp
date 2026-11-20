@@ -110,10 +110,8 @@ its reason, and that no item sits above something that blocks it.
 
 | Slug | Title | Difficulty | Utility | Status | Blocked by |
 | --- | --- | --- | --- | --- | --- |
-| [`one-write-per-render`](one-write-per-render.md) | A render may write a batch of pages, and the caller names the policy | protective-dragon 🔥🐉 | high | [planned](../plans/ide-host.md) | — |
-| | *The one-save rule is what the assistant hits on every multi-file edit, and the owner has decided it goes; `check-without-storing`'s compile-without-store landed, so nothing stands in front of it.* | | | | |
-| [`job-borrows-a-credential`](job-borrows-a-credential.md) | A job acts with its starter's credential, and loses it when that credential dies | persistent-salmon ⬆️🐟 | high | blocked | `one-write-per-render` |
-| | *A job's writer is only safe once [`one-write-per-render`](one-write-per-render.md) has replaced the one-action rule with a policy the caller names; revocation is the other half of the same decision.* | | | | |
+| [`job-borrows-a-credential`](job-borrows-a-credential.md) | A job acts with its starter's credential, and loses it when that credential dies | persistent-salmon ⬆️🐟 | high | open | — |
+| | *The page transaction it waited on has landed, so a job can be offered a writer; what is left is carrying the starter's credential into the run and revoking it when the credential dies.* | | | | |
 | [`cannot-search-the-store`](cannot-search-the-store.md) | A page cannot search the store's source | eager-beaver ⚙️🦫 | medium | [planned](../plans/ide-host.md) | — |
 | | *Lifts the assistant's own search into the contract rather than inventing anything.* | | | | |
 | [`a-page-cannot-list-folders`](a-page-cannot-list-folders.md) | A page cannot list the store's folders | eager-beaver ⚙️🦫 | medium | open | — |
@@ -154,6 +152,8 @@ its reason, and that no item sits above something that blocks it.
 | | *The cursor answered where a walk is; this answers whether it is still the same walk, and the write paths are the price.* | | | | |
 | [`ship-the-tested-image`](ship-the-tested-image.md) | A release does not ship the image the tests passed | persistent-salmon ⬆️🐟 | high | open | — |
 | | *The browser suite drives a source build while the deploy ships an image built later; this makes the promoted image the one the browser drove, and the host gate now keeps one.* | | | | |
+| [`formatter-cannot-align`](formatter-cannot-align.md) | The formatter cannot align a run of declarations, and deletes one aligned by hand | caffeinated-squirrel ☕🐿️ | low | parked | — |
+| | *The owner parked it on 2026-11-20: Roslyn deletes the padding and clang-format corrupts raw strings, so it waits for one of them to move rather than for work here.* | | | | |
 
 Every step is one unit of work, on one branch in one worktree named `kind/filename`
 ([how](../../CONTRIBUTING.md#working-on-it)). Two independent steps may run at once, each in its own

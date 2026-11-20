@@ -10,6 +10,44 @@ using System.Net;
 public sealed class PageWritesTests : IntegrationTest {
 
     [Test]
+    public async Task APageCommitsSeveralWritesAsOneTransactionAsync() {
+        await SavePageAsync("/target", "<h1>before</h1>");
+        await SavePageAsync("/batch", """
+            <% if (ctx.User is null) { ctx.Response.RedirectToLogin(); return; } %>
+            <% if (ctx.Request.Method == "POST") {
+                   IPageWrites writes = ctx.Capabilities.GetRequired<IPageWrites>();
+                   await using IPageTransaction batch = writes.BeginTransaction();
+                   _ = await writes.SaveAsync("/one", "first", null);
+                   _ = await writes.SaveAsync("/two", "second", null);
+                   var report = await batch.CommitAsync();
+                   foreach (PageWriteResult row in report) {
+                       ctx.Response.Write(row.Key + ":" + row.Outcome + " ");
+                   }
+                   return;
+               } %>
+            <form method="post" class="form"><%== ctx.Response.AntiforgeryField %>
+                <button>Batch</button></form>
+            """);
+
+        using HttpClient client = await CreateSignedInClientAsync();
+        string token = await GetAntiforgeryTokenAsync(client, "/batch");
+
+        using HttpResponseMessage answer = await client.PostAsync("/batch", Form(("__RequestVerificationToken", token)));
+        string answerBody = await answer.Content.ReadAsStringAsync();
+
+        using HttpResponseMessage one = await client.GetAsync("/one");
+        using HttpResponseMessage two = await client.GetAsync("/two");
+
+        Assert.Multiple(() => {
+            Assert.That(answer.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+            Assert.That(answerBody, Does.Contain("/one:Saved"));
+            Assert.That(answerBody, Does.Contain("/two:Saved"));
+            Assert.That(one.Content.ReadAsStringAsync().Result, Does.Contain("first"));
+            Assert.That(two.Content.ReadAsStringAsync().Result, Does.Contain("second"));
+        });
+    }
+
+    [Test]
     public async Task APageThatIsNotTheEditorSavesAnotherPageAsync() {
         await SavePageAsync("/target", "<h1>before</h1>");
         await SavePageAsync("/writer", """

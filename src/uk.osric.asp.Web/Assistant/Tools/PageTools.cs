@@ -577,6 +577,9 @@ internal sealed class MovePageTool : AssistantTool {
             PageMoveOutcome.TargetExists => services.Results.Failure(
                 $"{target.Describe()} already has a page, so nothing was moved.",
                 $"{Spec.Verb} {source.Describe()}: target exists"),
+            PageMoveOutcome.Busy => services.Results.Failure(
+                "Another writer held the page store, so nothing was moved. Try again.",
+                $"{Spec.Verb} {source.Describe()}: busy"),
             _ => services.Results.Failure(
                 $"{source.Describe()} names a folder: {string.Join(", ", moved.Below.Select(key => MessageText.Sanitize(key)))} live below it. Move or scrub those first.",
                 $"{Spec.Verb} {source.Describe()}: a folder"),
