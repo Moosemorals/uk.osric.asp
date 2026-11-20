@@ -135,8 +135,10 @@ public static class TemplateShapeCheck {
     }
 
     // A block ends at the first '%>', so a literal or a comment still open when the block's end
-    // arrives is a block cut short. Blaming the text that follows names the symptom; the author has
-    // to be told where the cause is and what to write instead.
+    // arrives is a block cut short. The warning names the closer that ended the block, because that
+    // is the character the fix moves: a long literal can carry the delimiter far from where it opened,
+    // and the message says what to write in its place. Blaming the text that follows would name the
+    // symptom instead.
     private static void AddTruncatedBlocks(
         IReadOnlyList<Token> tokens,
         List<PageDiagnostic> diagnostics,
@@ -147,17 +149,23 @@ public static class TemplateShapeCheck {
                 continue;
             }
 
-            if (!TryFindUnclosed(token.Value, out int offset, out bool inComment)) {
+            if (!TryFindUnclosed(token.Value, out bool inComment)) {
                 continue;
             }
 
             string message = inComment
                 ? "TEMPLATE008: the block ends inside a comment; close it with '*/'."
                 : "TEMPLATE008: the block ends inside a literal; a block ends at the first '%>', so write the character as '\\u003e', or join '\"%\"' and '\">\"'.";
+
+            // The content's end is the closer's start, and the closer is the two characters an
+            // underlining consumer covers.
+            TemplatePosition closer = token.Position.Advance(token.Value);
             diagnostics.Add(new PageDiagnostic(
                 PageDiagnosticSeverity.Warning,
-                token.Position.Advance(token.Value[..offset]),
-                message));
+                closer,
+                message) {
+                End = closer.Advance("%>"),
+            });
 
             if (i + 1 < tokens.Count && tokens[i + 1].Type == TokenType.Text) {
                 _ = closesABlock.Add(i + 1);
@@ -165,8 +173,8 @@ public static class TemplateShapeCheck {
         }
     }
 
-    private static bool TryFindUnclosed(string value, out int offset, out bool inComment) {
-        offset = 0;
+    // Whether the code leaves a literal or a comment open when the block's closer arrives, and which.
+    private static bool TryFindUnclosed(string value, out bool inComment) {
         inComment = false;
         int index = 0;
         while (index < value.Length) {
@@ -178,7 +186,6 @@ public static class TemplateShapeCheck {
             if (character == '/' && index + 1 < value.Length && value[index + 1] == '*') {
                 int end = value.IndexOf("*/", index + 2, StringComparison.Ordinal);
                 if (end < 0) {
-                    offset = index;
                     inComment = true;
                     return true;
                 }
@@ -189,7 +196,6 @@ public static class TemplateShapeCheck {
             if (character == '"') {
                 Skip skip = SkipString(value, index);
                 if (!skip.Closed) {
-                    offset = index;
                     return true;
                 }
 
@@ -199,7 +205,6 @@ public static class TemplateShapeCheck {
             if (character == '\'') {
                 Skip skip = SkipCharacter(value, index);
                 if (!skip.Closed) {
-                    offset = index;
                     return true;
                 }
 

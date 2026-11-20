@@ -1168,9 +1168,11 @@ because it is decisive and invisible: it is what makes a template a page, or, as
 library that is never served. The two kinds are two codes rather than two wordings of one, because the
 fix differs — the note the author meant is `<%# … %>`, which leaves the template as it was — and each
 says the consequence when it is the block that decided the kind. A block that ends inside a literal or
-a comment is a warning too: the block ends at the first `%>`, so the author is told where the cause is,
-at the literal, and what to write instead, rather than being shown a stray closer in the text that
-follows and told the symptom is the cause. All of them are warnings in template space
+a comment is a warning too: the block ends at the first `%>`, so the author is told where the cause is
+and what to write instead, rather than being shown a stray closer in the text that follows and told the
+symptom is the cause. It is reported at that closer, with an extent covering it, because the delimiter
+is the character the fix changes and a long literal can leave it far from the quote the literal opened
+with. All of them are warnings in template space
 (`pages-the-shape-check`) and none stops a page being served. A shape warning names its block by the
 block's opener, so a block whose opener stands on another line from its content still points at the
 line the author will look at.

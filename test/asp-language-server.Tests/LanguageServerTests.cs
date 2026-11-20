@@ -48,6 +48,26 @@ public sealed class LanguageServerTests {
     }
 
     [Test]
+    public async Task ALiteralThatSwallowsTheCloserIsUnderlinedOnTheCloserAsync() {
+        FakeTransport transport = new();
+        // The template the spike used: the block ends at the first '%>', inside the string, so the
+        // actionable character is the delimiter and not the quote the literal opened with.
+        transport.Send(Open(Uri, "<% var x = \"%>\"; %>", version: 1));
+
+        await RunAsync(transport, new CompilerPageChecker(new PageCompiler(), []));
+
+        JsonObject warning = Diagnostics(transport, Uri)
+            .Select(item => item!.AsObject())
+            .Single(item => (string?)item["code"] == "TEMPLATE008");
+        Assert.Multiple(() => {
+            Assert.That((int)warning["range"]!["start"]!["line"]!, Is.Zero);
+            Assert.That((int)warning["range"]!["start"]!["character"]!, Is.EqualTo(12),
+                "0-based column 12 is the '%' of the pair that ended the block");
+            Assert.That((int)warning["range"]!["end"]!["character"]!, Is.EqualTo(14), "the extent covers '%>'");
+        });
+    }
+
+    [Test]
     public async Task ADiagnosticCoversTheTokensTheCompilerNamedAsync() {
         FakeTransport transport = new();
         transport.Send(Open(Uri, "<p>ok</p>", version: 1));
