@@ -14,6 +14,9 @@ public enum PageEditOutcome {
 
     /// <summary>The page already held the source, so nothing was written.</summary>
     Unchanged,
+
+    /// <summary>Another writer held the store, so nothing was written.</summary>
+    Busy,
 }
 
 /// <summary>What an edit answered with.</summary>

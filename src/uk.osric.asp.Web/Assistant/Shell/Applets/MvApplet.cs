@@ -90,6 +90,11 @@ internal sealed class MvApplet : ShellApplet {
                     $"{to.Key} already has a page, so nothing was moved.",
                     $"mv {from.Key}: target exists");
 
+            case PageMoveOutcome.Busy:
+                return ShellResult.Refused(
+                    "Another writer held the page store, so nothing was moved. Try again.",
+                    $"mv {from.Key}: busy");
+
             default:
                 return ShellResult.Refused(
                     $"{from.Key} names a folder: {string.Join(", ", moved.Below)} live below it. Move or scrub those first.",

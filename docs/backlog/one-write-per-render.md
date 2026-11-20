@@ -169,8 +169,9 @@ writes, one commit, one report. Building it for Save all alone would be building
    refused — with the head it saw, when the head moved — so a Save all can show all of its conflicts
    in one answer. A page that wants to commit the rest disposes that transaction and opens another
    with the operations it still wants; that is page code, not a policy the host enumerates. Refusals
-   that are page bugs — a reserved key, a key that is not addressable, a second operation on a key the
-   transaction already holds — throw at the call, as they do today.
+   that are page bugs — a reserved key, a key that is not addressable, a library moved — throw at the
+   call, as they do today; a second operation on a key the transaction already holds is not a bug, so
+   it is refused as AlreadyStaged instead.
 
 7. **The report is one row per operation, and the row is one type.** The commit answers what each
    operation became — the key, which member ran, the outcome, the revision hash and the diagnostics
@@ -180,7 +181,9 @@ writes, one commit, one report. Building it for Save all alone would be building
    themselves one way alone and another way in a batch, and a page iterating a mixed report needs no
    test per entry. A staged call answers only what the compile knows — the hash and the diagnostics —
    because the outcome is not decided until the commit. The key is the row, so a second operation on
-   one key is a page bug: at the commit, one of the two expectations cannot hold. A page that does not
+   one key cannot be staged: it is refused as AlreadyStaged when it is made — stupid rather than a
+   bug, so an answer and not an exception — because one of the two expectations cannot hold. A page
+   that does not
    compile still commits — a save stores its source with its diagnostics, and a compiler fault still
    stores the source without an image — exactly as a single save does today
    (`pages-a-warning-never-stops-a-page`, `pages-a-compiler-fault-is-ours`).
@@ -189,7 +192,9 @@ writes, one commit, one report. Building it for Save all alone would be building
    tool, a restore, a seed install and the bound self-save keep their one call. Each stages, checks
    and commits through the same path a transaction uses, so the conditional save, the stale answer and
    the diagnostics cannot drift between a single write and a batch, and the editor's Save all is the
-   transaction's first caller rather than a second implementation.
+   transaction's first caller rather than a second implementation. It is that write's *own*
+   transaction, never folded into one the render has open: "save this" means stored when the call
+   answers, and only `BeginTransaction` defers.
 
 9. **The documentation.** `/help` gains the capability's section — the transaction, the commit and its
    report, the difference between staging and committing, that a library must be staged before the

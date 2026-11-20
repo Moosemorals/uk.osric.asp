@@ -749,8 +749,16 @@ commit decides it. The commit answers one row per operation in the order you sta
 <strong>A refusal writes nothing at all</strong>: the row says <em>Stale</em>, <em>TargetExists</em>,
 <em>FolderNotEmpty</em>, <em>SourceNotFound</em> or <em>Refused</em>, and every write the refusal cost
 reports <em>NotAttempted</em>, so a Save all can show every conflict in one answer. Stage the rest again
-in a new transaction if you want them. A page bug — a reserved key, two operations on one key, a library
-move — throws while staging, before anything is at risk.</p>
+in a new transaction if you want them. A page bug — a reserved key, a key that is not addressable, a
+library move — throws while staging, before anything is at risk.</p>
+<p><strong>One operation per key.</strong> A write on a key that already has one staged answers
+<em>AlreadyStaged</em> at the call and is not compiled; nothing is folded into the earlier write or
+replaced by it, and the transaction writes nothing at all. That holds across a nested transaction too:
+the outer one keeps its write and the nested one's row says <em>AlreadyStaged</em>. It is a refusal
+rather than a page bug, so it answers instead of throwing.</p>
+<p>Only <code>BeginTransaction</code> defers a write. A plain <code>SaveAsync</code>, <code>MoveAsync</code>
+or <code>DeleteAsync</code> on the capability is stored when it answers, even while a transaction you
+opened is still open: it is that write's own transaction, not part of the page's batch.</p>
 <p>A transaction that is disposed without a commit writes nothing, so a page that forgets
 <code>CommitAsync</code> changes nothing, and a render may commit as many transactions as it has work
 for. A transaction opened while one is already open <em>nests</em> inside it — which is what an

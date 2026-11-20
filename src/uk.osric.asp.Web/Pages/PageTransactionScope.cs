@@ -21,8 +21,10 @@ using PageKind = uk.osric.asp.Core.Pages.PageKind;
 /// </para>
 /// <para>
 /// A refusal is the report's answer, not an exception: nothing is written and the rows say what each
-/// operation saw. Page bugs — a reserved key, a key that is not addressable, a second operation on a
-/// key already staged, a library moved — throw while staging, before anything is at risk.
+/// operation saw. Page bugs — a reserved key, a key that is not addressable, a library moved — throw
+/// while staging, before anything is at risk. A second operation on a key this transaction already
+/// holds is not one of those: it is a write on a key that cannot take it, so it is answered as
+/// <see cref="PageWriteOutcome.AlreadyStaged"/>.
 /// </para>
 /// <para>
 /// A staged save reads the libraries staged before it as well as the store's, in the order the page
@@ -37,13 +39,14 @@ internal sealed class PageTransactionScope : RenderBoundCapability, IPageTransac
     private readonly PageEditor _pages;
     private readonly ReservedPaths _reserved;
     private readonly PageSeeds _seeds;
-    private readonly PageTransactionGate _gate;
+    private readonly PageTransactionGate? _gate;
     private readonly List<PageWriteResult> _rows = [];
     private readonly List<PageCommit> _operations = [];
     private readonly List<int> _rowOfOperation = [];
     private readonly HashSet<string> _keys = [with(StringComparer.Ordinal)];
     private readonly Dictionary<string, PageLibrary> _stagedLibraries = [with(StringComparer.Ordinal)];
     private Exception? _fault;
+    private bool _refused;
     private bool _committed;
 
     private readonly PageTransactionScope? _root;
@@ -53,7 +56,10 @@ internal sealed class PageTransactionScope : RenderBoundCapability, IPageTransac
     /// <param name="pages">The store's write capability, for compiling and committing.</param>
     /// <param name="reserved">The shell's route table, which no page may write.</param>
     /// <param name="seeds">The pages this release ships, for an install or an adopt.</param>
-    /// <param name="gate">The render's transaction gate, which the scope already holds.</param>
+    /// <param name="gate">
+    /// The render's transaction gate, which this transaction registers with, or <see langword="null"/>
+    /// when it is a lone write's own transaction and no render transaction can see it.
+    /// </param>
     /// <param name="deadline">The render's deadline, which bounds a compile slot and nothing else.</param>
     /// <param name="root">
     /// The transaction this one nests inside, or <see langword="null"/> when it is the render's
@@ -65,7 +71,7 @@ internal sealed class PageTransactionScope : RenderBoundCapability, IPageTransac
         PageEditor pages,
         ReservedPaths reserved,
         PageSeeds seeds,
-        PageTransactionGate gate,
+        PageTransactionGate? gate,
         CancellationToken deadline,
         PageTransactionScope? root = null) {
         _path = path;
@@ -111,11 +117,16 @@ internal sealed class PageTransactionScope : RenderBoundCapability, IPageTransac
         }
 
         if (string.Equals(source.Key, target.Key, StringComparison.Ordinal)) {
-            ReserveKeys(source.Key);
+            if (!TryReserveKeys(source.Key)) {
+                return Task.FromResult(AlreadyStaged(target, PageWriteOperation.Move));
+            }
+
             return Task.FromResult(Remember(target, PageWriteOperation.Move, PageWriteOutcome.Unchanged, null, []));
         }
 
-        ReserveKeys(source.Key, target.Key);
+        if (!TryReserveKeys(source.Key, target.Key)) {
+            return Task.FromResult(AlreadyStaged(target, PageWriteOperation.Move));
+        }
 
         return Task.FromResult(Stage(new PageCommit(PageCommitKind.Move, target, expectedHash, From: source, Target: target),
             target, PageWriteOperation.Move, null, []));
@@ -126,7 +137,9 @@ internal sealed class PageTransactionScope : RenderBoundCapability, IPageTransac
         ThrowIfCommitted();
 
         PagePath target = ResolveForWrite(key);
-        ReserveKeys(target.Key);
+        if (!TryReserveKeys(target.Key)) {
+            return Task.FromResult(AlreadyStaged(target, PageWriteOperation.Delete));
+        }
 
         return Task.FromResult(Stage(new PageCommit(PageCommitKind.Delete, target), target, PageWriteOperation.Delete, null, []));
     }
@@ -178,7 +191,9 @@ internal sealed class PageTransactionScope : RenderBoundCapability, IPageTransac
                 $"{target.Key} is {Words(comparison, seed.Hash)}; only a page that already holds the shipped seed can be recorded as installed.");
         }
 
-        ReserveKeys(target.Key);
+        if (!TryReserveKeys(target.Key)) {
+            return AlreadyStaged(target, PageWriteOperation.Adopt);
+        }
 
         return Stage(new PageCommit(PageCommitKind.Adopt, target, SeedHash: seed.Hash),
             target, PageWriteOperation.Adopt, null, []);
@@ -225,7 +240,20 @@ internal sealed class PageTransactionScope : RenderBoundCapability, IPageTransac
             return [.. _rows];
         }
 
-        _gate.Close(this);
+        _gate?.Close(this);
+
+        if (_refused) {
+            // A refusal writes nothing, so every staged write says it was not attempted.
+            foreach (int row in _rowOfOperation) {
+                _rows[row] = _rows[row] with { Outcome = PageWriteOutcome.NotAttempted };
+            }
+
+            if (_fault is { } refusedFault) {
+                ExceptionDispatchInfo.Capture(refusedFault).Throw();
+            }
+
+            return [.. _rows];
+        }
 
         if (_operations.Count == 0) {
             return [.. _rows];
@@ -256,7 +284,7 @@ internal sealed class PageTransactionScope : RenderBoundCapability, IPageTransac
         if (!_committed) {
             _committed = true;
             if (_root is null) {
-                _gate.Close(this);
+                _gate?.Close(this);
             }
         }
 
@@ -265,32 +293,41 @@ internal sealed class PageTransactionScope : RenderBoundCapability, IPageTransac
 
     /// <summary>Takes a nested transaction's writes and rows into this one.</summary>
     /// <param name="child">The transaction that has just committed.</param>
-    /// <exception cref="InvalidOperationException">The nested transaction writes a key this one already holds.</exception>
     /// <remarks>
-    /// Two operations on one key cannot both hold their head, so a key this transaction already stages
-    /// is a page bug in the nested one — and it is raised here, before the outermost commit, while the
-    /// page that made the mistake is still the one being told.
+    /// A nested write whose key this transaction already holds is refused in its own row, exactly as
+    /// one staged twice in a single transaction is: the outer one keeps its write, the nested one's
+    /// row says <see cref="PageWriteOutcome.AlreadyStaged"/>, and the refusal leaves the other writes
+    /// of both untouched — nothing has been stored, so nothing is at risk.
     /// </remarks>
     internal void Absorb(PageTransactionScope child) {
         ArgumentNullException.ThrowIfNull(child);
-
-        foreach (string key in child._keys) {
-            if (!_keys.Add(key)) {
-                throw new InvalidOperationException(
-                    $"{key} is staged twice in one transaction: two operations on one key cannot both hold their head, so one of them would be lost.");
-            }
-        }
 
         int offset = _rows.Count;
         _rows.AddRange(child._rows);
 
         for (int index = 0; index < child._operations.Count; index++) {
-            _operations.Add(child._operations[index]);
-            _rowOfOperation.Add(offset + child._rowOfOperation[index]);
+            PageCommit operation = child._operations[index];
+            int row = offset + child._rowOfOperation[index];
+
+            if (!TryReserveKeys(KeysOf(operation))) {
+                _rows[row] = _rows[row] with { Outcome = PageWriteOutcome.AlreadyStaged, Hash = null };
+                _refused = true;
+                continue;
+            }
+
+            _operations.Add(operation);
+            _rowOfOperation.Add(row);
         }
 
+        _refused |= child._refused;
         _fault ??= child._fault;
     }
+
+    // The keys one operation writes; a move writes two, and its own Key is the one it moves to.
+    private static string[] KeysOf(PageCommit operation) =>
+        operation.From is { } from && !string.Equals(from.Key, operation.Key.Key, StringComparison.Ordinal)
+            ? [operation.Key.Key, from.Key]
+            : [operation.Key.Key];
 
     private static PageWriteOutcome Outcome(PageCommitOutcome outcome) => outcome switch {
         PageCommitOutcome.Saved => PageWriteOutcome.Saved,
@@ -316,7 +353,9 @@ internal sealed class PageTransactionScope : RenderBoundCapability, IPageTransac
         string? seedHash,
         PageWriteOperation operation,
         PageCommitKind? unconditional = null) {
-        ReserveKeys(target.Key);
+        if (!TryReserveKeys(target.Key)) {
+            return AlreadyStaged(target, operation);
+        }
 
         // A staged save sees the libraries staged before it as well as the store's, in the order the
         // page made the calls: what it names is what it saw, and its closure says so.
@@ -358,11 +397,36 @@ internal sealed class PageTransactionScope : RenderBoundCapability, IPageTransac
         return row;
     }
 
-    private void ReserveKeys(string key, string? other = null) {
-        if (!_keys.Add(key) || (other is not null && !_keys.Add(other))) {
-            throw new InvalidOperationException(
-                $"{key} is staged twice in one transaction: two operations on one key cannot both hold their head, so one of them would be lost.");
+    /// <summary>Reserves the keys an operation writes, refusing one whose key is already spoken for.</summary>
+    /// <param name="keys">The keys the operation writes: its own, and a move's source.</param>
+    /// <returns><see langword="false"/> when one of the keys already has a write staged.</returns>
+    /// <remarks>
+    /// A nested transaction sees the keys staged before it, because they become part of the same
+    /// unit. Two operations on one key cannot both hold its head, and the second is neither merged
+    /// into the first nor allowed to replace it, so it is refused as a row.
+    /// </remarks>
+    private bool TryReserveKeys(params string[] keys) {
+        foreach (string key in keys) {
+            if (IsStaged(key)) {
+                return false;
+            }
         }
+
+        foreach (string key in keys) {
+            _keys.Add(key);
+        }
+
+        return true;
+    }
+
+    private bool IsStaged(string key) =>
+        _keys.Contains(key) || (_root?.IsStaged(key) ?? false);
+
+    /// <summary>Answers a write whose key already has one staged, without compiling or storing it.</summary>
+    private PageWriteResult AlreadyStaged(PagePath key, PageWriteOperation kind) {
+        _refused = true;
+
+        return Remember(key, kind, PageWriteOutcome.AlreadyStaged, null, []);
     }
 
     private void ThrowIfCommitted() {

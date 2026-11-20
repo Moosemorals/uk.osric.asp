@@ -23,12 +23,17 @@ namespace uk.osric.asp.Sdk;
 /// nested one merges its writes into the outer one, so they land when the outer commits and vanish if
 /// it is disposed instead. A nested commit stores nothing, so its rows stay
 /// <see cref="PageWriteOutcome.Staged"/>; the outer transaction's commit is what decides every
-/// operation, including the nested ones, and its report holds a row for each. Two operations on one
-/// key are still a page bug, whether they are in one transaction or one nested in the other.
+/// operation, including the nested ones, and its report holds a row for each.
+/// </para>
+/// <para>
+/// One operation per key, in one transaction or in one nested inside it: a write on a key that
+/// already has one staged answers <see cref="PageWriteOutcome.AlreadyStaged"/> when it is made, and
+/// nothing is retried, merged or replaced on the page's behalf.
 /// </para>
 /// <para>
 /// The members keep the arguments of the matching <see cref="IPageWrites"/> members, so a page that
-/// can make one write can make several. A write outside a transaction is a transaction of one.
+/// can make one write can make several. A write made through <see cref="IPageWrites"/> is a
+/// transaction of one, stored when it answers, and is never folded into one this render has open.
 /// </para>
 /// </remarks>
 public interface IPageTransaction : IAsyncDisposable {
@@ -37,7 +42,7 @@ public interface IPageTransaction : IAsyncDisposable {
     /// <param name="template">The template text. It may be empty; an empty page is a page.</param>
     /// <returns>The staged row: the hash of the revision it will store, and the diagnostics.</returns>
     /// <exception cref="System.ArgumentNullException">The template is <see langword="null"/>.</exception>
-    /// <exception cref="System.InvalidOperationException">This transaction is committed, or the key is already staged.</exception>
+    /// <exception cref="System.InvalidOperationException">This transaction is committed.</exception>
     Task<PageWriteResult> SaveAsync(string template);
 
     /// <summary>Stages a page, only while its head still has the expected revision.</summary>

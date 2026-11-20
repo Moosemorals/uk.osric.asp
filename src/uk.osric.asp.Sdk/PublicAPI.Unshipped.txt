@@ -647,3 +647,6 @@ uk.osric.asp.Sdk.PageWriteResult.Below.get -> System.Collections.Generic.IReadOn
 uk.osric.asp.Sdk.PageWriteResult.Below.init -> void
 uk.osric.asp.Sdk.PageWriteResult.Deconstruct(out string! Key, out uk.osric.asp.Sdk.PageWriteOperation Operation, out uk.osric.asp.Sdk.PageWriteOutcome Outcome, out string? Hash, out System.Collections.Generic.IReadOnlyList<uk.osric.asp.Sdk.PageDiagnostic>! Diagnostics, out System.Collections.Generic.IReadOnlyList<string!>? Below) -> void
 uk.osric.asp.Sdk.PageWriteResult.PageWriteResult(string! Key, uk.osric.asp.Sdk.PageWriteOperation Operation, uk.osric.asp.Sdk.PageWriteOutcome Outcome, string? Hash, System.Collections.Generic.IReadOnlyList<uk.osric.asp.Sdk.PageDiagnostic>! Diagnostics, System.Collections.Generic.IReadOnlyList<string!>? Below = null) -> void
+uk.osric.asp.Sdk.PageWriteOutcome.AlreadyStaged = 13 -> uk.osric.asp.Sdk.PageWriteOutcome
+uk.osric.asp.Sdk.PageEditOutcome.Busy = 3 -> uk.osric.asp.Sdk.PageEditOutcome
+uk.osric.asp.Sdk.PageMoveOutcome.Busy = 6 -> uk.osric.asp.Sdk.PageMoveOutcome

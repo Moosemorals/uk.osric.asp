@@ -224,6 +224,91 @@ public sealed class PageWritesScopeTests {
     }
 
     [Test]
+    public async Task ASecondWriteToOneKeyInATransactionIsAlreadyStagedAsync() {
+        FakePageStore storage = new();
+        using PageHarness pages = new(storage);
+        PageWritesScope scope = Scope(pages);
+
+        await using IPageTransaction transaction = scope.BeginTransaction();
+        _ = await transaction.SaveAsync("/page", "first", null);
+        PageWriteResult second = await transaction.SaveAsync("/page", "second", null);
+        IReadOnlyList<PageWriteResult> report = await transaction.CommitAsync();
+
+        Assert.Multiple(() => {
+            Assert.That(second.Outcome, Is.EqualTo(PageWriteOutcome.AlreadyStaged), "answered at the call, not at the commit");
+            Assert.That(second.Hash, Is.Null, "a refused write is never compiled");
+            Assert.That(report.Select(row => row.Outcome), Is.EqualTo([PageWriteOutcome.NotAttempted, PageWriteOutcome.AlreadyStaged]));
+            Assert.That(storage["/page"], Is.Null, "a refusal writes nothing at all");
+        });
+    }
+
+    [Test]
+    public async Task AMoveOntoAKeyWithAWriteStagedIsAlreadyStagedAsync() {
+        FakePageStore storage = new();
+        using PageHarness pages = new(storage);
+        SavedRevision first = await pages.Editor.SaveAsync(PageHarness.Key("/page"), "first");
+        PageWritesScope scope = Scope(pages);
+
+        await using IPageTransaction transaction = scope.BeginTransaction();
+        _ = await transaction.SaveAsync("/target", "text", null);
+        PageWriteResult moved = await transaction.MoveAsync("/page", "/target", first.Revision.Hash);
+
+        Assert.Multiple(() => {
+            Assert.That(moved.Outcome, Is.EqualTo(PageWriteOutcome.AlreadyStaged));
+            Assert.That(storage["/page"]?.Template, Is.EqualTo("first"), "the refused move wrote nothing");
+        });
+    }
+
+    [Test]
+    public async Task ANestedWriteToOneKeyTheOuterOneHoldsIsAlreadyStagedAsync() {
+        FakePageStore storage = new();
+        using PageHarness pages = new(storage);
+        PageWritesScope scope = Scope(pages);
+
+        await using IPageTransaction outer = scope.BeginTransaction();
+        _ = await outer.SaveAsync("/page", "outer", null);
+
+        await using (IPageTransaction inner = scope.BeginTransaction()) {
+            PageWriteResult nested = await inner.SaveAsync("/page", "inner", null);
+
+            Assert.That(nested.Outcome, Is.EqualTo(PageWriteOutcome.AlreadyStaged), "the outer write stays the one on that key");
+
+            IReadOnlyList<PageWriteResult> report = await inner.CommitAsync();
+            Assert.That(report[0].Outcome, Is.EqualTo(PageWriteOutcome.AlreadyStaged));
+        }
+
+        IReadOnlyList<PageWriteResult> outerReport = await outer.CommitAsync();
+
+        Assert.Multiple(() => {
+            Assert.That(outerReport.Select(row => row.Outcome), Is.EqualTo([PageWriteOutcome.NotAttempted, PageWriteOutcome.AlreadyStaged]));
+            Assert.That(storage["/page"], Is.Null, "the refusal takes the outer write with it, because nothing is stored");
+        });
+    }
+
+    [Test]
+    public async Task ALoneWriteIsStoredWhenItReturnsEvenWithATransactionOpenAsync() {
+        FakePageStore storage = new();
+        using PageHarness pages = new(storage);
+        PageWritesScope scope = Scope(pages);
+
+        await using (IPageTransaction held = scope.BeginTransaction()) {
+            _ = await held.SaveAsync("/batched", "batched", null);
+            PageEditResult lone = await scope.SaveAsync("/lone", "lone", null);
+
+            Assert.Multiple(() => {
+                Assert.That(lone.Outcome, Is.EqualTo(PageEditOutcome.Saved), "a lone write is never deferred");
+                Assert.That(storage["/lone"]?.Template, Is.EqualTo("lone"));
+                Assert.That(storage["/batched"], Is.Null);
+            });
+        }
+
+        Assert.Multiple(() => {
+            Assert.That(storage["/batched"], Is.Null, "the transaction was disposed, so its write was lost");
+            Assert.That(storage["/lone"]?.Template, Is.EqualTo("lone"), "and the lone write was never part of it");
+        });
+    }
+
+    [Test]
     public async Task ANestedTransactionLandsWithTheOneItNestsInsideAsync() {
         FakePageStore storage = new();
         using PageHarness pages = new(storage);

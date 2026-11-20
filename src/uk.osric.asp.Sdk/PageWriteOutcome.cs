@@ -44,4 +44,11 @@ public enum PageWriteOutcome {
 
     /// <summary>An earlier operation was refused, so this one was never attempted.</summary>
     NotAttempted,
+
+    /// <summary>
+    /// The key already has a write staged in this transaction, so this one was refused. Two
+    /// operations on one key cannot both hold its head, and the second is neither merged into the
+    /// first nor allowed to replace it.
+    /// </summary>
+    AlreadyStaged,
 }

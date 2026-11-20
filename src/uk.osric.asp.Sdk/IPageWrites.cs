@@ -33,8 +33,9 @@ namespace uk.osric.asp.Sdk;
 /// the wait for a compile slot, not the author's edit (`pages-a-page-may-save-itself`).
 /// </para>
 /// <para>
-/// Each member here is one write and answers with what it did. A page that needs several writes to
-/// become the store's state together opens an <see cref="IPageTransaction"/> with
+/// Each member here is one write, stored when it answers, and it is that write's own transaction of
+/// one — never part of a transaction the render happens to have open. A page that needs several writes
+/// to become the store's state together opens an <see cref="IPageTransaction"/> with
 /// <see cref="BeginTransaction"/>, stages the same members on it and commits once; a render may commit
 /// as many transactions as it has work for.
 /// </para>

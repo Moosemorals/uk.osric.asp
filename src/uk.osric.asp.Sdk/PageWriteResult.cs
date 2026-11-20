@@ -7,7 +7,9 @@ namespace uk.osric.asp.Sdk;
 /// <remarks>
 /// The commit answers one row per operation, in the order the page staged them, and the single
 /// writes answer the same row in its one-operation case, so a save, a move and a delete cannot
-/// describe themselves one way alone and another way inside a transaction.
+/// describe themselves one way alone and another way inside a transaction. A write on a key that
+/// already has one staged is answered with <see cref="PageWriteOutcome.AlreadyStaged"/> as it is
+/// made, rather than throwing or being folded into the earlier write.
 /// </remarks>
 /// <param name="Key">The canonical key the write was about; a move names the key it moved to.</param>
 /// <param name="Operation">Which write the row is about.</param>

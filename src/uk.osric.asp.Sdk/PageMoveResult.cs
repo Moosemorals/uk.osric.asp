@@ -23,6 +23,9 @@ public enum PageMoveOutcome {
 
     /// <summary>Keys live below the old key, so it names a folder and a folder is a batch of moves.</summary>
     FolderNotEmpty,
+
+    /// <summary>Another writer held the store, so nothing was moved.</summary>
+    Busy,
 }
 
 /// <summary>What a move answered with.</summary>

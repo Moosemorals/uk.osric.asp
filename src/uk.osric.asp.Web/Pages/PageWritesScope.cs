@@ -149,8 +149,15 @@ internal sealed class PageWritesScope(
     }
 
     /// <summary>Makes one write as a transaction of one, so every write has one path.</summary>
+    /// <remarks>
+    /// It is that write's own transaction and not part of one this render has open, because "save
+    /// this" means it is stored when the call answers. Only <see cref="BeginTransaction"/> defers a
+    /// write, and a transaction opened while another is open is what nests.
+    /// </remarks>
     private async Task<PageWriteResult> OneAsync(Func<IPageTransaction, Task<PageWriteResult>> stage) {
-        await using IPageTransaction transaction = BeginTransaction();
+        ThrowIfCannotWrite();
+
+        await using IPageTransaction transaction = new PageTransactionScope(path, pages, reserved, seeds, gate: null, Deadline);
         _ = await stage(transaction);
         IReadOnlyList<PageWriteResult> report = await transaction.CommitAsync();
 
@@ -160,6 +167,7 @@ internal sealed class PageWritesScope(
     private static PageEditOutcome EditOutcome(PageWriteOutcome outcome) => outcome switch {
         PageWriteOutcome.Saved => PageEditOutcome.Saved,
         PageWriteOutcome.Unchanged => PageEditOutcome.Unchanged,
+        PageWriteOutcome.Busy => PageEditOutcome.Busy,
         _ => PageEditOutcome.Stale,
     };
 
@@ -169,6 +177,7 @@ internal sealed class PageWritesScope(
         PageWriteOutcome.SourceNotFound => PageMoveOutcome.SourceNotFound,
         PageWriteOutcome.TargetExists => PageMoveOutcome.TargetExists,
         PageWriteOutcome.FolderNotEmpty => PageMoveOutcome.FolderNotEmpty,
+        PageWriteOutcome.Busy => PageMoveOutcome.Busy,
         _ => PageMoveOutcome.Stale,
     };
 
