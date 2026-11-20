@@ -8,6 +8,8 @@ using System.Diagnostics;
 using uk.osric.asp.Core.Pages;
 using uk.osric.asp.Sdk;
 using uk.osric.asp.Web.Pages;
+// The page contract has a page kind of its own; a job judges Core's.
+using PageKind = uk.osric.asp.Core.Pages.PageKind;
 
 /// <summary>The host's jobs: what a page starts, and what a viewer reads.</summary>
 /// <remarks>

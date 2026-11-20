@@ -240,7 +240,8 @@ internal class Program {
               services.GetRequiredService<PageSessionOptions>(),
               services.GetRequiredService<IPageSessionStore>(),
               services.GetRequiredService<PageSessionCookieOptions>(),
-              services.GetRequiredService<PageJobs>()));
+              services.GetRequiredService<PageJobs>(),
+              services.GetRequiredService<PageChecks>()));
         builder.Services.AddSingleton(services => new PageHealth(services.GetRequiredService<RenderOptions>().AbandonedLimit));
 
         builder.Services.AddSingleton<AssistantMetrics>();
@@ -290,6 +291,7 @@ internal class Program {
         builder.Services.AddSingleton<PagePathPolicy>();
         builder.Services.AddSingleton(new PageSeeds(Path.Combine(AppContext.BaseDirectory, "Pages", "Seeds")));
         builder.Services.AddSingleton<PageSaver>();
+        builder.Services.AddSingleton<PageChecks>();
         builder.Services.AddSingleton<PageStorageRefresh>();
         builder.Services.AddSingleton<PageToolExecutor>();
         // Reads the XML documentation this build carries, once, when a page or the tool first asks.

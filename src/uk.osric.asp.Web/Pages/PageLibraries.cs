@@ -3,7 +3,9 @@
 
 namespace uk.osric.asp.Web.Pages;
 
+using uk.osric.asp.Core.Compilation;
 using uk.osric.asp.Core.Pages;
+using uk.osric.asp.Runtime;
 
 /// <summary>One live library, as a compile reads it.</summary>
 /// <param name="Key">The library's canonical key.</param>
@@ -45,6 +47,44 @@ internal sealed class PageLibraries(IPageReadStore read) {
         }
 
         return libraries;
+    }
+
+    /// <summary>Generates the libraries a compile may name, in the shape a library is compiled in.</summary>
+    /// <param name="libraries">Every live library and its source.</param>
+    /// <param name="logger">Where a library that will not generate is reported.</param>
+    /// <param name="dependant">What is compiling, for that message: a page's key, or a check.</param>
+    /// <returns>The candidates the compiler chooses from, in key order; one that will not generate is left out.</returns>
+    /// <remarks>
+    /// A library contributes its declarations and no handler, so it is generated again in that shape.
+    /// A row that says library but no longer parses is left out: the page that names its namespace
+    /// then fails with the compiler's own missing-type error, which is a diagnostic rather than a 500.
+    /// </remarks>
+    public static IReadOnlyList<LibrarySource> Sources(
+        IReadOnlyList<PageLibrary> libraries,
+        ILogger logger,
+        string dependant) {
+        ArgumentNullException.ThrowIfNull(libraries);
+        ArgumentNullException.ThrowIfNull(logger);
+        ArgumentException.ThrowIfNullOrWhiteSpace(dependant);
+
+        List<LibrarySource> sources = [];
+
+        foreach (PageLibrary library in libraries) {
+            try {
+                TemplateGenerationResult generated = TemplateSourceGenerator.GenerateLibrary(library.Template);
+                if (generated.Source is { } source) {
+                    sources.Add(new LibrarySource(library.Key.Key, source));
+                } else {
+                    logger.LogWarning("Library {Library} could not be generated, so it was left out of {Dependant}",
+                        library.Key.Key, dependant);
+                }
+            } catch (ArgumentException ex) {
+                logger.LogWarning(ex, "Library {Library} is not declarations, so it was left out of {Dependant}",
+                    library.Key.Key, dependant);
+            }
+        }
+
+        return sources;
     }
 }
 

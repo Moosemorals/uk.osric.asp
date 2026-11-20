@@ -107,6 +107,7 @@ and the logs quote them:
 | `PAGE004` | `PageImageBuilder` | the page took too long to compile |
 | `PAGE006` | `PageCompiler` | a worker does not declare exactly one constructible public entry point |
 | `PAGE009` | `IContext` | the page used a member that has moved to `ctx.Response` |
+| `PAGE010` | `PageCheckScope` | a check did not finish: it waited for a compile slot, or the render's deadline or the compile timeout ended it |
 | `SCRIPT001` | `JavaScriptValidator` | the assistant's script check found a syntax error |
 | `SCRIPT002` | `JavaScriptValidator` | the assistant's script check found an opener the failed parse never closed |
 

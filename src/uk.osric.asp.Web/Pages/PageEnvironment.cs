@@ -39,6 +39,11 @@ using uk.osric.asp.Web.Work;
 /// Where a page's jobs are started and read, or <see langword="null"/> when this host offers none. A
 /// host without one simply does not offer the capability, which is what a page is already prepared for.
 /// </param>
+/// <param name="Checks">
+/// Where a page's checks compile, or <see langword="null"/> when this host offers none. A host
+/// without one offers no <c>IPageCheck</c>, and a render without a signed-in visitor is offered none
+/// either way.
+/// </param>
 internal sealed record PageEnvironment(
     ReservedPaths Reserved,
     PageEditorOptions Editor,
@@ -60,4 +65,5 @@ internal sealed record PageEnvironment(
     PageSessionOptions Sessions,
     IPageSessionStore SessionStore,
     PageSessionCookieOptions SessionCookie,
-    PageJobs? Jobs = null);
+    PageJobs? Jobs = null,
+    PageChecks? Checks = null);

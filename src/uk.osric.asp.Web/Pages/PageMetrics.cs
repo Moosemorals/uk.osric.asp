@@ -134,6 +134,9 @@ internal sealed class PageMetrics : IDisposable {
     public const string ReasonSave = "save";
     public const string ReasonLazy = "lazy";
 
+    /// <summary>A page asked whether a source it holds would compile, and nothing was stored.</summary>
+    public const string ReasonCheck = "check";
+
     /// <summary>The page was compiled as part of an import batch.</summary>
     public const string ReasonImport = "import";
 

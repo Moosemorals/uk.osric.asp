@@ -203,6 +203,12 @@ internal sealed class PageChain {
             .Add<IDiffRenderer>(_environment.Diff)
             .Add<IPageComposition>(compositor);
 
+        // A check spends a compile, which is a shared resource, so only a render with a signed-in
+        // visitor is offered it. It writes nothing, so it is not a layout's one-action exception.
+        if (_user is not null && _environment.Checks is { } checks) {
+            capabilities.Add<IPageCheck>(checks.For(key));
+        }
+
         // A layout is markup, so it is offered the read and not the write: one that saved itself
         // would append a revision on every render it wraps (`pages-layouts-are-markup`).
         if (role != PageLayerRole.Layout) {

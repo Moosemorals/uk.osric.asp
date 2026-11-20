@@ -5,6 +5,7 @@ namespace uk.osric.asp.Core.Tests;
 
 using uk.osric.asp.Core.Compilation;
 using uk.osric.asp.Core.Pages;
+using PageKind = uk.osric.asp.Core.Pages.PageKind;
 
 [TestFixture]
 public sealed class TemplateSourceGeneratorTests {

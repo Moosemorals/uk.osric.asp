@@ -14,6 +14,7 @@ using CoreSeverity = uk.osric.asp.Core.Compilation.PageDiagnosticSeverity;
 // The page's own diagnostic is the one these tests read; the compiler's is only the input.
 using PageDiagnostic = uk.osric.asp.Sdk.PageDiagnostic;
 using PageDiagnosticSeverity = uk.osric.asp.Sdk.PageDiagnosticSeverity;
+using PageKind = uk.osric.asp.Core.Pages.PageKind;
 
 [TestFixture]
 public sealed class PageWritesScopeTests {
