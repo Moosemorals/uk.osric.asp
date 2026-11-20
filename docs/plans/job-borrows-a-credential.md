@@ -8,7 +8,7 @@ SPDX-License-Identifier: MIT
 | | |
 | --- | --- |
 | Status | Proposed 2026-11-20 — waits for the owner. The page transaction landed on 2026-11-20, so nothing blocks it; nothing is built until the owner agrees |
-| Size | Medium: one captured authority, one verifier, one guard, a writer on a job's capability list, one outcome on five enums, one refusal on job calls, three docs, `/help`, the prompt and its version, one decision and five edits |
+| Size | Medium: one captured authority, one verifier, one credential seam, a writer on a job's capability list, one outcome on five enums, one refusal on job calls, three docs, `/help`, the prompt and its version, one decision and five edits |
 | Area | Sdk, Web (work, authentication, pages), docs, assistant, tests |
 | Spike | None. Every claim below was read off `trunk` at `4428e4a` on 2026-11-20 |
 | Backlog | [`job-borrows-a-credential`](../backlog/job-borrows-a-credential.md) is this step |
@@ -122,9 +122,10 @@ design below is written against, and the merge records them in the decision:
   host can keep alive, so it produces no authority and a job start is `Anonymous` as it is today. A
   test that fabricates a principal therefore gains a cookie, as a real render has one.
 
-`PageJobAuthorityFactory` (singleton, holding `ViewTokenStore`) turns `(ClaimsPrincipal, HttpRequest)`
-into an authority or null; `PageEnvironment` carries it, `PageEndpoint` calls it beside `MapUser`, and
-`PageChain` passes it to every layer's `PageJobsScope`. One authority per render, not one per layer.
+`PageJobAuthorityFactory` (singleton, holding `ViewTokenStore` and the verifier) turns
+`(ClaimsPrincipal, HttpRequest)` into an authority or null; `PageEnvironment` carries it,
+`PageEndpoint` calls it beside `MapUser`, and `PageChain` hands it to every layer's `PageJobsScope`.
+One authority per render, not one per layer.
 
 ### 2. One host-side call answers live or dead
 
@@ -139,11 +140,22 @@ The user read is scoped, so the verifier opens a scope per check and closes it, 
 `AuthTicketStore` already does. The ticket's expiry is compared with the clock rather than left to
 the hourly sweep: a job's authority ends when the browser's sign-in does, not up to an hour later.
 
-`IPageWriteGuard` is the small seam the writer and the jobs scope act through — an interface in
-`Pages`, implemented by the runner in `Work` — with two members: `IsLiveAsync` and `Touched`. The
-runner's implementation calls the verifier and the job's `JobLifetime`, and its `IsLiveAsync` writes
-the refusal line at Warning when the answer is no. A render passes none, so a page's write costs no
-extra read because the request's own authentication has just done it.
+The permission seam is one check, and it is separate from the job's clock:
+
+- **`IPageWriteCredential`** — an interface in `Pages` with one member,
+  `ValueTask<bool> IsLiveAsync(CancellationToken)` — is the question a commit asks. `PageJobAuthority`
+  implements it over the verifier, so the captured value is the thing that answers, and it writes the
+  refusal line at Warning when the answer is no (the runner's log scope puts the job's id on it).
+- **The activity signal is a delegate**, `Action? touched`, which the runner binds to
+  `JobLifetime.ReArm`. It is not a permission: a render has a deadline, not a silence clock, so there
+  is nothing for a page to touch, and a type would only be a name for a call.
+
+A render passes neither, so a page's write costs no extra read — the request's own authentication has
+just done it. The verifier and the outcome vocabulary are shared by both callers already; only the
+cadence differs. If a page ever needs the check — a long streaming render, a request stopped while it
+unwinds — it passes its own `IPageWriteCredential` instead of null, the commit asks it, and a dead
+cookie answers `Revoked` for the rest of that render. That is a policy choice the seam leaves open,
+not a redesign, and it is not worth its two reads per commit today.
 
 ### 3. The job keeps the authority, and the name is derived from it
 
@@ -153,8 +165,8 @@ carries the authority through the queue. Nothing is added to `PageJobInfo`: an a
 host's, and a viewer has no business reading a ticket key back out of a journal.
 
 `PageJobs.StartAsync` takes the authority instead of `PageUser?`; an absent authority is `Anonymous`
-as before. A start from a job's scope is activity — the guard's `Touched` — because starting work is
-not silence; a render's start has no guard, for the reason in section 8.
+as before. A start from a job's scope touches the clock — `touched` — because starting work is not
+silence, and checks the credential first, for the reason in section 8; a render's start does neither.
 
 ### 4. The runner offers the writer
 
@@ -168,7 +180,8 @@ and a per-call scope could not outlive a transaction that spans calls.
 ```csharp
 PageTransactionGate gate = new();
 IPageWrites writes = new PageWritesScope(
-    job.Page, editor, job.Owner, writable: true, environment.Reserved, environment.Seeds, gate, guard);
+    job.Page, editor, job.Owner, writable: true, environment.Reserved, environment.Seeds,
+    gate, job.Authority, job.Lifetime.ReArm);
 writes.AttachDeadline(job.Lifetime.Token);
 capabilities.Add<IPageWrites>(writes);
 ```
@@ -185,12 +198,12 @@ is the page's rule, unchanged, and `/help` says it for a worker as it does for a
 
 ### 5. The check happens where every write converges
 
-`PageWritesScope` and `PageWriteTransaction` gain an optional `IPageWriteGuard`, passed from the scope
-into every transaction its `Open()` makes. Every staging entry on the transaction — `SaveOwnAsync`,
-`SaveAsync`, `MoveAsync`, `DeleteAsync`, `RestoreAsync`, `AdoptAsync`, `InstallAsync` — and
-`CommitAsync` call `Touched`. The outermost commit — and only it — asks `IsLiveAsync` before
-`pages.CommitAsync`, because it is the one that stores; a nested commit absorbs into its parent as it
-does today.
+`PageWritesScope` and `PageWriteTransaction` gain an optional `IPageWriteCredential` and an optional
+`Action? touched`, passed from the scope into every transaction its `Open()` makes. Every staging
+entry on the transaction — `SaveOwnAsync`, `SaveAsync`, `MoveAsync`, `DeleteAsync`, `RestoreAsync`,
+`AdoptAsync`, `InstallAsync` — and `CommitAsync` call `touched`. The outermost commit — and only it —
+asks the credential's `IsLiveAsync` before `pages.CommitAsync`, because it is the one that stores; a
+nested commit absorbs into its parent as it does today.
 
 - **Once.** One check per transaction's commit, before the store commit; a staged call is never
   checked. A write made on the capability while a transaction is open joins it and answers `Staged`,
@@ -205,7 +218,8 @@ does today.
   commit already does. The job's clocks bound staging — the wait for a compile slot and the compile
   itself — not a commit that has begun (`pages-a-page-may-save-itself`).
 - **The compiler's fault is not rethrown.** A refused commit stored nothing, so the worker's answer is
-  the refusal; the fault belongs to a save that never happened. The guard's refusal line is the log.
+  the refusal; the fault belongs to a save that never happened. The credential's refusal line is the
+  log.
 - **Nothing else changes.** The reserved keys, the addressable-key check, the deadline, the anonymous
   refusal, the ordering of operations and the nesting rules are the ones the page already has.
   `RollbackAsync` and a transaction that is disposed need no check: neither writes.
@@ -230,23 +244,23 @@ The five enums the row already feeds gain the one member: `PageWriteOutcome`, `P
 `PageMoveOutcome`, `PageDeleteOutcome` and `PageJobRefusal`. No record changes shape — `PageSaveResult`
 already carries `Outcome`, `PageDeleteResult` is already the row's view, and a revoked bound save
 answers the empty hash the capability already uses when there is none, documented as "nothing was
-stored". A page never meets the outcome at run time, because a render's guard is absent; only a
-worker reads it.
+stored". A page never meets the outcome at run time, because a render holds no credential to ask;
+only a worker reads it.
 
 ### 7. A write is activity
 
-`Touched` re-arms `Pages:Jobs:SilenceSeconds` at every stage and at the commit, the way `Publish` and
-a returned `ReceiveAsync` do. A compile longer than the silence limit still cuts the job, because the
+The `touched` delegate re-arms `Pages:Jobs:SilenceSeconds` at every stage and at the commit, the way
+`Publish` and a returned `ReceiveAsync` do. A compile longer than the silence limit still cuts the job, because the
 clock is not paused by a write the way `ReceiveAsync` pauses it; a commit that has begun is not cut,
 for the reason above. The ceiling is untouched: a worker that writes forever still ends at
 `MaxDurationSeconds`.
 
 ### 8. A job may start a job
 
-The runner's `PageJobsScope` gets the same authority and the same guard; a render's gets the
-authority and no guard. `StartAsync` in a job's scope touches the clock and checks liveness before it
-queues a child, and answers `PageJobRefusal.Revoked` when it is dead; a render's start does not check,
-because the request just did. The child holds the authority it was started with, so it dies with the
+The runner's `PageJobsScope` gets the same authority, the same `IPageWriteCredential` and the same
+`touched` delegate; a render's gets the authority and neither. `StartAsync` in a job's scope touches
+the clock and asks the credential before it queues a child, and answers `PageJobRefusal.Revoked` when
+it is dead; a render's start does not check, because the request just did. The child holds the authority it was started with, so it dies with the
 same sign-in. There is no depth limit and no key restriction (the owner's answer).
 
 `SendAsync`, `GetAsync`, `ListAsync`, `ReadEventsAsync` and `CancelAsync` are not checked: they are
@@ -306,13 +320,14 @@ caller; and a journal is the job's own. The authority dies; the job does not hav
 - **`PageJobWritesTests`** (new): a worker saves a page it does not own while its authority is live; a
   sign-out between two writes answers `Revoked`, stores nothing, and the job publishes and finishes on
   its own terms; a transaction of three writes reports three `Revoked` rows after one check (a counting
-  guard proves the cadence); a refused commit does not throw; a worker whose credential is dead is
-  refused `Revoked` for a child start.
-- **`PageWritesScopeTests`**, **`PageTransactionTests`**: a render's write calls no guard and the
-  existing answers do not change; a lone write made while a transaction is open answers `Staged`, the
-  commit asks the guard once, and every staged row answers `Revoked` when it says no.
+  credential proves the cadence); a refused commit does not throw; a worker whose credential is dead
+  is refused `Revoked` for a child start.
+- **`PageWritesScopeTests`**, **`PageTransactionTests`**: a render's write holds no credential and
+  the existing answers do not change; a lone write made while a transaction is open answers `Staged`,
+  the commit asks the credential once, and every staged row answers `Revoked` when it says no.
 - **`PageJobRenderTests`**, **`PageHarness`**: a render's `PageJobsScope` and `PageWritesScope` gain the
-  authority and no guard; the principal that starts a job carries a cookie row.
+  authority and neither of the job's two collaborators; the principal that starts a job carries a
+  cookie row.
 - **`Web.IntegrationTests/PageJobTests`**: the real host offers a worker `IPageWrites`, and the page
   it saves is served on the next request — one test proving the wiring, not the revocation.
 - **`PageAuthorPromptTests`**: the prompt's jobs section carries the rule and the version moved.

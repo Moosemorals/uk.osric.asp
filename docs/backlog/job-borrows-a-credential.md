@@ -13,7 +13,7 @@ SPDX-License-Identifier: MIT
 | Blocked by | — |
 | Plan | [job-borrows-a-credential](../plans/job-borrows-a-credential.md) |
 | Area | Sdk, Web (work and authentication), docs, assistant |
-| Location | `src/uk.osric.asp.Web/Work/PageJob.cs`, `PageJobRunner.cs`, `PageJobs.cs`, `src/uk.osric.asp.Web/Pages/PageJobsScope.cs`, `PageWritesScope.cs`, `PageWriteTransaction.cs`, `PageJobEnvironment.cs`, `src/uk.osric.asp.Web/Authentication/PageJobAuthority.cs`, `PageJobAuthorityVerifier.cs`, `src/uk.osric.asp.Sdk/IWorkerContext.cs` |
+| Location | `src/uk.osric.asp.Web/Work/PageJob.cs`, `PageJobRunner.cs`, `PageJobs.cs`, `src/uk.osric.asp.Web/Pages/PageJobsScope.cs`, `PageWritesScope.cs`, `PageWriteTransaction.cs`, `IPageWriteCredential.cs`, `PageJobEnvironment.cs`, `src/uk.osric.asp.Web/Authentication/PageJobAuthority.cs`, `PageJobAuthorityVerifier.cs`, `src/uk.osric.asp.Sdk/IWorkerContext.cs` |
 
 > **Written 2026-11-18** at the owner's direction. Its prerequisite was the page transaction, which
 > closed on 2026-11-20: a job can now be offered a writer, and what is left is the credential. The plan
@@ -60,8 +60,11 @@ new on the page contract.
    every layer's `PageJobsScope`, and `PageJob` holds it for the job's life. `IWorkerContext.User`
    stays the plain `PageUser` it is: a label, not the authority. A job started from a `GET` render is
    possible today, so the run's view scheme is a branch of this and not a later idea.
-2. **The check.** One host-side call answers live or dead: the ticket row still exists and the
+2. **The check.** One host-side call answers live or dead — `IPageWriteCredential.IsLiveAsync`, which
+   the captured authority implements and a render may hold later: the ticket row still exists and the
    account still exists with the same stamp; or the view token still resolves and the stamp matches.
+   The job's silence clock is a separate signal (`Action touched`), because a write being activity is
+   not a permission.
    The two checks are the ones `OnValidatePrincipal` and `ViewAuthenticationHandler` already make, so
    there is no second definition of "signed in".
 3. **The writer.** `PageJobRunner` offers `IPageWrites` bound to the **starting page** through the
