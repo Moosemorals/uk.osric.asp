@@ -55,13 +55,22 @@ public interface IPageCheck {
     Task<PageCheckResult> CheckAsync(string language, string source);
 }
 
-public sealed record PageCheckResult(bool Valid, IReadOnlyList<PageDiagnostic> Diagnostics);
+public enum PageKind { Text, Page, Library, Worker } // Sdk's own, mapped from Core's
+
+public sealed record PageCheckResult(
+    PageKind? Kind, // what generation discovered; null for javascript
+    bool Valid,
+    IReadOnlyList<PageDiagnostic> Diagnostics);
 ```
 
 - **The source is the subject, and nothing else is.** No key, no read of a stored page, no write: no
   revision, head, image, closure fingerprint, seed record or dependent invalidation. A template that
   has never been saved is checked exactly as one that has, and a caller that wants to check a saved
   page reads it (`IPageCatalog.ReadAsync`) and passes the text.
+- **The answer says what the source is** — answered 2026-11-20. `Kind` is generation's verdict: text,
+  page, library or worker. A caller that expected a page and got a library learns it in the same
+  answer rather than by a second read of `PageEntry`. A `javascript` check answers null, because a
+  script has no page kind.
 - **`language` is closed, and never inferred.** The values are `template` and `javascript` today;
   `css`, `html` and `svg` join later ([`nothing-checks-page-assets`](nothing-checks-page-assets.md)).
   A key's extension is a content type, not a validator choice: a `.html` page can be a template or an
@@ -107,8 +116,10 @@ stale because a library moved; a check is never either.
   and `content`, the same idiom `reference` uses for `type` against `query`. `javascript` is today's
   pair unchanged; `template` calls the capability. `read_page` absorbs `read_revision` in the same
   change: an optional `hash` selects a retained revision, the answer says which one it read, and
-  `list_revisions` stays because a list is a different question from a read. The tool surface is at
-  its soft ceiling, so the merge replaces two tools with one rather than adding a twenty-third.
+  `list_revisions` stays because a list is a different question from a read. The answer is
+  `{ valid, checks: [{ language, kind, valid, diagnostics }] }`, so the kind travels with the check
+  that discovered it. The tool surface is at its soft ceiling, so the merge replaces two tools with
+  one rather than adding a twenty-third.
 - **VS Code** gets a Language Server Protocol server over the same `Runtime` tier, with its closure
   loaded from repository files rather than the store. That constraint — no store — is why the seam is
   split where it is: the pure tier and generation live below the Web adapter, so a process with no
@@ -124,57 +135,46 @@ One plan, one branch, four slices that each ship on their own, in this order:
    Proves: a check stores nothing and the head hash is unchanged; a broken template answers its
    diagnostics; a library's error names the library; a template that was never saved answers exactly
    as a saved one does, because there is no key to miss; an anonymous render is not offered the
-   capability; an abandoned check answers rather than writing; the compile budget is charged and a
-   full queue is refused in the same words a save uses.
+   capability; an abandoned check answers `PAGE010` rather than writing; a source that is a library
+   answers `Kind = Library`; the compile budget is charged and a full queue is refused in the same
+   words a save uses.
 2. **`javascript`.** The second language, through `TemplateScriptSkeleton` and
    `JavaScriptValidator`; no new parser, no new diagnostics, no change to the tool yet.
 3. **The assistant tool.** `check`, the `read_page`/`read_revision` merge, the closed `language`
-   `enum` in the schema, `Assistant:MaxCheckDiagnostics`, the prompt's two lines becoming one and its
-   `Version` moving, and [assistant](../assistant.md). [`tool-arguments-say-nothing`](tool-arguments-say-nothing.md)
-   opens this slice, because both rewrite the tool definitions and so the provider's cached prefix;
-   its other argument descriptions ride with it.
-4. **VS Code.** The LSP server and client, on the same tier, from files. Last because it is
-   developer-only and nothing else waits on it.
+   `enum` in the schema, `Assistant:MaxCheckDiagnostics` (100 shipped: Roslyn cannot stop at a
+   diagnostic count, so a low cap would only hide feedback), the prompt's two lines becoming one and
+   its `Version` moving, and [assistant](../assistant.md).
+   [`tool-arguments-say-nothing`](tool-arguments-say-nothing.md) opens this slice, because both
+   rewrite the tool definitions and so the provider's cached prefix; its other argument descriptions
+   ride with it.
+4. **VS Code.** The LSP server and client, on the same tier, from files: a
+   `tools/asp-language-server` project beside `tools/vscode-asp`, never the Web app, with diagnostics
+   only first. Last because it is developer-only and nothing else waits on it.
 
-## The composite, flagged
+## The composite is not this
 
-Should `language: "template"` also run the embedded script checkers over the script it finds, so one
-call answers "is this page good"? It is tempting — the prompt already tells the model to check the
-script at both ends of a change — but it spends a compile on runs that wanted syntax only, so it is a
-measurement and not a preference.
+The owner answered this on 2026-11-20: `language: "template"` does not also run the embedded script
+checkers. A caller that wants a script checked hands us a script; the template check answers the
+template. The transcript measurement the earlier draft described is therefore not needed for this
+decision, and the result keeps one entry per call.
 
-- **The question.** Does a run call `check(language: "javascript")` and `check(language: "template")`
-  against the same target, adjacently? If it does, one call is a saved step and a saved wait; if not,
-  the composite is compile time nobody asked for.
-- **The evidence already exists.** Tool calls and their arguments are stored in the transcript beside
-  their results (`SqliteConversationStore`), so the question is a query over stored runs, not a new
-  telemetry stream, and this item has to add nothing for it to be answerable later. A `language` tag
-  on the existing tool metric would chart it, and the set is closed, so the cardinality is fine — but
-  the transcript is sufficient.
-- **How it flips.** The composite runs the embedded checkers, the `checks` list grows an entry, the
-  description and the prompt say so, and the prompt version moves. No result shape changes.
+## The owner's answers
 
-## Open questions
+The owner answered these on 2026-11-20; this item and [its plan](../plans/one-check.md) carry them.
 
-None that the capability's shape waits on. These wait where they are noted:
-
-1. **Does `PageCheckResult` carry the discovered kind** — text, page, library or worker? Waits for
-   slice 1. The recommendation is no: `Valid` and the diagnostics are the answer, and a stored page's
-   kind is already on `PageEntry`.
-2. **Where the closed set lives.** Waits for slice 1. The recommendation is an Sdk enum beside
-   `PageDiagnostic`, because the manual, the tool schema and the refusal all render from it, and a
-   second spelling would drift.
-3. **The code a deadline-abandoned check reports.** Waits for the plan; the save path's `PAGE003` is
-   the shape, and a check may want a code of its own so a dashboard can tell the two apart.
-4. **`Assistant:MaxCheckDiagnostics`.** Waits for the tool slice; a broken page can answer with a
-   thousand Roslyn diagnostics, and a cap is a policy value rather than an invariant.
-5. **The composite.** Waits for the measurement above; its flip condition is written there.
-6. **VS Code's completion** — and so the Workspaces reference and the reverse template map. Waits for
-   that slice. The recommendation is diagnostics only first: completion is the expensive half, and a
-   squiggle is what the spike proved.
-7. **Whether the server is a `tools/` project or something the Web app hosts.** Waits for that slice.
-   The recommendation is `tools/`: the site must not host an editor's server, and the extension is
-   already there.
+1. **The kind is in the answer** — yes. `PageCheckResult` carries `PageKind?`, and the assistant's
+   check list carries it beside the language.
+2. **Where the closed set lives** — an Sdk enum beside `PageDiagnostic`, as the plan says, because
+   the manual, the schema and the refusal all render from it.
+3. **The abandoned check's code** — `PAGE010`, distinct from the save path's `PAGE003` and
+   `PAGE004`; `PAGE005` is retired and never reused.
+4. **`Assistant:MaxCheckDiagnostics`** — 100. Roslyn's public API cannot stop at a diagnostic count:
+   `Compilation.GetDiagnostics(CancellationToken)` returns when the compile ends, and the token is
+   the only early stop, so a low cap would hide feedback without saving work.
+5. **The composite** — no. A caller that wants a script checked hands us a script.
+6. **VS Code's completion** — the owner has no preference, so diagnostics only first stands;
+   completion is a later slice.
+7. **The server's home** — a `tools/` project, `tools/asp-language-server`, never the Web app.
 
 ## Not in scope
 

@@ -7,7 +7,7 @@ SPDX-License-Identifier: MIT
 
 | | |
 | --- | --- |
-| Status | Proposed 2026-11-19 — waits for the owner. Nothing below is built |
+| Status | Revised 2026-11-20 — the owner answered the six questions; this revision carries the answers and waits for a yes. Nothing below is built |
 | Size | Large as a programme, small as a step: one Sdk capability with two types and one closed set, a Web adapter over the compiler, the assistant's tool surface rewritten once, and an editor for the repository over the same tier. Four slices, each its own branch and each stopping for the owner |
 | Area | Sdk, Runtime, Core (Assistant), Web (pages, editor, assistant), tools, docs |
 | Spike | [Teaching VS Code the template language](../spikes/vscode-template-language.md) — the half that has not landed |
@@ -26,11 +26,19 @@ public interface IPageCheck {
     Task<PageCheckResult> CheckAsync(string language, string source);
 }
 
-public sealed record PageCheckResult(bool Valid, IReadOnlyList<PageDiagnostic> Diagnostics);
+public enum PageKind { Text, Page, Library, Worker } // Sdk's own, mapped from Core's
+
+public sealed record PageCheckResult(
+    PageKind? Kind, // what generation discovered; null for javascript
+    bool Valid,
+    IReadOnlyList<PageDiagnostic> Diagnostics);
 ```
 
 - **The source is the subject.** No key, no read of a stored page, no write. A caller that wants to
   check a saved page reads it through `IPageCatalog.ReadAsync` and passes the text.
+- **The answer says what the source is.** `Kind` is generation's verdict — text, page, library or
+  worker — so a caller that expected a page and got a library learns it in the same answer rather
+  than by a second read. A `javascript` check answers null, because a script has no page kind.
 - **The language is closed and named.** `template` and `javascript` now; `css`, `html` and `svg` when
   [`nothing-checks-page-assets`](../backlog/nothing-checks-page-assets.md) lands. Never inferred from a
   key's extension: a `.html` page is a template or an asset depending on whether it holds code.
@@ -94,12 +102,14 @@ diagnostics when the template cannot be blanked, as the tool does today.
 
 **What a check does not do.** It does not load an image, run a handler, render, write a revision,
 move a head, change a closure fingerprint, invalidate a dependent, spend the render's action, or offer
-itself to an anonymous render.
+itself to an anonymous render. It does not run the script checker over a template: a caller that wants
+a script checked hands us the script.
 
 **What it is charged to.** `Pages:Compile:Slots` and `Pages:Compile:TimeoutSeconds`, unchanged. No new
 policy value: the check's cost is the save's cost, which is the honest description of it. A check that
-waits past the caller's deadline answers with a diagnostic rather than by writing, and gets a code of
-its own so a dashboard can tell an abandoned check from an abandoned save.
+waits past the caller's deadline answers `PAGE010` rather than writing — a code of its own, so a
+dashboard can tell an abandoned check from an abandoned save (`PAGE003`) or a save's compile timeout
+(`PAGE004`). `PAGE005` is retired and never reused, so `PAGE010` is the next free code.
 
 **What it is not.** It is not the stored diagnostic. A stored one describes the last compile of a
 revision and can be absent or stale; [`revision-hides-its-diagnostics`](../backlog/revision-hides-its-diagnostics.md)
@@ -122,7 +132,8 @@ revision count unchanged; a broken template answers an error; a library's error 
 warning does not stop the answer being valid; a template that does not parse answers the tokenizer's
 diagnostics; a template that was never saved answers exactly as a saved one does, because there is no key to miss; an
 anonymous render is not offered the capability; a full compile queue answers rather than waiting for
-ever; an abandoned check answers rather than writing.
+ever; an abandoned check answers `PAGE010` rather than writing; a source that is a library answers
+`Kind = Library`, and a source with no code answers `Text`.
 
 ### 2. `javascript`
 
@@ -139,7 +150,9 @@ is a clean pass through the skeleton.
 `check_script` and `check_script_text`; `read_page` absorbs `read_revision` with an optional `hash`;
 the closed set emitted as a schema `enum`; `Assistant:MaxCheckDiagnostics` as a required policy value
 with its test for the shipped value, an override and a refusal; the prompt's two lines becoming one
-and its `Version` moving; [assistant](../assistant.md) following.
+and its `Version` moving; [assistant](../assistant.md) following. The answer is
+`{ valid, checks: [{ language, kind, valid, diagnostics }] }`, so the kind travels with the check that
+discovered it.
 [`tool-arguments-say-nothing`](../backlog/tool-arguments-say-nothing.md) opens this slice, because both
 rewrite the tool definitions and so the provider's cached prefix; its other argument descriptions ride
 with it.
@@ -150,12 +163,20 @@ shell file is refused in every mode; `read_revision`'s hash reads a retained rev
 the diagnostic list is cut rather than refused at the cap; the prompt version moves and the tool count
 does not grow.
 
+**The cap is high because Roslyn cannot stop early.** `Compilation.GetDiagnostics(CancellationToken)`
+is the only compile entry point, and it returns the set when the compile ends;
+`CSharpCompilationOptions` exposes no error limit, so the token — the caller's deadline — is the only
+early stop. A lower cap would hide diagnostics without saving work, so the shipped
+`Assistant:MaxCheckDiagnostics` is 100, `csc`'s own default error limit, and
+`Assistant:MaxToolResultChars` may still cut the assembled answer sooner.
+
 ### 4. VS Code
 
-A .NET console server speaking LSP over stdio, and a plain-JavaScript client in
-`tools/vscode-asp`, over the same pure tier: generation, the compile and the diagnostic mapping, with
-its closure loaded from the repository's seed files rather than the store. Diagnostics first;
-completion is the expensive half and is not this slice unless the owner says otherwise.
+A .NET console server speaking LSP over stdio, a `tools/asp-language-server` project of its own beside
+`tools/vscode-asp`, and a plain-JavaScript client in the extension, over the same pure tier:
+generation, the compile and the diagnostic mapping, with its closure loaded from the repository's seed
+files rather than the store. The owner has no preference on completion, so the recommendation stands:
+diagnostics only, and completion is a later slice.
 
 Proves: a document's diagnostics arrive on `didChange` and are positioned in template space; a version
 is never published out of order; the server answers the same diagnostics `make check-pages` does for
@@ -173,24 +194,27 @@ the same file; a library named by a seed is found in the repository and its erro
 - **The LSP suite proves the protocol, not Roslyn**: the position mapping and the document/version
   bookkeeping, with the transport thin enough to drive over pipes.
 
-## Open questions
+## The owner's answers
 
-None blocks this plan; each names where it waits, and the recommendation the plan is written against.
+The owner answered these on 2026-11-20; this revision carries the answers and waits for a yes.
 
-1. **Does `PageCheckResult` carry the discovered kind** — text, page, library or worker? Waits for
-   slice 1, and the recommendation is no: `Valid` and the diagnostics are the answer, and a stored
-   page's kind is already on `PageEntry`.
-2. **The code an abandoned check answers with.** Waits for slice 1; `PAGE003` is the shape, and a
-   distinct code is recommended so an operator can tell a check from a save.
-3. **`Assistant:MaxCheckDiagnostics`'s shipped value.** Waits for slice 3 — it is a policy value, so
-   the plan fixes its name and the test, and `appsettings.json` carries the number.
-4. **The composite** — whether `template` also runs the embedded script checkers. Waits for the
-   measurement in the item: the transcript already records tool calls and their arguments, so it is a
-   query, and the flip condition is written there.
-5. **VS Code's completion** and so the Workspaces reference and the reverse template map. Waits for
-   slice 4; diagnostics only first is recommended, because completion is the expensive half.
-6. **Whether the server is a `tools/` project or something the Web app hosts.** Waits for slice 4; the
-   recommendation is `tools/`, because the site must not host an editor's server.
+1. **The kind is in the answer.** `PageCheckResult` carries `PageKind?`: a caller that expected a page
+   and got a library learns it in the same answer rather than by a second read of `PageEntry`. A
+   `javascript` check answers null, because a script has no page kind, and the assistant's check list
+   carries the kind beside the language.
+2. **A distinct code for an abandoned check.** `PAGE010`, so a dashboard can tell it from the save
+   path's `PAGE003` and `PAGE004`. `PAGE005` is retired and never reused.
+3. **The cap is high.** Roslyn's public API cannot stop at a diagnostic count:
+   `Compilation.GetDiagnostics(CancellationToken)` returns when the compile ends,
+   `CSharpCompilationOptions` has no error limit, and the token is the only early stop. A low cap
+   would hide information without saving work, so `Assistant:MaxCheckDiagnostics` ships as 100 —
+   `csc`'s own default error limit — and the result budget may cut sooner.
+4. **No composite.** `template` does not run the script checker. A caller that wants a script checked
+   hands us a script; the template check answers the template. The flagged measurement is closed.
+5. **Completion: no preference.** The recommendation stands: diagnostics only first; completion, the
+   Workspaces reference and the reverse map are a later slice.
+6. **The server is a `tools/` project.** `tools/asp-language-server`, beside `tools/vscode-asp`,
+   never the Web app: the site must not host an editor's server.
 
 ## Record changes
 
