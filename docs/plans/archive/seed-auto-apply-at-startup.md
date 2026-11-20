@@ -7,12 +7,12 @@ SPDX-License-Identifier: MIT
 
 | | |
 | --- | --- |
-| Status | Approved 2026-11-20 — the owner said to build it. Being built on `idea/seed-auto-apply-at-startup`; nothing below is merged |
+| Status | Merged 2026-11-20 — built on *seed-auto-apply-at-startup* and merged into trunk with `make check` green. The recorded name is `pages-startup-applies-the-release-seed` |
 | Size | Small: one startup step over the pack the seeder already reads, one type, one log line per row written, a paragraph in two docs, a bullet in the manual and one decision |
 | Area | Web (startup, pages), docs, tests |
 | Spike | None. Every claim below was read off `trunk` on 2026-11-20 |
-| Backlog | [`seed-auto-apply-at-startup`](../backlog/seed-auto-apply-at-startup.md) is this step |
-| Decisions | New name proposed: **pages-startup-applies-the-release-seed**. Relies on `pages-a-seed-write-records-its-hash`, `pages-a-seed-verdict-is-the-hosts`, `shell-seeds-are-chosen-row-by-row`, `shell-the-seed-apply-is-a-route`, `product-manual-is-a-page` and `product-steps-wait-for-the-owner` |
+| Backlog | [`seed-auto-apply-at-startup`](../../backlog/closed.md) was this step, and it closed with this plan. Follows [one seed page](seed-page.md), which left it as a follow-up |
+| Decisions | **pages-startup-applies-the-release-seed**, recorded with this plan. Relies on `pages-a-seed-write-records-its-hash`, `pages-a-seed-verdict-is-the-hosts`, `shell-seeds-are-chosen-row-by-row`, `shell-the-seed-apply-is-a-route`, `product-manual-is-a-page` and `product-steps-wait-for-the-owner` |
 
 ## The short version
 
@@ -66,7 +66,7 @@ than the first visitor quietly.
 
 ## What exists today
 
-- **The startup block** ([`Program.Main`](../../src/uk.osric.asp.Web/Program.cs)) opens one
+- **The startup block** ([`Program.Main`](../../../src/uk.osric.asp.Web/Program.cs)) opens one
   `AsyncServiceScope`, migrates, closes interrupted assistant runs, repairs content hashes, calls
   `PageAssetSeeder.SeedAsync`, and — only when the process is not a command — scans for stored pages
   at reserved keys. The command dispatch follows the scope.
@@ -79,11 +79,11 @@ than the first visitor quietly.
 - **The loop to copy is the seed page's.** `SeedsEndpoint`'s `POST` runs `SeedAction.Write` rows
   through `InstallAsync` in a `try`/`catch (Exception) when (exception is not
   OperationCanceledException)`, logging one line per row, and never stops at the first failure.
-- **`CanApply` is one verdict.** [`SeedComparison.Of`](../../src/uk.osric.asp.Core/Pages/SeedComparison.cs)
+- **`CanApply` is one verdict.** [`SeedComparison.Of`](../../../src/uk.osric.asp.Core/Pages/SeedComparison.cs)
   sets it only for `ReleaseNewer`; `CanAdopt` is a separate flag that covers `StoreNewer` and any
   *unknown* page whose content already equals the shipped seed.
 - **The editor is a scoped service.** `PageEditor` is registered scoped
-  ([`Program.cs`](../../src/uk.osric.asp.Web/Program.cs)), so the startup scope can resolve it.
+  ([`Program.cs`](../../../src/uk.osric.asp.Web/Program.cs)), so the startup scope can resolve it.
   Resolving it resolves `IPageCompiler`, whose reference set the host already resolves before it
   listens, with a comment saying a runtime that cannot supply one must fail the deploy.
 - **A command's stdout is its result.** The reserved-key scan is skipped for a command for exactly
@@ -189,12 +189,12 @@ the shipped source and hash and that the log names the row. The second start wri
 
 ## Docs and the manual
 
-- [the shell](../shell.md), in "Authentication and the editor": a paragraph saying a start
+- [the shell](../../shell.md), in "Authentication and the editor": a paragraph saying a start
   applies every *release newer* row before the host listens, that a page the owner edited is never
   touched, and that the page is still the way to install everything else; and the seed page's
   paragraph reworded so *release newer* is a row the page offers when a start could not get to it,
   not the only way it is written.
-- [storage](../storage.md#source-storage): "startup seeding checks whether a head exists, so
+- [storage](../../storage.md#source-storage): "startup seeding checks whether a head exists, so
   a deleted seeded asset stays deleted" gains the second rule — a head that still holds the seed it
   was installed from is moved to the release's seed.
 - The seeded `/help`: the **Install from seed** and **Seeds** bullets say that a release's moved seed
@@ -203,12 +203,11 @@ the shipped source and hash and that the log names the row. The second start wri
 
 ## Record changes
 
-- [`seed-auto-apply-at-startup`](../backlog/seed-auto-apply-at-startup.md) takes this plan and becomes
-  `planned`; the index in [the backlog](../backlog/README.md) links it. The item's paragraph about a
-  build marker records the owner's answer and points here.
-- At the merge, **pages-startup-applies-the-release-seed** is written into
-  [the record](../decisions.md) with its "Recorded in" line, this plan is archived and the item closes
-  into [the closed list](../backlog/closed.md) — nothing of it is left over.
+- [`seed-auto-apply-at-startup`](../../backlog/closed.md) took this plan and closed with it; its row
+  left [the backlog index](../../backlog/README.md).
+- **pages-startup-applies-the-release-seed** is written into [the record](../../decisions.md) with
+  its "Recorded in" line, this plan is archived, and the item is closed in
+  [the closed list](../../backlog/closed.md) — nothing of it is left over.
 - Nothing else in the record moves: no other item is blocked by this one, and no decision is
   superseded.
 
@@ -221,7 +220,7 @@ The name, and the rule it states:
   seed save, every start, with nothing remembered. The other verdicts, and a page the owner changed,
   are the seed page's alone.
 
-Draft entry:
+The entry, as recorded:
 
 > A seed update that needs no decision is not left waiting for the owner to open `/admin/seeds`. The
 > host plans the pack on every start, after the create-seeder and before it listens, and writes the
@@ -234,7 +233,6 @@ Draft entry:
 > or resurrects something the owner chose or records a provenance the host cannot check. A command is
 > not a start that serves, so a command gets the create-seeder and none of this.
 >
-> *Recorded in the archived plan, the shell, `PageSeedApplier` and `Program`* — the merge writes the
-> links from `docs/decisions.md`'s own base: `plans/archive/seed-auto-apply-at-startup.md`,
-> `shell.md`, `../src/uk.osric.asp.Web/Pages/PageSeedApplier.cs` and
-> `../src/uk.osric.asp.Web/Program.cs`.
+> *Recorded in [seed auto apply](seed-auto-apply-at-startup.md), [the shell](../../shell.md),
+> [storage](../../storage.md), [PageSeedApplier](../../../src/uk.osric.asp.Web/Pages/PageSeedApplier.cs),
+> [Program](../../../src/uk.osric.asp.Web/Program.cs).*

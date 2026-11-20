@@ -86,12 +86,14 @@ deleted pages; a versioned read deliberately does not.
 
 Deletion marks a head as a tombstone without removing its revision pointer or history. Saving again
 at the same path appends a revision and clears the tombstone. Startup seeding checks whether a head
-exists, so a deleted seeded asset stays deleted across restarts. Explicit scrub removes the head and
-all revisions for one path, but only after deletion; live pages must be deleted first. The one
-exception is a stored path at a key the shell answers: no page surface can delete or scrub it, so
-`/admin/seeds` proves the key is reserved and scrubs its head, revisions and state without a
-tombstone. Scrub then performs SQLite secure-delete and WAL checkpoint cleanup where applicable. This
-is best-effort cleanup, not forensic erasure: it cannot revoke running code or erase browser/CDN
+exists, so a deleted seeded asset stays deleted across restarts; the startup step that follows it
+writes a seed whose page still holds the one it was installed from, which is the one seed update the
+store permits without the owner's tick. Explicit scrub removes the head and all revisions for one
+path, but only after deletion; live pages must be deleted first. The one exception is a stored path at
+a key the shell answers: no page surface can delete or scrub it, so `/admin/seeds` proves the key is
+reserved and scrubs its head, revisions and state without a tombstone. Scrub then performs SQLite
+secure-delete and WAL checkpoint cleanup where applicable. This is best-effort cleanup, not forensic
+erasure: it cannot revoke running code or erase browser/CDN
 copies, exported archives, backups or filesystem snapshots. Rotate exposed secrets and clean external
 copies separately. Runtime-change cleanup of obsolete images and symbols is future work; source and
 revision identity are retained unless explicitly scrubbed.
@@ -206,10 +208,12 @@ shell's markup needs (see [the document shell](shell.md#the-document-shell)). Th
 shell's own views load — `/admin.css`, `/admin.js`, `/status.css`, `/reference.css` — and the icon
 at `/rocket.svg` are in the project's `wwwroot` instead: they are served by the static file handler
 and are not pages at all. Editing a seed file changes the initial content for
-a never-created page, not an existing database page. The authenticated install action applies the
-bundled source to an existing or tombstoned page as a new revision, and its confirmation refuses the
-install when the live template already matches the seed. The editor page lists every page, with the
-seeded ones under their own heading below the owner's; a seeded row carries an install link only
-while the live template differs from its seed. Restoring a retained revision is
+a never-created page, not an existing database page. A start applies the bundled source to every page
+that still holds the seed it was installed from, as a new revision with the shipped hash recorded as
+its anchor — the one seed write the store permits without the owner's tick. The authenticated install
+action applies the same write to a page a start did not reach, or to one the owner chooses, and its
+confirmation refuses the install when the live template already matches the seed. The editor page lists
+every page, with the seeded ones under their own heading below the owner's; a seeded row carries an
+install link only while the live template differs from its seed. Restoring a retained revision is
 the same write: it saves that revision's source as a new revision under the running runtime, clears
 a tombstone and refuses a revision whose source the live page already holds.
