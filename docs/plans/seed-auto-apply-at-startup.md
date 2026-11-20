@@ -7,7 +7,7 @@ SPDX-License-Identifier: MIT
 
 | | |
 | --- | --- |
-| Status | Approved 2026-11-20 — the owner said to build it. Being built on `idea/seed-auto-apply-at-startup`; nothing below is merged |
+| Status | Built 2026-11-20 on `idea/seed-auto-apply-at-startup`, with `make check` green; it waits for the owner's merge |
 | Size | Small: one startup step over the pack the seeder already reads, one type, one log line per row written, a paragraph in two docs, a bullet in the manual and one decision |
 | Area | Web (startup, pages), docs, tests |
 | Spike | None. Every claim below was read off `trunk` on 2026-11-20 |

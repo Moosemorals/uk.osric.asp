@@ -383,6 +383,18 @@ internal class Program {
             await PageAssetSeeder.SeedAsync(
                 pages, scope.ServiceProvider.GetRequiredService<PageSeeds>(), app.Lifetime.ApplicationStopping);
 
+            // The seed update that needs no choice is finished here rather than waiting for the owner
+            // to open the seed page. A command is not a start that serves: `seeds pull` exists to take
+            // the store's bytes into the working tree, so writing the release's seed over the row it
+            // was most likely asked for first would empty it.
+            if (!isCommand) {
+                await PageSeedApplier.ApplyAsync(
+                    scope.ServiceProvider.GetRequiredService<PageEditor>(),
+                    scope.ServiceProvider.GetRequiredService<PageSeeds>(),
+                    app.Logger,
+                    app.Lifetime.ApplicationStopping);
+            }
+
             // A stored page at a key the shell answers can never be served. It is what a seed that
             // became a shell file leaves behind, and the editor cannot remove it; point the owner at
             // the one page that can. The scan reports and never writes, and it is the web host's:

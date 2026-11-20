@@ -285,14 +285,25 @@ owns the things a page must not: routing, the session, the recovery routes and t
 a scrub needs. Pages stay public unless their own code checks `ctx.User` (see
 "Page authentication" below).
 
-A seeded page is installed from its row only when the release moved the seed and the page still holds
-the seed it was installed from — the row says *release newer*. The action opens a confirmation that
-shows the diff against the seed, and its button saves the bundled source through the ordinary
-revision path, so a page comes back without discarding its earlier revisions. A row whose content
-already is the shipped seed but whose record says otherwise offers *Record as installed*, a POST that
-writes the anchor and nothing else. A page that drifted is shown with the diff and no action: the
-capability refuses an install on it, so a hand-made form cannot do what the page will not offer. A
-seed is *installed* and a saved revision is *restored*: `?edit=<key>&cmd=install` on the seed,
+A start applies the seed a release moved. After the create-seeder and before the host listens, the
+pack is planned against the store and every row that says *release newer* — the release moved the
+seed, and the page still holds the one it was installed from — is written through the ordinary seed
+save, so it compiles first, records the shipped hash as the anchor and keeps the source it replaced in
+history. It happens on every start and remembers nothing, which is what makes it a rule rather than a
+deploy step: after the write the row is in sync, so the next start has nothing to do. A page the owner
+edited is never touched, so editing a page is how a source the release moved on from is kept. Nothing
+else is written automatically — a *new* seed is created by the create-seeder and the rest need a tick
+— and a command gets the create-seeder alone, because it is an operator reading or extracting the
+store rather than a host about to serve.
+
+A seeded page is also installed from its row by hand: the row says *release newer* and the page still
+holds the seed it was installed from. The action opens a confirmation that shows the diff against the
+seed, and its button saves the bundled source through the ordinary revision path, so a page comes back
+without discarding its earlier revisions. A row whose content already is the shipped seed but whose
+record says otherwise offers *Record as installed*, a POST that writes the anchor and nothing else. A
+page that drifted is shown with the diff and no action: the capability refuses an install on it, so a
+hand-made form cannot do what the page will not offer. A seed is *installed* and a saved revision is
+*restored*: `?edit=<key>&cmd=install` on the seed,
 `?rev=<hash>&cmd=restore` from the page's history, both confirmed the same way and both refusing the
 change that would leave the live source as it is. The page's history offers a restore link on every
 revision except the current one; the editor says when a key was deleted and that saving brings it
@@ -303,8 +314,11 @@ deleted before it can be scrubbed.
 The seed page is `/admin/seeds`: it lists every page the release ships with its verdict and a tick for
 each row the owner chooses. The safe rows — *new*, *release newer* and the rows whose content already
 matches but have no record of installing it — start ticked; the rows that could replace the owner's
-source — *edited*, *conflict*, *deleted* and *unknown* — start unticked. A `POST` writes exactly the
-ticked rows, refuses a row that changed after the page loaded, and never stops at a drift.
+source — *edited*, *conflict*, *deleted* and *unknown* — start unticked. A *release newer* row is
+usually written by the next start, so its tick is for a row a start has not reached; a row whose
+content already matches is recorded as installed here, because only the owner can say where a page
+came from. A `POST` writes exactly the ticked rows, refuses a row that changed after the page loaded,
+and never stops at a drift.
 `?diff=<key>` shows one row's change in the same bare document. The same page lists every stored path
 the shell answers — a seed that became a shell file leaves one — and scrubs the ticked keys after the
 owner types `scrub`; it re-checks that each key is still reserved before it removes a head, revision
