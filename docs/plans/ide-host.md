@@ -155,7 +155,11 @@ smallest changes come first because they are what every later slice is written a
 4. **038 — the search.** Needs 039 for its cursor; it shares nothing with 043, but it is the last thing
    that reads every source, so it comes after the budget rules are settled.
    Proves: a scan finds a literal in a scope, is bounded, resumes from a cursor and never hands a
-   source to the page.
+   source to the page. *The owner refined the item on 2026-11-20 — a pattern as well as a literal, a
+   bound measured in time, and a cursor that a store version invalidates — so the item and its answers
+   are the current statement of this slice, and the proofs above are rewritten when the plan is taken
+   up; the item now waits on [`listing-does-not-date-itself`](../backlog/listing-does-not-date-itself.md)
+   for that token.*
 5. **042 — the move.** Built on `idea/page-cannot-move` and waiting for the merge; the intended record
    is **pages-a-key-moves-with-its-history**. It turned out not to need 040 and 038: a library move is
    refused rather than recompiled, and the broken-link report is
