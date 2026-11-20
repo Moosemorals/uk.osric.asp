@@ -19,6 +19,14 @@ namespace uk.osric.asp.Sdk;
 /// open another transaction with the operations it still wants.
 /// </para>
 /// <para>
+/// A transaction opened while one is already open <strong>nests</strong> inside it: committing the
+/// nested one merges its writes into the outer one, so they land when the outer commits and vanish if
+/// it is disposed instead. A nested commit stores nothing, so its rows stay
+/// <see cref="PageWriteOutcome.Staged"/>; the outer transaction's commit is what decides every
+/// operation, including the nested ones, and its report holds a row for each. Two operations on one
+/// key are still a page bug, whether they are in one transaction or one nested in the other.
+/// </para>
+/// <para>
 /// The members keep the arguments of the matching <see cref="IPageWrites"/> members, so a page that
 /// can make one write can make several. A write outside a transaction is a transaction of one.
 /// </para>

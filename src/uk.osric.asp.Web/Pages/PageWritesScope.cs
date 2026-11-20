@@ -41,13 +41,16 @@ internal sealed class PageWritesScope(
     public IPageTransaction BeginTransaction() {
         ThrowIfCannotWrite();
 
-        if (!gate.TryOpen()) {
-            throw new InvalidOperationException(
-                $"{path.Key} cannot open a transaction: one is already open in this render (another layer may hold it), and the store has one transaction.");
-        }
+        // A transaction opened while one is already open nests inside it: its writes become the outer
+        // one's and land when it commits. That is what an embedded
+        // page's transaction is, and it is why nothing here is refused.
+        PageTransactionScope? root = gate.Root;
 
-        PageTransactionScope transaction = new(path, pages, reserved, seeds, gate, Deadline);
+        PageTransactionScope transaction = new(path, pages, reserved, seeds, gate, Deadline, root);
         transaction.AttachDeadline(Deadline);
+        if (root is null) {
+            gate.Open(transaction);
+        }
 
         return transaction;
     }

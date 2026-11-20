@@ -46,25 +46,34 @@ internal sealed class PageTransactionScope : RenderBoundCapability, IPageTransac
     private Exception? _fault;
     private bool _committed;
 
+    private readonly PageTransactionScope? _root;
+
     /// <summary>Opens a transaction for one render.</summary>
     /// <param name="path">The page whose render opened it.</param>
     /// <param name="pages">The store's write capability, for compiling and committing.</param>
     /// <param name="reserved">The shell's route table, which no page may write.</param>
     /// <param name="seeds">The pages this release ships, for an install or an adopt.</param>
-    /// <param name="gate">The render's one-transaction gate, which the scope already holds.</param>
+    /// <param name="gate">The render's transaction gate, which the scope already holds.</param>
     /// <param name="deadline">The render's deadline, which bounds a compile slot and nothing else.</param>
+    /// <param name="root">
+    /// The transaction this one nests inside, or <see langword="null"/> when it is the render's
+    /// outermost. A nested transaction merges its writes into the root when it commits, so they land
+    /// with the root or not at all.
+    /// </param>
     public PageTransactionScope(
         PagePath path,
         PageEditor pages,
         ReservedPaths reserved,
         PageSeeds seeds,
         PageTransactionGate gate,
-        CancellationToken deadline) {
+        CancellationToken deadline,
+        PageTransactionScope? root = null) {
         _path = path;
         _pages = pages;
         _reserved = reserved;
         _seeds = seeds;
         _gate = gate;
+        _root = root;
         AttachDeadline(deadline);
     }
 
@@ -207,7 +216,16 @@ internal sealed class PageTransactionScope : RenderBoundCapability, IPageTransac
         ThrowIfCommitted();
 
         _committed = true;
-        _gate.Close();
+
+        if (_root is not null) {
+            // A nested transaction does not touch the store: its writes become the outer one's, so
+            // they land when it commits and vanish if it is disposed. Its own rows stay Staged,
+            // because nothing is stored until the outermost commit says so.
+            _root.Absorb(this);
+            return [.. _rows];
+        }
+
+        _gate.Close(this);
 
         if (_operations.Count == 0) {
             return [.. _rows];
@@ -237,10 +255,41 @@ internal sealed class PageTransactionScope : RenderBoundCapability, IPageTransac
     public ValueTask DisposeAsync() {
         if (!_committed) {
             _committed = true;
-            _gate.Close();
+            if (_root is null) {
+                _gate.Close(this);
+            }
         }
 
         return ValueTask.CompletedTask;
+    }
+
+    /// <summary>Takes a nested transaction's writes and rows into this one.</summary>
+    /// <param name="child">The transaction that has just committed.</param>
+    /// <exception cref="InvalidOperationException">The nested transaction writes a key this one already holds.</exception>
+    /// <remarks>
+    /// Two operations on one key cannot both hold their head, so a key this transaction already stages
+    /// is a page bug in the nested one — and it is raised here, before the outermost commit, while the
+    /// page that made the mistake is still the one being told.
+    /// </remarks>
+    internal void Absorb(PageTransactionScope child) {
+        ArgumentNullException.ThrowIfNull(child);
+
+        foreach (string key in child._keys) {
+            if (!_keys.Add(key)) {
+                throw new InvalidOperationException(
+                    $"{key} is staged twice in one transaction: two operations on one key cannot both hold their head, so one of them would be lost.");
+            }
+        }
+
+        int offset = _rows.Count;
+        _rows.AddRange(child._rows);
+
+        for (int index = 0; index < child._operations.Count; index++) {
+            _operations.Add(child._operations[index]);
+            _rowOfOperation.Add(offset + child._rowOfOperation[index]);
+        }
+
+        _fault ??= child._fault;
     }
 
     private static PageWriteOutcome Outcome(PageCommitOutcome outcome) => outcome switch {

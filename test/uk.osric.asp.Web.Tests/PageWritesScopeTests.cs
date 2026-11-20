@@ -224,15 +224,54 @@ public sealed class PageWritesScopeTests {
     }
 
     [Test]
-    public async Task ATransactionDoesNotNestAsync() {
-        using PageHarness pages = new(new FakePageStore());
+    public async Task ANestedTransactionLandsWithTheOneItNestsInsideAsync() {
+        FakePageStore storage = new();
+        using PageHarness pages = new(storage);
         PageWritesScope scope = Scope(pages);
 
-        await using IPageTransaction transaction = scope.BeginTransaction();
+        await using IPageTransaction outer = scope.BeginTransaction();
+        _ = await outer.SaveAsync("/outer", "outer", null);
 
-        InvalidOperationException? refused = Assert.Throws<InvalidOperationException>(() => scope.BeginTransaction());
+        await using (IPageTransaction inner = scope.BeginTransaction()) {
+            _ = await inner.SaveAsync("/inner", "inner", null);
+            IReadOnlyList<PageWriteResult> nested = await inner.CommitAsync();
 
-        Assert.That(refused?.Message, Does.Contain("the store has one transaction"));
+            Assert.Multiple(() => {
+                Assert.That(nested[0].Outcome, Is.EqualTo(PageWriteOutcome.Staged), "nothing is stored until the outer commits");
+                Assert.That(storage["/inner"], Is.Null);
+            });
+        }
+
+        IReadOnlyList<PageWriteResult> report = await outer.CommitAsync();
+
+        Assert.Multiple(() => {
+            Assert.That(report.Select(row => row.Key), Is.EqualTo(["/outer", "/inner"]));
+            Assert.That(report.Select(row => row.Outcome), Is.EqualTo([PageWriteOutcome.Saved, PageWriteOutcome.Saved]));
+            Assert.That(storage["/outer"]?.Template, Is.EqualTo("outer"));
+            Assert.That(storage["/inner"]?.Template, Is.EqualTo("inner"));
+        });
+    }
+
+    [Test]
+    public async Task ANestedTransactionIsLostWhenTheOuterOneIsDisposedAsync() {
+        FakePageStore storage = new();
+        using PageHarness pages = new(storage);
+
+        PageWritesScope scope = Scope(pages);
+
+        await using (IPageTransaction outer = scope.BeginTransaction()) {
+            _ = await outer.SaveAsync("/outer", "outer", null);
+
+            await using (IPageTransaction inner = scope.BeginTransaction()) {
+                _ = await inner.SaveAsync("/inner", "inner", null);
+                _ = await inner.CommitAsync();
+            }
+        }
+
+        Assert.Multiple(() => {
+            Assert.That(storage["/inner"], Is.Null, "a nested write lands with the outer one or not at all");
+            Assert.That(storage["/outer"], Is.Null);
+        });
     }
 
     [Test]

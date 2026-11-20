@@ -76,7 +76,9 @@ is statements only. The store runs in WAL, which is set and verified at startup 
 a commit and a commit never blocks a reader — and a commit that cannot take the writer answers that it
 is busy after `Pages:Storage:BusyTimeoutSeconds` rather than waiting the client's default out. A
 refusal writes nothing: every operation's condition is proved before the first row is written, so the
-report can name every conflict and the transaction rolls back whole.
+report can name every conflict and the transaction rolls back whole. A transaction nested inside
+another is not a second store transaction: it merges its operations into the outer one and is decided
+by its commit, so the store still has exactly one transaction per commit.
 
 A save inserts the revision and advances its `PageHeads` row in one transaction. The head is the
 authoritative current-page pointer; reads do not guess the current row from timestamps. The source

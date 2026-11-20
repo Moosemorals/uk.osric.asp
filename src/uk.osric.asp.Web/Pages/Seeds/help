@@ -752,8 +752,11 @@ reports <em>NotAttempted</em>, so a Save all can show every conflict in one answ
 in a new transaction if you want them. A page bug — a reserved key, two operations on one key, a library
 move — throws while staging, before anything is at risk.</p>
 <p>A transaction that is disposed without a commit writes nothing, so a page that forgets
-<code>CommitAsync</code> changes nothing. A page holds one open at a time, and a render may commit as
-many transactions as it has work for. One save, move, delete or restore is already a transaction of one
+<code>CommitAsync</code> changes nothing, and a render may commit as many transactions as it has work
+for. A transaction opened while one is already open <em>nests</em> inside it — which is what an
+embedded page's transaction is — so its writes land when the outer one commits and vanish if it is
+disposed instead. A nested commit stores nothing, so its rows stay <em>Staged</em> and the outer
+commit's report is what says what became of them. One save, move, delete or restore is already a transaction of one
 and answers as it always did; use a transaction for writes that must land together, not for every
 write.</p>
 <p><em>Busy</em> means another writer held the store; nothing was written. Retrying, splitting the work

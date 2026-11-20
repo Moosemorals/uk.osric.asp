@@ -9,7 +9,7 @@ using uk.osric.asp.Web.Shell;
 
 /// <summary>The system prompt and worked examples that teach the model to write a page.</summary>
 internal static class PageAuthorPrompt {
-    public const string Version = "page-author-v47";
+    public const string Version = "page-author-v48";
 
     public static IReadOnlyList<(string Name, string Source)> Examples { get; } = [
         ("query-driven", """
@@ -442,8 +442,10 @@ internal static class PageAuthorPrompt {
         `SourceNotFound`, `Refused`, `Busy`) and writes nothing, with
         `NotAttempted` for the writes the refusal cost. A page bug — a reserved
         key, two operations on one key, a library move — throws while staging.
-        A transaction that is disposed without a commit writes nothing, and a
-        page holds one open at a time.
+        A transaction that is disposed without a commit writes nothing, and
+        a transaction opened while one is already open nests inside it: its
+        writes land with the outer one, its rows stay Staged, and disposing the
+        outer one discards them all.
 
         A transaction is for writes that must land together, not for every
         write: one save, move, delete or restore is already a transaction of
