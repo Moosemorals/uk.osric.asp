@@ -666,10 +666,15 @@ cause, so the history stays the history:</p>
 &lt;/ul&gt;
 &lt;% } %&gt;</code></pre>
 <p><code>CheckAsync(language, source)</code> names the language from a closed set &mdash;
-<code>template</code> today &mdash; and never guesses it from a key's extension. The source is the whole
-template, and there is no key: to check a stored page, read it with
+<code>template</code> and <code>javascript</code> &mdash; and never guesses it from a key's extension.
+The source is the whole template, and there is no key: to check a stored page, read it with
 <a href="/admin/reference/sdk#m-IPageCatalog.ReadAsync-string"><code>IPageCatalog.ReadAsync</code></a> and pass what you
 read, so a source that has never been saved is checked exactly as one that has.</p>
+<p><code>javascript</code> is the script a page serves: the template's constructs are blanked, every
+line break is kept, and the literal text is parsed as an ES module, so a diagnostic's line and column
+are the ones you typed. It checks syntax only &mdash; imports are not resolved and nothing is executed
+&mdash; and it answers no <code>Kind</code>, because a script is not a page. Use <code>template</code>
+for the page as a whole, code and all.</p>
 <p>A <a href="/admin/reference/sdk#t-PageCheckResult"><code>PageCheckResult</code></a> says what generation judged the
 source to be in <code>Kind</code> &mdash; text, page, library or worker, or nothing when there is
 nothing to judge &mdash; whether it would be served in <code>Valid</code>, and what the compiler found, in

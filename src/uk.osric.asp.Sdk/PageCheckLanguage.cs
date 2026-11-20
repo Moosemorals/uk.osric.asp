@@ -8,7 +8,8 @@ namespace uk.osric.asp.Sdk;
 /// <para>
 /// The set is closed on purpose: a check names one of these, and the host refuses a name that is not
 /// one of them rather than guessing from a key's extension. A key's extension is a content type, not
-/// a validator: a <c>.html</c> page can hold a template or an asset.
+/// a validator: a <c>.html</c> page can hold a template or an asset, and a <c>.js</c> page is a
+/// template with JavaScript in it until its constructs are blanked.
 /// </para>
 /// <para>
 /// One declaration feeds the author manual, the assistant's tool schema and the refusal, so a caller
@@ -19,4 +20,9 @@ public enum PageCheckLanguage {
 
     /// <summary>A page template: generation, the page API policy and the compiler.</summary>
     Template,
+
+    /// <summary>
+    /// A template's literal text, parsed as an ES module: the JavaScript a browser would be served.
+    /// </summary>
+    JavaScript,
 }

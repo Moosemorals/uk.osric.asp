@@ -36,6 +36,7 @@ public static class PageCheckLanguages {
     /// <exception cref="ArgumentOutOfRangeException">The language declares no name.</exception>
     public static string NameOf(PageCheckLanguage language) => language switch {
         PageCheckLanguage.Template => "template",
+        PageCheckLanguage.JavaScript => "javascript",
         _ => throw new ArgumentOutOfRangeException(
             nameof(language), language, "No name is declared for that language."),
     };

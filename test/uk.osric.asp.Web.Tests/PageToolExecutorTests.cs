@@ -11,6 +11,9 @@ using uk.osric.asp.Core.Pages;
 using uk.osric.asp.Web.Assistant;
 using uk.osric.asp.Web.Editor;
 using uk.osric.asp.Web.Pages;
+// The page contract has a diagnostic and a check result of its own.
+using SdkDiagnostic = uk.osric.asp.Sdk.PageDiagnostic;
+using SdkPageCheckResult = uk.osric.asp.Sdk.PageCheckResult;
 
 [TestFixture]
 [FixtureLifeCycle(LifeCycle.InstancePerTestCase)]
@@ -1884,6 +1887,35 @@ public sealed class PageToolExecutorTests {
                 Does.Contain("IllegalReturn"));
         });
     }
+
+    [Test]
+    public async Task TheCheckCapabilityAnswersWhatTheScriptToolAnswersAsync() {
+        FakePageStore storage = new();
+        using PageHarness pages = new(storage);
+        using ServiceProvider services = Services(pages.Editor);
+        PageToolExecutor tools = CreateTools(services);
+        const string Content = "const a = { x: 1 y: 2 };";
+        string arguments = JsonSerializer.Serialize(new { content = Content });
+
+        ToolExecutionResult result = await tools.ExecuteAsync("check_script_text", arguments, Context, CancellationToken.None);
+        SdkPageCheckResult check = await pages.Checks.For(PageHarness.Key("/checker"))
+            .CheckAsync("javascript", Content);
+
+        (int? Line, int? Column, string Message)[] fromTool = [.. Data(result)
+            .GetProperty("diagnostics")
+            .EnumerateArray()
+            .Select(item => (
+                (int?)item.GetProperty("line").GetInt32(),
+                (int?)item.GetProperty("column").GetInt32(),
+                item.GetProperty("message").GetString()!))];
+        (int? Line, int? Column, string Message)[] fromCheck = [.. check.Diagnostics
+            .Select(diagnostic => ((int?)diagnostic.Line, (int?)diagnostic.Column, WithCode(diagnostic)))];
+
+        Assert.That(fromCheck, Is.EqualTo(fromTool), "the tool and the capability are one tier");
+    }
+
+    private static string WithCode(SdkDiagnostic diagnostic) =>
+        diagnostic.Code.Length == 0 ? diagnostic.Message : $"{diagnostic.Code}: {diagnostic.Message}";
 
     private static string[] PagePaths(ToolExecutionResult result) => [.. Data(result)
         .GetProperty("pages").EnumerateArray()

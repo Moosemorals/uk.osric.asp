@@ -18,9 +18,10 @@ using SdkSeverity = uk.osric.asp.Sdk.PageDiagnosticSeverity;
 /// <summary>One layer's <see cref="IPageCheck"/>, bound to that render's deadline and abandonment.</summary>
 /// <remarks>
 /// <para>
-/// This is the save's front half without the store: generate the source, generate each library in
-/// the shape a library is compiled in, wait for a compile slot, compile, and answer the mapped
-/// diagnostics. It writes no revision, head, image, closure fingerprint or seed record, and it
+/// A template is the save's front half without the store: generate the source, generate each library
+/// in the shape a library is compiled in, wait for a compile slot, compile, and answer the mapped
+/// diagnostics. A script is the template-blanking skeleton and the parser the assistant already checks
+/// with. Either way it writes no revision, head, image, closure fingerprint or seed record, and it
 /// recompiles none of a saved page's dependents, which is the whole point of asking without saving.
 /// </para>
 /// <para>
@@ -43,7 +44,7 @@ internal sealed class PageCheckScope(
     ILogger<PageCheckScope> logger) : RenderBoundCapability, IPageCheck {
 
     /// <inheritdoc/>
-    public async Task<PageCheckResult> CheckAsync(string language, string source) {
+    public Task<PageCheckResult> CheckAsync(string language, string source) {
         ArgumentNullException.ThrowIfNull(language);
         ArgumentNullException.ThrowIfNull(source);
 
@@ -55,10 +56,29 @@ internal sealed class PageCheckScope(
         }
 
         return named switch {
-            PageCheckLanguage.Template => await CheckTemplateAsync(source),
+            PageCheckLanguage.Template => CheckTemplateAsync(source),
+            PageCheckLanguage.JavaScript => Task.FromResult(CheckScript(source)),
             _ => throw new ArgumentOutOfRangeException(
                 nameof(language), named, "This build has no checker for that language."),
         };
+    }
+
+    // A script page is still a template: the skeleton blanks every construct and keeps the line
+    // breaks, so the parser's positions are the author's. A skeleton that cannot be built answers its
+    // own diagnostic, so an unterminated block says so instead of failing the parse.
+    private static PageCheckResult CheckScript(string script) {
+        ScriptSkeletonResult skeleton = TemplateScriptSkeleton.Create(script);
+        IReadOnlyList<CoreDiagnostic> found = skeleton.IsSuccess
+            ? JavaScriptValidator.Validate(skeleton.Source)
+            : skeleton.Diagnostics;
+
+        IReadOnlyList<SdkDiagnostic> mapped = PageDiagnostics.ToSdk(found);
+
+        return new PageCheckResult(
+            // A script has no page kind: generation never ran, so there is nothing to judge.
+            Kind: null,
+            mapped.All(diagnostic => diagnostic.Severity != SdkSeverity.Error),
+            mapped);
     }
 
     private async Task<PageCheckResult> CheckTemplateAsync(string template) {
