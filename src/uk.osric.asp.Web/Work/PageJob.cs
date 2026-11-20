@@ -6,14 +6,20 @@ namespace uk.osric.asp.Web.Work;
 using System.Threading.Channels;
 using uk.osric.asp.Core.Pages;
 using uk.osric.asp.Sdk;
+using uk.osric.asp.Web.Authentication;
 using uk.osric.asp.Web.Pages;
 
-/// <summary>One job in memory: its identity, its owner, its messages and its journal.</summary>
+/// <summary>One job in memory: its identity, its credential, its messages and its journal.</summary>
 /// <remarks>
 /// A job does not survive a restart, so nothing here is stored: the starting page's own state is the
 /// record, and a page that finds its state says running while <see cref="IPageJobs.GetAsync"/> answers
 /// nothing knows the host restarted. The record is kept after the job ends until it is swept, so a
 /// viewer that reloads can still read what the job published.
+/// <para>
+/// The authority is the credential the starting render presented, which the job acts with until it
+/// ends. <see cref="Owner"/> is its label, which is what a viewer sees and what every job call is
+/// filtered by; the credential is what its writes are proved against.
+/// </para>
 /// </remarks>
 internal sealed class PageJob : IDisposable {
 
@@ -28,7 +34,7 @@ internal sealed class PageJob : IDisposable {
     /// <param name="id">The job's id.</param>
     /// <param name="worker">The worker's canonical key.</param>
     /// <param name="page">The starting page's canonical key.</param>
-    /// <param name="owner">The visitor the job runs for.</param>
+    /// <param name="authority">The credential the starting render presented.</param>
     /// <param name="input">The first message, or <see langword="null"/> when there was none.</param>
     /// <param name="options">The job's bounds.</param>
     /// <param name="clock">Where the times come from.</param>
@@ -36,20 +42,20 @@ internal sealed class PageJob : IDisposable {
         string id,
         PagePath worker,
         PagePath page,
-        PageUser owner,
+        PageJobAuthority authority,
         string? input,
         PageJobOptions options,
         TimeProvider clock) {
         ArgumentNullException.ThrowIfNull(worker);
         ArgumentNullException.ThrowIfNull(page);
-        ArgumentNullException.ThrowIfNull(owner);
+        ArgumentNullException.ThrowIfNull(authority);
         ArgumentNullException.ThrowIfNull(options);
         ArgumentNullException.ThrowIfNull(clock);
 
         Id = id;
         Worker = worker;
         Page = page;
-        Owner = owner;
+        Authority = authority;
         Input = input;
         StartedAt = clock.GetUtcNow();
         _clock = clock;
@@ -71,8 +77,11 @@ internal sealed class PageJob : IDisposable {
     /// <summary>The starting page's canonical key.</summary>
     public PagePath Page { get; }
 
-    /// <summary>The visitor the job runs for.</summary>
-    public PageUser Owner { get; }
+    /// <summary>The credential the job acts with, borrowed from the render that started it.</summary>
+    public PageJobAuthority Authority { get; }
+
+    /// <summary>The account the job runs for, which is the label every job call is filtered by.</summary>
+    public PageUser Owner => Authority.Owner;
 
     /// <summary>The first message, or <see langword="null"/>.</summary>
     public string? Input { get; }

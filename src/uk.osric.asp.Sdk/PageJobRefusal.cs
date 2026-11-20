@@ -41,4 +41,7 @@ public enum PageJobRefusal {
 
     /// <summary>The message is larger than <c>Pages:Jobs:MaxMessageBytes</c>.</summary>
     MessageTooLarge,
+
+    /// <summary>The credential that would start the job is no longer live, so nothing was started.</summary>
+    Revoked,
 }

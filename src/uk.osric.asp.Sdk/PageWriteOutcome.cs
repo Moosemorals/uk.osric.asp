@@ -53,4 +53,10 @@ public enum PageWriteOutcome {
     /// nothing it wrote is in the store.
     /// </summary>
     RolledBack,
+
+    /// <summary>
+    /// The credential the write was made with is no longer live, so nothing was written. A render
+    /// never answers this: only a job borrows a credential it has to keep proving.
+    /// </summary>
+    Revoked,
 }

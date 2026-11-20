@@ -5,6 +5,7 @@ namespace uk.osric.asp.Web.Pages;
 
 using uk.osric.asp.Core.Pages;
 using uk.osric.asp.Sdk;
+using uk.osric.asp.Web.Authentication;
 using uk.osric.asp.Web.Editor;
 using uk.osric.asp.Web.Errors;
 
@@ -41,6 +42,7 @@ internal sealed class PageChain {
     private readonly PageRenderer.RenderSession _session;
     private readonly PageSessionRequest _sessionRequest;
     private readonly PageUser? _user;
+    private readonly PageJobAuthority? _jobAuthority;
     private readonly PageTransactionGate _writeGate = new();
     private int _embeds;
 
@@ -53,6 +55,10 @@ internal sealed class PageChain {
     /// <param name="loggerFactory">Creates the logger every layer writes through.</param>
     /// <param name="request">The request snapshot, shared by every layer.</param>
     /// <param name="user">The signed-in account, or <see langword="null"/>.</param>
+    /// <param name="jobAuthority">
+    /// The credential this request presented, captured for the jobs its layers may start, or
+    /// <see langword="null"/> when it presented none.
+    /// </param>
     /// <param name="session">The visitor's session, resolved once by the endpoint.</param>
     /// <param name="isHead">Whether the request is a HEAD, which renders but never writes state.</param>
     /// <param name="bodyBudget">The allowance the whole render shares.</param>
@@ -80,6 +86,7 @@ internal sealed class PageChain {
         ILoggerFactory loggerFactory,
         PageRequest request,
         PageUser? user,
+        PageJobAuthority? jobAuthority,
         PageSessionRequest session,
         bool isHead,
         BodyBudget bodyBudget,
@@ -112,6 +119,7 @@ internal sealed class PageChain {
         _request = request;
         _sessionRequest = session;
         _user = user;
+        _jobAuthority = jobAuthority;
         _isHead = isHead;
         _aborted = aborted;
         _bodyBudget = bodyBudget;
@@ -216,7 +224,7 @@ internal sealed class PageChain {
             // that started one would start it once per page it wraps.
             if (_environment.Jobs is { } jobs) {
                 capabilities.Add<IPageJobs>(new PageJobsScope(
-                    key, _isHead, _user, jobs, jobs.Options));
+                    key, _isHead, _jobAuthority, jobs, jobs.Options));
             }
 
             // Every layer that is not a layout, whatever its key: the visitor is the authority, not

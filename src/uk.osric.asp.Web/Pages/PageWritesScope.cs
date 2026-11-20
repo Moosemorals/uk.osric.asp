@@ -17,9 +17,9 @@ using uk.osric.asp.Web.Editor;
 /// <para>
 /// Authority is asymmetric with the catalog. An anonymous render is refused with a
 /// <see cref="UserFacingException"/> before anything is compiled or stored; a <c>HEAD</c>, an ended
-/// render, a second write and a reserved key are page bugs and throw
-/// <see cref="InvalidOperationException"/>. The key itself is the page's answer through
-/// <see cref="Resolve"/>, so a typo in a query value is a message the page renders.
+/// render and a reserved key are page bugs and throw <see cref="InvalidOperationException"/>. The key
+/// itself is the page's answer through <see cref="Resolve"/>, so a typo in a query value is a message
+/// the page renders.
 /// </para>
 /// <para>
 /// Every member here is a transaction of one, and <see cref="BeginTransaction"/> is several writes that
@@ -29,6 +29,12 @@ using uk.osric.asp.Web.Editor;
 /// deadline bounds the wait for a compile slot, not the author's edit
 /// (`pages-a-page-may-save-itself`, `pages-writes-are-transactions`).
 /// </para>
+/// <para>
+/// A render passes no credential, because the request has already been authenticated and a commit is
+/// bounded by the request. A job passes the credential it borrowed from the render that started it:
+/// its commits ask that credential, and one that is no longer live answers
+/// <see cref="PageWriteOutcome.Revoked"/> and stores nothing.
+/// </para>
 /// </remarks>
 internal sealed class PageWritesScope(
     PagePath path,
@@ -37,7 +43,9 @@ internal sealed class PageWritesScope(
     bool writable,
     ReservedPaths reserved,
     PageSeeds seeds,
-    PageTransactionGate gate) : RenderBoundCapability, IPageWrites {
+    PageTransactionGate gate,
+    IPageWriteCredential? credential = null,
+    Action? touched = null) : RenderBoundCapability, IPageWrites {
 
     /// <inheritdoc/>
     public IPageTransaction BeginTransaction() {
@@ -52,7 +60,8 @@ internal sealed class PageWritesScope(
     private PageWriteTransaction Open() {
         // Whatever is open now becomes the parent, and this one is what later writes join until it
         // closes — which is what lets a nested transaction own the writes made while it is open.
-        PageWriteTransaction transaction = new(pages, seeds, gate, gate.Current, Deadline);
+        PageWriteTransaction transaction = new(
+            pages, seeds, gate, gate.Current, Deadline, credential, touched);
         gate.Open(transaction);
 
         return transaction;
@@ -192,6 +201,7 @@ internal sealed class PageWritesScope(
         PageWriteOutcome.Unchanged => PageEditOutcome.Unchanged,
         PageWriteOutcome.Busy => PageEditOutcome.Busy,
         PageWriteOutcome.Staged => PageEditOutcome.Staged,
+        PageWriteOutcome.Revoked => PageEditOutcome.Revoked,
         _ => PageEditOutcome.Stale,
     };
 
@@ -200,6 +210,7 @@ internal sealed class PageWritesScope(
         PageWriteOutcome.SourceNotFound => PageDeleteOutcome.Missing,
         PageWriteOutcome.Busy => PageDeleteOutcome.Busy,
         PageWriteOutcome.Staged => PageDeleteOutcome.Staged,
+        PageWriteOutcome.Revoked => PageDeleteOutcome.Revoked,
         _ => PageDeleteOutcome.Missing,
     };
 
@@ -211,6 +222,7 @@ internal sealed class PageWritesScope(
         PageWriteOutcome.FolderNotEmpty => PageMoveOutcome.FolderNotEmpty,
         PageWriteOutcome.Busy => PageMoveOutcome.Busy,
         PageWriteOutcome.Staged => PageMoveOutcome.Staged,
+        PageWriteOutcome.Revoked => PageMoveOutcome.Revoked,
         _ => PageMoveOutcome.Stale,
     };
 

@@ -293,8 +293,8 @@ caller; and a journal is the job's own. The authority dies; the job does not hav
   `Revoked`; the capability bullet for `IPageJobs` keeps its words about filtering by visitor.
 - `docs/shell.md` §A run's view gains the consequence: a job a page starts under a run holds the run's
   id, so the run ending is what ends the job's writes.
-- `docs/assistant.md`'s port table loses "the page-store write authority the tools need" from what
-  blocks `/assistant`: a job may write now.
+- `docs/assistant.md` needs no change: the port table that named the page-store write authority as a
+  blocker was retired before this landed, so there is nothing there to lose.
 - `PageWritesScope`'s own remark still calls a second write a page bug, which the transaction made
   untrue; the change fixes the sentence while it is in the file.
 

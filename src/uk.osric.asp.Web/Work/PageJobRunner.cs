@@ -7,6 +7,7 @@ using uk.osric.asp.Core.Compilation;
 using uk.osric.asp.Core.Pages;
 using uk.osric.asp.Runtime;
 using uk.osric.asp.Sdk;
+using uk.osric.asp.Web.Editor;
 using uk.osric.asp.Web.Pages;
 // A job judges Core's diagnostics and page kind; the page contract has its own of each.
 using PageDiagnostic = uk.osric.asp.Core.Compilation.PageDiagnostic;
@@ -85,6 +86,11 @@ internal sealed class PageJobRunner(
         using CancellationTokenSource linked =
             CancellationTokenSource.CreateLinkedTokenSource(job.Lifetime.Token, stoppingToken);
 
+        // The writer needs the scoped store a render's writer has, so the job opens one scope and
+        // keeps it for its life: a per-call scope could not outlive a transaction that spans calls.
+        await using AsyncServiceScope services = environment.Scopes.CreateAsyncScope();
+        PageEditor editor = services.ServiceProvider.GetRequiredService<PageEditor>();
+
         logger.LogInformation("Job {JobId} started on worker {Worker}", job.Id, job.Worker.Key);
         long start = System.Diagnostics.Stopwatch.GetTimestamp();
 
@@ -107,7 +113,7 @@ internal sealed class PageJobRunner(
             using LoadedWorker worker = environment.Compiler.LoadWorker(image.Bytes, image.Symbols);
             IWorker instance = worker.Create();
 
-            await instance.RunAsync(Context(job, linked.Token));
+            await instance.RunAsync(Context(job, editor, linked.Token));
 
             // A worker that returns is not always a job that finished: one that ignored its token and
             // outran a clock has been cut, and the owner is owed the reason.
@@ -138,7 +144,7 @@ internal sealed class PageJobRunner(
         _ => (PageJobState.Completed, null),
     };
 
-    private WorkerContext Context(PageJob job, CancellationToken token) {
+    private WorkerContext Context(PageJob job, PageEditor editor, CancellationToken token) {
         PageStorageScope storage = new(
             job.Page, environment.State, environment.Storage, writable: true);
         PageHttpFetch fetch = new(
@@ -161,13 +167,29 @@ internal sealed class PageJobRunner(
             environment.ContentTypes,
             environment.Seeds,
             environment.Compiler.RuntimeId);
-        PageJobsScope jobScope = new(job.Page, isHead: false, job.Owner, jobs, environment.Jobs);
+        PageJobsScope jobScope = new(
+            job.Page, isHead: false, job.Authority, jobs, environment.Jobs, job.Lifetime.ReArm);
+
+        // The writer is the same capability a page gets, bound to the starting page and to the
+        // credential that started the job: every commit asks that credential before it stores.
+        PageWritesScope writes = new(
+            job.Page,
+            editor,
+            job.Owner,
+            writable: true,
+            environment.Reserved,
+            environment.Seeds,
+            new PageTransactionGate(),
+            job.Authority,
+            job.Lifetime.ReArm);
+        writes.AttachDeadline(token);
 
         PageCapabilities capabilities = new PageCapabilities()
             .Add<IPageStorage>(storage)
             .Add<IHttpFetch>(fetch)
             .Add<IPageCatalog>(catalog)
-            .Add<IPageJobs>(jobScope);
+            .Add<IPageJobs>(jobScope)
+            .Add<IPageWrites>(writes);
 
         // A job is one lifetime, so its capabilities stop when it does rather than when a render ends.
         capabilities.AttachDeadline(token);

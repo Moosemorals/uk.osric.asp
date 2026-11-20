@@ -449,6 +449,10 @@ gives it a second authentication scheme, `View`, and a token that is not a sign-
   refused `405` with `Allow: GET, HEAD` before authorisation and long before the antiforgery check.
   It sits in one place because the page endpoint covers pages only — the editor, the admin tools, the
   assistant and the memory page are all shell routes with their own `POST`s.
+- **A job started under a view holds the run's id.** A page that starts a job while a run is viewing
+  it gives the job the run as its credential, not the owner's name: the run's end forgets the token,
+  and every write the job makes afterwards answers `Revoked`. Nothing stores the id, and the job's
+  authority dies with the token it names.
 - **Only one origin.** `Site:Origin` is where the host reaches the site it serves;
   `ViewCredential` offers the token to that scheme, host and port and to nothing else, hop by hop, so
   a redirect off the origin drops it (`pages-outbound-fetch`). A page cannot name the token: it is not

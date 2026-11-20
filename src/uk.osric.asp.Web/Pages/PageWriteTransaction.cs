@@ -33,13 +33,22 @@ using PageKind = uk.osric.asp.Core.Pages.PageKind;
 /// from the library that was there and its closure makes it stale, exactly as a dependent outside the
 /// transaction is (`pages-writes-are-transactions`).
 /// </para>
+/// <para>
+/// A job's transaction also carries the credential the job borrowed and a clock it re-arms: every
+/// staging call touches the clock, and the outermost commit asks the credential before it stores.
+/// When the answer is no, nothing is written and every staged operation answers
+/// <see cref="PageWriteOutcome.Revoked"/>. A render passes neither, because its request has already
+/// been authenticated.
+/// </para>
 /// </remarks>
 internal sealed class PageWriteTransaction(
     PageEditor pages,
     PageSeeds seeds,
     PageTransactionGate gate,
     PageWriteTransaction? root,
-    CancellationToken deadline) : IPageTransaction {
+    CancellationToken deadline,
+    IPageWriteCredential? credential = null,
+    Action? touched = null) : IPageTransaction {
 
     private readonly List<PageWriteResult> _rows = [];
     private readonly List<PageCommit> _operations = [];
@@ -54,22 +63,28 @@ internal sealed class PageWriteTransaction(
     /// <summary>Stages this page's own source, bound to the layer's key.</summary>
     /// <param name="path">The key of the page that is saving itself.</param>
     /// <param name="template">The template text.</param>
-    public Task<PageWriteResult> SaveOwnAsync(PagePath path, string template) =>
-        StageSaveAsync(path, template, null, null, PageWriteOperation.Save, PageCommitKind.Put);
+    public Task<PageWriteResult> SaveOwnAsync(PagePath path, string template) {
+        Begin();
+
+        return StageSaveAsync(path, template, null, null, PageWriteOperation.Save, PageCommitKind.Put);
+    }
 
     /// <summary>Stages a page, only while its head still has the expected revision.</summary>
     /// <param name="target">The key to save.</param>
     /// <param name="template">The template text.</param>
     /// <param name="expectedHash">The head hash the form was rendered from, or <see langword="null"/> for a create.</param>
-    public Task<PageWriteResult> SaveAsync(PagePath target, string template, string? expectedHash) =>
-        StageSaveAsync(target, template, expectedHash, null, PageWriteOperation.Edit);
+    public Task<PageWriteResult> SaveAsync(PagePath target, string template, string? expectedHash) {
+        Begin();
+
+        return StageSaveAsync(target, template, expectedHash, null, PageWriteOperation.Edit);
+    }
 
     /// <summary>Stages a move of a page, its history and its state.</summary>
     /// <param name="source">The key the page has.</param>
     /// <param name="target">The key it should have.</param>
     /// <param name="expectedHash">The head the caller read.</param>
     public Task<PageWriteResult> MoveAsync(PagePath source, PagePath target, string expectedHash) {
-        ThrowIfCommitted();
+        Begin();
 
         if (string.Equals(source.Key, target.Key, StringComparison.Ordinal)) {
             return Task.FromResult(Remember(target, PageWriteOperation.Move, PageWriteOutcome.Unchanged, null, []));
@@ -82,7 +97,7 @@ internal sealed class PageWriteTransaction(
     /// <summary>Stages a tombstone for a page, keeping its history.</summary>
     /// <param name="target">The key to tombstone.</param>
     public Task<PageWriteResult> DeleteAsync(PagePath target) {
-        ThrowIfCommitted();
+        Begin();
 
         return Task.FromResult(Stage(new PageCommit(PageCommitKind.Delete, target), target, PageWriteOperation.Delete, null, []));
     }
@@ -92,7 +107,7 @@ internal sealed class PageWriteTransaction(
     /// <param name="hash">The retained revision's hash.</param>
     /// <param name="expectedHash">The live head the form was rendered from, or null for a tombstone.</param>
     public async Task<PageWriteResult> RestoreAsync(PagePath target, string hash, string? expectedHash) {
-        ThrowIfCommitted();
+        Begin();
 
         PageRevisionTemplate? revision = await pages.GetRevisionAsync(target, hash, deadline);
         if (revision is null) {
@@ -110,7 +125,7 @@ internal sealed class PageWriteTransaction(
     /// <summary>Stages recording a seed as installed without storing a revision.</summary>
     /// <param name="target">The page's key.</param>
     public async Task<PageWriteResult> AdoptAsync(PagePath target) {
-        ThrowIfCommitted();
+        Begin();
 
         SeedFile? seed = seeds.Find(target);
         if (seed is null) {
@@ -143,7 +158,7 @@ internal sealed class PageWriteTransaction(
     /// <param name="target">The page's key.</param>
     /// <param name="expectedHash">The live head the form was rendered from, or null for a tombstone.</param>
     public async Task<PageWriteResult> InstallAsync(PagePath target, string? expectedHash) {
-        ThrowIfCommitted();
+        Begin();
 
         SeedFile? seed = seeds.Find(target);
         if (seed is null) {
@@ -184,6 +199,18 @@ internal sealed class PageWriteTransaction(
         gate.Close(this);
 
         if (_operations.Count == 0) {
+            return [.. _rows];
+        }
+
+        touched?.Invoke();
+
+        // A dead credential wrote nothing, and the whole transaction is the refusal: every staged
+        // operation says so, the hash it would have left is cleared, and no store call is made.
+        if (credential is not null && !await credential.IsLiveAsync(CancellationToken.None)) {
+            foreach (int row in _rowOfOperation) {
+                _rows[row] = _rows[row] with { Outcome = PageWriteOutcome.Revoked, Hash = null };
+            }
+
             return [.. _rows];
         }
 
@@ -282,8 +309,6 @@ internal sealed class PageWriteTransaction(
         string? seedHash,
         PageWriteOperation operation,
         PageCommitKind? unconditional = null) {
-        ThrowIfCommitted();
-
         // A staged save sees the libraries staged before it as well as the store's, in the order the
         // page made the calls: what it names is what it saw, and its closure says so.
         IReadOnlyList<PageLibrary> staged = [.. _stagedLibraries.Values];
@@ -322,6 +347,13 @@ internal sealed class PageWriteTransaction(
         _rows.Add(row);
 
         return row;
+    }
+
+    // Every staging call is activity, so the job's silence clock is re-armed before the state check:
+    // a worker that is writing is not a worker that has gone quiet.
+    private void Begin() {
+        touched?.Invoke();
+        ThrowIfCommitted();
     }
 
     private void ThrowIfCommitted() {

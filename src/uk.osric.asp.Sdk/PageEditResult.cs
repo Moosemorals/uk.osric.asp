@@ -24,6 +24,11 @@ public enum PageEditOutcome {
     /// </summary>
     Staged,
 
+    /// <summary>
+    /// The credential the write was made with is no longer live, so nothing was written. A render
+    /// never answers this: only a job borrows a credential it has to keep proving.
+    /// </summary>
+    Revoked,
 }
 
 /// <summary>What an edit answered with.</summary>

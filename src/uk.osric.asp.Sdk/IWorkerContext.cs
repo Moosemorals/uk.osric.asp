@@ -15,7 +15,10 @@ namespace uk.osric.asp.Sdk;
 /// A job is started by a signed-in visitor, so <see cref="User"/> is always the owner: a worker acts
 /// as that account for as long as the job runs. A worker that wants a connection, a store or the page
 /// catalog asks for it through <see cref="Capabilities"/> exactly as a page does; the host decides
-/// which are there, and a worker is offered no renderer, no writer and no layout.
+/// which are there, and a worker is offered no renderer and no layout. Its writer is bound to the
+/// page that started the job and to the credential that did: when that credential is revoked, the
+/// write answers <see cref="PageWriteOutcome.Revoked"/> and stores nothing, and the worker decides
+/// whether to stop, retry or publish what it has.
 /// </para>
 /// </remarks>
 public interface IWorkerContext {

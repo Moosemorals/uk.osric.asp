@@ -20,6 +20,12 @@ public enum PageDeleteOutcome {
 
     /// <summary>Another writer held the store, so nothing was written.</summary>
     Busy,
+
+    /// <summary>
+    /// The credential the delete was made with is no longer live, so nothing was deleted. A render
+    /// never answers this: only a job borrows a credential it has to keep proving.
+    /// </summary>
+    Revoked,
 }
 
 /// <summary>What a delete answered with.</summary>
