@@ -17,6 +17,18 @@ public enum PageEditOutcome {
 
     /// <summary>Another writer held the store, so nothing was written.</summary>
     Busy,
+
+    /// <summary>
+    /// The write joined a transaction this render already had open, so nothing is stored yet: it
+    /// lands when that transaction commits and is discarded if it is rolled back or disposed.
+    /// </summary>
+    Staged,
+
+    /// <summary>
+    /// The key already has a write staged in the transaction this render has open, so this one was
+    /// refused. Two operations on one key cannot both hold its head.
+    /// </summary>
+    AlreadyStaged,
 }
 
 /// <summary>What an edit answered with.</summary>

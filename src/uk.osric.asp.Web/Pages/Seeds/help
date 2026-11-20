@@ -756,9 +756,15 @@ library move — throws while staging, before anything is at risk.</p>
 replaced by it, and the transaction writes nothing at all. That holds across a nested transaction too:
 the outer one keeps its write and the nested one's row says <em>AlreadyStaged</em>. It is a refusal
 rather than a page bug, so it answers instead of throwing.</p>
-<p>Only <code>BeginTransaction</code> defers a write. A plain <code>SaveAsync</code>, <code>MoveAsync</code>
-or <code>DeleteAsync</code> on the capability is stored when it answers, even while a transaction you
-opened is still open: it is that write's own transaction, not part of the page's batch.</p>
+<p><strong>A write inside an open transaction joins it.</strong> A plain <code>SaveAsync</code>,
+<code>MoveAsync</code> or <code>DeleteAsync</code> on the capability, made while a transaction you opened
+is open — which is what an embedded page makes — answers <em>Staged</em> rather than <em>Saved</em>:
+nothing is stored yet, it lands with your commit, and it is discarded if you roll back or never commit.
+That is deliberate: an embedded page's write belongs to the page's unit rather than surviving its abort.</p>
+<p><strong>Aborting.</strong> <code>RollbackAsync()</code> discards everything staged and answers one row per
+operation, each <em>NotAttempted</em>. Letting the transaction go out of scope does the same thing, so you
+only need to call it when you want to abandon the work and keep going. A nested transaction's rollback
+takes only its own writes.</p>
 <p>A transaction that is disposed without a commit writes nothing, so a page that forgets
 <code>CommitAsync</code> changes nothing, and a render may commit as many transactions as it has work
 for. A transaction opened while one is already open <em>nests</em> inside it — which is what an

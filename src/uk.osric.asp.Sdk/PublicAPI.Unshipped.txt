@@ -1,5 +1,4 @@
 #nullable enable
-
 *REMOVED*const uk.osric.asp.Sdk.PageDocument.SkipLinkText = "Skip to content" -> string!
 *REMOVED*static uk.osric.asp.Sdk.PageDocument.Banner(string! navigation) -> string!
 *REMOVED*static uk.osric.asp.Sdk.PageDocument.BaseStylesheets.get -> System.Collections.Generic.IReadOnlyList<string!>!
@@ -255,11 +254,7 @@ uk.osric.asp.Sdk.PageCheckResult.Valid.get -> bool
 uk.osric.asp.Sdk.PageCheckResult.Valid.init -> void
 uk.osric.asp.Sdk.PageDeleteResult
 uk.osric.asp.Sdk.PageDeleteResult.<Clone>$() -> uk.osric.asp.Sdk.PageDeleteResult!
-uk.osric.asp.Sdk.PageDeleteResult.Deconstruct(out bool Deleted, out bool WasLive) -> void
-uk.osric.asp.Sdk.PageDeleteResult.Deleted.get -> bool
-uk.osric.asp.Sdk.PageDeleteResult.Deleted.init -> void
 uk.osric.asp.Sdk.PageDeleteResult.Equals(uk.osric.asp.Sdk.PageDeleteResult? other) -> bool
-uk.osric.asp.Sdk.PageDeleteResult.PageDeleteResult(bool Deleted, bool WasLive) -> void
 uk.osric.asp.Sdk.PageDeleteResult.WasLive.get -> bool
 uk.osric.asp.Sdk.PageDeleteResult.WasLive.init -> void
 uk.osric.asp.Sdk.PageDiagnostic
@@ -650,3 +645,19 @@ uk.osric.asp.Sdk.PageWriteResult.PageWriteResult(string! Key, uk.osric.asp.Sdk.P
 uk.osric.asp.Sdk.PageWriteOutcome.AlreadyStaged = 13 -> uk.osric.asp.Sdk.PageWriteOutcome
 uk.osric.asp.Sdk.PageEditOutcome.Busy = 3 -> uk.osric.asp.Sdk.PageEditOutcome
 uk.osric.asp.Sdk.PageMoveOutcome.Busy = 6 -> uk.osric.asp.Sdk.PageMoveOutcome
+uk.osric.asp.Sdk.PageDeleteOutcome
+uk.osric.asp.Sdk.PageDeleteOutcome.AlreadyStaged = 3 -> uk.osric.asp.Sdk.PageDeleteOutcome
+uk.osric.asp.Sdk.PageDeleteOutcome.Busy = 4 -> uk.osric.asp.Sdk.PageDeleteOutcome
+uk.osric.asp.Sdk.PageDeleteOutcome.Deleted = 0 -> uk.osric.asp.Sdk.PageDeleteOutcome
+uk.osric.asp.Sdk.PageDeleteOutcome.Missing = 1 -> uk.osric.asp.Sdk.PageDeleteOutcome
+uk.osric.asp.Sdk.PageDeleteOutcome.Staged = 2 -> uk.osric.asp.Sdk.PageDeleteOutcome
+uk.osric.asp.Sdk.PageDeleteResult.Deconstruct(out uk.osric.asp.Sdk.PageDeleteOutcome Outcome, out bool WasLive) -> void
+uk.osric.asp.Sdk.PageDeleteResult.Outcome.get -> uk.osric.asp.Sdk.PageDeleteOutcome
+uk.osric.asp.Sdk.PageDeleteResult.Outcome.init -> void
+uk.osric.asp.Sdk.PageDeleteResult.PageDeleteResult(uk.osric.asp.Sdk.PageDeleteOutcome Outcome, bool WasLive) -> void
+uk.osric.asp.Sdk.PageEditOutcome.AlreadyStaged = 5 -> uk.osric.asp.Sdk.PageEditOutcome
+uk.osric.asp.Sdk.PageEditOutcome.Staged = 4 -> uk.osric.asp.Sdk.PageEditOutcome
+uk.osric.asp.Sdk.PageMoveOutcome.AlreadyStaged = 8 -> uk.osric.asp.Sdk.PageMoveOutcome
+uk.osric.asp.Sdk.PageMoveOutcome.Staged = 7 -> uk.osric.asp.Sdk.PageMoveOutcome
+uk.osric.asp.Sdk.PageDeleteResult.Deleted.get -> bool
+uk.osric.asp.Sdk.IPageTransaction.RollbackAsync() -> System.Threading.Tasks.Task<System.Collections.Generic.IReadOnlyList<uk.osric.asp.Sdk.PageWriteResult!>!>!

@@ -42,7 +42,10 @@ public enum PageWriteOutcome {
     /// <summary>Another writer held the store, so nothing was written.</summary>
     Busy,
 
-    /// <summary>An earlier operation was refused, so this one was never attempted.</summary>
+    /// <summary>
+    /// The write was never attempted: an earlier operation was refused, or the transaction was rolled
+    /// back or disposed before it committed.
+    /// </summary>
     NotAttempted,
 
     /// <summary>

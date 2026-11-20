@@ -32,8 +32,9 @@ namespace uk.osric.asp.Sdk;
 /// </para>
 /// <para>
 /// The members keep the arguments of the matching <see cref="IPageWrites"/> members, so a page that
-/// can make one write can make several. A write made through <see cref="IPageWrites"/> is a
-/// transaction of one, stored when it answers, and is never folded into one this render has open.
+/// can make one write can make several. A write made through <see cref="IPageWrites"/> while this
+/// transaction is open joins it and answers Staged, which is how an embedded page's write becomes part
+/// of the page's.
 /// </para>
 /// </remarks>
 public interface IPageTransaction : IAsyncDisposable {
@@ -85,6 +86,17 @@ public interface IPageTransaction : IAsyncDisposable {
     /// A committed transaction is not committed twice: the second call throws. A refusal does not
     /// throw — it is the report's answer — but a page bug that was detected while staging already has.
     /// </remarks>
-    /// <exception cref="System.InvalidOperationException">This transaction was already committed.</exception>
+    /// <exception cref="System.InvalidOperationException">This transaction was already committed or rolled back.</exception>
     Task<IReadOnlyList<PageWriteResult>> CommitAsync();
+
+    /// <summary>Discards every staged write, writing nothing.</summary>
+    /// <returns>One row per operation, each saying it was never attempted.</returns>
+    /// <remarks>
+    /// It is the explicit abort, and it does the same thing as letting the transaction go out of
+    /// scope: a transaction that is never committed writes nothing, so a page only needs this when it
+    /// wants to abandon the work and keep going in the same render. A nested transaction rolls back
+    /// only its own writes; the transaction it is inside is unaffected.
+    /// </remarks>
+    /// <exception cref="System.InvalidOperationException">This transaction was already committed or rolled back.</exception>
+    Task<IReadOnlyList<PageWriteResult>> RollbackAsync();
 }

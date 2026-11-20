@@ -9,7 +9,7 @@ using uk.osric.asp.Web.Shell;
 
 /// <summary>The system prompt and worked examples that teach the model to write a page.</summary>
 internal static class PageAuthorPrompt {
-    public const string Version = "page-author-v50";
+    public const string Version = "page-author-v51";
 
     public static IReadOnlyList<(string Name, string Source)> Examples { get; } = [
         ("query-driven", """
@@ -452,8 +452,10 @@ internal static class PageAuthorPrompt {
 
         A transaction is for writes that must land together, not for every
         write: one save, move, delete or restore is already a transaction of
-        one and answers as it always did — and is stored when it answers, even
-        while a transaction you opened is still open. A page may commit as many
+        one and answers as it always did. A write made while a transaction is
+        open — from an embedded page, say — joins it and answers `Staged`, so
+        it lands with the commit and is discarded by a rollback, which is what
+        `RollbackAsync()` is for. A page may commit as many
         transactions as it has work for, so a multi-file edit is one commit.
         `Busy` means another writer held the store; nothing was written, and
         retrying, splitting the work or telling the owner is the page's choice

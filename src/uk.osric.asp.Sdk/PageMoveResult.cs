@@ -26,6 +26,18 @@ public enum PageMoveOutcome {
 
     /// <summary>Another writer held the store, so nothing was moved.</summary>
     Busy,
+
+    /// <summary>
+    /// The move joined a transaction this render already had open, so nothing is stored yet: it lands
+    /// when that transaction commits and is discarded if it is rolled back or disposed.
+    /// </summary>
+    Staged,
+
+    /// <summary>
+    /// A key involved already has a write staged in the transaction this render has open, so the move
+    /// was refused.
+    /// </summary>
+    AlreadyStaged,
 }
 
 /// <summary>What a move answered with.</summary>

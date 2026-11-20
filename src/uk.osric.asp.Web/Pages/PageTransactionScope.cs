@@ -280,6 +280,22 @@ internal sealed class PageTransactionScope : RenderBoundCapability, IPageTransac
     }
 
     /// <inheritdoc/>
+    public Task<IReadOnlyList<PageWriteResult>> RollbackAsync() {
+        ThrowIfCommitted();
+
+        _committed = true;
+        if (_root is null) {
+            _gate?.Close(this);
+        }
+
+        foreach (int row in _rowOfOperation) {
+            _rows[row] = _rows[row] with { Outcome = PageWriteOutcome.NotAttempted };
+        }
+
+        return Task.FromResult<IReadOnlyList<PageWriteResult>>([.. _rows]);
+    }
+
+    /// <inheritdoc/>
     public ValueTask DisposeAsync() {
         if (!_committed) {
             _committed = true;
@@ -302,21 +318,27 @@ internal sealed class PageTransactionScope : RenderBoundCapability, IPageTransac
     internal void Absorb(PageTransactionScope child) {
         ArgumentNullException.ThrowIfNull(child);
 
+        // The collisions are settled in the child's own rows first, so the report the nested
+        // transaction was answered with and the report this one will answer say the same thing.
+        List<int> taken = [];
+        for (int index = 0; index < child._operations.Count; index++) {
+            PageCommit operation = child._operations[index];
+            int row = child._rowOfOperation[index];
+
+            if (TryReserveKeys(KeysOf(operation))) {
+                taken.Add(index);
+            } else {
+                child._rows[row] = child._rows[row] with { Outcome = PageWriteOutcome.AlreadyStaged, Hash = null };
+                _refused = true;
+            }
+        }
+
         int offset = _rows.Count;
         _rows.AddRange(child._rows);
 
-        for (int index = 0; index < child._operations.Count; index++) {
-            PageCommit operation = child._operations[index];
-            int row = offset + child._rowOfOperation[index];
-
-            if (!TryReserveKeys(KeysOf(operation))) {
-                _rows[row] = _rows[row] with { Outcome = PageWriteOutcome.AlreadyStaged, Hash = null };
-                _refused = true;
-                continue;
-            }
-
-            _operations.Add(operation);
-            _rowOfOperation.Add(row);
+        foreach (int index in taken) {
+            _operations.Add(child._operations[index]);
+            _rowOfOperation.Add(offset + child._rowOfOperation[index]);
         }
 
         _refused |= child._refused;

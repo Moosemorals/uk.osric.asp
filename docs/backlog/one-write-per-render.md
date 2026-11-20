@@ -192,9 +192,10 @@ writes, one commit, one report. Building it for Save all alone would be building
    tool, a restore, a seed install and the bound self-save keep their one call. Each stages, checks
    and commits through the same path a transaction uses, so the conditional save, the stale answer and
    the diagnostics cannot drift between a single write and a batch, and the editor's Save all is the
-   transaction's first caller rather than a second implementation. It is that write's *own*
-   transaction, never folded into one the render has open: "save this" means stored when the call
-   answers, and only `BeginTransaction` defers.
+   transaction's first caller rather than a second implementation. A lone write made while the render
+   has a transaction open *joins* that transaction and answers Staged, so an embedded page's write is
+   part of the page's unit and a page's abort takes it with it — `RollbackAsync` is the explicit abort,
+   and disposal without a commit does the same.
 
 9. **The documentation.** `/help` gains the capability's section — the transaction, the commit and its
    report, the difference between staging and committing, that a library must be staged before the

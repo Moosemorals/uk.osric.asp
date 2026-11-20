@@ -286,7 +286,7 @@ public sealed class PageWritesScopeTests {
     }
 
     [Test]
-    public async Task ALoneWriteIsStoredWhenItReturnsEvenWithATransactionOpenAsync() {
+    public async Task ALoneWriteJoinsTheTransactionTheRenderHasOpenAsync() {
         FakePageStore storage = new();
         using PageHarness pages = new(storage);
         PageWritesScope scope = Scope(pages);
@@ -296,15 +296,67 @@ public sealed class PageWritesScopeTests {
             PageEditResult lone = await scope.SaveAsync("/lone", "lone", null);
 
             Assert.Multiple(() => {
-                Assert.That(lone.Outcome, Is.EqualTo(PageEditOutcome.Saved), "a lone write is never deferred");
-                Assert.That(storage["/lone"]?.Template, Is.EqualTo("lone"));
+                Assert.That(lone.Outcome, Is.EqualTo(PageEditOutcome.Staged), "an embedded page's write is part of the page's unit");
+                Assert.That(storage["/lone"], Is.Null);
                 Assert.That(storage["/batched"], Is.Null);
             });
         }
 
         Assert.Multiple(() => {
-            Assert.That(storage["/batched"], Is.Null, "the transaction was disposed, so its write was lost");
-            Assert.That(storage["/lone"]?.Template, Is.EqualTo("lone"), "and the lone write was never part of it");
+            Assert.That(storage["/batched"], Is.Null, "the page was disposed, so its writes were lost");
+            Assert.That(storage["/lone"], Is.Null, "and the embedded page's write went with them");
+        });
+    }
+
+    [Test]
+    public async Task ALoneWriteLandsWhenTheTransactionItJoinedCommitsAsync() {
+        FakePageStore storage = new();
+        using PageHarness pages = new(storage);
+        PageWritesScope scope = Scope(pages);
+
+        await using (IPageTransaction held = scope.BeginTransaction()) {
+            _ = await scope.SaveAsync("/lone", "lone", null);
+            _ = await held.CommitAsync();
+        }
+
+        Assert.That(storage["/lone"]?.Template, Is.EqualTo("lone"));
+    }
+
+    [Test]
+    public async Task ARolledBackTransactionWritesNothingAndSaysSoAsync() {
+        FakePageStore storage = new();
+        using PageHarness pages = new(storage);
+        PageWritesScope scope = Scope(pages);
+
+        await using IPageTransaction transaction = scope.BeginTransaction();
+        _ = await transaction.SaveAsync("/page", "first", null);
+        IReadOnlyList<PageWriteResult> report = await transaction.RollbackAsync();
+
+        Assert.Multiple(() => {
+            Assert.That(report.Select(row => row.Outcome), Is.EqualTo([PageWriteOutcome.NotAttempted]));
+            Assert.That(storage["/page"], Is.Null);
+        });
+    }
+
+    [Test]
+    public async Task ARolledBackNestedTransactionLeavesTheOuterOneAloneAsync() {
+        FakePageStore storage = new();
+        using PageHarness pages = new(storage);
+        PageWritesScope scope = Scope(pages);
+
+        await using IPageTransaction outer = scope.BeginTransaction();
+        _ = await outer.SaveAsync("/outer", "outer", null);
+
+        await using (IPageTransaction inner = scope.BeginTransaction()) {
+            _ = await inner.SaveAsync("/inner", "inner", null);
+            _ = await inner.RollbackAsync();
+        }
+
+        _ = await outer.CommitAsync();
+
+        Assert.Multiple(() => {
+            Assert.That(storage["/outer"]?.Template, Is.EqualTo("outer"));
+            Assert.That(storage["/inner"], Is.Null, "the nested rollback took only its own write");
         });
     }
 
@@ -372,8 +424,8 @@ public sealed class PageWritesScopeTests {
         bool tombstoned = (await storage.GetHeadAsync(PageHarness.Key("/page")))?.IsDeleted ?? false;
 
         Assert.Multiple(() => {
-            Assert.That(deleted, Is.EqualTo(new PageDeleteResult(true, true)));
-            Assert.That(missing, Is.EqualTo(new PageDeleteResult(false, false)));
+            Assert.That(deleted, Is.EqualTo(new PageDeleteResult(PageDeleteOutcome.Deleted, true)));
+            Assert.That(missing, Is.EqualTo(new PageDeleteResult(PageDeleteOutcome.Missing, false)));
             Assert.That(tombstoned, Is.True);
         });
     }
@@ -386,7 +438,7 @@ public sealed class PageWritesScopeTests {
 
         PageDeleteResult deleted = await Scope(pages, path: EditorPath).DeleteAsync(EditorPath);
 
-        Assert.That(deleted, Is.EqualTo(new PageDeleteResult(true, true)), "the editor's own page is deletable now");
+        Assert.That(deleted, Is.EqualTo(new PageDeleteResult(PageDeleteOutcome.Deleted, true)), "the editor's own page is deletable now");
     }
 
     [Test]

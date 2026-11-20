@@ -140,8 +140,9 @@ pure renderers, and one that is a fact about the build:
 - `IPageWrites` is the store's write capability, and every page that is not a layout is offered it:
   the authority is the signed-in visitor's, not the page's (`pages-any-page-may-write-the-store`).
   Each of its members is one write and, under the seam, a transaction of one: it compiles, checks its
-  condition and commits before it answers, and it is that write's own — never folded into a
-  transaction the render has open. `BeginTransaction()` answers an `IPageTransaction` carrying
+  condition and commits before it answers. A write made while the render has a transaction open joins
+  that transaction instead, answering Staged, so an embedded page's write lands with the page's commit
+  and is discarded by its rollback. `BeginTransaction()` answers an `IPageTransaction` carrying
   the same members: the writes are staged, each save compiles as it is staged, and `CommitAsync()`
   proves every condition again and applies them in one store transaction or none of them, answering one
   `PageWriteResult` per operation — the key, the operation, the outcome, the hash and the diagnostics.

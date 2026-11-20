@@ -109,7 +109,7 @@ internal sealed class PageWritesScope(
 
         PageWriteResult row = await OneAsync(transaction => transaction.DeleteAsync(key));
 
-        return new PageDeleteResult(row.Outcome == PageWriteOutcome.Deleted, wasLive);
+        return new PageDeleteResult(DeleteOutcome(row.Outcome), wasLive);
     }
 
     /// <inheritdoc/>
@@ -150,14 +150,12 @@ internal sealed class PageWritesScope(
 
     /// <summary>Makes one write as a transaction of one, so every write has one path.</summary>
     /// <remarks>
-    /// It is that write's own transaction and not part of one this render has open, because "save
-    /// this" means it is stored when the call answers. Only <see cref="BeginTransaction"/> defers a
-    /// write, and a transaction opened while another is open is what nests.
+    /// A lone write joins the transaction this render already has open, because an embedded page's
+    /// write must be rolled back by the page's abort rather than surviving it. Its answer then says
+    /// Staged rather than Saved: nothing is stored until the page commits.
     /// </remarks>
     private async Task<PageWriteResult> OneAsync(Func<IPageTransaction, Task<PageWriteResult>> stage) {
-        ThrowIfCannotWrite();
-
-        await using IPageTransaction transaction = new PageTransactionScope(path, pages, reserved, seeds, gate: null, Deadline);
+        await using IPageTransaction transaction = BeginTransaction();
         _ = await stage(transaction);
         IReadOnlyList<PageWriteResult> report = await transaction.CommitAsync();
 
@@ -168,7 +166,18 @@ internal sealed class PageWritesScope(
         PageWriteOutcome.Saved => PageEditOutcome.Saved,
         PageWriteOutcome.Unchanged => PageEditOutcome.Unchanged,
         PageWriteOutcome.Busy => PageEditOutcome.Busy,
+        PageWriteOutcome.Staged => PageEditOutcome.Staged,
+        PageWriteOutcome.AlreadyStaged => PageEditOutcome.AlreadyStaged,
         _ => PageEditOutcome.Stale,
+    };
+
+    private static PageDeleteOutcome DeleteOutcome(PageWriteOutcome outcome) => outcome switch {
+        PageWriteOutcome.Deleted => PageDeleteOutcome.Deleted,
+        PageWriteOutcome.SourceNotFound => PageDeleteOutcome.Missing,
+        PageWriteOutcome.Busy => PageDeleteOutcome.Busy,
+        PageWriteOutcome.Staged => PageDeleteOutcome.Staged,
+        PageWriteOutcome.AlreadyStaged => PageDeleteOutcome.AlreadyStaged,
+        _ => PageDeleteOutcome.Missing,
     };
 
     private static PageMoveOutcome MoveOutcome(PageWriteOutcome outcome) => outcome switch {
@@ -178,6 +187,8 @@ internal sealed class PageWritesScope(
         PageWriteOutcome.TargetExists => PageMoveOutcome.TargetExists,
         PageWriteOutcome.FolderNotEmpty => PageMoveOutcome.FolderNotEmpty,
         PageWriteOutcome.Busy => PageMoveOutcome.Busy,
+        PageWriteOutcome.Staged => PageMoveOutcome.Staged,
+        PageWriteOutcome.AlreadyStaged => PageMoveOutcome.AlreadyStaged,
         _ => PageMoveOutcome.Stale,
     };
 

@@ -379,6 +379,31 @@ public sealed class PageCompositionTests {
     }
 
     [Test]
+    public async Task AnEmbeddedPlainSaveIsPartOfThePageAndIsRolledBackWithIt() {
+        Store("/widget", """
+            <% if (ctx.User is not null) {
+                   PageEditResult saved = await ctx.Capabilities.GetRequired<IPageWrites>().SaveAsync("/widget-saved", "text", null);
+                   ctx.Response.Write(saved.Outcome.ToString());
+               } %>
+            """);
+        Store("/page", """
+            <% if (ctx.User is not null) {
+                   await using IPageTransaction held = ctx.Capabilities.GetRequired<IPageWrites>().BeginTransaction();
+                   _ = await held.SaveAsync("/page-saved", "page", null);
+                   _ = await ctx.Capabilities.GetRequired<IPageComposition>().EmbedAsync("/widget");
+               } %>
+            """);
+
+        Rendered rendered = await RenderAsync("/page", signedIn: true);
+
+        Assert.Multiple(() => {
+            Assert.That(rendered.Body.Trim(), Is.EqualTo("Staged"), rendered.Body);
+            Assert.That(_storage["/page-saved"], Is.Null, "the page never committed, so its unit is gone");
+            Assert.That(_storage["/widget-saved"], Is.Null, "and the embedded page's save went with it");
+        });
+    }
+
+    [Test]
     public async Task AnEmbeddedWriteInsideThePagesTransactionLandsWithIt() {
         Store("/widget", """
             <% if (ctx.User is not null) {
