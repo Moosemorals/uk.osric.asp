@@ -157,6 +157,10 @@ One plan, one branch, four slices that each ship on their own, in this order:
    `tools/asp-language-server` project beside `tools/vscode-asp`, never the Web app, with diagnostics
    only first. Last because it is developer-only and nothing else waits on it.
 
+**Slice 1 merged 2026-11-20.** `IPageCheck`, `PageCheckResult`, Sdk's `PageKind` and the closed language
+set are in the contract, `PageCheckScope` answers `template` without storing, and `/help` and
+[pages](../pages.md) document it. Slices 2–4 are what remains.
+
 ## The composite is not this
 
 The owner answered this on 2026-11-20: `language: "template"` does not also run the embedded script

@@ -133,7 +133,8 @@ pure renderers, and one that is a fact about the build:
   been saved is checked exactly as one that has. It needs a signed-in visitor, because a compile is a
   shared resource; it spends the same `Pages:Compile:Slots` and `Pages:Compile:TimeoutSeconds` a save
   does; and a check that waits past the render's deadline or the compile timeout answers a `PAGE010`
-  error rather than hanging, because it has no author's edit to protect.
+  error rather than hanging, because it has no author's edit to protect
+  (`pages-a-check-stores-nothing`, `pages-a-check-names-its-language`, `pages-a-check-needs-a-visitor`).
 - `IPageWrites` is the store's write capability, and every page that is not a layout is offered it:
   the authority is the signed-in visitor's, not the page's (`pages-any-page-may-write-the-store`).
   It has two saves. `SaveAsync(template)` saves the calling page's own source, bound to `ctx.Path`, and
