@@ -16,10 +16,12 @@ SPDX-License-Identifier: MIT
     <Project Path="test/uk.osric.asp.Web.BrowserTests/uk.osric.asp.Web.BrowserTests.csproj" />
     <Project Path="test/uk.osric.asp.Web.IntegrationTests/uk.osric.asp.Web.IntegrationTests.csproj" />
     <Project Path="test/uk.osric.asp.Web.Tests/uk.osric.asp.Web.Tests.csproj" />
+    <Project Path="test/asp-language-server.Tests/asp-language-server.Tests.csproj" />
   </Folder>
   <Folder Name="/tools/">
     <Project Path="tools/check-backlog/check-backlog.csproj" />
     <Project Path="tools/check-decisions/check-decisions.csproj" />
     <Project Path="tools/check-pages/check-pages.csproj" />
+    <Project Path="tools/asp-language-server/asp-language-server.csproj" />
   </Folder>
 </Solution>

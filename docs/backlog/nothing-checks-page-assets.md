@@ -19,7 +19,7 @@ SPDX-License-Identifier: MIT
 
 A page is four languages in one file: C#, the literal markup, the CSS in a `<style>` block or a
 `.css` asset page, and the JavaScript in its script blocks. Two of the four are checked —
-One item, [`check-without-storing`](check-without-storing.md), covers the C# by compiling the template,
+One item, `check-without-storing`, covers the C# by compiling the template,
 and `JavaScriptValidator` covers the script — and the other two are checked by loading the page and
 looking at it, which is the most expensive way to learn that a brace is missing.
 

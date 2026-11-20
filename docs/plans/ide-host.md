@@ -169,7 +169,7 @@ smallest changes come first because they are what every later slice is written a
    shrinks to wiring Save all to the batch, and T4 loses its last dependency.*
 
 **037 — the check — has left this plan.** The assistant and VS Code want the same seam, so the
-owner folded all three callers into one item, [`check-without-storing`](../backlog/check-without-storing.md),
+owner folded all three callers into one item, `check-without-storing`,
 which gets its own plan. The IDE is still its first customer and no longer its owner: the editor's
 underline is page work on top of a capability this plan does not carry.
 

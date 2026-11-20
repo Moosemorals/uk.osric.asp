@@ -7,11 +7,11 @@ SPDX-License-Identifier: MIT
 
 | | |
 | --- | --- |
-| Status | Revised 2026-11-20 — the owner answered the six questions and said to build it. Slices 1–3 are merged and the three names are recorded; slice 4 is not started |
+| Status | Merged 2026-11-20 — all four slices landed: the capability, `javascript`, the assistant's `check`, and the language server. Proposed 2026-11-19 from the owner's answers; built 2026-11-20 |
 | Size | Large as a programme, small as a step: one Sdk capability with two types and one closed set, a Web adapter over the compiler, the assistant's tool surface rewritten once, and an editor for the repository over the same tier. Four slices, each its own branch and each stopping for the owner |
 | Area | Sdk, Runtime, Core (Assistant), Web (pages, editor, assistant), tools, docs |
-| Spike | [Teaching VS Code the template language](../spikes/vscode-template-language.md) — the half that has not landed |
-| Backlog | [`check-without-storing`](../backlog/check-without-storing.md) is this step; `tool-arguments-say-nothing` opened its third slice; [`nothing-checks-page-assets`](../backlog/nothing-checks-page-assets.md) and [`revision-hides-its-diagnostics`](../backlog/revision-hides-its-diagnostics.md) are its neighbours and neither is this plan |
+| Spike | [Teaching VS Code the template language](../../spikes/vscode-template-language.md) — the half that has not landed |
+| Backlog | [`check-without-storing`](../../backlog/closed.md) is this step; `tool-arguments-say-nothing` opened its third slice and closed with it; [`nothing-checks-page-assets`](../../backlog/nothing-checks-page-assets.md) and [`revision-hides-its-diagnostics`](../../backlog/revision-hides-its-diagnostics.md) are its neighbours and neither is this plan |
 | Decisions | `pages-a-check-stores-nothing`, `pages-a-check-names-its-language` and `pages-a-check-needs-a-visitor`, recorded with slice 1. Relies on `pages-a-diagnostic-names-its-source`, `pages-a-page-may-save-itself`, `pages-reading-the-store-is-public`, `pages-the-store-is-read-through-one-seam`, `pages-a-warning-never-stops-a-page`, `code-policy-values-are-configuration`, `code-n-is-small`, `assistant-script-checks`, `assistant-a-tool-is-one-type`, `assistant-tool-results-are-cut-not-refused` and `product-manual-is-a-page` |
 
 ## The short version
@@ -40,7 +40,7 @@ public sealed record PageCheckResult(
   worker — so a caller that expected a page and got a library learns it in the same answer rather
   than by a second read. A `javascript` check answers null, because a script has no page kind.
 - **The language is closed and named.** `template` and `javascript` now; `css`, `html` and `svg` when
-  [`nothing-checks-page-assets`](../backlog/nothing-checks-page-assets.md) lands. Never inferred from a
+  [`nothing-checks-page-assets`](../../backlog/nothing-checks-page-assets.md) lands. Never inferred from a
   key's extension: a `.html` page is a template or an asset depending on whether it holds code.
 - **Two tiers, one answer.** `template` is generation, Roslyn and the page API policy against the
   store's libraries. `javascript` is the template-blanking skeleton and `JavaScriptValidator`. Both
@@ -54,7 +54,7 @@ public sealed record PageCheckResult(
 
 That shape was settled with the owner on 2026-11-19, question by question, before this plan was
 written (`product-steps-wait-for-the-owner`). The record keeps it in one item,
-[`check-without-storing`](../backlog/check-without-storing.md), which the owner made by folding the
+[`check-without-storing`](../../backlog/closed.md), which the owner made by folding the
 page, assistant and VS Code items together.
 
 ## What exists today
@@ -112,7 +112,7 @@ dashboard can tell an abandoned check from an abandoned save (`PAGE003`) or a sa
 (`PAGE004`). `PAGE005` is retired and never reused, so `PAGE010` is the next free code.
 
 **What it is not.** It is not the stored diagnostic. A stored one describes the last compile of a
-revision and can be absent or stale; [`revision-hides-its-diagnostics`](../backlog/revision-hides-its-diagnostics.md)
+revision and can be absent or stale; [`revision-hides-its-diagnostics`](../../backlog/revision-hides-its-diagnostics.md)
 is the read of that, and this capability is the fresh answer.
 
 ## The slices
@@ -125,7 +125,7 @@ dependency: the capability is what every later slice calls.
 `IPageCheck`, `PageCheckResult` and the closed set in Sdk; `PageCheckScope` in Web; the template
 tier through `TemplateSourceGenerator` and `IPageCompiler`; signed-in registration; the shared slot
 and the deadline. `/help` gains the capability in the same change (`product-manual-is-a-page`), and
-[pages](../pages.md) gains the paragraph.
+[pages](../../pages.md) gains the paragraph.
 
 Proves: a check of an unsaved template answers its diagnostics and leaves the head hash and the
 revision count unchanged; a broken template answers an error; a library's error names the library; a
@@ -150,7 +150,7 @@ is a clean pass through the skeleton.
 `check_script` and `check_script_text`; `read_page` absorbs `read_revision` with an optional `hash`;
 the closed set emitted as a schema `enum`; `Assistant:MaxCheckDiagnostics` as a required policy value
 with its test for the shipped value, an override and a refusal; the prompt's two lines becoming one
-and its `Version` moving; [assistant](../assistant.md) following. The answer is
+and its `Version` moving; [assistant](../../assistant.md) following. The answer is
 `{ valid, checks: [{ language, kind, valid, diagnostics }] }`, so the kind travels with the check that
 discovered it.
 `tool-arguments-say-nothing` opened this slice, because both
@@ -218,13 +218,13 @@ The owner answered these on 2026-11-20; this revision carries the answers and wa
 
 ## Record changes
 
-- The merged item [`check-without-storing`](../backlog/check-without-storing.md) already carries the
+- The item `check-without-storing` carried the
   three callers and the settled shape; it takes this plan and becomes `planned`.
 - `tool-arguments-say-nothing` closed with slice 3: the schema's `enum` and the argument
   descriptions landed with the tool that needed them.
-- [`ide-host`](ide-host.md) has lost slice 3 and says where it went; [the shell plan](assistant-shell-tool.md)
+- [`ide-host`](../ide-host.md) has lost slice 3 and says where it went; [the shell plan](../assistant-shell-tool.md)
   no longer claims the check's name and consumes its tool instead.
-- At each merge the names this plan intends are written into [the record](../decisions.md) with their
+- At each merge the names this plan intends are written into [the record](../../decisions.md) with their
   "Recorded in" lines, and the items close or narrow to what is left.
 
 ## Close-out

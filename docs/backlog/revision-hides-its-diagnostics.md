@@ -40,7 +40,7 @@ Three callers hit the gap:
 - **A page explaining a broken dependency** — a library it names no longer compiles — must recompile
   to find out what the compiler said, or say nothing.
 
-The fresh question is [`check-without-storing`](check-without-storing.md)'s: does this text compile
+The fresh question is `check-without-storing`'s: does this text compile
 now. This is the other one: what did the stored revision compile to. They are different answers and
 both are wanted; the stored one costs a read, and it is the only one that exists for a revision
 whose text the caller does not hold.
@@ -85,7 +85,7 @@ Wait for the plan — the owner's answers choose the shape, not the intent.
    cheap, the last makes the history of a broken page expensive.
 4. **Whether the assistant's revision read follows here.** `read_page` reports head diagnostics
    through its own seam; the same tool with a `hash` reports only `imageState`, because a retained
-   revision carries no diagnostics of its own. [`check-without-storing`](check-without-storing.md) has
+   revision carries no diagnostics of its own. `check-without-storing` has
    merged the two reads, so this item decides whether that read grows what it answers.
 5. **Whether a stale revision's answer is marked.** The stored diagnostics are the last compile, and
    a library move can make them out of date before anything recompiles the page; the listing's state
@@ -94,7 +94,7 @@ Wait for the plan — the owner's answers choose the shape, not the intent.
 
 ## Not in scope
 
-- **The fresh answer.** That is [`check-without-storing`](check-without-storing.md): it compiles the
+- **The fresh answer.** That is `check-without-storing`: it compiles the
   text it is given and stores nothing.
 - **A page's own diagnostics during its render.** A page that does not compile is not rendered; the
   shell answers with its error page, and that is the shell's.

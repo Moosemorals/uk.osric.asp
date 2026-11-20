@@ -5,8 +5,9 @@ SPDX-License-Identifier: MIT
 
 # uk.osric.asp template for VS Code
 
-A declarative extension: a language, two grammars and a language configuration. There is no `main`,
-no JavaScript and nothing to install from npm — the built-in `html` extension has the same shape.
+A language, two grammars, a language configuration and a small Language Server Protocol client. There is
+nothing to install from npm and no build step: the client is one plain-JavaScript file and the server
+is a .NET console app in `tools/asp-language-server`.
 
 ```bash
 make vscode-extension   # link this folder into ~/.vscode/extensions, then reload the window
@@ -48,6 +49,30 @@ The fragment reuses VS Code's built-in `source.cs` grammar for strings, numbers,
 the expression operators. If that grammar is unavailable — the built-in `csharp` extension disabled —
 the delimiters, keywords, identifiers and punctuation still highlight; only the reused leaves lose
 their colour.
+
+## Squiggles while typing
+
+The extension is no longer only data: `extension.js` is a Language Server Protocol client for
+`tools/asp-language-server`, and it puts the compiler's diagnostics on the document as it changes. The
+extension host loads an extension's `main` as CommonJS, so this is the one script in the repository
+that cannot be an ES module — `require` is the only way to reach the editor's API.
+
+```bash
+make build              # puts the server in artifacts/bin/asp-language-server
+make vscode-extension   # link this folder into ~/.vscode/extensions, then reload the window
+```
+
+Three settings name what is spawned, which is how a machine with the SDK somewhere else works:
+
+| Setting | Default |
+| --- | --- |
+| `aspLanguageServer.command` | `dotnet` |
+| `aspLanguageServer.path` | `${workspaceFolder}/artifacts/bin/asp-language-server/debug/asp-language-server.dll` |
+| `aspLanguageServer.seeds` | `${workspaceFolder}/src/uk.osric.asp.Web/Pages/Seeds` |
+
+The server compiles against the seed files because an editor has no page store, so a page that names
+`/_lib/document` is checked against the file in the repository, and an error inside that library is
+underlined in the library rather than in the page that reached it.
 
 ## Checking a page
 

@@ -38,6 +38,33 @@
           "text.html.asp"
         ]
       }
-    ]
-  }
+    ],
+    "configuration": {
+      "title": "uk.osric.asp template",
+      "properties": {
+        "aspLanguageServer.command": {
+          "type": "string",
+          "default": "dotnet",
+          "description": "The command that runs the language server, usually dotnet."
+        },
+        "aspLanguageServer.path": {
+          "type": "string",
+          "default": "${workspaceFolder}/artifacts/bin/asp-language-server/debug/asp-language-server.dll",
+          "description": "The built server the command runs. `make build` puts it here."
+        },
+        "aspLanguageServer.seeds": {
+          "type": "string",
+          "default": "${workspaceFolder}/src/uk.osric.asp.Web/Pages/Seeds",
+          "description": "The seed folder the server compiles a page against, standing in for the page store."
+        }
+      }
+    }
+  },
+  "main": "./extension.js",
+  "activationEvents": [
+    "onLanguage:asp"
+  ],
+  "extensionKind": [
+    "workspace"
+  ]
 }

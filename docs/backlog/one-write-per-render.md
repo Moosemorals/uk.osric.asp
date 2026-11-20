@@ -9,8 +9,8 @@ SPDX-License-Identifier: MIT
 | --- | --- |
 | Difficulty | protective-dragon |
 | Utility | high |
-| Status | blocked |
-| Blocked by | `check-without-storing` |
+| Status | planned |
+| Blocked by | — |
 | Plan | [ide-host](../plans/ide-host.md) |
 | Area | Sdk, Web (pages, editor, work), docs, assistant |
 | Location | `src/uk.osric.asp.Sdk/IPageWrites.cs`, `src/uk.osric.asp.Web/Pages/PageWritesScope.cs`, `src/uk.osric.asp.Web/Editor/PageSaver.cs`, `src/uk.osric.asp.Web/Pages/IPageRevisionStore.cs`, `src/uk.osric.asp.Web/Pages/Seeds/pages`, `src/uk.osric.asp.Web/Pages/Seeds/help`, `src/uk.osric.asp.Web/Assistant/PageAuthorPrompt.cs` |
@@ -23,7 +23,7 @@ SPDX-License-Identifier: MIT
 
 > **Re-prioritised 2026-11-18** by the owner. The rule is the friction the assistant meets on every
 > multi-file edit, and it is the gate in front of a job writer ([`job-borrows-a-credential`](job-borrows-a-credential.md)), so it moves
-> from the bottom of the order to just after [`check-without-storing`](check-without-storing.md), whose compile-without-store its
+> from the bottom of the order to just after `check-without-storing`, whose compile-without-store its
 > `All` policy borrows. Its own terms are unchanged.
 
 ## Idea
@@ -61,7 +61,7 @@ writes, chosen policy, one report. Building it for Save all alone would be build
 2. **The transaction boundary.** A compile is slow (30–70 ms warm, bounded by
    `Pages:Compile:TimeoutSeconds`) and slots are scarce (`Pages:Compile:Slots` is 1), so an All batch
    cannot hold a write transaction open across compiles. It compiles first — which is
-   [`check-without-storing`](check-without-storing.md)'s work, borrowed — and then opens one transaction and inserts every revision
+   `check-without-storing`'s work, borrowed — and then opens one transaction and inserts every revision
    in it. If the render's deadline passes while compiling, nothing has been written, which is exactly
    what All promised. A save that has begun is never abandoned; a batch that has begun committing is
    not either.
@@ -112,7 +112,7 @@ writes, chosen policy, one report. Building it for Save all alone would be build
 - **The widened authority and the merged capability.** [IDEA-043](closed.md), which lands first.
 - **A single rename, a search and a check.** [`page-cannot-move`](closed.md) lands the member a
   batch of moves is built from; [`cannot-search-the-store`](cannot-search-the-store.md) and
-  [`check-without-storing`](check-without-storing.md) are their own items.
+  `check-without-storing` are their own items.
 - **Bulk delete, install and restore.** Single-action members, and their own policies when they need
   one.
 - **A second transaction model.** One database, one transaction; no outbox, no two-phase commit, no
