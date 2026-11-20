@@ -7,13 +7,13 @@ SPDX-License-Identifier: MIT
 
 | | |
 | --- | --- |
-| Difficulty | eager-beaver |
+| Difficulty | caffeinated-squirrel |
 | Utility | medium |
-| Status | planned |
-| Blocked by | — |
+| Status | blocked |
+| Blocked by | [`listing-does-not-date-itself`](listing-does-not-date-itself.md) |
 | Plan | [ide-host](../plans/ide-host.md) |
 | Area | Sdk, Core, Web (pages, assistant), docs |
-| Location | `src/uk.osric.asp.Sdk/IPageCatalog.cs`, `src/uk.osric.asp.Web/Pages/PageCatalogScope.cs`, `src/uk.osric.asp.Web/Assistant/PageSourceSearch.cs`, `src/uk.osric.asp.Web/Assistant/PageStoreReader.cs`, `src/uk.osric.asp.Core/Pages/PageScope.cs`, `src/uk.osric.asp.Web/Pages/Seeds/help`, `src/uk.osric.asp.Web/Assistant/PageAuthorPrompt.cs` |
+| Location | `src/uk.osric.asp.Sdk/IPageCatalog.cs`, `src/uk.osric.asp.Web/Pages/PageCatalogScope.cs`, `src/uk.osric.asp.Web/Assistant/PageSourceSearch.cs`, `src/uk.osric.asp.Web/Assistant/PageStoreReader.cs`, `src/uk.osric.asp.Core/Assistant/GrepPattern.cs`, `src/uk.osric.asp.Core/Pages/PageScope.cs`, `src/uk.osric.asp.Web/Pages/Seeds/help`, `src/uk.osric.asp.Web/Assistant/PageAuthorPrompt.cs` |
 
 ## Idea
 
@@ -24,15 +24,23 @@ already spends a third before it lists anything, and a seeded row now costs one 
 three ([IDEA-036](../plans/archive/seed-provenance.md)). A site of thirty pages works
 by accident; a site of three hundred cannot be searched at all.
 
-The host can already do it, three times over, and no page can:
+A page cannot ask a question of the whole store either: "every page that names this library", "every
+heading at the third level", "every link that still points at the old key". The one place a pattern is
+read today is the assistant's shell `grep`, and a page cannot reach it, so a page that wants a pattern
+reads the store itself and pays the budget above.
+
+The host can already do it, and no page can:
 
 - **`PageSourceSearch.Find`** is the one line scan, and `PageStoreReader.SourcesAsync` decides which
   keys a scope may read and in what order. Together they answer `search_pages` and the virtual shell's
   `grep`, with `Assistant:MaxSearchMatches` and `Assistant:ShellMatchLimit` bounding the
   answer.
+- **`GrepPattern`** is the one pattern compiler, and `assistant-the-shell-is-posix` already records what
+  it means: a query that is only text is a substring test, and anything else is compiled with
+  `RegexOptions.NonBacktracking`, which matches in linear time and refuses what it cannot carry.
 - **`PageScope`** and `PageTree` in `Core` are the one statement of "below", "directly below" and "inside
   this prefix", and `pages-the-store-is-a-tree` says every front-end asks them.
-- **Neither is on the page contract**, because the seam was built for the assistant's tools and the
+- **None of them is on the page contract**, because the seam was built for the assistant's tools and the
   shell, and `pages-the-store-is-read-through-one-seam` deliberately made it a read seam in `Web`.
 
 The wider class is every question of the form *where does the site say this*: find in files for the
@@ -42,52 +50,90 @@ Encoding that as the editor's find box is what makes it look like editor work.
 
 ## Sketch
 
-1. **The host scans; the page gets matches.** `SearchAsync(request)` returns matching lines — key, line,
-   column, the text of the line — and whether a limit stopped the scan. The page never receives a
-   source, so the render's source allowance is not the currency and a search cannot be used to read the
-   store for free. This is the shape `PageSourceSearch.Find` already answers.
+1. **The host scans; the page gets matches.** `SearchAsync(PageSearchRequest)` returns a `PageSearch` of
+   matching lines — key, line, the column the match starts at, and the text of the line — and the cursor
+   the next slice starts from. The page never receives a source, so the render's source allowance is not
+   the currency and a search cannot be used to read the store for free. This is the shape
+   `PageSourceSearch.Find` already answers, with a column and a cursor added.
 
 2. **The request is a value, not nine arguments.** A scope (a prefix, a subtree or the whole store), a
-   pattern, whether the match is case-sensitive, whether it is a literal or a regular expression, a
-   limit and a cursor. The default is a case-insensitive literal over the whole store, because that is
-   what a search box means.
+   pattern and its kind (a literal substring or a basic regular expression), whether the match ignores
+   case, a `Limit` and a cursor. The default is an ignore-case literal over the whole store, because that
+   is what a search box means; the kind decides which test runs, so a literal search for `foo.` is a
+   literal search rather than a surprise pattern.
 
-3. **One allowance of its own.** A scan reads sources the caller never sees, so it needs a bound that is
-   not the render's: `Pages:Search:MaxSourceChars` and `Pages:Search:MaxMatches`, both required, with the
-   refusal naming which one was reached and what to narrow. A scan that hits the ceiling answers
-   "there is more" rather than a truncated answer — the rule `pages-a-listing-carries-facts` already
-   applies to a listing.
+3. **One pattern compiler, and it is the shell's.** `GrepPattern` moves out of `Core/Assistant` and is
+   what the page's search, the shell's `grep` and the assistant's tool all compile with, so a query means
+   the same thing in all three. That is the language `assistant-the-shell-is-posix` records: `(`, `)`,
+   `+`, `?` and `{` are literal because a page key and a snippet of HTML are full of punctuation, and a
+   construct the non-backtracking engine cannot carry is refused when the pattern is compiled, before a
+   source is read. Widening the language later — making one-or-more and optional operators rather than
+   literal characters, adding a word boundary — is one change in that class and reaches all three at
+   once.
 
-4. **A cursor in key-then-line order.** Results are ordered by key and then by line, and the cursor names
-   the last match returned, so the next call resumes rather than repeats. That is [`listing-has-no-cursor`](closed.md)
-   applied to a scan; the two ship best together, because a scan with no cursor is a scan of the first
-   page and nothing else.
+4. **One allowance, and it is measured in time.** The scan stops after the configured duration because a
+   count of matches bounds the answer while the work is done whether or not anything matches. The
+   duration covers the whole call: the tree walk, the reads and the matching, so the seam is stepped one
+   source at a time rather than materialising every source before the first line is tested, which is what
+   `SourcesAsync` does today. One `Pages:Search:` section carries the duration and the default and
+   largest `Limit`, and `Assistant:MaxSearchMatches` becomes that section's largest slice rather than a
+   second opinion about one behaviour. A scan that reaches the duration answers "there is more" rather
+   than a truncated answer — the rule `pages-a-listing-carries-facts` already applies to a listing.
 
-5. **One scan, not two.** `PageSourceSearch.Find` and `SourcesAsync` are lifted out of
-   `Web/Assistant` into the seam the catalog already uses, with the two line rules kept apart — the
-   assistant's tools count physical template lines because `read_page` names them, and merging the two
-   rules would make an edit address the wrong line
-   (`pages-the-store-is-a-tree` records why they stayed apart). The tools' JSON shapes and the shell's
-   output do not change.
+5. **A cursor in key-then-line order, and a cursor the store can invalidate.** Results are ordered by key
+   and then by line, and the cursor is the position the scan reached — the key and the line after the
+   last one tested — so a slice that finds nothing still advances and a short duration cannot spin on
+   the same source. That makes the cursor a claim about one store, so the request carries the version
+   token that [`listing-does-not-date-itself`](listing-does-not-date-itself.md) gives a listing and the
+   answer carries the version it read; a different version invalidates the cursor and the walk starts
+   again. That is the simple version of the choice made there — a version and a restart, not a read
+   snapshot held across requests — and it is enough here because a search walk is a handful of requests
+   rather than a listing walked for minutes. It is why this item waits for that one.
+   [`listing-has-no-cursor`](closed.md) is the other half: a scan with no cursor is a scan of the first
+   slice, and a cursor that cannot be trusted is a scan of a store that has moved.
 
-6. **The documentation** is a `/help` section (`product-manual-is-a-page`), a `PageAuthorPrompt` section
-   with its `Version` bumped, and a line in [pages](../pages.md) for the tenth read.
+6. **One scan, not two.** `PageSourceSearch.Find` and `SourcesAsync` are lifted out of `Web/Assistant`
+   into the seam the catalog already uses, with the two line rules kept apart — the assistant's tools
+   count physical template lines because `read_page` names them, and merging the two rules would make an
+   edit address the wrong line (`pages-the-store-is-a-tree` records why they stayed apart). The page's
+   search counts lines the way `read_page` and the editor do, so a match's line is one the author can act
+   on; the shell keeps its own rule for its own output, and the assistant's JSON shapes and the shell's
+   output do not change. `search_pages` gains the pattern flag and its `query` description stops saying
+   "a literal substring", with the literal kind its default so no query already written changes meaning.
 
-## Open questions
+7. **The documentation** is a `/help` section (`product-manual-is-a-page`) that teaches the pattern
+   language as well as the capability, a `PageAuthorPrompt` section with its `Version` bumped, and a line
+   in [pages](../pages.md) for the tenth read.
 
-1. **What a pattern may be.** A substring is trivial; a regular expression invites catastrophic
-   backtracking, which is the one thing that cannot be stopped inside .NET (`sec-page-runs-in-process`). A literal with a
-   case option and a whole-word flag may be the whole of the first version, with a regular expression
-   left to a `timeout`-bounded match or declined.
-2. **Whether a scan is charged to the assistant's bounds or its own.** The assistant has
-   `MaxSearchMatches`; a page would have `Pages:Search:MaxMatches`. Two settings for one behaviour is
-   the drift `pages-a-listing-carries-facts` exists to stop, so one section should serve both.
-3. **Whether the answer carries the matching line only, or a window.** A line is enough for a find list
-   and is what the tools print; a window of ±1 line is more useful in a diff panel and multiplies the
-   result size. Start with the line and its position.
-4. **Whether a tombstone is a searchable source.** It is never a source today
-   (`pages-the-store-is-a-tree`): a deleted page's history is readable by hash but its source is not in
-   a scan. A search across a restored page's history would need a different request, not a flag.
+## What the owner answered
+
+Put to the owner before any plan, and answered on 2026-11-20.
+
+1. **A regular expression, matched by the platform's linear-time engine rather than one we write.** The
+   article the owner pointed at ([Regular Expression Matching Can Be Simple And
+   Fast](https://swtch.com/~rsc/regexp/regexp1.html)) is the argument for simulating an automaton over
+   the text rather than backtracking through the pattern, and .NET ships that guarantee behind
+   `RegexOptions.NonBacktracking`; this host already compiles the shell's `grep` with it. There is no
+   engine to write and no timer to police: a pattern costs at most linear time in the line by
+   construction, and a construct the engine cannot carry — a backreference, a lookaround — is refused
+   when the pattern is compiled, before a source is read. The language is the shell's, so one query
+   means one thing everywhere (point 3 of the sketch).
+2. **One bound, and it is measured in time.** A common limit for both front-ends, expressed as a
+   duration — around 30 ms — rather than a count, because a count bounds the answer while the scan's work
+   is done whether or not anything matches. One `Pages:Search:` section rather than two settings for one
+   behaviour.
+3. **The line and its position, and no window.** A line is what a find list shows and what the tools
+   print; a caller that wants context reads the page through the read it already has.
+4. **A tombstone is not a source.** It is the panic button and stays invisible to day-to-day work, so a
+   scan sees live pages and nothing else — which is what `SourcesAsync` already does.
+
+## After MVP: a revision's history
+
+The owner's vote, also 2026-11-20: a later version may search history as well, behind a flag in the call
+that defaults to the live source only, and possibly extended to a date range. It waits for after MVP, and
+nothing here forecloses it — the request is a new value, so a member added later is not a contract break.
+The order a history walk runs in and the line rule a revision's text is counted by are that version's
+business; a tombstone stays out of it either way.
 
 ## Not in scope
 
@@ -96,7 +142,6 @@ Encoding that as the editor's find box is what makes it look like editor work.
 - **An index.** FTS5 over page source is the mechanism `no-account-store` chose for per-account data, and it is a
   store migration with triggers to maintain. `n` pages is a linear scan until a measurement says
   otherwise (`code-n-is-small`).
-- **Searching a revision's history.** One live source per key, as the tools do.
 - **The editor's own find within the open tab.** That is the browser's, and it needs no host.
 
 **Origin:** the owner's comparison of the site's IDE plan (`/ide-plan`, a stored page that is not in this
@@ -105,5 +150,10 @@ the key filter; the observation that a worker may outlive the render is true but
 budget, because a worker's `ReadBudget` is built once per job (`PageJobRunner.cs`), not once per
 request.
 
-The plan that places it is [host support for the IDE](../plans/ide-host.md); this is slice 5 there, after the
+The plan that places it is [host support for the IDE](../plans/ide-host.md); this is step 4 there, after the
 cursor it resumes from ([`listing-has-no-cursor`](closed.md)).
+
+The owner refined the shape on 2026-11-20, before any plan: a pattern as well as a literal, so the shell's
+language reaches a page; one bound measured in time rather than a count; the line and its position and no
+window; no tombstones; a cursor that a store version invalidates rather than a snapshot that holds one
+open; and history behind a flag, after MVP.
