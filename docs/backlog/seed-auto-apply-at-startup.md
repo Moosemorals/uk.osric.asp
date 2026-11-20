@@ -9,11 +9,11 @@ SPDX-License-Identifier: MIT
 | --- | --- |
 | Difficulty | eager-beaver |
 | Utility | high |
-| Status | open |
+| Status | planned |
 | Blocked by | — |
-| Plan | — |
+| Plan | [seed-auto-apply-at-startup](../plans/seed-auto-apply-at-startup.md) |
 | Area | Web (startup, pages), docs, tests |
-| Location | `src/uk.osric.asp.Web/Program.cs`, `src/uk.osric.asp.Web/Pages/PageSeedInstaller.cs`, `src/uk.osric.asp.Web/Pages/Seeds/help`, `docs/shell.md` |
+| Location | `src/uk.osric.asp.Web/Program.cs`, `src/uk.osric.asp.Web/Pages/PageSeedInstaller.cs`, `src/uk.osric.asp.Web/Pages/PageSeedApplier.cs` (new), `src/uk.osric.asp.Web/Pages/Seeds/help`, `docs/shell.md`, `docs/storage.md` |
 | Spike | — |
 
 ## Idea
@@ -30,11 +30,13 @@ page's explicit ticks, because each can replace or resurrect something the owner
 write is the same one the seed page pre-ticks, and it is the only one the store already treats as safe
 (`pages-a-seed-write-records-its-hash`, `pages-a-seed-verdict-is-the-hosts`).
 
-The "only the first start after a deploy" part is a detail for refinement. After a write the row is
-*in sync*, so an ordinary restart does nothing even without a marker. The case that needs thought is a
-page deliberately restored to the old seed's source: its content equals its anchor again, the release
-still ships a different seed, and the next start would write it a second time. Whether a build marker
-or a remembered last-applied runtime is worth having is the question that item refinement answers.
+The "only the first start after a deploy" part is settled: the check runs on **every start**, with no
+marker, and the plan carries the owner's reasons. After a write the row is *in sync*, so an ordinary
+restart does nothing even without one. The case that needed thought is a page deliberately restored to
+the old seed's source: its content equals its anchor again, the release still ships a different seed,
+and the next start writes it a second time — which is the record doing what it already says, because
+that row is *release newer* and the seed page pre-ticks it. An owner who wants to keep an old source
+edits the page, and *edited* is never automatic.
 
 ## Sketch
 
@@ -50,8 +52,10 @@ or a remembered last-applied runtime is worth having is the question that item r
    logged and the rest still run. A compile error is stored and reported the way a manual install
    reports it.
 
-4. **The first-start question.** Decide whether a marker is needed for a page reverted to its old
-   seed; if it is, it is one row or one setting, not a new store. Refinement owns this.
+4. **The first-start question, answered.** No marker and no remembered runtime: the step runs every
+   start, because the write is already a no-op once it has landed and a marker is only a new way for
+   the step not to run. A page reverted to its old seed is written again at the next start, and that
+   is the rule rather than an exception to it.
 
 5. **The page remains for everything else.** The destructive rows, the deleted rows, the adoption and
    the shell-path repair stay on `/admin/seeds`. `/help` and [the shell](../shell.md) say what happens
@@ -59,4 +63,4 @@ or a remembered last-applied runtime is worth having is the question that item r
 
 6. **Tests.** A release-newer row is written at startup and records its anchor; every other verdict is
    left alone; a failed write does not stop the next; a second start is a no-op; a deliberately
-   reverted old source is the case the marker decision is argued against.
+   reverted old source is written again, because *release newer* is what the record calls it.

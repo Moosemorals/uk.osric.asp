@@ -110,7 +110,7 @@ its reason, and that no item sits above something that blocks it.
 
 | Slug | Title | Difficulty | Utility | Status | Blocked by |
 | --- | --- | --- | --- | --- | --- |
-| [`seed-auto-apply-at-startup`](seed-auto-apply-at-startup.md) | A release applies the seeds it moved at startup | eager-beaver ⚙️🦫 | high | open | — |
+| [`seed-auto-apply-at-startup`](seed-auto-apply-at-startup.md) | A release applies the seeds it moved at startup | eager-beaver ⚙️🦫 | high | [planned](../plans/seed-auto-apply-at-startup.md) | — |
 | | *The one automatic write the store already permits is the release-newer row; a deploy should finish it without the owner opening a page.* | | | | |
 | [`one-write-per-render`](one-write-per-render.md) | A render may write a batch of pages, and the caller names the policy | protective-dragon 🔥🐉 | high | [planned](../plans/ide-host.md) | — |
 | | *The one-save rule is what the assistant hits on every multi-file edit, and the owner has decided it goes; `check-without-storing`'s compile-without-store landed, so nothing stands in front of it.* | | | | |
