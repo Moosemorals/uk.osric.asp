@@ -239,6 +239,7 @@ uk.osric.asp.Sdk.PageCapture.Body.get -> string!
 uk.osric.asp.Sdk.PageCapture.Equals(uk.osric.asp.Sdk.PageCapture? other) -> bool
 uk.osric.asp.Sdk.PageCapture.PageCapture(string! body, uk.osric.asp.Sdk.PageFrame! frame) -> void
 uk.osric.asp.Sdk.PageCheckLanguage
+uk.osric.asp.Sdk.PageCheckLanguage.JavaScript = 1 -> uk.osric.asp.Sdk.PageCheckLanguage
 uk.osric.asp.Sdk.PageCheckLanguage.Template = 0 -> uk.osric.asp.Sdk.PageCheckLanguage
 uk.osric.asp.Sdk.PageCheckLanguages
 uk.osric.asp.Sdk.PageCheckResult

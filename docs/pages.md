@@ -124,11 +124,13 @@ pure renderers, and one that is a fact about the build:
 - `IPageCheck` answers "would this source check" for text the caller already holds, and stores
   nothing: no revision, head, image, closure fingerprint or seed record, and none of the recompiling a
   save would cause. `CheckAsync(language, source)` names its language from the closed set in
-  `PageCheckLanguages` — `template` today, and never inferred from a key's extension — and answers a
-  `PageCheckResult`: what generation judged the source to be in `Kind` (text, page, library or
-  worker, or `null` when there is nothing to judge), whether it would be served in `Valid` (a warning
-  leaves it valid), and the compiler's diagnostics as `PageDiagnostic` values, each naming a library
-  when the problem is not in the page itself. There is no key: a caller that wants a saved page
+  `PageCheckLanguages` — `template` and `javascript`, and never inferred from a key's extension — and
+  answers a `PageCheckResult`: what generation judged the source to be in `Kind` (text, page, library
+  or worker, or `null` for a script or a check that ran out of time), whether it would be served in
+  `Valid` (a warning leaves it valid), and the compiler's diagnostics as `PageDiagnostic` values, each
+  naming a library when the problem is not in the page itself. A `javascript` check is the
+  template-blanking skeleton and the parser the assistant already uses: syntax only, no imports
+  resolved, nothing executed, and the positions are template space. There is no key: a caller that wants a saved page
   checked reads it with `IPageCatalog.ReadAsync` and passes the template, so a source that has never
   been saved is checked exactly as one that has. It needs a signed-in visitor, because a compile is a
   shared resource; it spends the same `Pages:Compile:Slots` and `Pages:Compile:TimeoutSeconds` a save

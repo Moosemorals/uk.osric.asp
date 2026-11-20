@@ -133,6 +133,61 @@ public sealed class PageCheckScopeTests {
     }
 
     [Test]
+    public async Task AScriptIsCheckedAsAModuleAndHasNoPageKindAsync() {
+        using PageHarness pages = new(new FakePageStore());
+
+        PageCheckResult result = await CheckAsync(pages, "export const answer = 42;\n", "javascript");
+
+        Assert.Multiple(() => {
+            Assert.That(result.Kind, Is.Null, "a script has no page kind");
+            Assert.That(result.Valid, Is.True);
+            Assert.That(result.Diagnostics, Is.Empty);
+            Assert.That(pages.Compiler.CompileCount, Is.Zero, "a script never reaches Roslyn");
+        });
+    }
+
+    [Test]
+    public async Task AScriptsTemplateBlocksAreBlankedBeforeParsingAsync() {
+        using PageHarness pages = new(new FakePageStore());
+        const string Source = "<% var when = DateTime.UtcNow; %>\nexport const label = \"<%= when %>\";\n";
+
+        PageCheckResult result = await CheckAsync(pages, Source, "javascript");
+
+        Assert.Multiple(() => {
+            Assert.That(result.Valid, Is.True);
+            Assert.That(result.Diagnostics, Is.Empty);
+        });
+    }
+
+    [Test]
+    public async Task ABrokenScriptAnswersTheParsersDiagnosticAsync() {
+        using PageHarness pages = new(new FakePageStore());
+
+        PageCheckResult result = await CheckAsync(pages, "const a = { x: 1 y: 2 };", "javascript");
+
+        SdkDiagnostic error = result.Diagnostics.Single(diagnostic => diagnostic.Severity == SdkSeverity.Error);
+        Assert.Multiple(() => {
+            Assert.That(result.Valid, Is.False);
+            Assert.That(error.Code, Is.EqualTo("SCRIPT001"));
+            Assert.That(error.Line, Is.EqualTo(1));
+            Assert.That(error.Column, Is.EqualTo(18));
+        });
+    }
+
+    [Test]
+    public async Task AnUnterminatedTemplateBlockAnswersTheSkeletonsDiagnosticAsync() {
+        using PageHarness pages = new(new FakePageStore());
+
+        PageCheckResult result = await CheckAsync(pages, "const a = 1;\n<% if (true) {", "javascript");
+
+        Assert.Multiple(() => {
+            Assert.That(result.Valid, Is.False);
+            Assert.That(result.Diagnostics, Has.Some.Matches<SdkDiagnostic>(
+                diagnostic => diagnostic.Code == "TEMPLATE001"), "the block is the problem, not the script");
+        });
+    }
+
+    [Test]
     public async Task ASourceIsCheckedTheSameWhetherOrNotItIsSavedAsync() {
         using PageHarness pages = new(new FakePageStore());
         const string Source = "<% int broken = ; %>";
@@ -239,6 +294,6 @@ public sealed class PageCheckScopeTests {
             measurement => measurement is not null && measurement.HasTag("reason", PageMetrics.ReasonCheck)));
     }
 
-    private static Task<PageCheckResult> CheckAsync(PageHarness pages, string source) =>
-        pages.Checks.For(PageHarness.Key("/checker")).CheckAsync("template", source);
+    private static Task<PageCheckResult> CheckAsync(PageHarness pages, string source, string language = "template") =>
+        pages.Checks.For(PageHarness.Key("/checker")).CheckAsync(language, source);
 }
