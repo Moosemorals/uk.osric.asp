@@ -28,7 +28,7 @@ namespace uk.osric.asp.Sdk;
 /// <para>
 /// Letting it go out of scope without committing writes nothing, which is the same as
 /// <see cref="RollbackAsync"/>. Nothing may be written into it once it has been committed or rolled
-/// back.
+/// back (`pages-writes-are-transactions`).
 /// </para>
 /// </remarks>
 public interface IPageTransaction : IAsyncDisposable {

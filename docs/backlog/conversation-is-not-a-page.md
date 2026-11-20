@@ -136,7 +136,7 @@ search, the batch — is the rest of this job.
 
 **Split off 2026-11-18.** The writer a worker needs is [`job-borrows-a-credential`](job-borrows-a-credential.md): it acts with the
 credential its starter presented, so logging out or changing a password ends it, and it waits on
-[`one-write-per-render`](one-write-per-render.md)'s transaction. This job keeps the port; the authority is recorded there.
+the page transaction, which has landed (`pages-writes-are-transactions`). This job keeps the port; the authority is recorded there.
 
 ### 5. The restricted Markdown profile is shell-only
 
@@ -154,7 +154,7 @@ existing one, or a seeded library the page opts into.
 route, and that the authority is the signed-in visitor's rather than the page's
 (`pages-any-page-may-write-the-store`). So the port needs no worker writer, and the assistant page
 would make its edits through `IPageWrites` the way its tools make them today — with a transaction
-([`one-write-per-render`](one-write-per-render.md)) making a multi-file edit one request rather than a sequence.
+(`pages-writes-are-transactions`) making a multi-file edit one request rather than a sequence.
 
 The shapes that were weighed, with what each cost:
 

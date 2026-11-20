@@ -31,7 +31,7 @@ using PageKind = uk.osric.asp.Core.Pages.PageKind;
 /// A staged save reads the libraries staged before it as well as the store's, in the order the page
 /// made the calls. A library staged after a page that uses it is not corrected: the page was built
 /// from the library that was there and its closure makes it stale, exactly as a dependent outside the
-/// transaction is.
+/// transaction is (`pages-writes-are-transactions`).
 /// </para>
 /// </remarks>
 internal sealed class PageWriteTransaction(

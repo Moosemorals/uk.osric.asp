@@ -10,8 +10,8 @@ SPDX-License-Identifier: MIT
 | Status | Proposed 2026-11-15 — waits for the owner. Slices 0, 1 and 2 are built and merged; the other four are unbuilt, and nothing below is the IDE |
 | Size | Large as a programme, small as a step: seven capabilities, each its own job and its own branch, ordered so that each ships on its own and can be backed out on its own, and a closing sweep of the pages that could use what they leave behind |
 | Spike | None. Every claim about what exists was read off `trunk` on 2026-11-15: `IPageCatalog`, `IPageEditor`, `PageEditorScope`, `PageWriterScope`, `PageCompiler.MapDiagnostics`, `PageDiagnostics.ToSdk` and `PageJobRunner` |
-| Decisions | `pages-a-diagnostic-names-its-source` (041), recorded at its merge. The rest are named at the merge (`product-plan-before-building`); this branch states the names it intends. One entry is retired rather than revised — the one that made the editor's registration the authority — and `pages-a-page-may-save-itself` is revised twice, once by 043 and once by 047 |
-| Backlog | [`cannot-search-the-store`](../backlog/cannot-search-the-store.md), [`listing-has-no-cursor`](../backlog/closed.md), [`library-edit-cost-is-invisible`](../backlog/closed.md), [IDEA-041](../backlog/closed.md), [`page-cannot-move`](../backlog/closed.md), [IDEA-043](../backlog/closed.md), [`one-write-per-render`](../backlog/one-write-per-render.md) |
+| Decisions | `pages-a-diagnostic-names-its-source` (041) and `pages-writes-are-transactions` (047), recorded at their merges. The rest are named at the merge (`product-plan-before-building`); this branch states the names it intends. One entry is retired rather than revised — the one that made the editor's registration the authority — and `pages-a-page-may-save-itself` is revised twice, once by 043 and once by 047 |
+| Backlog | [`cannot-search-the-store`](../backlog/cannot-search-the-store.md), [`listing-has-no-cursor`](../backlog/closed.md), [`library-edit-cost-is-invisible`](../backlog/closed.md), [IDEA-041](../backlog/closed.md), [`page-cannot-move`](../backlog/closed.md), [IDEA-043](../backlog/closed.md), [IDEA-047](../backlog/closed.md) |
 
 ## The short version
 
@@ -74,7 +74,7 @@ for eight of the eleven, and those eight are why the page can start before any o
 An entry in [decisions](../decisions.md) is a guideline against relitigating the same problem, not a
 constraint that outlives its reason. Two of them have outlived theirs, and the owner decided on
 2026-11-15 that both go. They are two steps rather than one: [IDEA-043](../backlog/closed.md) takes the
-authority and has [a plan of its own](archive/page-writes.md), and [`one-write-per-render`](../backlog/one-write-per-render.md) takes the
+authority and has [a plan of its own](archive/page-writes.md), and [IDEA-047](../backlog/closed.md) took the
 transactions.
 
 **The authority to write is the visitor's, not the page's.** The entry that makes the isolated
@@ -163,8 +163,9 @@ smallest changes come first because they are what every later slice is written a
    that writes more than one row, and nothing is left at the old key. Proved: a page moves with its
    history and state and keeps every hash, the old key answers `404`, and the editor, `move_page` and
    `mv` all move a page.
-6. **047 — the transaction.** The largest, and the last capability: it changes the shape of every save,
-   so it lands after the saves it moves are settled. Proves: a commit with a stale operation writes nothing and
+6. **047 — the transaction.** Landed 2026-11-20, and the record is `pages-writes-are-transactions`. The
+   largest, and the last capability: it changes the shape of every save, so it landed after the saves it
+   moves are settled. Proved: a commit with a stale operation writes nothing and
    the report names every conflict; a committed transaction stores every revision, move and tombstone
    or none of them; a lone write is a transaction of one and answers exactly as it did; the commit
    takes the store's writer from its first statement, so a second writer cannot act on the heads it
@@ -278,7 +279,7 @@ underline is page work on top of a capability this plan does not carry.
 ## Open questions
 
 The first three were answered by the owner on 2026-11-15, and 043's plan records them: 043 is two jobs
-(the authority here, the transactions in [`one-write-per-render`](../backlog/one-write-per-render.md)); the merged capability is
+(the authority here, the transactions in [IDEA-047](../backlog/closed.md)); the merged capability is
 `IPageWrites`; and the editor's key is deletable, with `/admin/seeds` as the way back.
 
 The fourth was answered on 2026-11-20: **the assistant's safety rules do not change.** It may transact

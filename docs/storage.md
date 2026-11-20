@@ -80,7 +80,8 @@ own condition against the rows the ones before it wrote — so a create, a move 
 in one transaction are a sequence that succeeds — and a refusal rolls the whole transaction back and
 the report says which operations were applied and undone and which were never reached. A transaction
 nested inside another is not a second store transaction: it merges its operations into the outer one
-and is decided by its commit, so the store still has exactly one transaction per commit.
+and is decided by its commit, so the store still has exactly one transaction per commit
+(`pages-writes-are-transactions`).
 
 A save inserts the revision and advances its `PageHeads` row in one transaction. The head is the
 authoritative current-page pointer; reads do not guess the current row from timestamps. The source

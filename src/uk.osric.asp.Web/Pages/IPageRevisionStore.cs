@@ -36,7 +36,7 @@ internal interface IPageRevisionStore {
     /// <returns>One answer per operation, in the same order.</returns>
     /// <remarks>
     /// A lone write is this method with one operation, so a save cannot behave one way alone and
-    /// another way inside a transaction.
+    /// another way inside a transaction (`pages-writes-are-transactions`).
     /// </remarks>
     Task<IReadOnlyList<PageCommitAnswer>> CommitAsync(
         IReadOnlyList<PageCommit> operations,

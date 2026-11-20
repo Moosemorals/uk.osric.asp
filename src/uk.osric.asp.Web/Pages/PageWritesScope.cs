@@ -27,7 +27,7 @@ using uk.osric.asp.Web.Editor;
 /// members are not repeated on <see cref="IPageTransaction"/>. A save is conditional on the head hash
 /// the form carried when it names a key, and a write that has begun is not abandoned: the render's
 /// deadline bounds the wait for a compile slot, not the author's edit
-/// (`pages-a-page-may-save-itself`).
+/// (`pages-a-page-may-save-itself`, `pages-writes-are-transactions`).
 /// </para>
 /// </remarks>
 internal sealed class PageWritesScope(

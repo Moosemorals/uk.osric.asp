@@ -142,7 +142,7 @@ internal sealed class PageSaver(
     /// <returns>The revision, its diagnostics, and the compiler's fault when it threw.</returns>
     /// <remarks>
     /// Staging is a compile and nothing else: no lock is held while it waits for a slot, which is what
-    /// lets a commit stay statements only.
+    /// lets a commit stay statements only (`pages-writes-are-transactions`).
     /// </remarks>
     public async Task<StagedRevision> BuildAsync(
         PagePath path,
@@ -253,7 +253,7 @@ internal sealed class PageSaver(
     // A staged save sees the libraries staged before it as well as the store's, so a transaction
     // that writes a library and a page using it compiles the page against the new library when the
     // library was staged first. Nothing is reordered: the order the page made the calls is the
-    // order it gets.
+    // order it gets (`pages-writes-are-transactions`).
     private async Task<IReadOnlyList<PageLibrary>> LibrariesAsync(IReadOnlyList<PageLibrary>? staged, CancellationToken cancellationToken) {
         IReadOnlyList<PageLibrary> stored = await libraries.LiveAsync(cancellationToken);
         if (staged is null or { Count: 0 }) {
