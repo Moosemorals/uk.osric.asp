@@ -10,7 +10,10 @@ namespace uk.osric.asp.Sdk;
 /// edit is never lost — so the diagnostics are how the page says what to fix, and
 /// <see cref="HasErrors"/> says whether the next request can serve it at all.
 /// </remarks>
-/// <param name="Hash">The new revision's hash, as <see cref="IPageCatalog.RevisionsAsync"/> reports it.</param>
+/// <param name="Hash">
+/// The new revision's hash, as <see cref="IPageCatalog.RevisionsAsync"/> reports it, or empty when
+/// nothing was stored: a credential that is no longer live is <see cref="PageEditOutcome.Revoked"/>.
+/// </param>
 /// <param name="Diagnostics">The compiler's author-facing answer, ordered by template position.</param>
 /// <param name="Outcome">
 /// Whether the source was stored, or joined a transaction this render has open and will land with its

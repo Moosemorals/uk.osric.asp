@@ -4,14 +4,17 @@
 namespace uk.osric.asp.Web.Tests;
 
 using Microsoft.AspNetCore.Antiforgery;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using uk.osric.asp.Core.Pages;
 using uk.osric.asp.Runtime;
 using uk.osric.asp.Sdk;
+using uk.osric.asp.Web.Authentication;
 using uk.osric.asp.Web.Editor;
 using uk.osric.asp.Web.Pages;
 using uk.osric.asp.Web.Shell;
+using uk.osric.asp.Web.Users;
 using uk.osric.asp.Web.Work;
 using PageKind = uk.osric.asp.Core.Pages.PageKind;
 
@@ -21,6 +24,8 @@ using PageKind = uk.osric.asp.Core.Pages.PageKind;
 /// so a test can save through one and render through another without guessing at the wiring.
 /// </remarks>
 internal sealed class PageHarness : IDisposable {
+
+    private readonly ServiceProvider _authorities;
 
     public PageHarness(
         FakePageStore storage,
@@ -42,7 +47,8 @@ internal sealed class PageHarness : IDisposable {
         PageJobOptions? jobOptions = null,
         IWorkerStore? workerStore = null,
         TimeProvider? clock = null,
-        PageSeeds? seeds = null) {
+        PageSeeds? seeds = null,
+        FakeUserStore? users = null) {
         State = state ?? new FakePageStateStore();
         Sessions = sessionStore ?? new FakePageSessionStore();
         Session = new PageSessionRequest(uk.osric.asp.Web.Authentication.PageSessionCookie.Mint(), null, presented: false, exists: false);
@@ -84,12 +90,30 @@ internal sealed class PageHarness : IDisposable {
         JobQueue = new PageJobQueue(JobOptions);
         Jobs = new PageJobs(
             JobOptions, JobQueue, Reserved, ReadStore, clock ?? TimeProvider.System, NullLogger<PageJobs>.Instance);
+        // A job's writer needs a scope of its own and a credential to prove, so the harness wires the
+        // real verifier over an in-memory account store: a test mints a run's token and can forget it.
+        Users = users ?? new FakeUserStore();
+        ServiceCollection authorityServices = new();
+        authorityServices.AddSingleton<IUserStore>(Users);
+        // The runner resolves the writer's editor from the job's own scope; the harness has one.
+        authorityServices.AddSingleton(Editor);
+        _authorities = authorityServices.BuildServiceProvider();
+        // A test mints one authority per start, which is more runs than the shipped limit allows.
+        Views = new ViewTokenStore(TestOptions.Assistant with { MaxActiveRuns = 64 });
+        AuthorityVerifier = new PageJobAuthorityVerifier(
+            _authorities.GetRequiredService<IServiceScopeFactory>(),
+            new AuthTicketStore(_authorities.GetRequiredService<IServiceScopeFactory>()),
+            Views,
+            clock ?? TimeProvider.System);
+        Authorities = new PageJobAuthorityFactory(Views, AuthorityVerifier, NullLoggerFactory.Instance);
+
         JobRunner = new PageJobRunner(
             JobQueue,
             Jobs,
             new PageJobEnvironment(
                 JobOptions, WorkerStore, State, StorageOptions, Fetch, FetchOptions, ReadStore, Seeds, ReadOptions,
-                Reserved, ContentTypes, Images, Libraries, Compiler, Metrics),
+                Reserved, ContentTypes, Images, Libraries, Compiler, Metrics,
+                _authorities.GetRequiredService<IServiceScopeFactory>()),
             NullLoggerFactory.Instance,
             NullLogger<PageJobRunner>.Instance);
     }
@@ -176,6 +200,51 @@ internal sealed class PageHarness : IDisposable {
 
     /// <summary>The runner that gives each job a scope and a load context.</summary>
     public PageJobRunner JobRunner { get; }
+
+    /// <summary>The accounts a job's credential is proved against.</summary>
+    public FakeUserStore Users { get; }
+
+    /// <summary>The live runs a job's view credential resolves through.</summary>
+    public ViewTokenStore Views { get; }
+
+    /// <summary>The verifier the harness's credentials ask.</summary>
+    public PageJobAuthorityVerifier AuthorityVerifier { get; }
+
+    /// <summary>The factory the endpoint uses to capture a render's credential.</summary>
+    public PageJobAuthorityFactory Authorities { get; }
+
+    /// <summary>A credential for a job started by <paramref name="owner"/>, live until it is revoked.</summary>
+    /// <param name="owner">The account the job runs for.</param>
+    /// <returns>The authority, presenting a run's view the way an assistant run would.</returns>
+    public PageJobAuthority Authority(PageUser owner) {
+        ArgumentNullException.ThrowIfNull(owner);
+
+        if (!Users.Users.TryGetValue(owner.Name, out LocalUser? user)) {
+            user = new LocalUser {
+                UserName = owner.Name,
+                PasswordHash = "unused",
+                SecurityStamp = "test-stamp",
+                CreatedAt = DateTimeOffset.UnixEpoch,
+            };
+            Users.Users[owner.Name] = user;
+        }
+
+        ViewToken token = Views.Mint(Guid.NewGuid().ToString("N"), owner.Name, user.SecurityStamp);
+
+        return new PageJobAuthority(
+            owner, user.SecurityStamp, null, token.RunId, AuthorityVerifier,
+            NullLogger<PageJobAuthority>.Instance);
+    }
+
+    /// <summary>Ends a credential's run, which is what the authority dying looks like.</summary>
+    /// <param name="authority">The credential a job borrowed.</param>
+    public void Revoke(PageJobAuthority authority) {
+        ArgumentNullException.ThrowIfNull(authority);
+
+        if (authority.RunId is { } runId && Views.ForRun(runId) is { } token) {
+            Views.Forget(token);
+        }
+    }
 
     /// <summary>Starts the runner, as the host's hosted service would.</summary>
     public Task StartJobsAsync() => JobRunner.StartAsync(CancellationToken.None);
@@ -337,7 +406,8 @@ internal sealed class PageHarness : IDisposable {
             TestOptions.Session,
             Sessions,
             TestSessions.Cookie,
-            Jobs);
+            Jobs,
+            JobAuthorities: Authorities);
     }
 
     // The timeout tests measure the page, not the compiler: a page compiled on its first request
@@ -348,6 +418,7 @@ internal sealed class PageHarness : IDisposable {
 
     public void Dispose() {
         JobRunner.Dispose();
+        _authorities.Dispose();
         Metrics.Dispose();
     }
 }

@@ -142,6 +142,8 @@ internal sealed class PageEndpoint() {
         // Identity comes only from the principal UseAuthentication validated, never from a header or
         // a cookie the page could read. It is mapped once, so the guard and the CSRF check agree.
         PageUser? user = MapUser(context.User);
+        // A job outlives the request, so its credential is captured now, while the request can prove it.
+        PageJobAuthority? jobAuthority = environment.JobAuthorities?.For(context.User, context.Request);
         bool authenticated = context.User.Identity?.IsAuthenticated == true;
 
         // A signed-in visitor's form is exactly where a cross-site post becomes an action by the
@@ -219,6 +221,7 @@ internal sealed class PageEndpoint() {
             loggerFactory,
             snapshot,
             user,
+            jobAuthority,
             session,
             isHead,
             new BodyBudget(environment.Render.MaxBodyChars),

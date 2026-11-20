@@ -44,6 +44,11 @@ using uk.osric.asp.Web.Work;
 /// without one offers no <c>IPageCheck</c>, and a render without a signed-in visitor is offered none
 /// either way.
 /// </param>
+/// <param name="JobAuthorities">
+/// Where a render's credential is captured for the jobs it starts, or <see langword="null"/> when this
+/// host offers none. A host without one starts no job from a render, because a job must act with its
+/// starter's credential or not at all.
+/// </param>
 internal sealed record PageEnvironment(
     ReservedPaths Reserved,
     PageEditorOptions Editor,
@@ -66,4 +71,5 @@ internal sealed record PageEnvironment(
     IPageSessionStore SessionStore,
     PageSessionCookieOptions SessionCookie,
     PageJobs? Jobs = null,
-    PageChecks? Checks = null);
+    PageChecks? Checks = null,
+    PageJobAuthorityFactory? JobAuthorities = null);

@@ -1085,14 +1085,145 @@ public sealed class PageWritesScopeTests {
         bool writable = true,
         PageUser? user = null,
         bool signedIn = true,
-        string path = EditorPath) => new(
+        string path = EditorPath,
+        IPageWriteCredential? credential = null,
+        Action? touched = null) => new(
         PageHarness.Key(path),
         pages.Editor,
         signedIn ? user ?? Owner : null,
         writable,
         new ReservedPaths(ReservedPaths.Default),
         TestOptions.Seeds,
-        new PageTransactionGate());
+        new PageTransactionGate(),
+        credential,
+        touched);
+
+    /// <summary>A credential that answers what a test tells it to, and counts the times it was asked.</summary>
+    private sealed class CountingCredential(bool live) : IPageWriteCredential {
+
+        public int Checks { get; private set; }
+
+        public ValueTask<bool> IsLiveAsync(CancellationToken cancellationToken) {
+            Checks++;
+
+            return ValueTask.FromResult(live);
+        }
+    }
+
+    [Test]
+    public async Task ACommitAsksTheCredentialOnceForEveryStagedWriteAsync() {
+        FakePageStore storage = new();
+        using PageHarness pages = new(storage);
+        CountingCredential credential = new(live: true);
+        PageWritesScope scope = Scope(pages, credential: credential);
+
+        await using IPageTransaction batch = scope.BeginTransaction();
+        _ = await scope.SaveAsync("/one", "one", null);
+        _ = await scope.SaveAsync("/two", "two", null);
+        _ = await scope.SaveAsync("/three", "three", null);
+        IReadOnlyList<PageWriteResult> report = await batch.CommitAsync();
+
+        Assert.Multiple(() => {
+            Assert.That(credential.Checks, Is.EqualTo(1), "the check is the commit's, not each staged call's");
+            Assert.That(report.Select(row => row.Outcome), Is.All.EqualTo(PageWriteOutcome.Saved));
+        });
+    }
+
+    [Test]
+    public async Task ADeadCredentialRefusesEveryStagedWriteAsync() {
+        FakePageStore storage = new();
+        using PageHarness pages = new(storage);
+        PageWritesScope scope = Scope(pages, credential: new CountingCredential(live: false));
+
+        await using IPageTransaction batch = scope.BeginTransaction();
+        _ = await scope.SaveAsync("/one", "one", null);
+        _ = await scope.SaveAsync("/two", "two", null);
+        IReadOnlyList<PageWriteResult> report = await batch.CommitAsync();
+
+        Assert.Multiple(() => {
+            Assert.That(report.Select(row => row.Outcome), Is.All.EqualTo(PageWriteOutcome.Revoked),
+                "nothing was attempted, because the credential was the refusal");
+            Assert.That(report.Select(row => row.Hash), Is.All.Null, "no revision was left behind");
+            Assert.That(storage.WriteCount, Is.Zero);
+        });
+    }
+
+    [Test]
+    public async Task ADeadCredentialRefusesALoneWriteAsync() {
+        FakePageStore storage = new();
+        using PageHarness pages = new(storage);
+        PageWritesScope scope = Scope(pages, credential: new CountingCredential(live: false));
+
+        PageEditResult result = await scope.SaveAsync("/page", "text", null);
+
+        Assert.Multiple(() => {
+            Assert.That(result.Outcome, Is.EqualTo(PageEditOutcome.Revoked));
+            Assert.That(result.Hash, Is.Null);
+            Assert.That(storage.WriteCount, Is.Zero);
+        });
+    }
+
+    [Test]
+    public async Task ADeadCredentialRefusesABoundSaveAsync() {
+        FakePageStore storage = new();
+        using PageHarness pages = new(storage);
+        PageWritesScope scope = Scope(pages, credential: new CountingCredential(live: false));
+
+        PageSaveResult saved = await scope.SaveAsync("text");
+
+        Assert.Multiple(() => {
+            Assert.That(saved.Outcome, Is.EqualTo(PageEditOutcome.Revoked));
+            Assert.That(saved.Hash, Is.Empty);
+            Assert.That(storage.WriteCount, Is.Zero);
+        });
+    }
+
+    [Test]
+    public async Task ADeadCredentialRefusesADeleteAsync() {
+        FakePageStore storage = new();
+        using PageHarness pages = new(storage);
+        _ = await pages.Editor.SaveAsync(PageHarness.Key("/page"), "first");
+        PageWritesScope scope = Scope(pages, credential: new CountingCredential(live: false));
+
+        PageDeleteResult deleted = await scope.DeleteAsync("/page");
+
+        Assert.Multiple(() => {
+            Assert.That(deleted.Outcome, Is.EqualTo(PageDeleteOutcome.Revoked));
+            Assert.That(deleted.Deleted, Is.False);
+            Assert.That(PageHarness.Stored(storage, "/page").Template, Is.EqualTo("first"));
+        });
+    }
+
+    [Test]
+    public async Task ADeadCredentialRefusesAMoveAsync() {
+        FakePageStore storage = new();
+        using PageHarness pages = new(storage);
+        SavedRevision first = await pages.Editor.SaveAsync(PageHarness.Key("/page"), "first");
+        PageWritesScope scope = Scope(pages, credential: new CountingCredential(live: false));
+
+        PageMoveResult moved = await scope.MoveAsync("/page", "/moved", first.Revision.Hash);
+
+        Assert.Multiple(() => {
+            Assert.That(moved.Outcome, Is.EqualTo(PageMoveOutcome.Revoked));
+            Assert.That(moved.Hash, Is.Null);
+            Assert.That(PageHarness.Stored(storage, "/page").Template, Is.EqualTo("first"));
+        });
+    }
+
+    [Test]
+    public async Task AWriteTouchesTheClockAtEveryStageAndTheCommitAsync() {
+        using PageHarness pages = new(new FakePageStore());
+        int touched = 0;
+        PageWritesScope scope = Scope(
+            pages, credential: new CountingCredential(live: true), touched: () => touched++);
+
+        await using IPageTransaction batch = scope.BeginTransaction();
+        _ = await scope.SaveAsync("/one", "one", null);
+        _ = await scope.SaveAsync("/two", "two", null);
+        _ = await batch.CommitAsync();
+
+        Assert.That(touched, Is.EqualTo(3), "two staged writes and the commit are activity");
+    }
 
     /// <summary>Reports one diagnostic the way a compile timeout does: with no position at all.</summary>
     private sealed class PositionlessCompiler : IPageCompiler {

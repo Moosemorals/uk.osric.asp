@@ -33,6 +33,11 @@ public enum PageMoveOutcome {
     /// </summary>
     Staged,
 
+    /// <summary>
+    /// The credential the move was made with is no longer live, so nothing was moved. A render never
+    /// answers this: only a job borrows a credential it has to keep proving.
+    /// </summary>
+    Revoked,
 }
 
 /// <summary>What a move answered with.</summary>

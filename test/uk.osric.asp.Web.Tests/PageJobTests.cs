@@ -480,10 +480,11 @@ public sealed class PageJobTests {
 
     [Test]
     public void AFullPendingQueueIsRefusedAsAValue() {
+        using PageHarness pages = new(new FakePageStore());
         PageJobOptions options = TestOptions.Jobs with { MaxPendingMessages = 1 };
         PageJob job = new(
-            "job-1", PageHarness.Key(WorkerPath), PageHarness.Key("/starter"), Owner, input: null,
-            options, TimeProvider.System);
+            "job-1", PageHarness.Key(WorkerPath), PageHarness.Key("/starter"), pages.Authority(Owner),
+            input: null, options, TimeProvider.System);
         using (job) {
             Assert.Multiple(() => {
                 Assert.That(job.TrySend("one"), Is.EqualTo(PageJobRefusal.None));
@@ -522,7 +523,7 @@ public sealed class PageJobTests {
         await StoreAsync(pages, Recorder);
 
         PageJobStart start = await pages.Jobs.StartAsync(
-            PageHarness.Key("/starter"), WorkerPath, null, owner: null, CancellationToken.None);
+            PageHarness.Key("/starter"), WorkerPath, null, authority: null, CancellationToken.None);
 
         Assert.That(start.Refusal, Is.EqualTo(PageJobRefusal.Anonymous));
     }
@@ -586,7 +587,8 @@ public sealed class PageJobTests {
 
     private static Task<PageJobStart> StartAsync(
         PageHarness pages, string page, string worker, string? firstMessage) =>
-        pages.Jobs.StartAsync(PageHarness.Key(page), worker, firstMessage, Owner, CancellationToken.None);
+        pages.Jobs.StartAsync(
+            PageHarness.Key(page), worker, firstMessage, pages.Authority(Owner), CancellationToken.None);
 
     private static async Task<PageJobInfo> WaitForEndAsync(PageHarness pages, string id) {
         using CancellationTokenSource timeout = new(TimeSpan.FromSeconds(10));

@@ -137,8 +137,9 @@ pure renderers, and one that is a fact about the build:
   does; and a check that waits past the render's deadline or the compile timeout answers a `PAGE010`
   error rather than hanging, because it has no author's edit to protect
   (`pages-a-check-stores-nothing`, `pages-a-check-names-its-language`, `pages-a-check-needs-a-visitor`).
-- `IPageWrites` is the store's write capability, and every page that is not a layout is offered it:
-  the authority is the signed-in visitor's, not the page's (`pages-any-page-may-write-the-store`).
+- `IPageWrites` is the store's write capability, and every page that is not a layout is offered it,
+  and a worker is offered it bound to the starting page and the credential that started the job:
+  the authority is the presented credential's, not the page's (`pages-any-page-may-write-the-store`).
   Each of its members is one write and, under the seam, a transaction of one: it compiles, checks its
   condition and commits before it answers. A write made while the render has a transaction open joins
   that transaction instead, answering Staged, so an embedded page's write lands with the page's commit
@@ -346,8 +347,17 @@ The running worker gets an `IWorkerContext`, which is deliberately not an `ICont
 `LogError`, `ReceiveAsync` and `Publish(type, dataJson)`. Its `Capabilities` offer `IPageStorage`
 bound to the **starting page** — the data, so the job and the view that shows it share one store —
 and `IHttpFetch`, `IPageCatalog` and `IPageJobs` bound to the **worker** — the code, so a credential
-bound to the worker stays the worker's. A worker is offered no `IMarkdownRenderer`, no `IPageWrites`
-and no `IPageLayout`: it publishes text or JSON, and the page renders it.
+bound to the worker stays the worker's. A worker is offered the writer bound to the **starting page**
+and to the credential that started the job, and no `IMarkdownRenderer` and no `IPageLayout`: it
+publishes text or JSON, and the page renders it.
+
+The credential a job acts with is the one the starting render presented — the sign-in's ticket key, or
+the id of the run whose view presented the request — and the worker never sees it, because the writer
+is constructed around it. A commit asks it the way a request asks it: the account exists with the stamp
+it captured, and the ticket row or the run still resolves. When the answer is no, nothing is written
+and every operation answers `Revoked`; the job keeps its storage, journal and channel and the worker
+decides what to do. A start is checked the same way, so a job may start a job and the child inherits
+the credential. A worker makes one write at a time, as a page does.
 
 `ReceiveAsync(waitSeconds)` pauses the silence clock while it waits, so a worker waiting for its
 owner is bounded by the ceiling rather than by silence; a timed wait returns and the clock resumes,

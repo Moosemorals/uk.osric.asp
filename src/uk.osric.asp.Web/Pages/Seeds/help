@@ -369,8 +369,9 @@ sequence you saw as <code>after</code>, and it answers the events since then, wa
 <p>The journal is memory, and it is bounded: it keeps the most recent events and drops the oldest, and a
 restart loses every job. A worker that must not lose what it has done writes it to the starting page's
 storage, which the page can read again — that state, not the journal, is the record. A job is never
-offered a layout, a renderer or a page writer, and a <code>HEAD</code> is offered the reads and not the
-ones that start, send or cancel.</p>
+offered a layout or a renderer, and the writer it is offered is bound to the starting page and to the
+credential that started it. A <code>HEAD</code> is offered the reads and not the ones that start, send
+or cancel.</p>
 <p>A worker declares exactly one public type implementing <code>IWorker</code> with a parameterless
 constructor. Its <code>RunAsync(IWorkerContext context)</code> gets the job's <code>Id</code>, the
 starting page as <code>Path</code>, its own key as <code>Worker</code>, the owner as
@@ -394,9 +395,19 @@ namespace Site.Work {
 }
 %&gt;</code></pre>
 <p>A worker has no response: it cannot write, flush, redirect or set a status, and it is offered no
-renderer, no writer and no layout. Its storage is the starting page's, so a job and the page that shows
-it share one store; its fetch and catalog are the worker's own, so a credential bound to the worker stays
-the worker's. It asks for those through <code>context.Capabilities</code> exactly as a page does.</p>
+renderer and no layout. Its storage is the starting page's, so a job and the page that shows it share
+one store; its fetch and catalog are the worker's own, so a credential bound to the worker stays the
+worker's. It asks for those through <code>context.Capabilities</code> exactly as a page does.</p>
+<p><strong>A job writes with the credential that started it.</strong> The writer is the page store's
+usual <a href="/admin/reference/sdk#t-IPageWrites"><code>IPageWrites</code></a>, bound to the starting
+page, so a worker may save, move, delete and transact over any key the store allows. The authority is
+the sign-in or the run's view that started the job, and it can die while the job runs: a sign-out, a new
+sign-in in the same browser, <code>users passwd</code>, <code>users remove</code>, or the run ending.
+Every commit then stores nothing and answers <em>Revoked</em> for each operation, and the worker decides
+whether to stop, retry or publish what it has — a refusal is a value, not an exception, so a job that
+keeps going still finishes. A write is activity, so it re-arms the silence clock. A job may start a job:
+the child inherits the same credential and its start answers <code>Revoked</code> once it is gone. A
+worker makes one write at a time, exactly as a page does.</p>
 <p>A wait in <code>ReceiveAsync</code> is not silence: it pauses the job's silence clock, so a worker
 waiting for its owner is bounded only by the job's ceiling. A worker that neither publishes nor receives
 for <code>Pages:Jobs:SilenceSeconds</code> is cut, and one that runs longer than
@@ -722,7 +733,9 @@ it compiles anything, with a message saying to sign in. Guard your own form as w
 visitor sent to the sign-in page instead of the error page:</p>
 <pre class="source" tabindex="0"><code>&lt;% if (ctx.User is not { } user) { ctx.Response.RedirectToLogin(); return; } %&gt;</code></pre>
 <p><strong>The visitor is the authority, not the page.</strong> Any page may save any key the shell does
-not answer; the editor is the first customer of the capability and the owner of none.
+not answer; the editor is the first customer of the capability and the owner of none. A worker's writer
+is the same capability with the credential that started the job, which is why it can be refused with
+<em>Revoked</em> where a page never is.
 <code>Pages:Editor:Key</code> says only where the editor is served, which is the key
 <code>ctx.EditorPath</code> gives you — link to it to offer "edit this page". Reserved keys are refused,
 so a shell file is never written. The editor's own page is ordinary too: any page may save it or delete

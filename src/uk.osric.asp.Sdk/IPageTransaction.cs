@@ -30,6 +30,10 @@ namespace uk.osric.asp.Sdk;
 /// <see cref="RollbackAsync"/>. Nothing may be written into it once it has been committed or rolled
 /// back (`pages-writes-are-transactions`).
 /// </para>
+/// <para>
+/// A worker's commit also proves the credential the job borrowed is still live. If it is not, the
+/// commit stores nothing and answers <see cref="PageWriteOutcome.Revoked"/> for every operation.
+/// </para>
 /// </remarks>
 public interface IPageTransaction : IAsyncDisposable {
 

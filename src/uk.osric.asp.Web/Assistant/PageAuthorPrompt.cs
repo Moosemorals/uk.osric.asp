@@ -9,7 +9,7 @@ using uk.osric.asp.Web.Shell;
 
 /// <summary>The system prompt and worked examples that teach the model to write a page.</summary>
 internal static class PageAuthorPrompt {
-    public const string Version = "page-author-v53";
+    public const string Version = "page-author-v54";
 
     public static IReadOnlyList<(string Name, string Source)> Examples { get; } = [
         ("query-driven", """
@@ -438,7 +438,8 @@ internal static class PageAuthorPrompt {
         hash and the diagnostics — and the commit answers one row per operation
         in the order you staged them. Before the commit `Outcome` is `Staged`;
         a refusal is a row (`Stale`, `TargetExists`, `FolderNotEmpty`,
-        `SourceNotFound`, `Refused`, `Busy`) and writes nothing, with
+        `SourceNotFound`, `Refused`, `Busy`, and `Revoked` in a worker) and
+        writes nothing, with
         `NotAttempted` for the writes the refusal cost. A page bug — a reserved
         key, a key that is not addressable, a library move — throws while
         staging. The commit applies the operations in the order you staged them,
@@ -571,6 +572,19 @@ internal static class PageAuthorPrompt {
         in the starting page's storage. A `HEAD` cannot start, send or cancel,
         and a layout is offered none of it. Do not invent a worker key: list the
         pages and read the one you mean.
+
+        A worker is offered `IPageWrites`, bound to the starting page and to the
+        credential that started the job, so it may save, move, delete and
+        transact like a page. That credential can die while the job runs — a
+        sign-out, a new sign-in in the same browser, `users passwd`, `users
+        remove`, or the end of a run's view. Every commit then stores nothing
+        and answers `Revoked` for each operation; a write made inside an open
+        transaction answers `Staged` and is `Revoked` by its commit. `Revoked`
+        is a value, not an exception: decide whether to stop, publish what you
+        have or try later, and never retry it blindly. A write re-arms the
+        silence clock. A worker may start a worker, and the child inherits the
+        same credential; a start answers `Revoked` once it is gone. A worker
+        makes one write at a time, exactly as a page does.
 
         ## Page API policy
         The `uk.osric.asp.Sdk` contract is allowed.

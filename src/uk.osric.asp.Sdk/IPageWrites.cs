@@ -41,6 +41,13 @@ namespace uk.osric.asp.Sdk;
 /// <see cref="PageEditOutcome.Staged"/> and lands with the commit, which is what makes an embedded
 /// page's write part of the page's unit rather than something that survives the page's abort.
 /// </para>
+/// <para>
+/// A page holds its visitor's authority for the length of the request, so its writes are never
+/// refused for it. A worker is offered the same capability only by borrowing the credential that
+/// started its job, and that credential can die while the job runs: the commit then stores nothing
+/// and every operation answers <see cref="PageWriteOutcome.Revoked"/>, which the worker decides what
+/// to do about.
+/// </para>
 /// </remarks>
 public interface IPageWrites {
 

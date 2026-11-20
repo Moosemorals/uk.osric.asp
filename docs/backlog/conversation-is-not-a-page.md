@@ -130,13 +130,14 @@ the account store, and that is `no-account-store` again.
 ### 4. A worker cannot save a page, and the tools do
 
 `IPageWrites` is offered to every page and names a key on every named call, so a page can already
-save, delete and restore any page the shell does not route. A worker is offered none of it
-(`pages-a-worker-gets-no-response`). What the assistant's page tools do beyond that — the diff, the
-search, the batch — is the rest of this job.
+save, delete and restore any page the shell does not route. What the assistant's page tools do beyond
+that — the diff, the search, the batch — is the rest of this job.
 
-**Split off 2026-11-18.** The writer a worker needs is [`job-borrows-a-credential`](job-borrows-a-credential.md): it acts with the
-credential its starter presented, so logging out or changing a password ends it, and it waits on
-the page transaction, which has landed (`pages-writes-are-transactions`). This job keeps the port; the authority is recorded there.
+**Split off 2026-11-18, and landed 2026-11-20.** The writer a worker needs was
+[`job-borrows-a-credential`](../backlog/closed.md): it acts with the credential its starter presented,
+so logging out or changing a password ends it, and it waits on the page transaction, which has landed
+first (`pages-writes-are-transactions`). That is in (`pages-a-jobs-credential-is-borrowed`), so a worker
+is now offered the store's writer and this job keeps the port and nothing more.
 
 ### 5. The restricted Markdown profile is shell-only
 

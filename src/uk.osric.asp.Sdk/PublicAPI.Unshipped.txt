@@ -282,6 +282,7 @@ uk.osric.asp.Sdk.PageDiagnosticSeverity
 uk.osric.asp.Sdk.PageDiagnosticSeverity.Error = 1 -> uk.osric.asp.Sdk.PageDiagnosticSeverity
 uk.osric.asp.Sdk.PageDiagnosticSeverity.Warning = 0 -> uk.osric.asp.Sdk.PageDiagnosticSeverity
 uk.osric.asp.Sdk.PageEditOutcome
+uk.osric.asp.Sdk.PageEditOutcome.Revoked = 5 -> uk.osric.asp.Sdk.PageEditOutcome
 uk.osric.asp.Sdk.PageEditOutcome.Saved = 0 -> uk.osric.asp.Sdk.PageEditOutcome
 uk.osric.asp.Sdk.PageEditOutcome.Stale = 1 -> uk.osric.asp.Sdk.PageEditOutcome
 uk.osric.asp.Sdk.PageEditOutcome.Unchanged = 2 -> uk.osric.asp.Sdk.PageEditOutcome
@@ -394,6 +395,7 @@ uk.osric.asp.Sdk.PageJobRefusal.NotAWorker = 6 -> uk.osric.asp.Sdk.PageJobRefusa
 uk.osric.asp.Sdk.PageJobRefusal.OwnedBySite = 4 -> uk.osric.asp.Sdk.PageJobRefusal
 uk.osric.asp.Sdk.PageJobRefusal.QueueFull = 7 -> uk.osric.asp.Sdk.PageJobRefusal
 uk.osric.asp.Sdk.PageJobRefusal.ReadOnly = 2 -> uk.osric.asp.Sdk.PageJobRefusal
+uk.osric.asp.Sdk.PageJobRefusal.Revoked = 12 -> uk.osric.asp.Sdk.PageJobRefusal
 uk.osric.asp.Sdk.PageJobRefusal.TooManyMessages = 10 -> uk.osric.asp.Sdk.PageJobRefusal
 uk.osric.asp.Sdk.PageJobRefusal.UnknownJob = 8 -> uk.osric.asp.Sdk.PageJobRefusal
 uk.osric.asp.Sdk.PageJobRefusal.UnknownWorker = 5 -> uk.osric.asp.Sdk.PageJobRefusal
@@ -461,6 +463,7 @@ uk.osric.asp.Sdk.PageListingRequest.Prefix.init -> void
 uk.osric.asp.Sdk.PageMoveOutcome
 uk.osric.asp.Sdk.PageMoveOutcome.FolderNotEmpty = 5 -> uk.osric.asp.Sdk.PageMoveOutcome
 uk.osric.asp.Sdk.PageMoveOutcome.Moved = 0 -> uk.osric.asp.Sdk.PageMoveOutcome
+uk.osric.asp.Sdk.PageMoveOutcome.Revoked = 8 -> uk.osric.asp.Sdk.PageMoveOutcome
 uk.osric.asp.Sdk.PageMoveOutcome.SourceNotFound = 3 -> uk.osric.asp.Sdk.PageMoveOutcome
 uk.osric.asp.Sdk.PageMoveOutcome.Stale = 2 -> uk.osric.asp.Sdk.PageMoveOutcome
 uk.osric.asp.Sdk.PageMoveOutcome.TargetExists = 4 -> uk.osric.asp.Sdk.PageMoveOutcome
@@ -607,6 +610,7 @@ uk.osric.asp.Sdk.PageWriteOutcome.Missing = 9 -> uk.osric.asp.Sdk.PageWriteOutco
 uk.osric.asp.Sdk.PageWriteOutcome.Moved = 4 -> uk.osric.asp.Sdk.PageWriteOutcome
 uk.osric.asp.Sdk.PageWriteOutcome.NotAttempted = 12 -> uk.osric.asp.Sdk.PageWriteOutcome
 uk.osric.asp.Sdk.PageWriteOutcome.Refused = 10 -> uk.osric.asp.Sdk.PageWriteOutcome
+uk.osric.asp.Sdk.PageWriteOutcome.Revoked = 14 -> uk.osric.asp.Sdk.PageWriteOutcome
 uk.osric.asp.Sdk.PageWriteOutcome.Saved = 1 -> uk.osric.asp.Sdk.PageWriteOutcome
 uk.osric.asp.Sdk.PageWriteOutcome.SourceNotFound = 6 -> uk.osric.asp.Sdk.PageWriteOutcome
 uk.osric.asp.Sdk.PageWriteOutcome.Staged = 0 -> uk.osric.asp.Sdk.PageWriteOutcome
@@ -638,6 +642,7 @@ uk.osric.asp.Sdk.PageMoveOutcome.Busy = 6 -> uk.osric.asp.Sdk.PageMoveOutcome
 uk.osric.asp.Sdk.PageDeleteOutcome
 uk.osric.asp.Sdk.PageDeleteOutcome.Deleted = 0 -> uk.osric.asp.Sdk.PageDeleteOutcome
 uk.osric.asp.Sdk.PageDeleteOutcome.Missing = 1 -> uk.osric.asp.Sdk.PageDeleteOutcome
+uk.osric.asp.Sdk.PageDeleteOutcome.Revoked = 4 -> uk.osric.asp.Sdk.PageDeleteOutcome
 uk.osric.asp.Sdk.PageDeleteOutcome.Staged = 2 -> uk.osric.asp.Sdk.PageDeleteOutcome
 uk.osric.asp.Sdk.PageDeleteResult.Deconstruct(out uk.osric.asp.Sdk.PageDeleteOutcome Outcome, out bool WasLive) -> void
 uk.osric.asp.Sdk.PageDeleteResult.Outcome.get -> uk.osric.asp.Sdk.PageDeleteOutcome

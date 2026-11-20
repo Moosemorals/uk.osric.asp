@@ -245,7 +245,8 @@ internal class Program {
               services.GetRequiredService<IPageSessionStore>(),
               services.GetRequiredService<PageSessionCookieOptions>(),
               services.GetRequiredService<PageJobs>(),
-              services.GetRequiredService<PageChecks>()));
+              services.GetRequiredService<PageChecks>(),
+              services.GetRequiredService<PageJobAuthorityFactory>()));
         builder.Services.AddSingleton(services => new PageHealth(services.GetRequiredService<RenderOptions>().AbandonedLimit));
 
         builder.Services.AddSingleton<AssistantMetrics>();
@@ -274,6 +275,8 @@ internal class Program {
         builder.Services.AddSingleton<PageImageBuilder>();
         builder.Services.AddSingleton<PageJobQueue>();
         builder.Services.AddSingleton<PageJobs>();
+        builder.Services.AddSingleton<PageJobAuthorityVerifier>();
+        builder.Services.AddSingleton<PageJobAuthorityFactory>();
         builder.Services.AddSingleton<IWorkerStore, ScopedWorkerStore>();
         builder.Services.AddSingleton(services => new PageJobEnvironment(
             services.GetRequiredService<PageJobOptions>(),
@@ -290,7 +293,8 @@ internal class Program {
             services.GetRequiredService<PageImageBuilder>(),
             services.GetRequiredService<PageLibraries>(),
             services.GetRequiredService<IPageCompiler>(),
-            services.GetRequiredService<PageMetrics>()));
+            services.GetRequiredService<PageMetrics>(),
+            services.GetRequiredService<IServiceScopeFactory>()));
         builder.Services.AddSingleton<PageLibraries>();
         builder.Services.AddSingleton<PageMetrics>();
         builder.Services.AddSingleton<PagePathPolicy>();

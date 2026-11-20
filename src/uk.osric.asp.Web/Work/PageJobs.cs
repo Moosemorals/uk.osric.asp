@@ -7,6 +7,7 @@ using System.Collections.Concurrent;
 using System.Diagnostics;
 using uk.osric.asp.Core.Pages;
 using uk.osric.asp.Sdk;
+using uk.osric.asp.Web.Authentication;
 using uk.osric.asp.Web.Pages;
 // The page contract has a page kind of its own; a job judges Core's.
 using PageKind = uk.osric.asp.Core.Pages.PageKind;
@@ -42,17 +43,20 @@ internal sealed class PageJobs(
     /// <param name="page">The page asking, for the log line and for the job's own storage.</param>
     /// <param name="workerKey">The worker's key, as the page spelled it.</param>
     /// <param name="firstMessage">The first message, or <see langword="null"/>.</param>
-    /// <param name="owner">The signed-in visitor, or <see langword="null"/> when the render is anonymous.</param>
+    /// <param name="authority">
+    /// The credential the render presented, which the job acts with for its life, or
+    /// <see langword="null"/> when the render is anonymous.
+    /// </param>
     /// <param name="cancellationToken">Bounds the kind check, which is the only I/O here.</param>
     public async Task<PageJobStart> StartAsync(
         PagePath page,
         string workerKey,
         string? firstMessage,
-        PageUser? owner,
+        PageJobAuthority? authority,
         CancellationToken cancellationToken) {
         ArgumentNullException.ThrowIfNull(page);
 
-        if (owner is null) {
+        if (authority is null) {
             return RefuseStart(page, workerKey, PageJobRefusal.Anonymous, "the render is not signed in");
         }
 
@@ -84,10 +88,10 @@ internal sealed class PageJobs(
 
         Sweep();
 
-        PageJob job = new(NewId(), worker, page, owner, firstMessage, options, clock);
+        PageJob job = new(NewId(), worker, page, authority, firstMessage, options, clock);
         _jobs[job.Id] = job;
 
-        if (!queue.TryEnqueueReserved(new PageJobRequest(job.Id, worker, page, owner))) {
+        if (!queue.TryEnqueueReserved(new PageJobRequest(job.Id, worker, page, authority))) {
             _ = _jobs.TryRemove(job.Id, out _);
             queue.ReleaseReservation();
             job.Dispose();
