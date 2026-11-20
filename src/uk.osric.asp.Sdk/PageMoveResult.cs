@@ -23,6 +23,16 @@ public enum PageMoveOutcome {
 
     /// <summary>Keys live below the old key, so it names a folder and a folder is a batch of moves.</summary>
     FolderNotEmpty,
+
+    /// <summary>Another writer held the store, so nothing was moved.</summary>
+    Busy,
+
+    /// <summary>
+    /// The move joined a transaction this render already had open, so nothing is stored yet: it lands
+    /// when that transaction commits and is discarded if it is rolled back or disposed.
+    /// </summary>
+    Staged,
+
 }
 
 /// <summary>What a move answered with.</summary>

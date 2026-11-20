@@ -8,10 +8,10 @@ SPDX-License-Identifier: MIT
 | | |
 | --- | --- |
 | Status | Proposed 2026-11-15 — waits for the owner. Slices 0, 1 and 2 are built and merged; the other four are unbuilt, and nothing below is the IDE |
-| Size | Large as a programme, small as a step: seven capabilities, each its own job and its own branch, ordered so that each ships on its own and can be backed out on its own |
+| Size | Large as a programme, small as a step: seven capabilities, each its own job and its own branch, ordered so that each ships on its own and can be backed out on its own, and a closing sweep of the pages that could use what they leave behind |
 | Spike | None. Every claim about what exists was read off `trunk` on 2026-11-15: `IPageCatalog`, `IPageEditor`, `PageEditorScope`, `PageWriterScope`, `PageCompiler.MapDiagnostics`, `PageDiagnostics.ToSdk` and `PageJobRunner` |
-| Decisions | `pages-a-diagnostic-names-its-source` (041), recorded at its merge. The rest are named at the merge (`product-plan-before-building`); this branch states the names it intends. One entry is retired rather than revised — the one that made the editor's registration the authority — and `pages-a-page-may-save-itself` is revised twice, once by 043 and once by 047 |
-| Backlog | [`cannot-search-the-store`](../backlog/cannot-search-the-store.md), [`listing-has-no-cursor`](../backlog/closed.md), [`library-edit-cost-is-invisible`](../backlog/closed.md), [IDEA-041](../backlog/closed.md), [`page-cannot-move`](../backlog/closed.md), [IDEA-043](../backlog/closed.md), [`one-write-per-render`](../backlog/one-write-per-render.md) |
+| Decisions | `pages-a-diagnostic-names-its-source` (041) and `pages-writes-are-transactions` (047), recorded at their merges. The rest are named at the merge (`product-plan-before-building`); this branch states the names it intends. One entry is retired rather than revised — the one that made the editor's registration the authority — and `pages-a-page-may-save-itself` is revised twice, once by 043 and once by 047 |
+| Backlog | [`cannot-search-the-store`](../backlog/cannot-search-the-store.md), [`listing-has-no-cursor`](../backlog/closed.md), [`library-edit-cost-is-invisible`](../backlog/closed.md), [IDEA-041](../backlog/closed.md), [`page-cannot-move`](../backlog/closed.md), [IDEA-043](../backlog/closed.md), [IDEA-047](../backlog/closed.md) |
 
 ## The short version
 
@@ -42,7 +42,7 @@ plan of its own, so the list above is seven.
 | The closure a page names (040) | Dirty state, Save all, the conflict panel |
 | A diagnostic with a span and a source (041) | The tree, the filter, the splitter, the marks |
 | A key that moves with its history (042) | Keys, quick open, the phone layout |
-| A write any page may make (043), and a batch under a named policy (047) | `/ide.js`, `/ide.css`, `/help`'s editor sections |
+| A write any page may make (043), and a transaction a page commits (047) | `/ide.js`, `/ide.css`, `/help`'s editor sections |
 
 The IDE plan's own claim about its prerequisites holds and was checked: `layout.Layout = null` needs no
 capability ([IPageLayout](../../src/uk.osric.asp.Sdk/IPageLayout.cs)), the same-origin `fetch` its Save all
@@ -61,7 +61,7 @@ for eight of the eleven, and those eight are why the page can start before any o
 | T1 — the page writes its own document | Nothing. `Layout` is a settable `string?` and streaming already requires clearing it | — |
 | T2 — the shell, one pane | Nothing | — |
 | T3 — tabs | Nothing. Tabs live in the URL and presentation in `sessionStorage` | — |
-| T4 — dirty, Save all, the conflict panel | A batch write with a policy; its dry run waits on the check, which is no longer this plan's | 047 |
+| T4 — dirty, Save all, the conflict panel | A transaction over several writes, and a commit report that names every conflict; its dry run waits on the check, which is no longer this plan's | 047 |
 | T5 — the old stages become panels | Nothing. Every existing URL keeps working | — |
 | T6 — keys | Nothing for the handlers; a span makes F8 underline rather than point | 041 (optional) |
 | T7 — the phone | Nothing. Container queries, `dvh`, a drawer — all page work | — |
@@ -74,8 +74,8 @@ for eight of the eleven, and those eight are why the page can start before any o
 An entry in [decisions](../decisions.md) is a guideline against relitigating the same problem, not a
 constraint that outlives its reason. Two of them have outlived theirs, and the owner decided on
 2026-11-15 that both go. They are two steps rather than one: [IDEA-043](../backlog/closed.md) takes the
-authority and has [a plan of its own](archive/page-writes.md), and [`one-write-per-render`](../backlog/one-write-per-render.md) takes the
-batch.
+authority and has [a plan of its own](archive/page-writes.md), and [IDEA-047](../backlog/closed.md) took the
+transactions.
 
 **The authority to write is the visitor's, not the page's.** The entry that makes the isolated
 registration — one content key, `Pages:Editor:Key` — *is* the authority is retired and replaced by
@@ -88,12 +88,14 @@ step merges the two write handles into `IPageWrites`, so a page that may write a
 through the same capability, and lets the editor's own key be deleted like any other — `/admin/seeds`
 is the way back.
 
-**A render may write several pages, and the caller says how.** `pages-a-page-may-save-itself` says "one
-render makes at most one save", which makes Save all a sequence of requests that cannot be atomic and a
-multi-file edit by the assistant N requests. The replacement: a batch with three policies — all or
-nothing, stop at the first refusal, save what it can and report what broke — compiled first when the
-policy needs it, written in one transaction when the policy needs it. The words are the owner's, and
-they are the ones `/help` and the assistant's prompt will use.
+**Writes are transactions.** `pages-a-page-may-save-itself` says "one render makes at most one save",
+which makes Save all a sequence of requests that cannot be atomic and a multi-file edit by the
+assistant N requests. The replacement is the store's own vocabulary: `IPageWrites` keeps its write
+members, each a transaction of one, and gains `BeginTransaction()` for the page that needs several
+writes in one unit. A transaction stages the writes, re-proves every condition at the commit and
+applies them in one SQLite transaction, or none, and it reports one row per operation. A render may
+commit as many transactions as it has work for. The owner settled the shape on 2026-11-20, replacing
+the three policies the first sketch named.
 
 The names this plan intends, taken at the merge — bold rather than in backticks, because `make
 decisions` fails on a cited name the record does not have yet. The one already taken is cited in
@@ -108,7 +110,7 @@ backticks beside the slice that took it:
 - **pages-a-key-moves-with-its-history** (042)
 - **pages-any-page-may-write-the-store** (043) — the authority is the signed-in visitor and the two
   write handles are one capability
-- **pages-a-batch-names-its-policy** (047) — the one-save rule is replaced by a policy the caller names
+- **pages-writes-are-transactions** (047) — the write members move onto a transaction a page opens and commits, and the one-write rule goes
 
 ## The wider problem, not this one
 
@@ -119,10 +121,10 @@ generic problem — applied one job at a time, and it is what decides several of
 | --- | --- | --- |
 | A search that returns matches (038) | Find in files | "Who names this library", a link audit after a move, a seed-harvest check, the assistant's search before an edit |
 | A listing that resumes (039) | A tree that survives 500 pages | Every bounded read: a history, a folder, a scan's matches |
-| The closure (040) | A mark in the tree | What an edit invalidates, before and after it; the order a batch writes in; which dependents a library move breaks |
+| The closure (040) | A mark in the tree | What an edit invalidates, before and after it; the order a transaction applies its writes in; which dependents a library move breaks |
 | A diagnostic with a span and a source (041) | Underline the token | VS Code's squiggle, `make check-pages`'s output, the assistant reading a failed save, and the library whose line 12 it is |
 | A key that moves (042) | Rename a page | A release re-slugging a seed; a folder moved; the assistant fixing a key it got wrong |
-| A batch write (047) | Save all | The assistant's multi-file edit; an import; a bulk restore; a folder move; a find-and-replace |
+| A transaction (047) | Save all | The assistant's multi-file edit; an import; a bulk restore; a folder move; a find-and-replace |
 
 A capability shaped around one caller is the failure mode this table exists to prevent: the editor is
 the first customer of all seven and the owner of none.
@@ -161,12 +163,61 @@ smallest changes come first because they are what every later slice is written a
    that writes more than one row, and nothing is left at the old key. Proved: a page moves with its
    history and state and keeps every hash, the old key answers `404`, and the editor, `move_page` and
    `mv` all move a page.
-6. **047 — the batch.** Last, and the largest: it changes the shape of every save, so it lands after the
-   saves it batches are settled. Proves: All with a stale edit writes nothing; FirstRefusal writes the
-   prefix; Continue writes the rest and reports each refusal; one save behaves exactly as it did.
-   *The owner re-prioritised it on 2026-11-18 to ahead of this plan: it is the
-   assistant's daily friction and the gate in front of a job writer. If it lands first, this step
-   shrinks to wiring Save all to the batch, and T4 loses its last dependency.*
+6. **047 — the transaction.** Landed 2026-11-20, and the record is `pages-writes-are-transactions`. The
+   largest, and the last capability: it changes the shape of every save, so it landed after the saves it
+   moves are settled. Proved: a commit with a stale operation writes nothing and
+   the report names every conflict; a committed transaction stores every revision, move and tombstone
+   or none of them; a lone write is a transaction of one and answers exactly as it did; the commit
+   takes the store's writer from its first statement, so a second writer cannot act on the heads it
+   has read; a contending commit writes nothing and answers a row the page can act on; a save staged
+   before the library it names compiles against the library it named and is stale, with nothing
+   reordered behind the page's back; and the store runs WAL, with startup refusing when it cannot. *The owner re-prioritised it on 2026-11-18 to ahead of this plan: it is
+   the assistant's daily friction and the gate in front of a job writer. If it lands first, this step
+   shrinks to wiring Save all to the transaction, and T4 loses its last dependency.*
+
+7. **The pages that could use it.** Surveyed on 2026-11-20, after the capability landed, by reading
+   every seeded page under `Pages/Seeds` and every route that writes the store. The finding is that
+   almost nothing converts — a page that makes one write keeps its one call, because a transaction is
+   all-or-nothing and trading away a partial success to save a line would be worse. Two things do
+   benefit, and both are new work rather than a conversion:
+
+   - **`/admin/seeds` — the ticked installs.** `SeedsEndpoint.ApplyAsync` walks the plan and installs
+     each ticked seed as its own transaction, catching a failure per row and carrying on. "Apply these
+     five" is one unit, and it is also the one place the ordering rule earns its keep: the editor and
+     `/help` name `Site.Document`, so a set containing `_lib/document` and its dependents must stage
+     the library first. Batching them is a decision rather than a tidy-up, because it changes what a
+     failure does: today the rows after it still land, and in one commit they would answer
+     `RolledBack` and `NotAttempted` instead. The report already says which is which, so the change is
+     small and the question is the owner's.
+   - **`/pages` — moving or deleting a folder.** The editor refuses both today, and the refusal is the
+     store's own (`FolderNotEmpty` names the keys below). A folder move is a transaction of moves and a
+     folder delete a transaction of tombstones, which is precisely the shape this capability was built
+     for. It needs a folder row to act from first, so it waits on
+     [`a-page-cannot-list-folders`](../backlog/a-page-cannot-list-folders.md).
+
+   Everything else the survey found makes one write or none:
+   - **`/pages`** saves, moves, deletes, installs, adopts and restores one page at a time. There is no
+     Save all in it — the IDE's T4 is that caller, and it is the page this capability was built for.
+   - **`/admin/import`** is already one transaction over a whole archive, through `IPageBatchStore`. It
+     is the proof the shape works rather than a caller that needs changing.
+   - **`/admin/seeds` scrub** removes stray rows at shell paths through the store's repair seam, not
+     through `IPageWrites`; no page can scrub, so it is not this capability's caller.
+   - **The assistant's `save_page`, `delete_page` and `move_page`** write one page per call by their own
+     rule. A command that writes several is [`tool-surface-is-one-shell`](../backlog/tool-surface-is-one-shell.md)'s,
+     which already names this item as the blocker it is waiting for.
+   - **`seed-auto-apply-at-startup`** landed on trunk before this branch merged, and it applies a
+     release's moved seeds one at a time, reporting a failure and carrying on. Its whole point is that
+     one broken seed does not stop the rest, so it is a deliberate *not* here rather than a candidate:
+     making it one commit would turn a single bad seed into a host that starts with none of them
+     applied.
+
+   The owner's stored pages — the IDE, `/ide-plan` — live in the site rather than in this repository, so
+   they are a note rather than an edit: each one that writes several pages can now make it one commit.
+
+   Proves: for each page that takes a transaction, a test that a refusal writes nothing; `/help`
+   describes what those pages now do (`product-manual-is-a-page`); and the two candidates above are put
+   to the owner rather than built, because each changes behaviour a page already has
+   (`product-steps-wait-for-the-owner`).
 
 **037 — the check — has left this plan.** The assistant and VS Code want the same seam, so the
 owner folded all three callers into one item, `check-without-storing`,
@@ -187,9 +238,10 @@ underline is page work on top of a capability this plan does not carry.
 
 ## Docs
 
-- **`/help` in the same change**, for every capability and its words — the policies, the cursor, the
-  span's limits, the closure, the move's refusals (`product-manual-is-a-page`).
-- **`PageAuthorPrompt` and its `Version`**, so the assistant knows a scan, a cursor, a batch
+- **`/help` in the same change**, for every capability and its words — the transaction, its commit
+  report, the ordering rule a library and its dependents follow, what to do about a contention row,
+  the cursor, the span's limits, the closure, the move's refusals (`product-manual-is-a-page`).
+- **`PageAuthorPrompt` and its `Version`**, so the assistant knows a scan, a cursor, a transaction
   and a move exist. Without that the assistant keeps the workaround the IDE plan calls "save, read,
   accept the noise".
 - **[pages](../pages.md)** for the contract, **[storage](../storage.md)** for the move's transaction,
@@ -205,9 +257,16 @@ underline is page work on top of a capability this plan does not carry.
   reserved keys, `/admin/seeds` for a broken editor and `/admin/scrub` for the irreversible delete.
   The assistant's own edit-safety rules are unchanged (`assistant-edit-page-is-safe`) and are what stop
   it from doing so by accident.
-- **A batch holds a transaction across writes it did not compile.** All compiles first for exactly
-  this reason; a policy that compiled inside the transaction would hold the writer while a compile
-  waits for a slot.
+- **A commit holds the store's one writer.** It is `BEGIN IMMEDIATE`, so the lock is site-wide from
+  the first statement and the wait before a `SQLITE_BUSY` is the store's busy timeout: a compile or
+  any other wait inside a commit would stall every other writer and then fail it. Staging compiles
+  outside the commit for that reason, and the commit stays statements only.
+- **Contention is the page's to answer.** A commit that loses the writer wrote nothing and answers a
+  contention row; the host does not retry on the page's behalf, because a silent retry is the host
+  deciding something the page asked to decide. The cost is that pages which want a retry write a
+  small loop of their own, and `/help` shows that loop rather than the host hiding it. The time a
+  page waits to be told "busy" is a configured busy timeout, so the owner sets it rather than the
+  client's default.
 - **A scan reads every source in the store.** It is bounded by a setting of its own and it must be, or
   a search box is a way to make the host read a megabyte per keystroke.
 - **The IDE lands before the capabilities do.** That is the intended order: T0–T3 and T5, T7 and T9
@@ -222,13 +281,14 @@ underline is page work on top of a capability this plan does not carry.
 ## Open questions
 
 The first three were answered by the owner on 2026-11-15, and 043's plan records them: 043 is two jobs
-(the authority here, the batch in [`one-write-per-render`](../backlog/one-write-per-render.md)); the merged capability is
+(the authority here, the transactions in [IDEA-047](../backlog/closed.md)); the merged capability is
 `IPageWrites`; and the editor's key is deletable, with `/admin/seeds` as the way back.
 
-1. **Whether the assistant may batch across the site.** Its edit-safety rules are per key; a batch that
-   writes ten pages is ten decisions in one request. The capability allows it, and the assistant's own
-   policy may be stricter — that is the assistant's prompt, not this plan.
-2. **What the tree does with 300 pages.** 039 makes it listable; whether the page asks for one listing
+The fourth was answered on 2026-11-20: **the assistant's safety rules do not change.** It may transact
+where it may already write, each write inside is judged by the same per-key rule, and a multi-page
+call is still one approval because approval was already once per call rather than once per write.
+
+1. **What the tree does with 300 pages.** 039 makes it listable; whether the page asks for one listing
    or one per folder is a page decision, and the host's answer is that both are affordable.
 
 ## Not in scope

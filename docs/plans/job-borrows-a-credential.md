@@ -7,19 +7,19 @@ SPDX-License-Identifier: MIT
 
 | | |
 | --- | --- |
-| Status | Proposed 2026-11-20 — waits for the owner. Blocked by [`one-write-per-render`](../backlog/one-write-per-render.md), and written against that branch at `7b37a79`, which must merge first |
-| Size | Medium: one captured authority, one verifier, one guard, a writer on a job's capability list, one outcome threaded through the write answers, one refusal on job calls, three docs, `/help`, the prompt and its version, one decision and five edits |
+| Status | Proposed 2026-11-20 — waits for the owner. The page transaction landed on 2026-11-20, so nothing blocks it; nothing is built until the owner agrees |
+| Size | Medium: one captured authority, one verifier, one guard, a writer on a job's capability list, one outcome on five enums, one refusal on job calls, three docs, `/help`, the prompt and its version, one decision and five edits |
 | Area | Sdk, Web (work, authentication, pages), docs, assistant, tests |
-| Spike | None. Every claim below was read off `trunk` and off `idea/one-write-per-render` at `7b37a79` on 2026-11-20 |
+| Spike | None. Every claim below was read off `trunk` at `4428e4a` on 2026-11-20 |
 | Backlog | [`job-borrows-a-credential`](../backlog/job-borrows-a-credential.md) is this step |
-| Decisions | New name proposed: **pages-a-jobs-authority-is-its-starters-credential**. Edits `pages-a-worker-gets-no-response`, `pages-any-page-may-write-the-store`, `pages-jobs-run-a-worker-for-the-page`, `auth-sign-in-is-long-lived-and-revocable` and `auth-a-view-token-names-its-run`; relies on `pages-a-page-may-save-itself`, `auth-a-view-that-does-not-verify-is-refused`, `pages-a-job-is-not-durable`, `product-manual-is-a-page` and `product-steps-wait-for-the-owner` |
+| Decisions | New name proposed: **pages-a-jobs-authority-is-its-starters-credential**. Edits `pages-a-worker-gets-no-response`, `pages-any-page-may-write-the-store`, `pages-jobs-run-a-worker-for-the-page`, `auth-sign-in-is-long-lived-and-revocable` and `auth-a-view-token-names-its-run`; relies on `pages-writes-are-transactions`, `pages-a-page-may-save-itself`, `auth-a-view-that-does-not-verify-is-refused`, `pages-a-job-is-not-durable`, `product-manual-is-a-page` and `product-steps-wait-for-the-owner` |
 
-> **Written against the prerequisite — 2026-11-20.** The transaction this step writes through is
-> [`one-write-per-render`](../backlog/one-write-per-render.md), whose plan is
-> [ide-host](ide-host.md) and whose work is on its branch. Names that do not exist on `trunk` yet —
-> `IPageTransaction`, `PageTransactionScope`, `PageTransactionGate`, `PageWriteResult`,
-> `PageWriteOutcome` — are written in backticks without links until that branch merges, so this plan
-> does not point at a file the branch that carries it cannot open.
+> **Reconciled with the landed transaction — 2026-11-20.** The page transaction merged as `4428e4a`
+> with a frame rather than a second set of write members: `IPageTransaction` carries only
+> `CommitAsync` and `RollbackAsync`, and a write made on `IPageWrites` while it is open joins it and
+> answers `Staged` (`pages-writes-are-transactions`). The plan is written against that shape — the
+> class is `PageWriteTransaction`, the gate is `PageTransactionGate`, and the check lives in the
+> commit. The item is `planned`, not blocked.
 
 ## The short version
 
@@ -40,11 +40,13 @@ whether it is still live. It is the question the cookie's `OnValidatePrincipal` 
   the same `PageWritesScope` a render uses, with the `PageEditor` the host resolves from a scope of
   the job's own. Every key the store allows is writable, as it is for a page; the bound save is the
   starting page.
-- **One check per write.** A lone write checks when it commits; a transaction checks once, at its
-  commit. Nothing is checked per staged call, and nothing is checked for a read.
-- **A refusal, not an exception.** A dead credential writes nothing and every row of the commit
-  answers `Revoked`; the bound save and the single writes answer the same outcome through their own
-  shapes. The job keeps its storage, its journal and its channel, and the worker decides what to do.
+- **One check per write.** A lone write outside a transaction checks at its own commit; a write that
+  joins an open transaction, and the transaction itself, check once at that commit. Nothing is
+  checked per staged call, and nothing is checked for a read.
+- **A refusal, not an exception.** A dead credential writes nothing and every staged operation's row
+  in the commit answers `Revoked`; the bound save and the single writes answer the same outcome
+  through their own shapes. The job keeps its storage, its journal and its channel, and the worker
+  decides what to do.
 - **A job may start a job.** A child inherits the same authority; its start is refused `Revoked` once
   that authority is dead, and nothing else about starting changes.
 
@@ -56,9 +58,9 @@ design below is written against, and the merge records them in the decision:
 1. **Any key it has permission for, no arbitrary restrictions.** A job gets the same `IPageWrites` a
    page does, over the whole key space the shell routes; only the reserved keys are refused. The
    bound save is the starting page whatever else a worker writes.
-2. **Once per write, and once per commit when transactions land.** A lone write is a transaction of
-   one, so it is checked at its commit; a transaction is checked once, at its commit, not per staged
-   call.
+2. **Once per write, and once per commit when transactions land.** A lone write with nothing open is
+   a transaction of one and is checked at its own commit; a write that joins an open transaction, and
+   the transaction itself, are checked once at that commit, not per staged call.
 3. **Refuse and let the worker decide, and not an exception.** A dead authority answers a value and
    stores nothing; the worker chooses whether to stop, retry or publish what it has. The code is not
    broken because a sign-in ended, so nothing throws.
@@ -76,12 +78,14 @@ design below is written against, and the merge records them in the decision:
   filtered by `job.Owner.Name`, so another account's id reads as unknown.
   [`PageJobRunner.Context`](../../src/uk.osric.asp.Web/Work/PageJobRunner.cs) builds the worker's
   capabilities without `IPageWrites` and with `PageJobsScope` bound to `job.Owner`.
-- **A write is one path.** On the prerequisite branch,
+- **A write is one path, and the transaction is a frame.**
   [`PageWritesScope`](../../src/uk.osric.asp.Web/Pages/PageWritesScope.cs) refuses an anonymous render
-  with `UserFacingException` and makes every member a transaction of one: `OneAsync` opens a
-  transaction, stages and commits. `PageTransactionScope.CommitAsync` is where every write, lone or
-  batched, reaches the store, and it passes `CancellationToken.None`, so a write that has begun is
-  not abandoned.
+  with `UserFacingException`; a member called with no transaction open opens a
+  [`PageWriteTransaction`](../../src/uk.osric.asp.Web/Pages/PageWriteTransaction.cs), stages, commits
+  and answers, and one called while the render has a transaction open joins it and answers `Staged`
+  (`pages-writes-are-transactions`). `PageWriteTransaction.CommitAsync` is where every write, lone or
+  batched, reaches the store, applies its operations in order and passes `CancellationToken.None`, so
+  a write that has begun is not abandoned.
 - **The two checks already exist.** `OnValidatePrincipal`
   ([`AuthenticationExtensions`](../../src/uk.osric.asp.Web/Authentication/AuthenticationExtensions.cs))
   compares the account's live security stamp, and the cookie is a row: `AuthTicketStore.Find(key)`
@@ -94,9 +98,12 @@ design below is written against, and the merge records them in the decision:
   builds a `PageJobsScope` for every layer that is not a layout.
 - **Nothing else counts as activity.** `WorkerContext.Publish` re-arms a job's silence clock; a
   returned `ReceiveAsync` does; a write does not, because there is no write.
-- **The answers are separate shapes.** `PageSaveResult`, `PageEditResult`, `PageMoveResult` and
-  `PageDeleteResult` are the single-write answers; `PageEditOutcome` and `PageMoveOutcome` are their
-  enums; the prerequisite's `PageWriteResult` and `PageWriteOutcome` are the commit's rows.
+- **The answers are the row's views.** `PageSaveResult`, `PageEditResult`, `PageMoveResult` and
+  `PageDeleteResult` already carry an outcome mapped from the row
+  ([`PageWriteResult`](../../src/uk.osric.asp.Sdk/PageWriteResult.cs),
+  [`PageWriteOutcome`](../../src/uk.osric.asp.Sdk/PageWriteOutcome.cs)); `PageDeleteResult` is already
+  the row's view, and `PageEditOutcome`, `PageMoveOutcome` and `PageDeleteOutcome` already carry
+  `Busy` and `Staged` beside the write's own outcomes.
 - **The writer is documented as absent.** `IWorkerContext`'s remarks, `docs/pages.md` §Jobs, the
   seeded `/help` and `PageAuthorPrompt` all say a worker is offered no writer.
 
@@ -162,30 +169,46 @@ and a per-call scope could not outlive a transaction that spans calls.
 PageTransactionGate gate = new();
 IPageWrites writes = new PageWritesScope(
     job.Page, editor, job.Owner, writable: true, environment.Reserved, environment.Seeds, gate, guard);
+writes.AttachDeadline(job.Lifetime.Token);
 capabilities.Add<IPageWrites>(writes);
 ```
 
-The gate is the job's own, because a job commits several transactions and nests none; the path is the
-starting page, so the bound save repairs the page that started the job. The writer's deadline is the
-job's token, so staging stops when the job is cut and a commit that already began still finishes. The
-renderer, the layout, the composition and the response stay absent by shape
-(`pages-a-worker-gets-no-response`).
+The gate is the job's own, because a job commits as many transactions as it has work for and they
+must not join a render's; the path is the starting page, so the bound save repairs the page that
+started the job. The writer's deadline is the job's token, so staging stops when the job is cut and a
+commit that already began still finishes. The renderer, the layout, the composition and the response
+stay absent by shape (`pages-a-worker-gets-no-response`).
+
+A worker makes one write at a time, exactly as a render does. The gate is a frame and not a lock: a
+worker that writes from two tasks at once would have one task's transaction joined by the other. That
+is the page's rule, unchanged, and `/help` says it for a worker as it does for a page.
 
 ### 5. The check happens where every write converges
 
-`PageWritesScope` and `PageTransactionScope` gain an optional `IPageWriteGuard`. Every staging member
-and `CommitAsync` call `Touched`; the outermost commit — and only it — asks `IsLiveAsync` before the
-store's own commit. A nested transaction merges as it does today; the outer commit is what checks,
-because it is what stores.
+`PageWritesScope` and `PageWriteTransaction` gain an optional `IPageWriteGuard`, passed from the scope
+into every transaction its `Open()` makes. Every staging entry on the transaction — `SaveOwnAsync`,
+`SaveAsync`, `MoveAsync`, `DeleteAsync`, `RestoreAsync`, `AdoptAsync`, `InstallAsync` — and
+`CommitAsync` call `Touched`. The outermost commit — and only it — asks `IsLiveAsync` before
+`pages.CommitAsync`, because it is the one that stores; a nested commit absorbs into its parent as it
+does today.
 
-- **Once.** One check per commit, before `_pages.CommitAsync`; a staged call is never checked.
+- **Once.** One check per transaction's commit, before the store commit; a staged call is never
+  checked. A write made on the capability while a transaction is open joins it and answers `Staged`,
+  so its answer is the commit's, exactly as it is for a page.
+- **Every staged operation is refused, none is skipped.** A dead authority marks each staged
+  operation's row `Revoked` — the rows in `_rowOfOperation`, which is the same set a rollback marks
+  `NotAttempted` — and returns without touching the store. A row that answered `Missing` or
+  `Unchanged` at staging keeps that answer, because it was never going to write.
+- **Nothing was attempted.** `Revoked` is not `NotAttempted`: every operation was refused by the
+  credential, not by an earlier refusal in the report.
 - **Not abandoned.** The check and the store commit use `CancellationToken.None`, as the store
   commit already does. The job's clocks bound staging — the wait for a compile slot and the compile
   itself — not a commit that has begun (`pages-a-page-may-save-itself`).
-- **Nothing else changes.** The reserved keys, the addressable-key check, the deadline, the anonymous
-  refusal and the nesting rules are the ones the page already has.
 - **The compiler's fault is not rethrown.** A refused commit stored nothing, so the worker's answer is
   the refusal; the fault belongs to a save that never happened. The guard's refusal line is the log.
+- **Nothing else changes.** The reserved keys, the addressable-key check, the deadline, the anonymous
+  refusal, the ordering of operations and the nesting rules are the ones the page already has.
+  `RollbackAsync` and a transaction that is disposed need no check: neither writes.
 
 ### 6. The refusal is a value on every answer
 
@@ -195,19 +218,20 @@ same value everywhere:
 
 | Answer | Shape |
 | --- | --- |
-| A commit's report | every row's `PageWriteOutcome` is `Revoked`, not `NotAttempted`: no earlier operation refused, and every operation was refused by the credential |
+| A commit's report | each staged operation's `PageWriteOutcome` is `Revoked`, not `NotAttempted` |
+| A write inside an open transaction | `Staged` when it is called, then `Revoked` in the commit's report |
 | A named save | `PageEditOutcome.Revoked`, no hash, no diagnostics |
 | A move | `PageMoveOutcome.Revoked`, no hash, no keys below |
-| A delete | the row's view carries `Revoked`, so `Deleted` is false and `WasLive` says what the read saw |
-| The bound save | `PageSaveResult.Outcome` is `Revoked`, `Hash` is null, diagnostics are empty |
+| A delete | `PageDeleteOutcome.Revoked`, so `Deleted` is false and `WasLive` says what the read saw |
+| The bound save | `PageSaveResult.Outcome` is `PageEditOutcome.Revoked`, `Hash` is empty, diagnostics are empty |
 | A child start | `PageJobStart.Refusal` is `PageJobRefusal.Revoked` |
 
-`PageEditOutcome`, `PageMoveOutcome` and `PageWriteOutcome` each gain `Revoked`; `PageSaveResult`
-gains `Outcome` and a nullable `Hash`; `PageDeleteResult` becomes the row's view —
-`PageDeleteResult(PageWriteOutcome Outcome, bool WasLive)` with `Deleted` derived — so a delete can say
-why it stored nothing instead of only that it did not. `PageJobRefusal` gains `Revoked`. A page never
-meets the outcome at run time, because a render's guard is absent; the shapes it reads change only
-where the table above says so.
+The five enums the row already feeds gain the one member: `PageWriteOutcome`, `PageEditOutcome`,
+`PageMoveOutcome`, `PageDeleteOutcome` and `PageJobRefusal`. No record changes shape — `PageSaveResult`
+already carries `Outcome`, `PageDeleteResult` is already the row's view, and a revoked bound save
+answers the empty hash the capability already uses when there is none, documented as "nothing was
+stored". A page never meets the outcome at run time, because a render's guard is absent; only a
+worker reads it.
 
 ### 7. A write is activity
 
@@ -244,29 +268,33 @@ caller; and a journal is the job's own. The authority dies; the job does not hav
   write is activity; a job may start a job and the child inherits the credential. The paragraph that
   says a worker is offered no writer is replaced, and the writing section says `Revoked` is a worker's
   answer and never a page's (`product-manual-is-a-page`).
-- `PageAuthorPrompt` gains the same rule under **Jobs** and its `Version` moves to
-  `page-author-v49`. It says the assistant may use the writer from a worker where a page may, the
-  authority is the run's view or the owner's sign-in, and `Revoked` means stop or publish — not retry
-  blindly.
-- `docs/pages.md` §Jobs records the writer, the borrowed authority and `Revoked`; the capability
-  bullet for `IPageJobs` keeps its words about filtering by visitor.
+- `PageAuthorPrompt` gains the same rule under **Jobs** and its `Version` moves from
+  `page-author-v53` to `page-author-v54`. It says the assistant may use the writer from a worker
+  where a page may, the authority is the run's view or the owner's sign-in, a write inside an open
+  transaction answers `Staged` and can be `Revoked` at the commit, and `Revoked` means stop or
+  publish — not retry blindly.
+- `docs/pages.md` records the writer in both places it says what a worker is offered — the
+  `IPageWrites` bullet and §Jobs — with the borrowed authority, the one-write-at-a-time rule and
+  `Revoked`; the capability bullet for `IPageJobs` keeps its words about filtering by visitor.
 - `docs/shell.md` §A run's view gains the consequence: a job a page starts under a run holds the run's
   id, so the run ending is what ends the job's writes.
 - `docs/assistant.md`'s port table loses "the page-store write authority the tools need" from what
   blocks `/assistant`: a job may write now.
+- `PageWritesScope`'s own remark still calls a second write a page bug, which the transaction made
+  untrue; the change fixes the sentence while it is in the file.
 
 ## The contract changes
 
 | File | Change |
 | --- | --- |
-| `src/uk.osric.asp.Sdk/PageWriteOutcome.cs` | `Revoked` |
-| `src/uk.osric.asp.Sdk/PageEditResult.cs` | `PageEditOutcome.Revoked` |
-| `src/uk.osric.asp.Sdk/PageMoveResult.cs` | `PageMoveOutcome.Revoked` |
-| `src/uk.osric.asp.Sdk/PageSaveResult.cs` | `PageWriteOutcome Outcome` (default `Saved`), nullable `Hash` |
-| `src/uk.osric.asp.Sdk/PageDeleteResult.cs` | the row's view: `(PageWriteOutcome Outcome, bool WasLive)`, `Deleted` derived |
-| `src/uk.osric.asp.Sdk/PageJobRefusal.cs` | `Revoked` |
-| `src/uk.osric.asp.Sdk/IWorkerContext.cs` | remarks: the writer is offered, bound to the starting page and the starting credential |
-| `src/uk.osric.asp.Sdk/IPageWrites.cs`, `IPageTransaction.cs` | the `Revoked` answer, and that a render never sees it |
+| [`PageWriteOutcome.cs`](../../src/uk.osric.asp.Sdk/PageWriteOutcome.cs) | `Revoked` |
+| [`PageEditResult.cs`](../../src/uk.osric.asp.Sdk/PageEditResult.cs) | `PageEditOutcome.Revoked` |
+| [`PageMoveResult.cs`](../../src/uk.osric.asp.Sdk/PageMoveResult.cs) | `PageMoveOutcome.Revoked` |
+| [`PageDeleteResult.cs`](../../src/uk.osric.asp.Sdk/PageDeleteResult.cs) | `PageDeleteOutcome.Revoked` |
+| [`PageJobRefusal.cs`](../../src/uk.osric.asp.Sdk/PageJobRefusal.cs) | `Revoked` |
+| [`PageSaveResult.cs`](../../src/uk.osric.asp.Sdk/PageSaveResult.cs) | doc comment: `Hash` is empty when nothing was stored |
+| [`IWorkerContext.cs`](../../src/uk.osric.asp.Sdk/IWorkerContext.cs) | remarks: the writer is offered, bound to the starting page and the starting credential |
+| [`IPageWrites.cs`](../../src/uk.osric.asp.Sdk/IPageWrites.cs), [`IPageTransaction.cs`](../../src/uk.osric.asp.Sdk/IPageTransaction.cs) | the `Revoked` answer, and that a render never sees it |
 | `src/uk.osric.asp.Sdk/PublicAPI.Unshipped.txt` | the new members |
 
 ## The checks
@@ -280,7 +308,9 @@ caller; and a journal is the job's own. The authority dies; the job does not hav
   its own terms; a transaction of three writes reports three `Revoked` rows after one check (a counting
   guard proves the cadence); a refused commit does not throw; a worker whose credential is dead is
   refused `Revoked` for a child start.
-- **`PageWritesScopeTests`**: a render's write calls no guard, and the existing answers do not change.
+- **`PageWritesScopeTests`**, **`PageTransactionTests`**: a render's write calls no guard and the
+  existing answers do not change; a lone write made while a transaction is open answers `Staged`, the
+  commit asks the guard once, and every staged row answers `Revoked` when it says no.
 - **`PageJobRenderTests`**, **`PageHarness`**: a render's `PageJobsScope` and `PageWritesScope` gain the
   authority and no guard; the principal that starts a job carries a cookie row.
 - **`Web.IntegrationTests/PageJobTests`**: the real host offers a worker `IPageWrites`, and the page
@@ -332,5 +362,5 @@ rows and not source, and no page-store authority would be involved.
 **Origin:** the owner, 2026-11-18 — "the worker/job gets to write with all the authority of the
 caller, and I'd really like to terminate that authority if the caller logs out or otherwise
 invalidates their session, so probably going to need to hand the job a token". The withheld writer is
-[`conversation-is-not-a-page`](../backlog/conversation-is-not-a-page.md) §4; the transaction it needs is
-[`one-write-per-render`](../backlog/one-write-per-render.md).
+[`conversation-is-not-a-page`](../backlog/conversation-is-not-a-page.md) §4; the transaction it needed has
+landed (`pages-writes-are-transactions`).

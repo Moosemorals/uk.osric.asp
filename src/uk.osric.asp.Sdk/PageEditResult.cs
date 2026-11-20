@@ -14,6 +14,16 @@ public enum PageEditOutcome {
 
     /// <summary>The page already held the source, so nothing was written.</summary>
     Unchanged,
+
+    /// <summary>Another writer held the store, so nothing was written.</summary>
+    Busy,
+
+    /// <summary>
+    /// The write joined a transaction this render already had open, so nothing is stored yet: it
+    /// lands when that transaction commits and is discarded if it is rolled back or disposed.
+    /// </summary>
+    Staged,
+
 }
 
 /// <summary>What an edit answered with.</summary>

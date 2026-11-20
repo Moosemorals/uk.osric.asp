@@ -9,7 +9,7 @@ using uk.osric.asp.Web.Shell;
 
 /// <summary>The system prompt and worked examples that teach the model to write a page.</summary>
 internal static class PageAuthorPrompt {
-    public const string Version = "page-author-v46";
+    public const string Version = "page-author-v53";
 
     public static IReadOnlyList<(string Name, string Source)> Examples { get; } = [
         ("query-driven", """
@@ -419,15 +419,51 @@ internal static class PageAuthorPrompt {
         owner ticks — including a row the release did not move — and scrubs a
         stored row at a key the shell answers, after the owner types `scrub`.
 
-        Save on a `POST`, never on a `GET`, and never during a `HEAD`. The save
+        Save on a `POST`, never on a `GET`, and never during a `HEAD`. A save
         belongs to the next request: the response in hand is still the page as
         it was, so show the result the save returned and let a reload serve the
-        new source. One render writes once: a save, a delete, a restore or an
-        install spends the one action. A page that shows its own source reads
-        it with `IPageCatalog.ReadAsync(ctx.Path)`, and compares that hash with
-        the one the form carried when it wants to refuse a stale form. The
-        seeded `/pages` is the worked example of every write. A layout is
-        offered the read and not the write.
+        new source. A page that shows its own source reads it with
+        `IPageCatalog.ReadAsync(ctx.Path)`, and compares that hash with the one
+        the form carried when it wants to refuse a stale form. The seeded
+        `/pages` is the worked example of every write. A layout is offered the
+        read and not the write.
+
+        ## Several writes that land together
+        `BeginTransaction()` on `IPageWrites` answers an `IPageTransaction`,
+        and every write you make through `IPageWrites` while it is open joins
+        it: there is no second set of members, so stage with the calls you
+        already use and then `CommitAsync()` writes them in one store
+        transaction or none of them. A staged call compiles and
+        answers a `PageWriteResult` — the key, the operation, the outcome, the
+        hash and the diagnostics — and the commit answers one row per operation
+        in the order you staged them. Before the commit `Outcome` is `Staged`;
+        a refusal is a row (`Stale`, `TargetExists`, `FolderNotEmpty`,
+        `SourceNotFound`, `Refused`, `Busy`) and writes nothing, with
+        `NotAttempted` for the writes the refusal cost. A page bug — a reserved
+        key, a key that is not addressable, a library move — throws while
+        staging. The commit applies the operations in the order you staged them,
+        each seeing what the ones before it wrote: create a page, move it and
+        delete it in one transaction and all three succeed. Every write a
+        refusal undid answers `RolledBack`; every one it never reached answers
+        `NotAttempted`.
+        A transaction that is disposed without a commit writes nothing, and
+        a transaction opened while one is already open nests inside it: its
+        writes land with the outer one, its rows stay Staged, and disposing the
+        outer one discards them all.
+
+        A transaction is for writes that must land together, not for every
+        write: one save, move, delete or restore is already a transaction of
+        one and answers as it always did. A write made while a transaction is
+        open — from an embedded page, say — joins it and answers `Staged`, so
+        it lands with the commit and is discarded by a rollback, which is what
+        `RollbackAsync()` is for. A page may commit as many
+        transactions as it has work for, so a multi-file edit is one commit.
+        `Busy` means another writer held the store; nothing was written, and
+        retrying, splitting the work or telling the owner is the page's choice
+        — the host does not retry on your behalf. Staging order is the order
+        you get: a save reads the libraries staged before it as well as the
+        store's, so stage a library before the pages that use it, or commit the
+        library first and the pages in a second transaction.
 
         ## Markdown
         A page renders Markdown through `ctx.Capabilities.GetRequired<IMarkdownRenderer>()`

@@ -14,16 +14,18 @@ using uk.osric.asp.Web.Storage;
 /// a page's save is one more caller of the one insert rather than a second writer (`pages-a-page-may-save-itself`).
 /// </remarks>
 internal sealed class SqlitePageRevisionStore(
-    IDbContextFactory<StorageDbContext> factory,
-    ILogger<SqlitePageRevisionStore> logger) : IPageRevisionStore {
+    IPageCommitStore commits) : IPageRevisionStore {
 
     /// <inheritdoc/>
     public async Task<PageTemplate> SaveAsync(PageTemplate revision, CancellationToken cancellationToken = default) {
         ArgumentNullException.ThrowIfNull(revision);
 
-        await using StorageDbContext database = factory.CreateDbContext();
+        IReadOnlyList<PageCommitAnswer> answers = await commits.CommitAsync(
+            [new PageCommit(PageCommitKind.Put, revision.Path, Revision: revision)], cancellationToken);
 
-        return await SqlitePageStore.StoreRevisionAsync(database, revision, logger, cancellationToken);
+        return answers[0].Outcome == PageCommitOutcome.Saved
+            ? answers[0].Stored ?? revision
+            : throw new InvalidOperationException($"An unconditional save of {revision.Path.Key} was refused as {answers[0].Outcome}.");
     }
 
     /// <inheritdoc/>
@@ -31,8 +33,15 @@ internal sealed class SqlitePageRevisionStore(
         ArgumentNullException.ThrowIfNull(revision);
         ArgumentException.ThrowIfNullOrWhiteSpace(expectedHash);
 
-        await using StorageDbContext database = factory.CreateDbContext();
+        IReadOnlyList<PageCommitAnswer> answers = await commits.CommitAsync(
+            [new PageCommit(PageCommitKind.Save, revision.Path, expectedHash, revision)], cancellationToken);
 
-        return await SqlitePageStore.TryStoreRevisionAsync(database, revision, expectedHash, logger, cancellationToken);
+        return answers[0].Outcome == PageCommitOutcome.Saved;
     }
+
+    /// <inheritdoc/>
+    public Task<IReadOnlyList<PageCommitAnswer>> CommitAsync(
+        IReadOnlyList<PageCommit> operations,
+        CancellationToken cancellationToken = default) =>
+        commits.CommitAsync(operations, cancellationToken);
 }

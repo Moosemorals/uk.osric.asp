@@ -11,7 +11,7 @@ SPDX-License-Identifier: MIT
 | Size | Large — a new `Shell` project, a capability client built per call, a shell kernel, a mount table, a planner, a rewritten applet set, the shell tool rebuilt and the memory tool reshaped, the prompt, and the removal of nineteen tools. The largest change to the assistant since it landed |
 | Area | Core (Shell, Assistant), Shell, Web (assistant, site), docs, build |
 | Spike | None. The claims about today's shell were read off `trunk` on 2026-11-19: [`ShellRunner`](../../src/uk.osric.asp.Web/Assistant/Shell/ShellRunner.cs), the eleven applets, [`ShellApplet`](../../src/uk.osric.asp.Web/Assistant/Shell/ShellApplet.cs), [`ShellTool`](../../src/uk.osric.asp.Web/Assistant/Tools/ShellTool.cs), [`PageStoreReader`](../../src/uk.osric.asp.Web/Assistant/PageStoreReader.cs) and [`PagePathPolicy`](../../src/uk.osric.asp.Web/Assistant/PagePathPolicy.cs). The tool-count evidence is [the ask tool's shape](../spikes/ask-tool-shape.md). The capability evidence was read the same day: [`IPageCatalog`](../../src/uk.osric.asp.Sdk/IPageCatalog.cs), [`IPageWrites`](../../src/uk.osric.asp.Sdk/IPageWrites.cs), [`PageCatalogScope`](../../src/uk.osric.asp.Web/Pages/PageCatalogScope.cs), [`PageWritesScope`](../../src/uk.osric.asp.Web/Pages/PageWritesScope.cs) and the worker's capability set in [`PageJobRunner`](../../src/uk.osric.asp.Web/Work/PageJobRunner.cs:140) |
-| Backlog | [`tool-surface-is-one-shell`](../backlog/tool-surface-is-one-shell.md) is this plan; [`cannot-ask-the-owner`](../backlog/closed.md) was a dependency and has landed; `tool-arguments-say-nothing` has closed with one check. Three items land first and are not this plan: [`cannot-search-the-store`](../backlog/cannot-search-the-store.md), `check-without-storing` — planned by [one check](archive/one-check.md), which lands the language-named capability — and [`a-page-cannot-list-folders`](../backlog/a-page-cannot-list-folders.md). The old assistant check item is subsumed: its capability half is the capability above and its tool half is this plan. [`nothing-checks-page-assets`](../backlog/nothing-checks-page-assets.md) grows the language set later, [`one-write-per-render`](../backlog/one-write-per-render.md) stays the capability's own limit, and [`page-cannot-move`](../backlog/closed.md) has landed, so `mv` is already an applet; [`view-cannot-submit-a-form`](../backlog/view-cannot-submit-a-form.md) and [`terminal-cannot-reach-the-shell`](../backlog/terminal-cannot-reach-the-shell.md) are named here and are not this plan |
+| Backlog | [`tool-surface-is-one-shell`](../backlog/tool-surface-is-one-shell.md) is this plan; [`cannot-ask-the-owner`](../backlog/closed.md) was a dependency and has landed; `tool-arguments-say-nothing` has closed with one check. Three items land first and are not this plan: [`cannot-search-the-store`](../backlog/cannot-search-the-store.md), `check-without-storing` — planned by [one check](archive/one-check.md), which lands the language-named capability — and [`a-page-cannot-list-folders`](../backlog/a-page-cannot-list-folders.md). The old assistant check item is subsumed: its capability half is the capability above and its tool half is this plan. [`nothing-checks-page-assets`](../backlog/nothing-checks-page-assets.md) grows the language set later, the page transaction has landed ([IDEA-047](../backlog/closed.md)), and [`page-cannot-move`](../backlog/closed.md) has landed, so `mv` is already an applet; [`view-cannot-submit-a-form`](../backlog/view-cannot-submit-a-form.md) and [`terminal-cannot-reach-the-shell`](../backlog/terminal-cannot-reach-the-shell.md) are named here and are not this plan |
 | Depends on | `ask_user` and `mv` have landed ([the ask plan](archive/assistant-ask-owner.md), [the move plan](archive/page-move.md)); three page capabilities land before phase 0: [`cannot-search-the-store`](../backlog/cannot-search-the-store.md) for `grep`, `check-without-storing` for `check`, and [`a-page-cannot-list-folders`](../backlog/a-page-cannot-list-folders.md) for `ls` |
 | Decisions | New names proposed: **code-a-shell-is-the-interpreter**, **assistant-the-shell-is-the-tool**, **assistant-a-command-is-posix**, **assistant-a-write-is-planned-before-it-approves**, **assistant-scratch-is-not-persistent**, **assistant-a-snapshot-is-a-path**, **assistant-patch-carries-the-hash**, **assistant-memory-is-one-tool**, **assistant-man-is-the-reference**, **assistant-a-command-uses-page-capabilities** and **pages-a-capability-serves-one-caller**; the check's own name, **pages-a-check-names-its-language**, belongs to `check-without-storing` and is not taken here. Relies on `assistant-a-tool-is-one-type`, `assistant-the-shell-is-applets`, `assistant-the-shell-lexes-before-it-judges`, `assistant-the-shell-is-posix`, `assistant-writes-are-revisions`, `assistant-edit-page-is-safe`, `assistant-reads-history`, `assistant-script-checks`, `assistant-reads-the-shell-files`, `assistant-memory-is-the-owners`, `assistant-memory-recall-is-fts5`, `assistant-memory-page`, `assistant-a-view-is-a-read`, `assistant-a-view-is-the-response`, `assistant-tool-results-are-cut-not-refused`, `assistant-old-tool-results-are-masked`, `pages-the-store-is-read-through-one-seam`, `pages-outbound-fetch`, `auth-a-view-token-reads-only` and `code-policy-values-are-configuration`. Edits `assistant-the-shell-is-posix` in place to name the conformance target, `pages-the-store-is-read-through-one-seam` in place because the seam the shell asks is now `IPageCatalog`, and `assistant-the-shell-is-applets` in place to name the capabilities in an applet's context |
 
@@ -160,8 +160,9 @@ Six things are load-bearing:
   as "not there yet", the way separators are refused today.
 - **Full POSIX.** The target is the options models emit; a command that accepts all of POSIX is a
   much larger promise than this change needs.
-- **More than one page write per call.** [`one-write-per-render`](../backlog/one-write-per-render.md)
-  is the blocker, and v1 refuses a plan that names two pages.
+- **More than one page write per call.** The page transaction landed on 2026-11-20
+  (`pages-writes-are-transactions`), so a plan that names two pages is one commit; v1 still refuses one
+  until the shell is built on it.
 - **A page that runs the shell.** The shell is host code and a page still cannot run a command; that
   is the security line, and it does not move. What moves is the dependency: the shell is built from
   the capabilities a page is offered, not from the host's own seams (D15).
@@ -328,8 +329,8 @@ of a word into a path or a literal. Then:
    wait.
 4. `RequireApproval` waits once per call, not once per write. The run still waits on one thing at a
    time (`assistant-a-run-waits-on-one-owner-interrupt`).
-5. **v1 writes at most one page per call.** A plan that names two refuses and names
-   [`one-write-per-render`](../backlog/one-write-per-render.md). The result's `writes` is an array so
+5. **v1 writes at most one page per call.** A plan that names two refuses, and the transaction that
+   would let it write them is landed ([IDEA-047](../backlog/closed.md)). The result's `writes` is an array so
    the day the blocker lands is a removal of the refusal, not a shape change.
 6. A write that would leave the source byte-identical refuses and stores nothing
    (`assistant-edit-page-is-safe`).
@@ -623,8 +624,8 @@ to pretend otherwise.
    `/snapshots`; a snapshot is read-only; scratch is gone on the next run; a folder is a row.
 5. **The planner and the approval.** `ShellPlan`, the effect card, the mount access first, the
    one-write rule, the no-op refusal. Tests: a read never asks; a scratch write never asks; a page
-   write asks once with its effects; a site route is refused without asking; two page writes refuse
-   and name `one-write-per-render`.
+   write asks once with its effects; a site route is refused without asking; two page writes are one
+   transaction when the plan allows them.
 6. **The shell tool and the removal.** `ToolRegistry` holds `shell`, `ask_user`, `memory`; the
    `ToolSpecsTests` count moves to three; the typed reads, writes, move, history, checks and reference
    are deleted. `grep` and `check` are already capability-backed, so their typed tools go too; only
@@ -702,7 +703,7 @@ to pretend otherwise.
 | [`tool-surface-is-one-shell`](../backlog/tool-surface-is-one-shell.md) | this plan |
 | `tool-arguments-say-nothing` | closed with [one check](archive/one-check.md)'s third slice: the schema carries a closed set as an `enum`, and the ambiguous arguments describe themselves |
 | [`nothing-checks-page-assets`](../backlog/nothing-checks-page-assets.md) | grows `check`'s language set once the capability exists; unchanged |
-| [`one-write-per-render`](../backlog/one-write-per-render.md) | the capability's own limit: v1 writes one page per call because a call is one action, and a plan that names two names this item; not closed here |
+| [IDEA-047](../backlog/closed.md) | landed 2026-11-20: the capability now takes several writes as one transaction, so v1's one-page rule is the shell's to lift, and this plan is where it lifts |
 | [`page-cannot-move`](../backlog/closed.md) | landed 2026-11-19; the shell's `mv` is already there, and the typed `move_page` goes with the rest |
 | [`cannot-ask-the-owner`](../backlog/closed.md) | a dependency; landed 2026-11-19 |
 | [`cannot-search-the-store`](../backlog/cannot-search-the-store.md) | a hard dependency: `grep` refuses until it lands, and the shell is its second caller. It also settles the item's open question 2 — a scan is charged to its caller's bound, not the render's |

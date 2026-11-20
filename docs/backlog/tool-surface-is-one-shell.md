@@ -60,8 +60,9 @@ scratch directory, and history as paths rather than three more tools.
   owner's own way into the same kernel.
 - **`mv`.** [`page-cannot-move`](closed.md) has landed; the shell's applet is already there, and this
   item removes the typed `move_page` beside it.
-- **More than one page write per call.** [`one-write-per-render`](one-write-per-render.md) is the
-  blocker; v1 refuses a plan that names two pages and says so.
+- **More than one page write per call.** The page transaction landed on 2026-11-20
+  (`pages-writes-are-transactions`), so a plan that names two pages is one commit; v1 still refuses one
+  until this item's shell is built on it.
 - **A page that runs the shell.** The shell is host code and a page still cannot run a command; what
   changes is that the shell is built from the capabilities a page is offered, so the two cannot drift
   apart.

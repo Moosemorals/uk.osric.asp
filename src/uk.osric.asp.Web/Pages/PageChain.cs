@@ -41,7 +41,7 @@ internal sealed class PageChain {
     private readonly PageRenderer.RenderSession _session;
     private readonly PageSessionRequest _sessionRequest;
     private readonly PageUser? _user;
-    private readonly PageWriteAction _writeAction = new();
+    private readonly PageTransactionGate _writeGate = new();
     private int _embeds;
 
     /// <summary>Creates the chain for one request.</summary>
@@ -223,7 +223,7 @@ internal sealed class PageChain {
             // the page, and one render writes once however many layers it has.
             if (_editor is { } editor) {
                 capabilities.Add<IPageWrites>(new PageWritesScope(
-                    key, editor, _user, writable: !_isHead, _environment.Reserved, _environment.Seeds, _writeAction));
+                    key, editor, _user, writable: !_isHead, _environment.Reserved, _environment.Seeds, _writeGate));
             }
         }
 

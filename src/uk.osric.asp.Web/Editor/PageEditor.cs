@@ -141,6 +141,30 @@ internal sealed class PageEditor(
         return saver.SaveSeedAsync(path, template, seedHash, cancellationToken, renderDeadline);
     }
 
+    /// <summary>Compiles a template without storing it, for a transaction to commit later.</summary>
+    /// <param name="path">The canonical key the revision is for.</param>
+    /// <param name="template">The template text.</param>
+    /// <param name="seedHash">The seed this write installs, or <see langword="null"/>.</param>
+    /// <param name="stagedLibraries">Libraries an open transaction staged before this save.</param>
+    /// <param name="cancellationToken">Cancels the compile.</param>
+    /// <param name="renderDeadline">The render's deadline, when a page asked for the compile.</param>
+    public Task<StagedRevision> BuildAsync(
+        PagePath path,
+        string template,
+        string? seedHash,
+        IReadOnlyList<PageLibrary>? stagedLibraries = null,
+        CancellationToken cancellationToken = default,
+        CancellationToken renderDeadline = default) =>
+        saver.BuildAsync(path, template, seedHash, stagedLibraries, cancellationToken, renderDeadline);
+
+    /// <summary>Writes staged operations as one transaction, or none of them.</summary>
+    /// <param name="operations">The operations, already compiled and in the order the page staged them.</param>
+    /// <param name="cancellationToken">Cancels the commit.</param>
+    public Task<IReadOnlyList<PageCommitAnswer>> CommitAsync(
+        IReadOnlyList<PageCommit> operations,
+        CancellationToken cancellationToken = default) =>
+        saver.CommitAsync(operations, cancellationToken);
+
     /// <summary>Compiles and saves a page only while its current revision hash still matches.</summary>
     public Task<ConditionalPageSaveResult> SaveIfRevisionAsync(
         PagePath path,

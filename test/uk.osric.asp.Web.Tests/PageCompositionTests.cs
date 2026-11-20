@@ -355,7 +355,7 @@ public sealed class PageCompositionTests {
     }
 
     [Test]
-    public async Task TwoEmbeddedWritersSpendTheRendersOneWrite() {
+    public async Task TwoEmbeddedWritersEachWriteTheirOwnPage() {
         Store("/saver", """
             <% if (ctx.User is not null) {
                    await ctx.Capabilities.GetRequired<IPageWrites>().SaveAsync(ctx.Path, "saved", null);
@@ -368,14 +368,127 @@ public sealed class PageCompositionTests {
                        _ = await ctx.Capabilities.GetRequired<IPageComposition>().EmbedAsync("/saver");
                        ctx.Response.Write("two writes");
                    } catch (System.InvalidOperationException) {
-                       ctx.Response.Write("one write");
+                       ctx.Response.Write("refused");
                    }
                } %>
             """);
 
         Rendered rendered = await RenderAsync("/page", signedIn: true);
 
-        Assert.That(rendered.Body.Trim(), Is.EqualTo("savedone write"), rendered.Body);
+        Assert.That(rendered.Body.Trim(), Is.EqualTo("savedsavedtwo writes"), rendered.Body);
+    }
+
+    [Test]
+    public async Task AnEmbeddedPlainSaveIsPartOfThePageAndIsRolledBackWithIt() {
+        Store("/widget", """
+            <% if (ctx.User is not null) {
+                   PageEditResult saved = await ctx.Capabilities.GetRequired<IPageWrites>().SaveAsync("/widget-saved", "text", null);
+                   ctx.Response.Write(saved.Outcome.ToString());
+               } %>
+            """);
+        Store("/page", """
+            <% if (ctx.User is not null) {
+                   IPageWrites writes = ctx.Capabilities.GetRequired<IPageWrites>();
+                   await using IPageTransaction held = writes.BeginTransaction();
+                   _ = await writes.SaveAsync("/page-saved", "page", null);
+                   _ = await ctx.Capabilities.GetRequired<IPageComposition>().EmbedAsync("/widget");
+               } %>
+            """);
+
+        Rendered rendered = await RenderAsync("/page", signedIn: true);
+
+        Assert.Multiple(() => {
+            Assert.That(rendered.Body.Trim(), Is.EqualTo("Staged"), rendered.Body);
+            Assert.That(_storage["/page-saved"], Is.Null, "the page never committed, so its unit is gone");
+            Assert.That(_storage["/widget-saved"], Is.Null, "and the embedded page's save went with it");
+        });
+    }
+
+    [Test]
+    public async Task AnEmbeddedWriteInsideThePagesTransactionLandsWithIt() {
+        Store("/widget", """
+            <% if (ctx.User is not null) {
+                   IPageWrites writes = ctx.Capabilities.GetRequired<IPageWrites>();
+                   await using (IPageTransaction own = writes.BeginTransaction()) {
+                       _ = await writes.SaveAsync("/widget-saved", "text", null);
+                       _ = await own.CommitAsync();
+                   }
+                   ctx.Response.Write("wrote");
+               } %>
+            """);
+        Store("/page", """
+            <% if (ctx.User is not null) {
+                   IPageWrites writes = ctx.Capabilities.GetRequired<IPageWrites>();
+                   await using IPageTransaction held = writes.BeginTransaction();
+                   _ = await writes.SaveAsync("/page-saved", "page", null);
+                   _ = await ctx.Capabilities.GetRequired<IPageComposition>().EmbedAsync("/widget");
+                   _ = await held.CommitAsync();
+               } %>
+            """);
+
+        Rendered rendered = await RenderAsync("/page", signedIn: true);
+
+        Assert.Multiple(() => {
+            Assert.That(rendered.Body.Trim(), Is.EqualTo("wrote"), rendered.Body);
+            Assert.That(_storage["/page-saved"]?.Template, Is.EqualTo("page"));
+            Assert.That(_storage["/widget-saved"]?.Template, Is.EqualTo("text"), "the embedded transaction nested inside the page's");
+        });
+    }
+
+    [Test]
+    public async Task AnEmbeddedWriteIsLostWhenThePagesTransactionIsDisposed() {
+        Store("/widget", """
+            <% if (ctx.User is not null) {
+                   IPageWrites writes = ctx.Capabilities.GetRequired<IPageWrites>();
+                   await using (IPageTransaction own = writes.BeginTransaction()) {
+                       _ = await writes.SaveAsync("/widget-saved", "text", null);
+                       _ = await own.CommitAsync();
+                   }
+               } %>
+            """);
+        Store("/page", """
+            <% if (ctx.User is not null) {
+                   IPageWrites writes = ctx.Capabilities.GetRequired<IPageWrites>();
+                   await using IPageTransaction held = writes.BeginTransaction();
+                   _ = await writes.SaveAsync("/page-saved", "page", null);
+                   _ = await ctx.Capabilities.GetRequired<IPageComposition>().EmbedAsync("/widget");
+               } %>
+            """);
+
+        _ = await RenderAsync("/page", signedIn: true);
+
+        Assert.Multiple(() => {
+            Assert.That(_storage["/page-saved"], Is.Null);
+            Assert.That(_storage["/widget-saved"], Is.Null, "the nested write never landed on its own");
+        });
+    }
+
+    [Test]
+    public async Task AnEmbeddedWriteLandsOnceTheOuterTransactionIsCommitted() {
+        Store("/widget", """
+            <% if (ctx.User is not null) {
+                   PageEditResult saved = await ctx.Capabilities.GetRequired<IPageWrites>().SaveAsync("/widget-saved", "text", null);
+                   ctx.Response.Write(saved.Outcome.ToString());
+               } %>
+            """);
+        Store("/page", """
+            <% if (ctx.User is not null) {
+                   IPageWrites writes = ctx.Capabilities.GetRequired<IPageWrites>();
+                   await using (IPageTransaction held = writes.BeginTransaction()) {
+                       _ = await writes.SaveAsync("/page-saved", "page", null);
+                       _ = await held.CommitAsync();
+                   }
+                   _ = await ctx.Capabilities.GetRequired<IPageComposition>().EmbedAsync("/widget");
+               } %>
+            """);
+
+        Rendered rendered = await RenderAsync("/page", signedIn: true);
+
+        Assert.Multiple(() => {
+            Assert.That(rendered.Body.Trim(), Is.EqualTo("Saved"), rendered.Body);
+            Assert.That(_storage["/page-saved"]?.Template, Is.EqualTo("page"));
+            Assert.That(_storage["/widget-saved"]?.Template, Is.EqualTo("text"));
+        });
     }
 
     [Test]

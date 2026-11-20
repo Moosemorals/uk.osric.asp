@@ -27,6 +27,14 @@ internal sealed record PageStorageOptions {
     /// <summary>How long one storage command may run.</summary>
     public required int CommandTimeoutSeconds { get; init; }
 
+    /// <summary>How long the store waits for another writer before it answers that it is busy.</summary>
+    /// <remarks>
+    /// The connection's busy timeout. A commit that cannot take the store's one writer answers a
+    /// contention row after this long rather than being retried on the page's behalf
+    ///
+    /// </remarks>
+    public required int BusyTimeoutSeconds { get; init; }
+
     /// <summary>The command timeout as a time span.</summary>
     public TimeSpan CommandTimeout => TimeSpan.FromSeconds(CommandTimeoutSeconds);
 
@@ -61,6 +69,7 @@ internal sealed record PageStorageOptions {
             MaxKeysPerPage = reader.Number("MaxKeysPerPage", recommended: 256, minimum: 1, maximum: 65_536),
             MaxPageBytes = maxPageBytes,
             CommandTimeoutSeconds = reader.Number("CommandTimeoutSeconds", recommended: 5, minimum: 1, maximum: 120),
+            BusyTimeoutSeconds = reader.Number("BusyTimeoutSeconds", recommended: 5, minimum: 1, maximum: 120),
         };
         return options;
     }

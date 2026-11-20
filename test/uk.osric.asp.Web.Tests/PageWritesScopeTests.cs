@@ -148,14 +148,265 @@ public sealed class PageWritesScopeTests {
     }
 
     [Test]
-    public async Task OneRenderMakesOneActionAsync() {
-        using PageHarness pages = new(new FakePageStore());
-        SavedRevision first = await pages.Editor.SaveAsync(PageHarness.Key("/page"), "first");
+    public async Task ARenderMayCommitSeveralTransactionsAsync() {
+        FakePageStore storage = new();
+        using PageHarness pages = new(storage);
         PageWritesScope scope = Scope(pages);
 
-        _ = await scope.SaveAsync("/page", "second", first.Revision.Hash);
+        PageEditResult first = await scope.SaveAsync("/page", "first", null);
+        PageEditResult second = await scope.SaveAsync("/other", "second", null);
 
-        await Assert.ThrowsAsync<InvalidOperationException>(async () => await scope.SaveAsync("/page", "third", "hash"));
+        Assert.Multiple(() => {
+            Assert.That(first.Outcome, Is.EqualTo(PageEditOutcome.Saved));
+            Assert.That(second.Outcome, Is.EqualTo(PageEditOutcome.Saved));
+            Assert.That(storage["/page"]?.Template, Is.EqualTo("first"));
+            Assert.That(storage["/other"]?.Template, Is.EqualTo("second"));
+        });
+    }
+
+    [Test]
+    public async Task ATransactionThatIsDisposedWithoutCommittingWritesNothingAsync() {
+        FakePageStore storage = new();
+        using PageHarness pages = new(storage);
+        PageWritesScope scope = Scope(pages);
+
+        await using (scope.BeginTransaction()) {
+            _ = await scope.SaveAsync("/page", "staged", null);
+            _ = await scope.SaveAsync("/other", "also staged", null);
+        }
+
+        Assert.Multiple(() => {
+            Assert.That(storage["/page"], Is.Null);
+            Assert.That(storage["/other"], Is.Null);
+            Assert.That(pages.Revisions.SaveCount, Is.Zero);
+        });
+    }
+
+    [Test]
+    public async Task ACommitOfSeveralWritesReportsOneRowEachAsync() {
+        FakePageStore storage = new();
+        using PageHarness pages = new(storage);
+        PageWritesScope scope = Scope(pages);
+
+        await using IPageTransaction transaction = scope.BeginTransaction();
+        _ = await scope.SaveAsync("/page", "first", null);
+        _ = await scope.SaveAsync("/other", "second", null);
+        IReadOnlyList<PageWriteResult> report = await transaction.CommitAsync();
+
+        Assert.Multiple(() => {
+            Assert.That(report.Select(row => row.Key), Is.EqualTo(["/page", "/other"]));
+            Assert.That(report.Select(row => row.Outcome), Is.EqualTo([PageWriteOutcome.Saved, PageWriteOutcome.Saved]));
+            Assert.That(storage["/page"]?.Template, Is.EqualTo("first"));
+            Assert.That(storage["/other"]?.Template, Is.EqualTo("second"));
+        });
+    }
+
+    [Test]
+    public async Task ARefusedOperationWritesNothingAndUndoesWhatWentBeforeItAsync() {
+        FakePageStore storage = new();
+        using PageHarness pages = new(storage);
+        SavedRevision first = await pages.Editor.SaveAsync(PageHarness.Key("/page"), "first");
+        string head = first.Revision.Hash;
+        _ = await pages.Editor.SaveAsync(PageHarness.Key("/page"), "moved on");
+        PageWritesScope scope = Scope(pages);
+
+        await using IPageTransaction transaction = scope.BeginTransaction();
+        _ = await scope.SaveAsync("/other", "second", null);
+        _ = await scope.SaveAsync("/page", "third", head);
+        IReadOnlyList<PageWriteResult> report = await transaction.CommitAsync();
+
+        Assert.Multiple(() => {
+            Assert.That(report[0].Outcome, Is.EqualTo(PageWriteOutcome.RolledBack), "the refusal cost it its write");
+            Assert.That(report[1].Outcome, Is.EqualTo(PageWriteOutcome.Stale));
+            Assert.That(storage["/other"], Is.Null, "a refusal writes nothing at all");
+            Assert.That(storage["/page"]?.Template, Is.EqualTo("moved on"));
+        });
+    }
+
+    [Test]
+    public async Task ACreateAMoveAndADeleteOfOneKeyInATransactionAllSucceedAsync() {
+        FakePageStore storage = new();
+        using PageHarness pages = new(storage);
+        PageWritesScope scope = Scope(pages);
+
+        await using IPageTransaction transaction = scope.BeginTransaction();
+        PageEditResult created = await scope.SaveAsync("/a", "first", null);
+        PageMoveResult moved = await scope.MoveAsync("/a", "/b", created.Hash!);
+        PageDeleteResult deleted = await scope.DeleteAsync("/b");
+        IReadOnlyList<PageWriteResult> report = await transaction.CommitAsync();
+
+        Assert.Multiple(() => {
+            Assert.That(report.Select(row => row.Outcome),
+                Is.EqualTo([PageWriteOutcome.Saved, PageWriteOutcome.Moved, PageWriteOutcome.Deleted]),
+                "each operation sees what the ones before it wrote");
+            Assert.That(storage["/a"], Is.Null, "nothing is left at the old key");
+            Assert.That(storage["/b"], Is.Not.Null, "the head is a tombstone at the key the move left");
+            Assert.That((storage.GetHeadAsync(PageHarness.Key("/b"))).Result?.IsDeleted, Is.True);
+        });
+    }
+
+    [Test]
+    public async Task ASecondWriteToOneKeyInATransactionSeesTheFirstAsync() {
+        FakePageStore storage = new();
+        using PageHarness pages = new(storage);
+        PageWritesScope scope = Scope(pages);
+
+        await using IPageTransaction transaction = scope.BeginTransaction();
+        PageEditResult first = await scope.SaveAsync("/page", "first", null);
+        PageEditResult second = await scope.SaveAsync("/page", "second", first.Hash);
+        IReadOnlyList<PageWriteResult> report = await transaction.CommitAsync();
+
+        Assert.Multiple(() => {
+            Assert.That(report.Select(row => row.Outcome), Is.EqualTo([PageWriteOutcome.Saved, PageWriteOutcome.Saved]));
+            Assert.That(storage["/page"]?.Template, Is.EqualTo("second"));
+        });
+    }
+
+    [Test]
+    public async Task AWriteAgainstTheStateBeforeAnEarlierOperationRefusesAndUndoesEverythingAsync() {
+        FakePageStore storage = new();
+        using PageHarness pages = new(storage);
+        PageWritesScope scope = Scope(pages);
+
+        await using IPageTransaction transaction = scope.BeginTransaction();
+        _ = await scope.SaveAsync("/one", "first", null);
+        _ = await scope.SaveAsync("/two", "second", null);
+        _ = await scope.SaveAsync("/one", "third", "a-hash-from-before-the-transaction");
+        IReadOnlyList<PageWriteResult> report = await transaction.CommitAsync();
+
+        Assert.Multiple(() => {
+            Assert.That(report.Select(row => row.Outcome),
+                Is.EqualTo([PageWriteOutcome.RolledBack, PageWriteOutcome.RolledBack, PageWriteOutcome.Stale]),
+                "the writes before the refusal were applied and undone, not skipped");
+            Assert.That(storage["/one"], Is.Null);
+            Assert.That(storage["/two"], Is.Null);
+        });
+    }
+
+    [Test]
+    public async Task ALoneWriteJoinsTheTransactionTheRenderHasOpenAsync() {
+        FakePageStore storage = new();
+        using PageHarness pages = new(storage);
+        PageWritesScope scope = Scope(pages);
+
+        await using (IPageTransaction held = scope.BeginTransaction()) {
+            _ = await scope.SaveAsync("/batched", "batched", null);
+            PageEditResult lone = await scope.SaveAsync("/lone", "lone", null);
+
+            Assert.Multiple(() => {
+                Assert.That(lone.Outcome, Is.EqualTo(PageEditOutcome.Staged), "an embedded page's write is part of the page's unit");
+                Assert.That(storage["/lone"], Is.Null);
+                Assert.That(storage["/batched"], Is.Null);
+            });
+        }
+
+        Assert.Multiple(() => {
+            Assert.That(storage["/batched"], Is.Null, "the page was disposed, so its writes were lost");
+            Assert.That(storage["/lone"], Is.Null, "and the embedded page's write went with them");
+        });
+    }
+
+    [Test]
+    public async Task ALoneWriteLandsWhenTheTransactionItJoinedCommitsAsync() {
+        FakePageStore storage = new();
+        using PageHarness pages = new(storage);
+        PageWritesScope scope = Scope(pages);
+
+        await using (IPageTransaction held = scope.BeginTransaction()) {
+            _ = await scope.SaveAsync("/lone", "lone", null);
+            _ = await held.CommitAsync();
+        }
+
+        Assert.That(storage["/lone"]?.Template, Is.EqualTo("lone"));
+    }
+
+    [Test]
+    public async Task ARolledBackTransactionWritesNothingAndSaysSoAsync() {
+        FakePageStore storage = new();
+        using PageHarness pages = new(storage);
+        PageWritesScope scope = Scope(pages);
+
+        await using IPageTransaction transaction = scope.BeginTransaction();
+        _ = await scope.SaveAsync("/page", "first", null);
+        IReadOnlyList<PageWriteResult> report = await transaction.RollbackAsync();
+
+        Assert.Multiple(() => {
+            Assert.That(report.Select(row => row.Outcome), Is.EqualTo([PageWriteOutcome.NotAttempted]));
+            Assert.That(storage["/page"], Is.Null);
+        });
+    }
+
+    [Test]
+    public async Task ARolledBackNestedTransactionLeavesTheOuterOneAloneAsync() {
+        FakePageStore storage = new();
+        using PageHarness pages = new(storage);
+        PageWritesScope scope = Scope(pages);
+
+        await using IPageTransaction outer = scope.BeginTransaction();
+        _ = await scope.SaveAsync("/outer", "outer", null);
+
+        await using (IPageTransaction inner = scope.BeginTransaction()) {
+            _ = await scope.SaveAsync("/inner", "inner", null);
+            _ = await inner.RollbackAsync();
+        }
+
+        _ = await outer.CommitAsync();
+
+        Assert.Multiple(() => {
+            Assert.That(storage["/outer"]?.Template, Is.EqualTo("outer"));
+            Assert.That(storage["/inner"], Is.Null, "the nested rollback took only its own write");
+        });
+    }
+
+    [Test]
+    public async Task ANestedTransactionLandsWithTheOneItNestsInsideAsync() {
+        FakePageStore storage = new();
+        using PageHarness pages = new(storage);
+        PageWritesScope scope = Scope(pages);
+
+        await using IPageTransaction outer = scope.BeginTransaction();
+        _ = await scope.SaveAsync("/outer", "outer", null);
+
+        await using (IPageTransaction inner = scope.BeginTransaction()) {
+            _ = await scope.SaveAsync("/inner", "inner", null);
+            IReadOnlyList<PageWriteResult> nested = await inner.CommitAsync();
+
+            Assert.Multiple(() => {
+                Assert.That(nested[0].Outcome, Is.EqualTo(PageWriteOutcome.Staged), "nothing is stored until the outer commits");
+                Assert.That(storage["/inner"], Is.Null);
+            });
+        }
+
+        IReadOnlyList<PageWriteResult> report = await outer.CommitAsync();
+
+        Assert.Multiple(() => {
+            Assert.That(report.Select(row => row.Key), Is.EqualTo(["/outer", "/inner"]));
+            Assert.That(report.Select(row => row.Outcome), Is.EqualTo([PageWriteOutcome.Saved, PageWriteOutcome.Saved]));
+            Assert.That(storage["/outer"]?.Template, Is.EqualTo("outer"));
+            Assert.That(storage["/inner"]?.Template, Is.EqualTo("inner"));
+        });
+    }
+
+    [Test]
+    public async Task ANestedTransactionIsLostWhenTheOuterOneIsDisposedAsync() {
+        FakePageStore storage = new();
+        using PageHarness pages = new(storage);
+
+        PageWritesScope scope = Scope(pages);
+
+        await using (IPageTransaction outer = scope.BeginTransaction()) {
+            _ = await scope.SaveAsync("/outer", "outer", null);
+
+            await using (IPageTransaction inner = scope.BeginTransaction()) {
+                _ = await scope.SaveAsync("/inner", "inner", null);
+                _ = await inner.CommitAsync();
+            }
+        }
+
+        Assert.Multiple(() => {
+            Assert.That(storage["/inner"], Is.Null, "a nested write lands with the outer one or not at all");
+            Assert.That(storage["/outer"], Is.Null);
+        });
     }
 
     [Test]
@@ -171,8 +422,8 @@ public sealed class PageWritesScopeTests {
         bool tombstoned = (await storage.GetHeadAsync(PageHarness.Key("/page")))?.IsDeleted ?? false;
 
         Assert.Multiple(() => {
-            Assert.That(deleted, Is.EqualTo(new PageDeleteResult(true, true)));
-            Assert.That(missing, Is.EqualTo(new PageDeleteResult(false, false)));
+            Assert.That(deleted, Is.EqualTo(new PageDeleteResult(PageDeleteOutcome.Deleted, true)));
+            Assert.That(missing, Is.EqualTo(new PageDeleteResult(PageDeleteOutcome.Missing, false)));
             Assert.That(tombstoned, Is.True);
         });
     }
@@ -185,7 +436,7 @@ public sealed class PageWritesScopeTests {
 
         PageDeleteResult deleted = await Scope(pages, path: EditorPath).DeleteAsync(EditorPath);
 
-        Assert.That(deleted, Is.EqualTo(new PageDeleteResult(true, true)), "the editor's own page is deletable now");
+        Assert.That(deleted, Is.EqualTo(new PageDeleteResult(PageDeleteOutcome.Deleted, true)), "the editor's own page is deletable now");
     }
 
     [Test]
@@ -426,16 +677,20 @@ public sealed class PageWritesScopeTests {
     }
 
     [Test]
-    public async Task ASecondSaveInOneRenderIsRefusedAsync() {
-        using PageHarness pages = new(new FakePageStore());
+    public async Task APageMaySaveItselfTwiceInOneRenderAsync() {
+        FakePageStore storage = new();
+        using PageHarness pages = new(storage);
         PageWritesScope writes = Scope(pages, path: "/self");
-        await writes.SaveAsync("First.");
 
-        InvalidOperationException? refused = await Assert.ThrowsAsync<InvalidOperationException>(
-            () => writes.SaveAsync("Second."));
+        PageSaveResult first = await writes.SaveAsync("First.");
+        PageSaveResult second = await writes.SaveAsync("Second.");
 
-        Assert.That(refused?.Message, Does.Contain("already edited"));
-        Assert.That(pages.Revisions.SaveCount, Is.EqualTo(1));
+        Assert.Multiple(() => {
+            Assert.That(first.Hash, Is.Not.Empty);
+            Assert.That(second.Hash, Is.Not.Empty.And.Not.EqualTo(first.Hash));
+            Assert.That(storage["/self"]?.Template, Is.EqualTo("Second."));
+            Assert.That(pages.Revisions.SaveCount, Is.EqualTo(2));
+        });
     }
 
     [Test]
@@ -602,19 +857,18 @@ public sealed class PageWritesScopeTests {
     }
 
     [Test]
-    public async Task TheBoundSaveAndTheNamedSaveShareOneActionAsync() {
+    public async Task TheBoundSaveAndTheNamedSaveAreTheSamePathAsync() {
         FakePageStore storage = new();
         using PageHarness pages = new(storage);
         PageWritesScope writes = Scope(pages, path: "/self");
 
-        await writes.SaveAsync("first");
-
-        InvalidOperationException? refused = await Assert.ThrowsAsync<InvalidOperationException>(
-            () => writes.SaveAsync("/other", "second", null));
+        _ = await writes.SaveAsync("first");
+        PageEditResult named = await writes.SaveAsync("/other", "second", null);
 
         Assert.Multiple(() => {
-            Assert.That(refused?.Message, Does.Contain("already edited"));
-            Assert.That(pages.Revisions.SaveCount, Is.EqualTo(1), "one render makes one write, whichever save it uses");
+            Assert.That(named.Outcome, Is.EqualTo(PageEditOutcome.Saved));
+            Assert.That(storage["/self"]?.Template, Is.EqualTo("first"));
+            Assert.That(storage["/other"]?.Template, Is.EqualTo("second"));
         });
     }
 
@@ -685,18 +939,23 @@ public sealed class PageWritesScopeTests {
     }
 
     [Test]
-    public async Task AMoveSpendsTheOneActionAsync() {
+    public async Task AMoveAndASaveInOneTransactionBothLandAsync() {
         FakePageStore storage = new();
         using PageHarness pages = new(storage);
         SavedRevision first = await pages.Editor.SaveAsync(PageHarness.Key("/page"), "first");
         PageWritesScope scope = Scope(pages);
 
+        await using IPageTransaction transaction = scope.BeginTransaction();
         _ = await scope.MoveAsync("/page", "/moved", first.Revision.Hash);
+        _ = await scope.SaveAsync("/other", "text", null);
+        IReadOnlyList<PageWriteResult> report = await transaction.CommitAsync();
 
-        InvalidOperationException? refused = await Assert.ThrowsAsync<InvalidOperationException>(
-            () => scope.SaveAsync("/other", "text", null));
-
-        Assert.That(refused?.Message, Does.Contain("already edited"));
+        Assert.Multiple(() => {
+            Assert.That(report.Select(row => row.Outcome), Is.EqualTo([PageWriteOutcome.Moved, PageWriteOutcome.Saved]));
+            Assert.That(storage["/page"], Is.Null);
+            Assert.That(storage["/moved"]?.Template, Is.EqualTo("first"));
+            Assert.That(storage["/other"]?.Template, Is.EqualTo("text"));
+        });
     }
 
     [Test]
@@ -833,7 +1092,7 @@ public sealed class PageWritesScopeTests {
         writable,
         new ReservedPaths(ReservedPaths.Default),
         TestOptions.Seeds,
-        new PageWriteAction());
+        new PageTransactionGate());
 
     /// <summary>Reports one diagnostic the way a compile timeout does: with no position at all.</summary>
     private sealed class PositionlessCompiler : IPageCompiler {
