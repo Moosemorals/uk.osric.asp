@@ -7,7 +7,7 @@ SPDX-License-Identifier: MIT
 
 | | |
 | --- | --- |
-| Status | Proposed 2026-11-15 — waits for the owner. Slices 0, 1, 2, 3, 5 and 6 are built and merged; slice 4 is the only capability left unbuilt, and slice 7 is a survey whose two candidates wait on the owner. Nothing below is the IDE |
+| Status | Proposed 2026-11-15 — waits for the owner. Slices 0, 1, 2, 3, 5 and 6 are built and merged; slice 4, the search, is the only capability left unbuilt and has its own plan, [page-search](page-search.md); slice 7 is a survey whose two candidates wait on the owner. Nothing below is the IDE |
 | Size | Large as a programme, small as a step: seven capabilities, each its own job and its own branch, ordered so that each ships on its own and can be backed out on its own, and a closing sweep of the pages that could use what they leave behind |
 | Spike | None. Every claim about what exists was read off `trunk` on 2026-11-15: `IPageCatalog`, the editor's two capabilities (`IPageEditor` and `IPageWriter`, which slice 3 merged into `IPageWrites`), `PageCompiler.MapDiagnostics`, `PageDiagnostics.ToSdk` and `PageJobRunner` |
 | Decisions | Recorded at their merges: `pages-a-diagnostic-names-its-source` (041), `pages-a-listing-resumes-from-a-key` (039), `pages-a-page-names-its-libraries` (040), `pages-any-page-may-write-the-store` (043), `pages-a-key-moves-with-its-history` (042) and `pages-writes-are-transactions` (047). The rest are named at the merge (`product-plan-before-building`); this branch states the names it intends. One entry is retired rather than revised — the one that made the editor's registration the authority — and `pages-a-page-may-save-itself` is revised twice, once by 043 and once by 047 |
@@ -154,7 +154,9 @@ smallest changes come first because they are what every later slice is written a
    page does; two saves answer with their own values; a page writes another key; one render still makes
    one write; the editor's key is deletable and `/admin/seeds` is the way back.
 4. **038 — the search.** Needs 039 for its cursor; it shares nothing with 043, but it is the last thing
-   that reads every source, so it comes after the budget rules are settled.
+   that reads every source, so it comes after the budget rules are settled. *Its own plan is
+   [page-search](page-search.md), written 2026-11-21 from the answers below and waiting for the owner;
+   that plan carries the proofs from here on.*
    Proves: a scan finds a literal in a scope, is bounded, resumes from a cursor and never hands a
    source to the page. *The owner refined the item on 2026-11-20 — a pattern as well as a literal, a
    bound measured in time, and a cursor that a store version invalidates — so the item and its answers

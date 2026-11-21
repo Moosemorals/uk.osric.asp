@@ -11,9 +11,9 @@ SPDX-License-Identifier: MIT
 | Utility | medium |
 | Status | planned |
 | Blocked by | — |
-| Plan | [ide-host](../plans/ide-host.md) |
+| Plan | [page-search](../plans/page-search.md) |
 | Area | Sdk, Core, Web (pages, assistant), docs |
-| Location | `src/uk.osric.asp.Sdk/IPageCatalog.cs`, `src/uk.osric.asp.Web/Pages/PageCatalogScope.cs`, `src/uk.osric.asp.Web/Assistant/PageSourceSearch.cs`, `src/uk.osric.asp.Web/Assistant/PageStoreReader.cs`, `src/uk.osric.asp.Web/Assistant/Tools/PageTools.cs`, `src/uk.osric.asp.Web/Assistant/Shell/Applets/GrepApplet.cs`, `src/uk.osric.asp.Core/Assistant/GrepPattern.cs`, `src/uk.osric.asp.Core/Pages/PageScope.cs`, `src/uk.osric.asp.Web/Pages/Seeds/help`, `src/uk.osric.asp.Web/Assistant/PageAuthorPrompt.cs` |
+| Location | `src/uk.osric.asp.Sdk/IPageCatalog.cs`, `src/uk.osric.asp.Web/Pages/PageCatalogScope.cs`, `src/uk.osric.asp.Web/Pages/PageSourceScan.cs`, `src/uk.osric.asp.Web/Pages/PageSearchOptions.cs`, `src/uk.osric.asp.Web/Pages/IPageReadStore.cs`, `src/uk.osric.asp.Web/Assistant/PageStoreReader.cs`, `src/uk.osric.asp.Web/Assistant/Tools/PageTools.cs`, `src/uk.osric.asp.Web/Assistant/Shell/Applets/GrepApplet.cs`, `src/uk.osric.asp.Core/Pages/GrepPattern.cs`, `src/uk.osric.asp.Core/Compilation/TemplateLines.cs`, `src/uk.osric.asp.Core/Pages/PageScope.cs`, `src/uk.osric.asp.Web/Pages/Seeds/help`, `src/uk.osric.asp.Web/Assistant/PageAuthorPrompt.cs` |
 
 ## Idea
 
@@ -164,7 +164,8 @@ budget, because a worker's `ReadBudget` is built once per job (`PageJobRunner.cs
 request.
 
 The plan that places it is [host support for the IDE](../plans/ide-host.md); this is step 4 there, after the
-cursor it resumes from ([`listing-has-no-cursor`](closed.md)).
+cursor it resumes from ([`listing-has-no-cursor`](closed.md)). Its own plan, written from the owner's answers
+on 2026-11-21, is [page search](../plans/page-search.md).
 
 The owner refined the shape on 2026-11-20, before any plan: a pattern as well as a literal, so the shell's
 language reaches a page; one bound measured in time rather than a count; the line and its position and no
