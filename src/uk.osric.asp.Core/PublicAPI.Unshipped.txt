@@ -70,7 +70,6 @@ override uk.osric.asp.Core.Shell.ShellWord.Equals(object? obj) -> bool
 override uk.osric.asp.Core.Shell.ShellWord.GetHashCode() -> int
 override uk.osric.asp.Core.Shell.ShellWord.ToString() -> string!
 static uk.osric.asp.Core.Assistant.BudgetAmount.Format(double value) -> string!
-static uk.osric.asp.Core.Assistant.GrepPattern.TryCompile(string! query, bool ignoreCase, out uk.osric.asp.Core.Assistant.GrepPattern? pattern, out string? error) -> bool
 static uk.osric.asp.Core.Assistant.MemoryCandidate.operator !=(uk.osric.asp.Core.Assistant.MemoryCandidate? left, uk.osric.asp.Core.Assistant.MemoryCandidate? right) -> bool
 static uk.osric.asp.Core.Assistant.MemoryCandidate.operator ==(uk.osric.asp.Core.Assistant.MemoryCandidate? left, uk.osric.asp.Core.Assistant.MemoryCandidate? right) -> bool
 static uk.osric.asp.Core.Assistant.MemoryContent.Normalise(string? content, int maximumChars) -> uk.osric.asp.Core.Assistant.MemoryContentResult!
@@ -144,8 +143,6 @@ static uk.osric.asp.Core.Shell.ShellValueOption.operator !=(uk.osric.asp.Core.Sh
 static uk.osric.asp.Core.Shell.ShellValueOption.operator ==(uk.osric.asp.Core.Shell.ShellValueOption? left, uk.osric.asp.Core.Shell.ShellValueOption? right) -> bool
 static uk.osric.asp.Core.Shell.ShellWord.operator !=(uk.osric.asp.Core.Shell.ShellWord? left, uk.osric.asp.Core.Shell.ShellWord? right) -> bool
 static uk.osric.asp.Core.Shell.ShellWord.operator ==(uk.osric.asp.Core.Shell.ShellWord? left, uk.osric.asp.Core.Shell.ShellWord? right) -> bool
-uk.osric.asp.Core.Assistant.GrepPattern
-uk.osric.asp.Core.Assistant.GrepPattern.IsMatch(string! line) -> bool
 uk.osric.asp.Core.Assistant.MemoryCandidate
 uk.osric.asp.Core.Assistant.MemoryCandidate.<Clone>$() -> uk.osric.asp.Core.Assistant.MemoryCandidate!
 uk.osric.asp.Core.Assistant.MemoryCandidate.Content.get -> string!
@@ -998,3 +995,26 @@ static uk.osric.asp.Core.Pages.PageFingerprintFact.operator !=(uk.osric.asp.Core
 static uk.osric.asp.Core.Pages.PageFingerprintFact.operator ==(uk.osric.asp.Core.Pages.PageFingerprintFact left, uk.osric.asp.Core.Pages.PageFingerprintFact right) -> bool
 uk.osric.asp.Core.Pages.PageSubtreeFingerprint
 static uk.osric.asp.Core.Pages.PageSubtreeFingerprint.Of(System.Collections.Generic.IEnumerable<uk.osric.asp.Core.Pages.PageFingerprintFact>! facts) -> string!
+uk.osric.asp.Core.Pages.GrepPattern
+uk.osric.asp.Core.Pages.GrepPattern.IsMatch(string! line) -> bool
+uk.osric.asp.Core.Pages.GrepPattern.TryMatch(string! line, out int index, out int length) -> bool
+uk.osric.asp.Core.Pages.LineSnippet
+uk.osric.asp.Core.Pages.LineSnippet.Clipped.get -> bool
+uk.osric.asp.Core.Pages.LineSnippet.Clipped.init -> void
+uk.osric.asp.Core.Pages.LineSnippet.Deconstruct(out string! Text, out int Start, out bool Clipped) -> void
+uk.osric.asp.Core.Pages.LineSnippet.Equals(uk.osric.asp.Core.Pages.LineSnippet other) -> bool
+uk.osric.asp.Core.Pages.LineSnippet.LineSnippet() -> void
+uk.osric.asp.Core.Pages.LineSnippet.LineSnippet(string! Text, int Start, bool Clipped) -> void
+uk.osric.asp.Core.Pages.LineSnippet.Start.get -> int
+uk.osric.asp.Core.Pages.LineSnippet.Start.init -> void
+uk.osric.asp.Core.Pages.LineSnippet.Text.get -> string!
+uk.osric.asp.Core.Pages.LineSnippet.Text.init -> void
+override uk.osric.asp.Core.Pages.LineSnippet.GetHashCode() -> int
+static uk.osric.asp.Core.Compilation.TemplateLines.Split(string! input) -> string![]!
+static uk.osric.asp.Core.Pages.GrepPattern.TryCompile(string! query, bool ignoreCase, out uk.osric.asp.Core.Pages.GrepPattern? pattern, out string? error) -> bool
+static uk.osric.asp.Core.Pages.GrepPattern.TryCompile(string! query, bool literal, bool ignoreCase, out uk.osric.asp.Core.Pages.GrepPattern? pattern, out string? error) -> bool
+static uk.osric.asp.Core.Pages.LineSnippet.Of(string! line, int index, int length, int context) -> uk.osric.asp.Core.Pages.LineSnippet
+static uk.osric.asp.Core.Pages.LineSnippet.operator !=(uk.osric.asp.Core.Pages.LineSnippet left, uk.osric.asp.Core.Pages.LineSnippet right) -> bool
+static uk.osric.asp.Core.Pages.LineSnippet.operator ==(uk.osric.asp.Core.Pages.LineSnippet left, uk.osric.asp.Core.Pages.LineSnippet right) -> bool
+~override uk.osric.asp.Core.Pages.LineSnippet.Equals(object obj) -> bool
+~override uk.osric.asp.Core.Pages.LineSnippet.ToString() -> string

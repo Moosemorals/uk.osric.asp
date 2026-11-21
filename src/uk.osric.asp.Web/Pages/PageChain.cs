@@ -186,6 +186,7 @@ internal sealed class PageChain {
             _shellLinks,
             _environment.ReadStore,
             _environment.Read,
+            _environment.Search,
             _readBudget,
             _environment.Reserved,
             _environment.ContentTypes,

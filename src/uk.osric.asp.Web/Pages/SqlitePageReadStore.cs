@@ -5,6 +5,7 @@ namespace uk.osric.asp.Web.Pages;
 
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
+using System.Runtime.CompilerServices;
 using uk.osric.asp.Core.Pages;
 using uk.osric.asp.Web.Storage;
 
@@ -102,6 +103,42 @@ internal sealed class SqlitePageReadStore(IDbContextFactory<StorageDbContext> co
                     row.TemplateLibraries))],
                 PageSubtreeFingerprint.Of(facts));
         }, cancellationToken);
+    }
+
+    /// <inheritdoc/>
+    public async IAsyncEnumerable<PageReadSource> ScanAsync(
+        string prefix,
+        string? from,
+        bool recursive = true,
+        [EnumeratorCancellation] CancellationToken cancellationToken = default) {
+        ArgumentNullException.ThrowIfNull(prefix);
+
+        await using StorageDbContext database = contexts.CreateDbContext();
+
+        IQueryable<PageHead> heads = HeadsUnder(database, prefix, recursive)
+            .Where(head => !head.IsDeleted);
+
+        if (from is not null) {
+            heads = heads.Where(head => head.Path.CompareTo(from) >= 0);
+        }
+
+        IAsyncEnumerable<PageReadSource> rows = heads
+            .Join(database.Set<PageRevision>().AsNoTracking(),
+                head => new { head.RevisionId, head.Path },
+                revision => new { revision.RevisionId, revision.Path },
+                (head, revision) => new {
+                    revision.Path,
+                    revision.Hash,
+                    revision.SavedAt,
+                    revision.Template,
+                })
+            .OrderBy(row => row.Path)
+            .Select(row => new PageReadSource(row.Path, row.Hash, row.SavedAt, row.Template))
+            .AsAsyncEnumerable();
+
+        await foreach (PageReadSource source in rows.WithCancellation(cancellationToken)) {
+            yield return source;
+        }
     }
 
     /// <inheritdoc/>

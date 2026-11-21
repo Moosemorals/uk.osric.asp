@@ -21,6 +21,7 @@ using uk.osric.asp.Web.Work;
 /// <param name="Seeds">The pack this release ships, so a worker's catalog can describe it.</param>
 /// <param name="ReadStore">Where a worker's catalog reads the page store.</param>
 /// <param name="Read">The caps on that read.</param>
+/// <param name="Search">The allowance, limits and snippet width a worker's search runs with.</param>
 /// <param name="Reserved">The keys the site's own routes answer for.</param>
 /// <param name="ContentTypes">The media type each page key's extension names.</param>
 /// <param name="Images">Builds a worker's image when its library has moved.</param>
@@ -40,6 +41,7 @@ internal sealed record PageJobEnvironment(
     IPageReadStore ReadStore,
     PageSeeds Seeds,
     PageReadOptions Read,
+    PageSourceScan Search,
     ReservedPaths Reserved,
     PageContentTypes ContentTypes,
     PageImageBuilder Images,

@@ -633,6 +633,43 @@ than what each row compiled to — a lazy compile or a deploy can change a row's
 without moving the token. It is a warning, not a refusal: carry on, start again or ignore it, and the
 host does not decide. A folder is derived from the heads under it, so a save below it moves the token
 exactly as a save to a page does.</p>
+<h3 id="search">Searching the store</h3>
+<p><a href="/admin/reference/sdk#m-IPageCatalog.SearchAsync-PageSearchRequest"><code>SearchAsync</code></a>
+searches the live pages and the site's own route records under a prefix and answers the matching lines, not
+the sources. It is the find-in-files of the store, and a search charges nothing to the render's source
+allowance, so it is what a page uses instead of reading sources one at a time:</p>
+<pre class="source" tabindex="0"><code>&lt;% PageSearch found = await catalog.SearchAsync(new PageSearchRequest("TODO", "/blog"));
+   foreach (PageSearchMatch match in found.Matches) { %&gt;
+&lt;li&gt;&lt;%= match.Key %&gt; line &lt;%= match.Line %&gt;, column &lt;%= match.Column %&gt;: &lt;%= match.Text %&gt;&lt;/li&gt;
+&lt;% } %&gt;</code></pre>
+<p>A request defaults to an ignore-case literal search of the whole store, descending, so
+<code>new PageSearchRequest("TODO")</code> is the search box most pages want. <code>Prefix</code> and
+<code>Recursive</code> are the listing's pair: a subtree, and every key under it unless you ask for one
+level. <code>Kind</code> says how the pattern reads:
+<a href="/admin/reference/sdk#t-PageSearchPatternKind"><code>PageSearchPatternKind.Literal</code></a> is
+the text itself — no character is syntax — and
+<code>PageSearchPatternKind.BasicRegularExpression</code> is <code>grep</code>'s language, in which
+<code>^</code>, <code>$</code>, <code>.</code>, <code>*</code> and <code>[abc]</code> are metacharacters,
+<code>\|</code> is either-this-or-that, and every other character — <code>(</code>, <code>)</code>,
+<code>+</code>, <code>?</code>, <code>{</code> included — is the character. The pattern is compiled before
+a source is read, and a construct the host cannot carry is refused then. <code>IgnoreCase</code> is true
+unless you say otherwise.</p>
+<p>A match carries a snippet of its line rather than the whole line. <code>Text</code> is the line cut to <code>Context</code>
+characters — 64 by default — centred on the match and never shorter than the match itself, so a long
+match widens the snippet instead of being cut. <code>TextColumn</code> is the column the snippet starts
+at, <code>Clipped</code> says the line goes on beyond it, and
+<code>Column - TextColumn</code> is where the match sits inside <code>Text</code>. A line with
+several matches is one row, carrying the first match's column and a window around it. A caller that wants
+the whole line reads the page with <code>ReadAsync</code>.</p>
+<p>A search is one slice, and it is bounded twice. <code>Limit</code> is how many matching lines you want,
+or null for the host's default; asking for more than the cap is refused with the setting's name rather
+than trimmed. The host also stops a scan after a short time, because a count bounds the answer while the
+work is done whether anything matches. Either stop sets <code>Truncated</code>, and <code>Cursor</code>
+names the first position the answer did not include: pass it back as <code>After</code> and ask again,
+and a slice that found nothing still moves forward. The answer's <code>Version</code> is the prefix's
+fingerprint; pass it back as <code>Version</code> and <code>Changed</code> says the store moved between
+slices, in which case the host did not trust the cursor and the scan started again. A tombstone is never
+searched, and a key the shell's routes answer is searched as the route's record.</p>
 <p><a href="/admin/reference/sdk#m-IPageCatalog.ShellLinks"><code>ShellLinks()</code></a> is the
 other read: the links the shell knows, both its site menu and its administration menu, as values.
 Each link carries its href, its label, the section it belongs to, who it is for, and how the shell

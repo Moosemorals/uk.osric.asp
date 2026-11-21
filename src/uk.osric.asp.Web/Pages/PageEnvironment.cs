@@ -23,6 +23,7 @@ using uk.osric.asp.Web.Work;
 /// <param name="Storage">The storage caps.</param>
 /// <param name="Fetch">The outbound fetch caps.</param>
 /// <param name="Read">The caps on a page's read of the page store.</param>
+/// <param name="Search">The allowance, limits and snippet width a page's search runs with.</param>
 /// <param name="StateStore">Where a page's state is read and written.</param>
 /// <param name="ReadStore">Where a page's catalog reads the page store.</param>
 /// <param name="Seeds">The pack this release ships, read once.</param>
@@ -58,6 +59,7 @@ internal sealed record PageEnvironment(
     PageStorageOptions Storage,
     PageFetchOptions Fetch,
     PageReadOptions Read,
+    PageSourceScan Search,
     IPageStateStore StateStore,
     IPageReadStore ReadStore,
     PageSeeds Seeds,

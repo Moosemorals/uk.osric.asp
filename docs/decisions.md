@@ -1294,9 +1294,12 @@ above", and `PageScope(Path, IncludeSelf, Recursive)` is the one answer to which
 `ls`, `find`, the shell's expansion, `grep`, `search_pages` and `list_pages` ask it, and
 `PagePathPolicy`'s writable-prefix rule keeps its own name and asks the same scope. A search reads its
 sources from the seam and scans them with one loop: `SourcesAsync` decides which keys are read and in
-what order, and `PageSourceSearch.Find` walks them in key order, splits each with the caller's own line
-rule and keeps the caller's own predicate, stopping one match past the limit so "there are more" is an
-observation. Each front-end keeps its projection and its wording, and a tombstone is never a source.
+what order, and a scan walks them in key order, splits each with the caller's own line rule and keeps
+the caller's own predicate, stopping one match past the limit so "there are more" is an observation.
+`PageSourceScan` is that loop for a page, over a stepped read whose allowance is time rather than a
+count; `PageSourceSearch.Find` is the line-only loop `search_pages` and `grep` keep until the shell's
+rewrite moves them onto it. Each front-end keeps its projection and its wording, and a tombstone is
+never a source.
 A listing answers the tree as well: `PageListingFold` folds the keys a read answered into the keys and
 folders it lists, so `IPageCatalog.ListAsync` is the tree a page draws and a page never folds keys
 itself.
@@ -2648,7 +2651,7 @@ text back as it was written, so the ignored difference is the space and never th
 identical documents write nothing, and the result carries `identical` so an empty answer cannot be
 mistaken for a failure.
 
-*Recorded in [the assistant](assistant.md#ai-page-assistant), [ShellRunner](../src/uk.osric.asp.Web/Assistant/Shell/ShellRunner.cs), [GrepPattern](../src/uk.osric.asp.Core/Assistant/GrepPattern.cs).*
+*Recorded in [the assistant](assistant.md#ai-page-assistant), [ShellRunner](../src/uk.osric.asp.Web/Assistant/Shell/ShellRunner.cs), [GrepPattern](../src/uk.osric.asp.Core/Pages/GrepPattern.cs).*
 
 ### assistant-the-shell-is-applets
 

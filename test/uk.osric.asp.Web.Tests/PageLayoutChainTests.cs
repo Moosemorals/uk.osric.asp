@@ -800,6 +800,7 @@ public sealed class PageLayoutChainTests {
             TestOptions.Storage,
             TestOptions.Fetch,
             read ?? TestOptions.Read,
+            TestOptions.Scan(),
             _state,
             _readStore,
             TestOptions.Seeds,

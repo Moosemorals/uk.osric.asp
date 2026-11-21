@@ -85,6 +85,136 @@ public sealed class PageCatalogTests : IntegrationTest {
 </ul>
 """;
 
+    // The public search. It is the whole of `SearchAsync`: matching lines as snippets, with the
+    // position to resume at and the fingerprint to compare, and no source or hash in the answer.
+    private const string Search = """
+<% ctx.Capabilities.GetRequired<IPageLayout>().Title = "Search";
+   ctx.Capabilities.GetRequired<IPageComposition>().Wrap();
+   string query = ctx.Request.Query.TryGetValue("q", out string? asked) && asked is not null ? asked : "";
+   string prefix = ctx.Request.Query.TryGetValue("prefix", out string? askedPrefix) && askedPrefix is not null ? askedPrefix : "/catalog-target";
+   bool pattern = ctx.Request.Query.TryGetValue("pattern", out string? askedKind) && askedKind == "1";
+   string? after = ctx.Request.Query.TryGetValue("after", out string? askedAfter) ? askedAfter : null;
+   int line = ctx.Request.Query.TryGetValue("line", out string? askedLine) && int.TryParse(askedLine, out int parsedLine) ? parsedLine : 1;
+   int limit = ctx.Request.Query.TryGetValue("limit", out string? askedLimit) && int.TryParse(askedLimit, out int parsedLimit) ? parsedLimit : 2;
+   string? version = ctx.Request.Query.TryGetValue("version", out string? askedVersion) ? askedVersion : null;
+   PageSearch found = await ctx.Capabilities.GetRequired<IPageCatalog>().SearchAsync(new PageSearchRequest(
+       query,
+       Prefix: prefix,
+       Kind: pattern ? PageSearchPatternKind.BasicRegularExpression : PageSearchPatternKind.Literal,
+       After: after is null ? null : new PageSearchCursor(after, line),
+       Limit: limit,
+       Context: 16,
+       Version: version)); %>
+<h1>Search</h1>
+<p id="more"><%= found.Truncated ? "more" : "end" %></p>
+<p id="cursor"><%= found.Cursor is { } next ? next.Key + "|" + next.Line.ToString(System.Globalization.CultureInfo.InvariantCulture) : "" %></p>
+<p id="version"><%= found.Version %></p>
+<p id="changed"><%= found.Changed ? "changed" : "unchanged" %></p>
+<ul>
+<% foreach (PageSearchMatch match in found.Matches) { %>
+    <li><%= match.Key %>|<%= match.Line.ToString() %>|<%= match.Column.ToString() %>|<%= match.TextColumn.ToString() %>|<%= match.Clipped ? "clipped" : "whole" %></li>
+<% } %>
+</ul>
+""";
+
+    [Test]
+    public async Task ASearchFindsASeededPhraseOnItsLineAsync() {
+        await SavePageAsync("/catalog-search", Search);
+        await SavePageAsync("/catalog-target", "one\nthe needle line\nneedle again");
+        using HttpClient client = CreateClient();
+
+        string body = await client.GetStringAsync("/catalog-search?q=needle&limit=5");
+
+        Assert.Multiple(() => {
+            Assert.That(MatchesOf(body).Select(match => (match.Key, match.Line)), Is.EqualTo([
+                ("/catalog-target", 2),
+                ("/catalog-target", 3),
+            ]));
+            Assert.That(TextOf(body, "more"), Is.EqualTo("end"));
+        });
+    }
+
+    [Test]
+    public async Task ASearchReadsAPatternWhenItIsAskedToAsync() {
+        await SavePageAsync("/catalog-search", Search);
+        await SavePageAsync("/catalog-target", "needle\nnexxle\nother");
+        using HttpClient client = CreateClient();
+
+        string literal = await client.GetStringAsync("/catalog-search?q=ne..le&limit=5");
+        string pattern = await client.GetStringAsync("/catalog-search?q=ne..le&pattern=1&limit=5");
+
+        Assert.Multiple(() => {
+            Assert.That(MatchesOf(literal), Is.Empty, "a literal is the characters themselves");
+            Assert.That(MatchesOf(pattern).Select(match => match.Line), Is.EqualTo([1, 2]), "the dot is syntax in a basic expression");
+        });
+    }
+
+    [Test]
+    public async Task ASearchWalksWithItsCursorAsync() {
+        await SavePageAsync("/catalog-search", Search);
+        await SavePageAsync("/catalog-target", "needle one\nneedle two\nneedle three");
+        using HttpClient client = CreateClient();
+
+        string first = await client.GetStringAsync("/catalog-search?q=needle&limit=1");
+        (string key, int line) = CursorOf(first);
+        string version = TextOf(first, "version");
+        string second = await client.GetStringAsync(
+            $"/catalog-search?q=needle&limit=1&after={Uri.EscapeDataString(key)}&line={line}&version={Uri.EscapeDataString(version)}");
+
+        Assert.Multiple(() => {
+            Assert.That(MatchesOf(first).Select(match => match.Line), Is.EqualTo([1]));
+            Assert.That(TextOf(first, "more"), Is.EqualTo("more"));
+            Assert.That(MatchesOf(second).Select(match => match.Line), Is.EqualTo([2]), "the walk resumed where it stopped");
+            Assert.That(TextOf(second, "changed"), Is.EqualTo("unchanged"));
+        });
+    }
+
+    [Test]
+    public async Task AStoreThatMovesBetweenSearchesRestartsTheWalkAsync() {
+        await SavePageAsync("/catalog-search", Search);
+        await SavePageAsync("/catalog-target", "needle one\nneedle two");
+        using HttpClient client = CreateClient();
+
+        string first = await client.GetStringAsync("/catalog-search?q=needle&limit=1");
+        (string key, int line) = CursorOf(first);
+        string version = TextOf(first, "version");
+        await SavePageAsync("/catalog-target", "needle one\nneedle two\nneedle three");
+
+        string second = await client.GetStringAsync(
+            $"/catalog-search?q=needle&limit=2&after={Uri.EscapeDataString(key)}&line={line}&version={Uri.EscapeDataString(version)}");
+
+        Assert.Multiple(() => {
+            Assert.That(TextOf(second, "changed"), Is.EqualTo("changed"));
+            Assert.That(MatchesOf(second).Select(match => match.Line), Is.EqualTo([1, 2]), "the cursor was not trusted");
+        });
+    }
+
+    [Test]
+    public async Task ASearchFindsTheSitesOwnRouteRecordsAsync() {
+        await SavePageAsync("/catalog-search", Search);
+        using HttpClient client = CreateClient();
+
+        string body = await client.GetStringAsync("/catalog-search?q=verifies+a+password&prefix=&limit=5");
+
+        Assert.That(MatchesOf(body).Select(match => match.Key), Does.Contain("/login"));
+    }
+
+    [Test]
+    public async Task ASearchSaysWhereTheMatchSitsInItsSnippetAsync() {
+        await SavePageAsync("/catalog-search", Search);
+        await SavePageAsync("/catalog-target", new string('x', 40) + "needle" + new string('y', 40));
+        using HttpClient client = CreateClient();
+
+        string body = await client.GetStringAsync("/catalog-search?q=needle&limit=5");
+
+        SearchRow match = MatchesOf(body).Single();
+        Assert.Multiple(() => {
+            Assert.That(match.Column - match.TextColumn, Is.LessThan(16), "the match is inside the snippet");
+            Assert.That(match.Column - match.TextColumn, Is.GreaterThanOrEqualTo(0));
+            Assert.That(match.Clipped, Is.True);
+        });
+    }
+
     [Test]
     public async Task ASliceIsAsLongAsItWasAskedForAndSaysThereIsMoreAsync() {
         await SavePageAsync("/catalog-paged", PagedListing);
@@ -297,6 +427,27 @@ public sealed class PageCatalogTests : IntegrationTest {
         using HttpClient owner = await CreateSignedInClientAsync();
         using HttpResponseMessage pages = await owner.GetAsync("/pages?page=/help");
         AssertTableDocument(await pages.Content.ReadAsStringAsync(), withSource: true);
+    }
+
+    private sealed record SearchRow(string Key, int Line, int Column, int TextColumn, bool Clipped);
+
+    private static IReadOnlyList<SearchRow> MatchesOf(string body) => [
+        .. MarkupReader.Parse(body).Root.Descendants()
+            .Where(element => element.Name == "li")
+            .Select(element => element.Text.Split('|'))
+            .Where(parts => parts.Length == 5)
+            .Select(parts => new SearchRow(
+                parts[0],
+                int.Parse(parts[1], System.Globalization.CultureInfo.InvariantCulture),
+                int.Parse(parts[2], System.Globalization.CultureInfo.InvariantCulture),
+                int.Parse(parts[3], System.Globalization.CultureInfo.InvariantCulture),
+                parts[4] == "clipped")),
+    ];
+
+    private static (string Key, int Line) CursorOf(string body) {
+        string[] parts = TextOf(body, "cursor").Split('|');
+
+        return (parts[0], int.Parse(parts[1], System.Globalization.CultureInfo.InvariantCulture));
     }
 
     private static string PagedUrl(string prefix, string after, string version) =>

@@ -7,7 +7,7 @@ SPDX-License-Identifier: MIT
 
 | | |
 | --- | --- |
-| Status | Proposed 2026-11-21 — the owner answered the five questions on 2026-11-21, this revision is those answers, and it waits for a yes. Nothing below is built |
+| Status | Agreed 2026-11-21 — the owner answered the five questions and said yes, and the four commits are on `idea/cannot-search-the-store` with the gate green. The merge waits for the owner |
 | Size | One capability, one branch: the value, the stepped read, the scan, both assistant front-ends, the manual and the measurements. A half of it has no caller, so it is not sliced |
 | Spike | None. Every claim about what exists was read off `trunk` on 2026-11-21 (`c10e1d5`): `IPageCatalog`, `PageCatalogScope`, `PageStoreReader`, `PageSourceSearch`, `GrepPattern`, `PageScope`/`PageTree`, `Pages:Read`, `AssistantOptions`, `PageMetrics`, `StatusCatalogue` |
 | Decisions | None recorded yet. This plan states the name it intends: **pages-a-search-returns-matches**. It also edits two entries (a moved file and a stale sentence), below |
@@ -452,6 +452,15 @@ stand, which is the proof that no tool and no applet moved; the rewrite that rep
   setting that will bound it is already here, and the rewrite is the next step.
 - **The prompt version is contended.** [assistant-shell-tool](assistant-shell-tool.md) also intends v57; the merge order settles it, and
   the number is moved in one place and asserted in three.
+- **The shipped thirty milliseconds is tight under load.** Built as written, but the integration suite runs
+  eight fixtures at once and the allowance expired between two lines of a store of a few pages, so the
+  fixture now sets `Pages:Search:MaxDurationMs` to the maximum the range accepts, for the reason it already
+  widens the render and compile deadlines: a fixture is not about a deadline it did not ask for. The
+  shipped value keeps its own tests, and `page.search.requests{outcome="cut-off"}` is how the owner decides
+  whether it should move.
+- **The status page's markup budget moved.** The two panels took the synthetic thirty-day page from under
+  4.0 MB to about 4.11 MB, so `StatusPageSizeTests`'s ceiling was raised deliberately to 4.15 MB, still
+  under the 4 MiB body cap the render refuses past.
 
 ## What the owner answered
 

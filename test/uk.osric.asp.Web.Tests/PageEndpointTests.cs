@@ -51,6 +51,7 @@ public sealed class PageEndpointTests {
             StorageOptions,
             FetchOptions,
             TestOptions.Read,
+            TestOptions.Scan(),
             new FakePageStateStore(),
             new FakePageReadStore(),
             TestOptions.Seeds,

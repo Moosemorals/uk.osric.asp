@@ -28,7 +28,7 @@ internal static class StatusCatalogue {
 
     /// <summary>Every panel, in the order the page draws them.</summary>
     public static IReadOnlyList<Panel> Panels { get; } = [
-        // Pages: ten histograms, five counters, three gauges, and one panel that composes instruments.
+        // Pages: eleven histograms, seven counters, three gauges, and one panel that composes instruments.
         Heatmap(Page("page.render.duration"), "Render duration",
             "How long a render takes from request to response, split into duration buckets so slow renders stand out.",
             "seconds", "renders/s"),
@@ -57,6 +57,9 @@ internal static class StatusCatalogue {
         Heatmap(Page("page.import.duration"), "Import duration",
             "How long compiling and committing one imported archive takes.",
             "seconds", "imports/s"),
+        Heatmap(Page("page.search.duration"), "Search duration",
+            "How long one search takes, from the prefix's fingerprint to the last line tested; a scan cut off at the allowance lands in the cell for that boundary.",
+            "seconds", "searches/s"),
         Heatmap(Page("page.image.size"), "Assembly size",
             "The size of each emitted page assembly, split into byte buckets so an oversized image stands out.",
             "bytes", "compiles/s"),
@@ -72,6 +75,9 @@ internal static class StatusCatalogue {
         Stacked(Page("page.asset.requests"), "Asset requests",
             "Requests for an asset per second, split by whether it was served, revalidated, unknown or not an asset.",
             "requests/s", split: "outcome"),
+        Stacked(Page("page.search.requests"), "Searches",
+            "Searches per second, split by whether the scan finished or the time allowance stopped it.",
+            "searches/s", split: "outcome"),
         Line(Page("page.layout.fallback"), "Layout fallbacks",
             "Pages served without the default layout because it could not be served, per second, by page.",
             "fallbacks/s", topk: "page_path"),

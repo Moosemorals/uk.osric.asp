@@ -713,20 +713,9 @@ internal static class PageToolData {
         return head + "\n\u2026[source omitted; request a line range]\u2026\n" + tail;
     }
 
-    // These are physical lines of the stored template as the editor shows them, so a trailing break
-    // still ends a line. ShellText.Split answers the POSIX count instead and must not be unified.
-    public static string[] TemplateSourceLines(string content) {
-        List<string> lines = [];
-        using StringReader reader = new(content);
-        string? line;
-        while ((line = reader.ReadLine()) is not null) {
-            lines.Add(line);
-        }
-        if (content.Length == 0 || content.EndsWith('\n') || content.EndsWith('\r')) {
-            lines.Add("");
-        }
-        return [.. lines];
-    }
+    // The physical lines of the stored template as the editor shows them. ShellText.Split answers the
+    // POSIX count instead and must not be unified with this.
+    public static string[] TemplateSourceLines(string content) => TemplateLines.Split(content);
 
     private static string? DiagnosticCode(PageDiagnostic diagnostic) {
         int separator = diagnostic.Message.IndexOf(':');

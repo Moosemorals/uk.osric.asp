@@ -7,6 +7,7 @@ using Microsoft.Extensions.Configuration;
 using System.Diagnostics.Metrics;
 using uk.osric.asp.Core.Compilation;
 using uk.osric.asp.Core.Pages;
+using uk.osric.asp.Sdk;
 using uk.osric.asp.Web.Metrics;
 using uk.osric.asp.Web.Pages;
 
@@ -36,6 +37,54 @@ public sealed class PageMetricsTests {
         Assert.That(renders, Has.Count.EqualTo(2));
         Assert.That(renders, Has.All.Matches<MetricCapture.Measurement>(
             measurement => measurement is not null && measurement.HasTag("cache", "hit") && measurement.HasTag("outcome", "ok")));
+    }
+
+    [Test]
+    public async Task ASearchIsMeasuredAndCompletesInsideTheAllowanceAsync() {
+        using MetricCapture capture = MetricCapture.Start();
+        FakePageReadStore store = new();
+        store.Save("/blog", "needle in a line");
+        using PageHarness pages = new(new FakePageStore(), readStore: store);
+        SimpleContext context = pages.CreateContext(Key("/blog"));
+
+        _ = await context.Capabilities.GetRequired<IPageCatalog>().SearchAsync(
+            new PageSearchRequest("needle", Prefix: "/blog"));
+
+        Assert.Multiple(() => {
+            Assert.That(capture.Count("page.search.duration", "caller", "page"), Is.EqualTo(1));
+            Assert.That(capture.Count("page.search.requests", "outcome", "completed"), Is.EqualTo(1));
+            Assert.That(capture.Count("page.search.requests", "outcome", "cut-off"), Is.Zero);
+        });
+    }
+
+    [Test]
+    public async Task ASearchStoppedByTheAllowanceIsMeasuredAsCutOffAsync() {
+        using MetricCapture capture = MetricCapture.Start();
+        TestClock clock = new();
+        PageSourceScan scan = new(TestOptions.Search with { MaxDurationMs = 1 }, clock, metrics: new PageMetrics());
+        Assert.That(
+            GrepPattern.TryCompile("needle", literal: true, ignoreCase: false, out GrepPattern? compiled, out string? error),
+            Is.True, error);
+
+        _ = await scan.RunAsync(
+            new PageScanQuery(compiled!, 10, null, null, TemplateLines.Split, PageSearchCaller.Page),
+            readVersion: null,
+            (_, token) => TooSlowAsync(clock, token),
+            CancellationToken.None);
+
+        Assert.Multiple(() => {
+            Assert.That(capture.Count("page.search.duration", "caller", "page"), Is.EqualTo(1));
+            Assert.That(capture.Count("page.search.requests", "outcome", "cut-off"), Is.EqualTo(1));
+            Assert.That(capture.Count("page.search.requests", "outcome", "completed"), Is.Zero);
+        });
+
+        static async System.Collections.Generic.IAsyncEnumerable<PageSourceText> TooSlowAsync(
+            TestClock clock, [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken = default) {
+            cancellationToken.ThrowIfCancellationRequested();
+            clock.Advance(TimeSpan.FromMilliseconds(10));
+            await Task.Yield();
+            yield return new PageSourceText("/blog", "needle");
+        }
     }
 
     [Test]

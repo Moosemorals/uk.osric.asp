@@ -1,13 +1,13 @@
 // SPDX-FileCopyrightText: Copyright 2026 Osric Wilkinson <osric@fluffypeople.com>
 // SPDX-License-Identifier: MIT
 
-namespace uk.osric.asp.Core.Assistant;
+namespace uk.osric.asp.Core.Pages;
 
 using System.Buffers;
 using System.Text;
 using System.Text.RegularExpressions;
 
-/// <summary>A grep query, as the matcher that runs it.</summary>
+/// <summary>One pattern language, as the matcher that runs it for a page, a tool and the shell.</summary>
 /// <remarks>
 /// <para>
 /// The language is the basic regular expression <c>grep</c> has always had, because that is what a
@@ -26,6 +26,11 @@ using System.Text.RegularExpressions;
 /// A construct that engine does not carry — a backreference, a lookaround — is refused rather than
 /// quietly matched as something else.
 /// </para>
+/// <para>
+/// A caller that names the kind gets that kind: a literal query is the characters themselves even
+/// when it is full of punctuation, and a basic expression is a pattern even when it holds none. The
+/// refusal is the reason alone; each caller adds the sentence that says where its syntax is taught.
+/// </para>
 /// </remarks>
 public sealed class GrepPattern {
 
@@ -43,19 +48,47 @@ public sealed class GrepPattern {
         _expression = expression;
     }
 
-    /// <summary>Compiles a query, or explains why it cannot be one.</summary>
+    /// <summary>Compiles a query, reading it as the language reads it.</summary>
     /// <param name="query">The query as the caller wrote it.</param>
     /// <param name="ignoreCase">Whether matching ignores case.</param>
     /// <param name="pattern">The matcher, or null when the query was refused.</param>
     /// <param name="error">Why the query was refused, or null when it compiled.</param>
+    /// <remarks>
+    /// A query with no metacharacter is a literal substring; anything else is a basic expression. This
+    /// is the form <c>grep</c> keeps while the shell is rewritten; a caller that knows which it means
+    /// names the kind instead.
+    /// </remarks>
     public static bool TryCompile(string query, bool ignoreCase, out GrepPattern? pattern, out string? error) {
+        ArgumentNullException.ThrowIfNull(query);
+
+        return TryCompile(
+            query,
+            literal: query.AsSpan().IndexOfAny(s_metacharacters) < 0,
+            ignoreCase,
+            out pattern,
+            out error);
+    }
+
+    /// <summary>Compiles a query as the kind the caller named, or explains why it cannot be one.</summary>
+    /// <param name="query">The query as the caller wrote it.</param>
+    /// <param name="literal">
+    /// Whether the query is the characters themselves. A literal query is never a pattern, however
+    /// much punctuation it holds; a basic expression is a pattern even when it holds none.
+    /// </param>
+    /// <param name="ignoreCase">Whether matching ignores case.</param>
+    /// <param name="pattern">The matcher, or null when the query was refused.</param>
+    /// <param name="error">Why the query was refused, or null when it compiled.</param>
+    public static bool TryCompile(
+        string query, bool literal, bool ignoreCase, out GrepPattern? pattern, out string? error) {
         ArgumentNullException.ThrowIfNull(query);
 
         pattern = null;
         error = null;
         StringComparison comparison = ignoreCase ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal;
 
-        if (query.AsSpan().IndexOfAny(s_metacharacters) < 0) {
+        // A basic expression with no metacharacter means the same as the text it spells, so the cheap
+        // path is the same answer rather than a second language.
+        if (literal || query.AsSpan().IndexOfAny(s_metacharacters) < 0) {
             pattern = new GrepPattern(query, comparison, null);
             return true;
         }
@@ -73,10 +106,10 @@ public sealed class GrepPattern {
             pattern = new GrepPattern(null, comparison, new Regex(translated, options));
             return true;
         } catch (ArgumentException) {
-            error = "The query is not a pattern this shell can read. Run help grep for the syntax it takes.";
+            error = "The query is not a pattern this language can read.";
             return false;
         } catch (NotSupportedException) {
-            error = "The query uses a regular expression feature this shell does not support yet. Run help grep for the syntax it takes.";
+            error = "The query uses a regular expression feature this language does not support yet.";
             return false;
         }
     }
@@ -84,12 +117,32 @@ public sealed class GrepPattern {
     /// <summary>Whether a line of page source matches.</summary>
     /// <param name="line">One line, without its line break.</param>
     /// <exception cref="ArgumentNullException"><paramref name="line"/> is <see langword="null"/>.</exception>
-    public bool IsMatch(string line) {
+    public bool IsMatch(string line) => TryMatch(line, out _, out _);
+
+    /// <summary>Where a line of page source first matches.</summary>
+    /// <param name="line">One line, without its line break.</param>
+    /// <param name="index">The 0-based offset of the match's first character, or zero when none.</param>
+    /// <param name="length">The match's length, or zero when none.</param>
+    /// <returns>Whether the line matches.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="line"/> is <see langword="null"/>.</exception>
+    /// <remarks>
+    /// A pattern that can match nothing — <c>a*</c> — answers a zero-length match at the first place it
+    /// fits, which is what POSIX matching does.
+    /// </remarks>
+    public bool TryMatch(string line, out int index, out int length) {
         ArgumentNullException.ThrowIfNull(line);
 
-        return _literal is not null
-            ? line.Contains(_literal, _comparison)
-            : _expression!.IsMatch(line);
+        if (_literal is not null) {
+            int at = line.IndexOf(_literal, _comparison);
+            index = at < 0 ? 0 : at;
+            length = at < 0 ? 0 : _literal.Length;
+            return at >= 0;
+        }
+
+        Match match = _expression!.Match(line);
+        index = match.Success ? match.Index : 0;
+        length = match.Success ? match.Length : 0;
+        return match.Success;
     }
 
     /// <summary>Rewrites a basic regular expression into the form <see cref="Regex"/> reads.</summary>
@@ -112,7 +165,7 @@ public sealed class GrepPattern {
             switch (character) {
                 case '\\':
                     if (index == query.Length) {
-                        error = "The query ends with a backslash, which escapes nothing. Run help grep for the syntax it takes.";
+                        error = "The query ends with a backslash, which escapes nothing.";
                         return false;
                     }
                     char escaped = query[index++];
@@ -131,7 +184,7 @@ public sealed class GrepPattern {
 
                 case '[':
                     if (!CopyClass(query, ref index, text)) {
-                        error = "The query has a character class that is not closed. Run help grep for the syntax it takes.";
+                        error = "The query has a character class that is not closed.";
                         return false;
                     }
                     break;

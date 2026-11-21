@@ -111,6 +111,7 @@ internal class Program {
         PageFetchOptions fetch = PageFetchOptions.FromConfiguration(settings.At("Pages:Fetch"));
         PageLayoutOptions layout = PageLayoutOptions.FromConfiguration(settings.At("Pages:Layout"));
         PageReadOptions read = PageReadOptions.FromConfiguration(settings.At("Pages:Read"));
+        PageSearchOptions search = PageSearchOptions.FromConfiguration(settings.At("Pages:Search"));
         PageJobOptions jobOptions = PageJobOptions.FromConfiguration(settings.At("Pages:Jobs"));
         PageSessionOptions session = PageSessionOptions.FromConfiguration(settings.At("Pages:Session"));
         PageStorageOptions storage = PageStorageOptions.FromConfiguration(settings.At("Pages:Storage"));
@@ -212,6 +213,7 @@ internal class Program {
         builder.Services.AddSingleton(layout);
         builder.Services.AddSingleton(metrics);
         builder.Services.AddSingleton(read);
+        builder.Services.AddSingleton(search);
         builder.Services.AddSingleton(render);
         builder.Services.AddSingleton(reserved);
         builder.Services.AddSingleton(session);
@@ -232,6 +234,7 @@ internal class Program {
               services.GetRequiredService<PageStorageOptions>(),
               services.GetRequiredService<PageFetchOptions>(),
               services.GetRequiredService<PageReadOptions>(),
+              services.GetRequiredService<PageSourceScan>(),
               services.GetRequiredService<IPageStateStore>(),
               services.GetRequiredService<IPageReadStore>(),
               services.GetRequiredService<PageSeeds>(),
@@ -288,6 +291,7 @@ internal class Program {
             services.GetRequiredService<IPageReadStore>(),
             services.GetRequiredService<PageSeeds>(),
             services.GetRequiredService<PageReadOptions>(),
+            services.GetRequiredService<PageSourceScan>(),
             services.GetRequiredService<ReservedPaths>(),
             services.GetRequiredService<PageContentTypes>(),
             services.GetRequiredService<PageImageBuilder>(),
@@ -298,6 +302,7 @@ internal class Program {
         builder.Services.AddSingleton<PageLibraries>();
         builder.Services.AddSingleton<PageMetrics>();
         builder.Services.AddSingleton<PagePathPolicy>();
+        builder.Services.AddSingleton<PageSourceScan>();
         builder.Services.AddSingleton(new PageSeeds(Path.Combine(AppContext.BaseDirectory, "Pages", "Seeds")));
         builder.Services.AddSingleton<PageSaver>();
         builder.Services.AddSingleton<PageChecks>();
@@ -368,6 +373,7 @@ internal class Program {
             .AddView("page.load.duration", new ExplicitBucketHistogramConfiguration { Boundaries = PageMetrics.SecondsBuckets })
             .AddView("page.render.duration", new ExplicitBucketHistogramConfiguration { Boundaries = PageMetrics.SecondsBuckets })
             .AddView("page.render.wait", new ExplicitBucketHistogramConfiguration { Boundaries = PageMetrics.SecondsBuckets })
+            .AddView("page.search.duration", new ExplicitBucketHistogramConfiguration { Boundaries = PageMetrics.SearchBuckets })
             .AddView("page.save.duration", new ExplicitBucketHistogramConfiguration { Boundaries = PageMetrics.SecondsBuckets })
             .AddView("page.stream.duration", new ExplicitBucketHistogramConfiguration { Boundaries = PageMetrics.StreamBuckets })
             .AddPrometheusExporter());

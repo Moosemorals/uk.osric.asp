@@ -3,7 +3,7 @@
 
 namespace uk.osric.asp.Core.Tests;
 
-using uk.osric.asp.Core.Assistant;
+using uk.osric.asp.Core.Pages;
 
 [TestFixture]
 public sealed class GrepPatternTests {
@@ -66,15 +66,70 @@ public sealed class GrepPatternTests {
     public void RefusesAPatternItCannotRead() {
         Assert.Multiple(() => {
             Assert.That(TryCompile("a[bc", out string? error), Is.False, "a class that is not closed");
-            Assert.That(error, Does.Contain("help grep"));
+            Assert.That(error, Is.Not.Empty, "the compiler gives its reason");
+            Assert.That(error, Does.Not.Contain("help grep"), "and leaves the advice to whoever teaches the syntax");
             Assert.That(TryCompile("trailing\\", out _), Is.False, "a backslash that escapes nothing");
             Assert.That(TryCompile("*x", out _), Is.False, "a quantifier with nothing to repeat");
             Assert.That(TryCompile("(a)\\1", out _), Is.False, "a backreference, which the linear matcher does not carry");
         });
     }
 
+    [Test]
+    public void ALiteralIsTheCharactersEvenWhenTheyLookLikeSyntax() {
+        GrepPattern literal = CompileAs("foo.", literal: true);
+        GrepPattern expression = CompileAs("foo.", literal: false);
+
+        Assert.Multiple(() => {
+            Assert.That(literal.IsMatch("a foo. b"), Is.True, "the dot is a dot");
+            Assert.That(literal.IsMatch("a fooX b"), Is.False);
+            Assert.That(expression.IsMatch("a fooX b"), Is.True, "the basic expression reads the dot as syntax");
+        });
+    }
+
+    [Test]
+    public void ABasicExpressionWithNoMetacharacterIsStillATheText() {
+        GrepPattern expression = CompileAs("(x)", literal: false);
+
+        Assert.Multiple(() => {
+            Assert.That(expression.IsMatch("(x)"), Is.True, "a bracket is a literal character in this language");
+            Assert.That(expression.IsMatch("x"), Is.False);
+        });
+    }
+
+    [Test]
+    public void TryMatchReportsWhereTheMatchStartsAndHowLongItIs() {
+        GrepPattern literal = Compile("needle", ignoreCase: false);
+        GrepPattern expression = Compile("n..dle", ignoreCase: false);
+
+        Assert.Multiple(() => {
+            Assert.That(literal.TryMatch("a needle here", out int literalIndex, out int literalLength), Is.True);
+            Assert.That((literalIndex, literalLength), Is.EqualTo((2, 6)));
+            Assert.That(expression.TryMatch("a needle here", out int expressionIndex, out int expressionLength), Is.True);
+            Assert.That((expressionIndex, expressionLength), Is.EqualTo((2, 6)));
+            Assert.That(literal.TryMatch("nothing", out int missingIndex, out int missingLength), Is.False);
+            Assert.That((missingIndex, missingLength), Is.EqualTo((0, 0)));
+        });
+    }
+
+    [Test]
+    public void APatternThatCanMatchNothingAnswersAZeroLengthPosition() {
+        GrepPattern expression = Compile("a*", ignoreCase: false);
+
+        Assert.Multiple(() => {
+            Assert.That(expression.TryMatch("bbb", out int index, out int length), Is.True);
+            Assert.That((index, length), Is.EqualTo((0, 0)));
+        });
+    }
+
     private static GrepPattern Compile(string query, bool ignoreCase) {
         Assert.That(GrepPattern.TryCompile(query, ignoreCase, out GrepPattern? pattern, out string? error), Is.True, error);
+        return pattern!;
+    }
+
+    private static GrepPattern CompileAs(string query, bool literal) {
+        Assert.That(
+            GrepPattern.TryCompile(query, literal, ignoreCase: false, out GrepPattern? pattern, out string? error),
+            Is.True, error);
         return pattern!;
     }
 

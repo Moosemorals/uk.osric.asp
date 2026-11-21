@@ -60,11 +60,13 @@ internal sealed class PageHarness : IDisposable {
         StorageOptions = storageOptions ?? TestOptions.Storage;
         FetchOptions = fetchOptions ?? TestOptions.Fetch;
         ReadOptions = TestOptions.Read;
+        SearchOptions = TestOptions.Search;
         Options = options ?? TestOptions.FixtureRender;
         Budget = budget ?? new PageBudget(Options, TestOptions.FixtureCompile, TestOptions.Stream);
         Health = health ?? new PageHealth(Options.AbandonedLimit);
         Compiler = new RecordingCompiler(compiler ?? TestCompiler.Real);
         Metrics = new PageMetrics();
+        Scan = new PageSourceScan(SearchOptions, clock ?? TimeProvider.System, Metrics);
         Seeds = seeds ?? TestOptions.Seeds;
 
         Storage = storage;
@@ -112,7 +114,7 @@ internal sealed class PageHarness : IDisposable {
             Jobs,
             new PageJobEnvironment(
                 JobOptions, WorkerStore, State, StorageOptions, Fetch, FetchOptions, ReadStore, Seeds, ReadOptions,
-                Reserved, ContentTypes, Images, Libraries, Compiler, Metrics,
+                Scan, Reserved, ContentTypes, Images, Libraries, Compiler, Metrics,
                 _authorities.GetRequiredService<IServiceScopeFactory>()),
             NullLoggerFactory.Instance,
             NullLogger<PageJobRunner>.Instance);
@@ -146,6 +148,12 @@ internal sealed class PageHarness : IDisposable {
 
     /// <summary>The caps every catalog read in this harness uses.</summary>
     public PageReadOptions ReadOptions { get; }
+
+    /// <summary>The search values the site ships with.</summary>
+    public PageSearchOptions SearchOptions { get; }
+
+    /// <summary>The scan every catalog in this harness is handed.</summary>
+    public PageSourceScan Scan { get; }
 
     /// <summary>The content-type map every context in this harness renders against.</summary>
     public PageContentTypes ContentTypes { get; }
@@ -349,6 +357,7 @@ internal sealed class PageHarness : IDisposable {
                 ShellCatalogue.Links(path.Key, string.Empty, TestOptions.Editor.Key),
                 ReadStore,
                 ReadOptions,
+                Scan,
                 readBudget ?? new ReadBudget(ReadOptions.MaxSourceCharsPerRender),
                 new ReservedPaths(ReservedPaths.Default),
                 ContentTypes,
@@ -394,6 +403,7 @@ internal sealed class PageHarness : IDisposable {
             StorageOptions,
             FetchOptions,
             ReadOptions,
+            Scan,
             State,
             ReadStore,
             Seeds,

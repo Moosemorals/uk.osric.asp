@@ -4,7 +4,6 @@
 namespace uk.osric.asp.Web.Assistant.Shell.Applets;
 
 using System.Globalization;
-using uk.osric.asp.Core.Assistant;
 using uk.osric.asp.Core.Pages;
 using uk.osric.asp.Core.Shell;
 using uk.osric.asp.Core.Text;
@@ -35,7 +34,9 @@ internal sealed class GrepApplet : ShellApplet {
         CancellationToken cancellationToken) {
         string query = line.Words(ShellOperandKind.Text)[0].Text;
         if (!GrepPattern.TryCompile(query, line.Has('i'), out GrepPattern? compiled, out string? error)) {
-            return ShellResult.Refused(error!, $"grep {MessageText.Sanitize(query)}: refused");
+            // The compiler gives the reason; the shell is where the syntax it refused is taught.
+            return ShellResult.Refused(
+                $"{error} Run help grep for the syntax it takes.", $"grep {MessageText.Sanitize(query)}: refused");
         }
 
         GrepPattern pattern = compiled!;

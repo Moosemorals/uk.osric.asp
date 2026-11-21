@@ -118,6 +118,36 @@ internal interface IPageReadStore {
     Task<IReadOnlyList<string>> ListFoldersAsync(
         string prefix, string? after, int limit, CancellationToken cancellationToken = default);
 
+    /// <summary>Reads the live templates under a prefix, one source at a time, from a key.</summary>
+    /// <param name="prefix">The canonical subtree prefix; <c>/</c> is the whole store.</param>
+    /// <param name="from">
+    /// The first key to yield, inclusive, or <see langword="null"/> for the beginning. It is inclusive
+    /// rather than exclusive because a search resumes inside the source it names, not after it.
+    /// </param>
+    /// <param name="recursive">
+    /// Whether to read the whole subtree or only the prefix and its direct children, which is what a
+    /// listing that descends one folder at a time asks for.
+    /// </param>
+    /// <param name="cancellationToken">Cancels the read.</param>
+    /// <returns>
+    /// The live sources with a key at or past <paramref name="from"/>, in ordinal key order. A
+    /// tombstone is never one, so a deleted page's history stays out of a search.
+    /// </returns>
+    /// <remarks>
+    /// <para>
+    /// One statement, stepped rather than materialised: a caller that is bounded by a clock can stop
+    /// after any source, and a source is read only when the enumeration reaches it. The statement's own
+    /// snapshot is held for as long as the enumeration runs; nothing is written and nothing is pinned
+    /// beyond it.
+    /// </para>
+    /// <para>
+    /// The source set is the search's, not a read's: there is no limit, no budget and no fingerprint
+    /// here, because those belong to what the caller does with the sources.
+    /// </para>
+    /// </remarks>
+    IAsyncEnumerable<PageReadSource> ScanAsync(
+        string prefix, string? from, bool recursive = true, CancellationToken cancellationToken = default);
+
     /// <summary>Fingerprints every head under a prefix without reading the heads themselves.</summary>
     /// <param name="prefix">The canonical subtree prefix; <c>/</c> is the whole store.</param>
     /// <param name="cancellationToken">Cancels the read.</param>

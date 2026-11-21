@@ -3,8 +3,11 @@
 
 namespace uk.osric.asp.Web.Pages;
 
+using System.Runtime.CompilerServices;
+using uk.osric.asp.Core.Compilation;
 using uk.osric.asp.Core.Pages;
 using uk.osric.asp.Sdk;
+using uk.osric.asp.Web.Shell;
 
 /// <summary>One layer's <see cref="IPageCatalog"/>, bound to that render.</summary>
 /// <remarks>
@@ -31,6 +34,7 @@ internal sealed class PageCatalogScope(
     IReadOnlyList<ShellLink> shellLinks,
     IPageReadStore store,
     PageReadOptions options,
+    PageSourceScan search,
     ReadBudget budget,
     ReservedPaths reserved,
     PageContentTypes contentTypes,
@@ -105,6 +109,66 @@ internal sealed class PageCatalogScope(
     }
 
     /// <inheritdoc/>
+    public async Task<PageSearch> SearchAsync(PageSearchRequest request) {
+        ArgumentNullException.ThrowIfNull(request);
+        ArgumentException.ThrowIfNullOrEmpty(request.Pattern);
+
+        string prefix = NormalizePrefix(request.Prefix);
+
+        int limit = request.Limit ?? search.Options.DefaultMatches;
+        if (limit < 1 || limit > search.Options.MaxMatches) {
+            throw new ArgumentOutOfRangeException(
+                nameof(request),
+                limit,
+                $"A search of {path.Key} asked for {limit} matches; a limit is 1 to {search.Options.MaxMatches}. "
+                + "Raise Pages:Search:MaxMatches, or ask for a slice and resume from the last Cursor.");
+        }
+
+        int context = request.Context ?? search.Options.DefaultContextChars;
+        if (context < 1 || context > search.Options.MaxContextChars) {
+            throw new ArgumentOutOfRangeException(
+                nameof(request),
+                context,
+                $"A search of {path.Key} asked for a {context}-character snippet; a context is 1 to "
+                + $"{search.Options.MaxContextChars}. Raise Pages:Search:MaxContextChars, or read the page for the rest of a line.");
+        }
+
+        PageSearchCursor? after = request.After is { } cursor ? NormalizeCursor(cursor) : null;
+
+        if (!GrepPattern.TryCompile(
+                request.Pattern,
+                request.Kind == PageSearchPatternKind.Literal,
+                request.IgnoreCase,
+                out GrepPattern? compiled,
+                out string? error)) {
+            throw new ArgumentException(
+                $"{error} A search reads the text as it stands, or as a basic regular expression in which "
+                + "^ $ . * and [abc] are metacharacters, \\| is either-this-or-that, and every other character is itself.",
+                nameof(request));
+        }
+
+        ThrowIfEnded();
+
+        PageScanResult result = await search.RunAsync(
+            new PageScanQuery(compiled!, limit, after, request.Version, TemplateLines.Split, PageSearchCaller.Page),
+            token => store.VersionAsync(prefix, token),
+            (from, token) => SourcesAsync(prefix, request.Recursive, from, token),
+            Cancellation());
+
+        List<PageSearchMatch> matches = [];
+        foreach (PageScanMatch match in result.Matches) {
+            LineSnippet snippet = LineSnippet.Of(match.Text, match.Column - 1, match.Length, context);
+            matches.Add(new PageSearchMatch(
+                match.Key, match.Line, match.Column, snippet.Text, snippet.Start + 1, snippet.Clipped));
+        }
+
+        return new PageSearch(matches, result.Cursor, result.End != PageSearchEnd.Exhausted) {
+            Version = result.Version,
+            Changed = result.Changed,
+        };
+    }
+
+    /// <inheritdoc/>
     public async Task<PageSource?> ReadAsync(string key) {
         string normalized = NormalizeKey(key);
         ThrowIfEnded();
@@ -144,6 +208,51 @@ internal sealed class PageCatalogScope(
         Charge(source.Template.Length, $"{source.Key} at {source.Hash}");
 
         return new PageSource(source.Key, source.Hash, source.SavedAt, source.Template);
+    }
+
+    // The scan's source set: the store's live pages and the shell's route records, merged in key order.
+    // A route wins the key it answers, as PageStoreReader's read does, so one key is one source. It is
+    // stepped rather than materialised, so the allowance covers the reading as well as the matching.
+    private async IAsyncEnumerable<PageSourceText> SourcesAsync(
+        string prefix,
+        bool recursive,
+        PageSearchCursor? from,
+        [EnumeratorCancellation] CancellationToken cancellationToken) {
+        PagePath at = PagePath.Normalize(prefix);
+        PageScope scope = new(at, IncludeSelf: true, Recursive: recursive);
+
+        List<PagePath> routes = [.. reserved.Keys
+            .Where(route => scope.Contains(route))
+            .Where(route => from is null || string.CompareOrdinal(route.Key, from.Value.Key) >= 0)
+            .OrderBy(route => route.Key, StringComparer.Ordinal)];
+
+        int nextRoute = 0;
+        await foreach (PageReadSource source in store.ScanAsync(at.Key, from?.Key, recursive, cancellationToken)) {
+            while (nextRoute < routes.Count && string.CompareOrdinal(routes[nextRoute].Key, source.Key) < 0) {
+                PagePath route = routes[nextRoute++];
+                yield return new PageSourceText(route.Key, ShellCatalogue.Text(route));
+            }
+
+            if (nextRoute < routes.Count && string.Equals(routes[nextRoute].Key, source.Key, StringComparison.Ordinal)) {
+                PagePath route = routes[nextRoute++];
+                yield return new PageSourceText(route.Key, ShellCatalogue.Text(route));
+                continue;
+            }
+
+            yield return new PageSourceText(source.Key, source.Template);
+        }
+
+        while (nextRoute < routes.Count) {
+            PagePath route = routes[nextRoute++];
+            yield return new PageSourceText(route.Key, ShellCatalogue.Text(route));
+        }
+    }
+
+    private static PageSearchCursor NormalizeCursor(PageSearchCursor cursor) {
+        string key = NormalizeKey(cursor.Key);
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(cursor.Line);
+
+        return new PageSearchCursor(key, cursor.Line);
     }
 
     // One row of the answer, from the head the slice answered, the route table, or nothing but the

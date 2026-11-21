@@ -162,6 +162,7 @@ internal sealed class PageJobRunner(
             [],
             environment.ReadStore,
             environment.Read,
+            environment.Search,
             new ReadBudget(environment.Read.MaxSourceCharsPerRender),
             environment.Reserved,
             environment.ContentTypes,

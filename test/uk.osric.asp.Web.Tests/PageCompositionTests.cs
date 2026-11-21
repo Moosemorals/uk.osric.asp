@@ -582,6 +582,7 @@ public sealed class PageCompositionTests {
             TestOptions.Storage,
             TestOptions.Fetch,
             TestOptions.Read,
+            TestOptions.Scan(),
             _state,
             _readStore,
             TestOptions.Seeds,

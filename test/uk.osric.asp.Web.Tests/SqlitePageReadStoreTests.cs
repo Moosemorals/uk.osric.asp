@@ -416,6 +416,53 @@ public sealed class SqlitePageReadStoreTests {
         return (heads, revisions, row.Hash, row.SavedAt);
     }
 
+    [Test]
+    public async Task TheSteppedReadYieldsLiveSourcesInKeyOrderAsync() {
+        await DatabaseTemplate.SavePageAsync(_options, "/blog", "blog source");
+        await DatabaseTemplate.SavePageAsync(_options, "/about", "about source");
+        await DatabaseTemplate.SavePageAsync(_options, "/gone", "gone source");
+        await DeleteAsync("/gone");
+
+        List<string> keys = [];
+        List<string> templates = [];
+        await foreach (PageReadSource source in ReadStore().ScanAsync("/", from: null)) {
+            keys.Add(source.Key);
+            templates.Add(source.Template);
+        }
+
+        Assert.Multiple(() => {
+            Assert.That(keys, Is.EqualTo(["/about", "/blog"]), "key order, and a tombstone is not a source");
+            Assert.That(templates, Is.EqualTo(["about source", "blog source"]));
+        });
+    }
+
+    [Test]
+    public async Task TheSteppedReadStartsAtItsKeyInclusiveAsync() {
+        await DatabaseTemplate.SavePageAsync(_options, "/a", "a");
+        await DatabaseTemplate.SavePageAsync(_options, "/b", "b");
+        await DatabaseTemplate.SavePageAsync(_options, "/c", "c");
+
+        List<string> keys = [];
+        await foreach (PageReadSource source in ReadStore().ScanAsync("/", from: "/b")) {
+            keys.Add(source.Key);
+        }
+
+        Assert.That(keys, Is.EqualTo(["/b", "/c"]), "a cursor resumes inside its own source, so the key is included");
+    }
+
+    [Test]
+    public async Task TheSteppedReadAnswersOneLevelWhenItIsAskedToAsync() {
+        await DatabaseTemplate.SavePageAsync(_options, "/top", "top");
+        await DatabaseTemplate.SavePageAsync(_options, "/folder/deep", "deep");
+
+        List<string> keys = [];
+        await foreach (PageReadSource source in ReadStore().ScanAsync("/", from: null, recursive: false)) {
+            keys.Add(source.Key);
+        }
+
+        Assert.That(keys, Is.EqualTo(["/top"]));
+    }
+
     private IPageReadStore ReadStore() => new SqlitePageReadStore(DatabaseTemplate.Factory(_options));
 
     private async Task<IReadOnlyList<PageReadHead>> RowsAsync(string prefix, string? after, int limit) =>
