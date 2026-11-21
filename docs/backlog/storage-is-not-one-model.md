@@ -94,9 +94,17 @@ Lifetimes are a property of the entry, returned by a read and selectable in a li
 The rest of the shape:
 
 - **Reads are open across page keys; writes are bound to the caller's key.** `/a` reads `/_lib/b`'s
-  Page values with `TryGetValueAsync("/_lib/b", key)`. A page may not write another page's key. The
-  one deliberate escape is `ctx.Stores.For(key)`, restricted to a key that names a library or a
-  worker: shared code owns its namespace, and a page reaches it by calling the code.
+  Page values with `TryGetValueAsync("/_lib/b", key)`. A page may not write another page's key, and
+  that is **ownership, not protection**: page code runs in-process with the site's identity
+  (`pages-there-is-no-sandbox`), and the page store's source is deliberately writable by any page the
+  visitor can use (`pages-any-page-may-write-the-store`). The difference is whose namespace it is.
+  Source is the site's, so the credential authorizes any render to write it; data is the subject's, so
+  only the subject's own render writes it. The binding keeps one writer per namespace and gives a
+  page's delete, move, scrub and archive a single owner. Many pages writing one shared cell is the
+  reserved `Site` subject, not a page key they all name.
+- **The one deliberate escape is `ctx.Stores.For(key)`**, restricted to a key that names a library or
+  a worker: shared code owns its namespace and writes it, and a page reaches the data by calling the
+  code.
 - **Authority lives in the verbs, not in the layer.** Every write refuses a `HEAD`, an abandoned
   render and a passed deadline, on every subject and every layer. Content, layout and embedded all
   get `ctx.Stores`; the page-source write keeps its own signed-in, one-action rules and stays out of
