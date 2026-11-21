@@ -11,7 +11,7 @@ SPDX-License-Identifier: MIT
 | Size | Large — one pure contract in `Core`, one new deployable (project, image, quadlet, DNS, scrape job), one Makefile wrapper, and the panel that draws the family |
 | Area | Core (metrics), a new `Collector` service, Web (metrics catalogue only), Makefile, deploy (image, quadlet, Caddy, Prometheus, one secret) |
 | Spike | None. The collector is a minimal API over one dictionary; the app's meter/exporter is the pattern it does *not* need, and `ViewTokenStore` is the precedent for a fixed-time secret comparison |
-| Backlog | [WHIM-04](../backlog/WHIMS.md) — promoted here; its line goes when this merges |
+| Backlog | [`whim-build-timings`](../backlog/WHIMS.md) — promoted here; its line goes when this merges |
 | Decisions | Six names intended, below; taken at the merge (`product-plan-before-building`) |
 
 ## The short version
@@ -492,7 +492,7 @@ already says the order is the point).
 | `docs/architecture.md`, `docs/metrics.md`, `docs/testing.md`, `docs/glossary.md` | The new project and its dependency; the Build panel and the third scrape; the new suite; the term |
 | `README.md` | One line naming the collector beside the site, and the link to its document |
 | `tools/check-decisions/ignore.txt` | `deploy-ssh` beside `deploy-guard`, both make targets shaped like decision names |
-| `docs/jobs/WHIMS.md` | WHIM-04's line goes at the merge |
+| `docs/backlog/WHIMS.md` | `whim-build-timings`'s line goes at the merge |
 
 ## Tests
 
@@ -570,7 +570,7 @@ shows the lines on `/status`.
   quadlet, the Caddy block, the Prometheus job and the token seeding.
 - `deploy/README.md`, `deploy/operations.md`, `docs/collector.md`, the architecture, metrics and
   testing docs, and the decision entries at merge.
-- WHIM-04's line is removed when this merges, as a promoted whim.
+- `whim-build-timings`'s line is removed when this merges, as a promoted whim.
 
 **Done when** the collector is its own unit at its own name, Prometheus scrapes it, a host with no
 token fails the collector at startup with a list naming the key, a wrong token is `401`, and `make
@@ -591,7 +591,7 @@ deploy` brings both units up with the collector first.
 - `README.md` — the collector beside the site's one-paragraph shape.
 - `deploy/operations.md` — the token's generation and placement, the collector's health and restart,
   the DNS and certificate, and the 404/401 reading.
-- `docs/jobs/WHIMS.md` — WHIM-04 promoted; the line goes at the merge.
+- `docs/backlog/WHIMS.md` — `whim-build-timings` promoted; the line goes at the merge.
 - `docs/decisions.md` — six entries at the merge:
   **metrics-a-build-timing-is-collected-beside-the-app**,
   **metrics-a-build-push-carries-a-token**,

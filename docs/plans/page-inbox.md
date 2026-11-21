@@ -7,7 +7,7 @@ SPDX-License-Identifier: MIT
 
 | | |
 | --- | --- |
-| Status | Proposed 2026-11-17 — waits for the owner. Nothing below is built |
+| Status | Superseded in shape 2026-11-21 by [one storage model](storage-model.md), which is the plan to read; this one should not be approved. Nothing below is built |
 | Size | Large — one `Sdk` capability with six types, offered to two kinds of caller; two tables and a migration; a store, a render-bound scope and a worker binding; an account-keyed recipient check; named topics; configuration; the activity slide and the cascades; the page-delete cleanup; the layout flash; the page session's signed-in lifetime moved onto the sign-in; the manual, the privacy page and the docs |
 | Area | Sdk, Web (pages, work, storage), docs |
 | Spike | None. Every count, path and behaviour below was taken off `trunk` on 2026-11-17 |
@@ -459,7 +459,7 @@ starts with an empty inbox and its own byte total.
   page saved at the same path must not inherit it. It deletes `PageInboxMessages` with the same
   conditions, for the same reason: a re-created key inherits no mail. `ScrubPageAsync` does the same
   when it finally removes a tombstone. Only `PagePath` rows are deleted; a topic is not a page.
-- **Move.** The proposed [page move](page-move.md) renames a key. The inbox is addressed by path, so
+- **Move.** The [page move](archive/page-move.md) that has landed renames a key. The inbox is addressed by path, so
   a move drops the old path's messages; the move's own plan must add the delete (or decide to carry
   them) when it lands. Nothing in this plan depends on the move.
 - **Sign-out.** `PageSessionCookie.ClearAsync` removes the page session, so anonymous messages go

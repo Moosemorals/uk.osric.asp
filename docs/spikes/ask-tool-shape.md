@@ -133,8 +133,8 @@ its own that DeepSeek fills it:
   schema, and the prompt adds a section of its own. Both are where "when to use it and when not" has
   to live.
 - **The wait already exists, once.** `RunProcessor.ResolveApprovalAsync` stores a record, sets the run
-  to `awaiting_approval`, publishes an event, pauses the run's silence clock and waits on
-  `ToolApprovalCoordinator`; a restart fails pending records closed and writes a synthetic tool result
+  to `awaiting_owner`, publishes an event, pauses the run's silence clock and waits on
+  `OwnerInterruptCoordinator`; a restart fails pending records closed and writes a synthetic tool result
   for the unanswered call. A question needs the same lifecycle with a different record and answer.
 - **The tool surface is already over OpenAI's soft limit.** The registry holds twenty tools; a
   twenty-first is one more. The description and the prompt are the mitigation, and the risk is

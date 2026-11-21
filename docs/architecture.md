@@ -173,15 +173,16 @@ is the worked example: it is the seeded `/pages`, which is offered `IPageWrites`
 | `/admin/seeds`, `/admin/scrub` | **Bootstrap.** The seed page is the way back for a page that no longer compiles, so it cannot itself be a page that might not compile; its shell-path section is the only route to an unreachable stored row. The scrub is the one irreversible delete of a normal page and stays an explicit owner action | `pages-page-first`, `shell-the-admin-tools` |
 | `{**path}`, `/favicon.ico`, `/health`, `/metrics`, `wwwroot` | **The runtime.** The page catch-all, the reserved key that stops a page claiming the icon, the probe, the scrape target and the static files the shell's own views load are the thing pages run on | `pages-page-first` |
 | `/admin` | **The index of the shell's tools.** It draws the same list the administration menus draw, filtered to what the visitor may reach, and it must answer when the page pipeline is broken | [the seed-trimming plan](plans/archive/seed-trimming.md) |
-| `/assistant`, `/assistant/{id}`, its events, approvals, options, stop, delete and the memory view | **A page cannot, yet.** The stream, the worker kind and jobs now exist, so the view and the run are page code; what blocks the port is an account-scoped store for the transcript and memory ([`no-account-store`](backlog/no-account-store.md)), the page-store write authority the tools need, and a restricted Markdown profile a page can reach | [`conversation-is-not-a-page`](backlog/conversation-is-not-a-page.md) |
+| `/assistant`, `/assistant/{id}`, its events, approvals, options, stop, delete and the memory view | **A page cannot, yet.** The stream, the worker kind, the jobs and a page's write authority now exist, so the view and the run are page code; what blocks the port is an account-scoped store for the transcript and memory ([`no-account-store`](backlog/no-account-store.md)) and a restricted Markdown profile a page can reach | [`conversation-is-not-a-page`](backlog/conversation-is-not-a-page.md) |
 | `/admin/import`, `/admin/export` | **A page cannot, yet.** A page can neither take an upload nor serve a file | [`archive-is-not-a-form`](backlog/archive-is-not-a-form.md) |
 
 The page column is the default, so a new route asks which column it is in before it is written, and
 "it is easier in C#" is an IDEA file rather than an answer. The list is expected to shrink: when
 `archive-is-not-a-form` lands, import and export join the page column, and the rule is what stays the same. The
-assistant row's reason has already changed once: "a live run needs a stream" was true when this table
-was written and is not true now, because a page can hold a response open and start a job. What is left
-there is the store, the write authority and the renderer profile — each recorded in
+assistant row's reason has already changed twice: "a live run needs a stream" was true when this table
+was written and is not true now, because a page can hold a response open and start a job, and the write
+authority a page needs landed with `pages-any-page-may-write-the-store`. What is left there is the
+store and the renderer profile — each recorded in
 [`conversation-is-not-a-page`](backlog/conversation-is-not-a-page.md), and none of them a route the shell has to keep.
 
 ## Configuration

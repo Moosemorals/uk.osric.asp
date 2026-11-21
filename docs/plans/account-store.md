@@ -7,7 +7,7 @@ SPDX-License-Identifier: MIT
 
 | | |
 | --- | --- |
-| Status | Proposed 2026-11-16 — waits for the owner. Nothing below is built |
+| Status | Superseded in shape 2026-11-21 by [one storage model](storage-model.md), which is the plan to read; this one should not be approved. Nothing below is built |
 | Size | Large as a programme, small as a step: six slices, each its own branch and its own stop. Three are `S` and three are `M`, and the first is the one worth arguing about |
 | First customer | The assistant page's port ([`conversation-is-not-a-page`](../backlog/conversation-is-not-a-page.md) §3): a conversation's transcript is an ordered, filtered, paged list of one account's rows. Memory keeps `AssistantMemories` and stays the assistant's (`assistant-memory-belongs-to-the-assistant`); the memory view is that plan's, and this store's search is what will let it be a page |
 | Spike | A scratch console over the real SQLite build before slice 1: an unpooled connection, a `TEMP VIEW` over a table with `INSTEAD OF` triggers, the four verbs through it, a trigger `RAISE` at a cap, and `SQLITE_LIMIT_ATTACHED = 0` |

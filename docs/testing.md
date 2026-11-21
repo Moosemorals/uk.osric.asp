@@ -67,15 +67,15 @@ and what depends on it is asserted by the suites that use it (`SimpleContextTest
   `PageCatalogScopeTests` pins the page-store read — its four reads, the four marks, subtree
   prefixes, the row and source caps, abandonment and the deadline — and `SqlitePageReadStoreTests`
   proves the SQL behind it, including an escaped wildcard and that a read writes nothing.
-  `PageEditorScopeTests` pins the editor capability: every row of its refusal table, a save at
-  another key, the conditional save that stores and the one that answers `Stale` without storing, a
-  tombstone delete, a revision restore, a seed install and a matching seed that is not written.
+  `PageWritesScopeTests` pins the one write capability the editor and a page share: every row of its
+  refusal table, a save at another key, the conditional save that stores and the one that answers
+  `Stale` without storing, a tombstone delete, a revision restore, a seed install and a matching seed
+  that is not written, the signed-in visitor it requires, `HEAD`, an ended render, the diagnostics it
+  reports, the revision it answers with, a move, and the transaction it opens, nests and rolls back.
   `PageEditorPageTests` renders the seeded `/pages` as the host does and covers its listing's groups,
   the source and head hash it shows, a save, a `409` that keeps the text, diagnostics, save-and-view,
   delete, history, the diff, the install confirmation and the anonymous redirect.
-  `PageWriterScopeTests` pins the page's own save — the signed-in visitor it requires, `HEAD`, an
-  ended render, one save per render, the diagnostics it reports and the revision it answers with —
-  `PageSaverTests` the saver the editor and a page share, and `SqlitePageRevisionStoreTests` the
+  `PageSaverTests` pins the saver the editor and a page share, and `SqlitePageRevisionStoreTests` the
   insert behind it, including the retry and the fact that a save lands after the request's context is
   gone. `Web.IntegrationTests/PageSelfSaveTests` writes a page that saves itself and drives it through
   the real host: an anonymous visit, a save and the request after it, a stale form, and a `POST` with

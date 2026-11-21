@@ -2110,7 +2110,7 @@ page that already holds the shipped bytes is adopted — the anchor recorded, no
 rather than installed. A row the owner ticks can be *edited*, *conflict*, *deleted* or *unknown*; that
 is the owner's explicit authority, and the write is the ordinary seed save.
 
-*Recorded in [one seed page](plans/archive/seed-page.md), [the shell](shell.md), [SeedsEndpoint](../src/uk.osric.asp.Web/Admin/SeedsEndpoint.cs), [PageEditorScope](../src/uk.osric.asp.Web/Pages/PageEditorScope.cs).*
+*Recorded in [one seed page](plans/archive/seed-page.md), [the shell](shell.md), [SeedsEndpoint](../src/uk.osric.asp.Web/Admin/SeedsEndpoint.cs), [PageWritesScope](../src/uk.osric.asp.Web/Pages/PageWritesScope.cs).*
 
 ### shell-sign-out-is-a-post
 
@@ -2535,7 +2535,7 @@ asked. Seeded pages are ordinary pages the assistant may edit, and a script chec
 so a shell file is refused there. There is no separate assistant-only lock list: every page the shell does
 not route is a page the assistant may write, subject to the writable-path prefix.
 
-*Recorded in [the shell](shell.md#authentication-and-the-editor), [ShellRoutes](../src/uk.osric.asp.Web/Assistant/ShellRoutes.cs).*
+*Recorded in [the shell](shell.md#authentication-and-the-editor), [ReservedPaths](../src/uk.osric.asp.Web/Pages/ReservedPaths.cs).*
 
 ### assistant-reads-history
 
@@ -2935,7 +2935,7 @@ never deletes on the site.
 
 *Recorded in [operations](../deploy/operations.md#backups), [the snapshot script](../deploy/backup-snapshot.sh),
 [the pull script](../deploy/pull-backups.sh), [the snapshot timer](../deploy/uk.osric.asp-backup.timer),
-[the pull timer](../deploy/uk.osric.asp-pull.timer), [the plan](archive/offsite-backups.md).*
+[the pull timer](../deploy/uk.osric.asp-pull.timer), [the plan](plans/archive/offsite-backups.md).*
 
 ### deploy-no-outbound-alerting
 
@@ -3007,7 +3007,7 @@ and type size are presentation attributes from a palette in `Core.Charting`, not
 the same SVG is legible with no stylesheet, and the page's sheet keeps only the grid, the caption and the
 hover and pinned states, which are properties of the page rather than of the picture.
 
-*Recorded in [metrics](metrics.md#the-panels), [status page rebuild](plans/archive/admin/status-page-rebuild.md#identifying-a-series-without-colour).*
+*Recorded in [metrics](metrics.md#the-panels), [status page rebuild](plans/archive/status-page-rebuild.md#identifying-a-series-without-colour).*
 
 ### metrics-a-chart-stands-alone
 

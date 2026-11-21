@@ -9,8 +9,12 @@ A web server whose pages are C# and can edit themselves.
 
 I have been trying to get back to the site I had in 1999, when I was doing BT support: a textarea
 with the source of the page in it, and a save button that worked. That one was Perl and CGI. This
-one is ASP.NET Core, compiles the page when you save it, and gives me the same trick with
-autocomplete and real error messages.
+one is ASP.NET Core, compiles the page when you save it, and gives me the same trick with real
+error messages.
+
+What is next — every defect and idea, with its difficulty, utility, blockers and plan — is
+[the backlog](docs/README.md#the-order); what has been decided and why is [the decision
+record](docs/decisions.md).
 
 ## How it works
 
@@ -20,9 +24,10 @@ autocomplete and real error messages.
   emitted assembly beside the source; a request loads that assembly into a collectible
   `AssemblyLoadContext` and runs it against `IContext`. Pages that have no usable assembly are
   compiled on their next request.
-- `/edit/anything` is the editor: sign in with a local account, then a textarea with a line-number
-  gutter, a save button, and a line telling you it worked. Diagnostics link to the line that caused
-  them, and the caret survives a save. Accounts are created from the command line, not from the site.
+- `/pages?edit=<key>` is the editor: sign in with a local account, then a textarea with a
+  line-number gutter, a save button, and a line telling you it worked. Diagnostics link to the line
+  that caused them, and the caret survives a save. Accounts are created from the command line, not
+  from the site.
 - `uk.osric.asp.Sdk` is the page contract, `uk.osric.asp.Core` is the host's pure functions,
   `uk.osric.asp.Runtime` is Roslyn and assembly loading, and `uk.osric.asp.Web` is the endpoints.
   `Sdk` and `Core` each reference nothing, not even another project.
@@ -39,11 +44,12 @@ autocomplete and real error messages.
 <%== "<hr>" %>
 ```
 
-`<%= expression %>` writes a string through `ctx.Write` and HTML-encodes it; `<%== expression %>`
-writes through `ctx.WriteRaw` without encoding. Expressions must produce a string, so convert other
-values explicitly, for example with `.ToString()`. Statement blocks can still call `ctx.Write`,
-`ctx.WriteRaw` or `ctx.Log` directly. The handler is asynchronous, so `await` is an ordinary
-expression in a block and inside `<%= %>`: `ctx.Capabilities.GetRequired<IPageStorage>()` keeps a
+`<%= expression %>` writes a string through `ctx.Response.Write` and HTML-encodes it;
+`<%== expression %>` writes through `ctx.Response.WriteRaw` without encoding. Expressions must
+produce a string, so convert other values explicitly, for example with `.ToString()`. Statement
+blocks can still call `ctx.Response.Write`, `ctx.Response.WriteRaw` or `ctx.Log` directly. The handler
+is asynchronous, so `await` is an ordinary expression in a block and inside `<%= %>`:
+`ctx.Capabilities.GetRequired<IPageStorage>()` keeps a
 page's own key/value state, and `ctx.Capabilities.GetRequired<IHttpFetch>()` reaches any `http` or
 `https` host from the server. The [page contract](docs/pages.md#page-contract) list the rest of the
 surface.
@@ -52,10 +58,10 @@ surface.
 result with `<%== %>`. It passes raw HTML through, so it is the author's renderer rather than a
 sanitiser. The [help page](src/uk.osric.asp.Web/Pages/Seeds/help) has the detail.
 
-A page that wants to answer before it has finished can call `await ctx.FlushAsync()`. The first flush
-commits the status, content type and headers and sends the body written so far; later writes are sent
-at the next flush, and the last of them when the handler returns. A flushing page is served alone, so
-it clears `IPageLayout.Layout` and writes its own document. Once the response is committed an
+A page that wants to answer before it has finished can call `await ctx.Response.FlushAsync()`. The
+first flush commits the status, content type and headers and sends the body written so far; later
+writes are sent at the next flush, and the last of them when the handler returns. A flushing page is
+served alone: it declares no wrapper and writes its own document. Once the response is committed an
 exception or the render deadline truncates it instead of showing an error page or a `504`. The
 [page contract](docs/pages.md#streaming) has the full rules.
 
@@ -76,7 +82,7 @@ sealed class Amount {
     public static string Format(decimal value) => value.ToString("N2", CultureInfo.InvariantCulture);
 }
 %>
-<p>Total: <% ctx.Write(Amount.Format(42.5m)); %></p>
+<p>Total: <% ctx.Response.Write(Amount.Format(42.5m)); %></p>
 ```
 
 Declaration blocks keep their template order, which is also the order of the generated `using`
@@ -94,8 +100,8 @@ make user-add ACCOUNT=osric     # in another terminal: prompts for a password
 ```
 
 The database starts empty, so every page answers 404 until you write something. Sign in at
-`http://localhost:5000/login`, go to `/edit/` and make the front page, then `/edit/about` for the
-next one. Saving is live: the save compiles the new source, so the next request runs it and there is
+`http://127.0.0.1:8080/login`, go to the editor at `/pages` and make the front page, then edit
+`/about` for the next one. Saving is live: the save compiles the new source, so the next request runs it and there is
 no build step in between. "Keep me signed in" is checked by default and the cookie lasts 30 days of
 inactivity; `users passwd` revokes every existing login.
 
@@ -107,14 +113,19 @@ The `Makefile` is the only entry point; `make help` lists everything.
 | --- | --- |
 | `make build` | Build the solution, but only when a source or project file changed (the default) |
 | `make restore` | Force a NuGet restore; `build` only restores when an input changed |
-| `make test` | All four suites: core, runtime, web, integration |
+| `make test` | Every suite: core, runtime, language server, web and integration |
 | `make check` | The gate: formatting, licences, package audit, the seeded pages, the four suites and a Release publish |
 | `make ci` | `make check` from a clean tree, plus the reproducible-image check |
 | `make test-core` | Core tests only |
 | `make test-runtime` | Runtime tests only |
+| `make test-language-server` | The language server's protocol tests only |
 | `make test-web` | Web shell and storage tests only |
 | `make test-integration` | The composed pipeline against a throwaway database |
 | `make test-browser` | The real host in Firefox, with a scripted provider (`make browsers` installs Firefox once) |
+| `make test-browser-live` | The browser tests that call the configured provider, which cost tokens |
+| `make audit` | Fail if any NuGet package is vulnerable or deprecated |
+| `make decisions` | Check the decision record: names, areas, duplicates and citations |
+| `make backlog` | Check the backlog record: slugs, fields, the order, plans and citations |
 | `make check-pages` | Compile the seeded pages and print the compiler's diagnostics |
 | `make vscode-extension` | Link the template grammar into VS Code, then reload the window |
 | `make user-add ACCOUNT=...` | Create a local editor account |
@@ -125,13 +136,14 @@ The `Makefile` is the only entry point; `make help` lists everything.
 | `make remote-user-passwd HOST=... ACCOUNT=...` | Change a password on the server and sign out every session |
 | `make remote-user-list HOST=...` | List the accounts on the server |
 | `make remote-user-remove HOST=... ACCOUNT=...` | Remove an account on the server |
-| `make run` | Run the site in Development on `http://localhost:5000` |
+| `make run` | Run the site in Development on `http://127.0.0.1:8080` |
 | `make publish` | Publish the app to `artifacts/publish` |
 | `make format` | Apply formatting and style fixes |
 | `make format-check` | Fail if the tree is not formatted |
 | `make license-check` | Fail if the tree is not REUSE compliant |
 | `make migration NAME=...` | Add a storage migration |
 | `make image` | Build the OCI image into podman |
+| `make image-check` | Build it twice and fail if the two builds are not the same image |
 | `make deploy HOST=deploy@server` | The gate plus the browser suite, build, push and restart on the server |
 | `make ci-install HOST=deploy@server` | Prepare the host's CI account, bare repo, hooks, units and status file |
 | `make changelist` | Write the deployed commit's history to `artifacts/changes.txt`, which `/admin/changes` serves |

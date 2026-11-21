@@ -9,16 +9,18 @@ SPDX-License-Identifier: MIT
 | --- | --- |
 | Difficulty | protective-dragon |
 | Utility | high |
-| Status | planned |
-| Blocked by | — |
-| Plan | [account-store](../plans/account-store.md) |
+| Status | blocked |
+| Blocked by | `storage-is-not-one-model` |
+| Plan | [storage-model](../plans/storage-model.md) |
 | Area | Sdk, Web (storage and pages), docs |
 | Location | `src/uk.osric.asp.Sdk/`, `src/uk.osric.asp.Web/Pages/`, `src/uk.osric.asp.Web/Storage/`, `src/uk.osric.asp.Web/Pages/Seeds/help`, `src/uk.osric.asp.Web/Assistant/PageAuthorPrompt.cs` |
 
-> **Planned 2026-11-16** — [the per-account store](../plans/account-store.md) answers the seven open
-> questions, names the first customer (the transcript of the assistant page's port, [`conversation-is-not-a-page`](conversation-is-not-a-page.md)
-> §3) and orders the work into six slices. Memory stays the assistant's: the view arrives with that
-> plan, not as a capability here. Nothing is built until the owner says yes to the plan.
+> **Absorbed 2026-11-21** — [one storage model](../plans/storage-model.md) delivers this item as its
+> records slice, and the per-account store plan it was planned by
+> ([account-store](../plans/account-store.md)) is superseded in shape and should not be approved. The
+> answers that survive are folded into that plan's record slice; memory stays the assistant's, and the
+> view arrives with the assistant page's port ([`conversation-is-not-a-page`](conversation-is-not-a-page.md)
+> §3) rather than as a capability here. Nothing is built until the storage model's slices land.
 
 ## Idea
 
@@ -130,7 +132,8 @@ Why one namespace per account:
 
 ## Open questions
 
-Each is a decision for the plan this job wants.
+Each was answered by [the account-store plan](../plans/account-store.md) and is settled again by
+[the storage model](../plans/storage-model.md), which is the plan this item now waits on.
 
 1. **How the owner filter becomes structural.** A per-connection `TEMP VIEW` plus `INSTEAD OF` triggers
    (one table, one owner column, no schema growth) against one table per account (no filter to get

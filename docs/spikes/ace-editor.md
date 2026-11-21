@@ -7,7 +7,7 @@ SPDX-License-Identifier: MIT
 
 | | |
 | --- | --- |
-| Question | Can Ace replace the textarea in `EditorEndpoint` without npm, and does it give vim keybindings, C# inside HTML, and a useful no-JavaScript fallback? |
+| Question | Can Ace replace the editor's textarea without npm, and does it give vim keybindings, C# inside HTML, and a useful no-JavaScript fallback? |
 | Answered | 2026-11-03 |
 | Version measured | `ace-builds` 1.45.2, tag [`v1.45.2`](https://github.com/ajaxorg/ace-builds/tree/v1.45.2) |
 | Verdict | Yes as a progressively-enhanced editor over the existing textarea; no as a literal drop-in — it needs a custom mode, a mount script and a CSP decision, and it does not format C# |
@@ -53,8 +53,8 @@ The vendored set is seven files, taken from the tag tarball and never from a pac
 | `css/theme/textmate.css` | 2,607 | a light theme that sits next to `site.css` without arguing with it |
 | **total** | **719,882** | about 703 KiB, editor pages only |
 
-That weight never reaches a public page: the script tags belong in `EditorEndpoint`, not in
-`PageLayout.Header`, which every page renders. On the wire Caddy's `encode zstd gzip` already
+That weight never reaches a public page: the script tags belong in the editor page, not in the
+shared document every page renders. On the wire Caddy's `encode zstd gzip` already
 compresses it; in `dotnet run` it does not, and neither serves it with a `Cache-Control` — so a
 version in the path plus `immutable` via `StaticFileOptions.OnPrepareResponse` (or a move to
 `MapStaticAssets`, which fingerprints and pre-compresses at build with no npm) is worth the twenty
@@ -141,12 +141,14 @@ Mount order is load-bearing: `ace.js`, then `editor.setValue(textarea.value, -1)
 div, and only then hide the textarea; the form's `submit` handler copies `editor.getValue()` back
 into the textarea. If any script fails, the textarea was never taken away.
 
-`EditorEndpointTests` compares the form markup verbatim — for example
-`<textarea name="content" rows="10" cols="50">…</textarea>` in
-[EditorEndpointTests.cs](../../test/uk.osric.asp.Web.Tests/EditorEndpointTests.cs) — so keeping the
-textarea exactly as it is has a second benefit: the existing unit tests keep proving the fallback.
+The editor is a stored page now, so the form markup lives in the seed — the textarea is
+`<textarea name="template" id="template" rows="10" cols="50">` in
+[`Pages/Seeds/pages`](../../src/uk.osric.asp.Web/Pages/Seeds/pages) — and
+[`PageEditorPageTests`](../../test/uk.osric.asp.Web.Tests/PageEditorPageTests.cs) renders it as the
+host does, so keeping the textarea exactly as it is has a second benefit: the suite keeps proving the
+fallback.
 
-The fallback is only *useful* if it is worth using, which is `editor-is-a-textarea` step 2: a server-rendered line
+The fallback is only *useful* if it is worth using, which is `editor-is-a-textarea` step 2: a line
 gutter and each diagnostic anchored to its line. That layer is shared with the Ace path —
 `session.setAnnotations` wants a zero-based line, and `PageDiagnostic.Position` is a one-based
 `TemplatePosition`, so the mapping is `Line - 1` and the diagnostics payload is
