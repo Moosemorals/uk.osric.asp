@@ -3,7 +3,6 @@
 
 namespace uk.osric.asp.Web.Tests;
 
-using System.Reflection;
 using System.Xml.Linq;
 using uk.osric.asp.Web.Documentation;
 
@@ -123,24 +122,6 @@ public sealed class ReferenceDisplayTests {
     [TestCase("T:System.Collections.Generic.IReadOnlyList`1", "IReadOnlyList<T>")]
     public void AnUnresolvedCrefShortensToItsName(string id, string text) {
         Assert.That(ReferenceDisplay.CrefText(id), Is.EqualTo(text));
-    }
-
-    [TestCase("uk.osric.asp.Sdk")]
-    [TestCase("uk.osric.asp.Core")]
-    [TestCase("uk.osric.asp.Runtime")]
-    [TestCase("uk.osric.asp.Web")]
-    public void TheBridgeRebuildsEveryDocumentedId(string assemblyName) {
-        string path = Path.Combine(AppContext.BaseDirectory, assemblyName + ".xml");
-        XDocument document = XDocument.Load(path);
-        Assembly assembly = Assembly.Load(assemblyName);
-        IReadOnlyDictionary<string, MemberInfo> members = ReferenceDocIds.Map(assembly);
-
-        List<string> missing = [.. document.Descendants("member")
-            .Select(member => (string?)member.Attribute("name"))
-            .OfType<string>()
-            .Where(id => !members.ContainsKey(id))];
-
-        Assert.That(missing, Is.Empty);
     }
 
     [TestCase("uk.osric.asp.Sdk")]

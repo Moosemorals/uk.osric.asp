@@ -35,13 +35,12 @@ SPDX-License-Identifier: MIT
     <ProjectReference Include="../uk.osric.asp.Core/uk.osric.asp.Core.csproj" />
     <ProjectReference Include="../uk.osric.asp.Runtime/uk.osric.asp.Runtime.csproj" />
     <ProjectReference Include="../uk.osric.asp.Sdk/uk.osric.asp.Sdk.csproj" />
+    <!-- Build-only: the reference corpus is written after the assemblies and read from disk. -->
+    <ProjectReference Include="../../tools/reference-corpus/reference-corpus.csproj"
+                      ReferenceOutputAssembly="false" />
   </ItemGroup>
 
   <ItemGroup>
-    <!-- The reference page's presentation, embedded so it cannot drift from the assembly that
-         writes the attributes it reads. -->
-    <None Remove="Documentation/reference.xslt" />
-    <EmbeddedResource Include="Documentation/reference.xslt" />
     <!-- Page templates seeded into storage on first run; read from disk, never served directly. -->
     <Content Remove="Pages/Seeds/**" />
     <None Remove="Pages/Seeds/**" />
@@ -74,5 +73,34 @@ SPDX-License-Identifier: MIT
     <InternalsVisibleTo Include="uk.osric.asp.Web.IntegrationTests" />
     <InternalsVisibleTo Include="uk.osric.asp.Web.Tests" />
   </ItemGroup>
+
+
+  <!--
+    The reference corpus is a build artifact: the compiler's XML documentation, the metadata beside
+    it, the declarations Roslyn can spell and the links between entries. The site reads the JSON and
+    renders it, so the work happens once per build rather than once per request.
+  -->
+  <Target Name="GenerateReferenceCorpus" AfterTargets="Build">
+    <PropertyGroup>
+      <ReferenceCorpusHost Condition="'$(DOTNET_HOST_PATH)' != ''">$(DOTNET_HOST_PATH)</ReferenceCorpusHost>
+      <ReferenceCorpusHost Condition="'$(ReferenceCorpusHost)' == ''">dotnet</ReferenceCorpusHost>
+    </PropertyGroup>
+    <MSBuild Projects="../../tools/reference-corpus/reference-corpus.csproj" Targets="GetTargetPath">
+      <Output TaskParameter="TargetOutputs" ItemName="ReferenceCorpusTool" />
+    </MSBuild>
+    <Exec Command="&quot;$(ReferenceCorpusHost)&quot; &quot;@(ReferenceCorpusTool)&quot; &quot;$(OutDir)&quot;" />
+  </Target>
+
+  <!-- Publish copies the corpus beside the assembly, where the site reads it. The files are made
+       after the build, so they are copied once the publish output exists rather than resolved with
+       the files that were known when the project was evaluated. -->
+  <Target Name="CopyReferenceCorpusToPublish" AfterTargets="Publish">
+    <ItemGroup>
+      <ReferenceCorpusFiles Include="$(OutDir)reference.*.json" />
+    </ItemGroup>
+    <Copy SourceFiles="@(ReferenceCorpusFiles)"
+          DestinationFolder="$(PublishDir)"
+          SkipUnchangedFiles="true" />
+  </Target>
 
 </Project>

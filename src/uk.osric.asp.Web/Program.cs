@@ -551,6 +551,7 @@ internal class Program {
         // does, and the repository is published to be read.
         app.MapGet("/admin/reference", ReferenceEndpoint.IndexAsync);
         app.MapGet("/admin/reference/{slug}", ReferenceEndpoint.AssemblyAsync);
+        app.MapGet("/admin/reference/{slug}/{namespace}", ReferenceEndpoint.NamespaceAsync);
         // Public for the same reason as the reference: the licence of published source is for
         // whoever asks, and the notices are what the image ships.
         app.MapGet("/admin/copyright", CopyrightEndpoint.HandleAsync);

@@ -23,4 +23,14 @@ internal sealed class ReferenceBrowserTests : BrowserTest {
             Assert.That(internalLink, Is.EqualTo("none"));
         });
     }
+
+    [Test]
+    public async Task AMemberLinkOpensTheTypeThatHoldsItAsync() {
+        await Page.GotoAsync("admin/reference/sdk#m-IContext.Request");
+
+        bool open = await Page.EvaluateAsync<bool>(
+            "document.getElementById('t-IContext').open");
+
+        Assert.That(open, Is.True, "a member inside a closed type must be revealed by its link");
+    }
 }

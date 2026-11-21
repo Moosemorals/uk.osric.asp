@@ -3,7 +3,6 @@
 
 namespace uk.osric.asp.Web.Assistant.Tools;
 
-using System.Xml.Linq;
 using uk.osric.asp.Core.Assistant;
 using uk.osric.asp.Web.Documentation;
 
@@ -77,14 +76,13 @@ internal sealed class ReferenceTool : AssistantTool {
         ReferenceTypeLookup lookup = services.Reference.FindType(name);
 
         if (lookup.Match is { } match) {
-            return services.Results.Success(new { type = TypeData(match.Type) }, $"Read {match.Type.Attribute("display")?.Value}");
+            return services.Results.Success(new { type = TypeData(match.Type) }, $"Read {match.Type.Display}");
         }
 
         if (lookup.Candidates.Count > 0) {
             string names = string.Join(", ", lookup.Candidates
                 .Take(5)
-                .Select(candidate => candidate.Type.Attribute("display")?.Value)
-                .OfType<string>());
+                .Select(candidate => candidate.Type.Display));
             return services.Results.Failure(
                 $"`{name}` names more than one type: {names}. Ask with the full name.",
                 "Reference refused");
@@ -92,7 +90,7 @@ internal sealed class ReferenceTool : AssistantTool {
 
         if (lookup.Elsewhere is { } elsewhere) {
             return services.Results.Failure(
-                $"`{name}` is in {elsewhere.Info.AssemblyName}; the reference reads the page contract "
+                $"`{name}` is in {elsewhere.Assembly.Info.AssemblyName}; the reference reads the page contract "
                 + "(uk.osric.asp.Sdk) only, because that is what a page may use.",
                 "Reference refused");
         }
@@ -102,36 +100,36 @@ internal sealed class ReferenceTool : AssistantTool {
             "Reference refused");
     }
 
-    private static object TypeData(XElement type) => new {
-        id = (string?)type.Attribute("id"),
-        name = (string?)type.Attribute("display"),
-        summary = Text(type, "summary"),
-        remarks = Text(type, "remarks"),
-        typeParameters = Parameters(type, "typeparam"),
-        members = type.Elements("member").Select(MemberData).ToArray(),
+    private static object TypeData(ReferenceType type) => new {
+        id = type.Id,
+        name = type.Display,
+        kind = type.Kind,
+        declaration = type.Declaration.Text,
+        summary = type.Summary.Text,
+        remarks = type.Remarks.Text,
+        typeParameters = Parameters(type.TypeParameters),
+        members = type.Members.Select(MemberData).ToArray(),
     };
 
-    private static object MemberData(XElement member) => new {
-        id = (string?)member.Attribute("id"),
-        kind = (string?)member.Attribute("kind"),
-        display = (string?)member.Attribute("display"),
-        summary = Text(member, "summary"),
-        remarks = Text(member, "remarks"),
-        typeParameters = Parameters(member, "typeparam"),
-        parameters = Parameters(member, "param"),
-        returns = Text(member, "returns"),
-        exceptions = member.Elements("exception").Select(exception => new {
-            type = (string?)exception.Attribute("text") ?? (string?)exception.Attribute("cref"),
-            text = ReferenceText.Flatten(exception),
+    private static object MemberData(ReferenceMember member) => new {
+        id = member.Id,
+        kind = member.Kind,
+        display = member.Display,
+        declaration = member.Declaration.Text,
+        summary = member.Summary.Text,
+        remarks = member.Remarks.Text,
+        typeParameters = Parameters(member.TypeParameters),
+        parameters = Parameters(member.Parameters),
+        returns = member.Returns.Text,
+        exceptions = member.Exceptions.Select(exception => new {
+            type = exception.Name,
+            text = exception.Doc.Text,
         }).ToArray(),
     };
 
-    private static string Text(XElement element, string name) =>
-        element.Element(name) is { } block ? ReferenceText.Flatten(block) : string.Empty;
-
-    private static object[] Parameters(XElement element, string name) =>
-        [.. element.Elements(name).Select(parameter => new {
-            name = (string?)parameter.Attribute("name"),
-            text = ReferenceText.Flatten(parameter),
+    private static object[] Parameters(IReadOnlyList<ReferenceParameter> parameters) =>
+        [.. parameters.Select(parameter => new {
+            name = parameter.Name,
+            text = parameter.Doc.Text,
         })];
 }

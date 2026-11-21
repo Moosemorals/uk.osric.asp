@@ -1,0 +1,25 @@
+<!--
+SPDX-FileCopyrightText: Copyright 2026 Osric Wilkinson <osric@fluffypeople.com>
+SPDX-License-Identifier: MIT
+-->
+
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <!-- The tool is not a document; nothing binds to it. -->
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.CodeAnalysis.CSharp" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- The assembly list and the model the site reads are shared by link, so the build emits
+         exactly the shape the site deserialises. -->
+    <Compile Include="../../src/uk.osric.asp.Web/Documentation/ReferenceAssemblyInfo.cs" Link="Corpus/ReferenceAssemblyInfo.cs" />
+    <Compile Include="../../src/uk.osric.asp.Web/Documentation/ReferenceModel.cs" Link="Corpus/ReferenceModel.cs" />
+  </ItemGroup>
+
+</Project>

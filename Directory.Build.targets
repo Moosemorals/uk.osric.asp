@@ -47,4 +47,20 @@ SPDX-License-Identifier: MIT
     </ItemGroup>
   </Target>
 
+  <!--
+    The reference corpus is written by the site's build and read from disk. A test that reads it
+    needs it beside the test assembly, so the one copy the site produced is copied down.
+  -->
+  <Target Name="CopyReferenceCorpus"
+          AfterTargets="Build"
+          Condition="'$(IsTestProject)' == 'true'">
+    <ItemGroup>
+      <ReferenceCorpusFiles Include="$(ArtifactsPath)/bin/uk.osric.asp.Web/$(Configuration.ToLowerInvariant())/reference.*.json" />
+    </ItemGroup>
+    <Copy SourceFiles="@(ReferenceCorpusFiles)"
+          DestinationFolder="$(OutDir)"
+          SkipUnchangedFiles="true"
+          Condition="'@(ReferenceCorpusFiles)' != ''" />
+  </Target>
+
 </Project>

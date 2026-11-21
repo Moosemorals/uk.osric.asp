@@ -222,23 +222,28 @@ release.
 
 ## The reference
 
-`/admin/reference` reads the XML documentation the build carries. The four product assemblies emit it
-(`GenerateDocumentationFile`, `code-analyzers-are-strict`), `dotnet publish` copies each file beside its assembly, and the
-container carries them at `/app`; `/admin/reference` is the index and `/admin/reference/{slug}` is one
-assembly.
+`/admin/reference` reads the corpus the build emits. The four product assemblies emit XML
+documentation (`GenerateDocumentationFile`, `code-analyzers-are-strict`); `tools/reference-corpus`
+then reads that XML and the metadata beside it, copies an `<inheritdoc/>` entry down from its base or
+interface member, resolves every `cref` across the corpus or to Microsoft Learn, and spells each
+declaration with Roslyn — accessibility, modifiers, return type and the word for a class, record,
+interface, enum or delegate. It writes one `reference.{slug}.json` per assembly beside the assembly,
+and `dotnet publish` carries the files into the image at `/app`.
 
-The shell owns it for the same reason it owns the changelist: the XML is a build artifact the image
+The site owns it for the same reason it owns the changelist: the corpus is a build artifact the image
 carries, and a page cannot read a file beside the assembly ([the build's own
 facts](architecture.md#where-a-view-lives)). It is public even though the key is under `/admin` — the
 URL is a filing cabinet, not an authorisation — and it carries the admin menu because that is where a
-reader finds it. `ReferenceLibrary` reads the four files once, on first use, normalises each into one
-document (the owner computed from the member id, stable anchors, shortened signatures, `see` links
-resolved across the corpus or to Microsoft Learn), and `ReferenceRenderer` transforms each document
-once with the embedded `reference.xslt`; the fragment is held for the process. A missing file is an
-assembly the index does not list, and a build with none says so rather than failing. An
-`<inheritdoc/>` entry is copied down from its base or interface member when that source is one of
-ours, and names the source when it is not. The `/reference.css` file in the web root styles the
-document and marks a link that leaves the site with an arrow.
+reader finds it. `ReferenceLibrary` reads the four files once, on first use; `ReferenceHtml` renders a
+namespace from that model in C#, and the fragment is held for the process. An assembly with one
+namespace serves it at `/admin/reference/{slug}`; one with several serves a namespace index there and
+each namespace at `/admin/reference/{slug}/{namespace}`. A type is a `<details>`, and `reference.js`
+opens one when a link names it. A declaration's return type and parameter types link to their entry,
+or to Microsoft Learn for a platform type, and a parameter name links to its row in the parameter
+list; each row links back to the name in the signature. Members are grouped under Constructors,
+Fields or Values, Properties, Methods and Events headings rather than tagged one by one. A missing
+file is an assembly the index does not list, and a build with none says so rather than failing. The `/reference.css` file in the web root styles the document
+and marks a prose link that leaves the site with an arrow.
 
 ## Error responses
 
