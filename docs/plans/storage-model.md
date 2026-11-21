@@ -7,7 +7,7 @@ SPDX-License-Identifier: MIT
 
 | | |
 | --- | --- |
-| Status | Proposed 2026-11-21 — waits for the owner. Nothing below is built |
+| Status | Proposed and agreed 2026-11-21 — the owner said yes. Nothing below is built, and slice 0, the sandbox spike, is next |
 | Size | Large as a programme, small as a step: a spike, five slices and the release that closes the window, each its own branch and its own stop. The values slice is the floor; the record slice is the risk |
 | First customer | The two plans this supersedes: the assistant's transcript (a Record for the signed-in visitor) and the redirect flash (a `NextRead` value). Editor mode is the first `Browser` value, and `/help`'s counter is the first Page value |
 | Spike | Slice 0: the sandbox console, written to `docs/spikes/store-sandbox.md` before anything is built. The item names it as the spike this plan needs |
@@ -846,8 +846,8 @@ record sandbox says of itself.
 ## Slices
 
 Each slice is one branch, one step through the gate and one stop for the owner. The programme merges
-phase by phase, so a regression is bisectable and its branch goes when its last slice is in. Nothing
-is built until the owner says yes to this plan.
+phase by phase, so a regression is bisectable and its branch goes when its last slice is in. The
+owner said yes to this plan on 2026-11-21, so slice 0 is next.
 
 0. **The sandbox spike** (`S`, docs only). A scratch console over the real SQLite build: an unpooled
    connection, a `TEMP VIEW` per table with a literal subject and an `INSTEAD OF` trigger,

@@ -55,7 +55,7 @@ scratch directory, and history as paths rather than three more tools.
    every effect, so one approval covers the line and the changed-pages card still knows what changed.
 9. **Built from the page capabilities.** An applet reaches the store through `IPageCatalog` and
    `IPageWrites`; a command that cannot be built is a gap in the page contract, not a private seam.
-   The three gaps it starts with are the three items that block it.
+   The two gaps it starts with are the two items that block it.
 
 [The plan](../plans/assistant-shell-tool.md) carries the detail, the phases and the risks.
 

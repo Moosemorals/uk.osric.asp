@@ -22,7 +22,7 @@ SPDX-License-Identifier: MIT
 > waiting for a yes — records for [`no-account-store`](no-account-store.md), messages for
 > [`message-does-not-survive-a-redirect`](message-does-not-survive-a-redirect.md) — and neither of
 > those should be approved. The old capabilities stay one release as obsolete adapters and then go.
-> Nothing is built until the owner says yes to the plan.
+> The owner said yes on 2026-11-21, so slice 0 — the sandbox spike — is next.
 
 ## Idea
 
