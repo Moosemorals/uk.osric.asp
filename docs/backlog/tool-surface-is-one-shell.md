@@ -13,7 +13,7 @@ SPDX-License-Identifier: MIT
 | Blocked by | — |
 | Plan | [assistant-shell-tool](../plans/assistant-shell-tool.md) |
 | Area | Core (Shell, Assistant), Shell, Web (assistant, site), docs, build |
-| Location | `src/uk.osric.asp.Web/Assistant/Tools/ToolRegistry.cs`, `src/uk.osric.asp.Web/Assistant/Shell/`, `src/uk.osric.asp.Core/Shell/`, `src/uk.osric.asp.Shell/` |
+| Location | `src/uk.osric.asp.Web/Assistant/Tools/ToolRegistry.cs`, `src/uk.osric.asp.Web/Assistant/Shell/`, `src/uk.osric.asp.Core/Shell/`, `src/uk.osric.asp.Core/Pages/`, `src/uk.osric.asp.Shell/` |
 | Spike | — |
 
 ## Idea
@@ -54,11 +54,14 @@ scratch directory, and history as paths rather than three more tools.
 8. **A write is planned before it is approved.** The kernel resolves every operand and classifies
    every effect, so one approval covers the line and the changed-pages card still knows what changed.
 9. **Built from the page capabilities.** An applet reaches the store through `IPageCatalog` and
-   `IPageWrites`; a command that cannot be built is a gap in the page contract, not a private seam.
-   The gap it started with has closed: a page can search the source now
-   ([`cannot-search-the-store`](closed.md)), so `grep` is a command this plan builds on that scan.
-   `check` is not a gap any more either — `check-without-storing` landed the capability and the `check`
-   tool — so only the commands wait for the port.
+   `IPageWrites`, or the one scan a page's search is built on; a command that cannot be built is a
+   gap in the page contract, not a private seam. The gap it started with has closed: a page can
+   search the source now ([`cannot-search-the-store`](closed.md)), through
+   `IPageCatalog.SearchAsync` and the scan under it, so `grep` is a command this plan builds on that
+   scan — whole lines, the shell's own line rule, and the typed `search_pages` deleted beside it. A
+   search reads the site's route records as sources, so `grep -r` finds a route's record where `cat`
+   refuses it. `check` is not a gap any more either — `check-without-storing` landed the capability
+   and the `check` tool — so nothing waits for a capability; the commands are the work.
 
 [The plan](../plans/assistant-shell-tool.md) carries the detail, the phases and the risks.
 

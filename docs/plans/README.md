@@ -22,7 +22,7 @@ other; `make decisions` checks the names.
 | Plan | Status | Backlog |
 | --- | --- | --- |
 | [account-store](account-store.md) | Superseded in shape 2026-11-21 by [storage-model](storage-model.md) | `no-account-store` |
-| [assistant-shell-tool](assistant-shell-tool.md) | Proposed 2026-11-19, waits for the owner; nothing built | [`tool-surface-is-one-shell`](../backlog/tool-surface-is-one-shell.md) |
+| [assistant-shell-tool](assistant-shell-tool.md) | Proposed 2026-11-19 and reconciled with trunk 2026-11-21; waits for the owner, nothing built | [`tool-surface-is-one-shell`](../backlog/tool-surface-is-one-shell.md) |
 | [build-metrics](build-metrics.md) | Proposed 2026-11-15, waits for the owner; nothing built | [`whim-build-timings`](../backlog/WHIMS.md) |
 | [email](email.md) | Proposed 2026-11-06, not implemented | — (operations, not the site) |
 | [email-configuration](email-configuration.md) | Configuration excerpts for [email](email.md); nothing deployed | — |
