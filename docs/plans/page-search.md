@@ -22,26 +22,28 @@ plan is the implementation of those answers:
   key, a 1-based line, the match's 1-based column, a snippet of the line around the match and the snippet's own
   column — plus a cursor, `Truncated`, the prefix's fingerprint and `Changed`. Five `Sdk` values do it; the page
   never meets a source, a hash or a template.
-- **The scan.** `PageSourceSearch.Find` becomes `PageSourceScan`: one matcher over a *stepped* source sequence,
-  with a time allowance, a cursor in key-then-line order, a column, and three callers — the page, `search_pages`
-  and `grep` — that keep their own line rule and their own projection. `GrepPattern` moves to `Core.Pages` and
-  grows a literal/basic switch and a column; it stays the one pattern language (`assistant-the-shell-is-posix`).
-- **The read.** Both read seams gain a stepped read: `IPageReadStore.ScanAsync` yields live templates one at a time
-  from one SQL statement (the page's), and `IPageStoreReader.ScanAsync` yields the scope's sources one at a time
-  (the assistant's). `SourcesAsync` becomes the materialisation of its seam's stepped read, so there is one read
-  per seam rather than two.
+- **The scan.** A new `PageSourceScan` walks a *stepped* source sequence: one matcher, a time allowance, a cursor
+  in key-then-line order, the match's column and length, and the caller's own line rule and projection. The page
+  is its one caller today; the assistant's two arrive with their rewrite. `GrepPattern` moves to `Core.Pages` and
+  grows a literal/basic switch and a match position; it stays the one pattern language
+  (`assistant-the-shell-is-posix`), and `PageSourceSearch` stays where it is until the assistant's rewrite.
+- **The read.** `IPageReadStore` gains a stepped read: `ScanAsync` yields live templates one at a time from one
+  SQL statement, so the allowance covers the reading as well as the matching. The assistant's read seam is
+  untouched until its rewrite; `SourcesAsync` keeps materialising for `grep` and `search_pages` until then.
 - **The bound.** One new section, `Pages:Search`, carries the duration (30 ms shipped, a starting point the
   metrics tune), the default and largest `Limit` (100 and 1000) and the default and largest snippet `Context` (64
   and 1024). The duration covers the version read, the reading and the matching.
 - **The measurements.** `page.search.duration` is a histogram tagged `caller`; `page.search.requests` is a counter
   tagged `caller` and `outcome` — `completed`, or `cut-off` when the timer stopped the scan. Each gets one panel,
-  and the status page reads them like every other instrument (`metrics-one-panel-per-instrument`).
-- **The interruption.** A scan the timer stopped is interrupted results, so `grep` keeps its matches on standard
-  output, writes one diagnostic to standard error and exits 2 — POSIX `grep`'s error band. The virtual shell gains
-  the error channel and the exit code, and the shell tool's JSON carries both.
+  and the status page reads them like every other instrument (`metrics-one-panel-per-instrument`). `caller` is
+  `page` today and gains `shell` with the rewrite.
+- **The shell is not touched.** The owner's instruction: the virtual shell is rewritten next. This plan changes no
+  applet, no `ShellResult` and no shell output. `grep` keeps its unbounded walk and its match cap, and the POSIX
+  interruption the owner asked about — exit 2, a diagnostic on standard error, the selected lines on standard
+  output — lands with that rewrite, where the shell can hold an exit status and an error channel at all.
 - **The manual.** `/help` gains a section that teaches the pattern language, the snippet and the call; the prompt
-  gains a paragraph and moves to `page-author-v57`; and [pages](../pages.md), [storage](../storage.md),
-  [assistant](../assistant.md) and [metrics](../metrics.md) say what changed.
+  gains a paragraph and moves to `page-author-v57`; and [pages](../pages.md), [storage](../storage.md) and
+  [metrics](../metrics.md) say what changed.
 
 The scan's loop, the read it stands on, and the values it carries are the whole of the risk; everything else is
 wiring, a setting and a page of prose.
@@ -149,7 +151,7 @@ not finish*, which is the only thing the scan can honestly say when a timer stop
 `Web/Pages/PageSourceScan.cs`: one class, three callers, each keeping its own line rule and its own projection.
 
 ```csharp
-internal enum PageSearchCaller { Page, Tool, Shell }
+internal enum PageSearchCaller { Page, Shell }   // Shell arrives with the shell's rewrite
 
 /// <summary>Where a scan ended: the scope ran out, the caller's limit, or the time allowance.</summary>
 internal enum PageSearchEnd { Exhausted, Limit, Duration }
@@ -182,35 +184,31 @@ internal sealed class PageSourceScan(PageSearchOptions options, TimeProvider clo
 - **The loop** is a plain `await foreach` over the sources, one source in memory at a time, and per line: check
   the clock, test the pattern, and either record a match or stop on the limit. The position of the line being
   tested is the cursor if the loop stops there; a finished source leaves no position behind.
-- **The line rule is a parameter**, a `Func<string, string[]>`. The page and `search_pages` pass
-  `TemplateLines.Split` (the physical lines the editor and `read_page` count); `grep` passes `ShellText.Split`
-  (the POSIX count). They stay two rules for the reason
+- **The line rule is a parameter**, a `Func<string, string[]>`, because the two rules must stay apart: the page
+  passes `TemplateLines.Split` (the physical lines the editor and `read_page` count) and the shell will pass
+  `ShellText.Split` (the POSIX count) when it uses the scan. They stay two rules for the reason
   [`pages-the-store-is-a-tree`](../decisions.md#pages-the-store-is-a-tree) records: merging them makes an edit
   address the wrong line in a page that does not end with a newline.
 - **The scan answers the line, the catalog makes the snippet.** `PageScanMatch.Text` is the whole line and
-  `Length` is the match's length, so `grep` and `search_pages` print what they print today and the catalog can
-  size a window without running the pattern twice.
+  `Length` is the match's length, so a caller that prints lines — the assistant's, when the rewrite brings them —
+  prints them whole, and the catalog sizes a window without running the pattern twice.
 - **The window is a pure function.** `Core/Pages/LineSnippet` takes the line, the match's index and length and
   the requested context, and answers the snippet, its 1-based start and whether it was clipped:
   `width = min(max(context, length), line.Length)`, started at `index - (width - length) / 2` and clamped to
   `0 .. line.Length - width`. The arithmetic is proved in `Core`'s suite with no store and no harness.
-- **Two sources of text, one shape.** `PageSourceText` is the scan's input. The catalog's is
-  `IPageReadStore.ScanAsync` merged with the route records from `ShellCatalogue.Text`; the assistant's is
-  `IPageStoreReader.ScanAsync`, which already includes the route records because it reads the tree the shell
-  reads.
+- **One source of text, for now.** `PageSourceText` is the scan's input. Today the catalog's is
+  `IPageReadStore.ScanAsync` merged with the route records from `ShellCatalogue.Text`; when the assistant's
+  rewrite moves onto the scan, `IPageStoreReader` answers the same shape, because it already reads the route
+  records as part of the tree the shell reads.
 
 ### The read it stands on
 
-Two stepped reads, one per seam, both in key order:
+One stepped read, in key order:
 
 ```csharp
 // Web/Pages/IPageReadStore.cs — the page's read, one statement, live heads only.
 IAsyncEnumerable<PageReadSource> ScanAsync(
     string prefix, string? from, bool recursive, CancellationToken cancellationToken = default);
-
-// Web/Assistant/PageStoreReader.cs — the assistant's read, over the tree it already builds.
-IAsyncEnumerable<PageRead> ScanAsync(
-    IReadOnlyList<PageScope> scopes, CancellationToken cancellationToken);
 ```
 
 `IPageReadStore.ScanAsync` is the one new statement. It is the listing's query without the limit and without the
@@ -220,56 +218,30 @@ exclusive `after`, because the cursor resumes inside the source it names. The de
 `InReadSnapshotAsync` is unnecessary: one streaming statement holds SQLite's snapshot for as long as it runs,
 nothing is written and nothing is pinned beyond it.
 
-`SourcesAsync` becomes the materialisation of the assistant seam's stepped read, so the scope rules, the
-ordering and the route records stay in the one place they already are. The assistant's stepped read yields a
-`PageRead` from `ReadAsync` per node, exactly what `SourcesAsync` did in a loop; the difference is that the loop
-now hands each source on instead of collecting all of them.
+`IPageStoreReader` is deliberately unchanged: it keeps `SourcesAsync` and its tree walk, so `grep`,
+`search_pages` and every fixture that reads through the assistant's seam behave exactly as they do today. When
+the rewrite brings those two onto the scan, this read is what the page and the shell then share (the rewrite's
+own work; see [Not in scope](#not-in-scope)).
 
-### The two front-ends
+### Who calls it
 
-**`search_pages`** ([`PageTools.cs`](../../src/uk.osric.asp.Web/Assistant/Tools/PageTools.cs)) is one merge away
-from deletion: [`tool-surface-is-one-shell`](../backlog/tool-surface-is-one-shell.md), which this item blocks,
-removes it and folds its work into the shell. This plan therefore leaves its surface exactly as it is — no
-`pattern` argument, no cursor — and only rewires it onto the shared scan so `PageSourceSearch` can go. It keeps
-its literal match, its `Assistant:MaxSearchMatches` cap, its `path`/`line`/`text` JSON and its 240-character
-trim. Its `truncated` now says the timer or the cap stopped it, and its description says "there is more to read".
+**`PageCatalogScope`** ([`PageCatalogScope.cs`](../../src/uk.osric.asp.Web/Pages/PageCatalogScope.cs)) is the one
+caller this plan adds. It normalises the prefix and the cursor, compiles the pattern, checks the limit against
+`Pages:Search:MaxMatches` and the context against `Pages:Search:MaxContextChars`, calls the scan with the catalog's
+own source (the store's stepped read plus `reserved.Keys`), cuts each match with `LineSnippet`, and maps the
+result to `PageSearch`. It keeps the two refusals every member has — an ended render throws
+`InvalidOperationException`, and the store's deadline is linked into the token.
 
-**`grep`** ([`GrepApplet.cs`](../../src/uk.osric.asp.Web/Assistant/Shell/Applets/GrepApplet.cs)) keeps POSIX output
-and gains POSIX's interruption. The line answer goes through the scan with `ShellMatchLimit` and
-`ShellText.Split`, and prints the whole line, so `key:line: text` is unchanged; `-l`, `-c` and the depth hint keep
-their folds. A match-limit stop keeps the `Stopped` note on standard output, because a cap is not an error. A timer
-stop is different: the matches already found stay on standard output, one diagnostic goes to standard error, and
-the exit status is 2.
-
-**`PageCatalogScope`** ([`PageCatalogScope.cs`](../../src/uk.osric.asp.Web/Pages/PageCatalogScope.cs)) normalises
-the prefix and the cursor, compiles the pattern, checks the limit against `Pages:Search:MaxMatches` and the
-context against `Pages:Search:MaxContextChars`, calls the scan with the catalog's own source (the store's
-stepped read plus `reserved.Keys`), cuts each match with `LineSnippet`, and maps the result to `PageSearch`. It
-keeps the two refusals every member has — an ended render throws `InvalidOperationException`, and the store's
-deadline is linked into the token.
-
-### The interruption
-
-POSIX `grep` says an error with an exit status above 1 — GNU uses 2 — and writes the diagnostic to standard error
-while the lines it did select stay on standard output. A process a signal killed reports 128 + the signal, but a
-program that notices it must stop reports the error status, and that is the case here: the timer is ours, not the
-shell's signal. The virtual shell has one output and no status today, so it grows the two things that sentence
-needs:
-
-- `IShellOutput.Interrupted(note)` writes the note to standard error and marks the answer truncated — `Stopped`'s
-  twin for the case where the note is a diagnostic; `ShellOutput` keeps `Text` and `Stderr` apart, so the note is
-  not the answer.
-- `ShellResult` gains `ExitCode` (0 by default) and the `ShellResult.Interrupted(summary)` call an applet makes
-  for it. `IsSuccess` stays true, because there is an answer to read.
-- The kernel copies the result's `ExitCode` and the output's `Stderr` into `ShellOutcome`, which gains both, so
-  an applet writes text in one place and status in another.
-- `ShellTool`'s JSON gains `exitCode` and `stderr` beside `output` and `truncated`, so the model sees the status
-  rather than a sentence buried in the answer. That shape change is the one place the item's "the shell's output
-  does not change" is superseded by the owner's answer.
-
-`truncated` and the exit code then agree: an interrupted answer is marked truncated *and* exits 2, where a
-match-limit answer is marked truncated and exits 0. A refusal stays the tool's failure as it is today: it produced
-no answer at all.
+**The assistant's two front-ends wait.** The owner's answer is that the shell is rewritten next, and
+`search_pages` goes with it (`tool-surface-is-one-shell`), so this plan changes no applet and no tool surface: the
+only edit under `Tools` is `PageToolData.TemplateSourceLines` delegating to `Core`, so the physical-line rule has
+one implementation while the tool lives. `PageSourceSearch` stays in `Web/Assistant` for them until the rewrite,
+and `GrepPattern` is still the one pattern language for all three because the page's scan uses it too. The timer
+therefore bounds the page's scan now and the assistant's scan from the rewrite; until then `grep` and
+`search_pages` keep today's match caps, their output and their unbounded walk. **When they are rewritten they use
+this scan**, and the shell's POSIX interruption — exit 2, the diagnostic on standard error, the selected lines on
+standard output — lands with that rewrite, because the shell has neither an exit status nor an error channel to
+put it in today.
 
 ### Configuration
 
@@ -309,7 +281,8 @@ Two instruments on the Pages meter, beside the ones that already describe the st
 | `page.search.requests` | counter | — | `caller`, `outcome` (`completed`, `cut-off`) — `cut-off` is the timer, and `completed` is every scan that ended on its own terms, including one the caller's limit stopped |
 
 - **The histogram is the shape of the work**, and the tuning instrument the owner named: 30 ms is a starting
-  point, not a derived number. Its buckets are `SearchBuckets`, one scale for a scan:
+  point, not a derived number. Only the page reports until the shell's rewrite, so `caller` has one value now and
+  the instrument does not change when it has two. Its buckets are `SearchBuckets`, one scale for a scan:
   `0.001, 0.0025, 0.005, 0.01, 0.015, 0.02, 0.025, 0.03, 0.04, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5, 10`. The
   `0.03` boundary is the shipped allowance, so "how many scans finish inside the budget" is a cell rather than
   an interpolation, and the top covers the tool timeout a `search_pages` call runs under.
@@ -326,54 +299,48 @@ Two instruments on the Pages meter, beside the ones that already describe the st
 
 ## What this plan does differently from the item's sketch
 
-- **`SourcesAsync` moves *behind* the scan rather than into `IPageReadStore`.** The item's sketch lifts it "into
-  the seam the catalog already uses". The assistant's seam reads through `PageEditor`, and the scope rules and
-  route records are what its tests and its `grep -l`/`-c` depend on. So each seam gains a stepped read and
-  `SourcesAsync` is its materialisation: one read per seam, one scan over both. Moving the assistant's source
-  set onto `IPageReadStore` would rewrite every search fixture and buy no behaviour.
-- **The timer applies to all three callers, not only the page.** The owner's answer says one bound for the
-  behaviour; the shell keeps its match limit and the lines it prints, but its scan is stopped by the same
-  allowance, and a stop is an interruption rather than a note on the answer.
-- **`search_pages` is left alone.** The item gives it a pattern flag and moves its cap to the new section. The
-  owner's answer is that the tool is deleted by [`tool-surface-is-one-shell`](../backlog/tool-surface-is-one-shell.md)
-  within days, so this plan only rewires it onto the shared scan — literal match, own cap, JSON untouched — and
-  leaves `Assistant:MaxSearchMatches` for the plan that removes the tool.
-- **The shell gains an exit code and an error channel.** The item says the shell's output does not change; the
-  owner's answer says an interrupted search must say so POSIX's way, and that needs both.
-- **`grep -l` and `-c` stay on the per-key fold.** Their answer is a key or a count, and folding a line scan
-  would cut a count at the match limit rather than at `ShellMatchLimit`. They read the stepped seam and
-  materialise it, so the read is one implementation but the answer is unchanged.
+- **The assistant's read seam is untouched.** The item's sketch lifts `SourcesAsync` "into the seam the catalog
+  already uses". The owner's instruction to skip the shell makes that premature: the assistant's seam reads
+  through `PageEditor`, and the scope rules, the route records and the per-key folds are what its tests and its
+  `grep -l`/`-c` depend on. So the page's seam gains the stepped read, the page's scan sits on it, and
+  `PageSourceSearch`/`SourcesAsync` stay for the assistant until its rewrite, which will put both on this scan.
+- **The assistant's two front-ends wait for the shell's rewrite.** The item gives `search_pages` a pattern flag
+  and moves its cap, and has `grep` share the scan. The owner's instruction is that the shell is rewritten next
+  and `search_pages` goes with it (`tool-surface-is-one-shell`), so this plan rewires neither: `PageSourceSearch`
+  stays for them, they keep their caps and output, and the owner's POSIX interruption — exit 2 and stderr — lands
+  with the rewrite, because the shell has neither today.
+- **The assistant's scan is unbounded until then.** `grep` and `search_pages` keep the walk they have; the time
+  allowance reaches them with the same rewrite, and `Pages:Search:MaxDurationMs` is already the value they will
+  read.
 
 ## The work, in order
 
-One branch, five commits, the gate at the end. Each commit leaves the build green and its tests failing without
+One branch, four commits, the gate at the end. Each commit leaves the build green and its tests failing without
 it.
 
 ### 1. The values, the language and the window
 
-- `Core/Pages/GrepPattern.cs` (moved from `Core/Assistant`): a `literal` parameter on `TryCompile` so a literal
+- `Core/Pages/GrepPattern.cs` (moved from `Core/Assistant`): a `literal` parameter on the compile so a literal
   `foo.` stays literal and a basic one keeps the dot — a named `bool` rather than the `Sdk` enum, because `Core`
   cannot reference the page contract; `TryMatch(line, out int index, out int length)` for the first match's
-  position; refusals return the reason without advice, and each caller adds its own sentence. The shell's
-  auto-detect disappears: POSIX `grep` is a basic expression, and a query with no metacharacter is already the
-  literal path.
+  position; refusals return the reason without advice, and each caller adds its own sentence. The existing
+  auto-detecting entry point stays for `grep` — the shell is not touched here — and delegates to the explicit
+  one, so the language still has one implementation.
 - `Core/Pages/LineSnippet.cs`: the window arithmetic, `(Text, Start, Clipped)`.
-- `Core/Compilation/TemplateLines.cs`: `Split(string)` carries the physical-line rule `PageToolData` holds today;
-  `TemplateSourceLines` delegates (and its callers move to `TemplateLines.Split` in step 5).
+- `Core/Compilation/TemplateLines.cs`: `Split(string)` carries the physical-line rule `PageToolData` holds today,
+  and `TemplateSourceLines` delegates to it, so the rule has one implementation while the tool lives.
 - `Sdk`: the five types above, `IPageCatalog.SearchAsync`, and the `PublicAPI.Unshipped.txt` entries the analyzer
   asks for.
 
 ### 2. The stepped reads
 
 - `IPageReadStore.ScanAsync` and `SqlitePageReadStore`'s implementation; `FakePageReadStore`'s in-memory twin.
-- `IPageStoreReader.ScanAsync` over `TreeAsync` + `ReadAsync`; `SourcesAsync` becomes
-  `[.. await ScanAsync(scopes, ct).ToListAsync(ct)]`.
 - The read store's tests: order, tombstone, inclusive `from`, one level, and the unchanged `SourcesAsync`.
 
 ### 3. The scan and the catalog
 
-- `PageSourceScan` (the file moved and the class replaced), `PageSearchCaller`, `PageScanQuery`, `PageScanMatch`,
-  `PageScanResult`, `PageSourceText`.
+- `PageSourceScan`, a new file beside the catalog (`PageSourceSearch` stays for the assistant), with
+  `PageSearchCaller`, `PageScanQuery`, `PageScanMatch`, `PageScanResult` and `PageSourceText`.
 - `PageSearchOptions` + `TestOptions.Search` + `ShippedConfigurationTests` + `PageSearchOptionsTests`, the five
   values and their two cross-checks.
 - `PageCatalogScope.SearchAsync`, the `Sdk` mapping (including `LineSnippet`), and the constructors that hand a
@@ -383,18 +350,7 @@ it.
   `StatusCatalogue` panels.
 - The catalog's tests and the scan's own suite.
 
-### 4. The assistant's two front-ends and the interruption
-
-- `SearchPagesTool`: rewired onto the shared scan, its surface and cap untouched, its description saying what
-  `truncated` now means.
-- `GrepApplet`: the scan for the line answer, the whole line on standard output, and the interrupted result —
-  matches on stdout, a diagnostic on stderr, exit 2 for the timer and only the timer.
-- The shell's channel: `IShellOutput.Diagnostic`, `ShellOutput.Stderr`, `ShellResult`/`ShellOutcome`'s `ExitCode`
-  and `Diagnostic`, `ShellTool`'s `exitCode` and `stderr`; `ShellContext` gains the scan and `ShellRunner.RunAsync`
-  takes it from `ShellTool`/`ShellKernelHarness`.
-- The tool and shell tests, including the exit status and the stderr split.
-
-### 5. The manual, the prompt and the record
+### 4. The manual, the prompt and the record
 
 - `/help`'s `Reading the page store` section gains `Searching the store`: the call, the cursor, the version, the
   snippet and its context, the kinds, and the language table (a literal is literal; `^`, `$`, `.`, `*`, `[abc]`
@@ -404,10 +360,11 @@ it.
   `Version` moves to `page-author-v57`. Three tests hold the literal `page-author-v56` and move together.
   [assistant-shell-tool](assistant-shell-tool.md) also intends v57; it is blocked by this item, so this plan
   lands first and that plan's merge takes v58.
-- [pages](../pages.md), [storage](../storage.md), [assistant](../assistant.md) and [metrics](../metrics.md).
+- [pages](../pages.md), [storage](../storage.md) and [metrics](../metrics.md).
 - The record: at the merge, the entry **pages-a-search-returns-matches** — the snippet and its offsets, the one
-  pattern language, the time allowance, the cursor and the interrupted result — the moved `GrepPattern` link in
-  `assistant-the-shell-is-posix`, and the `PageSourceSearch` sentence in `pages-the-store-is-a-tree`.
+  pattern language, the time allowance and the cursor — the `GrepPattern` link in `assistant-the-shell-is-posix`
+  as the file moves, and the `PageSourceSearch` sentence in `pages-the-store-is-a-tree` as the second walker
+  stays for now.
 
 ## Tests
 
@@ -442,11 +399,13 @@ One suite per layer, beside the thing it changes, in the existing projects.
   a duration of zero and one above the ceiling; `DefaultMatches` above `MaxMatches`; `MaxMatches` above the
   ceiling; `DefaultContextChars` above `MaxContextChars` and below 64; `MaxContextChars` above its ceiling.
 - `PageMetricsTests`: one search records one duration and one `completed`; a fake clock that expires records
-  `cut-off`; the `caller` tag distinguishes the three.
+  `cut-off`; the record carries `caller=page`.
 - `PageAuthorPromptTests`: the search paragraph is there, the three version literals move, the example compiles.
 - `HelpReferenceLinksTests`: every new `/help` link resolves, including `#m-IPageCatalog.SearchAsync-PageSearchRequest`.
 - `FakePageReadStore` implements `ScanAsync`; `PageHarness` wires the scan; `ShippedConfigurationTests` reads the
   new factory.
+- `SqlitePageReadStoreTests`: the stepped read's order, tombstone, inclusive `from`, one level, and the unchanged
+  `SourcesAsync`.
 
 **`Web.IntegrationTests`**
 
@@ -457,15 +416,8 @@ One suite per layer, beside the thing it changes, in the existing projects.
 - `MetricNamesTests` picks the two instruments up with no edit, which is the check that the catalogue and the
   meter agree.
 
-**`Web.Tests` — the assistant**
-
-- `PageToolExecutorTests`: `search_pages`'s JSON shape and arguments are unchanged and it is still a literal
-  match; shell records are searched and tombstones skipped; a timer cut-off sets `truncated`; the shell tool's
-  answer carries `exitCode` 0 for an ordinary command.
-- `ShellPatternAndSearchTests`: `grep`'s lines, `-l`, `-c` and the depth hint are unchanged; with a fake clock a
-  cut-off leaves the matches on stdout, writes the diagnostic to stderr and exits 2, while a `ShellMatchLimit`
-  stop still writes its `Stopped` note to stdout and exits 0.
-- `SqlitePageReadStoreTests`: the stepped read's order, tombstone, inclusive `from` and one level.
+**The assistant's suites do not change.** `PageToolExecutorTests` and `ShellPatternAndSearchTests` pass as they
+stand, which is the proof that no tool and no applet moved; the rewrite that replaces them brings their own tests.
 
 ## Docs
 
@@ -474,12 +426,13 @@ One suite per layer, beside the thing it changes, in the existing projects.
   sentence.
 - [storage](../storage.md) — the stepped read, the uncharged search, the fingerprint and the `Pages:Search`
   bounds.
-- [assistant](../assistant.md) — the shared scan, `search_pages` unchanged, and `grep`'s exit status and stderr.
+- [assistant](../assistant.md) — no behavioural change, so no edit; the shell's rewrite writes its half.
 - [metrics](../metrics.md) — the two rows, the buckets and the counts.
 - [decisions](../decisions.md) — the new entry at the merge, the moved `GrepPattern` link and the
   `PageSourceSearch` sentence.
-- The item and the order: the item's answers 3 and 6 record the snippet and the interruption, `Plan` names this
-  file, [the order](../README.md#the-order) links it, and [ide-host](ide-host.md) step 4 points here.
+- The item and the order: the item's answers 3 and 6 record the snippet and the deferral of the interruption,
+  `Plan` names this file, [the order](../README.md#the-order) links it, and [ide-host](ide-host.md) step 4 points
+  here.
 
 ## Risks
 
@@ -494,12 +447,9 @@ One suite per layer, beside the thing it changes, in the existing projects.
   answer does not hide it; a caller that wants a bound on its own work counts restarts. The listing makes the
   same trade one step softer, and `pages-a-listing-carries-a-fingerprint` records why a warning rather than a
   refusal.
-- **`search_pages`'s `truncated` changes meaning.** It now says "there is more store to read" as well as "there
-  are more matches"; a model that treated it as "narrow the query" may now be told to narrow a query that is
-  already narrow. The tool's description is the fix, and the tool itself is deleted within days.
-- **The shell's JSON grows two keys.** `exitCode` and `stderr` are new to the model's view of the shell; nothing
-  that reads the old keys changes, but a prompt or a transcript that says the result is `output`/`truncated` is
-  now incomplete.
+- **The assistant's scan stays unbounded for a while.** `grep` and `search_pages` keep their walk until the
+  rewrite, so the one thing this plan does not fix is the cost of an assistant search over a large store. The
+  setting that will bound it is already here, and the rewrite is the next step.
 - **The prompt version is contended.** [assistant-shell-tool](assistant-shell-tool.md) also intends v57; the merge order settles it, and
   the number is moved in one place and asserted in three.
 
@@ -513,18 +463,22 @@ no question is open.
    choice of the context size". The reading taken here: `PageSearchRequest.Context` is that choice, defaulting to
    `Pages:Search:DefaultContextChars` (64) and capped by `Pages:Search:MaxContextChars` (1024), with the match
    never cut. `Column`, `TextColumn` and `Clipped` describe where the snippet and the match sit.
-2. **An interruption is POSIX's error.** The owner asked whether POSIX `grep` has an obvious way of saying the
-   results were interrupted. It has: an exit status above 1 — GNU uses 2 — with the diagnostic on standard error
-   and the selected lines left on standard output. The timer's answer is that, so `grep` exits 2 and writes
-   stderr; the limit's answer stays the `Stopped` note on stdout, because a cap is not an error.
+2. **An interruption is POSIX's error, and the shell's rewrite carries it.** The owner asked whether POSIX `grep`
+   has an obvious way of saying the results were interrupted. It has: an exit status above 1 — GNU uses 2 — with
+   the diagnostic on standard error and the selected lines left on standard output. The owner then said to leave
+   the shell alone because it is rewritten next, so nothing in this plan prints that status or that diagnostic;
+   the rewrite adds both, and moves `grep` and `search_pages` onto this scan.
 3. **30 ms is a starting point.** The owner picked it from the air and the metrics are what it is tuned by, so
    the plan stops arguing for the number and points at `page.search.duration` and
    `page.search.requests{outcome="cut-off"}` instead.
-4. **`search_pages` is going, so it is not grown.** It keeps its arguments, its cap and its JSON until
-   [`tool-surface-is-one-shell`](../backlog/tool-surface-is-one-shell.md) deletes it; this plan only moves it onto
-   the shared scan.
+4. **`search_pages` is going, so it is not touched.** It keeps its arguments, its cap, its JSON and its walk until
+   [`tool-surface-is-one-shell`](../backlog/tool-surface-is-one-shell.md) deletes it; the shell's rewrite moves
+   what is left onto this scan.
 5. **The plan's name and the decision's name stand.** `page-search` is the file; **pages-a-search-returns-matches**
    is the entry the merge writes.
+6. **Skip the shell.** "We'll do it when the shell gets its rewrite (soon!)" — so no applet, no `ShellResult`, no
+   `IShellOutput` and no shell test moves in this plan, and the assistant's two front-ends read the new scan from
+   that rewrite rather than from here.
 
 ## Not in scope
 
@@ -538,3 +492,6 @@ no question is open.
   stays out of it either way.
 - **A cursor for `search_pages`.** It is deleted by `tool-surface-is-one-shell`; a cursor for it would be a shape
   written twice. The shell's `grep` has no cursor either.
+- **The shell's rewrite.** The owner's instruction, and the next step: no applet changes here, and the POSIX
+  interruption — exit 2, the diagnostic on standard error, the selected lines on standard output — plus the
+  assistant's move onto this scan belong to it.

@@ -142,10 +142,11 @@ trunk changed the seam under it.
    the site says it whether a page wrote it or a route does. A match carries the key, and the listing
    marks a key a route answers (`PageEntryKind.Route`), so a page can tell the two apart with the read it
    already has.
-6. **An interrupted search is an error.** Answered on 2026-11-21, when the plan asked how a scan stopped by
-   its duration should say so: POSIX `grep`'s way, an exit status above 1 — 2 in GNU `grep` — with the
-   diagnostic on standard error and the lines already selected left on standard output. The virtual shell
-   grows the exit code and the error channel; `search_pages` is being deleted and gets neither.
+6. **An interrupted search is an error, and the shell's rewrite says it.** Answered on 2026-11-21, when the
+   plan asked how a scan stopped by its duration should say so: POSIX `grep`'s way, an exit status above 1 — 2
+   in GNU `grep` — with the diagnostic on standard error and the lines already selected left on standard
+   output. The owner then said to leave the shell alone until its rewrite, so the exit code and the error
+   channel arrive with that rewrite; `search_pages` is being deleted and gets neither.
 
 ## After MVP: a revision's history
 
