@@ -57,24 +57,32 @@ Two subjects, four shapes. `Site` is a reserved column, not a subject, until a u
 
 - **Page** — shared by every visitor; the page's own data. Key: the page key. Lifetime: the page's;
   survives edit and restore, moves with the key, and is the only subject an archive carries.
-- **Visitor** — this person. Key: the session id while anonymous, the account when signed in. On
-  sign-in its `Person`-lifetime rows are re-keyed into the account in one transaction; adoption is a
-  re-key, not a read, so a one-shot survives it.
+- **Visitor** — this person. Key: the session id while anonymous, the account when signed in; a
+  `Browser`-lifetime row is keyed by the browser id instead. On sign-in its `Person` rows are re-keyed
+  into the account in one transaction; adoption is a re-key, not a read, so a one-shot survives it.
+  `Session` rows go with the rotation, and `Browser` rows are untouched.
 - **Site** — reserved. It is the multi-writer case only (many pages setting one shared cell), and it
   needs a governance rule first. Cross-page *reads* are served by the Page subject instead.
 
 Lifetimes are a property of the entry, returned by a read and selectable in a listing filter:
 
-| Lifetime | Dies when |
-| --- | --- |
-| `Person` (default) | the account or session that owns it goes |
-| `Session` | the session rotates — sign-out and sign-in both |
-| `NextRead` | the next successful read of that key, atomically |
-| `Until(expiry)` | the clock says so; composes with the others |
+| Lifetime | Where | Dies when |
+| --- | --- | --- |
+| `Person` (Visitor default) | Visitor | the account goes; anonymous, the session, until adoption moves it |
+| the page's own (Page default) | Page | the page goes |
+| `Session` | Visitor | the session rotates — sign-out and sign-in both |
+| `Browser` | Visitor | the browser's cookie is cleared or expires; survives sign-in and sign-out |
+| `NextRead` | both | the next successful read of that key, atomically |
+| `Until(expiry)` | both | the clock says so; composes with the others |
 
-- `Session` is a **lifetime, not a subject**. It exists because NoScript visitors are first class:
-  per-browser state must be readable by the server, so localStorage is at most a progressive
-  enhancement.
+- `Session` and `Browser` are **lifetimes, not subjects**. Both exist because NoScript visitors are
+  first class: per-browser state must be readable by the server, so localStorage is at most a
+  progressive enhancement.
+- `Browser` needs an identity that outlives the session. The host mints a long-lived `HttpOnly` `b`
+  cookie on the first `Browser` write; it is not the `s` session id, is never linked to an account,
+  and dies when the visitor clears cookies or its configured lifetime passes. Editor mode becomes
+  `Browser`, and the seeded `/privacy` page names the cookie. A read by key searches the person scope,
+  then the browser and then the session for the current reader, and answers which lifetime it found.
 - `NextRead` is a keyed one-shot. `TryGetValueAsync` on a `NextRead` key is a single
   `DELETE … RETURNING`; `KeysAsync` lists without consuming. The caller cannot know the lifetime
   before it reads, so a consumed value reads as not found afterwards.
@@ -86,8 +94,8 @@ The rest of the shape:
 
 - **Reads are open across page keys; writes are bound to the caller's key.** `/a` reads `/_lib/b`'s
   Page values with `TryGetValueAsync("/_lib/b", key)`. A page may not write another page's key. The
-  one deliberate escape is `ctx.Stores.For(libraryKey)`, restricted to a key that names a library, so
-  a library's shared cache has a home without letting a page write a page.
+  one deliberate escape is `ctx.Stores.For(key)`, restricted to a key that names a library or a
+  worker: shared code owns its namespace, and a page reaches it by calling the code.
 - **Authority lives in the verbs, not in the layer.** Every write refuses a `HEAD`, an abandoned
   render and a passed deadline, on every subject and every layer. Content, layout and embedded all
   get `ctx.Stores`; the page-source write keeps its own signed-in, one-action rules and stays out of
@@ -98,9 +106,15 @@ The rest of the shape:
   policy that follows the subject; a page may also open the bytes and transform them — an image
   filter, a re-encode — and put the result back, where content addressing dedupes it. Private
   subjects are checked for ownership on the route.
-- **A job gets `Page` bound to the page that started it and `Visitor` bound to the starter**, and no
-  `Session` at all. A library never renders, so it has no namespace of its own by default; it uses
-  the including page's handles, or `For(libraryKey)` when its state must be shared across callers.
+- **Shared code owns its namespace.** A library declares its tables and its data under its own key,
+  and a page calls the library's methods; the page never names the library's key or tables. That is
+  the approved pattern: **the library declares the schema, the page calls the library's methods, and
+  the methods reach the data.** Declarations are applied when the declaring source is saved, not when
+  a caller is saved, and a change to a library recompiles the pages that depend on it.
+- **A job gets three scopes.** `Page` bound to the page that started it is the caller's data;
+  `Visitor` bound to the starter is the person's; `For(workerKey)` is the worker's own data, shared
+  by every run of that worker. The run itself has no store — `IWorkerContext` is in memory — and a
+  job gets neither `Session` nor `Browser`, because it has no browser.
 
 ## What this replaces
 
@@ -109,7 +123,7 @@ The item is the intent to replace the current model, not a sixth store beside it
 | Today | New |
 | --- | --- |
 | `IPageStorage` | `ctx.Stores.Page.Values` |
-| `IPageSession` | `ctx.Stores.Visitor.Values` with `StoreLifetime.Session`, or `Person` for data that should follow |
+| `IPageSession` | `ctx.Stores.Visitor.Values` with `StoreLifetime.Session`, `Browser` for a device preference, or `Person` for data that should follow |
 | planned `IPageInbox` | `ctx.Stores.Visitor.Messages`; the flash becomes `NextRead` |
 | planned `IPageAccountStorage` | `ctx.Stores.Visitor.Records` |
 | `PageState`, `PageSessionValues` | one `StoreValues` table with lifetime columns |
@@ -124,36 +138,41 @@ their response half and lose their capability half, and the layout, `HEAD` and e
 
 The two plans already waiting for a yes — [account-store](../plans/account-store.md) and
 [page-inbox](../plans/page-inbox.md) — are superseded in shape. Their items become cells rather than
-stores, and neither plan should be approved while this is unanswered.
+stores, and neither plan should be approved: this item replaces what they would have built.
 
-## Open questions
+## What the owner answered
 
-Nothing is planned or built until the owner answers. The first two decide the shape of the work; the
-rest can wait for the plan.
+The six questions put on 2026-11-21 are answered. They settle the model; the plan still designs the
+bounds.
 
-1. **How much SQL is a page allowed?** Four verbs over declared tables, or joins and aggregates too?
-   This is the cost centre: the sandbox, the `TEMP VIEW` owner filter, the caps and the schema
-   extraction all move with the answer. The owner is returning to this.
-2. **The library write door.** `For(libraryKey)` is the proposal; the alternative is that library
-   state belongs to its callers and no escape exists. The first library that wants a shared cache or
-   version marker should pick the restriction.
-3. **The editor-mode seed.** It is the only per-browser use today. Is its preference `Session` (dies
-   at sign-in) or `Person` (follows the account)? If "survives sign-in on this browser" is wanted,
-   that is a stable device cookie and a `Browser` subject, and it needs its own decision.
-4. **Cross-page records.** Values are read across pages from the start; a queryable table declared by
-   one page and read by another is a schema dependency the catalogue would have to track. Deferred
-   until a caller needs it.
-5. **The worker's own key.** A job writes the starting page's Page namespace, so the worker source's
-   own key has no data writer. Whether a job should also get a handle bound to the worker is open;
-   nothing needs it today.
-6. **The archive.** It carries the Page subject, so its `Pages` and `PageState` tables grow the
-   lifetime columns, or `NextRead`/`Until` values are refused on export. The plan decides which.
+1. **SQL includes joins and aggregates.** The record store is not four verbs over one table. Joins and
+   aggregates are in scope, over the tables the page or library declares for its subject, bounded by
+   the result-row and result-character caps and the statement timeout. `ATTACH`, `PRAGMA` and DDL stay
+   out; the plan designs the allow-list and the owner filter that a join sees.
+2. **Libraries own state.** `For(libraryKey)` is approved, with the pattern in the model: the library
+   declares the schema, pages call its methods, and its methods reach the data.
+3. **`Browser` is the answer for editor mode.** A `Browser` lifetime survives sign-in and sign-out on
+   one device without following the person. It needs the stable `b` cookie above, is not adopted, and
+   the privacy page names it. Editor mode becomes `Browser`, not `Session` and not `Person`.
+4. **The library pattern is the approved way to share a schema.** A page reads another page's values
+   by key, but a shared queryable table is the library's: the page calls the library's methods and
+   never queries the table itself.
+5. **Static versus instance, yes.** The worker's own key is the code's static namespace, the starting
+   page is the caller's, and the starter's `Visitor` is the person's. The run has no store. A worker
+   therefore gets `For(workerKey)` as well as `Page` and `Visitor`, for state shared by every run of
+   that worker.
+6. **The archive carries no ephemeral values.** It keeps its two tables unchanged and exports only
+   Page values with the page's own lifetime; a `NextRead` or `Until` value is skipped, because
+   exporting it would make a one-shot fire at the destination. The rest of the question was whether
+   `PageState` would need lifetime columns to round-trip them; it does not.
 
 ## Not in scope
 
 - **Assistant memory.** `AssistantMemories` stays the assistant's, as
   `assistant-memory-belongs-to-the-assistant` records.
 - **Cross-account reads, sharing and roles.** One owner per row remains the rule.
+- **A page reading another page's declared table.** A shared schema is the library's and is reached
+  through its methods; the declaration belongs to the source that wrote it.
 - **A site subject.** Reserved until many pages must write one shared cell, and then only with a
   governance rule for declaration and write authority.
 - **N-read lifetimes.** A countdown is page code.
@@ -161,4 +180,5 @@ rest can wait for the plan.
 
 **Origin:** the owner's question of 2026-11-21, thinking about the shape of the storage gaps after
 the account-store and inbox plans were drafted: "they feel a bit disjointed". The model above is the
-outcome of that conversation, and the SQL sandbox is the next thing to answer.
+outcome of that conversation. The six questions it raised are answered above; the next step is a plan
+that designs the record sandbox and slices the work.
