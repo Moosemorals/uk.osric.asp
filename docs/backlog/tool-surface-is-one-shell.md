@@ -42,11 +42,18 @@ scratch directory, and history as paths rather than three more tools.
    no revision.
 5. **History as a mount.** `/snapshots/<key>/<hash>` makes `ls`, `cat`, `diff` and `cp` answer what
    three history tools answer today; an edit is a patch that carries the hash it was made from.
-6. **Memory stays a tool.** Kinds, versions, pinning, caps and FTS5 recall are too much to shoehorn
+6. **Objects as a read-only mount.** `/o/<sha>` answers a page's content-addressed bytes — the same
+   rows the site's `/o/{sha}` route serves — so `ls -l /o` says what a page's images are, `stat` says
+   the content type and the size, and `cat` reads a text object while refusing a binary one by its
+   content type rather than printing bytes into the transcript. Read-only, because an object is named
+   by its hash and writing one is not a path operation. `/o` is reserved by the site's route table
+   because the site answers the route, so the mount needs no reservation of its own, and the bytes are
+   read through the subject handles [`storage-is-not-one-model`](storage-is-not-one-model.md) adds.
+7. **Memory stays a tool.** Kinds, versions, pinning, caps and FTS5 recall are too much to shoehorn
    into files; one action-dispatched tool replaces four.
-7. **A write is planned before it is approved.** The kernel resolves every operand and classifies
+8. **A write is planned before it is approved.** The kernel resolves every operand and classifies
    every effect, so one approval covers the line and the changed-pages card still knows what changed.
-8. **Built from the page capabilities.** An applet reaches the store through `IPageCatalog` and
+9. **Built from the page capabilities.** An applet reaches the store through `IPageCatalog` and
    `IPageWrites`; a command that cannot be built is a gap in the page contract, not a private seam.
    The three gaps it starts with are the three items that block it.
 

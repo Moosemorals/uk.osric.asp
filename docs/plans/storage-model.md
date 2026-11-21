@@ -432,8 +432,10 @@ public interface IObjectStore {
 - `OpenAsync` answers the bytes, their length and content type, bounded by `MaxObjectBytes`. A page can
   copy, slice or re-wrap them with the BCL types the page API admits; an image re-encode needs a
   capability that does not exist yet, and the object store is what it would reach.
-- `/o/{sha}` is a shell route because a page cannot stream bytes and because the cache policy is a
-  response rule. It serves a page-subject object as `public, max-age=31536000, immutable`, and a
+- `/o/{sha}` is a site route because a page cannot stream bytes and because the cache policy is a
+  response rule. Its entry in the route table sits at the key `/o`, so the whole prefix is reserved and
+  no page can claim a path beneath it. It serves a page-subject object as
+  `public, max-age=31536000, immutable`, and a
   visitor-subject object as `private, no-store`, with `ETag: "<sha>"`, `Accept-Ranges: bytes`,
   `Range`/`206`, `X-Content-Type-Options: nosniff` and `HEAD` support. A missing object, or one the
   reader does not own, is `404`, so the route cannot be used to probe another visitor's existence.
@@ -717,12 +719,15 @@ page it wraps, the author's choice, and the response half of `pages-one-render-t
 - **Objects live in SQLite as BLOBs, not on the filesystem.** One database means one backup, one
   restore and one volume, which is the site's existing storage rule; the per-subject byte cap is the
   bound, and a filesystem store would need a second consistency story for delete, scrub and archive.
-- **The `/o/{sha}` route is shell code and a reserved key.** A page cannot stream bytes, the cache
+- **The `/o/{sha}` route is the site's code and a reserved key.** A page cannot stream bytes, the cache
   policy is a response rule, and the route has to answer when the page pipeline is broken — the three
-  reasons `pages-page-first` keeps a route in the shell.
-- **The shell's own session values stay the shell's.** `PageSessionRequest`'s unused text methods go
-  with `PageSessionValues`; the shell's identity and rotation stay on `PageSessions`, and the shell is
-  not offered `IPageStores`.
+  reasons `pages-page-first` keeps a route out of the store. The route is answered at `/o/{sha}` and
+  reserved under the key `/o`, in the same table that answers `/login`, so a page cannot claim the
+  prefix and the assistant sees it as a site file — its methods, its access and its purpose — like any
+  other.
+- **The site's own session values stay the site's.** `PageSessionRequest`'s unused text methods go
+  with `PageSessionValues`; the site's identity and rotation stay on `PageSessions`, and the site's own
+  routes are not offered `IPageStores`.
 
 ## The names this plan intends
 
@@ -859,7 +864,7 @@ separate worktrees. Slice 5 waits for them.
 | `src/uk.osric.asp.Web/Authentication/` | The `b` cookie, `ShellCookies`, `PageSessionCookie.RotateAsync`'s adoption transaction, `LoginEndpoint` |
 | `src/uk.osric.asp.Web/Work/` | `PageJobRunner`'s three handles |
 | `src/uk.osric.asp.Web/Admin/` | The archive reader and writer over `StoreValues`, `users remove` |
-| `src/uk.osric.asp.Web/Shell/` | The `/o/{sha}` route and its reserved key |
+| `src/uk.osric.asp.Web/Shell/` | The `/o/{sha}` route, its `/o` entry in the site's route table and the reserved key |
 | `src/uk.osric.asp.Web/Pages/Seeds/` | `help`, `privacy`, `editor-mode`, `_lib/editor`; `_layout` unchanged |
 | `src/uk.osric.asp.Web/Assistant/PageAuthorPrompt.cs` | The stores section and `Version` to `page-author-v55` |
 | `src/uk.osric.asp.Web/appsettings.json` | `Pages:Stores`; `Pages:Storage` and `Pages:Session` removed |
@@ -908,7 +913,7 @@ separate worktrees. Slice 5 waits for them.
 - **[pages](../pages.md)** counts one capability instead of two and gains its section;
   **[storage](../storage.md)** gains the four tables, the lifetimes, adoption, the DDL and catalogue,
   the object route and the archive rule; **[architecture](../architecture.md)** lists the new policy
-  values and the invariants; **[shell](../shell.md)** gains `/o/{sha}` and the `b` cookie;
+  values and the invariants; **[the site document](../shell.md)** gains `/o/{sha}` and the `b` cookie;
   **[the glossary](../glossary.md)** defines **store**, **subject**, **lifetime**, **value**,
   **record**, **message**, **object**, **browser** and **adoption**, and rewrites **session**.
 - **[the record](../decisions.md)** at each merge: the eleven names above, the eight edited entries and
@@ -1047,8 +1052,8 @@ what the model says would happen, and where it pinches.
 - The topic list is a join with an aggregate over two of the page's own tables, which is the case the
   owner's first answer put in scope.
 - Avatars are `Objects.PutAsync(bytes, "image/png")` and `<img src="/o/{sha}">`, deduped by content and
-  served by the shell with an `ETag`; a "posted" confirmation is a `NextRead` value taken by the page
-  the redirect lands on.
+  served by the site's route with an `ETag`; a "posted" confirmation is a `NextRead` value taken by the
+  page the redirect lands on.
 
 **Where it pinches:**
 
@@ -1101,8 +1106,8 @@ to query it, so `IRecordStore.SearchAsync` is now the one call that reaches the 
 - **Rate limiting for page code.** The site's own login has a limiter; a page's form login has the
   render budget and its caps, and a page that must throttle keeps its own clock in a value.
 - **Migrating another site's records or objects.** The archive carries Page values and nothing else.
-- **The shell's own flash and its identity.** `PageSessions` and the shell's rotation stay; the shell is
-  not offered `IPageStores`.
+- **The site's own flash and its identity.** `PageSessions` and the site's rotation stay; the site's own
+  routes are not offered `IPageStores`.
 - **A live message stream.** A worker's journal and channel are unchanged.
 
 ## The two waiting plans

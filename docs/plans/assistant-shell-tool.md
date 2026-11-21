@@ -28,7 +28,7 @@ This plan makes the shell the tool. It ends with **three** capabilities:
 
 | Tool | What it is |
 | --- | --- |
-| `shell` | one POSIX-shaped command line over a tree: the page store, `/snapshots`, `/tmp`, the site's own routes, `man`, `check`, and `curl` when the security review lands |
+| `shell` | one POSIX-shaped command line over a tree: the page store, `/snapshots`, `/o`, `/tmp`, the site's own routes, `man`, `check`, and `curl` when the security review lands |
 | `ask_user` | the question that waits on the owner, from [the ask plan](archive/assistant-ask-owner.md) |
 | `memory` | one tool over the assistant's notes, with an action, because a file cannot carry a kind, a version, a pin and FTS5 without re-inventing all four |
 
@@ -134,11 +134,13 @@ Six things are load-bearing:
 4. `/tmp` is scratch a run may write without touching the store, bounded, per run and never persisted.
 5. `/snapshots` makes history a path, so `ls`, `cat`, `diff` and `cp` answer what three typed tools
    answer today, and a restore is `cp` from a revision.
-6. An edit is a patch made against a named revision, so the atomic check `edit_page` has survives the
+6. `/o` makes a page's objects a path: listed with size and content type, stat-able, read as text and
+   refused as bytes by content type, and read-only because an object is named by its hash.
+7. An edit is a patch made against a named revision, so the atomic check `edit_page` has survives the
    move to a command.
-7. Every write still goes through `PageEditor`, every result is still bounded and cut rather than
+8. Every write still goes through `PageEditor`, every result is still bounded and cut rather than
    refused, and the approval card still shows what will change.
-8. The terminal the owner wants later reads the same kernel through a stdin and an output; an applet
+9. The terminal the owner wants later reads the same kernel through a stdin and an output; an applet
    never learns it is talking to a model.
 9. An applet names no host type: every store read is `IPageCatalog`, every write is `IPageWrites`, and
    the only things it owns are the registry, the run's scratch and streams, and `man`. The applet
@@ -219,13 +221,14 @@ added, asks a different question — whether the call stops for the owner at all
 
 `ToolSpecsTests` keeps its invariants and pins three.
 
-### D2 — One tree, four mounts
+### D2 — One tree, five mounts
 
 | Path | Answers | Writable |
 | --- | --- | --- |
 | `/` | the page store's keys; a folder exists when a key lives below it | yes, through `IPageWrites`, with approval |
 | the site's own routes (`/login`, `/assistant`, `/admin/...`) | nothing: the site answers the key, so it is listed with mode `000` and never has a source | no |
 | `/snapshots/<key>/<hash>` | every retained revision, including a tombstoned key's | no |
+| `/o/<sha>` | a page subject's content-addressed bytes, with the size and the content type the store holds | no |
 | `/tmp` | the run's scratch | yes, no approval |
 
 `/tmp` and `/snapshots` join the site's reserved keys — `ShellCatalogue.Reserved` today,
@@ -235,6 +238,14 @@ the mount table, not the store, so the page store never learns about `/tmp`. The
 `IPageCatalog` and `IPageWrites` (D15), `/snapshots` asks `RevisionsAsync` and `ReadRevisionAsync`,
 and `/tmp` is the run's own. Every node carries an access, and a site route's is `None`: it is listed
 and stat-able, and it cannot be read.
+
+`/o` is the exception to that last sentence. The site's route table reserves the prefix, because the
+site answers `/o/{sha}`, but the tree resolves the prefix to a mount before it consults the site-route
+listing, so `/o` and everything below it are a readable mount rather than a `000` node. It lists and
+stats without an approval and reads through the object store on the subject handles, so an image a page
+shows and an object the assistant stats are one row. `cat` refuses a binary object by content type —
+the same rule D3 applies to a flag it does not implement: the refusal names the type rather than
+printing bytes at the model.
 
 Path resolution stays `PagePath`'s: a key is normalised, `IsAddressable` is required, and a mount
 prefix is stripped before `IPageCatalog` sees it. A shell operand that is not a key in any mount is
@@ -726,7 +737,7 @@ the new folder item keeps its place above this one in the order, and the reasons
   `assistant-the-shell-is-posix`, `pages-the-store-is-read-through-one-seam` and
   `assistant-the-shell-is-applets` are edited in place.
 - [The assistant](../assistant.md), [the site](../site.md), [the shell](../shell.md) and
-  [the architecture](../architecture.md) describe three tools, the four mounts, the planner, the
+  [the architecture](../architecture.md) describe three tools, the five mounts, the planner, the
   result, the capability client and the register.
 - [The backlog](../backlog/README.md) carries the new folder item and the dispositions above, in an
   order where every blocker sits above the item it blocks.
