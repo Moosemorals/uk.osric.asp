@@ -3,8 +3,6 @@
 
 namespace uk.osric.asp.Web.Tests;
 
-using System.Reflection;
-using System.Xml.Linq;
 using uk.osric.asp.Web.Documentation;
 
 /// <summary>The string rules over Roslyn's member ids.</summary>
@@ -129,31 +127,12 @@ public sealed class ReferenceDisplayTests {
     [TestCase("uk.osric.asp.Core")]
     [TestCase("uk.osric.asp.Runtime")]
     [TestCase("uk.osric.asp.Web")]
-    public void TheBridgeRebuildsEveryDocumentedId(string assemblyName) {
-        string path = Path.Combine(AppContext.BaseDirectory, assemblyName + ".xml");
-        XDocument document = XDocument.Load(path);
-        Assembly assembly = Assembly.Load(assemblyName);
-        IReadOnlyDictionary<string, MemberInfo> members = ReferenceDocIds.Map(assembly);
-
-        List<string> missing = [.. document.Descendants("member")
-            .Select(member => (string?)member.Attribute("name"))
-            .OfType<string>()
-            .Where(id => !members.ContainsKey(id))];
-
-        Assert.That(missing, Is.Empty);
-    }
-
-    [TestCase("uk.osric.asp.Sdk")]
-    [TestCase("uk.osric.asp.Core")]
-    [TestCase("uk.osric.asp.Runtime")]
-    [TestCase("uk.osric.asp.Web")]
     public void TheRealDocumentHasUniqueAnchors(string assemblyName) {
         ReferenceAssembly assembly = TestReference.Library.Assemblies.Single(carried => carried.Info.AssemblyName == assemblyName);
-        XDocument document = assembly.Document;
 
-        string[] anchors = [.. document.Descendants()
-            .Select(element => (string?)element.Attribute("anchor"))
-            .OfType<string>()];
+        string[] anchors = [.. assembly.Corpus.Namespaces
+            .SelectMany(space => space.Types)
+            .SelectMany(type => type.Members.Select(member => member.Anchor).Prepend(type.Anchor))];
 
         Assert.Multiple(() => {
             Assert.That(anchors, Is.Unique);

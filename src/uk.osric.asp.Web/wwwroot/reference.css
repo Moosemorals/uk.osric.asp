@@ -1,91 +1,222 @@
 /* SPDX-FileCopyrightText: Copyright 2026 Osric Wilkinson <osric@fluffypeople.com> */
 /* SPDX-License-Identifier: MIT */
 
-/* The reference's own sheet. It styles a long document: the type index, the namespace labels, the
-   signature lines and the parameter lists. Nothing here is needed to read the page. */
+/* The reference's own sheet. It styles a long document: the namespace index, the type index, the
+   declarations and the parameter lists. Nothing here is needed to read the page. */
 
-.reference-assemblies {
+code,
+pre,
+.type-index a,
+.type-group-label,
+.declaration,
+.namespace-heading code,
+.namespace-list code,
+.namespace-nav a,
+.namespace-nav .current {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+}
+
+.reference-assemblies,
+.namespace-list {
     list-style: none;
     margin: 0 0 1.5rem;
     padding: 0;
 }
 
-.reference-assemblies li {
-    margin-block: 0.75rem;
+.reference-assemblies li,
+.namespace-list li {
+    border-block-start: 1px solid #ddd;
+    padding-block: 0.6rem;
 }
 
 .reference-count {
     color: #555;
+    font-size: 0.875em;
+}
+
+.reference-meta {
+    color: #444;
+    margin-block: 0.5rem 1rem;
+}
+
+.namespace-nav {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.25rem 0.9rem;
+    margin-block: 1rem 1.5rem;
+    font-size: 0.875rem;
+}
+
+.namespace-nav .current {
+    font-weight: 600;
+}
+
+.namespace-heading {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 0.5rem;
+    margin-block: 1.5rem 0.5rem;
 }
 
 .type-index {
-    border-block: 1px solid #ccc;
-    margin-block: 1.5rem;
-    padding-block: 0.5rem 1rem;
+    border-block: 1px solid #ddd;
+    margin-block: 1rem 1.5rem;
+    padding-block: 0.75rem 1rem;
 }
 
-.type-index .namespace-name {
+.type-group + .type-group {
+    margin-block-start: 0.75rem;
+}
+
+.type-group-label {
+    color: #4a4a4a;
+    font-size: 0.75rem;
     font-weight: 600;
-    margin-block: 0.75rem 0.2rem;
+    letter-spacing: 0.06em;
+    margin: 0 0 0.25rem;
+    text-transform: uppercase;
 }
 
-.type-index ul {
+.type-list {
+    columns: 18rem;
+    column-gap: 2rem;
     list-style: none;
     margin: 0;
     padding: 0;
 }
 
-.type-index li {
-    display: inline-block;
-    margin-inline: 0 1rem;
-}
-
-.namespace-name {
-    color: #333;
-    font-weight: 600;
-    margin-block: 2rem 0.25rem;
-    text-transform: uppercase;
-    font-size: 0.9em;
-    letter-spacing: 0.05em;
+.type-list li {
+    break-inside: avoid;
+    padding-block: 0.1rem;
 }
 
 .type {
-    border-top: 1px solid #ddd;
-    padding-block-start: 0.5rem;
-    margin-block-start: 1.5rem;
+    border-block-start: 1px solid #ddd;
+    margin-block-start: 0.75rem;
+    padding-block-start: 0.35rem;
+}
+
+.type > summary {
+    cursor: pointer;
+    padding-block: 0.45rem;
+}
+
+.type > summary::marker {
+    color: #005fa3;
+}
+
+.type[open] > summary {
+    margin-block-end: 0.5rem;
+}
+
+.type-body {
+    padding-inline-start: 1.25rem;
 }
 
 .member {
-    margin-block: 1rem 1.5rem;
-    padding-inline-start: 1rem;
     border-inline-start: 2px solid #eee;
+    margin-block: 0.75rem 1.25rem;
+    padding-inline-start: 0.9rem;
 }
 
-.member h3 .kind {
-    color: #666;
-    font-size: 0.75em;
-    font-weight: normal;
+.member h4 {
+    font-size: 1rem;
+    margin-block: 0.75rem 0.25rem;
+}
+
+.member-group {
+    border-block-end: 1px solid #eee;
+    color: #4a4a4a;
+    font-size: 0.8rem;
+    letter-spacing: 0.06em;
+    margin-block: 1.5rem 0.75rem;
+    padding-block-end: 0.2rem;
     text-transform: uppercase;
-    letter-spacing: 0.05em;
+}
+
+.doc-label {
+    color: #4a4a4a;
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    margin-block: 1rem 0.25rem;
+    text-transform: uppercase;
+}
+
+.declaration {
+    font-weight: 600;
+}
+
+.tok-keyword {
+    color: #005fa3;
+}
+
+.tok-type {
+    color: #0b6623;
+}
+
+.tok-member,
+.tok-namespace {
+    color: #5a2d82;
+}
+
+.tok-param,
+.tok-typeparam {
+    color: #8a5a00;
+}
+
+.declaration a {
+    color: inherit;
+    text-decoration: underline dotted;
+    text-decoration-color: #9bb8cf;
+    text-underline-offset: 0.2em;
+}
+
+.declaration a:hover {
+    text-decoration-color: currentColor;
+    text-decoration-style: solid;
+}
+
+/* The arrow marks a link that leaves the site in prose; inside a signature it is noise. */
+.declaration a[href^="http"]::after {
+    content: none;
+}
+
+.tok-punctuation {
+    color: #555;
+}
+
+.tok-literal {
+    color: #a31515;
 }
 
 .doc-remarks,
-.doc-returns,
-.doc-value {
+.doc-block {
     color: #333;
 }
 
 .parameters dt,
-.type-parameters dt,
 .exceptions dt {
     font-weight: 600;
 }
 
 .parameters dd,
-.type-parameters dd,
 .exceptions dd {
     margin-inline-start: 1.5rem;
     margin-block-end: 0.5rem;
+}
+
+.back-link {
+    color: #005fa3;
+    font-size: 0.85em;
+    margin-inline-start: 0.35rem;
+    text-decoration: none;
+}
+
+.back-link:hover,
+.back-link:focus-visible {
+    text-decoration: underline;
 }
 
 .inherited {

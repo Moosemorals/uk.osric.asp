@@ -72,12 +72,16 @@ public sealed class ReferenceEndpointTests {
         _ = Directory.CreateDirectory(directory);
 
         try {
-            await File.WriteAllTextAsync(Path.Combine(directory, "uk.osric.asp.Sdk.xml"), """
-                <?xml version="1.0"?>
-                <doc><members>
-                  <member name="T:Sample.Thing"><summary>One type.</summary></member>
-                  <member name="M:Sample.Thing.Go"><summary>One member.</summary></member>
-                </members></doc>
+            await File.WriteAllTextAsync(Path.Combine(directory, "reference.sdk.json"), """
+                {
+                  "slug": "sdk",
+                  "assembly": "Test.Assembly",
+                  "title": "The test",
+                  "description": "For tests.",
+                  "typeCount": 1,
+                  "entryCount": 2,
+                  "namespaces": []
+                }
                 """);
 
             DefaultHttpContext context = TestHttp.CreateContext(null, "GET", "/admin/reference");
@@ -89,6 +93,35 @@ public sealed class ReferenceEndpointTests {
         } finally {
             Directory.Delete(directory, recursive: true);
         }
+    }
+
+    [Test]
+    public async Task OneNamespaceIsItsOwnPage() {
+        DefaultHttpContext context = TestHttp.CreateContext(null, "GET", "/admin/reference/core/uk.osric.asp.Core.Assistant");
+
+        await ReferenceEndpoint.NamespaceAsync(
+            context, "core", "uk.osric.asp.Core.Assistant", Library(), CancellationToken.None);
+        string body = await TestHttp.ReadBodyAsync(context);
+
+        Assert.Multiple(() => {
+            Assert.That(context.Response.StatusCode, Is.EqualTo(StatusCodes.Status200OK));
+            Assert.That(body, Does.Contain("uk.osric.asp.Core.Assistant"));
+            Assert.That(body, Does.Contain("<details class=\"type\""));
+        });
+    }
+
+    [Test]
+    public async Task AnAssemblyWithSeveralNamespacesListsThem() {
+        DefaultHttpContext context = TestHttp.CreateContext(null, "GET", "/admin/reference/core");
+
+        await ReferenceEndpoint.AssemblyAsync(context, "core", Library(), CancellationToken.None);
+        string body = await TestHttp.ReadBodyAsync(context);
+
+        Assert.Multiple(() => {
+            Assert.That(context.Response.StatusCode, Is.EqualTo(StatusCodes.Status200OK));
+            Assert.That(body, Does.Contain("href=\"/admin/reference/core/uk.osric.asp.Core.Assistant\""));
+            Assert.That(body, Does.Contain("Namespaces"));
+        });
     }
 
     [Test]

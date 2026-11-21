@@ -11,6 +11,7 @@ using System.Xml.Linq;
 /// <param name="Kind">The word for its kind.</param>
 /// <param name="Display">Its signature, or a type's name with its type parameters.</param>
 /// <param name="Text">Its name alone, for a sentence that links to it.</param>
+/// <param name="Namespace">The namespace the entry is filed under.</param>
 /// <param name="IsType">Whether it is a type section rather than a member.</param>
 internal sealed record ReferenceEntry(
     string Id,
@@ -18,6 +19,7 @@ internal sealed record ReferenceEntry(
     string Kind,
     string Display,
     string Text,
+    string Namespace,
     bool IsType);
 
 /// <summary>The normalised documentation of one assembly.</summary>
@@ -125,7 +127,7 @@ internal sealed record ReferenceDocument(
                 }
 
                 entries[plan.Id] = new ReferenceEntry(
-                    plan.Id, anchor, ReferenceDisplay.KindName('T'), display, display, IsType: true);
+                    plan.Id, anchor, ReferenceDisplay.KindName('T'), display, display, plan.Parts.Namespace, IsType: true);
 
                 foreach (XElement sourceMember in plan.Members) {
                     string id = sourceMember.Attribute("name")!.Value;
@@ -155,6 +157,7 @@ internal sealed record ReferenceDocument(
                         ReferenceDisplay.KindName(id[0]),
                         memberDisplay,
                         ReferenceDisplay.MemberName(id, root, methodTypeParameters),
+                        plan.Parts.Namespace,
                         IsType: false);
                 }
 
@@ -162,6 +165,7 @@ internal sealed record ReferenceDocument(
             }
 
             output.Add(namespaceElement);
+            namespaceElement.SetAttributeValue("type-count", namespaceElement.Elements("type").Count());
         }
 
         return new ReferenceDocument(info, new XDocument(output), typeCount, sourceMembers.Count, entries);

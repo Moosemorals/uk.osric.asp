@@ -75,36 +75,26 @@ public sealed class ReferenceDocumentTests {
     }
 
     [Test]
-    public void AnInheritOnlyEntryIsNotedWhenNoSourceCanBeFound() {
-        ReferenceDocument document = Build();
-        XElement member = document.Content.Descendants("member")
-            .Single(item => (string?)item.Attribute("id") == "M:Test.Assembly.Outer.Inner.Inherited");
-
-        ReferenceInheritance.Resolve([document], NullLogger<ReferenceLibrary>.Instance);
-
-        Assert.Multiple(() => {
-            Assert.That((string?)member.Attribute("inherits"), Is.EqualTo("true"));
-            Assert.That(member.Elements("inheritdoc"), Is.Empty);
-        });
-    }
-
-    [Test]
     public void TheRealCorpusResolvesInheritedTextAndNamesTheSource() {
         ReferenceLibrary library = TestReference.Library;
         ReferenceAssembly runtime = library.Assemblies.Single(assembly => assembly.Info.AssemblyName == "uk.osric.asp.Runtime");
         ReferenceAssembly web = library.Assemblies.Single(assembly => assembly.Info.AssemblyName == "uk.osric.asp.Web");
 
-        XElement copied = runtime.Document.Descendants("member")
-            .Single(item => item.Attribute("id")?.Value.StartsWith("M:uk.osric.asp.Runtime.DiffRenderer.ToHtml", StringComparison.Ordinal) == true);
-        XElement elsewhere = web.Document.Descendants("member")
-            .First(item => item.Attribute("inherited-href")?.Value.StartsWith(ReferenceDisplay.LearnBase, StringComparison.Ordinal) == true);
+        ReferenceMember copied = runtime.Corpus.Namespaces
+            .SelectMany(space => space.Types)
+            .SelectMany(type => type.Members)
+            .Single(member => member.Id.StartsWith("M:uk.osric.asp.Runtime.DiffRenderer.ToHtml", StringComparison.Ordinal));
+        ReferenceMember elsewhere = web.Corpus.Namespaces
+            .SelectMany(space => space.Types)
+            .SelectMany(type => type.Members)
+            .First(member => member.Inherited?.Href?.StartsWith(ReferenceDisplay.LearnBase, StringComparison.Ordinal) == true);
 
         Assert.Multiple(() => {
-            Assert.That((string?)copied.Attribute("inherited-from"),
+            Assert.That(copied.Inherited?.From,
                 Is.EqualTo("M:uk.osric.asp.Sdk.IDiffRenderer.ToHtml(System.String,System.String)"));
-            Assert.That(copied.Element("summary")?.Value, Is.Not.Empty);
-            Assert.That((string?)copied.Attribute("inherited-href"), Does.StartWith("/admin/reference/sdk#"));
-            Assert.That((string?)elsewhere.Attribute("inherited-from"), Is.Not.Null);
+            Assert.That(copied.Summary.Text, Is.Not.Empty);
+            Assert.That(copied.Inherited?.Href, Does.StartWith("/admin/reference/sdk#"));
+            Assert.That(elsewhere.Inherited?.From, Is.Not.Null);
         });
     }
 

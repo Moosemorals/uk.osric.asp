@@ -3,26 +3,56 @@
 
 namespace uk.osric.asp.Web.Documentation;
 
-using System.Xml;
-using System.Xml.Linq;
+using System.Collections.Concurrent;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 
-/// <summary>One assembly's documentation as the page serves it.</summary>
-/// <param name="Info">The assembly it describes.</param>
-/// <param name="TypeCount">How many type sections it holds.</param>
-/// <param name="EntryCount">How many documented entries the file carries.</param>
-/// <param name="Document">The normalised tree the tool reads.</param>
-/// <param name="Html">Its fragment, transformed on first use and kept for the process.</param>
-internal sealed record ReferenceAssembly(
-    ReferenceAssemblyInfo Info,
-    int TypeCount,
-    int EntryCount,
-    XDocument Document,
-    Lazy<string> Html);
+/// <summary>One assembly's documentation as the site serves it.</summary>
+/// <remarks>A class rather than a record: the rendered fragments are mutable state, not part of the value.</remarks>
+internal sealed class ReferenceAssembly {
+
+    private readonly ConcurrentDictionary<string, Lazy<string>> _rendered = new(StringComparer.Ordinal);
+
+    /// <summary>Reads one assembly's corpus.</summary>
+    /// <param name="info">The assembly it describes.</param>
+    /// <param name="corpus">The corpus the build emitted.</param>
+    public ReferenceAssembly(ReferenceAssemblyInfo info, ReferenceCorpus corpus) {
+        ArgumentNullException.ThrowIfNull(info);
+        ArgumentNullException.ThrowIfNull(corpus);
+
+        Info = info;
+        Corpus = corpus;
+    }
+
+    /// <summary>The assembly it describes.</summary>
+    public ReferenceAssemblyInfo Info { get; }
+
+    /// <summary>The corpus the build emitted.</summary>
+    public ReferenceCorpus Corpus { get; }
+
+    /// <summary>How many type sections the corpus holds.</summary>
+    public int TypeCount => Corpus.TypeCount;
+
+    /// <summary>How many documented entries the source file carried.</summary>
+    public int EntryCount => Corpus.EntryCount;
+
+    /// <summary>One namespace's fragment, rendered once and held for the process.</summary>
+    /// <param name="space">The namespace to render.</param>
+    public string Render(ReferenceNamespace space) {
+        ArgumentNullException.ThrowIfNull(space);
+
+        return _rendered.GetOrAdd(
+            space.Name,
+            _ => new Lazy<string>(
+                () => ReferenceHtml.Namespace(space),
+                LazyThreadSafetyMode.ExecutionAndPublication)).Value;
+    }
+}
 
 /// <summary>A type the tool found, with the document it belongs to.</summary>
-/// <param name="Info">The assembly.</param>
-/// <param name="Type">Its <c>type</c> element.</param>
-internal sealed record ReferenceTypeMatch(ReferenceAssemblyInfo Info, XElement Type);
+/// <param name="Assembly">The assembly.</param>
+/// <param name="Type">The type.</param>
+internal sealed record ReferenceTypeMatch(ReferenceAssembly Assembly, ReferenceType Type);
 
 /// <summary>What a type lookup found: one type, several, one elsewhere, or nothing.</summary>
 /// <param name="Match">The one type in the page contract, when the name is unambiguous.</param>
@@ -42,7 +72,7 @@ internal sealed record ReferenceSearchMatch(string Type, string? Member, string 
 
 /// <summary>The documentation this build carries, read once and held for the process.</summary>
 /// <remarks>
-/// The files cannot change while the image runs, so one read is enough. Loading is lazy: a host that
+/// The JSON cannot change while the image runs, so one read is enough. Loading is lazy: a host that
 /// never answers <c>/admin/reference</c> and never calls the tool pays nothing. Every failure is a
 /// missing assembly or a missing copy, never a request that fails.
 /// </remarks>
@@ -51,12 +81,18 @@ internal sealed class ReferenceLibrary {
     /// <summary>The slug the assistant tool reads.</summary>
     public const string ContractSlug = "sdk";
 
+    private static readonly JsonSerializerOptions s_json = new() {
+        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+        PropertyNameCaseInsensitive = true,
+        DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
+    };
+
     private readonly string _directory;
     private readonly ILogger<ReferenceLibrary> _logger;
     private readonly Lazy<Corpus> _corpus;
 
     /// <summary>Reads the files in a directory on first use.</summary>
-    /// <param name="directory">Where the assemblies' XML files sit.</param>
+    /// <param name="directory">Where the assemblies' JSON files sit.</param>
     /// <param name="logger">Where a missing or malformed file is reported.</param>
     public ReferenceLibrary(string directory, ILogger<ReferenceLibrary> logger) {
         ArgumentException.ThrowIfNullOrWhiteSpace(directory);
@@ -75,9 +111,14 @@ internal sealed class ReferenceLibrary {
     public ReferenceAssembly? Find(string slug) =>
         Assemblies.FirstOrDefault(assembly => string.Equals(assembly.Info.Slug, slug, StringComparison.Ordinal));
 
-    /// <summary>One assembly's fragment, transformed on first use.</summary>
-    /// <param name="slug">The segment under <c>/admin/reference</c>.</param>
-    public string? Render(string slug) => Find(slug)?.Html.Value;
+    /// <summary>One entry's page, when the corpus holds it.</summary>
+    /// <param name="slug">The assembly's URL segment.</param>
+    /// <param name="anchor">The entry's fragment.</param>
+    public bool HasAnchor(string slug, string anchor) =>
+        Find(slug) is { } assembly && assembly.Corpus.Namespaces
+            .SelectMany(space => space.Types)
+            .Any(type => string.Equals(type.Anchor, anchor, StringComparison.Ordinal)
+                || type.Members.Any(member => string.Equals(member.Anchor, anchor, StringComparison.Ordinal)));
 
     /// <summary>A type by local name, relative name, generic form or raw id.</summary>
     /// <param name="name">What the model named.</param>
@@ -89,9 +130,9 @@ internal sealed class ReferenceLibrary {
         List<ReferenceTypeMatch> elsewhere = [];
 
         foreach (ReferenceAssembly assembly in Assemblies) {
-            foreach (XElement type in assembly.Document.Descendants("type")) {
+            foreach (ReferenceType type in assembly.Corpus.Namespaces.SelectMany(space => space.Types)) {
                 if (TypeMatches(type, wanted)) {
-                    ReferenceTypeMatch match = new(assembly.Info, type);
+                    ReferenceTypeMatch match = new(assembly, type);
                     if (string.Equals(assembly.Info.Slug, ContractSlug, StringComparison.Ordinal)) {
                         contract.Add(match);
                     } else {
@@ -123,27 +164,22 @@ internal sealed class ReferenceLibrary {
         List<(int Rank, int Order, ReferenceSearchMatch Match)> found = [];
         int order = 0;
 
-        foreach (XElement type in contract.Document.Descendants("type")) {
-            string typeName = (string?)type.Attribute("name") ?? string.Empty;
-            string typeDisplay = (string?)type.Attribute("display") ?? typeName;
-            string summary = Summary(type);
+        foreach (ReferenceType type in contract.Corpus.Namespaces.SelectMany(space => space.Types)) {
+            string summary = type.Summary.Text;
 
-            int rank = Rank(query, typeName, typeDisplay, summary, member: null);
+            int rank = Rank(query, type.Name, type.Display, summary, member: null);
             if (rank >= 0) {
-                found.Add((rank, order++, new ReferenceSearchMatch(typeDisplay, null, "Type", summary)));
+                found.Add((rank, order++, new ReferenceSearchMatch(type.Display, null, "Type", summary)));
             }
 
-            foreach (XElement member in type.Elements("member")) {
-                string display = (string?)member.Attribute("display") ?? string.Empty;
-                string memberName = (string?)member.Attribute("display") ?? display;
-                string memberSummary = Summary(member);
-                int memberRank = Rank(query, typeName, display, memberSummary, memberName);
+            foreach (ReferenceMember member in type.Members) {
+                int memberRank = Rank(query, type.Name, member.Declaration.Text, member.Summary.Text, member.Declaration.Text);
                 if (memberRank >= 0) {
                     found.Add((memberRank, order++, new ReferenceSearchMatch(
-                        typeDisplay,
-                        display,
-                        (string?)member.Attribute("kind") ?? "Member",
-                        memberSummary)));
+                        type.Display,
+                        member.Declaration.Text,
+                        member.Kind,
+                        member.Summary.Text)));
                 }
             }
         }
@@ -158,7 +194,7 @@ internal sealed class ReferenceLibrary {
             : ([.. ordered.Take(limit)], true);
     }
 
-    /// <summary>The page contract's document, for the tool, or null when the build carries none.</summary>
+    /// <summary>The page contract's corpus, for the tool, or null when the build carries none.</summary>
     public ReferenceAssembly? Contract => Find(ContractSlug);
 
     private static int Rank(string query, string typeName, string display, string summary, string? member) {
@@ -193,13 +229,8 @@ internal sealed class ReferenceLibrary {
         return tick < 0 ? wanted : wanted[..tick];
     }
 
-    private static bool TypeMatches(XElement type, string wanted) {
-        string? id = (string?)type.Attribute("id");
-        string? name = (string?)type.Attribute("name");
-        string? local = (string?)type.Attribute("local");
-        string? display = (string?)type.Attribute("display");
-
-        return Matches(id) || Matches(name) || Matches(local) || Matches(display);
+    private static bool TypeMatches(ReferenceType type, string wanted) {
+        return Matches(type.Id) || Matches(type.Name) || Matches(type.Display);
 
         bool Matches(string? value) {
             if (value is null) {
@@ -224,27 +255,23 @@ internal sealed class ReferenceLibrary {
         }
     }
 
-    private static string Summary(XElement element) {
-        XElement? summary = element.Element("summary");
-        return summary is null ? string.Empty : ReferenceText.Flatten(summary).Trim();
-    }
-
     private Corpus Load() {
-        List<ReferenceDocument> documents = [];
+        List<ReferenceAssembly> assemblies = [];
         foreach (ReferenceAssemblyInfo info in ReferenceAssemblyInfo.All) {
-            string path = Path.Combine(_directory, info.AssemblyName + ".xml");
+            string path = Path.Combine(_directory, "reference." + info.Slug + ".json");
             if (!File.Exists(path)) {
                 _logger.LogDebug("This build carries no documentation for {Assembly}", info.AssemblyName);
                 continue;
             }
 
             try {
-                using FileStream stream = File.OpenRead(path);
-                using XmlReader reader = XmlReader.Create(
-                    stream,
-                    new XmlReaderSettings { DtdProcessing = DtdProcessing.Prohibit, XmlResolver = null });
-                documents.Add(ReferenceDocument.Build(info, XDocument.Load(reader)));
-            } catch (Exception exception) when (exception is IOException or XmlException or InvalidDataException) {
+                ReferenceCorpus? corpus = JsonSerializer.Deserialize<ReferenceCorpus>(File.ReadAllText(path), s_json);
+                if (corpus is null) {
+                    throw new InvalidDataException($"{Path.GetFileName(path)} holds no corpus.");
+                }
+
+                assemblies.Add(new ReferenceAssembly(info, corpus));
+            } catch (Exception exception) when (exception is IOException or JsonException or InvalidDataException) {
                 _logger.LogWarning(
                     exception,
                     "Could not read the documentation for {Assembly}; the reference will leave it out",
@@ -252,58 +279,7 @@ internal sealed class ReferenceLibrary {
             }
         }
 
-        ReferenceInheritance.Resolve(documents, _logger);
-        AnnotateCrefs(documents);
-
-        List<ReferenceAssembly> assemblies = [.. documents.Select(document => new ReferenceAssembly(
-            document.Info,
-            document.TypeCount,
-            document.EntryCount,
-            document.Content,
-            new Lazy<string>(
-                () => ReferenceRenderer.Render(document.Content),
-                LazyThreadSafetyMode.ExecutionAndPublication)))];
-
         return new Corpus(assemblies);
-    }
-
-    // One pass over every document, after inheritdoc has copied text, so a cref inside copied text
-    // is resolved exactly like one the author wrote.
-    private static void AnnotateCrefs(IReadOnlyList<ReferenceDocument> documents) {
-        Dictionary<string, (string Slug, ReferenceEntry Entry)> targets = [];
-        foreach (ReferenceDocument document in documents) {
-            foreach ((string id, ReferenceEntry entry) in document.Entries) {
-                targets[id] = (document.Info.Slug, entry);
-            }
-        }
-
-        foreach (ReferenceDocument document in documents) {
-            foreach (XElement element in document.Content.Descendants()
-                .Where(item => item.Name == "see" || item.Name == "exception")) {
-                if ((string?)element.Attribute("cref") is not { Length: > 0 } cref) {
-                    continue;
-                }
-
-                bool hasContent = element.Nodes().Any();
-                if (targets.TryGetValue(cref, out (string Slug, ReferenceEntry Entry) target)) {
-                    element.SetAttributeValue(
-                        "href",
-                        "/admin/reference/" + target.Slug + "#" + target.Entry.Anchor);
-                    if (!hasContent) {
-                        element.SetAttributeValue("text", target.Entry.Text);
-                    }
-                } else {
-                    string text = ReferenceDisplay.CrefText(cref);
-                    if (element.Name == "exception" || !hasContent) {
-                        element.SetAttributeValue("text", text);
-                    }
-
-                    if (ReferenceDisplay.LearnUrl(cref) is { } learn) {
-                        element.SetAttributeValue("href", learn);
-                    }
-                }
-            }
-        }
     }
 
     private sealed record Corpus(IReadOnlyList<ReferenceAssembly> Assemblies);

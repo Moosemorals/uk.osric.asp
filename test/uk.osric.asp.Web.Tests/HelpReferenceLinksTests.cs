@@ -20,8 +20,7 @@ public sealed class HelpReferenceLinksTests {
         List<string> missing = [];
 
         foreach ((string slug, string anchor) in Links(source)) {
-            ReferenceAssembly? assembly = library.Find(slug);
-            if (assembly is null || !assembly.Document.Descendants().Any(element => (string?)element.Attribute("anchor") == anchor)) {
+            if (!library.HasAnchor(slug, anchor)) {
                 missing.Add($"/admin/reference/{slug}#{anchor}");
             }
         }
