@@ -10,6 +10,7 @@ using uk.osric.asp.Web.Pages;
 
 /// <summary>Proves the template → compilation step, without storage in the way.</summary>
 [TestFixture]
+[Category("Slow")]
 [FixtureLifeCycle(LifeCycle.InstancePerTestCase)]
 // The two deadline tests measure a wall clock, so the fixture wants the process to itself.
 [NonParallelizable]

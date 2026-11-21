@@ -18,12 +18,13 @@ using uk.osric.asp.Web.Pages;
 /// truncation are the endpoint's decisions, not the context's alone.
 /// </remarks>
 [TestFixture]
+[Category("Slow")]
 [FixtureLifeCycle(LifeCycle.InstancePerTestCase)]
 public sealed class PageStreamingTests {
 
     private const string DefaultLayout = "/_layout";
 
-    private readonly RecordingCompiler _compiler = new(new PageCompiler());
+    private readonly RecordingCompiler _compiler = TestCompiler.Counting();
     private readonly FakePageFetcher _fetcher = new();
     private readonly FakePageReadStore _readStore = new();
     private readonly FakePageStateStore _state = new();

@@ -11,6 +11,7 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using System.Globalization;
 using uk.osric.asp.Runtime;
+using uk.osric.asp.Testing;
 using uk.osric.asp.Web.Assistant;
 using uk.osric.asp.Web.Authentication;
 using uk.osric.asp.Web.Metrics;
@@ -83,7 +84,7 @@ internal sealed class AspApplication(
         Path.Combine(Path.GetTempPath(), $"uk.osric.asp.integration.{Guid.NewGuid():N}.db");
 
     /// <summary>Counts every compilation the host performs, so a test can prove a cache hit.</summary>
-    public RecordingCompiler Compiler { get; } = new(new PageCompiler());
+    public RecordingCompiler Compiler { get; } = new(new CachingCompiler(new PageCompiler()));
 
     /// <summary>Everything the host logged, beside the JSON console the app configures for itself.</summary>
     public LogCapture Logs { get; } = new();

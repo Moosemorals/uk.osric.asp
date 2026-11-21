@@ -18,6 +18,10 @@ using uk.osric.asp.Web.Pages;
 
 [TestFixture]
 [FixtureLifeCycle(LifeCycle.InstancePerTestCase)]
+// Each test owns its storage - a database file of its own, or a store and harness of its own - so the
+// tests here are independent, and waiting for one to finish before starting the next only makes the
+// suite slower than the work it is doing.
+[Parallelizable(ParallelScope.All)]
 public sealed class PageEndpointTests {
 
     private static readonly ReservedPaths Reserved = new(ReservedPaths.Default);
@@ -25,7 +29,7 @@ public sealed class PageEndpointTests {
     private static readonly PageStorageOptions StorageOptions = TestOptions.Storage;
     private static readonly PageFetchOptions FetchOptions = TestOptions.Fetch;
     private static readonly PageLayoutOptions NoLayout = TestOptions.Layout with { Default = null };
-    private readonly RecordingCompiler _compiler = new(new PageCompiler());
+    private readonly RecordingCompiler _compiler = TestCompiler.Counting();
     private readonly PageMetrics _metrics = new();
     private readonly TestAntiforgery _antiforgery = new();
 
@@ -509,8 +513,10 @@ public sealed class PageEndpointTests {
     }
 
     [Test]
+    [Category("Slow")]
     // The page burns CPU against a wall clock, so this one keeps the process to itself: another
-    // fixture's compiles would starve the deadline continuation and answer late.
+    // fixture's compiles would starve the deadline continuation and answer late. It runs in
+    // `make test-web-slow` with the other wall-clock tests.
     [NonParallelizable]
     public async Task APageThatOutrunsTheBudgetAnswersGatewayTimeoutAsync() {
         DefaultHttpContext context = CreateContext("slow.cs");

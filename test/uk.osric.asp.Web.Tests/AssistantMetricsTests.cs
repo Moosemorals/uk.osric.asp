@@ -10,6 +10,7 @@ using uk.osric.asp.Web.Assistant;
 using uk.osric.asp.Web.Metrics;
 
 [TestFixture]
+[Category("Slow")]
 [NonParallelizable]
 public sealed class AssistantMetricsTests {
 

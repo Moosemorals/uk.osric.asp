@@ -13,7 +13,7 @@ SPDX-License-Identifier: MIT
 | Blocked by | — |
 | Plan | — |
 | Area | Code (formatting and the gate), tools, docs |
-| Location | `tools/align/`, `Makefile`, `CONTRIBUTING.md`, `.vscode/tasks.json`, `docs/testing.md` |
+| Location | `tools/align/` (new), `Makefile`, `CONTRIBUTING.md`, `.vscode/tasks.json`, `docs/testing.md` |
 | Spike | — |
 
 ## Idea

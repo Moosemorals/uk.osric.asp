@@ -11,6 +11,7 @@ using uk.osric.asp.Web.Assistant;
 using uk.osric.asp.Web.Storage;
 
 [TestFixture]
+[Category("Slow")]
 public sealed class AssistantMemoryMigrationTests {
 
     private const string PreviousMigration = "20261106224330_AddPageState";

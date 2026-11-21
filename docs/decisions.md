@@ -398,6 +398,20 @@ locally; the fixtures that use the real provider are `[Explicit]` and cost token
 
 *Recorded in [testing](testing.md#the-browser-suite), [assistant browser tests](plans/archive/assistant-browser-tests.md).*
 
+### code-slow-tests-are-opt-in
+
+The web suite's wall-clock tests are an NUnit `Slow` category rather than part of `make test-web`: the
+render and compile deadlines, the stream clocks, the job silence clock, the process-wide metric
+fixtures and the fixtures that apply real migrations. Each waits out a clock or drives a real
+database, so together they were the slowest thing in the gate and the family that failed on load
+rather than on behaviour; a gate people learn to skip is worse than one that runs the slow half before
+a deploy. `make test-web` filters `TestCategory!=Slow`, `make test-web-slow` runs only them, and
+`make deploy` depends on that target — the same bargain as `code-browser-suite-is-opt-in`. A test that
+is slow only because it compiles a page is not in it: the shared compile cache and the editor-page
+warm-up make a page one compile a process.
+
+*Recorded in [testing](testing.md#the-slow-half), [Makefile](../Makefile).*
+
 ### code-the-gate-checks-the-backlog
 
 `make check` runs `make backlog`, a tool over `docs/backlog` in the shape of `check-decisions`: a slug
@@ -2110,7 +2124,7 @@ page that already holds the shipped bytes is adopted — the anchor recorded, no
 rather than installed. A row the owner ticks can be *edited*, *conflict*, *deleted* or *unknown*; that
 is the owner's explicit authority, and the write is the ordinary seed save.
 
-*Recorded in [one seed page](plans/archive/seed-page.md), [the shell](shell.md), [SeedsEndpoint](../src/uk.osric.asp.Web/Admin/SeedsEndpoint.cs), [PageEditorScope](../src/uk.osric.asp.Web/Pages/PageEditorScope.cs).*
+*Recorded in [one seed page](plans/archive/seed-page.md), [the shell](shell.md), [SeedsEndpoint](../src/uk.osric.asp.Web/Admin/SeedsEndpoint.cs), [PageWritesScope](../src/uk.osric.asp.Web/Pages/PageWritesScope.cs).*
 
 ### shell-sign-out-is-a-post
 
@@ -2535,7 +2549,7 @@ asked. Seeded pages are ordinary pages the assistant may edit, and a script chec
 so a shell file is refused there. There is no separate assistant-only lock list: every page the shell does
 not route is a page the assistant may write, subject to the writable-path prefix.
 
-*Recorded in [the shell](shell.md#authentication-and-the-editor), [ShellRoutes](../src/uk.osric.asp.Web/Assistant/ShellRoutes.cs).*
+*Recorded in [the shell](shell.md#authentication-and-the-editor), [ReservedPaths](../src/uk.osric.asp.Web/Pages/ReservedPaths.cs).*
 
 ### assistant-reads-history
 
@@ -2935,7 +2949,7 @@ never deletes on the site.
 
 *Recorded in [operations](../deploy/operations.md#backups), [the snapshot script](../deploy/backup-snapshot.sh),
 [the pull script](../deploy/pull-backups.sh), [the snapshot timer](../deploy/uk.osric.asp-backup.timer),
-[the pull timer](../deploy/uk.osric.asp-pull.timer), [the plan](archive/offsite-backups.md).*
+[the pull timer](../deploy/uk.osric.asp-pull.timer), [the plan](plans/archive/offsite-backups.md).*
 
 ### deploy-no-outbound-alerting
 
@@ -3007,7 +3021,7 @@ and type size are presentation attributes from a palette in `Core.Charting`, not
 the same SVG is legible with no stylesheet, and the page's sheet keeps only the grid, the caption and the
 hover and pinned states, which are properties of the page rather than of the picture.
 
-*Recorded in [metrics](metrics.md#the-panels), [status page rebuild](plans/archive/admin/status-page-rebuild.md#identifying-a-series-without-colour).*
+*Recorded in [metrics](metrics.md#the-panels), [status page rebuild](plans/archive/status-page-rebuild.md#identifying-a-series-without-colour).*
 
 ### metrics-a-chart-stands-alone
 

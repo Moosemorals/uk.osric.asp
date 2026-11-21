@@ -9,20 +9,18 @@ SPDX-License-Identifier: MIT
 | --- | --- |
 | Difficulty | protective-dragon |
 | Utility | high |
-| Status | planned |
-| Blocked by | — |
-| Plan | [page-inbox](../plans/page-inbox.md) |
+| Status | blocked |
+| Blocked by | `storage-is-not-one-model` |
+| Plan | [storage-model](../plans/storage-model.md) |
 | Area | Sdk, Web (pages, work, storage), docs |
 | Location | `src/uk.osric.asp.Sdk/IPageInbox.cs` (new), `src/uk.osric.asp.Sdk/PageTopic.cs` (new), `src/uk.osric.asp.Web/Pages/PageInboxScope.cs` (new), `src/uk.osric.asp.Web/Pages/SqlitePageInboxStore.cs` (new), `src/uk.osric.asp.Web/Pages/PageSessionOptions.cs`, `src/uk.osric.asp.Web/Work/PageJobRunner.cs`, `src/uk.osric.asp.Web/Pages/PageChain.cs`, `src/uk.osric.asp.Web/Storage/`, `src/uk.osric.asp.Web/Pages/Seeds/_layout`, `src/uk.osric.asp.Web/Pages/Seeds/help`, `src/uk.osric.asp.Web/Pages/Seeds/privacy` |
 
-> **Planned 2026-11-17** — [a page leaves a message for another page](../plans/page-inbox.md) answers
-> the questions the sketch left open. The inbox belongs to the account that posted it (or the page
-> session when anonymous): a signed-in message is shared by every device of the account, kept 30 days
-> from the last inbox activity, and not deleted by signing out; an anonymous one ends with the
-> session. Workers are valid sources and sinks; the take is one atomic dequeue; and every expected
-> outcome is a value. Named topics, starting with `flash`, let a page leave a confirmation that
-> whichever layout runs next takes once. The same change moves the signed-in page session's lifetime
-> onto the sign-in. Nothing is built until the owner says yes to the plan.
+> **Absorbed 2026-11-21** — [one storage model](../plans/storage-model.md) delivers this item as its
+> messages slice, and the inbox plan it was planned by ([page-inbox](../plans/page-inbox.md)) is
+> superseded in shape and should not be approved. A message belongs to the visitor subject: an
+> account's when signed in, the session's when anonymous, and a one-shot value is a lifetime rather
+> than an inbox. The take stays one atomic statement and every expected outcome is a value; the
+> model's messages slice settles the rest. Nothing is built until the storage model's slices land.
 
 ## Idea
 

@@ -11,6 +11,7 @@ using uk.osric.asp.Web.Pages;
 
 /// <summary>Proves what a request gets: cache, lazy compile, budget and abandonment.</summary>
 [TestFixture]
+[Category("Slow")]
 [FixtureLifeCycle(LifeCycle.InstancePerTestCase)]
 // The budget tests assert how late an answer may be, and a page that outruns its budget burns CPU
 // until it stops. Running beside another fixture's compiles starves the thread pool and delays the

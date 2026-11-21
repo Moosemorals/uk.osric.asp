@@ -3,7 +3,6 @@
 
 namespace uk.osric.asp.Web.Tests;
 
-using System.Xml.Linq;
 using uk.osric.asp.Web.Documentation;
 
 /// <summary>The string rules over Roslyn's member ids.</summary>
@@ -129,18 +128,16 @@ public sealed class ReferenceDisplayTests {
     [TestCase("uk.osric.asp.Runtime")]
     [TestCase("uk.osric.asp.Web")]
     public void TheRealDocumentHasUniqueAnchors(string assemblyName) {
-        ReferenceAssemblyInfo info = ReferenceAssemblyInfo.All.Single(item => item.AssemblyName == assemblyName);
-        XDocument source = XDocument.Load(Path.Combine(AppContext.BaseDirectory, assemblyName + ".xml"));
-        ReferenceDocument document = ReferenceDocument.Build(info, source);
+        ReferenceAssembly assembly = TestReference.Library.Assemblies.Single(carried => carried.Info.AssemblyName == assemblyName);
 
-        string[] anchors = [.. document.Content.Descendants()
-            .Select(element => (string?)element.Attribute("anchor"))
-            .OfType<string>()];
+        string[] anchors = [.. assembly.Corpus.Namespaces
+            .SelectMany(space => space.Types)
+            .SelectMany(type => type.Members.Select(member => member.Anchor).Prepend(type.Anchor))];
 
         Assert.Multiple(() => {
             Assert.That(anchors, Is.Unique);
-            Assert.That(document.TypeCount, Is.GreaterThan(0));
-            Assert.That(document.EntryCount, Is.GreaterThan(0));
+            Assert.That(assembly.TypeCount, Is.GreaterThan(0));
+            Assert.That(assembly.EntryCount, Is.GreaterThan(0));
         });
     }
 }

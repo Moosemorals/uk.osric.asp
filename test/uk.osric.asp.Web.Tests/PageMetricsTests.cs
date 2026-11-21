@@ -11,6 +11,7 @@ using uk.osric.asp.Web.Metrics;
 using uk.osric.asp.Web.Pages;
 
 [TestFixture]
+[Category("Slow")]
 // A MeterListener hears every meter with the page meter's name, including one another test is
 // writing to, so this fixture must own the process while it runs.
 [NonParallelizable]

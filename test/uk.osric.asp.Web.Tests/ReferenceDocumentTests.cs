@@ -76,7 +76,7 @@ public sealed class ReferenceDocumentTests {
 
     [Test]
     public void TheRealCorpusResolvesInheritedTextAndNamesTheSource() {
-        ReferenceLibrary library = new(AppContext.BaseDirectory, NullLogger<ReferenceLibrary>.Instance);
+        ReferenceLibrary library = TestReference.Library;
         ReferenceAssembly runtime = library.Assemblies.Single(assembly => assembly.Info.AssemblyName == "uk.osric.asp.Runtime");
         ReferenceAssembly web = library.Assemblies.Single(assembly => assembly.Info.AssemblyName == "uk.osric.asp.Web");
 

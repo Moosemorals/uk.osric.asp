@@ -13,7 +13,7 @@ SPDX-License-Identifier: MIT
 | Blocked by | — |
 | Plan | — |
 | Area | Web, developer experience |
-| Location | `src/uk.osric.asp.Web/Editor/EditorEndpoint.cs` |
+| Location | `src/uk.osric.asp.Web/Editor/PageEditor.cs` |
 | Spike | [Ace evaluated as the editor](../spikes/ace-editor.md) |
 
 > **Partly done.** The page list is a table with a **State** column (`pages-a-page-has-a-state`), so a page that
@@ -22,9 +22,10 @@ SPDX-License-Identifier: MIT
 ## Idea
 
 The editor is a form around a ten-row `<textarea>` with a Save button. There is no syntax
-highlighting, no line numbers, no way to insert the `<% %>` delimiters, and the page's diagnostics
-are printed in a block above the form rather than against the line that produced them. Writing a
-page of any size in it is unpleasant, and it is the thing most likely to stop the site being used.
+highlighting and no way to insert the `<% %>` delimiters. A line gutter keeps the numbers in step
+with what is typed and each diagnostic is anchored to the line that produced it, so what is left is
+the body itself: no colour, no completion and no structural help. Writing a page of any size in it is
+unpleasant, and it is the thing most likely to stop the site being used.
 
 Either improve ours or adopt a third-party editor component. The second is a real dependency
 decision for a project that has otherwise avoided them, so it needs the justification

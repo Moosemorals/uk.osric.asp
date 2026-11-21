@@ -8,6 +8,7 @@ using uk.osric.asp.Web.Assistant;
 using uk.osric.asp.Web.Storage;
 
 [TestFixture]
+[Category("Slow")]
 public sealed class AssistantInterruptMigrationTests {
 
     private const string PreviousMigration = "20261118083447_AddRunEstimate";

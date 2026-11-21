@@ -34,21 +34,35 @@ public static class TemplateLines {
 
     /// <summary>The template position of a 0-based offset.</summary>
     internal static TemplatePosition PositionOf(string input, int offset) {
-        int line = 1;
-        int lineStart = 0;
+        ArgumentNullException.ThrowIfNull(input);
 
-        for (int index = 0; index < offset; index++) {
-            if (input[index] == '\r' && index + 1 < offset && input[index + 1] == '\n') {
+        return Map(input).PositionOf(offset);
+    }
+
+    /// <summary>Reads a template's line starts once, so every position in it is a binary search.</summary>
+    /// <param name="input">The template source.</param>
+    /// <returns>The map a tokenizer asks for every position it records.</returns>
+    /// <remarks>
+    /// A token's position used to be found by walking the template from the start, and a tokenizer
+    /// asks for two positions per block: on a large page that is quadratic in the length of the
+    /// template, which made generating and shape-checking the 45 KB editor page cost a quarter of a
+    /// second. One pass over the template answers every position after it.
+    /// </remarks>
+    internal static TemplateLineMap Map(string input) {
+        ArgumentNullException.ThrowIfNull(input);
+
+        List<int> starts = [0];
+        for (int index = 0; index < input.Length; index++) {
+            if (input[index] == '\r' && index + 1 < input.Length && input[index + 1] == '\n') {
                 index++;
             }
 
             if (input[index] is '\r' or '\n') {
-                line++;
-                lineStart = index + 1;
+                starts.Add(index + 1);
             }
         }
 
-        return new TemplatePosition(line, offset - lineStart + 1);
+        return new TemplateLineMap(input, [.. starts]);
     }
 
     /// <summary>Advances a template position over a piece of template text.</summary>
@@ -73,5 +87,48 @@ public static class TemplateLines {
         }
 
         return new TemplatePosition(line, column);
+    }
+}
+
+/// <summary>A template's line starts, so the position of any offset is a search rather than a scan.</summary>
+internal sealed class TemplateLineMap {
+
+    private readonly string _input;
+    private readonly int[] _starts;
+
+    internal TemplateLineMap(string input, int[] starts) {
+        ArgumentNullException.ThrowIfNull(input);
+        ArgumentNullException.ThrowIfNull(starts);
+
+        _input = input;
+        _starts = starts;
+    }
+
+    /// <summary>The template position of a 0-based offset.</summary>
+    /// <param name="offset">The offset to place, from zero to the template's length.</param>
+    /// <returns>The one-based line and column of the character at that offset.</returns>
+    public TemplatePosition PositionOf(int offset) {
+        ArgumentOutOfRangeException.ThrowIfNegative(offset);
+        ArgumentOutOfRangeException.ThrowIfGreaterThan(offset, _input.Length);
+
+        // An offset that splits a CRLF pair is still on the line the pair opened: the walk this
+        // replaced counted the lone '\r' as a break, so the '\n' it belongs to is the line's first
+        // character. Nothing the tokenizer asks for lands there, but a caller with a raw offset might.
+        if (offset > 0 && offset < _input.Length && _input[offset - 1] == '\r' && _input[offset] == '\n') {
+            return PositionOf(offset + 1);
+        }
+
+        int low = 0;
+        int high = _starts.Length - 1;
+        while (low < high) {
+            int middle = (low + high + 1) / 2;
+            if (_starts[middle] <= offset) {
+                low = middle;
+            } else {
+                high = middle - 1;
+            }
+        }
+
+        return new TemplatePosition(low + 1, offset - _starts[low] + 1);
     }
 }

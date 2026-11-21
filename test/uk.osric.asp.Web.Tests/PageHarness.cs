@@ -63,9 +63,9 @@ internal sealed class PageHarness : IDisposable {
         Options = options ?? TestOptions.FixtureRender;
         Budget = budget ?? new PageBudget(Options, TestOptions.FixtureCompile, TestOptions.Stream);
         Health = health ?? new PageHealth(Options.AbandonedLimit);
-        Compiler = new RecordingCompiler(compiler ?? new PageCompiler());
+        Compiler = new RecordingCompiler(compiler ?? TestCompiler.Real);
         Metrics = new PageMetrics();
-        Seeds = seeds ?? new PageSeeds(Path.Combine(AppContext.BaseDirectory, "Pages", "Seeds"));
+        Seeds = seeds ?? TestOptions.Seeds;
 
         Storage = storage;
         Images = new PageImageBuilder(Compiler, Budget, Metrics, NullLogger<PageImageBuilder>.Instance);

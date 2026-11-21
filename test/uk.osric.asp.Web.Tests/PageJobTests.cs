@@ -16,6 +16,10 @@ using uk.osric.asp.Web.Work;
 /// </remarks>
 [TestFixture]
 [FixtureLifeCycle(LifeCycle.InstancePerTestCase)]
+// Each test owns its storage - a database file of its own, or a store and harness of its own - so the
+// tests here are independent, and waiting for one to finish before starting the next only makes the
+// suite slower than the work it is doing.
+[Parallelizable(ParallelScope.All)]
 public sealed class PageJobTests {
 
     private const string WorkerPath = "/_work/echo";
@@ -203,6 +207,7 @@ public sealed class PageJobTests {
     }
 
     [Test]
+    [Category("Slow")]
     [NonParallelizable]
     public async Task AnIndefiniteWaitOutlivesTheSilenceClockAsync() {
         using PageHarness pages = new(new FakePageStore(), jobOptions: TestOptions.Jobs with {
@@ -224,6 +229,7 @@ public sealed class PageJobTests {
     }
 
     [Test]
+    [Category("Slow")]
     [NonParallelizable]
     public async Task TheCeilingEndsAnIndefiniteWaitAsync() {
         using PageHarness pages = new(new FakePageStore(), jobOptions: TestOptions.Jobs with {
@@ -243,6 +249,7 @@ public sealed class PageJobTests {
     }
 
     [Test]
+    [Category("Slow")]
     [NonParallelizable]
     public async Task AJobThatNeitherPublishesNorReceivesIsCutAsync() {
         using PageHarness pages = new(new FakePageStore(), jobOptions: TestOptions.Jobs with {

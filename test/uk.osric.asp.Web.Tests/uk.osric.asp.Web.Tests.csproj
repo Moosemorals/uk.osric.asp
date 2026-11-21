@@ -17,6 +17,9 @@ SPDX-License-Identifier: MIT
     <Compile Include="../../tools/reference-corpus/Corpus/ReferenceDocument.cs" Link="Corpus/ReferenceDocument.cs" />
     <Compile Include="../../tools/reference-corpus/Corpus/ReferenceDisplay.cs" Link="Corpus/ReferenceDisplay.cs" />
     <Compile Include="../../tools/reference-corpus/Corpus/ReferenceText.cs" Link="Corpus/ReferenceText.cs" />
+    <!-- Shared with the integration suite: both run the real compiler many times over the same
+         seeded pages, and one definition keeps the cache they fill from drifting apart. -->
+    <Compile Include="../Shared/CachingCompiler.cs" Link="Shared/CachingCompiler.cs" />
   </ItemGroup>
 
   <ItemGroup>

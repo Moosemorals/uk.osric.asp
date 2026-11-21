@@ -45,7 +45,7 @@ registered or absent, never `null` (`pages-capabilities-are-one-seam`). The type
 the old `Features` spelling was removed once its release was over, so a page that still says
 `ctx.Features` no longer compiles (`pages-capabilities-are-one-seam`).
 
-Thirteen capabilities are registered today — eight that do I/O or work and are bounded by the render,
+Twelve capabilities are registered today — seven that do I/O or work and are bounded by the render,
 one that is the page's slots in its document, one that renders other pages into this one, two that are
 pure renderers, and one that is a fact about the build:
 
@@ -490,7 +490,7 @@ answer for are the shell's route table, refused by the editor and never served.
 ## Compiled pages
 
 Compiling is the expensive part of serving a page, so it happens when a page is saved rather than
-when it is viewed. A save — from `EditorEndpoint`, from the assistant's tools, or from a page saving
+when it is viewed. A save — from the editor page through `IPageWrites`, from the assistant's tools, or from a page saving
 itself — goes through `PageSaver`, which compiles the template through `PageImageBuilder` and stores
 the emitted assembly beside the template in the same row; `PageEndpoint` then reads the image and runs
 it through `PageRenderer`. Four derived columns carry the result: `TemplateHash`, `RuntimeId`, `Image` and `Diagnostics`.

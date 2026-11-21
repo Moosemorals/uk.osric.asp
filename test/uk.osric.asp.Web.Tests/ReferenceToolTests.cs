@@ -31,7 +31,7 @@ public sealed class ReferenceToolTests {
     [SetUp]
     public void SetUp() {
         ServiceCollection services = new();
-        services.AddSingleton(new ReferenceLibrary(AppContext.BaseDirectory, NullLogger<ReferenceLibrary>.Instance));
+        services.AddSingleton(TestReference.Library);
         services.AddSingleton(Options);
         services.AddSingleton(new AssistantMetrics());
         services.AddSingleton(TestOptions.Editor);

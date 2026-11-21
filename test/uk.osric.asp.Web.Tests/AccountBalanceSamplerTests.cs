@@ -10,6 +10,7 @@ using uk.osric.asp.Core.Assistant;
 using uk.osric.asp.Web.Assistant;
 
 [TestFixture]
+[Category("Slow")]
 [NonParallelizable]
 public sealed class AccountBalanceSamplerTests {
 
