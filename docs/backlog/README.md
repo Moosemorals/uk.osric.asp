@@ -116,9 +116,8 @@ its reason, and that no item sits above something that blocks it.
 | --- | --- | --- | --- | --- | --- |
 | [`cannot-search-the-store`](cannot-search-the-store.md) | A page cannot search the store's source | caffeinated-squirrel ☕🐿️ | medium | [planned](../plans/ide-host.md) | — |
 | | *The IDE's find in files, now with the shell's own pattern language; the version token its cursor carries landed with the listing fingerprint, so nothing blocks it.* | | | | |
-| [`a-page-cannot-list-folders`](a-page-cannot-list-folders.md) | A page cannot list the store's folders | eager-beaver ⚙️🦫 | medium | open | — |
-| | *A listing returns heads, so every caller that wants a tree folds keys by hand; the shell, the IDE's tree and a site map all want the same rows.* | | | | |
-| [`tool-surface-is-one-shell`](tool-surface-is-one-shell.md) | The assistant's tool surface is one shell, one question and one memory | protective-dragon 🔥🐉 | high | blocked | `check-without-storing`, `cannot-search-the-store`, `a-page-cannot-list-folders` |
+| [`tool-surface-is-one-shell`](tool-surface-is-one-shell.md) | The assistant's tool surface is one shell, one question and one memory | protective-dragon 🔥🐉 | high | blocked | `check-without-storing`, `cannot-search-the-store` |
+| | *The shell already carries eleven of the twenty-two commands; making it POSIX, composable and the preferred surface leaves three tools and buys back the ceiling, and building it from the page capabilities names the three gaps in front of it.* | | | | |
 | | *The shell already carries eleven of the twenty-two commands; making it POSIX, composable and the preferred surface leaves three tools and buys back the ceiling, and building it from the page capabilities names the three gaps in front of it.* | | | | |
 | [`storage-is-not-one-model`](storage-is-not-one-model.md) | Storage is not one model: a page reaches a patchwork of stores | protective-dragon 🔥🐉 | high | open | — |
 | | *The model every storage gap resolves into; it supersedes the two storage plans waiting for a yes, so it is read before them.* | | | | |

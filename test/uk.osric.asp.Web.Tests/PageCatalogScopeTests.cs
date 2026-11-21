@@ -113,7 +113,7 @@ public sealed class PageCatalogScopeTests {
         store.Save("/_work/echo", "<%! public sealed class Echo : IWorker { } %>",
             templateKind: PageKind.Worker, runtimeId: CurrentRuntimeId, hasImage: true);
 
-        PageEntry entry = (await ListAsync(Scope(store), "")).Single();
+        PageEntry entry = (await ListAsync(Scope(store), "")).Single(entry => entry.Key == "/_work/echo");
 
         Assert.Multiple(() => {
             Assert.That(entry.IsWorker, Is.True);
@@ -142,7 +142,7 @@ public sealed class PageCatalogScopeTests {
         FakePageReadStore store = new();
         store.Save("/blog", "<h1>Blog</h1>", templateKind: PageKind.Page);
 
-        PageEntry entry = (await ListAsync(Scope(store), "")).Single();
+        PageEntry entry = (await ListAsync(Scope(store), "")).Single(entry => entry.Key == "/blog");
 
         Assert.That(entry.IsHtml, Is.True);
         Assert.That(entry.IsAsset, Is.False);
@@ -154,7 +154,7 @@ public sealed class PageCatalogScopeTests {
         store.Save("/_lib/document", "<%! class Document { } %>",
             templateKind: PageKind.Library, runtimeId: CurrentRuntimeId);
 
-        PageEntry entry = (await ListAsync(Scope(store), "")).Single();
+        PageEntry entry = (await ListAsync(Scope(store), "")).Single(entry => entry.Key == "/_lib/document");
 
         Assert.That(entry.IsLibrary, Is.True);
         Assert.That(entry.IsAsset, Is.False);
@@ -170,7 +170,7 @@ public sealed class PageCatalogScopeTests {
 
         IReadOnlyList<PageEntry> entries = await ListAsync(Scope(store), "");
 
-        Assert.That(entries.Select(entry => entry.Key), Is.EqualTo(["/about", "/blog", "/blog/post"]));
+        Assert.That(Heads(entries).Select(entry => entry.Key), Is.EqualTo(["/about", "/blog", "/blog/post"]));
     }
 
     [Test]
@@ -191,8 +191,8 @@ public sealed class PageCatalogScopeTests {
         store.Save("/about", "about");
         store.Save("/blog", "blog");
 
-        Assert.That((await ListAsync(Scope(store), "/")).Count, Is.EqualTo(2));
-        Assert.That((await ListAsync(Scope(store), "")).Count, Is.EqualTo(2));
+        Assert.That(Heads(await ListAsync(Scope(store), "/")).Count, Is.EqualTo(2));
+        Assert.That(Heads(await ListAsync(Scope(store), "")).Count, Is.EqualTo(2));
     }
 
     [Test]
@@ -272,7 +272,8 @@ public sealed class PageCatalogScopeTests {
         store.Save("/one", "1");
         store.Save("/two", "2");
         store.Save("/three", "3");
-        PageCatalogScope scope = Scope(store, options: TestOptions.Read with { MaxRowsPerList = 2 });
+        PageCatalogScope scope = Scope(
+            store, options: TestOptions.Read with { MaxRowsPerList = 2 }, routes: ["/zzz"]);
 
         PageListing listing = await scope.ListAsync(new());
 
@@ -364,7 +365,7 @@ public sealed class PageCatalogScopeTests {
         string? after = null;
         for (int page = 0; page < 10; page++) {
             PageListing listing = await scope.ListAsync(new(After: after, Limit: 2));
-            keys.AddRange(listing.Entries.Select(entry => entry.Key));
+            keys.AddRange(Heads(listing.Entries).Select(entry => entry.Key));
             if (!listing.Truncated) {
                 break;
             }
@@ -402,7 +403,7 @@ public sealed class PageCatalogScopeTests {
 
         PageListing listing = await Scope(store).ListAsync(new(After: "/Blog/"));
 
-        string[] listed = [.. listing.Entries.Select(entry => entry.Key)];
+        string[] listed = [.. Heads(listing.Entries).Select(entry => entry.Key)];
         string[] expected = ["/blog/post", "/notes"];
         Assert.That(listed, Is.EqualTo(expected));
     }
@@ -533,17 +534,167 @@ public sealed class PageCatalogScopeTests {
         });
     }
 
+    [Test]
+    public async Task AListingAnswersAFolderBeforeTheKeysInItAsync() {
+        FakePageReadStore store = new();
+        store.Save("/blog/post", "post");
+
+        IReadOnlyList<PageEntry> entries = await ListAsync(Scope(store, routes: ["/zzz"]), "/");
+
+        Assert.Multiple(() => {
+            Assert.That(entries.Select(entry => entry.Key), Is.EqualTo(["/blog", "/blog/post", "/zzz"]));
+            Assert.That(entries[0].Kind, Is.EqualTo(PageEntryKind.Folder));
+            Assert.That(entries[0].SavedAt, Is.Null);
+            Assert.That(entries[0].Hash, Is.Null);
+            Assert.That(entries[0].IsHtml, Is.False);
+            Assert.That(entries[0].State, Is.Empty);
+            Assert.That(entries[0].Seed, Is.Null);
+        });
+    }
+
+    [Test]
+    public async Task APageThatIsAFolderIsOneRowThatSaysBothAsync() {
+        FakePageReadStore store = new();
+        store.Save("/blog", "blog");
+        store.Save("/blog/post", "post");
+
+        PageEntry row = (await ListAsync(Scope(store), "/")).Single(entry => entry.Key == "/blog");
+
+        Assert.Multiple(() => {
+            Assert.That(row.Kind.HasFlag(PageEntryKind.Page), Is.True);
+            Assert.That(row.Kind.HasFlag(PageEntryKind.Folder), Is.True);
+            Assert.That(row.Hash, Is.Not.Null);
+        });
+    }
+
+    [Test]
+    public async Task AFolderOverATombstoneIsStillAFolderAsync() {
+        FakePageReadStore store = new();
+        store.Save("/gone/post", "post");
+        store.Delete("/gone/post");
+
+        IReadOnlyList<PageEntry> entries = await ListAsync(Scope(store), "/");
+
+        Assert.Multiple(() => {
+            Assert.That(entries.Single(entry => entry.Key == "/gone").Kind, Is.EqualTo(PageEntryKind.Folder));
+            Assert.That(entries.Single(entry => entry.Key == "/gone/post").IsDeleted, Is.True);
+        });
+    }
+
+    [Test]
+    public async Task ARouteIsARowWithNoHeadAndIsAFolderWhenRoutesLiveBelowItAsync() {
+        IReadOnlyList<PageEntry> entries = await ListAsync(
+            Scope(new FakePageReadStore(), routes: ["/admin", "/admin/import", "/login"]), "/");
+
+        PageEntry admin = entries.Single(entry => entry.Key == "/admin");
+        PageEntry import = entries.Single(entry => entry.Key == "/admin/import");
+
+        Assert.Multiple(() => {
+            Assert.That(admin.Kind, Is.EqualTo(PageEntryKind.Route | PageEntryKind.Folder));
+            Assert.That(import.Kind, Is.EqualTo(PageEntryKind.Route));
+            Assert.That(import.IsReserved, Is.True);
+            Assert.That(import.SavedAt, Is.Null);
+            Assert.That(import.Hash, Is.Null);
+            Assert.That(import.State, Is.Empty);
+        });
+    }
+
+    [Test]
+    public async Task AOneLevelListingAnswersThePrefixAndItsOwnChildrenAsync() {
+        FakePageReadStore store = new();
+        store.Save("/a", "a");
+        store.Save("/a/b", "b");
+        store.Save("/a/b/c", "c");
+        store.Save("/a/d", "d");
+
+        IReadOnlyList<PageEntry> entries = await ListAsync(Scope(store), "/a", recursive: false);
+
+        Assert.Multiple(() => {
+            Assert.That(entries.Select(entry => entry.Key), Is.EqualTo(["/a", "/a/b", "/a/d"]));
+            Assert.That(entries.Single(entry => entry.Key == "/a/b").Kind.HasFlag(PageEntryKind.Folder), Is.True,
+                "a child whose only content is deeper is still a folder");
+            Assert.That(entries.Single(entry => entry.Key == "/a/d").Kind.HasFlag(PageEntryKind.Folder), Is.False);
+        });
+    }
+
+    [Test]
+    public async Task TheLimitCountsFolderAndRouteRowsAsync() {
+        FakePageReadStore store = new();
+        store.Save("/a/one", "one");
+        store.Save("/b", "b");
+        PageCatalogScope scope = Scope(
+            store, options: TestOptions.Read with { MaxRowsPerList = 2 }, routes: ["/0"]);
+
+        PageListing listing = await scope.ListAsync(new());
+
+        Assert.Multiple(() => {
+            Assert.That(listing.Entries.Select(entry => entry.Key), Is.EqualTo(["/0", "/a"]),
+                "a route and a folder fill the slice");
+            Assert.That(listing.Truncated, Is.True);
+        });
+    }
+
+    [Test]
+    public async Task AKeySavedBetweenTwoSlicesIsAnsweredOnceAsync() {
+        FakePageReadStore store = new();
+        store.Save("/a", "a");
+        store.Save("/c", "c");
+        PageCatalogScope scope = Scope(
+            store, options: TestOptions.Read with { MaxRowsPerList = 2 }, routes: ["/zzz"]);
+
+        PageListing first = await scope.ListAsync(new());
+        store.Save("/d", "d");
+        PageListing second = await scope.ListAsync(new(After: first.Entries[^1].Key, Limit: 1));
+
+        Assert.Multiple(() => {
+            Assert.That(first.Entries.Select(entry => entry.Key), Is.EqualTo(["/a", "/c"]));
+            Assert.That(second.Entries.Select(entry => entry.Key), Is.EqualTo(["/d"]));
+        });
+    }
+
+    [Test]
+    public async Task AWalkAnswersEveryKeyOnceFoldersIncludedAsync() {
+        FakePageReadStore store = new();
+        store.Save("/a/one", "one");
+        store.Save("/a/two", "two");
+        store.Save("/b", "b");
+        PageCatalogScope scope = Scope(
+            store, options: TestOptions.Read with { MaxRowsPerList = 2 }, routes: ["/zzz"]);
+
+        List<string> walk = [];
+        string? after = null;
+        while (true) {
+            PageListing listing = await scope.ListAsync(new(After: after, Limit: 2));
+            walk.AddRange(listing.Entries.Select(entry => entry.Key));
+            if (!listing.Truncated) {
+                break;
+            }
+
+            after = listing.Entries[^1].Key;
+        }
+
+        Assert.Multiple(() => {
+            Assert.That(walk, Is.EqualTo(["/a", "/a/one", "/a/two", "/b", "/zzz"]));
+            Assert.That(walk, Is.Unique);
+        });
+    }
+
     private static string StateOf(IReadOnlyList<PageEntry> entries, string key) =>
         entries.Single(entry => entry.Key == key).State;
 
     private static async Task<IReadOnlyList<PageEntry>> ListAsync(
-        PageCatalogScope scope, string prefix = "", string? after = null, int? limit = null) =>
-        (await scope.ListAsync(new PageListingRequest(prefix, after, limit))).Entries;
+        PageCatalogScope scope, string prefix = "", string? after = null, int? limit = null,
+        bool recursive = true) =>
+        (await scope.ListAsync(new PageListingRequest(prefix, after, limit, Recursive: recursive))).Entries;
+
+    private static IReadOnlyList<PageEntry> Heads(IEnumerable<PageEntry> entries) =>
+        [.. entries.Where(entry => entry.Kind.HasFlag(PageEntryKind.Page))];
 
     private static PageCatalogScope Scope(
         FakePageReadStore store,
         PageReadOptions? options = null,
-        ReadBudget? budget = null) {
+        ReadBudget? budget = null,
+        IReadOnlyList<string>? routes = null) {
         PageReadOptions read = options ?? TestOptions.Read;
 
         return new PageCatalogScope(
@@ -552,7 +703,7 @@ public sealed class PageCatalogScopeTests {
             store,
             read,
             budget ?? new ReadBudget(read.MaxSourceCharsPerRender),
-            new ReservedPaths(ReservedPaths.Default),
+            new ReservedPaths(routes ?? ReservedPaths.Default),
             TestContentTypes.Shipped,
             TestOptions.Seeds,
             CurrentRuntimeId);

@@ -1134,12 +1134,15 @@ the page's own guard gives.
 
 ### pages-a-listing-carries-facts
 
-A listing returns every head the store holds, each marked `IsDeleted`, `IsReserved` and `IsHtml`, and a
-prefix selects a subtree — the key itself and keys beneath it — never a string prefix; ordering is by
-key. A node carries facts, not words: `PageNode` answers the key, whether it is a folder, a page, a
-shell file or a tombstone, whether a save would be accepted and the page's image state, and the
-permission column and the state are formatted by whoever shows them, with `PageMode` and
-`PageImageStatus`, so `ls -l`, `stat`, `list_pages` and `read_page` cannot spell one fact two ways.
+A listing row is a key with a kind — `Page`, `Tombstone`, `Route` and `Folder`, as flags that
+combine — and the head's facts where a head is stored, so a page filters rather than re-deriving the
+host's rules; a row with no head has no saved time, no hash and no state, and `IsDeleted` and
+`IsReserved` read the kind. A prefix selects a subtree — the key itself and keys beneath it — never a
+string prefix; ordering is by key. A node carries facts, not words: `PageNode` answers the key,
+whether it is a folder, a page, a shell file or a tombstone, whether a save would be accepted and the
+page's image state, and the permission column and the state are formatted by whoever shows them, with
+`PageMode` and `PageImageStatus`, so `ls -l`, `stat`, `list_pages` and `read_page` cannot spell one
+fact two ways.
 
 A listing is one slice of a store that may hold more, which is `pages-a-listing-resumes-from-a-key`:
 `Pages:Read:MaxRowsPerList` bounds a slice rather than refusing past it.
@@ -1147,6 +1150,42 @@ A listing is one slice of a store that may hold more, which is `pages-a-listing-
 chain, charged by the reads and refused rather than clamped.
 
 *Recorded in [page store read](plans/archive/page-store-read.md#d3--everything-marked), [PageStoreReader](../src/uk.osric.asp.Web/Assistant/PageStoreReader.cs).*
+
+### pages-a-folder-is-a-key-not-a-row
+
+A folder exists because at least one key lives below it: it is not stored, has no row, no column and no
+write path, and a listing derives it from the keys a read answered with `PageTree`'s rule. So the save
+that first writes `/blog/post` makes `/blog`, scrubbing the last key under it removes it, and no save,
+move or scrub has to remember to keep one in step. A row says what it is in `PageEntryKind`, as flags
+that combine, so a key that is a page and a folder is one row and a folder is never a second row for
+the same key. A folder is answered once, by the slice that first reaches a key under it, which is what
+keeps the cursor a key a walk can resume from.
+
+*Recorded in [pages](pages.md#page-contract), [PageListingFold](../src/uk.osric.asp.Core/Pages/PageListingFold.cs), [the plan](plans/archive/page-tree-listing.md).*
+
+### pages-a-listing-answers-the-site-tree
+
+A listing answers the tree a page draws, not only the store's heads: the keys under its prefix, the
+folders above them and the keys the shell's own routes answer, each with its kind and the head's facts
+where a head is stored. The route table is the shell's and a page never owns it — the capability
+already holds `ReservedPaths`, so a route row costs no read — and a key the routes answer is marked
+`Route` by the same prefix rule the write policy uses, so a stored head a route shadows still says so.
+A listing that answers one level asks the store for its direct-child folders as well, because a child
+whose only content is deeper is not a head a one-level read can see.
+
+*Recorded in [pages](pages.md#page-contract), [PageCatalogScope](../src/uk.osric.asp.Web/Pages/PageCatalogScope.cs), [the plan](plans/archive/page-tree-listing.md).*
+
+### pages-a-listing-descends-unless-asked
+
+A listing answers the whole subtree under its prefix unless the request asks for one level, because the
+subtree is what a listing meant before the depth was a request member and a default that narrowed it
+would silently empty every page that pages today. The depth comes after the token, because the token
+was there first: a caller passing four arguments means the fingerprint, and a depth is named. Either
+way the cursor is the last key the caller was given and is exclusive, so a walk visits every key once,
+in ordinal order; the limit counts rows of every kind, so a slice may hold fewer heads than it used
+to.
+
+*Recorded in [pages](pages.md#page-contract), [PageListingRequest](../src/uk.osric.asp.Sdk/PageListingRequest.cs), [the plan](plans/archive/page-tree-listing.md).*
 
 ### pages-a-page-names-its-libraries
 
@@ -1181,10 +1220,11 @@ line the author will look at.
 
 ### pages-a-listing-resumes-from-a-key
 
-A listing is one slice, asked for by a prefix, a cursor and a limit, and answered with its rows and
-whether more stand after them. The cursor is the last key the caller was given rather than a count,
-because a page saved between two calls would make an offset skip or repeat a row and a key cannot; it
-is normalised as a page key, so a trailing slash resumes in the same place. The configured cap is the
+A listing is one slice, asked for by a prefix, a cursor, a token and a limit, and answered with its
+rows, whether more stand after them and whether the list moved. The cursor is the last key the caller
+was given rather than a count, because a page saved between two calls would make an offset skip or
+repeat a row and a key cannot; it is normalised as a page key, so a trailing slash resumes in the same
+place. The configured cap is the
 largest limit a caller may ask for, not a wall — a listing that refuses past its cap makes the 501st
 page an outage of the tree where a slice makes it the next request — and a limit above it is refused
 with the setting's name rather than trimmed. A cursor past the last key is an empty answer, not an
@@ -1243,8 +1283,11 @@ sources from the seam and scans them with one loop: `SourcesAsync` decides which
 what order, and `PageSourceSearch.Find` walks them in key order, splits each with the caller's own line
 rule and keeps the caller's own predicate, stopping one match past the limit so "there are more" is an
 observation. Each front-end keeps its projection and its wording, and a tombstone is never a source.
+A listing answers the tree as well: `PageListingFold` folds the keys a read answered into the keys and
+folders it lists, so `IPageCatalog.ListAsync` is the tree a page draws and a page never folds keys
+itself.
 
-*Recorded in [page store reader](plans/archive/page-store-reader.md), [PageTree](../src/uk.osric.asp.Core/Pages/PageTree.cs).*
+*Recorded in [page store reader](plans/archive/page-store-reader.md), [PageTree](../src/uk.osric.asp.Core/Pages/PageTree.cs), [the plan](plans/archive/page-tree-listing.md).*
 
 ### pages-a-page-may-save-itself
 

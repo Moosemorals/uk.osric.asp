@@ -6,8 +6,9 @@ namespace uk.osric.asp.Sdk;
 /// <summary>A read-only view of the site's page store, and of the links the shell knows.</summary>
 /// <remarks>
 /// <para>
-/// Four store reads, one list of shell links and no writes: a page can list the store, read a live
-/// page's template, read a page's history, read one retained revision and ask what the shell can do.
+/// Four store reads, one list of shell links and no writes: a page can list the store's tree, read a
+/// live page's template, read a page's history, read one retained revision and ask what the shell can
+/// do.
 /// It never meets an image, a symbol or a writable member; saving is a separate capability.
 /// </para>
 /// <para>
@@ -54,14 +55,18 @@ public interface IPageCatalog {
     /// <exception cref="InvalidOperationException">The render was abandoned.</exception>
     public IReadOnlyList<ShellLink> ShellLinks();
 
-    /// <summary>Lists the heads of the store, one slice at a time.</summary>
-    /// <param name="request">The subtree, the cursor to resume from, the limit to answer and the token to compare.</param>
+    /// <summary>Lists the keys of a subtree, one slice at a time, each saying what it is.</summary>
+    /// <param name="request">
+    /// The subtree, its depth, the cursor to resume from, the limit to answer and the token to compare.
+    /// </param>
     /// <returns>
-    /// The heads under the prefix, including tombstones, seeded assets and reserved keys, ordered by
-    /// key and marked so a view can pick what it wants, whether more stand after the last one, the
-    /// prefix's fingerprint and whether it differs from the request's token.
+    /// The keys under the prefix, each with its kind — a stored page, a tombstone, a site route or a
+    /// folder, which combine — and the head's facts where a head is stored, ordered by key, whether
+    /// more stand after the last one, the prefix's fingerprint and whether it differs from the
+    /// request's token.
     /// </returns>
     /// <remarks>
+    /// <para>
     /// A slice is a keyset, not an offset: <see cref="PageListingRequest.After"/> is the last key the
     /// caller was given, so a page saved between two calls neither skips nor repeats a row. A cursor
     /// past the last key answers an empty page with <see cref="PageListing.Truncated"/> false.
@@ -69,6 +74,12 @@ public interface IPageCatalog {
     /// read with the rows; pass it back as <see cref="PageListingRequest.Version"/> on the next slice
     /// and <see cref="PageListing.Changed"/> says whether the list moved. It is a warning rather than
     /// a refusal, and it covers the head rows rather than what they compiled to.
+    /// </para>
+    /// <para>
+    /// A folder is not stored: it is a key with at least one key below it, worked out by the host, and
+    /// it is answered once, by the slice that first reaches a key under it. The site's own routes are
+    /// rows too, so a page draws the tree the shell's own tools draw without owning the route table.
+    /// </para>
     /// </remarks>
     /// <exception cref="ArgumentException">
     /// The prefix or the cursor cannot name a key, for example one containing <c>?</c> or <c>#</c>.

@@ -598,8 +598,8 @@ catch. <code>System.IO</code>, <code>System.Net</code>, <code>System.Reflection<
 <a href="/admin/reference/sdk">page contract</a> is the half a page may use.</p>
 
 <h2 id="catalog">Reading the page store</h2>
-<p><a href="/admin/reference/sdk#t-IPageCatalog"><code>IPageCatalog</code></a> is a read-only view of the site's page store: list the heads under a
-prefix, read a live page's template, list a page's history, and read one retained revision by its
+<p><a href="/admin/reference/sdk#t-IPageCatalog"><code>IPageCatalog</code></a> is a read-only view of the site's page store: list the keys of a
+subtree, read a live page's template, list a page's history, and read one retained revision by its
 key and hash. It never meets an image, a symbol or a write; saving is
 <a href="/admin/reference/sdk#t-IPageWrites"><code>IPageWrites</code></a>, below.</p>
 <pre class="source" tabindex="0"><code>&lt;% IPageCatalog catalog = ctx.Capabilities.GetRequired&lt;IPageCatalog&gt;();
@@ -608,25 +608,31 @@ key and hash. It never meets an image, a symbol or a write; saving is
    System.Collections.Generic.IReadOnlyList&lt;PageRevisionInfo&gt; history = await catalog.RevisionsAsync("/blog"); %&gt;
 &lt;ul&gt;
 &lt;% foreach (PageEntry entry in listing.Entries) { %&gt;
-    &lt;li&gt;&lt;%= entry.Key %&gt; — &lt;%= entry.IsDeleted ? "deleted" : "live" %&gt;&lt;/li&gt;
+    &lt;li&gt;&lt;%= entry.Key %&gt; — &lt;%= entry.Kind.ToString() %&gt;&lt;/li&gt;
 &lt;% } %&gt;
 &lt;/ul&gt;</code></pre>
-<p>A listing is one slice. <code>PageListingRequest(prefix, after, limit)</code> asks for at most
-<code>limit</code> rows past the key <code>after</code>, which is exclusive: pass the last key you
-were given and the next call resumes where the last one stopped, so a page saved between two calls can
-neither be skipped nor repeated. A blank prefix is the whole store. An absent limit is the host's cap,
-and asking for more than the cap is refused with the setting's name rather than trimmed. The answer's
+<p>A listing is one slice. <code>PageListingRequest(prefix, after, limit, version, recursive)</code>
+asks for at most <code>limit</code> rows past the key <code>after</code>, which is exclusive: pass the
+last key you were given and the next call resumes where the last one stopped, so a page saved between
+two calls can neither be skipped nor repeated. A blank prefix is the whole store. An absent limit is
+the host's cap, and asking for more than the cap is refused with the setting's name rather than
+trimmed; folder and route rows count towards it. <code>recursive</code> is true unless you ask
+otherwise, and answers every key under the prefix; false answers the prefix itself and its own
+children, so a tree that descends one folder per request asks for one level at a time. The answer's
 <code>Truncated</code> says whether anything stands after the last row, so ask again while it is true
 and stop on an empty answer with it false — a cursor past the last key is a complete answer, not an
-error.</p>
+error. Both trailing arguments are optional and come in that order, so
+<code>PageListingRequest("/blog", after, 50)</code> and
+<code>PageListingRequest("/blog", Recursive: false)</code> both read as you would expect.</p>
 <p>A listing also says whether the list it is walking moved. <code>PageListing.Version</code> is the
-fingerprint of every head under the prefix, read with the rows. Pass it back as the fourth argument,
-<code>PageListingRequest(prefix, after, limit, version)</code>, and <code>PageListing.Changed</code>
-says whether the store's fingerprint differs from the one you carried. It is opaque: compare it,
-never parse or order it. A change under another prefix does not move it, and it covers the rows and
-their seed anchors rather than what each row compiled to — a lazy compile or a deploy can change a
-row's <code>State</code> without moving the token. It is a warning, not a refusal: carry on, start
-again or ignore it, and the host does not decide.</p>
+fingerprint of every head under the prefix, read with the rows. Pass it back as
+<code>version</code> on the next slice, and <code>PageListing.Changed</code> says whether the store's
+fingerprint differs from the one you carried. It is opaque: compare it, never parse or order it. A
+change under another prefix does not move it, and it covers the rows and their seed anchors rather
+than what each row compiled to — a lazy compile or a deploy can change a row's <code>State</code>
+without moving the token. It is a warning, not a refusal: carry on, start again or ignore it, and the
+host does not decide. A folder is derived from the heads under it, so a save below it moves the token
+exactly as a save to a page does.</p>
 <p><a href="/admin/reference/sdk#m-IPageCatalog.ShellLinks"><code>ShellLinks()</code></a> is the
 other read: the links the shell knows, both its site menu and its administration menu, as values.
 Each link carries its href, its label, the section it belongs to, who it is for, and how the shell
@@ -647,15 +653,24 @@ says <strong>Site tools</strong>. It answers when the page store is broken, so i
 routes rather than your pages; a page that wants a page-store menu reads <code>ListAsync</code> as
 well and writes both itself. The seeded <code>/_layout</code> is the working example.</p>
 <p>A prefix is a subtree, not a string prefix: <code>"/blog"</code> lists <code>/blog</code> and
-<code>/blog/post</code>, never <code>/blogroll</code>. The listing returns every head the store
-holds — live pages, tombstones, seeded assets and reserved keys — each marked with
-<code>IsDeleted</code>, <code>IsReserved</code>, <code>IsHtml</code> and <code>IsAsset</code>, so a
-view filters rather than re-deriving the host's rules. Each row also says what the head compiled to
-in <code>State</code> — <em>Compiled</em>, <em>Compiled with warnings</em>, <em>Compile failed</em>,
-<em>Stale</em>, <em>Not compiled</em> or <em>Stored as source</em> — so a listing says exactly what
-the editor's list says. How you mark it is yours: the words make a fine
-<code>data-state</code> attribute. A tombstone has no source: it
-is listed as deleted and reads as absent, while its history stays readable.</p>
+<code>/blog/post</code>, never <code>/blogroll</code>. A listing answers the tree: every stored head —
+live, tombstoned, seeded — every folder above them and every key the site's own routes answer. A row
+says what it is in <code>Kind</code>, as flags that combine — <code>Page</code>,
+<code>Tombstone</code>, <code>Route</code> and <code>Folder</code> — so a key that is both a page and
+a folder is one row, and <code>IsDeleted</code> and <code>IsReserved</code> read the same fact. A
+folder is not stored: it exists because a key lives below it, and the host works it out, so there is
+never a folder to create or delete. A row with no head — a folder, or a route — has no
+<code>SavedAt</code>, no <code>Hash</code> and no <code>State</code>, and <code>IsHtml</code> is
+false unless the key is a page or a route. This is why a page that wants only pages filters on
+<code>Kind.HasFlag(PageEntryKind.Page)</code>.</p>
+<p>Every remaining mark is the host's rule rather than yours: <code>IsHtml</code> is the content-type
+table's answer, <code>IsAsset</code>, <code>IsLibrary</code> and <code>IsWorker</code> are what the
+template turned out to be, and <code>Libraries</code> is what a save to one of those keys would
+recompile. Each row also says what the head compiled to in <code>State</code> — <em>Compiled</em>,
+<em>Compiled with warnings</em>, <em>Compile failed</em>, <em>Stale</em>, <em>Not compiled</em> or
+<em>Stored as source</em> — so a listing says exactly what the editor's list says. How you mark it is
+yours: the words make a fine <code>data-state</code> attribute. A tombstone has no source: it is
+listed as deleted and reads as absent, while its history stays readable.</p>
 <p><strong>The read is as public as the page that calls it.</strong> There is no gate in the host: an
 anonymous visitor gets the same answers a signed-in one does. A page that wants its listing or its
 source private writes the ordinary guard at the top of its own source, exactly as any private page

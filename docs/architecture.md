@@ -131,6 +131,7 @@ the fix moves, and it carries an extent covering the two of them.
 | Emitting a page assembly, loading it and invoking the handler | `Runtime` |
 | Deciding when to compile, store and run a page | `Web`, in `PageImageBuilder`, `PageRenderer` and `PageEditor` |
 | Reading the page store for a tool or the virtual shell | `Web`, in `PageStoreReader`, over `PageEditor` and `PagePathPolicy`; the tree and the scope are `Core`'s `PageTree` and `PageScope` (`pages-the-store-is-read-through-one-seam`, `pages-the-store-is-a-tree`) |
+| The tree a page reads: the folders above the keys, the site's routes, and the slice's cursor | `Core`, in `PageListingFold`, with `PageTree`'s rules; `Web`'s `PageCatalogScope` reads the keys and maps the rows (`pages-a-folder-is-a-key-not-a-row`, `pages-a-listing-answers-the-site-tree`, `pages-a-listing-descends-unless-asked`) |
 | HTTP binding, status codes, responses, hosting, `SimpleContext` | `Web` |
 | I/O, time, randomness, configuration | `Runtime` or `Web`, turned into plain values before calling the core; configuration is read once at startup by `ConfigurationReader` |
 | Source storage: the EF Core context and its migrations | `Web`, under `Storage` |
