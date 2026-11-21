@@ -279,6 +279,38 @@ different table and mixing the two would put a page's counter and its preference
 `PageParameters` is a small `Add(name, value)` builder, so a `Dictionary<string, object?>` never has to
 appear in page source.
 
+**A query is a statement string.** Not because raw SQL is a taste, but because the page API leaves
+nothing else standing: `Microsoft.*` is denied, so EF Core and `Microsoft.Data.Sqlite` are
+unreachable; `System.Data` is absent, so there is no `DbCommand` or reader; and `System.Linq.Expressions`
+is denied while only `System.Linq.Enumerable` is admitted, so a page cannot hold a queryable or build
+one. What a page can write is the text and its parameters, which is also the only thing the sandbox can
+police — the allow-list reads the first token, the identifier scan looks for `sqlite_master`, and the
+`TEMP VIEW` is the owner filter, all of them over text rather than over a tree that would have to be
+lowered to text anyway.
+
+```csharp
+IReadOnlyList<PageRow> notes = await ctx.Stores.Visitor.Records.QueryAsync(
+    """SELECT "Title", "Written" FROM "notes" WHERE "Written" >= @since ORDER BY "Written" DESC LIMIT 20""",
+    new PageParameters().Add("since", cutoff));
+
+foreach (PageRow row in notes) {
+    ctx.Response.Write(row.GetString("Title"));
+}
+```
+
+Three costs, stated rather than discovered:
+
+- **A name the declaration does not have is a runtime refusal**, quoting the statement and SQLite's
+  reason (`no such column: Titl`), because the declaration is a value the compiler extracted and not a
+  type the SQL is checked against. `/help` says the declaration is the list of names, and the first
+  thing a page author does with a new table is run one `SELECT`.
+- **Parameters, never interpolation.** The store cannot tell a safe statement from an unsafe one, so
+  `@since` is a rule the manual and the examples carry rather than a refusal; a page that pastes a
+  visitor's text into the statement is a page bug the sandbox does not catch.
+- **A result is a row, not the declared type.** Mapping is a line or two of the page's own code —
+  `new Note { Title = row.GetString("Title") }` — because a join's columns have no single type and
+  `System.Reflection` is denied to a page, so nothing could map by name there anyway.
+
 `SearchAsync` is a call rather than SQL because a `TEMP VIEW` cannot carry `MATCH` and the FTS5 index
 holds every subject's rows — an index a page could query directly would leak the existence of another
 subject's rows. It reads the one column a table declared as `Search`, filters by the subject the way
@@ -812,7 +844,9 @@ is built until the owner says yes to this plan.
    a revision that does not compile applies no DDL; a declaration the host cannot apply stores the
    revision, reports `PAGE012` at the property and leaves the schema and rows untouched; a query
    returns only my subject's rows; a two-table join and an aggregate do; `ATTACH`, `PRAGMA`, `CREATE`
-   and a second statement are refused; a result over its cap throws naming the setting; a write with no
+   and a second statement are refused; a statement naming a column the declaration does not have is
+   refused with the statement and SQLite's reason in it; a result over its cap throws naming the
+   setting; a write with no
    transaction open answers `Applied` and is durable, one inside a transaction answers `Staged` and is
    gone after a rollback or a dispose; a refused write inside a transaction leaves the earlier rows to
    the page's choice; a second `BeginTransaction` throws; a search answers my subject's rows and never
@@ -898,7 +932,8 @@ separate worktrees. Slice 5 waits for them.
 ## Docs
 
 - **`/help` in the same change** for everything a page author gains — the two subjects, the four
-  shapes, the lifetimes, `For`, the declaration, the SQL and its refusals, the message take and peek,
+  shapes, the lifetimes, `For`, the declaration, the SQL, its refusals and its `@` parameters, the
+  message take and peek,
   the object
   route and its content types, the caps, the job's three scopes and the `Browser` preference
   (`product-manual-is-a-page`). Three of those are the ones a page with its own users gets wrong, so
@@ -983,7 +1018,17 @@ separate worktrees. Slice 5 waits for them.
 - **Four verbs over one declared table, without joins or aggregates.** The owner's answer 1: joins and
   aggregates are in scope, over the subject's own tables.
 - **A typed query API instead of SQL.** Safe, and no longer SQL — which is the one thing a page can
-  already write, and the owner chose it.
+  already write, and the owner chose it. Joins and aggregates are in scope, and a builder that covers
+  them is a query language with a syntax only this site knows.
+- **EF Core.** Denied twice over: `Microsoft.*` is not in the page API, and a `DbContext`'s model is
+  fixed when the context is compiled while a page's tables are declared in the page's own source at
+  save time. It would also put a model cache and a change tracker between the page and the statement
+  the sandbox polices, and neither is anything the store wants to reason about.
+- **A custom `IQueryable` provider over the declared types.** The most attractive of the three, and
+  still the wrong shape: `System.Linq.IQueryable` is not admitted and `System.Linq.Expressions` is
+  denied, so a page cannot hold one; the provider would translate expression trees into the same
+  statement text the sandbox already polices, which is a compiler with a test surface of its own; and
+  the owner filter would have to be re-proved for every shape the provider learns to emit.
 - **The verbs on the transaction as well as the store.** Two spellings of one call is the copy
   `pages-writes-are-transactions` exists to prevent: `IPageWrites` carries the writes and
   `IPageTransaction` carries one commit, so a page never chooses between two identical methods. The
