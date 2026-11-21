@@ -65,6 +65,7 @@ public sealed class MetricNamesTests : IntegrationTest {
             pages.RecordFetch(path, PageMetrics.FetchOk, TimeSpan.FromMilliseconds(5));
             pages.RecordStream(path, PageMetrics.StreamCompleted, TimeSpan.FromMilliseconds(5));
             pages.RecordImport(PageMetrics.ImportCommitted, TimeSpan.FromMilliseconds(5));
+            pages.RecordSearch(PageMetrics.SearchCallerPage, cutOff: false, TimeSpan.FromMilliseconds(5));
             pages.RecordImageSize(path, 1000);
             pages.RecordAbandoned(path);
             pages.RecordCacheLookup(PageMetrics.LookupHit);

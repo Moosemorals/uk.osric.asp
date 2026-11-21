@@ -149,6 +149,18 @@ path maintains it and there is no migration. The two statements share the snapsh
 and nothing is pinned beyond them (`pages-a-listing-carries-a-fingerprint`,
 `pages-a-fingerprint-is-derived-not-kept`).
 
+A page searches the same store through `IPageCatalog.SearchAsync`, the fifth read, and the read it stands
+on is one stepped statement: `IPageReadStore.ScanAsync` selects the live heads under a prefix, joined to
+their revision for the template, in key order and at or after the key a cursor names — inclusive, because a
+cursor resumes *inside* a source rather than after it. The enumeration holds the statement's snapshot for
+as long as it runs and pins nothing beyond it, so a source is read only when the scan reaches it and a scan
+stopped by its allowance leaves nothing open. Its sources are the live pages and the shell's route records;
+a tombstone is never one, and a route takes the place of a head it shadows. `Pages:Search:MaxDurationMs`
+bounds the whole call — the prefix's fingerprint, the reads and the matching — while
+`Pages:Search:MaxMatches` and `Pages:Search:MaxContextChars` bound what an answer may hold. None of them
+charges `Pages:Read:MaxSourceCharsPerRender`: a search answers snippets, not sources, so the render's
+source allowance is not its currency.
+
 A page may save its own template through `ctx.Capabilities.GetRequired<IPageWrites>().SaveAsync(template)`, and any page the shell does not route through the same capability's named save (`pages-a-page-may-save-itself`, `pages-any-page-may-write-the-store`, `pages-layouts-are-markup`, `pages-scratch-saves-itself`).
 The write is the shell's save reached from inside a render: `PageSaver` compiles the template and
 `IPageRevisionStore` opens its own context for the insert, because a page's task can outlive the

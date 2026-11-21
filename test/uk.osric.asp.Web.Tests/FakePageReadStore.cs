@@ -3,6 +3,7 @@
 
 namespace uk.osric.asp.Web.Tests;
 
+using System.Runtime.CompilerServices;
 using uk.osric.asp.Core.Compilation;
 using uk.osric.asp.Core.Pages;
 using uk.osric.asp.Web.Pages;
@@ -136,6 +137,30 @@ internal sealed class FakePageReadStore : IPageReadStore {
         return [.. folders
             .Where(folder => after is null || string.CompareOrdinal(folder, after) > 0)
             .Take(limit)];
+    }
+
+    /// <inheritdoc/>
+    public async IAsyncEnumerable<PageReadSource> ScanAsync(
+        string prefix,
+        string? from,
+        bool recursive = true,
+        [EnumeratorCancellation] CancellationToken cancellationToken = default) {
+        LastCancellationToken = cancellationToken;
+        ReadCount++;
+        await Task.Delay(ReadDelay, cancellationToken);
+
+        PagePath at = PagePath.Normalize(prefix);
+
+        foreach (string key in _pages.Keys.OrderBy(key => key, StringComparer.Ordinal)) {
+            if (_deleted.Contains(key)
+                || !InSubtree(key, prefix)
+                || !(recursive || IsSelfOrDirectChild(key, at))
+                || (from is not null && string.CompareOrdinal(key, from) < 0)) {
+                continue;
+            }
+
+            yield return Source(key, _pages[key][^1]);
+        }
     }
 
     /// <inheritdoc/>

@@ -34,11 +34,13 @@ internal sealed class PageMetrics : IDisposable {
         new("page.save.duration", InstrumentKind.Histogram, "s"),
         new("page.fetch.duration", InstrumentKind.Histogram, "s"),
         new("page.import.duration", InstrumentKind.Histogram, "s"),
+        new("page.search.duration", InstrumentKind.Histogram, "s"),
         new("page.image.size", InstrumentKind.Histogram, "By"),
         new("page.render.abandoned", InstrumentKind.Counter, "1"),
         new("page.cache.lookups", InstrumentKind.Counter, "1"),
         new("page.cache.staleness", InstrumentKind.Counter, "1"),
         new("page.asset.requests", InstrumentKind.Counter, "1"),
+        new("page.search.requests", InstrumentKind.Counter, "1"),
         new("page.layout.fallback", InstrumentKind.Counter, "1"),
         new("page.composition.recursive", InstrumentKind.Counter, "1"),
         new("page.storage.payload.size", InstrumentKind.Gauge, "By"),
@@ -63,6 +65,15 @@ internal sealed class PageMetrics : IDisposable {
     /// </remarks>
     public static readonly double[] StreamBuckets =
         [1, 5, 15, 30, 60, 120, 300, 600, 900, 1800, 3600, 7200, 86_400];
+
+    /// <summary>Buckets for <c>page.search.duration</c>, in seconds.</summary>
+    /// <remarks>
+    /// A scan's budget is the shipped thirty milliseconds, so that value is a boundary rather than an
+    /// interpolation between two: the cell at <c>0.03</c> is the scans that finished inside the
+    /// allowance. The top covers the tool timeout a <c>search_pages</c> call runs under.
+    /// </remarks>
+    public static readonly double[] SearchBuckets =
+        [0.001, 0.0025, 0.005, 0.01, 0.015, 0.02, 0.025, 0.03, 0.04, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5, 10];
 
     /// <summary>Buckets for <c>page.image.size</c>, in bytes.</summary>
     /// <remarks>Emitting an assembly costs tens of kilobytes, so the scale starts above a kilobyte.</remarks>
@@ -96,6 +107,18 @@ internal sealed class PageMetrics : IDisposable {
 
     /// <summary>The stream went quiet for longer than its silence allows.</summary>
     public const string StreamSilence = "silence";
+
+    /// <summary>A scan reached the end of its scope, or the caller's own limit.</summary>
+    public const string SearchCompleted = "completed";
+
+    /// <summary>The time allowance stopped a scan, so the answer is not the whole of its scope.</summary>
+    public const string SearchCutOff = "cut-off";
+
+    /// <summary>The page's own search; the only caller until the shell's rewrite.</summary>
+    public const string SearchCallerPage = "page";
+
+    /// <summary>The virtual shell's scan, when its rewrite uses one.</summary>
+    public const string SearchCallerShell = "shell";
 
     /// <summary>The stream's page returned normally.</summary>
     public const string StreamCompleted = "completed";
@@ -197,6 +220,8 @@ internal sealed class PageMetrics : IDisposable {
     private readonly Histogram<long> _imageSize;
     private readonly Histogram<double> _fetchDuration;
     private readonly Histogram<double> _importDuration;
+    private readonly Histogram<double> _searchDuration;
+    private readonly Counter<long> _searchRequests;
     private StorageSizes? _storage;
 
     public PageMetrics() {
@@ -234,6 +259,10 @@ internal sealed class PageMetrics : IDisposable {
             "page.fetch.duration", "s", "Time one outbound fetch took, including its redirects.");
         _importDuration = _meter.CreateHistogram<double>(
             "page.import.duration", "s", "Time to compile and commit one imported archive.");
+        _searchDuration = _meter.CreateHistogram<double>(
+            "page.search.duration", "s", "Time one search takes, from the fingerprint to the last line tested.");
+        _searchRequests = _meter.CreateCounter<long>(
+            "page.search.requests", null, "Searches, by whether the scan finished or the time allowance stopped it.");
         _meter.CreateObservableGauge("page.storage.payload.size",
             () => ObserveStorage(value => value.Payload), "By",
             "Logical PageRevisions TEXT bytes and image/symbol blob bytes, plus PageState key and value bytes; excludes indexes and SQLite overhead.");
@@ -409,6 +438,26 @@ internal sealed class PageMetrics : IDisposable {
         TagList tags = new() { { "outcome", outcome } };
 
         _importDuration.Record(duration.TotalSeconds, tags);
+    }
+
+    /// <summary>Records one search, its duration and whether the time allowance stopped it.</summary>
+    /// <param name="caller">One of <see cref="SearchCallerPage"/> or <see cref="SearchCallerShell"/>.</param>
+    /// <param name="cutOff">Whether the allowance, rather than the end of the scope, stopped the scan.</param>
+    /// <param name="duration">The whole scan, from the fingerprint to the last line tested.</param>
+    /// <remarks>
+    /// No prefix label: a search names a prefix the caller typed, so tagging it would let a scan mint a
+    /// series per address. The two labels on the counter partition every call, which is what makes the
+    /// panel a stacked area.
+    /// </remarks>
+    public void RecordSearch(string caller, bool cutOff, TimeSpan duration) {
+        TagList durationTags = new() { { "caller", caller } };
+        TagList requestTags = new() {
+            { "caller", caller },
+            { "outcome", cutOff ? SearchCutOff : SearchCompleted },
+        };
+
+        _searchDuration.Record(duration.TotalSeconds, durationTags);
+        _searchRequests.Add(1, requestTags);
     }
 
     public void RecordImageSize(PagePath path, int bytes) {

@@ -6,9 +6,9 @@ namespace uk.osric.asp.Sdk;
 /// <summary>A read-only view of the site's page store, and of the links the shell knows.</summary>
 /// <remarks>
 /// <para>
-/// Four store reads, one list of shell links and no writes: a page can list the store's tree, read a
-/// live page's template, read a page's history, read one retained revision and ask what the shell can
-/// do.
+/// Five store reads, one list of shell links and no writes: a page can list the store's tree, read a
+/// live page's template, read a page's history, read one retained revision, search the sources and ask
+/// what the shell can do.
 /// It never meets an image, a symbol or a writable member; saving is a separate capability.
 /// </para>
 /// <para>
@@ -17,7 +17,8 @@ namespace uk.osric.asp.Sdk;
 /// source private writes the ordinary guard:
 /// <c>if (ctx.User is not { } user) { ctx.Response.RedirectToLogin(); return; }</c>. Because the read is not
 /// gated, a page that calls <see cref="ReadAsync"/> or <see cref="ReadRevisionAsync"/> publishes the
-/// source it reads to whoever can reach that page.
+/// source it reads, and one that calls <see cref="SearchAsync"/> publishes the matching lines it is
+/// answered with, to whoever can reach that page.
 /// </para>
 /// <para>
 /// Every store read returns a <see cref="Task"/> and takes no cancellation token, as
@@ -102,6 +103,44 @@ public interface IPageCatalog {
     /// The render was abandoned, or the source would take the render past its source allowance.
     /// </exception>
     public Task<PageSource?> ReadAsync(string key);
+
+    /// <summary>Searches the sources of a subtree and answers the matching lines, one slice at a time.</summary>
+    /// <param name="request">
+    /// The subtree, its depth, the pattern and its kind, the cursor to resume from, the limit, the
+    /// snippet's width and the token to compare.
+    /// </param>
+    /// <returns>
+    /// The matching lines in key then line order, each with the match's column and a snippet of its
+    /// line; the position the next slice starts at; whether the scan stopped before the end of its
+    /// scope; the prefix's fingerprint and whether it differs from the request's token.
+    /// </returns>
+    /// <remarks>
+    /// <para>
+    /// The sources are the live pages and the site's own route records under the prefix, in key order,
+    /// and a tombstone is never one. The scan reads each source as it reaches it, so its work is
+    /// bounded by the host's time allowance as well as by <see cref="PageSearchRequest.Limit"/>, and an
+    /// answer that stopped early says so and names the position to resume at. A cursor is exclusive in
+    /// the same way a listing's is: pass back <see cref="PageSearch.Cursor"/> and the walk neither
+    /// repeats a line nor skips one, even when a slice found nothing.
+    /// </para>
+    /// <para>
+    /// A page is answered with snippets rather than sources, so a search does not spend the render's
+    /// source allowance; <see cref="PageSearchRequest.Context"/> sets each snippet's width and the match
+    /// is never cut. The pattern is compiled before a source is read, and a construct the host cannot
+    /// carry is refused then. A token that does not match the store's fingerprint is not trusted: the
+    /// answer says <see cref="PageSearch.Changed"/> and the scan starts again.
+    /// </para>
+    /// </remarks>
+    /// <exception cref="ArgumentException">
+    /// The pattern is empty or cannot be compiled, or the prefix or the cursor cannot name a key, for
+    /// example one containing <c>?</c> or <c>#</c>.
+    /// </exception>
+    /// <exception cref="ArgumentOutOfRangeException">
+    /// The limit is smaller than one line or larger than the host's cap, or the context is smaller than
+    /// one character or larger than the host's cap; the message names the setting to raise.
+    /// </exception>
+    /// <exception cref="InvalidOperationException">The render was abandoned.</exception>
+    public Task<PageSearch> SearchAsync(PageSearchRequest request);
 
     /// <summary>Lists one page's history, newest first.</summary>
     /// <param name="key">The page's key; normalised before it is read.</param>

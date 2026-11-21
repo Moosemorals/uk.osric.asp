@@ -26,6 +26,7 @@ public sealed class ShippedConfigurationTests {
             Assert.That(() => PageSessionOptions.FromConfiguration(configuration), Throws.Nothing);
             Assert.That(() => PageFetchOptions.FromConfiguration(configuration), Throws.Nothing);
             Assert.That(() => PageReadOptions.FromConfiguration(configuration), Throws.Nothing);
+            Assert.That(() => PageSearchOptions.FromConfiguration(configuration), Throws.Nothing);
             Assert.That(() => uk.osric.asp.Web.Admin.ArchiveOptions.FromConfiguration(configuration), Throws.Nothing);
             Assert.That(() => uk.osric.asp.Web.Admin.AdminOptions.FromConfiguration(configuration), Throws.Nothing);
             Assert.That(() => PageEditorOptions.FromConfiguration(configuration), Throws.Nothing);

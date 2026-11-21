@@ -26,6 +26,6 @@ other; `make decisions` checks the names.
 | [build-metrics](build-metrics.md) | Proposed 2026-11-15, waits for the owner; nothing built | [`whim-build-timings`](../backlog/WHIMS.md) |
 | [email](email.md) | Proposed 2026-11-06, not implemented | — (operations, not the site) |
 | [email-configuration](email-configuration.md) | Configuration excerpts for [email](email.md); nothing deployed | — |
-| [ide-host](ide-host.md) | Proposed 2026-11-15; slices 0, 1, 2, 3, 5 and 6 merged, the search is the one capability left | [`cannot-search-the-store`](../backlog/cannot-search-the-store.md) |
+| [ide-host](ide-host.md) | Proposed 2026-11-15; slices 0–6 merged, the search with its own archived plan; slice 7 waits on the owner | [`cannot-search-the-store`](../backlog/closed.md) |
 | [page-inbox](page-inbox.md) | Superseded in shape 2026-11-21 by [storage-model](storage-model.md) | `message-does-not-survive-a-redirect` |
 | [storage-model](storage-model.md) | Proposed and agreed 2026-11-21; nothing built, slice 0 is next | [`storage-is-not-one-model`](../backlog/storage-is-not-one-model.md) |

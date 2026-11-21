@@ -67,6 +67,12 @@ internal static class TestOptions {
     /// <summary>The page store read limits.</summary>
     public static PageReadOptions Read { get; } = PageReadOptions.FromConfiguration(Configuration);
 
+    /// <summary>The page store search limits.</summary>
+    public static PageSearchOptions Search { get; } = PageSearchOptions.FromConfiguration(Configuration);
+
+    /// <summary>A scan over the shipped search values, for a fixture that wires an environment by hand.</summary>
+    public static PageSourceScan Scan() => new(Search, TimeProvider.System, new PageMetrics());
+
     /// <summary>The import and export bounds.</summary>
     public static ArchiveOptions Archive { get; } = ArchiveOptions.FromConfiguration(Configuration);
 

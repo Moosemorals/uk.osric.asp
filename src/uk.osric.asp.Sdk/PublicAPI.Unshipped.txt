@@ -672,3 +672,91 @@ uk.osric.asp.Sdk.PageSaveResult.Deconstruct(out string! Hash, out System.Collect
 uk.osric.asp.Sdk.PageSaveResult.Outcome.get -> uk.osric.asp.Sdk.PageEditOutcome
 uk.osric.asp.Sdk.PageSaveResult.Outcome.init -> void
 uk.osric.asp.Sdk.PageSaveResult.PageSaveResult(string! Hash, System.Collections.Generic.IReadOnlyList<uk.osric.asp.Sdk.PageDiagnostic>! Diagnostics, uk.osric.asp.Sdk.PageEditOutcome Outcome = uk.osric.asp.Sdk.PageEditOutcome.Saved) -> void
+uk.osric.asp.Sdk.IPageCatalog.SearchAsync(uk.osric.asp.Sdk.PageSearchRequest! request) -> System.Threading.Tasks.Task<uk.osric.asp.Sdk.PageSearch!>!
+uk.osric.asp.Sdk.PageSearch
+uk.osric.asp.Sdk.PageSearch.<Clone>$() -> uk.osric.asp.Sdk.PageSearch!
+uk.osric.asp.Sdk.PageSearch.Changed.get -> bool
+uk.osric.asp.Sdk.PageSearch.Changed.init -> void
+uk.osric.asp.Sdk.PageSearch.Cursor.get -> uk.osric.asp.Sdk.PageSearchCursor?
+uk.osric.asp.Sdk.PageSearch.Cursor.init -> void
+uk.osric.asp.Sdk.PageSearch.Deconstruct(out System.Collections.Generic.IReadOnlyList<uk.osric.asp.Sdk.PageSearchMatch>! Matches, out uk.osric.asp.Sdk.PageSearchCursor? Cursor, out bool Truncated) -> void
+uk.osric.asp.Sdk.PageSearch.Equals(uk.osric.asp.Sdk.PageSearch? other) -> bool
+uk.osric.asp.Sdk.PageSearch.Matches.get -> System.Collections.Generic.IReadOnlyList<uk.osric.asp.Sdk.PageSearchMatch>!
+uk.osric.asp.Sdk.PageSearch.Matches.init -> void
+uk.osric.asp.Sdk.PageSearch.PageSearch(System.Collections.Generic.IReadOnlyList<uk.osric.asp.Sdk.PageSearchMatch>! Matches, uk.osric.asp.Sdk.PageSearchCursor? Cursor, bool Truncated) -> void
+uk.osric.asp.Sdk.PageSearch.Truncated.get -> bool
+uk.osric.asp.Sdk.PageSearch.Truncated.init -> void
+uk.osric.asp.Sdk.PageSearch.Version.get -> string!
+uk.osric.asp.Sdk.PageSearch.Version.init -> void
+uk.osric.asp.Sdk.PageSearchCursor
+uk.osric.asp.Sdk.PageSearchCursor.Deconstruct(out string! Key, out int Line) -> void
+uk.osric.asp.Sdk.PageSearchCursor.Equals(uk.osric.asp.Sdk.PageSearchCursor other) -> bool
+uk.osric.asp.Sdk.PageSearchCursor.Key.get -> string!
+uk.osric.asp.Sdk.PageSearchCursor.Key.init -> void
+uk.osric.asp.Sdk.PageSearchCursor.Line.get -> int
+uk.osric.asp.Sdk.PageSearchCursor.Line.init -> void
+uk.osric.asp.Sdk.PageSearchCursor.PageSearchCursor() -> void
+uk.osric.asp.Sdk.PageSearchCursor.PageSearchCursor(string! Key, int Line) -> void
+uk.osric.asp.Sdk.PageSearchMatch
+uk.osric.asp.Sdk.PageSearchMatch.Clipped.get -> bool
+uk.osric.asp.Sdk.PageSearchMatch.Clipped.init -> void
+uk.osric.asp.Sdk.PageSearchMatch.Column.get -> int
+uk.osric.asp.Sdk.PageSearchMatch.Column.init -> void
+uk.osric.asp.Sdk.PageSearchMatch.Deconstruct(out string! Key, out int Line, out int Column, out string! Text, out int TextColumn, out bool Clipped) -> void
+uk.osric.asp.Sdk.PageSearchMatch.Equals(uk.osric.asp.Sdk.PageSearchMatch other) -> bool
+uk.osric.asp.Sdk.PageSearchMatch.Key.get -> string!
+uk.osric.asp.Sdk.PageSearchMatch.Key.init -> void
+uk.osric.asp.Sdk.PageSearchMatch.Line.get -> int
+uk.osric.asp.Sdk.PageSearchMatch.Line.init -> void
+uk.osric.asp.Sdk.PageSearchMatch.PageSearchMatch() -> void
+uk.osric.asp.Sdk.PageSearchMatch.PageSearchMatch(string! Key, int Line, int Column, string! Text, int TextColumn, bool Clipped) -> void
+uk.osric.asp.Sdk.PageSearchMatch.Text.get -> string!
+uk.osric.asp.Sdk.PageSearchMatch.Text.init -> void
+uk.osric.asp.Sdk.PageSearchMatch.TextColumn.get -> int
+uk.osric.asp.Sdk.PageSearchMatch.TextColumn.init -> void
+uk.osric.asp.Sdk.PageSearchPatternKind
+uk.osric.asp.Sdk.PageSearchPatternKind.BasicRegularExpression = 1 -> uk.osric.asp.Sdk.PageSearchPatternKind
+uk.osric.asp.Sdk.PageSearchPatternKind.Literal = 0 -> uk.osric.asp.Sdk.PageSearchPatternKind
+uk.osric.asp.Sdk.PageSearchRequest
+uk.osric.asp.Sdk.PageSearchRequest.<Clone>$() -> uk.osric.asp.Sdk.PageSearchRequest!
+uk.osric.asp.Sdk.PageSearchRequest.After.get -> uk.osric.asp.Sdk.PageSearchCursor?
+uk.osric.asp.Sdk.PageSearchRequest.After.init -> void
+uk.osric.asp.Sdk.PageSearchRequest.Context.get -> int?
+uk.osric.asp.Sdk.PageSearchRequest.Context.init -> void
+uk.osric.asp.Sdk.PageSearchRequest.Deconstruct(out string! Pattern, out string! Prefix, out bool Recursive, out uk.osric.asp.Sdk.PageSearchPatternKind Kind, out bool IgnoreCase, out uk.osric.asp.Sdk.PageSearchCursor? After, out int? Limit, out int? Context, out string? Version) -> void
+uk.osric.asp.Sdk.PageSearchRequest.Equals(uk.osric.asp.Sdk.PageSearchRequest? other) -> bool
+uk.osric.asp.Sdk.PageSearchRequest.IgnoreCase.get -> bool
+uk.osric.asp.Sdk.PageSearchRequest.IgnoreCase.init -> void
+uk.osric.asp.Sdk.PageSearchRequest.Kind.get -> uk.osric.asp.Sdk.PageSearchPatternKind
+uk.osric.asp.Sdk.PageSearchRequest.Kind.init -> void
+uk.osric.asp.Sdk.PageSearchRequest.Limit.get -> int?
+uk.osric.asp.Sdk.PageSearchRequest.Limit.init -> void
+uk.osric.asp.Sdk.PageSearchRequest.PageSearchRequest(string! Pattern, string! Prefix = "", bool Recursive = true, uk.osric.asp.Sdk.PageSearchPatternKind Kind = uk.osric.asp.Sdk.PageSearchPatternKind.Literal, bool IgnoreCase = true, uk.osric.asp.Sdk.PageSearchCursor? After = null, int? Limit = null, int? Context = null, string? Version = null) -> void
+uk.osric.asp.Sdk.PageSearchRequest.Pattern.get -> string!
+uk.osric.asp.Sdk.PageSearchRequest.Pattern.init -> void
+uk.osric.asp.Sdk.PageSearchRequest.Prefix.get -> string!
+uk.osric.asp.Sdk.PageSearchRequest.Prefix.init -> void
+uk.osric.asp.Sdk.PageSearchRequest.Recursive.get -> bool
+uk.osric.asp.Sdk.PageSearchRequest.Recursive.init -> void
+uk.osric.asp.Sdk.PageSearchRequest.Version.get -> string?
+uk.osric.asp.Sdk.PageSearchRequest.Version.init -> void
+override uk.osric.asp.Sdk.PageSearch.Equals(object? obj) -> bool
+override uk.osric.asp.Sdk.PageSearch.GetHashCode() -> int
+override uk.osric.asp.Sdk.PageSearch.ToString() -> string!
+override uk.osric.asp.Sdk.PageSearchCursor.GetHashCode() -> int
+override uk.osric.asp.Sdk.PageSearchMatch.GetHashCode() -> int
+override uk.osric.asp.Sdk.PageSearchRequest.Equals(object? obj) -> bool
+override uk.osric.asp.Sdk.PageSearchRequest.GetHashCode() -> int
+override uk.osric.asp.Sdk.PageSearchRequest.ToString() -> string!
+static uk.osric.asp.Sdk.PageSearch.operator !=(uk.osric.asp.Sdk.PageSearch? left, uk.osric.asp.Sdk.PageSearch? right) -> bool
+static uk.osric.asp.Sdk.PageSearch.operator ==(uk.osric.asp.Sdk.PageSearch? left, uk.osric.asp.Sdk.PageSearch? right) -> bool
+static uk.osric.asp.Sdk.PageSearchCursor.operator !=(uk.osric.asp.Sdk.PageSearchCursor left, uk.osric.asp.Sdk.PageSearchCursor right) -> bool
+static uk.osric.asp.Sdk.PageSearchCursor.operator ==(uk.osric.asp.Sdk.PageSearchCursor left, uk.osric.asp.Sdk.PageSearchCursor right) -> bool
+static uk.osric.asp.Sdk.PageSearchMatch.operator !=(uk.osric.asp.Sdk.PageSearchMatch left, uk.osric.asp.Sdk.PageSearchMatch right) -> bool
+static uk.osric.asp.Sdk.PageSearchMatch.operator ==(uk.osric.asp.Sdk.PageSearchMatch left, uk.osric.asp.Sdk.PageSearchMatch right) -> bool
+static uk.osric.asp.Sdk.PageSearchRequest.operator !=(uk.osric.asp.Sdk.PageSearchRequest? left, uk.osric.asp.Sdk.PageSearchRequest? right) -> bool
+static uk.osric.asp.Sdk.PageSearchRequest.operator ==(uk.osric.asp.Sdk.PageSearchRequest? left, uk.osric.asp.Sdk.PageSearchRequest? right) -> bool
+~override uk.osric.asp.Sdk.PageSearchCursor.Equals(object obj) -> bool
+~override uk.osric.asp.Sdk.PageSearchCursor.ToString() -> string
+~override uk.osric.asp.Sdk.PageSearchMatch.Equals(object obj) -> bool
+~override uk.osric.asp.Sdk.PageSearchMatch.ToString() -> string

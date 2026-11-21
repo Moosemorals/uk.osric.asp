@@ -484,6 +484,7 @@ public sealed class PageCatalogScopeTests {
         await Assert.ThrowsAsync<InvalidOperationException>(() => scope.ReadAsync("/blog"));
         await Assert.ThrowsAsync<InvalidOperationException>(() => scope.RevisionsAsync("/blog"));
         await Assert.ThrowsAsync<InvalidOperationException>(() => scope.ReadRevisionAsync("/blog", "hash"));
+        await Assert.ThrowsAsync<InvalidOperationException>(() => scope.SearchAsync(new PageSearchRequest("source")));
     }
 
     [Test]
@@ -679,6 +680,168 @@ public sealed class PageCatalogScopeTests {
         });
     }
 
+    [Test]
+    public async Task ASearchAnswersSnippetsAroundTheMatchAsync() {
+        FakePageReadStore store = new();
+        store.Save("/blog", "before before needle after after");
+        PageCatalogScope scope = Scope(store);
+
+        PageSearch result = await scope.SearchAsync(new PageSearchRequest("needle", Context: 10));
+
+        PageSearchMatch match = result.Matches.Single();
+        Assert.Multiple(() => {
+            Assert.That(match.Key, Is.EqualTo("/blog"));
+            Assert.That(match.Line, Is.EqualTo(1));
+            Assert.That(match.Column, Is.EqualTo(15));
+            Assert.That(match.Text, Has.Length.EqualTo(10));
+            Assert.That(match.Text[(match.Column - match.TextColumn)..], Does.StartWith("needle"));
+            Assert.That(match.Clipped, Is.True);
+            Assert.That(result.Truncated, Is.False);
+            Assert.That(result.Cursor, Is.Null);
+        });
+    }
+
+    [Test]
+    public async Task ASearchTakesTheHostsDefaultWindowWhenNoneIsAskedForAsync() {
+        FakePageReadStore store = new();
+        store.Save("/blog", new string('x', 200) + "needle" + new string('y', 200));
+        PageCatalogScope scope = Scope(store);
+
+        PageSearch result = await scope.SearchAsync(new PageSearchRequest("needle"));
+
+        PageSearchMatch match = result.Matches.Single();
+        Assert.Multiple(() => {
+            Assert.That(match.Text, Has.Length.EqualTo(TestOptions.Search.DefaultContextChars));
+            Assert.That(match.Column - match.TextColumn, Is.LessThan(match.Text.Length));
+        });
+    }
+
+    [Test]
+    public async Task ASearchWalksWithTheCursorWithoutRepeatingOrSkippingAsync() {
+        FakePageReadStore store = new();
+        store.Save("/a", "needle\nneedle\nneedle");
+        PageCatalogScope scope = Scope(store);
+
+        PageSearch first = await scope.SearchAsync(new PageSearchRequest("needle", Limit: 2));
+        PageSearch second = await scope.SearchAsync(
+            new PageSearchRequest("needle", Limit: 2, After: first.Cursor, Version: first.Version));
+
+        Assert.Multiple(() => {
+            Assert.That(first.Matches.Select(match => match.Line), Is.EqualTo([1, 2]));
+            Assert.That(first.Truncated, Is.True);
+            Assert.That(second.Matches.Select(match => match.Line), Is.EqualTo([3]));
+            Assert.That(second.Truncated, Is.False);
+            Assert.That(second.Cursor, Is.Null);
+            Assert.That(second.Changed, Is.False);
+        });
+    }
+
+    [Test]
+    public async Task AStoreThatMovesBetweenSlicesRestartsTheWalkAsync() {
+        FakePageReadStore store = new();
+        store.Save("/a", "needle\nneedle");
+        PageCatalogScope scope = Scope(store);
+
+        PageSearch first = await scope.SearchAsync(new PageSearchRequest("needle", Limit: 1));
+        store.Save("/a", "needle\nneedle\nneedle");
+        PageSearch second = await scope.SearchAsync(
+            new PageSearchRequest("needle", Limit: 2, After: first.Cursor, Version: first.Version));
+
+        Assert.Multiple(() => {
+            Assert.That(second.Changed, Is.True);
+            Assert.That(second.Matches.Select(match => match.Line), Is.EqualTo([1, 2]), "the cursor was not trusted");
+        });
+    }
+
+    [Test]
+    public async Task ASearchDoesNotSpendTheRenderSourceAllowanceAsync() {
+        FakePageReadStore store = new();
+        store.Save("/a", "needle" + new string('x', 200));
+        PageCatalogScope scope = Scope(store, budget: new ReadBudget(64));
+
+        PageSearch result = await scope.SearchAsync(new PageSearchRequest("needle"));
+
+        Assert.That(result.Matches, Has.Count.EqualTo(1), "the source is longer than the allowance and the search still ran");
+        Assert.That(
+            async () => await scope.ReadAsync("/a"),
+            Throws.InvalidOperationException,
+            "and the source still does not fit it");
+    }
+
+    [Test]
+    public async Task ASearchFindsTheSitesOwnRouteRecordsAsync() {
+        FakePageReadStore store = new();
+        PageCatalogScope scope = Scope(store, routes: ["/login"]);
+
+        PageSearch result = await scope.SearchAsync(new PageSearchRequest("sign-in"));
+
+        Assert.That(result.Matches.Select(match => match.Key), Is.EqualTo(["/login"]));
+    }
+
+    [Test]
+    public async Task ASearchReadsOneLevelUnlessItIsToldToDescendAsync() {
+        FakePageReadStore store = new();
+        store.Save("/top", "needle");
+        store.Save("/folder/deep", "needle");
+        PageCatalogScope scope = Scope(store);
+
+        PageSearch flat = await scope.SearchAsync(new PageSearchRequest("needle", Recursive: false));
+        PageSearch deep = await scope.SearchAsync(new PageSearchRequest("needle"));
+
+        Assert.Multiple(() => {
+            Assert.That(flat.Matches.Select(match => match.Key), Is.EqualTo(["/top"]));
+            Assert.That(deep.Matches.Select(match => match.Key), Is.EqualTo(["/folder/deep", "/top"]));
+        });
+    }
+
+    [Test]
+    public async Task ASearchRefusesALimitPastTheCapAsync() {
+        PageCatalogScope scope = Scope(new FakePageReadStore());
+
+        ArgumentOutOfRangeException error = (await Assert.ThrowsAsync<ArgumentOutOfRangeException>(() =>
+            scope.SearchAsync(new PageSearchRequest("needle", Limit: TestOptions.Search.MaxMatches + 1))))!;
+
+        Assert.That(error.Message, Does.Contain("Pages:Search:MaxMatches"));
+    }
+
+    [Test]
+    public async Task ASearchRefusesAContextPastTheCapAsync() {
+        PageCatalogScope scope = Scope(new FakePageReadStore());
+
+        ArgumentOutOfRangeException error = (await Assert.ThrowsAsync<ArgumentOutOfRangeException>(() =>
+            scope.SearchAsync(new PageSearchRequest("needle", Context: TestOptions.Search.MaxContextChars + 1))))!;
+
+        Assert.That(error.Message, Does.Contain("Pages:Search:MaxContextChars"));
+    }
+
+    [Test]
+    public void ASearchRefusesAnEmptyPattern() {
+        PageCatalogScope scope = Scope(new FakePageReadStore());
+
+        Assert.That(
+            () => scope.SearchAsync(new PageSearchRequest("")),
+            Throws.ArgumentException);
+    }
+
+    [Test]
+    public async Task ASearchRefusesAPatternItCannotCarryAsync() {
+        PageCatalogScope scope = Scope(new FakePageReadStore());
+
+        ArgumentException error = (await Assert.ThrowsAsync<ArgumentException>(() =>
+            scope.SearchAsync(new PageSearchRequest("a[bc", Kind: PageSearchPatternKind.BasicRegularExpression))))!;
+
+        Assert.That(error.Message, Does.Contain("not closed").And.Contain("metacharacters"));
+    }
+
+    [Test]
+    public async Task ASearchOfACursorThatCannotNameAKeyIsRefusedAsync() {
+        PageCatalogScope scope = Scope(new FakePageReadStore());
+
+        Assert.That(
+            () => scope.SearchAsync(new PageSearchRequest("needle", After: new PageSearchCursor("/a?b", 1))),
+            Throws.ArgumentException);
+    }
+
     private static string StateOf(IReadOnlyList<PageEntry> entries, string key) =>
         entries.Single(entry => entry.Key == key).State;
 
@@ -694,7 +857,9 @@ public sealed class PageCatalogScopeTests {
         FakePageReadStore store,
         PageReadOptions? options = null,
         ReadBudget? budget = null,
-        IReadOnlyList<string>? routes = null) {
+        IReadOnlyList<string>? routes = null,
+        PageSearchOptions? search = null,
+        TimeProvider? clock = null) {
         PageReadOptions read = options ?? TestOptions.Read;
 
         return new PageCatalogScope(
@@ -702,6 +867,7 @@ public sealed class PageCatalogScopeTests {
             ShellCatalogue.Links("/test", string.Empty, "/pages"),
             store,
             read,
+            new PageSourceScan(search ?? TestOptions.Search, clock ?? TimeProvider.System, new PageMetrics()),
             budget ?? new ReadBudget(read.MaxSourceCharsPerRender),
             new ReservedPaths(routes ?? ReservedPaths.Default),
             TestContentTypes.Shipped,

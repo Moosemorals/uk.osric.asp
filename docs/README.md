@@ -43,10 +43,8 @@ table and the items to it.
 
 | Slug | Title | Difficulty | Utility | Status | Blocked by |
 | --- | --- | --- | --- | --- | --- |
-| [`cannot-search-the-store`](backlog/cannot-search-the-store.md) | A page cannot search the store's source | caffeinated-squirrel ☕🐿️ | medium | [planned](plans/ide-host.md) | — |
-| | *The IDE's find in files, now with the shell's own pattern language; the version token its cursor carries landed with the listing fingerprint, so nothing blocks it.* | | | | |
-| [`tool-surface-is-one-shell`](backlog/tool-surface-is-one-shell.md) | The assistant's tool surface is one shell, one question and one memory | protective-dragon 🔥🐉 | high | blocked | `cannot-search-the-store` |
-| | *The shell already carries eleven of the twenty tools; making it POSIX, composable and the preferred surface leaves three tools and buys back the ceiling. `check` landed with its capability, so the page's search is the one gap still in front of it.* | | | | |
+| [`tool-surface-is-one-shell`](backlog/tool-surface-is-one-shell.md) | The assistant's tool surface is one shell, one question and one memory | protective-dragon 🔥🐉 | high | [planned](plans/assistant-shell-tool.md) | — |
+| | *The shell already carries eleven of the twenty tools; making it POSIX, composable and the preferred surface leaves three tools and buys back the ceiling. `check` and the page's search have landed, so this is the next step.* | | | | |
 | [`storage-is-not-one-model`](backlog/storage-is-not-one-model.md) | Storage is not one model: a page reaches a patchwork of stores | protective-dragon 🔥🐉 | high | [planned](plans/storage-model.md) | — |
 | | *The model every storage gap resolves into; it supersedes the two storage plans waiting for a yes, so it is read before them.* | | | | |
 | [`no-account-store`](backlog/no-account-store.md) | A page has no persistent per-account store | protective-dragon 🔥🐉 | high | blocked | `storage-is-not-one-model` |

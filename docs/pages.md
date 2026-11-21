@@ -93,8 +93,9 @@ pure renderers, and one that is a fact about the build:
   See [jobs](#jobs).
 - `IPageCatalog` reads the page store and answers what the shell can do: `ListAsync(request)` lists one
   slice of a subtree, `ReadAsync(key)` reads a live page's template, `RevisionsAsync(key)` lists a
-  page's history, `ReadRevisionAsync(key, hash)` reads one retained revision, and `ShellLinks()` returns
-  the shell's links as values. A listing answers the tree: each `PageEntry` is a key with a `Kind` —
+  page's history, `ReadRevisionAsync(key, hash)` reads one retained revision, `SearchAsync(request)`
+  answers the matching lines of a subtree as snippets, and `ShellLinks()` returns the shell's links as
+  values. A listing answers the tree: each `PageEntry` is a key with a `Kind` —
   flags that combine, `Page`, `Tombstone`, `Route` and `Folder`, so a key that is both a page and a
   folder is one row — and the head's facts where a head is stored: `SavedAt`, `Hash`, `IsHtml`,
   `IsAsset`, `IsLibrary`, `IsWorker`, `State`, `Libraries` and `Seed`. A folder is not stored: it

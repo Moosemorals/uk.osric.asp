@@ -11,6 +11,34 @@ namespace uk.osric.asp.Core.Compilation;
 /// </remarks>
 public static class TemplateLines {
 
+    /// <summary>The lines of a template, as the editor and <c>read_page</c> count them.</summary>
+    /// <param name="input">The template source.</param>
+    /// <returns>
+    /// Every physical line without its break. A trailing break ends a line rather than starting an
+    /// empty one, so <c>"one\n"</c> is one line and an empty template is one empty line — the count
+    /// <see cref="Count"/> reports.
+    /// </returns>
+    /// <remarks>
+    /// <c>ShellText.Split</c> answers the POSIX count instead and must not be unified with this: a page
+    /// that does not end with a newline would make an edit address the wrong line.
+    /// </remarks>
+    public static string[] Split(string input) {
+        ArgumentNullException.ThrowIfNull(input);
+
+        List<string> lines = [];
+        using StringReader reader = new(input);
+        string? line;
+        while ((line = reader.ReadLine()) is not null) {
+            lines.Add(line);
+        }
+
+        if (input.Length == 0 || input.EndsWith('\n') || input.EndsWith('\r')) {
+            lines.Add("");
+        }
+
+        return [.. lines];
+    }
+
     /// <summary>The number of lines in a template.</summary>
     /// <param name="input">The template source.</param>
     /// <returns>The line count, which is at least one: an empty template is one empty line.</returns>

@@ -25,6 +25,8 @@ the other half of the same question and live in [logging](logging.md).
 | `page.fetch.duration` | histogram | s | `page.path`, `outcome` (`ok`, `http-error`, `timeout`, `network`, `invalid`, `limit`, `redirect-limit`, `aborted`) |
 | `page.image.size` | histogram | By | `page.path` |
 | `page.import.duration` | histogram | s | `outcome` — one imported archive, compiled and committed |
+| `page.search.duration` | histogram | s | `caller` (`page`; `shell` when its rewrite uses the scan) — one search, from the prefix's fingerprint to the last line tested |
+| `page.search.requests` | counter | — | `caller`, `outcome` (`completed`, `cut-off`) — `cut-off` is the time allowance; `completed` is every scan that ended on its own terms, including one the caller's limit stopped |
 | `page.layout.fallback` | counter | — | `page.path` — pages served without the default layout because it could not be served |
 | `page.composition.recursive` | counter | — | `page.path` — pages composed inside themselves with a different request, which the depth cap bounds |
 | `page.asset.requests` | counter | — | `outcome` (`served`, `not-modified`, `unknown`, `non-asset`) — no path label; the access log names the URL |
@@ -93,9 +95,9 @@ instrument, and the instrument's type decides the chart (`metrics-one-panel-per-
 | counter whose labels partition one total | stacked area | The parts and the whole are readable, and the top edge of the stack is the total. |
 | gauge | line chart | A level over time. |
 
-`StatusCatalogue` holds the list: twenty Pages panels (ten heatmaps for the duration and size
-histograms, stacked areas for the render chain, cache lookups, staleness and asset requests, line
-charts for abandoned renders, layout fallbacks, recursive composition and the three storage gauges),
+`StatusCatalogue` holds the list: twenty-two Pages panels (eleven heatmaps for the duration and size
+histograms, stacked areas for the render chain, cache lookups, staleness, asset requests and searches,
+line charts for abandoned renders, layout fallbacks, recursive composition and the three storage gauges),
 fifteen Assistant panels
 (nine heatmaps, the token counter, the shaped-request, exhausted-budget and truncated-result counters
 as line charts, memory writes as a stacked area and the account balance as a line chart split by
@@ -122,6 +124,11 @@ total: cached tokens are already inside prompt tokens and reasoning tokens insid
 The four lines answer "how many of each did the provider report" without drawing the same token
 twice. `assistant.memory.writes` is the other way round: every write carries one `op` and one
 `outcome`, so the stack's top edge is the writes the run made.
+
+`page.search.duration`'s buckets carry the shipped allowance as a boundary — thirty milliseconds — so
+the cell at `le="0.03"` is the scans that finished inside it, and `page.search.requests{outcome="cut-off"}`
+is the same answer as a rate. The two labels partition every call, which makes that panel a stacked area
+while the duration is a heatmap.
 
 The estimate error's buckets carry the margin as a boundary — `0, 64, 256, 1024, 4096, 16384, 27525,
 65536, 262144` — because 27,525 tokens is three percent of the 917,504-token prompt budget. Whatever

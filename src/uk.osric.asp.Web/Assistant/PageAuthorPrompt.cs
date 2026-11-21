@@ -9,7 +9,7 @@ using uk.osric.asp.Web.Shell;
 
 /// <summary>The system prompt and worked examples that teach the model to write a page.</summary>
 internal static class PageAuthorPrompt {
-    public const string Version = "page-author-v56";
+    public const string Version = "page-author-v57";
 
     public static IReadOnlyList<(string Name, string Source)> Examples { get; } = [
         ("query-driven", """
@@ -369,8 +369,26 @@ internal static class PageAuthorPrompt {
         whose dependents you have not looked at.
         `RevisionsAsync(key)` lists a page's history newest first as
         `PageRevisionInfo` rows, including the history of a deleted page, and
-        `ReadRevisionAsync(key, hash)` reads one of those revisions. All four
+        `ReadRevisionAsync(key, hash)` reads one of those revisions. All five
         are awaited.
+        `SearchAsync(new PageSearchRequest(pattern))` searches the live pages
+        and the site's own route records under a prefix and answers the matching
+        lines as `PageSearchMatch` rows: `Key`, `Line`, `Column` (where the
+        match starts) and `Text`, a snippet of the line, with `TextColumn`
+        saying where the snippet starts and `Clipped` saying it is a fragment.
+        The match sits in the snippet at `Column - TextColumn`. The pattern is
+        the text itself unless you pass
+        `Kind: PageSearchPatternKind.BasicRegularExpression`, where `^ $ . *`
+        and `[abc]` are metacharacters, `\|` is either-this-or-that and every
+        other character is itself. `Context` is how wide a snippet is, in
+        characters; a match is never cut, and a line with several matches is
+        one row. `Truncated` says the scan stopped before the end of the store,
+        because `Limit` was reached or the host's time allowance ran out, and
+        `Cursor` is where to ask again: pass it back as `After` with the
+        answer's `Version` as `Version`, and `Changed` says the store moved and
+        the walk started again. A search is bounded by the host's settings and
+        charges nothing to the render's source allowance, so use it instead of
+        reading sources one at a time.
 
         `ShellLinks()` is the synchronous half: the links the shell knows, as
         `ShellLink` values with `Href`, `Text`, `Section` (`Site` or
@@ -387,8 +405,9 @@ internal static class PageAuthorPrompt {
         ordinary guard at the top of its own source, exactly as any private
         page does. Say so when the owner asks for privacy, and do not add the
         guard to every page. A page that calls `ReadAsync` or
-        `ReadRevisionAsync` publishes the source it reads to whoever can reach
-        that page. A listing is bounded by the site's configured row cap and one
+        `ReadRevisionAsync` publishes the source it reads, and one that calls
+        `SearchAsync` publishes the matching lines, to whoever can reach that
+        page. A listing is bounded by the site's configured row cap and one
         render may read a bounded amount of template across the page and its
         layouts; both are refusals, not truncations, and the refusal names the
         limit. The seeded `/pages` is a guarded listing, a source view and a

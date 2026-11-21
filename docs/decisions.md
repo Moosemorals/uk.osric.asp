@@ -1294,9 +1294,12 @@ above", and `PageScope(Path, IncludeSelf, Recursive)` is the one answer to which
 `ls`, `find`, the shell's expansion, `grep`, `search_pages` and `list_pages` ask it, and
 `PagePathPolicy`'s writable-prefix rule keeps its own name and asks the same scope. A search reads its
 sources from the seam and scans them with one loop: `SourcesAsync` decides which keys are read and in
-what order, and `PageSourceSearch.Find` walks them in key order, splits each with the caller's own line
-rule and keeps the caller's own predicate, stopping one match past the limit so "there are more" is an
-observation. Each front-end keeps its projection and its wording, and a tombstone is never a source.
+what order, and a scan walks them in key order, splits each with the caller's own line rule and keeps
+the caller's own predicate, stopping one match past the limit so "there are more" is an observation.
+`PageSourceScan` is that loop for a page, over a stepped read whose allowance is time rather than a
+count; `PageSourceSearch.Find` is the line-only loop `search_pages` and `grep` keep until the shell's
+rewrite moves them onto it. Each front-end keeps its projection and its wording, and a tombstone is
+never a source.
 A listing answers the tree as well: `PageListingFold` folds the keys a read answered into the keys and
 folders it lists, so `IPageCatalog.ListAsync` is the tree a page draws and a page never folds keys
 itself.
@@ -1870,6 +1873,32 @@ A block that starts with `#` is a comment whether the author meant a directive o
 with the space that keeps it a code block.
 
 *Recorded in [architecture](architecture.md#functional-core-imperative-shell), [pages](pages.md#assets-and-versioned-urls), [TemplateComments](../src/uk.osric.asp.Core/Compilation/TemplateComments.cs), [TemplateTokenizer](../src/uk.osric.asp.Core/Compilation/TemplateTokenizer.cs).*
+
+### pages-a-search-returns-matches
+
+A page asks the store a question and is answered with matching lines, not sources:
+`IPageCatalog.SearchAsync` takes one `PageSearchRequest` — the pattern and its kind (literal, or the shell's
+basic expression), the prefix and `Recursive`, the case, the cursor, the limit and the snippet's width — and
+answers a `PageSearch` of `PageSearchMatch` rows, each a key, a 1-based line, the match's 1-based column and a
+snippet of the line with `TextColumn` and `Clipped`, in key-then-line order, plus the position the next slice
+starts at, `Truncated`, the prefix's fingerprint and `Changed`. The page never meets a template, a hash or a
+source-budget charge, and a match is a window at least as wide as itself, centred on it and never cut.
+
+One pattern compiler is the shell's — `GrepPattern`, now in `Core.Pages` — so a query means the same thing to
+a page, a tool and `grep`: a literal, or a basic regular expression in which only `^`, `$`, `.`, `*`,
+`[...]` and `\|` are syntax, matched in linear time and refused before a source is read when the engine
+cannot carry it. The refusal is the reason alone, and each caller adds where its syntax is taught.
+
+A scan is bounded twice: the caller's limit, which stops on the confirmed next match so "there is more" is an
+observation, and `Pages:Search:MaxDurationMs`, an allowance in time covering the fingerprint, the stepped read
+and the matching. The read is stepped — `IPageReadStore.ScanAsync`, one statement, live heads, key order and
+the cursor's key inclusive — so the allowance can stop it; the sources are the live pages and the shell's
+route records, and a tombstone is never one. The cursor is the first position the answer did not include, and
+a store whose fingerprint has moved is not trusted: `Changed` is set and the walk starts again.
+`page.search.duration` and `page.search.requests` record every scan, `cut-off` being the allowance's answer,
+which is how the value is tuned.
+
+*Recorded in [page search](plans/archive/page-search.md), [IPageCatalog](../src/uk.osric.asp.Sdk/IPageCatalog.cs), [PageSourceScan](../src/uk.osric.asp.Web/Pages/PageSourceScan.cs), [PageSearchOptions](../src/uk.osric.asp.Web/Pages/PageSearchOptions.cs).*
 
 ## Shell
 
@@ -2648,7 +2677,7 @@ text back as it was written, so the ignored difference is the space and never th
 identical documents write nothing, and the result carries `identical` so an empty answer cannot be
 mistaken for a failure.
 
-*Recorded in [the assistant](assistant.md#ai-page-assistant), [ShellRunner](../src/uk.osric.asp.Web/Assistant/Shell/ShellRunner.cs), [GrepPattern](../src/uk.osric.asp.Core/Assistant/GrepPattern.cs).*
+*Recorded in [the assistant](assistant.md#ai-page-assistant), [ShellRunner](../src/uk.osric.asp.Web/Assistant/Shell/ShellRunner.cs), [GrepPattern](../src/uk.osric.asp.Core/Pages/GrepPattern.cs).*
 
 ### assistant-the-shell-is-applets
 

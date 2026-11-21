@@ -21,7 +21,7 @@ Every archived plan, by its slug:
 | [ai-page-assistant](ai-page-assistant.md) | [analyzers](analyzers.md) | [assistant-ask-owner](assistant-ask-owner.md) |
 | [assistant-balance-metric](assistant-balance-metric.md) | [assistant-browser-tests](assistant-browser-tests.md) | [assistant-context-masking](assistant-context-masking.md) |
 | [assistant-edit-safety](assistant-edit-safety.md) | [assistant-live-budgets](assistant-live-budgets.md) | [assistant-live-figures](assistant-live-figures.md) |
-| [assistant-memory](assistant-memory.md) | [assistant-memory-page](assistant-memory-page.md) | [assistant-owner-interrupt](assistant-owner-interrupt.md) |
+| [assistant-memory-page](assistant-memory-page.md) | [assistant-memory](assistant-memory.md) | [assistant-owner-interrupt](assistant-owner-interrupt.md) |
 | [assistant-script-validation](assistant-script-validation.md) | [assistant-shell](assistant-shell.md) | [assistant-tool-types](assistant-tool-types.md) |
 | [assistant-view](assistant-view.md) | [async-page-contract](async-page-contract.md) | [backlog-record](backlog-record.md) |
 | [block-with-no-code-warns](block-with-no-code-warns.md) | [capability-naming](capability-naming.md) | [compiler-diagnostics](compiler-diagnostics.md) |
@@ -37,11 +37,11 @@ Every archived plan, by its slug:
 | [page-features](page-features.md) | [page-fetch-and-storage](page-fetch-and-storage.md) | [page-first](page-first.md) |
 | [page-import-export](page-import-export.md) | [page-libraries](page-libraries.md) | [page-move](page-move.md) |
 | [page-response](page-response.md) | [page-runtime-hardening](page-runtime-hardening.md) | [page-sdk-split](page-sdk-split.md) |
-| [page-self-save](page-self-save.md) | [page-session](page-session.md) | [page-store-read](page-store-read.md) |
-| [page-store-reader](page-store-reader.md) | [page-streaming](page-streaming.md) | [page-tree-listing](page-tree-listing.md) |
-| [page-writes](page-writes.md) | [prompt-token-budget](prompt-token-budget.md) | [revision-restore](revision-restore.md) |
-| [seed-auto-apply-at-startup](seed-auto-apply-at-startup.md) | [seed-page](seed-page.md) | [seed-provenance](seed-provenance.md) |
-| [seed-trimming](seed-trimming.md) | [semantic-html-and-accessibility](semantic-html-and-accessibility.md) | [shell-navigation](shell-navigation.md) |
-| [shell-route-catalogue](shell-route-catalogue.md) | [simple-context](simple-context.md) | [site-navigation](site-navigation.md) |
-| [status-page-rebuild](status-page-rebuild.md) | [template-runtime-errors](template-runtime-errors.md) | [template-value-output](template-value-output.md) |
-| [xml-reference](xml-reference.md) |  |  |
+| [page-search](page-search.md) | [page-self-save](page-self-save.md) | [page-session](page-session.md) |
+| [page-store-read](page-store-read.md) | [page-store-reader](page-store-reader.md) | [page-streaming](page-streaming.md) |
+| [page-tree-listing](page-tree-listing.md) | [page-writes](page-writes.md) | [prompt-token-budget](prompt-token-budget.md) |
+| [revision-restore](revision-restore.md) | [seed-auto-apply-at-startup](seed-auto-apply-at-startup.md) | [seed-page](seed-page.md) |
+| [seed-provenance](seed-provenance.md) | [seed-trimming](seed-trimming.md) | [semantic-html-and-accessibility](semantic-html-and-accessibility.md) |
+| [shell-navigation](shell-navigation.md) | [shell-route-catalogue](shell-route-catalogue.md) | [simple-context](simple-context.md) |
+| [site-navigation](site-navigation.md) | [status-page-rebuild](status-page-rebuild.md) | [template-runtime-errors](template-runtime-errors.md) |
+| [template-value-output](template-value-output.md) | [xml-reference](xml-reference.md) |  |

@@ -9,8 +9,8 @@ SPDX-License-Identifier: MIT
 | --- | --- |
 | Difficulty | protective-dragon |
 | Utility | high |
-| Status | blocked |
-| Blocked by | `cannot-search-the-store` |
+| Status | planned |
+| Blocked by | — |
 | Plan | [assistant-shell-tool](../plans/assistant-shell-tool.md) |
 | Area | Core (Shell, Assistant), Shell, Web (assistant, site), docs, build |
 | Location | `src/uk.osric.asp.Web/Assistant/Tools/ToolRegistry.cs`, `src/uk.osric.asp.Web/Assistant/Shell/`, `src/uk.osric.asp.Core/Shell/`, `src/uk.osric.asp.Shell/` |
@@ -55,10 +55,10 @@ scratch directory, and history as paths rather than three more tools.
    every effect, so one approval covers the line and the changed-pages card still knows what changed.
 9. **Built from the page capabilities.** An applet reaches the store through `IPageCatalog` and
    `IPageWrites`; a command that cannot be built is a gap in the page contract, not a private seam.
-   The gap it starts with is the one item that blocks it: a page cannot search the source, so `grep`
-   waits for [`cannot-search-the-store`](cannot-search-the-store.md). `check` is not a gap any more —
-   `check-without-storing` landed the capability and the `check` tool — so only the command waits for
-   the port.
+   The gap it started with has closed: a page can search the source now
+   ([`cannot-search-the-store`](closed.md)), so `grep` is a command this plan builds on that scan.
+   `check` is not a gap any more either — `check-without-storing` landed the capability and the `check`
+   tool — so only the commands wait for the port.
 
 [The plan](../plans/assistant-shell-tool.md) carries the detail, the phases and the risks.
 

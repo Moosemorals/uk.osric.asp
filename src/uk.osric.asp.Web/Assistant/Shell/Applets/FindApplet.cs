@@ -62,7 +62,7 @@ internal sealed class FindApplet : ShellApplet {
 /// <summary>What a <c>find</c> line asks for: the tests, joined by and.</summary>
 /// <remarks>
 /// POSIX gives <c>find</c> an expression rather than options, so this is the command's own language,
-/// the way <see cref="uk.osric.asp.Core.Assistant.GrepPattern"/> is <c>grep</c>'s. It is a subset: the
+/// the way <see cref="uk.osric.asp.Core.Pages.GrepPattern"/> is <c>grep</c>'s. It is a subset: the
 /// primaries below, joined by an implicit and, and nothing else — an unknown one is refused by name
 /// rather than ignored.
 /// </remarks>

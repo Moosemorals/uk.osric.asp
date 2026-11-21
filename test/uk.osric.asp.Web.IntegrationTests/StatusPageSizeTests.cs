@@ -13,11 +13,12 @@ public sealed class StatusPageSizeTests : IntegrationTest {
     private const int Samples = 500;
     private const int HistogramSeries = 15;
     private const int ChartSeries = 8;
-    // Forty-five panels, every query answered with eight series of five hundred samples. The five
-    // fail2ban panels the Host group gained moved this from 2.8 MB, and the four context-budget
-    // instruments moved it again: the number is a ceiling to raise deliberately with the catalogue,
-    // not a target to approach.
-    private const int PageBudgetBytes = 4_000_000;
+    // Forty-seven panels, every query answered with eight series of five hundred samples. The five
+    // fail2ban panels the Host group gained moved this from 2.8 MB, the four context-budget
+    // instruments moved it again, and the search's duration and outcome panels took it to about
+    // 4.11 MB: the number is a ceiling to raise deliberately with the catalogue, not a target to
+    // approach, and it stays under the 4 MiB body cap the render refuses past.
+    private const int PageBudgetBytes = 4_150_000;
 
     internal override AspApplication CreateApplication() => new(metricsSource: new WideMetricsSource());
 

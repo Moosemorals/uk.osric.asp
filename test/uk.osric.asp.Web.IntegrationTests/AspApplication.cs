@@ -79,6 +79,13 @@ internal sealed class AspApplication(
 
     private const int FixtureCompileTimeoutSeconds = 30;
 
+    // A search's allowance is wall clock, and the same reasoning applies: eight fixtures run at once,
+    // and thirty milliseconds can pass between two lines of a store this small while a slot waits its
+    // turn. The fixture takes the most the configuration accepts, so a search here finishes; the
+    // allowance keeps its own tests (`PageSourceScanTests` with a fake clock, and `PageMetricsTests`
+    // for the cut-off it records).
+    private const int FixtureSearchDurationMs = 60_000;
+
     /// <summary>The database this host migrates and serves; it is deleted with the factory.</summary>
     public string DatabasePath { get; } =
         Path.Combine(Path.GetTempPath(), $"uk.osric.asp.integration.{Guid.NewGuid():N}.db");
@@ -99,6 +106,7 @@ internal sealed class AspApplication(
         int renderSeconds = renderTimeoutSeconds ?? FixtureRenderTimeoutSeconds;
         builder.UseSetting("Pages:Render:TimeoutSeconds", renderSeconds.ToString(CultureInfo.InvariantCulture));
         builder.UseSetting("Pages:Compile:TimeoutSeconds", FixtureCompileTimeoutSeconds.ToString(CultureInfo.InvariantCulture));
+        builder.UseSetting("Pages:Search:MaxDurationMs", FixtureSearchDurationMs.ToString(CultureInfo.InvariantCulture));
         builder.UseSetting("Pages:Layout", pageLayout ?? string.Empty);
         // The shipped file carries no key, and the host refuses to start without one.
         builder.UseSetting("Assistant:ApiKey", "integration-test-key");

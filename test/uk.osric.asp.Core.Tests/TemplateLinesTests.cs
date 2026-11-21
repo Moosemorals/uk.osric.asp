@@ -20,6 +20,17 @@ public sealed class TemplateLinesTests {
         Assert.That(TemplateLines.Count(input), Is.EqualTo(expected));
     }
 
+    [TestCase("", new[] { "" })]
+    [TestCase("a", new[] { "a" })]
+    [TestCase("a\n", new[] { "a", "" })]
+    [TestCase("a\r\n", new[] { "a", "" })]
+    [TestCase("a\rb", new[] { "a", "b" })]
+    [TestCase("a\nb", new[] { "a", "b" })]
+    [TestCase("a\r\nb\r\n", new[] { "a", "b", "" })]
+    public void SplitAnswersTheLinesCountCounts(string input, string[] expected) {
+        Assert.That(TemplateLines.Split(input), Is.EqualTo(expected));
+    }
+
     [Test]
     public void AMapsEveryOffsetTheWayAWalkFromTheStartDoes() {
         const string input = "a\r\nbb\rccc\n\nd\r\n";
