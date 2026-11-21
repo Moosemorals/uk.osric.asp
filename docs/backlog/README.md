@@ -118,7 +118,7 @@ its reason, and that no item sits above something that blocks it.
 | | *The cursor answered where a walk is; this answers whether it is still the same walk, and the write paths are the price.* | | | | |
 | [`cannot-search-the-store`](cannot-search-the-store.md) | A page cannot search the store's source | caffeinated-squirrel ☕🐿️ | medium | blocked | `listing-does-not-date-itself` |
 | | *The IDE's find in files, now with the shell's own pattern language; it waits on the version token a cursor has to carry before a scan of a store that may move under it can be trusted.* | | | | |
-| [`a-page-cannot-list-folders`](a-page-cannot-list-folders.md) | A page cannot list the store's folders | eager-beaver ⚙️🦫 | medium | open | — |
+| [`a-page-cannot-list-folders`](a-page-cannot-list-folders.md) | A page cannot list the store's folders | eager-beaver ⚙️🦫 | medium | [planned](../plans/page-tree-listing.md) | — |
 | | *A listing returns heads, so every caller that wants a tree folds keys by hand; the shell, the IDE's tree and a site map all want the same rows.* | | | | |
 | [`tool-surface-is-one-shell`](tool-surface-is-one-shell.md) | The assistant's tool surface is one shell, one question and one memory | protective-dragon 🔥🐉 | high | blocked | `check-without-storing`, `cannot-search-the-store`, `a-page-cannot-list-folders` |
 | | *The shell already carries eleven of the twenty-two commands; making it POSIX, composable and the preferred surface leaves three tools and buys back the ceiling, and building it from the page capabilities names the three gaps in front of it.* | | | | |

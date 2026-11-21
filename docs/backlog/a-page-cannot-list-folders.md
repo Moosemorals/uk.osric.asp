@@ -9,11 +9,11 @@ SPDX-License-Identifier: MIT
 | --- | --- |
 | Difficulty | eager-beaver |
 | Utility | medium |
-| Status | open |
+| Status | planned |
 | Blocked by | — |
-| Plan | — |
+| Plan | [page-tree-listing](../plans/page-tree-listing.md) |
 | Area | Sdk, Web (pages), docs |
-| Location | `src/uk.osric.asp.Sdk/IPageCatalog.cs`, `src/uk.osric.asp.Sdk/PageEntry.cs`, `src/uk.osric.asp.Web/Pages/PageCatalogScope.cs`, `src/uk.osric.asp.Web/Pages/Seeds/help`, `docs/pages.md` |
+| Location | `src/uk.osric.asp.Core/Pages/`, `src/uk.osric.asp.Sdk/IPageCatalog.cs`, `src/uk.osric.asp.Sdk/PageEntry.cs`, `src/uk.osric.asp.Sdk/PageListing.cs`, `src/uk.osric.asp.Sdk/PageListingRequest.cs`, `src/uk.osric.asp.Web/Pages/IPageReadStore.cs`, `src/uk.osric.asp.Web/Pages/SqlitePageReadStore.cs`, `src/uk.osric.asp.Web/Pages/PageCatalogScope.cs`, `src/uk.osric.asp.Web/Pages/Seeds/pages`, `src/uk.osric.asp.Web/Pages/Seeds/help`, `docs/pages.md`, `docs/storage.md` |
 | Spike | — |
 
 ## Idea
@@ -44,3 +44,22 @@ around it without a private seam (**assistant-a-command-uses-page-capabilities**
    shell turns that into the `000` mode a site route is shown with.
 5. **The docs.** `pages-the-store-is-a-tree` is edited in place to say the capability answers the tree,
    `/help` gains the row shape, and the prompt says what a listing returns.
+
+## What the owner answered
+
+Put to them on 2026-11-21, before any plan was written.
+
+1. **A kind on the row, and the kinds combine.** A page that is also a folder is one row with both
+   marks, not two rows and not a `PageEntry` whose hash, saved time and state are empty strings.
+2. **Folders are always in the answer.** A page that wants heads only filters on the kind it already
+   has; a walk keeps one shape.
+3. **The depth is a request flag.** `Recursive` keeps today's meaning by default — the whole subtree —
+   and offers the prefix's own children when a page asks, so a tree can descend one folder per
+   request.
+4. **The shell's own routes are rows.** A page's tree matches the shell's `ls` without owning the
+   route table, so a route is a row with no source and its folders are derived like any other key's.
+5. **This step adds and proves the rows.** The shell keeps folding keys itself until
+   [`tool-surface-is-one-shell`](tool-surface-is-one-shell.md) moves it onto the capability.
+
+The plan is [page-tree-listing](../plans/page-tree-listing.md), which states the shape, the fold, the
+two properties a cursor depends on and the cost of each depth.
