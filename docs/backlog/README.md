@@ -120,7 +120,7 @@ its reason, and that no item sits above something that blocks it.
 | | *A listing returns heads, so every caller that wants a tree folds keys by hand; the shell, the IDE's tree and a site map all want the same rows.* | | | | |
 | [`tool-surface-is-one-shell`](tool-surface-is-one-shell.md) | The assistant's tool surface is one shell, one question and one memory | protective-dragon 🔥🐉 | high | blocked | `check-without-storing`, `cannot-search-the-store`, `a-page-cannot-list-folders` |
 | | *The shell already carries eleven of the twenty-two commands; making it POSIX, composable and the preferred surface leaves three tools and buys back the ceiling, and building it from the page capabilities names the three gaps in front of it.* | | | | |
-| [`storage-is-not-one-model`](storage-is-not-one-model.md) | Storage is not one model: a page reaches a patchwork of stores | protective-dragon 🔥🐉 | high | open | — |
+| [`storage-is-not-one-model`](storage-is-not-one-model.md) | Storage is not one model: a page reaches a patchwork of stores | protective-dragon 🔥🐉 | high | [planned](../plans/storage-model.md) | — |
 | | *The model every storage gap resolves into; it supersedes the two storage plans waiting for a yes, so it is read before them.* | | | | |
 | [`no-account-store`](no-account-store.md) | A page has no persistent per-account store | protective-dragon 🔥🐉 | high | [planned](../plans/account-store.md) | — |
 | | *The most useful large item, with a plan and a first customer, and a plan's yes is the only thing it waits on.* | | | | |
