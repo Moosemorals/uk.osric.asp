@@ -11,7 +11,7 @@ SPDX-License-Identifier: MIT
 | Size | Large as a programme, small as a step: a spike, five slices and the release that closes the window, each its own branch and its own stop. The values slice is the floor; the record slice is the risk |
 | First customer | The two plans this supersedes: the assistant's transcript (a Record for the signed-in visitor) and the redirect flash (a `NextRead` value). Editor mode is the first `Browser` value, and `/help`'s counter is the first Page value |
 | Spike | Slice 0: the sandbox console, written to `docs/spikes/store-sandbox.md` before anything is built. The item names it as the spike this plan needs |
-| Decisions | None recorded yet. Taken at each merge; this plan states the eleven names it intends, and the seven entries it edits |
+| Decisions | None recorded yet. Taken at each merge; this plan states the eleven names it intends, and the eight entries it edits |
 | Backlog | [`storage-is-not-one-model`](../backlog/storage-is-not-one-model.md) is this job. It absorbs [`no-account-store`](../backlog/no-account-store.md) and [`message-does-not-survive-a-redirect`](../backlog/message-does-not-survive-a-redirect.md), whose plans [account-store](account-store.md) and [page-inbox](page-inbox.md) are superseded in shape |
 
 ## The short version
@@ -210,22 +210,68 @@ lifetime on `SetAsync` means.
 ```csharp
 public interface IRecordStore {
     Task<IReadOnlyList<PageRow>> QueryAsync(string sql, PageParameters? parameters = null);
-    Task<int> ExecuteAsync(string sql, PageParameters? parameters = null);
+    Task<PageRecordResult> ExecuteAsync(string sql, PageParameters? parameters = null);
     IPageRecordTransaction BeginTransaction();
 }
 
-public interface IPageRecordTransaction : IDisposable {
-    Task<IReadOnlyList<PageRow>> QueryAsync(string sql, PageParameters? parameters = null);
-    Task<int> ExecuteAsync(string sql, PageParameters? parameters = null);
-    Task CommitAsync();   // commits and immediately begins the next transaction
+public interface IPageRecordTransaction : IAsyncDisposable {
+    Task CommitAsync();
+    Task RollbackAsync();
 }
 ```
 
-A call that is not inside a transaction is a transaction of one statement, committed before it answers.
+The statements live on the store and the transaction is only the frame, exactly as
+`IPageWrites` carries the writes and `IPageTransaction` carries one commit (`pages-writes-are-transactions`):
+a second spelling of `QueryAsync` and `ExecuteAsync` on the transaction would be the copy that entry
+exists to prevent, and would leave a page choosing which of two identical methods to call.
+
+`IRecordStore` knows whether a transaction is open, and the answer changes what a write means rather
+than which method is called:
+
+- **No transaction open** — the statement is a transaction of one, in SQLite's own autocommit mode, and
+  is durable when the call answers. `PageRecordResult.Outcome` is `Applied`.
+- **A transaction open** — the statement runs on the same connection inside it, so a later `QueryAsync`
+  reads what the statement wrote, and the write is durable only at `CommitAsync`. `Outcome` is
+  `Staged`. A page that must not risk an uncommitted write asserts on the outcome; that is the only
+  signal it needs, because the alternative — a page silently forgetting to open a transaction — is what
+  the value is for.
+
 `BeginTransaction` is the atomic case the model exists to give a page: a counter is
-`UPDATE "counters" SET "n" = "n" + 1 WHERE "Id" = @id`, and two renders cannot interleave it. Dispose
-rolls back what was not committed; `CommitAsync` ends one and begins the next. One handle has one open
-transaction at a time; `Pages:Stores:Records:TransactionMaxSeconds` and the render's deadline bound it.
+`UPDATE "counters" SET "n" = "n" + 1 WHERE "Id" = @id`, and two renders cannot interleave it once they
+share a transaction. The transaction is `BEGIN` (deferred), so a page that only reads never takes the
+writer; the first write takes it, and a write that cannot take it within `Pages:Stores:BusyTimeoutSeconds`
+answers `Busy`.
+
+`CommitAsync` commits and ends the transaction — it does not begin a second one, because the store is
+the write surface and a page that wants another transaction asks for one. `RollbackAsync` discards
+everything written since the `BEGIN`, and so does disposing the handle without committing, which is why
+it is `IAsyncDisposable` like `IPageTransaction`. One handle has one open transaction at a time, and a
+`BeginTransaction` while one is open is a page bug and throws rather than opening a second connection
+or a savepoint; so is a commit or a rollback of one that has already ended.
+`Pages:Stores:Records:TransactionMaxSeconds` and the render's deadline bound it.
+
+A refused statement writes nothing and leaves the transaction open, so a page decides what to do with
+the work it already staged: commit it, or roll it back. That is deliberately not the page store's
+all-or-nothing rule — there, statements are staged and run only at the commit, so a refusal can undo
+them all at no cost; here the statements have already run, and only the page knows whether the rows
+before the refusal are worth keeping or are half a form. The refusal is the value the call answers,
+and the page is the one that acts on it.
+
+`PageRecordResult` is `(Affected, Outcome)` and `PageRecordOutcome` is `Applied`, `Staged`, `Busy`
+(another writer held the store, so nothing was written) or `Full` (the subject is at its row or byte
+cap). The last two are values because they depend on data the page did not choose; `Busy` is the same
+value `PageWriteOutcome.Busy` is.
+
+Everything the page itself got wrong throws, which is the site's rule for storage misuse
+(`pages-outbound-fetch`): a verb outside the allow-list, an undeclared table, a write to a row the
+reader does not own, a `HEAD`, an abandoned render, a disposed handle. A statement over
+`MaxResultRows` or `MaxResultChars`, and one past `StatementMaxSeconds`, throws too, because the page
+wrote the statement and can bound it with `LIMIT`; the message names the setting and the cap, as an
+oversized value does today.
+
+Values are not part of it. The record transaction holds one connection to one subject; a value write
+through `IValueStore` is still its own statement and does not join it, because a value is JSON in a
+different table and mixing the two would put a page's counter and its preferences behind one clock.
 
 `PageRow` keeps SQLite's storage classes out of page code — `GetString`, `GetInt64`, `GetDouble`,
 `GetBoolean`, `GetDateTimeOffset`, `IsNull`, and a column the statement did not produce is a page bug.
@@ -303,15 +349,16 @@ holds and the item does not change it.
   `trusted_schema = OFF`, `SQLITE_LIMIT_ATTACHED = 0`, loadable extensions off, and
   `SQLITE_LIMIT_LENGTH`/`SQLITE_LIMIT_SQL_LENGTH` at the configuration's noise level.
 - **The result caps refuse rather than truncate.** `MaxResultRows` and `MaxResultChars` are read into a
-  result and a row past the cap refuses with a value naming the setting, as
-  `Pages:Read:MaxSourceCharsPerRender` refuses rather than truncating. `StatementMaxSeconds` interrupts
-  the statement, and `TransactionMaxSeconds` closes a transaction that is merely slow.
+  result and a row past the cap throws, naming the setting and the cap, as
+  `Pages:Read:MaxSourceCharsPerRender` refuses rather than truncating; `StatementMaxSeconds` interrupts
+  the statement and throws the same way, and `TransactionMaxSeconds` closes a transaction that is
+  merely slow.
 - **The caps are enforced inside the statement that writes**, the way `SqlitePageStateStore` does
   today: the trigger checks the subject's row and byte totals before it inserts and answers
-  `RAISE(ABORT, …)` naming the cap. A concurrent writer therefore either fits or is refused.
-- **Every expected outcome is a value**: `Denied` (the allow-list), `TooManyRows`, `TooLarge`,
-  `TimedOut`, `Full`, `NotDeclared`, `WrongSubject`, `ReadOnly`, `Ended`. A page branches on the value;
-  an abandoned render or a disposed handle throws, because that is a page bug.
+  `RAISE(ABORT, …)` naming the cap. A concurrent writer therefore either fits or is refused, and the
+  refusal is `Full` on the result rather than an exception.
+- **A write the store cannot take answers `Busy`**, as `PageWriteOutcome.Busy` does, after
+  `Pages:Stores:BusyTimeoutSeconds` rather than being retried on the page's behalf.
 
 ### Messages
 
@@ -681,9 +728,12 @@ record does not have yet:
   or `Browser`
 
 The merges also edit `pages-page-storage`, `pages-the-session`, `pages-layouts-are-markup`,
-`pages-one-render-three-roles`, `pages-an-archive-is-a-database`, `pages-a-job-is-not-durable` and
-`pages-page-first`, and add the citation of the object route to `pages-a-versioned-url-promises-immutable`.
-`pages-there-is-no-sandbox` is unchanged and is what the record sandbox says of itself.
+`pages-one-render-three-roles`, `pages-writes-are-transactions`, `pages-an-archive-is-a-database`,
+`pages-a-job-is-not-durable` and `pages-page-first`, and add the citation of the object route to
+`pages-a-versioned-url-promises-immutable`. `pages-writes-are-transactions` is the entry that already
+says a transaction is a frame and the writes live on the capability, so the record store's shape is
+that rule extended rather than a second one. `pages-there-is-no-sandbox` is unchanged and is what the
+record sandbox says of itself.
 
 ## Slices
 
@@ -717,16 +767,19 @@ is built until the owner says yes to this plan.
    `Until` value; `Pages:Storage` stops the host at startup.
 2. **Records and the sandbox** (`M`). `PageTableAttribute`, `PageSchema` and extraction, `PAGE011` and
    `PAGE012`, `DeclaredTables`, the DDL lifecycle in the save's transaction, `IRecordStore`,
-   `IPageRecordTransaction`, `PageRow`, `PageParameters`, the `TEMP VIEW` and triggers, the allow-list,
-   the limits, the result caps and the clocks; the library and worker declarations; `/help`.
+   `IPageRecordTransaction` as the frame, `PageRecordResult`, `PageRow`, `PageParameters`, the
+   `TEMP VIEW` and triggers, the allow-list, the limits, the result caps and the clocks; the library
+   and worker declarations; `/help`.
    *Proves:* a save creates exactly the declared tables and catalogue rows; an added column alters and
    changes nothing else; a column or table the source no longer names is dropped with every row in it;
    a revision that does not compile applies no DDL; a declaration the host cannot apply stores the
    revision, reports `PAGE012` at the property and leaves the schema and rows untouched; a query
    returns only my subject's rows; a two-table join and an aggregate do; `ATTACH`, `PRAGMA`, `CREATE`
-   and a second statement are refused; a result over its cap refuses; a transaction commits or rolls
-   back; a library's table is reached only through `For(libraryKey)`; a worker's own table is shared by
-   its runs.
+   and a second statement are refused; a result over its cap throws naming the setting; a write with no
+   transaction open answers `Applied` and is durable, one inside a transaction answers `Staged` and is
+   gone after a rollback or a dispose; a refused write inside a transaction leaves the earlier rows to
+   the page's choice; a second `BeginTransaction` throws; a library's table is reached only through
+   `For(libraryKey)`; a worker's own table is shared by its runs.
 3. **Messages** (`M`). `IMessageStore`, `PageTopic`, `StoreMessages`, the address check, the atomic
    take, the caps, the lifetimes and the sweep; the flash example in `/help`; `/privacy`.
    *Proves:* a page posts to another page and the other takes it; a second take is `Empty`; two
@@ -761,7 +814,7 @@ separate worktrees. Slice 5 waits for them.
 
 | File | Change |
 | --- | --- |
-| `src/uk.osric.asp.Sdk/` | `IPageStores`, `IPageSubject`, `IPageVisitorSubject`, `IValueStore`, `IRecordStore`, `IMessageStore`, `IObjectStore`, `StoreLifetime`, `StoreLifetimeKind`, `StoreFilter`, `StoreEntry`, `StoreSubject`, `PageTableAttribute`, `PageRow`, `PageParameters`, `PageObject`, `PageObjectRef`, `PageTopic`, the message results and refusals, `PageValue`'s two new properties, the obsolete marks on the two old interfaces; `PublicAPI.Unshipped.txt` |
+| `src/uk.osric.asp.Sdk/` | `IPageStores`, `IPageSubject`, `IPageVisitorSubject`, `IValueStore`, `IRecordStore`, `IPageRecordTransaction`, `IMessageStore`, `IObjectStore`, `StoreLifetime`, `StoreLifetimeKind`, `StoreFilter`, `StoreEntry`, `StoreSubject`, `PageTableAttribute`, `PageRow`, `PageRecordResult`, `PageRecordOutcome`, `PageParameters`, `PageObject`, `PageObjectRef`, `PageTopic`, the message results and refusals, `PageValue`'s two new properties, the obsolete marks on the two old interfaces; `PublicAPI.Unshipped.txt` |
 | `src/uk.osric.asp.Core/` | `PageSchema` and its validation, the SQL allow-list and identifier scan, the content-type allow-list, the SHA-256 rule |
 | `src/uk.osric.asp.Runtime/` | Declaration extraction on the compile, `CompileResult.Schema`, `PAGE011` and `PAGE012` |
 | `src/uk.osric.asp.Web/Pages/` | `PageStoresScope`, `PageStoresOptions`, `PageStoresCaps`, the internal store seams, `PageChain.CreateLayer`, `PageStorageOptions`'s retirement, `PageStorageScope` and `PageSessionScope` as adapters, `PageSessionResolver` (the reader's subject), `PageSessionRequest`, `PageSessionOptions`'s retirement, the sweep |
@@ -784,9 +837,11 @@ separate worktrees. Slice 5 waits for them.
   table, a column over its cap.
 - **`Web.Tests`** against a throwaway database: the value lifecycle (page, visitor, cross-page, write
   binding, every lifetime, the take, the listing filter, the caps, the sweep), adoption, the `b`
-  cookie, the DDL lifecycle, the sandbox refusals, the join and aggregate, the transaction, the message
-  lifecycle, the object lifecycle, the migration up/down/up, and the configuration's shipped, override
-  and refusal cases.
+  cookie, the DDL lifecycle, the sandbox refusals, the join and aggregate, the record transaction (an
+  autocommitted write is durable when it answers, a staged one is not until the commit, a rollback and
+  a dispose discard it, a read sees the staged write, a refused write leaves the staged rows, a second
+  `BeginTransaction` throws), the message lifecycle, the object lifecycle, the migration up/down/up,
+  and the configuration's shipped, override and refusal cases.
 - **`Web.IntegrationTests`** for the pipeline: a page that writes and reads every shape, a second
   visitor who sees none of the first's, a sign-in that adopts, a `HEAD` that refuses, a layout that
   writes, a job's three scopes, `/o/{sha}` with `ETag` and `Range`, an archive that skips a one-shot,
@@ -812,7 +867,7 @@ separate worktrees. Slice 5 waits for them.
   values and the invariants; **[shell](../shell.md)** gains `/o/{sha}` and the `b` cookie;
   **[the glossary](../glossary.md)** defines **store**, **subject**, **lifetime**, **value**,
   **record**, **message**, **object**, **browser** and **adoption**, and rewrites **session**.
-- **[the record](../decisions.md)** at each merge: the eleven names above, the seven edited entries and
+- **[the record](../decisions.md)** at each merge: the eleven names above, the eight edited entries and
   the citation the object route adds.
 - **The backlog** at the first merge: this item is already `planned` with this plan; the two plans it
   supersedes are archived with a note, and `no-account-store` and `message-does-not-survive-a-redirect`
@@ -869,8 +924,19 @@ separate worktrees. Slice 5 waits for them.
   aggregates are in scope, over the subject's own tables.
 - **A typed query API instead of SQL.** Safe, and no longer SQL — which is the one thing a page can
   already write, and the owner chose it.
+- **The verbs on the transaction as well as the store.** Two spellings of one call is the copy
+  `pages-writes-are-transactions` exists to prevent: `IPageWrites` carries the writes and
+  `IPageTransaction` carries one commit, so a page never chooses between two identical methods. The
+  store knowing whether a transaction is open is how one spelling keeps both meanings.
+- **Staging statements and running them at the commit**, as the page store stages writes. A page has to
+  read what it just wrote, and the atomic counter is `UPDATE … RETURNING`, so the statement has to run
+  when it is called; deferring it would make every `QueryAsync` inside a transaction answer nothing.
+- **Savepoints for a nested transaction.** One handle has one transaction and a second `BeginTransaction`
+  throws; savepoints would buy a partial rollback that no caller has asked for, and the host already
+  refuses `SAVEPOINT` from page SQL.
 - **A lifetime in the primary key.** One row per key, with the subject as the resolution rule, is
-  simpler and leaves no ambiguous write.
+  simpler and leaves no ambiguous write: a key with two lifetimes would be two answers to "what is this
+  value".
 - **A 30-day inbox activity clock.** A lifetime is a rule the store can enforce without knowing what
   the page is doing; a message is `Person` or an explicit `Until`, and an activity clock was the fifth
   answer to the same question.
