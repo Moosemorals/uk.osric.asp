@@ -35,6 +35,11 @@ internal sealed record PageReadHead(
     string? ContentHash = null,
     string? TemplateLibraries = null);
 
+/// <summary>One slice of a listing, and the fingerprint of every head under its prefix.</summary>
+/// <param name="Rows">The heads the slice selected, in key order.</param>
+/// <param name="Version">The fingerprint of the whole prefix, read in the same snapshot as the rows.</param>
+internal sealed record PageReadSlice(IReadOnlyList<PageReadHead> Rows, string Version);
+
 /// <summary>One template the read store retrieved.</summary>
 /// <param name="Key">The page's canonical key.</param>
 /// <param name="Hash">The revision's hash.</param>
@@ -60,6 +65,11 @@ internal sealed record PageReadRevision(string Hash, DateTimeOffset SavedAt, boo
 /// what a listing reports is the capability's job, so a page never meets a core type. There is no
 /// write member, and no member that names an image, a symbol or an archive.
 /// </para>
+/// <para>
+/// A listing reads its rows and the prefix's fingerprint together, in one deferred read
+/// transaction, so the token names the snapshot the rows came from. Nothing is written and nothing
+/// is pinned beyond the two statements.
+/// </para>
 /// </remarks>
 internal interface IPageReadStore {
 
@@ -72,7 +82,7 @@ internal interface IPageReadStore {
     /// <returns>Every live library head, in ordinal key order.</returns>
     Task<IReadOnlyList<PageReadHead>> ListLibrariesAsync(CancellationToken cancellationToken = default);
 
-    /// <summary>Lists the heads under a prefix, ordered by key, from a cursor.</summary>
+    /// <summary>Lists the heads under a prefix, ordered by key, from a cursor, and fingerprints the prefix.</summary>
     /// <param name="prefix">The canonical subtree prefix; <c>/</c> is the whole store.</param>
     /// <param name="after">The canonical key to resume after, or <see langword="null"/> for the first row.</param>
     /// <param name="limit">The most rows to select, as a limit in the statement.</param>
@@ -81,8 +91,13 @@ internal interface IPageReadStore {
     /// listing that descends one folder at a time asks for.
     /// </param>
     /// <param name="cancellationToken">Cancels the read.</param>
-    /// <returns>At most <paramref name="limit"/> heads with a key past the cursor, in ordinal key order.</returns>
-    Task<IReadOnlyList<PageReadHead>> ListAsync(
+    /// <returns>
+    /// At most <paramref name="limit"/> heads with a key past the cursor, in ordinal key order, and the
+    /// fingerprint of every head under the prefix. The two are read in one snapshot, so the version
+    /// names the rows it came from rather than a later store. The fingerprint covers the whole prefix
+    /// whatever the depth, because a one-level answer is still a slice of that prefix's list.
+    /// </returns>
+    Task<PageReadSlice> ListAsync(
         string prefix, string? after, int limit, bool recursive = true, CancellationToken cancellationToken = default);
 
     /// <summary>Lists the direct children of a prefix that hold something below them.</summary>
@@ -102,6 +117,16 @@ internal interface IPageReadStore {
     /// </remarks>
     Task<IReadOnlyList<string>> ListFoldersAsync(
         string prefix, string? after, int limit, CancellationToken cancellationToken = default);
+
+    /// <summary>Fingerprints every head under a prefix without reading the heads themselves.</summary>
+    /// <param name="prefix">The canonical subtree prefix; <c>/</c> is the whole store.</param>
+    /// <param name="cancellationToken">Cancels the read.</param>
+    /// <returns>The fingerprint of every head under the prefix, a tombstone's included.</returns>
+    /// <remarks>
+    /// It is for a caller that reads sources rather than heads: the token taken before a walk and
+    /// again at each slice says whether the scope moved under it.
+    /// </remarks>
+    Task<string> VersionAsync(string prefix, CancellationToken cancellationToken = default);
 
     /// <summary>Reads one head, which is how a caller learns what a key holds.</summary>
     /// <param name="key">The canonical key to read.</param>

@@ -8,7 +8,8 @@ namespace uk.osric.asp.Sdk;
 /// <para>
 /// Four store reads, one list of shell links and no writes: a page can list the store's tree, read a
 /// live page's template, read a page's history, read one retained revision and ask what the shell can
-/// do. It never meets an image, a symbol or a writable member; saving is a separate capability.
+/// do.
+/// It never meets an image, a symbol or a writable member; saving is a separate capability.
 /// </para>
 /// <para>
 /// The read is as public as the page that calls it. There is no gate in the host, so an anonymous
@@ -55,17 +56,24 @@ public interface IPageCatalog {
     public IReadOnlyList<ShellLink> ShellLinks();
 
     /// <summary>Lists the keys of a subtree, one slice at a time, each saying what it is.</summary>
-    /// <param name="request">The subtree, its depth, the cursor to resume from and the limit to answer.</param>
+    /// <param name="request">
+    /// The subtree, its depth, the cursor to resume from, the limit to answer and the token to compare.
+    /// </param>
     /// <returns>
     /// The keys under the prefix, each with its kind — a stored page, a tombstone, a site route or a
-    /// folder, which combine — and the head's facts where a head is stored, ordered by key, and
-    /// whether more stand after the last one.
+    /// folder, which combine — and the head's facts where a head is stored, ordered by key, whether
+    /// more stand after the last one, the prefix's fingerprint and whether it differs from the
+    /// request's token.
     /// </returns>
     /// <remarks>
     /// <para>
     /// A slice is a keyset, not an offset: <see cref="PageListingRequest.After"/> is the last key the
     /// caller was given, so a page saved between two calls neither skips nor repeats a row. A cursor
     /// past the last key answers an empty page with <see cref="PageListing.Truncated"/> false.
+    /// <see cref="PageListing.Version"/> is an opaque fingerprint of every head under the prefix,
+    /// read with the rows; pass it back as <see cref="PageListingRequest.Version"/> on the next slice
+    /// and <see cref="PageListing.Changed"/> says whether the list moved. It is a warning rather than
+    /// a refusal, and it covers the head rows rather than what they compiled to.
     /// </para>
     /// <para>
     /// A folder is not stored: it is a key with at least one key below it, worked out by the host, and

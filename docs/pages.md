@@ -111,15 +111,23 @@ pure renderers, and one that is a fact about the build:
   parsed from the revision's stored fingerprint where that fingerprint is written, so the two cannot
   spell one fact twice; a library the page has not recompiled without is still named and the row's
   `State` says what happened to the compile (`pages-a-page-names-its-libraries`). A listing is a
-  `PageListingRequest(prefix, after, limit, recursive)` answered by a `PageListing`: `after` is the
-  last key the caller was given and is exclusive, so the next call resumes where the last one stopped
-  and a save between two calls neither skips nor repeats a row; `limit` is bounded by
+  `PageListingRequest(prefix, after, limit, version, recursive)` answered by a `PageListing`: `after`
+  is the last key the caller was given and is exclusive, so the next call resumes where the last one
+  stopped and a save between two calls neither skips nor repeats a row; `limit` is bounded by
   `Pages:Read:MaxRowsPerList`, which an absent limit takes, and a larger one is refused with the
   setting's name rather than trimmed, folder and route rows counting towards it; `recursive` is true
   unless asked, and false answers the prefix itself and its own children, so a tree that descends one
   folder per request asks for one level (`pages-a-listing-descends-unless-asked`); and `Truncated` says
-  whether anything stands after the last
-  row, so a caller walks a store of any size one slice at a time (`pages-a-listing-resumes-from-a-key`).
+  whether anything stands after the last row, so a caller walks a store of any size one slice at a
+  time (`pages-a-listing-resumes-from-a-key`). `version` comes before `recursive` because it was
+  there first: a caller passing four arguments means the token, and a depth is named.
+  `PageListing.Version` is the fingerprint of every head under the prefix, read in the same snapshot
+  as the rows and covering the whole prefix whatever the depth; pass it back as
+  `PageListingRequest.Version` and `PageListing.Changed` says whether the list moved. The token is
+  opaque and compared for equality, a save under another prefix does not move it, and it covers the
+  head rows rather than what they compiled to (`pages-a-listing-carries-a-fingerprint`). Because a
+  folder is derived from the heads under it, a save below one moves the token exactly as a save to a
+  page does.
   It reads and never writes. The read is
   as public as the page that calls it — there is no gate, and a page that wants privacy writes the
   ordinary `ctx.User` guard — and the render's deadline, abandonment and the shared chain budgets

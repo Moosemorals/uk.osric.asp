@@ -84,26 +84,29 @@ internal sealed class FakePageReadStore : IPageReadStore {
     }
 
     /// <inheritdoc/>
-    public async Task<IReadOnlyList<PageReadHead>> ListAsync(string prefix, string? after, int limit, bool recursive = true, CancellationToken cancellationToken = default) {
+    public async Task<PageReadSlice> ListAsync(
+        string prefix, string? after, int limit, bool recursive = true, CancellationToken cancellationToken = default) {
         LastCancellationToken = cancellationToken;
         ReadCount++;
         await Task.Delay(ReadDelay, cancellationToken);
 
         PagePath at = PagePath.Normalize(prefix);
 
-        return [.. _pages
-            .Where(item => InSubtree(item.Key, prefix))
-            .Where(item => recursive || IsSelfOrDirectChild(item.Key, at))
-            .Where(item => after is null || string.CompareOrdinal(item.Key, after) > 0)
-            .OrderBy(item => item.Key, StringComparer.Ordinal)
-            .Take(limit)
-            .Select(item => {
-                FakeRevision latest = item.Value[^1];
-                return new PageReadHead(
-                    item.Key, latest.SavedAt, latest.Hash, _deleted.Contains(item.Key), latest.TemplateKind,
-                    latest.RuntimeId, latest.HasImage, latest.HasDiagnostics, latest.SeedHash, latest.ContentHash,
-                    latest.TemplateLibraries);
-            })];
+        return new PageReadSlice(
+            [.. _pages
+                .Where(item => InSubtree(item.Key, prefix))
+                .Where(item => recursive || IsSelfOrDirectChild(item.Key, at))
+                .Where(item => after is null || string.CompareOrdinal(item.Key, after) > 0)
+                .OrderBy(item => item.Key, StringComparer.Ordinal)
+                .Take(limit)
+                .Select(item => {
+                    FakeRevision latest = item.Value[^1];
+                    return new PageReadHead(
+                        item.Key, latest.SavedAt, latest.Hash, _deleted.Contains(item.Key), latest.TemplateKind,
+                        latest.RuntimeId, latest.HasImage, latest.HasDiagnostics, latest.SeedHash, latest.ContentHash,
+                        latest.TemplateLibraries);
+                })],
+            PageSubtreeFingerprint.Of(Facts(prefix)));
     }
 
     /// <inheritdoc/>
@@ -120,7 +123,7 @@ internal sealed class FakePageReadStore : IPageReadStore {
                 continue;
             }
 
-            // Folders above a key are outermost first, so the one directly below the prefix is the
+            // Folders above a key are outermost first, so the one directly under the prefix is the
             // child the real statement folds the key into.
             foreach (string folder in PageTree.FoldersAbove(key)) {
                 if (PagePath.Normalize(folder).IsDirectlyBelow(at)) {
@@ -133,6 +136,15 @@ internal sealed class FakePageReadStore : IPageReadStore {
         return [.. folders
             .Where(folder => after is null || string.CompareOrdinal(folder, after) > 0)
             .Take(limit)];
+    }
+
+    /// <inheritdoc/>
+    public async Task<string> VersionAsync(string prefix, CancellationToken cancellationToken = default) {
+        LastCancellationToken = cancellationToken;
+        ReadCount++;
+        await Task.Delay(ReadDelay, cancellationToken);
+
+        return PageSubtreeFingerprint.Of(Facts(prefix));
     }
 
     /// <inheritdoc/>
@@ -197,6 +209,17 @@ internal sealed class FakePageReadStore : IPageReadStore {
 
     private static PageReadSource Source(string key, FakeRevision revision) =>
         new(key, revision.Hash, revision.SavedAt, revision.Template);
+
+    private PageFingerprintFact[] Facts(string prefix) =>
+        [.. _pages
+            .Where(item => InSubtree(item.Key, prefix))
+            .OrderBy(item => item.Key, StringComparer.Ordinal)
+            .Select(item => new PageFingerprintFact(
+                item.Key,
+                item.Value[^1].Hash,
+                _deleted.Contains(item.Key),
+                item.Value[^1].SeedHash,
+                item.Value[^1].ContentHash))];
 
     private static bool IsSelfOrDirectChild(string key, PagePath at) {
         PagePath path = PagePath.Normalize(key);

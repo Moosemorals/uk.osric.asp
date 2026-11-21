@@ -7,12 +7,12 @@ SPDX-License-Identifier: MIT
 
 | | |
 | --- | --- |
-| Status | Proposed 2026-11-20 — waits for the owner. Nothing below is built |
+| Status | Merged 2026-11-21 — both steps built on *agents/worktree-listing-does-not-date-itself* and merged into trunk with `make check` green. The recorded names are `pages-a-listing-carries-a-fingerprint` and `pages-a-fingerprint-is-derived-not-kept` |
 | Size | Small: one pure function in `Core`, one read in `Web`, two members on the page contract, one tool argument and the documents. No migration, no configuration value, no write path |
-| First customer | The assistant's `list_pages`, which already pages with `after`. The second is [`cannot-search-the-store`](../backlog/cannot-search-the-store.md), blocked by this item, whose cursor takes the same token |
+| First customer | The assistant's `list_pages`, which already pages with `after`. The second is [`cannot-search-the-store`](../../backlog/cannot-search-the-store.md), blocked by this item, whose cursor takes the same token |
 | Spike | None. Every claim about what exists was read off the tree on 2026-11-20: `IPageReadStore`, `SqlitePageReadStore`, `PageCatalogScope`, `PageListing`, `PageListingRequest`, `PageStoreReader`, `IPageStoreReader`, `PageSeedInstaller`, `AdoptSeedAsync`, `PageContentHashRepair`, `SqliteJournalMode`, `PageAuthorPrompt` |
-| Decisions | None recorded yet. Two are named at the merge (`product-plan-before-building`); this plan states both |
-| Backlog | [`listing-does-not-date-itself`](../backlog/listing-does-not-date-itself.md) (this job), [`cannot-search-the-store`](../backlog/cannot-search-the-store.md) (the second consumer) |
+| Decisions | `pages-a-listing-carries-a-fingerprint` and `pages-a-fingerprint-is-derived-not-kept`, both taken at the merge |
+| Backlog | [`listing-does-not-date-itself`](../../backlog/closed.md) (this job, closed at the merge), [`cannot-search-the-store`](../../backlog/cannot-search-the-store.md) (the second consumer, unblocked) |
 
 ## The short version
 
@@ -66,22 +66,20 @@ security claim** — it names no key and no content, only that the set of rows u
 from the one the caller saw, and a listing is already as public as the page that asks for it
 (`pages-reading-the-store-is-public`).
 
-## The names this plan intends
+## The names this plan intended, and the two the merge took
 
-Taken at the merge — bold rather than in backticks, because `make decisions` fails on a cited name the
-record does not have yet:
+The two names this plan proposed were taken at the merge, both of them, because they can be broken
+separately: a later step may keep the warning and replace the derivation with a stored aggregate
+without silently changing what `Changed` means.
 
-- **pages-a-listing-carries-a-fingerprint** — a slice answers an opaque token that fingerprints every
-  head under its prefix, read from the same snapshot as its rows; a request carries the token the
-  caller started from and the answer says whether the two differ. A warning, never a refusal, and the
-  token is compared for equality and nothing else.
-- **pages-a-fingerprint-is-derived-not-kept** — the token is computed from the heads, so no column, no
-  counter and no write path maintains it, and a head write nobody remembered to annotate still moves
-  it.
-
-They are two rules rather than one because they can be broken separately: a later step may keep the
-first and replace the second with a stored aggregate, and must not silently break "a warning" while
-doing it. If the merge reads them as one subject, they fold into one entry and the plan cites it once.
+- [`pages-a-listing-carries-a-fingerprint`](../../decisions.md#pages-a-listing-carries-a-fingerprint) —
+  a slice answers an opaque token that fingerprints every head under its prefix, read from the same
+  snapshot as its rows; a request carries the token the caller started from and the answer says
+  whether the two differ. A warning, never a refusal, and the token is compared for equality and
+  nothing else.
+- [`pages-a-fingerprint-is-derived-not-kept`](../../decisions.md#pages-a-fingerprint-is-derived-not-kept) —
+  the token is computed from the heads, so no column, no counter and no write path maintains it, and a
+  head write nobody remembered to annotate still moves it.
 
 ## What exists today
 
@@ -156,7 +154,7 @@ a write, so the seam stays read-only; its remark gains a sentence saying what th
 rather than losing the one that says there is none.
 
 `VersionAsync` is the same statement without the join and the limit, for the caller that reads sources
-instead of rows: the search walk of [`cannot-search-the-store`](../backlog/cannot-search-the-store.md)
+instead of rows: the search walk of [`cannot-search-the-store`](../../backlog/cannot-search-the-store.md)
 reads a scope's sources in slices and needs the token before and after, never the heads.
 
 The subtree predicate — `Path = prefix OR Path LIKE escaped(prefix) + '/%'` — is currently private in
@@ -244,7 +242,7 @@ wrote, read from its own tool results — and is not touched.
 
 The search walk needs exactly one store fact this plan adds: `VersionAsync(scope)` read at the start of
 the walk and compared at each slice, with a difference restarting the scan. So
-[`cannot-search-the-store`](../backlog/cannot-search-the-store.md) is unblocked by this item without
+[`cannot-search-the-store`](../../backlog/cannot-search-the-store.md) is unblocked by this item without
 adding store work of its own, and its sketch's point 5 — "the request carries the version token … and
 the answer carries the version it read" — is satisfied here. Its scope is a prefix like a listing's, so
 the per-prefix semantics is what it wanted rather than the store-wide counter it would otherwise have
@@ -300,6 +298,25 @@ rather than materialising `PageHead` entities (the figures above are a raw read,
 materialisation would add to the dominant term), and no covering index is added — a five-column index
 on `(Path, RevisionId, IsDeleted, SeedHash, ContentHash)` measured *slower* than the primary-key scan it
 would have replaced.
+
+### The measurement taken where the code lives
+
+Step 1 ran the threshold measurement before the merge, against the built store over a throwaway
+database, ten runs per figure, a whole-store listing of 500 rows:
+
+| Heads | The listing before | The listing with the token | The token alone |
+| --- | --- | --- | --- |
+| 300 | 2.5–3.6 ms | 6.6–8.0 ms | 2.4–4.4 ms (of which the hash is 0.7–1.2 ms) |
+| 600 | 3.4–3.9 ms | 10.7–11.4 ms | 2.6–6.5 ms |
+| 5,000 | 2.2–3.1 ms | 31–35 ms | 12–25 ms |
+
+The shape holds at the sizes this site has and is gone at 5,000 heads, exactly as the synthetic table
+said. The ratio at 300 heads straddles the written threshold — 2.2 to 2.9 times, depending on how much
+of the old listing's row mapping the run charged to it — so the owner read the figures and approved the
+merge with the derived answer in place: `code-n-is-small` is about the store the site actually has, and
+option 3 stays behind the same opaque token and is written down under *Considered and rejected* for
+when it is not. The hash was made allocation-free per field (`stackalloc` under 256 bytes, a pooled
+buffer above it) after the first run showed it at a fifth of the token's cost.
 
 ## Seeds: what does not change, and the two writes that prove it
 
@@ -406,13 +423,13 @@ Every test is NUnit and names the behaviour; anything a unit test can prove does
 - **The manual**, `/help` (`product-manual-is-a-page`): the listing paragraph in "Reading the page
   store" gains the token, the two members of `PageListingRequest` and `PageListing` it involves, the
   fact that it is compared and never parsed, and the stated limit of §4.
-- **[pages](../pages.md)**: the `IPageCatalog` listing paragraph, beside the cursor's.
-- **[storage](../storage.md)**: the read-seam paragraph — the token is derived, the two statements share
+- **[pages](../../pages.md)**: the `IPageCatalog` listing paragraph, beside the cursor's.
+- **[storage](../../storage.md)**: the read-seam paragraph — the token is derived, the two statements share
   one snapshot, nothing is stored and no migration is involved — and a line in the seed section that a
   seed write and an adopt are both visible to it while the verdict stays three hashes.
-- **[decisions](../decisions.md)** at the merge: the two names above, each with its "Recorded in" line.
+- **[decisions](../../decisions.md)** at the merge: the two names above, each with its "Recorded in" line.
 - **The backlog**: this item's `Plan` and `Status`, and the item that waits behind it —
-  [`cannot-search-the-store`](../backlog/cannot-search-the-store.md), unblocked by the merge.
+  [`cannot-search-the-store`](../../backlog/cannot-search-the-store.md), unblocked by the merge.
 - **The author prompt**: the paging section, with `PageAuthorPrompt.Version` moved on.
 
 ## Risks

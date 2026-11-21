@@ -114,12 +114,13 @@ its reason, and that no item sits above something that blocks it.
 
 | Slug | Title | Difficulty | Utility | Status | Blocked by |
 | --- | --- | --- | --- | --- | --- |
-| [`listing-does-not-date-itself`](listing-does-not-date-itself.md) | A listing cannot say the store moved under it | caffeinated-squirrel ☕🐿️ | medium | [planned](../plans/listing-fingerprint.md) | — |
-| | *The cursor answered where a walk is; this answers whether it is still the same walk, and the write paths are the price.* | | | | |
-| [`cannot-search-the-store`](cannot-search-the-store.md) | A page cannot search the store's source | caffeinated-squirrel ☕🐿️ | medium | blocked | `listing-does-not-date-itself` |
-| | *The IDE's find in files, now with the shell's own pattern language; it waits on the version token a cursor has to carry before a scan of a store that may move under it can be trusted.* | | | | |
+| [`cannot-search-the-store`](cannot-search-the-store.md) | A page cannot search the store's source | caffeinated-squirrel ☕🐿️ | medium | [planned](../plans/ide-host.md) | — |
+| | *The IDE's find in files, now with the shell's own pattern language; the version token its cursor carries landed with the listing fingerprint, so nothing blocks it.* | | | | |
 | [`tool-surface-is-one-shell`](tool-surface-is-one-shell.md) | The assistant's tool surface is one shell, one question and one memory | protective-dragon 🔥🐉 | high | blocked | `check-without-storing`, `cannot-search-the-store` |
 | | *The shell already carries eleven of the twenty-two commands; making it POSIX, composable and the preferred surface leaves three tools and buys back the ceiling, and building it from the page capabilities names the three gaps in front of it.* | | | | |
+| | *The shell already carries eleven of the twenty-two commands; making it POSIX, composable and the preferred surface leaves three tools and buys back the ceiling, and building it from the page capabilities names the three gaps in front of it.* | | | | |
+| [`storage-is-not-one-model`](storage-is-not-one-model.md) | Storage is not one model: a page reaches a patchwork of stores | protective-dragon 🔥🐉 | high | open | — |
+| | *The model every storage gap resolves into; it supersedes the two storage plans waiting for a yes, so it is read before them.* | | | | |
 | [`no-account-store`](no-account-store.md) | A page has no persistent per-account store | protective-dragon 🔥🐉 | high | [planned](../plans/account-store.md) | — |
 | | *The most useful large item, with a plan and a first customer, and a plan's yes is the only thing it waits on.* | | | | |
 | [`conversation-is-not-a-page`](conversation-is-not-a-page.md) | The assistant's conversation is a stream and a set of host actions, not a page | protective-dragon 🔥🐉 | medium | blocked | `no-account-store` |
@@ -130,8 +131,8 @@ its reason, and that no item sits above something that blocks it.
 | | *The browser suite drives a source build while the deploy ships an image built later; this makes the promoted image the one the browser drove, and the host gate now keeps one.* | | | | |
 | [`message-does-not-survive-a-redirect`](message-does-not-survive-a-redirect.md) | A page cannot leave a message for a page it sends a visitor to | protective-dragon 🔥🐉 | high | [planned](../plans/page-inbox.md) | — |
 | | *High use for a capability the page session half gave: a page that sends a visitor somewhere usually has something to tell it, and the plan answers what the sketch left open, so nothing but a yes stands in front of it.* | | | | |
-| [`sec-page-runs-in-process`](sec-page-runs-in-process.md) | Page code has no execution budget and no process boundary | cornered-porcupine 📍🦔 | high | open | — |
-| | *Medium severity and a redesign of how a page runs; the trimmed API policy and the sign-in guard already carry much of it.* | | | | |
+| [`sec-page-runs-in-process`](sec-page-runs-in-process.md) | Page code has no process boundary | cornered-porcupine 📍🦔 | high | open | — |
+| | *High utility and a redesign of how a page runs; the unit is now a long-lived worker per author over a socket rather than a process per render, and the author it keys on is not in the store yet.* | | | | |
 | [`revision-hides-its-diagnostics`](revision-hides-its-diagnostics.md) | A page cannot read a revision's diagnostics | eager-beaver ⚙️🦫 | medium | open | — |
 | | *The store keeps the last compile's answer and the catalog drops it, so a reloaded editor, a history view and a page explaining a broken library can say a revision failed but not what it said.* | | | | |
 | [`ops-no-outage-notification`](ops-no-outage-notification.md) | No outbound notifications when the site breaks | eager-beaver ⚙️🦫 | medium | open | — |

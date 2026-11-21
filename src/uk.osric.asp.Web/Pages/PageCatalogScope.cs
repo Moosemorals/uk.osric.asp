@@ -65,14 +65,14 @@ internal sealed class PageCatalogScope(
         // One row past the limit is how the store says "there are more" without a second query. A
         // one-level listing also asks for its folders, because a child whose only content is deeper
         // is not a head that read can see.
-        IReadOnlyList<PageReadHead> rows = await store.ListAsync(key, after, limit + 1, request.Recursive, Cancellation());
+        PageReadSlice slice = await store.ListAsync(key, after, limit + 1, request.Recursive, Cancellation());
         IReadOnlyList<string> folders = request.Recursive
             ? []
             : await store.ListFoldersAsync(key, after, limit + 1, Cancellation());
 
         Dictionary<string, PageReadHead> heads = [with(StringComparer.Ordinal)];
         List<PageListingKey> facts = [];
-        foreach (PageReadHead row in rows) {
+        foreach (PageReadHead row in slice.Rows) {
             heads[row.Key] = row;
             facts.Add(new PageListingKey(row.Key, IsFolder: false));
         }
@@ -95,7 +95,13 @@ internal sealed class PageCatalogScope(
             entries.Add(Describe(node, heads));
         }
 
-        return new PageListing(entries, answer.Truncated);
+        return new PageListing(entries, answer.Truncated) {
+            Version = slice.Version,
+            // A first call carries no token and is never changed. Any token that is not the one just
+            // read is a warning, not an error: a stale token should not turn a page bug into a 500.
+            Changed = request.Version is not null
+                && !string.Equals(request.Version, slice.Version, StringComparison.Ordinal),
+        };
     }
 
     /// <inheritdoc/>

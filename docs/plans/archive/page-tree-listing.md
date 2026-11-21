@@ -7,7 +7,7 @@ SPDX-License-Identifier: MIT
 
 | | |
 | --- | --- |
-| Status | Merged 2026-11-21 — built on *page-tree-listing* with `make check` green. The three names it proposed are `pages-a-folder-is-a-key-not-a-row`, `pages-a-listing-answers-the-site-tree` and `pages-a-listing-descends-unless-asked` |
+| Status | Merged 2026-11-21 — built on *page-tree-listing* with `make check` green, on top of `listing-fingerprint` after trunk moved. The three names it proposed are `pages-a-folder-is-a-key-not-a-row`, `pages-a-listing-answers-the-site-tree` and `pages-a-listing-descends-unless-asked` |
 | Size | Moderate: one enum and a reshaped row on the page contract, one request member, one pure fold in `Core`, one predicate and one narrow read in `Web`, the capability, one seed, the manual, the prompt and the documents. No migration, no configuration value, no write path |
 | First customer | The shell's `ls`, `find -type d` and `stat`, and the IDE's T8 tree — both page work, and both after [`tool-surface-is-one-shell`](../backlog/tool-surface-is-one-shell.md). The first caller that has to *not* see the new rows is the editor's own page list, which moves in the same step |
 | Spike | None. Every claim about what exists was read off `trunk` on 2026-11-21: `IPageCatalog`, `PageEntry`, `PageListing`, `PageListingRequest`, `PageCatalogScope`, `IPageReadStore`, `SqlitePageReadStore`, `PageReadOptions`, `PageTree`, `PageStoreReader`, `ReservedPaths`, `ShellCatalogue`, the `/pages` and `/help` seeds, `PageAuthorPrompt`, and the suites named under Tests |
@@ -375,9 +375,8 @@ places in `/pages` filter on the row's kind instead of assuming every row is a p
 `/help` and the assistant's prompt teach the new shape in the same step: a row is a key and a kind,
 `SavedAt` and `Hash` are null when there is no head, folder and route rows are part of the answer, and
 `Recursive` picks the depth. The prompt's sample lists the kind rather than a live/deleted word, and
-`PageAuthorPrompt.Version` moves one on from `page-author-v54` — `v55` unless
-[`listing-fingerprint`](listing-fingerprint.md) has landed first, in which case it moves past whatever
-that step left.
+`PageAuthorPrompt.Version` moved to `page-author-v56`: the fingerprint had already taken `v55` by the
+time this landed, so the manual states the merged shape in one version rather than two.
 
 ## Steps
 
@@ -396,6 +395,15 @@ step is one branch, one gate and one stop for the owner.
 
 The backlog item moved to `planned`, pointing at this plan, in this step. It closed with the work and
 the three names are recorded beside it.
+
+**Merged with trunk 2026-11-21.** [`listing-fingerprint`](listing-fingerprint.md) landed first, so the
+seam this plan widens was also the seam it changed — §4's Risk 7, exactly. The resolution kept both and
+chose one order: `IPageReadStore.ListAsync(prefix, after, limit, recursive, ct)` answers a
+`PageReadSlice`, so the depth selects the rows and the fingerprint still covers the whole prefix
+whatever the depth; `PageListingRequest` carries the token fourth and the depth fifth, because a caller
+passing four arguments means the fingerprint; and `PageCatalogScope` reads the slice, folds, then
+answers the token it read. A save below a folder moves the token because the folder is derived from the
+heads under it, so the two features need no bridge between them.
 
 **Built 2026-11-21.** One step, as above. The tests are in place and green: twelve for the fold, seven
 for the read seam's depth and folder statement, and eight new capability cases beside the ones the

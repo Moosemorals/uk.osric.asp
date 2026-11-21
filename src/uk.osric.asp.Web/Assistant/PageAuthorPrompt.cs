@@ -9,7 +9,7 @@ using uk.osric.asp.Web.Shell;
 
 /// <summary>The system prompt and worked examples that teach the model to write a page.</summary>
 internal static class PageAuthorPrompt {
-    public const string Version = "page-author-v55";
+    public const string Version = "page-author-v56";
 
     public static IReadOnlyList<(string Name, string Source)> Examples { get; } = [
         ("query-driven", """
@@ -334,7 +334,7 @@ internal static class PageAuthorPrompt {
 
         ## Page store read
         `ctx.Capabilities.GetRequired<IPageCatalog>()` reads the site's page store
-        and never writes. `ListAsync(new PageListingRequest(prefix, after, limit, recursive))`
+        and never writes. `ListAsync(new PageListingRequest(prefix, after, limit, version, recursive))`
         lists one slice of a subtree and returns a `PageListing`: `Entries`, each a
         `PageEntry` with a `Key` and a `Kind` — flags that combine, `Page`,
         `Tombstone`, `Route` and `Folder` — and the head's facts when a head is
@@ -354,7 +354,11 @@ internal static class PageAuthorPrompt {
         folders and routes count towards it. `recursive` is true unless you ask
         otherwise: true lists every key under the prefix, false the prefix and its
         own children, which is what a tree that descends one folder at a time
-        wants.
+        wants. `version` is the token a previous answer carried: pass it back and
+        `Changed` says whether anything under the prefix moved since, so a walk
+        can warn rather than pretend the list stood still. It is opaque — compare
+        it, never parse it — and a save below a folder moves it because the folder
+        is derived from the heads under it.
         A prefix is a subtree,
         not a string prefix: `/blog` lists `/blog` and `/blog/post`, never
         `/blogroll`; `""` and `/` are the whole store. `ReadAsync(key)` reads a
@@ -524,6 +528,11 @@ internal static class PageAuthorPrompt {
         `before` set to the last hash you were given to read the next, older
         slice. `list_pages` takes the same `limit` with an `after` cursor: its
         listing is in key order, so its cursor names a key rather than a hash.
+        Every `list_pages` answer carries a `version`, an opaque fingerprint of
+        the prefix. Pass it back as `version` on the next slice and `changed`
+        says whether anything under the prefix moved since the token you gave.
+        A change is a warning rather than a refusal, and a save under another
+        prefix does not count.
 
         `read_page` with a `hash` from `list_revisions` returns one revision's
         stored source by the same 1-based physical line numbers, line ranges and

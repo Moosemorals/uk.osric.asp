@@ -58,8 +58,11 @@ internal sealed class ToolServices(
     /// <summary>The page editor, resolved from the call's scope: the writes, and nothing else.</summary>
     public PageEditor Pages => scope.GetRequiredService<PageEditor>();
 
+    /// <summary>The read seam the store reader fingerprints a scope through, resolved from the call's scope.</summary>
+    public IPageReadStore ReadStore => scope.GetRequiredService<IPageReadStore>();
+
     /// <summary>The one read seam over the page store, made once for the call.</summary>
-    public IPageStoreReader Store => _store ??= new PageStoreReader(Pages, Paths);
+    public IPageStoreReader Store => _store ??= new PageStoreReader(Pages, Paths, ReadStore);
 
     /// <summary>The editor's own key, so a tool's link lands on the page the owner moved it to.</summary>
     public string EditorPath => EditorPaths.Of(scope);

@@ -286,6 +286,57 @@ public sealed class PageCatalogScopeTests {
     }
 
     [Test]
+    public async Task AFirstCallAnswersTheTokenAndNoChangeAsync() {
+        FakePageReadStore store = new();
+        store.Save("/blog", "blog");
+
+        PageListing listing = await Scope(store).ListAsync(new());
+
+        Assert.Multiple(() => {
+            Assert.That(listing.Version, Is.Not.Empty);
+            Assert.That(listing.Changed, Is.False, "a call that carried no token is never changed");
+        });
+    }
+
+    [Test]
+    public async Task ACallCarryingTheTokenSeesNoChangeUntilTheStoreMovesAsync() {
+        FakePageReadStore store = new();
+        store.Save("/blog", "blog");
+        PageListing first = await Scope(store).ListAsync(new());
+
+        PageListing same = await Scope(store).ListAsync(new(Version: first.Version));
+        store.Save("/blog", "newer");
+        PageListing moved = await Scope(store).ListAsync(new(Version: first.Version));
+
+        Assert.Multiple(() => {
+            Assert.That(same.Changed, Is.False);
+            Assert.That(moved.Changed, Is.True);
+        });
+    }
+
+    [Test]
+    public async Task ATokenFromAnotherPrefixIsAChangeRatherThanAnErrorAsync() {
+        FakePageReadStore store = new();
+        store.Save("/blog", "blog");
+        store.Save("/notes", "notes");
+        PageListing elsewhere = await Scope(store).ListAsync(new("/notes"));
+
+        PageListing listing = await Scope(store).ListAsync(new("/blog", Version: elsewhere.Version));
+
+        Assert.That(listing.Changed, Is.True);
+    }
+
+    [Test]
+    public async Task ANonsenseTokenIsAChangeRatherThanAnErrorAsync() {
+        FakePageReadStore store = new();
+        store.Save("/blog", "blog");
+
+        PageListing listing = await Scope(store).ListAsync(new(Version: "not a token"));
+
+        Assert.That(listing.Changed, Is.True);
+    }
+
+    [Test]
     public async Task AListingRowSaysWhichLibrariesItsClosureNamedAsync() {
         FakePageReadStore store = new();
         store.Save("/uses", "uses", templateLibraries: PageLibraryFingerprint.Of([
@@ -634,7 +685,7 @@ public sealed class PageCatalogScopeTests {
     private static async Task<IReadOnlyList<PageEntry>> ListAsync(
         PageCatalogScope scope, string prefix = "", string? after = null, int? limit = null,
         bool recursive = true) =>
-        (await scope.ListAsync(new PageListingRequest(prefix, after, limit, recursive))).Entries;
+        (await scope.ListAsync(new PageListingRequest(prefix, after, limit, Recursive: recursive))).Entries;
 
     private static IReadOnlyList<PageEntry> Heads(IEnumerable<PageEntry> entries) =>
         [.. entries.Where(entry => entry.Kind.HasFlag(PageEntryKind.Page))];

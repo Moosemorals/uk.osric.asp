@@ -17,10 +17,19 @@ namespace uk.osric.asp.Sdk;
 /// How many rows to answer, or <see langword="null"/> for the host's cap. A limit above the cap is
 /// refused rather than trimmed, and folder and route rows count towards it.
 /// </param>
+/// <param name="Version">
+/// The fingerprint a previous answer carried, or <see langword="null"/> for a first call. It is
+/// opaque: pass it back unchanged and compare nothing, because the host answers
+/// <see cref="PageListing.Changed"/> for you.
+/// </param>
 /// <param name="Recursive">
 /// Whether to descend. <see langword="true"/>, the default, answers every key under the prefix;
 /// <see langword="false"/> answers the prefix itself and its own children, so a tree that descends
 /// one folder per request asks for one level at a time.
 /// </param>
+/// <remarks>
+/// <see cref="Version"/> comes before <see cref="Recursive"/> because it was there first: a caller
+/// that passes four arguments means the token, and a depth is named.
+/// </remarks>
 public sealed record PageListingRequest(
-    string Prefix = "", string? After = null, int? Limit = null, bool Recursive = true);
+    string Prefix = "", string? After = null, int? Limit = null, string? Version = null, bool Recursive = true);

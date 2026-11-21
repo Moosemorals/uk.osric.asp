@@ -1179,9 +1179,11 @@ whose only content is deeper is not a head a one-level read can see.
 
 A listing answers the whole subtree under its prefix unless the request asks for one level, because the
 subtree is what a listing meant before the depth was a request member and a default that narrowed it
-would silently empty every page that pages today. Either way the cursor is the last key the caller was
-given and is exclusive, so a walk visits every key once, in ordinal order; the limit counts rows of
-every kind, so a slice may hold fewer heads than it used to.
+would silently empty every page that pages today. The depth comes after the token, because the token
+was there first: a caller passing four arguments means the fingerprint, and a depth is named. Either
+way the cursor is the last key the caller was given and is exclusive, so a walk visits every key once,
+in ordinal order; the limit counts rows of every kind, so a slice may hold fewer heads than it used
+to.
 
 *Recorded in [pages](pages.md#page-contract), [PageListingRequest](../src/uk.osric.asp.Sdk/PageListingRequest.cs), [the plan](plans/archive/page-tree-listing.md).*
 
@@ -1218,18 +1220,45 @@ line the author will look at.
 
 ### pages-a-listing-resumes-from-a-key
 
-A listing is one slice, asked for by a prefix, a depth, a cursor and a limit, and answered with its
-rows and whether more stand after them. The cursor is the last key the caller was given rather than a
-count, because a page saved between two calls would make an offset skip or repeat a row and a key
-cannot; it is normalised as a page key, so a trailing slash resumes in the same place. The depth is a
-request member rather than a second capability: a listing descends unless the caller asks for one
-level, because the subtree is what it meant before the member existed. The configured cap is the
+A listing is one slice, asked for by a prefix, a cursor, a token and a limit, and answered with its
+rows, whether more stand after them and whether the list moved. The cursor is the last key the caller
+was given rather than a count, because a page saved between two calls would make an offset skip or
+repeat a row and a key cannot; it is normalised as a page key, so a trailing slash resumes in the same
+place. The configured cap is the
 largest limit a caller may ask for, not a wall — a listing that refuses past its cap makes the 501st
 page an outage of the tree where a slice makes it the next request — and a limit above it is refused
 with the setting's name rather than trimmed. A cursor past the last key is an empty answer, not an
 error.
 
 *Recorded in [pages](pages.md), [IPageCatalog](../src/uk.osric.asp.Sdk/IPageCatalog.cs), [the plan](plans/ide-host.md).*
+
+### pages-a-listing-carries-a-fingerprint
+
+A slice answers an opaque token that fingerprints every head under its prefix, and a request carries
+the token the caller started from, so `PageListing.Changed` can say the set of rows moved between two
+slices: a save under the cursor skipped a page, a save above it showed one twice, and a delete removed
+a row the caller was about to reach. It is a warning and never a refusal — the host answers the fact
+and the caller carries on, starts again or ignores it — because a second gate inside a capability is
+the one `pages-reading-the-store-is-public` rejects. The token is compared for equality and nothing
+else: it names no key and no content, so it is not a security claim, and a token from another prefix
+is a false alarm rather than an error. It covers the head rows and their seed anchors, not what a row
+compiled to, so a lazy compile or a deploy leaves it where it was.
+
+*Recorded in [pages](pages.md), [storage](storage.md), [IPageCatalog](../src/uk.osric.asp.Sdk/IPageCatalog.cs), [PageListing](../src/uk.osric.asp.Sdk/PageListing.cs), [the plan](plans/archive/listing-fingerprint.md).*
+
+### pages-a-fingerprint-is-derived-not-kept
+
+The token is computed from the heads when a slice is read rather than stored in a column, a counter or
+a per-prefix row. No write path participates, so no write can forget to bump it — an adopt, which
+writes only `SeedHash`, and a content-hash repair, which writes only `ContentHash`, move it without
+being told, and both are invisible to a sequence kept on save. It is also exact about the rows rather
+than merely safe: a head whose revision, tombstone, seed anchor and content hash are unchanged leaves
+the token where it was. The price is one scan of the prefix per slice, measured at about 1.15 ms for
+300 heads, dominated by reading the rows rather than hashing them; a subtree of a few thousand heads
+wants a high-water mark per prefix instead, and because the token stays opaque that swap is a later
+step behind the contract rather than a change to it.
+
+*Recorded in [storage](storage.md), [PageSubtreeFingerprint](../src/uk.osric.asp.Core/Pages/PageSubtreeFingerprint.cs), [the plan](plans/archive/listing-fingerprint.md).*
 
 ### pages-the-catalog-knows-the-shell
 
@@ -1258,7 +1287,7 @@ A listing answers the tree as well: `PageListingFold` folds the keys a read answ
 folders it lists, so `IPageCatalog.ListAsync` is the tree a page draws and a page never folds keys
 itself.
 
-*Recorded in [page store reader](plans/archive/page-store-reader.md), [PageTree](../src/uk.osric.asp.Core/Pages/PageTree.cs).*
+*Recorded in [page store reader](plans/archive/page-store-reader.md), [PageTree](../src/uk.osric.asp.Core/Pages/PageTree.cs), [the plan](plans/archive/page-tree-listing.md).*
 
 ### pages-a-page-may-save-itself
 

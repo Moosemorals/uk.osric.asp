@@ -611,17 +611,28 @@ key and hash. It never meets an image, a symbol or a write; saving is
     &lt;li&gt;&lt;%= entry.Key %&gt; — &lt;%= entry.Kind.ToString() %&gt;&lt;/li&gt;
 &lt;% } %&gt;
 &lt;/ul&gt;</code></pre>
-<p>A listing is one slice. <code>PageListingRequest(prefix, after, limit, recursive)</code> asks for at
-most <code>limit</code> rows past the key <code>after</code>, which is exclusive: pass the last key you
-were given and the next call resumes where the last one stopped, so a page saved between two calls can
-neither be skipped nor repeated. A blank prefix is the whole store. <code>recursive</code> is true
-unless you ask otherwise, and answers every key under the prefix; false answers the prefix itself and
-its own children, so a tree that descends one folder per request asks for one level at a time. An
-absent limit is the host's cap, and asking for more than the cap is refused with the setting's name
-rather than trimmed; folder and route rows count towards it. The answer's
+<p>A listing is one slice. <code>PageListingRequest(prefix, after, limit, version, recursive)</code>
+asks for at most <code>limit</code> rows past the key <code>after</code>, which is exclusive: pass the
+last key you were given and the next call resumes where the last one stopped, so a page saved between
+two calls can neither be skipped nor repeated. A blank prefix is the whole store. An absent limit is
+the host's cap, and asking for more than the cap is refused with the setting's name rather than
+trimmed; folder and route rows count towards it. <code>recursive</code> is true unless you ask
+otherwise, and answers every key under the prefix; false answers the prefix itself and its own
+children, so a tree that descends one folder per request asks for one level at a time. The answer's
 <code>Truncated</code> says whether anything stands after the last row, so ask again while it is true
 and stop on an empty answer with it false — a cursor past the last key is a complete answer, not an
-error.</p>
+error. Both trailing arguments are optional and come in that order, so
+<code>PageListingRequest("/blog", after, 50)</code> and
+<code>PageListingRequest("/blog", Recursive: false)</code> both read as you would expect.</p>
+<p>A listing also says whether the list it is walking moved. <code>PageListing.Version</code> is the
+fingerprint of every head under the prefix, read with the rows. Pass it back as
+<code>version</code> on the next slice, and <code>PageListing.Changed</code> says whether the store's
+fingerprint differs from the one you carried. It is opaque: compare it, never parse or order it. A
+change under another prefix does not move it, and it covers the rows and their seed anchors rather
+than what each row compiled to — a lazy compile or a deploy can change a row's <code>State</code>
+without moving the token. It is a warning, not a refusal: carry on, start again or ignore it, and the
+host does not decide. A folder is derived from the heads under it, so a save below it moves the token
+exactly as a save to a page does.</p>
 <p><a href="/admin/reference/sdk#m-IPageCatalog.ShellLinks"><code>ShellLinks()</code></a> is the
 other read: the links the shell knows, both its site menu and its administration menu, as values.
 Each link carries its href, its label, the section it belongs to, who it is for, and how the shell

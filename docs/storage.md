@@ -131,17 +131,23 @@ heads the store holds — live, tombstoned and seeded — with the folders above
 shell's routes answer, each a key with a kind and the head's facts where a head is stored, and a
 prefix selects a subtree rather than a string prefix. A folder is derived, never stored
 (`pages-a-folder-is-a-key-not-a-row`): `Core`'s `PageListingFold` adds the folders above the keys a read
-answered, so no column, table or write path maintains one and there is no migration. A listing that answers one level also asks
-`ListFoldersAsync`, the seam's one raw statement, because a child whose only content is deeper is not
-a head a one-level read can see; it cuts each key to its segment with SQLite's `length()` and
-`substr`, which count characters where a `string.Length` computed in C# counts UTF-16 units.
+answered, so no column, table or write path maintains one and there is no migration. A listing that
+answers one level also asks `ListFoldersAsync`, the seam's second raw statement, because a child whose
+only content is deeper is not a head a one-level read can see; it cuts each key to its segment with
+SQLite's `length()` and `substr`, which count characters where a `string.Length` computed in C# counts
+UTF-16 units. Because a folder is derived from the head rows, its token moves exactly when the token of
+the heads under it does, and the routes sit outside it because the route table is the build's.
 `Pages:Read:MaxRowsPerList`
 (500 shipped) is enforced in the statement and refuses one row past the cap,
 `Pages:Read:MaxSourceCharsPerRender` (512 KiB shipped) is one `ReadBudget` shared by every layer of
 the chain and refuses rather than truncating, and both the deadline and abandonment stop a read. The
 read is as public as the page that calls it: the host adds no gate, a page that wants privacy writes
 the ordinary `ctx.User` guard, and a page that reads source publishes it to whoever can reach that
-page.
+page. A listing's `PageListing.Version` is derived rather than stored: the read fingerprints the head
+rows under the prefix in one deferred read transaction with the slice, so no column, counter or write
+path maintains it and there is no migration. The two statements share the snapshot the token names,
+and nothing is pinned beyond them (`pages-a-listing-carries-a-fingerprint`,
+`pages-a-fingerprint-is-derived-not-kept`).
 
 A page may save its own template through `ctx.Capabilities.GetRequired<IPageWrites>().SaveAsync(template)`, and any page the shell does not route through the same capability's named save (`pages-a-page-may-save-itself`, `pages-any-page-may-write-the-store`, `pages-layouts-are-markup`, `pages-scratch-saves-itself`).
 The write is the shell's save reached from inside a render: `PageSaver` compiles the template and
@@ -237,4 +243,7 @@ confirmation refuses the install when the live template already matches the seed
 every page, with the seeded ones under their own heading below the owner's; a seeded row carries an
 install link only while the live template differs from its seed. Restoring a retained revision is
 the same write: it saves that revision's source as a new revision under the running runtime, clears
-a tombstone and refuses a revision whose source the live page already holds.
+a tombstone and refuses a revision whose source the live page already holds. A seed write, a restore
+and an adopt all move a listing's token because each changes a head row, while the seed verdict stays
+the three hashes: a fingerprint is a fact about a set of rows, and a seed verdict is one about the
+content identity of a row.

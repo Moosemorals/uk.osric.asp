@@ -88,16 +88,23 @@ internal interface IPageStoreReader {
     /// <param name="hash">The canonical hash a listing or a form carried.</param>
     /// <param name="cancellationToken">The run's token.</param>
     Task<PageRevisionTemplate?> RevisionAsync(PagePath path, string hash, CancellationToken cancellationToken);
+
+    /// <summary>The fingerprint of every head under a scope, or of the whole store.</summary>
+    /// <param name="scope">The subtree to fingerprint, or <see langword="null"/> for the whole store.</param>
+    /// <param name="cancellationToken">The run's token.</param>
+    /// <returns>The opaque token a listing's walk compares from slice to slice.</returns>
+    Task<string> VersionAsync(PagePath? scope, CancellationToken cancellationToken);
 }
 
 /// <summary>The store behind the tools and the shell, over the editor and the path policy.</summary>
 /// <remarks>
-/// Constructed where it is used, the way the shell's view was: it holds no state beyond the two
+/// Constructed where it is used, the way the shell's view was: it holds no state beyond the
 /// singletons it reads through.
 /// </remarks>
 /// <param name="pages">The editor, which reads pages, histories and the running build.</param>
 /// <param name="paths">The policy, which says what exists and what may be written.</param>
-internal sealed class PageStoreReader(PageEditor pages, PagePathPolicy paths) : IPageStoreReader {
+/// <param name="read">The read seam, which fingerprints a scope for a listing's walk.</param>
+internal sealed class PageStoreReader(PageEditor pages, PagePathPolicy paths, IPageReadStore read) : IPageStoreReader {
 
     private static readonly PagePath s_root = PagePath.Normalize("/");
 
@@ -191,6 +198,10 @@ internal sealed class PageStoreReader(PageEditor pages, PagePathPolicy paths) : 
 
         return pages.GetRevisionAsync(path, hash, cancellationToken);
     }
+
+    /// <inheritdoc/>
+    public Task<string> VersionAsync(PagePath? scope, CancellationToken cancellationToken) =>
+        read.VersionAsync(scope?.Key ?? s_root.Key, cancellationToken);
 
     // A shell file is a route the site answers itself: it is readable as a record of what the route
     // does, it is never a stored page, and no save would be accepted at its key.

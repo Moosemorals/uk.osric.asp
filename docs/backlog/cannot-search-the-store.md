@@ -9,8 +9,8 @@ SPDX-License-Identifier: MIT
 | --- | --- |
 | Difficulty | caffeinated-squirrel |
 | Utility | medium |
-| Status | blocked |
-| Blocked by | [`listing-does-not-date-itself`](listing-does-not-date-itself.md) |
+| Status | planned |
+| Blocked by | — |
 | Plan | [ide-host](../plans/ide-host.md) |
 | Area | Sdk, Core, Web (pages, assistant), docs |
 | Location | `src/uk.osric.asp.Sdk/IPageCatalog.cs`, `src/uk.osric.asp.Web/Pages/PageCatalogScope.cs`, `src/uk.osric.asp.Web/Assistant/PageSourceSearch.cs`, `src/uk.osric.asp.Web/Assistant/PageStoreReader.cs`, `src/uk.osric.asp.Core/Assistant/GrepPattern.cs`, `src/uk.osric.asp.Core/Pages/PageScope.cs`, `src/uk.osric.asp.Web/Pages/Seeds/help`, `src/uk.osric.asp.Web/Assistant/PageAuthorPrompt.cs` |
@@ -84,11 +84,12 @@ Encoding that as the editor's find box is what makes it look like editor work.
    and then by line, and the cursor is the position the scan reached — the key and the line after the
    last one tested — so a slice that finds nothing still advances and a short duration cannot spin on
    the same source. That makes the cursor a claim about one store, so the request carries the version
-   token that [`listing-does-not-date-itself`](listing-does-not-date-itself.md) gives a listing and the
+   token that [`listing-does-not-date-itself`](closed.md) gives a listing and the
    answer carries the version it read; a different version invalidates the cursor and the walk starts
    again. That is the simple version of the choice made there — a version and a restart, not a read
    snapshot held across requests — and it is enough here because a search walk is a handful of requests
-   rather than a listing walked for minutes. It is why this item waits for that one.
+   rather than a listing walked for minutes. The token landed with that item
+   (`pages-a-listing-carries-a-fingerprint`), so this is a caller of it rather than a second reader.
    [`listing-has-no-cursor`](closed.md) is the other half: a scan with no cursor is a scan of the first
    slice, and a cursor that cannot be trusted is a scan of a store that has moved.
 

@@ -233,6 +233,25 @@ public sealed class PageStoreReaderTests {
     }
 
     [Test]
+    public async Task TheVersionScopesTheTokenToItsPrefixAsync() {
+        using PageHarness pages = new(new FakePageStore());
+        PageStoreReader reader = Reader(pages);
+        pages.ReadStore.Save("/blog/a", "alpha");
+
+        string blog = await reader.VersionAsync(PagePath.Normalize("/blog"), CancellationToken.None);
+        string whole = await reader.VersionAsync(scope: null, CancellationToken.None);
+
+        pages.ReadStore.Save("/notes/b", "beta");
+        string blogAfter = await reader.VersionAsync(PagePath.Normalize("/blog"), CancellationToken.None);
+        string wholeAfter = await reader.VersionAsync(scope: null, CancellationToken.None);
+
+        Assert.Multiple(() => {
+            Assert.That(blogAfter, Is.EqualTo(blog), "a save under another prefix leaves this one where it was");
+            Assert.That(wholeAfter, Is.Not.EqualTo(whole), "the whole store sees every prefix");
+        });
+    }
+
+    [Test]
     public async Task ARevisionOfAnotherPageIsNotARevisionOfThisOneAsync() {
         FakePageStore storage = new();
         storage["/one"] = new PageTemplate(PageHarness.Key("/one"), "one");
@@ -250,7 +269,8 @@ public sealed class PageStoreReaderTests {
         });
     }
 
-    private static PageStoreReader Reader(PageHarness pages) => new(pages.Editor, ShellKernelHarness.Policy);
+    private static PageStoreReader Reader(PageHarness pages) =>
+        new(pages.Editor, ShellKernelHarness.Policy, pages.ReadStore);
 
     private static IEnumerable<string> PageKeys(IReadOnlyList<PageNode> tree) =>
         tree.Where(node => node.IsPage && !node.IsShellFile).Select(node => node.Path.Key);
