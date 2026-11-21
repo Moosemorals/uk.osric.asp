@@ -81,8 +81,9 @@ Lifetimes are a property of the entry, returned by a read and selectable in a li
 - `Browser` needs an identity that outlives the session. The host mints a long-lived `HttpOnly` `b`
   cookie on the first `Browser` write; it is not the `s` session id, is never linked to an account,
   and dies when the visitor clears cookies or its configured lifetime passes. Editor mode becomes
-  `Browser`, and the seeded `/privacy` page names the cookie. A read by key searches the person scope,
-  then the browser and then the session for the current reader, and answers which lifetime it found.
+  `Browser`, and the seeded `/privacy` page names the cookie. A read by key searches the session
+  scope, then the browser and then the person for the current reader, and answers which lifetime it
+  found: the more ephemeral value shadows the longer-lived one.
 - `NextRead` is a keyed one-shot. `TryGetValueAsync` on a `NextRead` key is a single
   `DELETE … RETURNING`; `KeysAsync` lists without consuming. The caller cannot know the lifetime
   before it reads, so a consumed value reads as not found afterwards.
