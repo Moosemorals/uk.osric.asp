@@ -159,7 +159,9 @@ smallest changes come first because they are what every later slice is written a
    bound measured in time, and a cursor that a store version invalidates — so the item and its answers
    are the current statement of this slice, and the proofs above are rewritten when the plan is taken
    up; the token the cursor wanted landed with [`listing-does-not-date-itself`](../backlog/closed.md)
-   on 2026-11-21 (`pages-a-listing-carries-a-fingerprint`), so nothing blocks the slice.*
+   on 2026-11-21 (`pages-a-listing-carries-a-fingerprint`), so nothing blocks the slice. One answer was
+   added on 2026-11-21: a scan reads the site's route records as well as live pages, because
+   `search_pages` and `grep` already do.*
 5. **042 — the move.** Built on `idea/page-cannot-move` and waiting for the merge; the intended record
    is **pages-a-key-moves-with-its-history**. It turned out not to need 040 and 038: a library move is
    refused rather than recompiled, and the broken-link report is
@@ -292,8 +294,10 @@ The fourth was answered on 2026-11-20: **the assistant's safety rules do not cha
 where it may already write, each write inside is judged by the same per-key rule, and a multi-page
 call is still one approval because approval was already once per call rather than once per write.
 
-1. **What the tree does with 300 pages.** 039 makes it listable; whether the page asks for one listing
-   or one per folder is a page decision, and the host's answer is that both are affordable.
+No question is open. **What the tree does with 300 pages** is a page decision, not the host's: 039
+landed with the cursor, and the tree now also answers one level when asked
+(`pages-a-listing-descends-unless-asked`), so a page may ask for one listing or one per folder and both
+are affordable.
 
 ## Not in scope
 
