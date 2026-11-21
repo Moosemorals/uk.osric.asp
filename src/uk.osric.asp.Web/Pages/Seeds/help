@@ -619,6 +619,14 @@ and asking for more than the cap is refused with the setting's name rather than 
 <code>Truncated</code> says whether anything stands after the last row, so ask again while it is true
 and stop on an empty answer with it false — a cursor past the last key is a complete answer, not an
 error.</p>
+<p>A listing also says whether the list it is walking moved. <code>PageListing.Version</code> is the
+fingerprint of every head under the prefix, read with the rows. Pass it back as the fourth argument,
+<code>PageListingRequest(prefix, after, limit, version)</code>, and <code>PageListing.Changed</code>
+says whether the store's fingerprint differs from the one you carried. It is opaque: compare it,
+never parse or order it. A change under another prefix does not move it, and it covers the rows and
+their seed anchors rather than what each row compiled to — a lazy compile or a deploy can change a
+row's <code>State</code> without moving the token. It is a warning, not a refusal: carry on, start
+again or ignore it, and the host does not decide.</p>
 <p><a href="/admin/reference/sdk#m-IPageCatalog.ShellLinks"><code>ShellLinks()</code></a> is the
 other read: the links the shell knows, both its site menu and its administration menu, as values.
 Each link carries its href, its label, the section it belongs to, who it is for, and how the shell

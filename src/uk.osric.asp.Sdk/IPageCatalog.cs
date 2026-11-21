@@ -55,15 +55,20 @@ public interface IPageCatalog {
     public IReadOnlyList<ShellLink> ShellLinks();
 
     /// <summary>Lists the heads of the store, one slice at a time.</summary>
-    /// <param name="request">The subtree, the cursor to resume from and the limit to answer.</param>
+    /// <param name="request">The subtree, the cursor to resume from, the limit to answer and the token to compare.</param>
     /// <returns>
     /// The heads under the prefix, including tombstones, seeded assets and reserved keys, ordered by
-    /// key and marked so a view can pick what it wants, and whether more stand after the last one.
+    /// key and marked so a view can pick what it wants, whether more stand after the last one, the
+    /// prefix's fingerprint and whether it differs from the request's token.
     /// </returns>
     /// <remarks>
     /// A slice is a keyset, not an offset: <see cref="PageListingRequest.After"/> is the last key the
     /// caller was given, so a page saved between two calls neither skips nor repeats a row. A cursor
     /// past the last key answers an empty page with <see cref="PageListing.Truncated"/> false.
+    /// <see cref="PageListing.Version"/> is an opaque fingerprint of every head under the prefix,
+    /// read with the rows; pass it back as <see cref="PageListingRequest.Version"/> on the next slice
+    /// and <see cref="PageListing.Changed"/> says whether the list moved. It is a warning rather than
+    /// a refusal, and it covers the head rows rather than what they compiled to.
     /// </remarks>
     /// <exception cref="ArgumentException">
     /// The prefix or the cursor cannot name a key, for example one containing <c>?</c> or <c>#</c>.

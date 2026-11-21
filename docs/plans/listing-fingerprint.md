@@ -7,7 +7,7 @@ SPDX-License-Identifier: MIT
 
 | | |
 | --- | --- |
-| Status | Proposed 2026-11-20 — waits for the owner. Nothing below is built |
+| Status | Built 2026-11-21 in the session worktree — both steps are implemented and the suites are green; waits for the owner to merge. The two decision names are taken at the merge |
 | Size | Small: one pure function in `Core`, one read in `Web`, two members on the page contract, one tool argument and the documents. No migration, no configuration value, no write path |
 | First customer | The assistant's `list_pages`, which already pages with `after`. The second is [`cannot-search-the-store`](../backlog/cannot-search-the-store.md), blocked by this item, whose cursor takes the same token |
 | Spike | None. Every claim about what exists was read off the tree on 2026-11-20: `IPageReadStore`, `SqlitePageReadStore`, `PageCatalogScope`, `PageListing`, `PageListingRequest`, `PageStoreReader`, `IPageStoreReader`, `PageSeedInstaller`, `AdoptSeedAsync`, `PageContentHashRepair`, `SqliteJournalMode`, `PageAuthorPrompt` |

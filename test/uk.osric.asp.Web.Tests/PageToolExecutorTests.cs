@@ -434,6 +434,33 @@ public sealed class PageToolExecutorTests {
     }
 
     [Test]
+    public async Task ListPagesAnswersATokenAndSaysWhenThePrefixMovedAsync() {
+        FakePageStore storage = new();
+        storage["/p/a"] = new PageTemplate(PageHarness.Key("/p/a"), "alpha");
+        using PageHarness pages = new(storage);
+        using ServiceProvider services = Services(pages);
+        PageToolExecutor tools = CreateTools(services);
+
+        ToolExecutionResult first = await tools.ExecuteAsync(
+            "list_pages", "{\"prefix\":\"/p\"}", Context, CancellationToken.None);
+        string version = Data(first).GetProperty("version").GetString()!;
+
+        pages.ReadStore.Save("/other/b", "beta");
+        ToolExecutionResult elsewhere = await tools.ExecuteAsync(
+            "list_pages", $$"""{"prefix":"/p","version":"{{version}}"}""", Context, CancellationToken.None);
+        pages.ReadStore.Save("/p/b", "beta");
+        ToolExecutionResult moved = await tools.ExecuteAsync(
+            "list_pages", $$"""{"prefix":"/p","version":"{{version}}"}""", Context, CancellationToken.None);
+
+        Assert.Multiple(() => {
+            Assert.That(version, Is.Not.Empty);
+            Assert.That(Data(elsewhere).GetProperty("changed").GetBoolean(), Is.False,
+                "a save under another prefix does not move this one");
+            Assert.That(Data(moved).GetProperty("changed").GetBoolean(), Is.True);
+        });
+    }
+
+    [Test]
     public async Task ListPagesMarksShellFilesReadOnlyAsync() {
         FakePageStore storage = new();
         storage["/blog"] = new PageTemplate(PageHarness.Key("/blog"), "alpha");
@@ -2016,6 +2043,7 @@ public sealed class PageToolExecutorTests {
             .AddScoped(_ => pages.Editor)
             .AddSingleton(TestOptions.Editor)
             .AddSingleton(pages.Checks)
+            .AddSingleton<IPageReadStore>(pages.ReadStore)
             .BuildServiceProvider();
 
     private static readonly ToolContext Context = new("owner", ConversationId: 1, RunId: "run-1");

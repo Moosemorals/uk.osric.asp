@@ -41,15 +41,20 @@ public sealed class PageCatalogTests : IntegrationTest {
 """;
 
     // A listing that asks for one slice and says whether anything stands after it, which is what a
-    // caller walks a store of any size with.
+    // caller walks a store of any size with. It carries the token a previous answer gave it, so a
+    // second slice can say whether the list moved.
     private const string PagedListing = """
 <% ctx.Capabilities.GetRequired<IPageLayout>().Title = "Paged";
    ctx.Capabilities.GetRequired<IPageComposition>().Wrap();
    string? after = ctx.Request.Query.TryGetValue("after", out string? asked) ? asked : null;
+   string? version = ctx.Request.Query.TryGetValue("version", out string? carried) ? carried : null;
+   string prefix = ctx.Request.Query.TryGetValue("prefix", out string? scope) && scope is not null ? scope : "";
    PageListing page = await ctx.Capabilities.GetRequired<IPageCatalog>().ListAsync(
-       new PageListingRequest("", after, 2)); %>
+       new PageListingRequest(prefix, after, 2, version)); %>
 <h1>Paged</h1>
 <p id="more"><%= page.Truncated ? "more" : "end" %></p>
+<p id="version"><%= page.Version %></p>
+<p id="changed"><%= page.Changed ? "changed" : "unchanged" %></p>
 <ul>
 <% foreach (PageEntry entry in page.Entries) { %>
     <li><%= entry.Key %></li>
@@ -72,6 +77,36 @@ public sealed class PageCatalogTests : IntegrationTest {
             Assert.That(first, Does.Contain("more"));
             Assert.That(past.Split("<li>").Length - 1, Is.Zero, "a cursor past the last key is a complete answer");
             Assert.That(past, Does.Contain("end"));
+        });
+    }
+
+    [Test]
+    public async Task APageCanTellWhetherItsListMovedBetweenSlicesAsync() {
+        await SavePageAsync("/catalog-paged", PagedListing);
+        await SavePageAsync("/catalog-tree", "root");
+        await SavePageAsync("/catalog-tree/a", "a");
+        await SavePageAsync("/catalog-tree/b", "b");
+        await SavePageAsync("/catalog-tree/c", "c");
+        using HttpClient client = CreateClient();
+
+        string first = await client.GetStringAsync("/catalog-paged?prefix=/catalog-tree");
+        string version = TextOf(first, "version");
+        string last = KeysOf(first)[^1];
+        string next = PagedUrl("/catalog-tree", last, version);
+
+        string same = await client.GetStringAsync(next);
+        await SavePageAsync("/catalog-other", "other");
+        string elsewhere = await client.GetStringAsync(next);
+        await SavePageAsync("/catalog-tree/d", "d");
+        string moved = await client.GetStringAsync(next);
+
+        Assert.Multiple(() => {
+            Assert.That(version, Is.Not.Empty);
+            Assert.That(TextOf(same, "changed"), Is.EqualTo("unchanged"));
+            Assert.That(TextOf(elsewhere, "changed"), Is.EqualTo("unchanged"),
+                "a save under another prefix does not move this one");
+            Assert.That(TextOf(moved, "changed"), Is.EqualTo("changed"),
+                "a save under the prefix turns the next slice into a warning");
         });
     }
 
@@ -223,6 +258,21 @@ public sealed class PageCatalogTests : IntegrationTest {
         using HttpResponseMessage pages = await owner.GetAsync("/pages?page=/help");
         AssertTableDocument(await pages.Content.ReadAsStringAsync(), withSource: true);
     }
+
+    private static string PagedUrl(string prefix, string after, string version) =>
+        $"/catalog-paged?prefix={Uri.EscapeDataString(prefix)}"
+        + $"&after={Uri.EscapeDataString(after)}&version={Uri.EscapeDataString(version)}";
+
+    private static string TextOf(string body, string id) =>
+        MarkupReader.Parse(body).Root.Descendants()
+            .Single(element => element.Name == "p" && element.Attribute("id") == id)
+            .Text;
+
+    private static IReadOnlyList<string> KeysOf(string body) =>
+        [.. MarkupReader.Parse(body).Root.Descendants()
+            .Where(element => element.Name == "li")
+            .Select(element => element.Text)
+            .Where(text => text.StartsWith("/catalog-tree", StringComparison.Ordinal))];
 
     private static void AssertTableDocument(string body, bool withSource) {
         MarkupReader document = MarkupReader.Parse(body);

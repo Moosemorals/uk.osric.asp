@@ -364,6 +364,7 @@ public sealed class PageToolExecutorHistoryTests {
         using ServiceProvider services = new ServiceCollection()
             .AddScoped(_ => pages.Editor)
             .AddSingleton(TestOptions.Editor)
+            .AddSingleton<IPageReadStore>(pages.ReadStore)
             .BuildServiceProvider();
 
         PageToolExecutor tools = new(

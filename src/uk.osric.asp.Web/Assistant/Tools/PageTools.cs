@@ -24,13 +24,16 @@ internal sealed class ListPagesTool : AssistantTool {
         "list_pages",
         "List live page keys under an optional prefix, each with its kind, its permission and its compile state. A shell file — a route the site answers itself — is listed as kind shell with mode -r--r--r--. "
         + "The listing is in key order; `limit` (1-500, default 50) bounds the rows and `truncated` says there are more, "
-        + "so pass `after` with the last key you were given to read the rest.",
+        + "so pass `after` with the last key you were given to read the rest. Every answer carries a `version`, an opaque "
+        + "fingerprint of the prefix; pass it back as `version` on the next slice and `changed` says whether anything under "
+        + "the prefix moved since. A change is a warning, not a refusal, and a save under another prefix does not count.",
         false,
         [
             new("prefix", ToolArgumentType.String, false),
             new("includeDeleted", ToolArgumentType.Boolean, false),
             new("limit", ToolArgumentType.Integer, false),
             new("after", ToolArgumentType.String, false),
+            new("version", ToolArgumentType.String, false),
         ]) { Verb = "List" };
 
     public override async Task<ToolExecutionResult> RunAsync(
@@ -57,6 +60,10 @@ internal sealed class ListPagesTool : AssistantTool {
             }
         }
 
+        // The token is read before the tree, so the rows can only be newer than the token they name.
+        string version = await services.Store.VersionAsync(prefix, cancellationToken);
+        string? carried = values.String("version");
+
         PageScope? scope = prefix is null ? null : new PageScope(prefix, IncludeSelf: true, Recursive: true);
         List<PageNode> matching = [.. (await services.Store.TreeAsync(includeDeleted, cancellationToken))
             .Where(node => node.IsPage && (scope is null || scope.Value.Contains(node.Path)))];
@@ -74,6 +81,8 @@ internal sealed class ListPagesTool : AssistantTool {
                 status = item.State?.Describe(),
             }),
             truncated,
+            version,
+            changed = carried is not null && !string.Equals(carried, version, StringComparison.Ordinal),
         };
         return services.Results.Success(data, $"Listed {Math.Min(matching.Count, limit)} pages");
     }

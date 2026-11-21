@@ -946,3 +946,25 @@ uk.osric.asp.Core.Assistant.ToolArgumentSchema.Description.get -> string?
 uk.osric.asp.Core.Assistant.ToolArgumentSchema.Description.init -> void
 uk.osric.asp.Core.Assistant.ToolArgumentSchema.Values.get -> System.Collections.Generic.IReadOnlyList<string!>?
 uk.osric.asp.Core.Assistant.ToolArgumentSchema.Values.init -> void
+uk.osric.asp.Core.Pages.PageFingerprintFact
+uk.osric.asp.Core.Pages.PageFingerprintFact.ContentHash.get -> string?
+uk.osric.asp.Core.Pages.PageFingerprintFact.ContentHash.init -> void
+uk.osric.asp.Core.Pages.PageFingerprintFact.Deconstruct(out string! Key, out string! RevisionId, out bool IsDeleted, out string? SeedHash, out string? ContentHash) -> void
+uk.osric.asp.Core.Pages.PageFingerprintFact.Equals(uk.osric.asp.Core.Pages.PageFingerprintFact other) -> bool
+uk.osric.asp.Core.Pages.PageFingerprintFact.IsDeleted.get -> bool
+uk.osric.asp.Core.Pages.PageFingerprintFact.IsDeleted.init -> void
+uk.osric.asp.Core.Pages.PageFingerprintFact.Key.get -> string!
+uk.osric.asp.Core.Pages.PageFingerprintFact.Key.init -> void
+uk.osric.asp.Core.Pages.PageFingerprintFact.PageFingerprintFact() -> void
+uk.osric.asp.Core.Pages.PageFingerprintFact.PageFingerprintFact(string! Key, string! RevisionId, bool IsDeleted, string? SeedHash, string? ContentHash) -> void
+uk.osric.asp.Core.Pages.PageFingerprintFact.RevisionId.get -> string!
+uk.osric.asp.Core.Pages.PageFingerprintFact.RevisionId.init -> void
+uk.osric.asp.Core.Pages.PageFingerprintFact.SeedHash.get -> string?
+uk.osric.asp.Core.Pages.PageFingerprintFact.SeedHash.init -> void
+~override uk.osric.asp.Core.Pages.PageFingerprintFact.Equals(object obj) -> bool
+override uk.osric.asp.Core.Pages.PageFingerprintFact.GetHashCode() -> int
+~override uk.osric.asp.Core.Pages.PageFingerprintFact.ToString() -> string
+static uk.osric.asp.Core.Pages.PageFingerprintFact.operator !=(uk.osric.asp.Core.Pages.PageFingerprintFact left, uk.osric.asp.Core.Pages.PageFingerprintFact right) -> bool
+static uk.osric.asp.Core.Pages.PageFingerprintFact.operator ==(uk.osric.asp.Core.Pages.PageFingerprintFact left, uk.osric.asp.Core.Pages.PageFingerprintFact right) -> bool
+uk.osric.asp.Core.Pages.PageSubtreeFingerprint
+static uk.osric.asp.Core.Pages.PageSubtreeFingerprint.Of(System.Collections.Generic.IEnumerable<uk.osric.asp.Core.Pages.PageFingerprintFact>! facts) -> string!

@@ -5,6 +5,7 @@ namespace uk.osric.asp.Web.Tests;
 
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
+using uk.osric.asp.Core.Compilation;
 using uk.osric.asp.Core.Pages;
 using uk.osric.asp.Web.Pages;
 using uk.osric.asp.Web.Storage;
@@ -56,7 +57,7 @@ public sealed class SqlitePageReadStoreTests {
         await DatabaseTemplate.SavePageAsync(_options, "/gone", "deleted source");
         await DeleteAsync("/gone");
 
-        IReadOnlyList<PageReadHead> rows = await ReadStore().ListAsync("/", after: null, 10);
+        IReadOnlyList<PageReadHead> rows = await RowsAsync("/", after: null, 10);
 
         Assert.That(rows.Select(row => row.Key), Is.EqualTo(["/gone", "/site.css"]));
         Assert.That(rows.Single(row => row.Key == "/gone").IsDeleted, Is.True);
@@ -74,7 +75,7 @@ public sealed class SqlitePageReadStoreTests {
             await database.SaveChangesAsync();
         }
 
-        PageReadHead row = (await ReadStore().ListAsync("/", after: null, 10)).Single();
+        PageReadHead row = (await RowsAsync("/", after: null, 10)).Single();
 
         Assert.Multiple(() => {
             Assert.That(row.RuntimeId, Is.EqualTo("build-7"));
@@ -89,7 +90,7 @@ public sealed class SqlitePageReadStoreTests {
         await DatabaseTemplate.SavePageAsync(_options, "/two");
         await DatabaseTemplate.SavePageAsync(_options, "/three");
 
-        IReadOnlyList<PageReadHead> rows = await ReadStore().ListAsync("/", after: null, 2);
+        IReadOnlyList<PageReadHead> rows = await RowsAsync("/", after: null, 2);
 
         Assert.That(rows.Select(row => row.Key), Is.EqualTo(["/one", "/three"]));
     }
@@ -100,8 +101,8 @@ public sealed class SqlitePageReadStoreTests {
         await DatabaseTemplate.SavePageAsync(_options, "/b");
         await DatabaseTemplate.SavePageAsync(_options, "/c");
 
-        IReadOnlyList<PageReadHead> rows = await ReadStore().ListAsync("/", after: "/a", 10);
-        IReadOnlyList<PageReadHead> past = await ReadStore().ListAsync("/", after: "/zzz", 10);
+        IReadOnlyList<PageReadHead> rows = await RowsAsync("/", after: "/a", 10);
+        IReadOnlyList<PageReadHead> past = await RowsAsync("/", after: "/zzz", 10);
 
         Assert.Multiple(() => {
             Assert.That(rows.Select(row => row.Key), Is.EqualTo(["/b", "/c"]));
@@ -118,7 +119,7 @@ public sealed class SqlitePageReadStoreTests {
             await database.SaveChangesAsync();
         }
 
-        PageReadHead row = (await ReadStore().ListAsync("/", after: null, 10)).Single();
+        PageReadHead row = (await RowsAsync("/", after: null, 10)).Single();
 
         Assert.That(row.TemplateLibraries, Is.EqualTo("/_lib/document@hash-d"));
     }
@@ -126,12 +127,16 @@ public sealed class SqlitePageReadStoreTests {
     [Test]
     public async Task APrefixContainingAWildcardIsNotAWildcardAsync() {
         await DatabaseTemplate.SavePageAsync(_options, "/100%", "percent");
+        string token = await ReadStore().VersionAsync("/100%");
         await DatabaseTemplate.SavePageAsync(_options, "/100x", "letter");
         await DatabaseTemplate.SavePageAsync(_options, "/100_", "underscore");
 
-        IReadOnlyList<PageReadHead> rows = await ReadStore().ListAsync("/100%", after: null, 10);
+        PageReadSlice slice = await ReadStore().ListAsync("/100%", after: null, 10);
 
-        Assert.That(rows.Select(row => row.Key), Is.EqualTo(["/100%"]));
+        Assert.Multiple(() => {
+            Assert.That(slice.Rows.Select(row => row.Key), Is.EqualTo(["/100%"]));
+            Assert.That(slice.Version, Is.EqualTo(token), "the token selects the same literal subtree as the rows");
+        });
     }
 
     [Test]
@@ -140,7 +145,7 @@ public sealed class SqlitePageReadStoreTests {
         await DatabaseTemplate.SavePageAsync(_options, "/blog/post", "post");
         await DatabaseTemplate.SavePageAsync(_options, "/blogroll", "not a child");
 
-        IReadOnlyList<PageReadHead> rows = await ReadStore().ListAsync("/blog", after: null, 10);
+        IReadOnlyList<PageReadHead> rows = await RowsAsync("/blog", after: null, 10);
 
         Assert.That(rows.Select(row => row.Key), Is.EqualTo(["/blog", "/blog/post"]));
     }
@@ -153,7 +158,7 @@ public sealed class SqlitePageReadStoreTests {
         IPageStore pages = new SqlitePageStore(database, NullLogger<SqlitePageStore>.Instance);
         PageTemplate current = (await pages.GetPageAsync(PagePath.Normalize("/blog")))!;
 
-        PageReadHead row = (await ReadStore().ListAsync("/blog", after: null, 10)).Single();
+        PageReadHead row = (await RowsAsync("/blog", after: null, 10)).Single();
 
         Assert.That(row.Hash, Is.EqualTo(current.Hash));
         Assert.That(row.SavedAt, Is.EqualTo(current.SavedAt));
@@ -191,12 +196,117 @@ public sealed class SqlitePageReadStoreTests {
         (int Heads, int Revisions, string Hash, DateTimeOffset SavedAt) before = await SnapshotAsync();
         string hash = before.Hash;
 
-        _ = await ReadStore().ListAsync("/", after: null, 10);
+        _ = await RowsAsync("/", after: null, 10);
+        _ = await ReadStore().VersionAsync("/");
         _ = await ReadStore().GetSourceAsync("/blog");
         _ = await ReadStore().ListRevisionsAsync("/blog");
         _ = await ReadStore().GetRevisionSourceAsync("/blog", hash);
 
         Assert.That(await SnapshotAsync(), Is.EqualTo(before));
+    }
+
+    [Test]
+    public async Task ASliceAnswersTheTokenOfItsPrefixWithItsRowsAsync() {
+        await DatabaseTemplate.SavePageAsync(_options, "/blog", "blog");
+        await DatabaseTemplate.SavePageAsync(_options, "/blog/post", "post");
+        await DatabaseTemplate.SavePageAsync(_options, "/notes", "notes");
+
+        PageReadSlice slice = await ReadStore().ListAsync("/blog", after: null, 10);
+        string version = await ReadStore().VersionAsync("/blog");
+
+        Assert.Multiple(() => {
+            Assert.That(slice.Rows.Select(row => row.Key), Is.EqualTo(["/blog", "/blog/post"]));
+            Assert.That(slice.Version, Is.EqualTo(version));
+        });
+    }
+
+    [Test]
+    public async Task TheTokenCoversTheWholePrefixNotJustTheSliceAsync() {
+        await DatabaseTemplate.SavePageAsync(_options, "/a", "a");
+        await DatabaseTemplate.SavePageAsync(_options, "/b", "b");
+        PageReadSlice first = await ReadStore().ListAsync("/", after: null, 1);
+
+        await DatabaseTemplate.SavePageAsync(_options, "/z", "z");
+        PageReadSlice second = await ReadStore().ListAsync("/", after: null, 1);
+
+        Assert.Multiple(() => {
+            Assert.That(second.Rows, Has.Count.EqualTo(1));
+            Assert.That(second.Version, Is.Not.EqualTo(first.Version), "a save past the limit still moves the prefix");
+        });
+    }
+
+    [Test]
+    public async Task ASaveOutsideThePrefixLeavesItsTokenWhereItWasAsync() {
+        await DatabaseTemplate.SavePageAsync(_options, "/blog", "blog");
+        string before = await ReadStore().VersionAsync("/blog");
+
+        await DatabaseTemplate.SavePageAsync(_options, "/notes", "notes");
+
+        Assert.That(await ReadStore().VersionAsync("/blog"), Is.EqualTo(before));
+    }
+
+    [Test]
+    public async Task ADeleteMovesTheTokenAsync() {
+        await DatabaseTemplate.SavePageAsync(_options, "/blog", "blog");
+        string before = await ReadStore().VersionAsync("/blog");
+
+        await DeleteAsync("/blog");
+
+        Assert.That(await ReadStore().VersionAsync("/blog"), Is.Not.EqualTo(before));
+    }
+
+    [Test]
+    public async Task AScrubMovesTheTokenAsync() {
+        await DatabaseTemplate.SavePageAsync(_options, "/blog", "blog");
+        await DeleteAsync("/blog");
+        string before = await ReadStore().VersionAsync("/blog");
+
+        await ScrubAsync("/blog");
+
+        Assert.That(await ReadStore().VersionAsync("/blog"), Is.Not.EqualTo(before));
+    }
+
+    [Test]
+    public async Task APageMovedIntoThePrefixMovesTheTokenAsync() {
+        await DatabaseTemplate.SavePageAsync(_options, "/blog", "blog");
+        await DatabaseTemplate.SavePageAsync(_options, "/notes", "notes");
+        string before = await ReadStore().VersionAsync("/blog");
+
+        await MoveAsync("/notes", "/blog/notes");
+
+        Assert.That(await ReadStore().VersionAsync("/blog"), Is.Not.EqualTo(before));
+    }
+
+    [Test]
+    public async Task APageMovedOutOfThePrefixMovesTheTokenAsync() {
+        await DatabaseTemplate.SavePageAsync(_options, "/blog", "blog");
+        await DatabaseTemplate.SavePageAsync(_options, "/blog/post", "post");
+        string before = await ReadStore().VersionAsync("/blog");
+
+        await MoveAsync("/blog/post", "/notes/post");
+
+        Assert.That(await ReadStore().VersionAsync("/blog"), Is.Not.EqualTo(before));
+    }
+
+    [Test]
+    public async Task AnAdoptMovesTheTokenAsync() {
+        await DatabaseTemplate.SavePageAsync(_options, "/blog", "seed text");
+        string before = await ReadStore().VersionAsync("/blog");
+
+        await AdoptAsync("/blog", TemplateFingerprint.Of("seed text"));
+
+        Assert.That(await ReadStore().VersionAsync("/blog"), Is.Not.EqualTo(before));
+    }
+
+    [Test]
+    public async Task AContentHashRepairMovesTheTokenAsync() {
+        await DatabaseTemplate.SavePageAsync(_options, "/blog", "source");
+        await ClearContentHashAsync("/blog");
+        string before = await ReadStore().VersionAsync("/blog");
+
+        await RepairContentHashAsync();
+
+        Assert.That(await ReadStore().VersionAsync("/blog"), Is.Not.EqualTo(before));
     }
 
     private async Task<(int Heads, int Revisions, string Hash, DateTimeOffset SavedAt)> SnapshotAsync() {
@@ -210,10 +320,51 @@ public sealed class SqlitePageReadStoreTests {
 
     private IPageReadStore ReadStore() => new SqlitePageReadStore(DatabaseTemplate.Factory(_options));
 
+    private async Task<IReadOnlyList<PageReadHead>> RowsAsync(string prefix, string? after, int limit) =>
+        (await ReadStore().ListAsync(prefix, after, limit)).Rows;
+
     private async Task DeleteAsync(string path) {
         await using StorageDbContext database = new(_options);
         IPageStore store = new SqlitePageStore(database, NullLogger<SqlitePageStore>.Instance);
 
         Assert.That(await store.DeletePageAsync(PagePath.Normalize(path)), Is.True);
+    }
+
+    private async Task ScrubAsync(string path) {
+        await using StorageDbContext database = new(_options);
+        IPageStore store = new SqlitePageStore(database, NullLogger<SqlitePageStore>.Instance);
+
+        Assert.That(await store.ScrubPageAsync(PagePath.Normalize(path)), Is.True);
+    }
+
+    private async Task MoveAsync(string from, string to) {
+        await using StorageDbContext database = new(_options);
+        IPageStore store = new SqlitePageStore(database, NullLogger<SqlitePageStore>.Instance);
+        PagePath source = PagePath.Normalize(from);
+        PageTemplate page = (await store.GetPageAsync(source))!;
+
+        PageMoveStoreResult moved = await store.MovePageAsync(source, PagePath.Normalize(to), page.Hash);
+
+        Assert.That(moved.Outcome, Is.EqualTo(PageMoveStoreOutcome.Moved));
+    }
+
+    private async Task AdoptAsync(string path, string seedHash) {
+        await using StorageDbContext database = new(_options);
+        IPageStore store = new SqlitePageStore(database, NullLogger<SqlitePageStore>.Instance);
+
+        Assert.That(await store.AdoptSeedAsync(PagePath.Normalize(path), seedHash), Is.True);
+    }
+
+    private async Task ClearContentHashAsync(string path) {
+        await using StorageDbContext database = new(_options);
+        PageHead head = await database.Set<PageHead>().SingleAsync(row => row.Path == path);
+        head.ContentHash = null;
+        await database.SaveChangesAsync();
+    }
+
+    private async Task RepairContentHashAsync() {
+        await using StorageDbContext database = new(_options);
+
+        _ = await PageContentHashRepair.RunAsync(database);
     }
 }

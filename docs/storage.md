@@ -134,7 +134,10 @@ the store holds — live, tombstoned, seeded and reserved — marked `IsDeleted`
 the chain and refuses rather than truncating, and both the deadline and abandonment stop a read. The
 read is as public as the page that calls it: the host adds no gate, a page that wants privacy writes
 the ordinary `ctx.User` guard, and a page that reads source publishes it to whoever can reach that
-page.
+page. A listing's `PageListing.Version` is derived rather than stored: the read fingerprints the head
+rows under the prefix in one deferred read transaction with the slice, so no column, counter or write
+path maintains it and there is no migration. The two statements share the snapshot the token names,
+and nothing is pinned beyond them.
 
 A page may save its own template through `ctx.Capabilities.GetRequired<IPageWrites>().SaveAsync(template)`, and any page the shell does not route through the same capability's named save (`pages-a-page-may-save-itself`, `pages-any-page-may-write-the-store`, `pages-layouts-are-markup`, `pages-scratch-saves-itself`).
 The write is the shell's save reached from inside a render: `PageSaver` compiles the template and
@@ -230,4 +233,7 @@ confirmation refuses the install when the live template already matches the seed
 every page, with the seeded ones under their own heading below the owner's; a seeded row carries an
 install link only while the live template differs from its seed. Restoring a retained revision is
 the same write: it saves that revision's source as a new revision under the running runtime, clears
-a tombstone and refuses a revision whose source the live page already holds.
+a tombstone and refuses a revision whose source the live page already holds. A seed write, a restore
+and an adopt all move a listing's token because each changes a head row, while the seed verdict stays
+the three hashes: a fingerprint is a fact about a set of rows, and a seed verdict is one about the
+content identity of a row.

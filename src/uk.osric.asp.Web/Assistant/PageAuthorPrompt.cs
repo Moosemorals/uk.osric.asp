@@ -9,7 +9,7 @@ using uk.osric.asp.Web.Shell;
 
 /// <summary>The system prompt and worked examples that teach the model to write a page.</summary>
 internal static class PageAuthorPrompt {
-    public const string Version = "page-author-v54";
+    public const string Version = "page-author-v55";
 
     public static IReadOnlyList<(string Name, string Source)> Examples { get; } = [
         ("query-driven", """
@@ -515,6 +515,11 @@ internal static class PageAuthorPrompt {
         `before` set to the last hash you were given to read the next, older
         slice. `list_pages` takes the same `limit` with an `after` cursor: its
         listing is in key order, so its cursor names a key rather than a hash.
+        Every `list_pages` answer carries a `version`, an opaque fingerprint of
+        the prefix. Pass it back as `version` on the next slice and `changed`
+        says whether anything under the prefix moved since the token you gave.
+        A change is a warning rather than a refusal, and a save under another
+        prefix does not count.
 
         `read_page` with a `hash` from `list_revisions` returns one revision's
         stored source by the same 1-based physical line numbers, line ranges and

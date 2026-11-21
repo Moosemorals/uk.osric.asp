@@ -63,14 +63,14 @@ internal sealed class PageCatalogScope(
         ThrowIfEnded();
 
         // One row past the limit is how the store says "there are more" without a second query.
-        IReadOnlyList<PageReadHead> rows = await store.ListAsync(key, after, limit + 1, Cancellation());
-        bool truncated = rows.Count > limit;
+        PageReadSlice slice = await store.ListAsync(key, after, limit + 1, Cancellation());
+        bool truncated = slice.Rows.Count > limit;
 
         List<PageEntry> entries = [];
-        int shown = Math.Min(rows.Count, limit);
+        int shown = Math.Min(slice.Rows.Count, limit);
         entries.EnsureCapacity(shown);
         for (int index = 0; index < shown; index++) {
-            PageReadHead row = rows[index];
+            PageReadHead row = slice.Rows[index];
             PageImageState state = PageImageStatus.Describe(
                 row.RuntimeId, row.HasImage, row.HasDiagnostics, currentRuntimeId, row.TemplateKind);
             entries.Add(new PageEntry(
@@ -89,7 +89,13 @@ internal sealed class PageCatalogScope(
             });
         }
 
-        return new PageListing(entries, truncated);
+        return new PageListing(entries, truncated) {
+            Version = slice.Version,
+            // A first call carries no token and is never changed. Any token that is not the one just
+            // read is a warning, not an error: a stale token should not turn a page bug into a 500.
+            Changed = request.Version is not null
+                && !string.Equals(request.Version, slice.Version, StringComparison.Ordinal),
+        };
     }
 
     /// <inheritdoc/>

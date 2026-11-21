@@ -8,6 +8,7 @@ using uk.osric.asp.Core.Shell;
 using uk.osric.asp.Core.Text;
 using uk.osric.asp.Web.Assistant.Shell.Applets;
 using uk.osric.asp.Web.Editor;
+using uk.osric.asp.Web.Pages;
 
 /// <summary>The kernel: it lexes a line, finds the applet, parses, expands, runs it and wraps the answer.</summary>
 /// <remarks>
@@ -39,6 +40,7 @@ internal static class ShellRunner {
     /// <param name="text">The command text.</param>
     /// <param name="pages">The editor behind the store.</param>
     /// <param name="paths">The path policy.</param>
+    /// <param name="read">The read seam the store reader fingerprints a scope through.</param>
     /// <param name="options">The assistant's options, for the applets' own limits.</param>
     /// <param name="budget">The content budget the answer is measured against.</param>
     /// <param name="cancellationToken">The run's token.</param>
@@ -46,6 +48,7 @@ internal static class ShellRunner {
         string text,
         PageEditor pages,
         PagePathPolicy paths,
+        IPageReadStore read,
         AssistantOptions options,
         ContextBudget budget,
         CancellationToken cancellationToken) {
@@ -75,7 +78,7 @@ internal static class ShellRunner {
             return ShellOutcome.Refused(matched.Error!, $"{applet.Name}: refused");
         }
 
-        PageStoreReader store = new(pages, paths);
+        PageStoreReader store = new(pages, paths, read);
         (IReadOnlyList<PageNode> expanded, ShellResult? refusal) =
             await new ShellExpansion(paths).ExpandAsync(matched.Line.Arguments, store, cancellationToken);
         if (refusal is not null) {

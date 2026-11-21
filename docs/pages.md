@@ -109,6 +109,10 @@ pure renderers, and one that is a fact about the build:
   bounded by `Pages:Read:MaxRowsPerList`, which an absent limit takes, and a larger one is refused with
   the setting's name rather than trimmed; and `Truncated` says whether anything stands after the last
   row, so a caller walks a store of any size one slice at a time (`pages-a-listing-resumes-from-a-key`).
+  `PageListing.Version` is the fingerprint of every head under the prefix, read in the same snapshot
+  as the rows; pass it back as `PageListingRequest.Version` and `PageListing.Changed` says whether
+  the list moved. The token is opaque and compared for equality, a save under another prefix does not
+  move it, and it covers the head rows rather than what they compiled to.
   It reads and never writes. The read is
   as public as the page that calls it — there is no gate, and a page that wants privacy writes the
   ordinary `ctx.User` guard — and the render's deadline, abandonment and the shared chain budgets

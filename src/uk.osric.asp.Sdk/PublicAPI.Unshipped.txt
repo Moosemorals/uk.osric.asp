@@ -442,6 +442,8 @@ uk.osric.asp.Sdk.PageKind.Text = 0 -> uk.osric.asp.Sdk.PageKind
 uk.osric.asp.Sdk.PageKind.Worker = 3 -> uk.osric.asp.Sdk.PageKind
 uk.osric.asp.Sdk.PageListing
 uk.osric.asp.Sdk.PageListing.<Clone>$() -> uk.osric.asp.Sdk.PageListing!
+uk.osric.asp.Sdk.PageListing.Changed.get -> bool
+uk.osric.asp.Sdk.PageListing.Changed.init -> void
 uk.osric.asp.Sdk.PageListing.Deconstruct(out System.Collections.Generic.IReadOnlyList<uk.osric.asp.Sdk.PageEntry>! Entries, out bool Truncated) -> void
 uk.osric.asp.Sdk.PageListing.Entries.get -> System.Collections.Generic.IReadOnlyList<uk.osric.asp.Sdk.PageEntry>!
 uk.osric.asp.Sdk.PageListing.Entries.init -> void
@@ -449,17 +451,21 @@ uk.osric.asp.Sdk.PageListing.Equals(uk.osric.asp.Sdk.PageListing? other) -> bool
 uk.osric.asp.Sdk.PageListing.PageListing(System.Collections.Generic.IReadOnlyList<uk.osric.asp.Sdk.PageEntry>! Entries, bool Truncated) -> void
 uk.osric.asp.Sdk.PageListing.Truncated.get -> bool
 uk.osric.asp.Sdk.PageListing.Truncated.init -> void
+uk.osric.asp.Sdk.PageListing.Version.get -> string!
+uk.osric.asp.Sdk.PageListing.Version.init -> void
 uk.osric.asp.Sdk.PageListingRequest
 uk.osric.asp.Sdk.PageListingRequest.<Clone>$() -> uk.osric.asp.Sdk.PageListingRequest!
 uk.osric.asp.Sdk.PageListingRequest.After.get -> string?
 uk.osric.asp.Sdk.PageListingRequest.After.init -> void
-uk.osric.asp.Sdk.PageListingRequest.Deconstruct(out string! Prefix, out string? After, out int? Limit) -> void
+uk.osric.asp.Sdk.PageListingRequest.Deconstruct(out string! Prefix, out string? After, out int? Limit, out string? Version) -> void
 uk.osric.asp.Sdk.PageListingRequest.Equals(uk.osric.asp.Sdk.PageListingRequest? other) -> bool
 uk.osric.asp.Sdk.PageListingRequest.Limit.get -> int?
 uk.osric.asp.Sdk.PageListingRequest.Limit.init -> void
-uk.osric.asp.Sdk.PageListingRequest.PageListingRequest(string! Prefix = "", string? After = null, int? Limit = null) -> void
+uk.osric.asp.Sdk.PageListingRequest.PageListingRequest(string! Prefix = "", string? After = null, int? Limit = null, string? Version = null) -> void
 uk.osric.asp.Sdk.PageListingRequest.Prefix.get -> string!
 uk.osric.asp.Sdk.PageListingRequest.Prefix.init -> void
+uk.osric.asp.Sdk.PageListingRequest.Version.get -> string?
+uk.osric.asp.Sdk.PageListingRequest.Version.init -> void
 uk.osric.asp.Sdk.PageMoveOutcome
 uk.osric.asp.Sdk.PageMoveOutcome.FolderNotEmpty = 5 -> uk.osric.asp.Sdk.PageMoveOutcome
 uk.osric.asp.Sdk.PageMoveOutcome.Moved = 0 -> uk.osric.asp.Sdk.PageMoveOutcome
