@@ -27,7 +27,7 @@ This plan does four things the item left to it:
 
 - **It designs the record sandbox** the owner's first answer calls the cost centre: one unpooled
   connection per subject handle, a `TEMP VIEW` per declared table filtered by the subject, joins and
-  aggregates over those views, a keyword and identifier allow-list, SQLite's own limits, the statement
+  aggregates over those views, SQLite's own authorizer as the allow-list, its limits, the statement
   and transaction clocks, and the result caps.
 - **It slices the work** so each shape ships alone: the values and identity floor first, then records,
   then messages, then objects, then the ends. Every slice is one branch and one stop.
@@ -264,11 +264,11 @@ cap). The last two are values because they depend on data the page did not choos
 value `PageWriteOutcome.Busy` is.
 
 Everything the page itself got wrong throws, which is the site's rule for storage misuse
-(`pages-outbound-fetch`): a verb outside the allow-list, an undeclared table, a write to a row the
-reader does not own, a `HEAD`, an abandoned render, a disposed handle. A statement over
-`MaxResultRows` or `MaxResultChars`, and one past `StatementMaxSeconds`, throws too, because the page
-wrote the statement and can bound it with `LIMIT`; the message names the setting and the cap, as an
-oversized value does today.
+(`pages-outbound-fetch`): an action the authorizer denies, an undeclared table a statement names, a
+write to a row the reader does not own, a `HEAD`, an abandoned render, a disposed handle. A statement
+over `MaxResultRows` or `MaxResultChars`, and one past `StatementMaxSeconds`, throws too, because the
+page wrote the statement and can bound it with `LIMIT`; the message names the setting and the cap, as
+an oversized value does today.
 
 Values are not part of it. The record transaction holds one connection to one subject; a value write
 through `IValueStore` is still its own statement and does not join it, because a value is JSON in a
@@ -284,9 +284,8 @@ nothing else standing: `Microsoft.*` is denied, so EF Core and `Microsoft.Data.S
 unreachable; `System.Data` is absent, so there is no `DbCommand` or reader; and `System.Linq.Expressions`
 is denied while only `System.Linq.Enumerable` is admitted, so a page cannot hold a queryable or build
 one. What a page can write is the text and its parameters, which is also the only thing the sandbox can
-police — the allow-list reads the first token, the identifier scan looks for `sqlite_master`, and the
-`TEMP VIEW` is the owner filter, all of them over text rather than over a tree that would have to be
-lowered to text anyway.
+police — and the sandbox gets as close to it as text allows: one statement, and SQLite's own
+authorizer deciding what that statement may touch.
 
 ```csharp
 IReadOnlyList<PageRow> notes = await ctx.Stores.Visitor.Records.QueryAsync(
@@ -361,30 +360,69 @@ re-keys the catalogue without renaming a table, and a scrub can find what an old
 The sandbox is a fence for one statement, not a claim of safety; `pages-there-is-no-sandbox` still
 holds and the item does not change it.
 
-- **One unpooled connection per handle** (`Pooling = False`, so `temp` is unambiguous), opened when the
-  handle is used and closed when the render, the job or the transaction ends.
+- **One unpooled connection per handle** (`Pooling = False`, so `temp` is unambiguous and no pooled
+  connection can arrive carrying another handle's views or its authorizer), opened when the handle is
+  used and closed when the render, the job or the transaction ends. EF Core's own connections never
+  carry this: the record store owns the connection, the views and the authorizer.
 - **The owner filter is structural.** Each declared table exists once in `main` under a random,
-  unguessable name. When a transaction begins, the host records the subject in `temp.StoreSubject` and
-  creates in `temp` one view per declared table the subject has, under the name the page wrote:
+  unguessable name. Before the first statement, the host creates in `temp` one view per declared table
+  this source has, under the name the page wrote, with the subject as a **literal in the view's
+  predicate**:
 
   ```sql
   CREATE TEMP VIEW "notes" AS
   SELECT "Id", "Title", "Body", "Written" FROM "Declared_…"
-  WHERE "Owner" = (SELECT "Subject" FROM temp.StoreSubject);
+  WHERE "Owner" = 'session:7Qm…';
   ```
 
-  with an `INSTEAD OF` trigger for `INSERT`, `UPDATE` and `DELETE` writing the owner back. A page table
-  has no `Owner` column and its view has no predicate: the declaring key is the subject. A page's SQL
-  runs against the views, so a join or an aggregate sees only its own subject's rows and the real table
-  cannot be named.
+  with an `INSTEAD OF` trigger for `INSERT`, `UPDATE` and `DELETE` writing the same literal owner back.
+  A page table has no `Owner` column and its view has no predicate: the declaring key is the subject. A
+  page's SQL runs against the views, so a join or an aggregate sees only its own subject's rows and the
+  real table cannot be named. The subject is a literal rather than a row the views read, because a row
+  is a thing a page could `UPDATE` and then read another subject's rows through the same views — the
+  connection serves one subject for its whole life, so there is nothing for a row to add.
+- **The views are the whole allow-list, and SQLite enforces it.** The store installs
+  `sqlite3_set_authorizer` on the connection (`SQLitePCL.raw`, which `Microsoft.Data.Sqlite` already
+  carries) and allows, by *action and name*, only:
+
+  - `SQLITE_SELECT` and `SQLITE_RECURSIVE`;
+  - `SQLITE_READ`, `SQLITE_INSERT`, `SQLITE_UPDATE` and `SQLITE_DELETE` on the handle's own view names,
+    and on a real table only when the innermost trigger or view the callback names is one of those views
+    or one of their generated triggers — which is how the `INSTEAD OF` triggers write, and why the
+    allowance has to name both;
+  - `SQLITE_FUNCTION` for a closed list of names, so `load_extension`, `readfile`, `sqlite_dbpage` and
+    the `pragma_*` table-valued functions are refused even when they are quoted, bracketed or spelled
+    through a schema.
+
+  Everything else is denied by omission: `PRAGMA`, `ATTACH`, `DETACH`, every `CREATE`, `ALTER` and
+  `DROP`, `REINDEX`, `ANALYZE`, `SQLITE_TRANSACTION` and `SQLITE_SAVEPOINT`, and any `SQLITE_READ` of
+  `sqlite_master`, `sqlite_temp_master` or a name the handle does not own. This is why the plan has no
+  keyword allow-list and no identifier scan: SQLite's own parser decides what a statement touches, so
+  a comment, a quoted identifier, a case change or a name split across a sub-query cannot slip past a
+  tokenizer that does not parse. The refusal is `Denied`, and the callback records the action and the
+  name it refused, so the message says which rule was hit rather than only "not authorized".
+
+  Two things run outside it: the pragmas that configure the connection (`journal_mode`, `busy_timeout`,
+  `trusted_schema`, the limits) are set before it is installed, and the host's own statements — creating
+  the views, `SearchAsync`, the sweep — carry a "host" flag in the callback's user data that no
+  statement can set. The flag is the one thing that widens the rule, and it lives in the store's own
+  process, not in the page's reach.
+
+  It costs no new dependency and no new pattern: `SQLitePCLRaw.core` is already pinned for
+  `sqlite3_serialize`/`sqlite3_deserialize`, and `PageStorageSampler` already takes
+  `SqliteConnection.Handle` to call `sqlite3_interrupt`. The authorizer is the third use of the same
+  handle, it is called at `prepare` time rather than per row, and statements are not cached, so it adds
+  a few delegate calls to a call that was going to parse anyway.
+- **One statement per call.** The text may hold exactly one statement: `SqliteCommand` would otherwise
+  run whatever follows a `;` and answer the first statement's rows, and the `prepare` tail that would
+  let the host refuse the rest is not exposed. It is the one textual rule, and it is about shape rather
+  than authority.
 - **SQL is allowed, bounded.** `SELECT`, `WITH`, `INSERT`, `UPDATE` and `DELETE` are the verbs; joins,
   sub-queries, `GROUP BY`, `HAVING`, `ORDER BY`, `LIMIT` and aggregates are in scope, because the owner
-  answered that they are. `ATTACH`, `DETACH`, `PRAGMA`, `CREATE`, `DROP`, `ALTER`, `VACUUM`, `REINDEX`,
-  `ANALYZE`, `BEGIN`, `COMMIT`, `ROLLBACK`, `SAVEPOINT`, `RELEASE`, `LOAD_EXTENSION` and `EXPLAIN` are
-  refused before anything runs; a second statement is refused; a token that names `sqlite_master`,
-  `sqlite_schema`, `sqlite_temp_master` or a `pragma_` function is refused after quotes and brackets
-  are stripped. The scan is a fence: a determined author can still do what page code can do, which is
-  `pages-there-is-no-sandbox`.
+  answered that they are. A write may not name `Id`: the trigger refuses a non-NULL `Id` on a Visitor
+  table, so a page cannot collide with another subject's row id and learn from the conflict whether
+  that row exists. All of this is a fence, not a boundary: a determined author can still do what page
+  code can do, which is `pages-there-is-no-sandbox`.
 - **SQLite's own limits, set once on the connection**: `SQLITE_DBCONFIG_DEFENSIVE`,
   `trusted_schema = OFF`, `SQLITE_LIMIT_ATTACHED = 0`, loadable extensions off, and
   `SQLITE_LIMIT_LENGTH`/`SQLITE_LIMIT_SQL_LENGTH` at the configuration's noise level.
@@ -782,8 +820,9 @@ record does not have yet:
   the declaration is the table: a save adds what is new and drops what the source no longer names, and
   a save is never refused for correctness
 - **pages-a-record-is-sandboxed** — one statement over `TEMP VIEW`s, an owner filter the page cannot
-  name, joins and aggregates, a keyword and identifier allow-list, SQLite's limits, the result caps,
-  the statement and transaction clocks, and `SearchAsync` as the one call that reaches the FTS5 index
+  name, joins and aggregates, `sqlite3_set_authorizer` as the allow-list, SQLite's limits, the result
+  caps, the statement and transaction clocks, and `SearchAsync` as the one call that reaches the FTS5
+  index
 - **pages-a-library-owns-its-schema** — a library declares its tables and its data under its own key; a
   page calls the library's methods and never queries another source's table, and `For(libraryKey)` is
   how the methods reach it
@@ -811,14 +850,19 @@ phase by phase, so a regression is bisectable and its branch goes when its last 
 is built until the owner says yes to this plan.
 
 0. **The sandbox spike** (`S`, docs only). A scratch console over the real SQLite build: an unpooled
-   connection, a `TEMP VIEW` per table with an `INSTEAD OF` trigger, a two-view join and an aggregate,
-   a `RAISE(ABORT)` at a cap, the result caps, `SQLITE_LIMIT_ATTACHED = 0`, `trusted_schema = OFF`,
-   `SQLITE_DBCONFIG_DEFENSIVE`, a statement interrupt and a `sqlite_master` read attempt. The findings
-   go in `docs/spikes/store-sandbox.md` and amend this plan's sandbox section if they
+   connection, a `TEMP VIEW` per table with a literal subject and an `INSTEAD OF` trigger,
+   `sqlite3_set_authorizer` through `SQLitePCL.raw` with the view-and-trigger allowance, a two-view join
+   and an aggregate through it, a `RAISE(ABORT)` at a cap, the result caps, `SQLITE_LIMIT_ATTACHED = 0`,
+   `trusted_schema = OFF`, `SQLITE_DBCONFIG_DEFENSIVE`, a statement interrupt, and the refusals a
+   `PRAGMA`, a `CREATE`, a `sqlite_master` read, a `load_extension` and a `pragma_table_info` call each
+   get. The findings go in `docs/spikes/store-sandbox.md` and amend this plan's sandbox section if they
    disagree with it.
-   *Proves:* a join and an aggregate see only the owner's rows; `ATTACH`, `PRAGMA`, a second statement
-   and `sqlite_master` are refused before anything runs; the interrupt ends a long statement; the real
-   table cannot be named from the view's SQL.
+   *Proves:* a join and an aggregate see only the owner's rows through the views; the authorizer allows
+   the view reads and the trigger writes and denies everything else by action, with the action and the
+   name in the refusal; a quoted or bracketed `load_extension` and a `pragma_table_info` are refused
+   where a tokenizer would have to guess; `ATTACH`, `PRAGMA`, a second statement and `sqlite_master`
+   are refused; the interrupt ends a long statement; the real table cannot be named from the view's SQL,
+   and naming `Id` in a write is refused.
 1. **Values, lifetimes and identity** (`L`). `IPageStores`, `IPageSubject`, `IPageVisitorSubject`,
    `IValueStore`, `StoreLifetime`, `StoreFilter`, `StoreEntry`, `PageValue`'s lifetime and page; the
    `StoreValues` migration that copies `PageState` and `PageSessionValues`; the `PageStoresScope` and
@@ -837,16 +881,18 @@ is built until the owner says yes to this plan.
 2. **Records and the sandbox** (`M`). `PageTableAttribute`, `PageSchema` and extraction, `PAGE011` and
    `PAGE012`, `DeclaredTables`, the DDL lifecycle in the save's transaction, `IRecordStore`,
    `IPageRecordTransaction` as the frame, `PageRecordResult`, `PageRow`, `PageParameters`, `SearchAsync`
-   and the FTS5 index, the `TEMP VIEW` and triggers, the allow-list, the limits, the result caps and
+   and the FTS5 index, the `TEMP VIEW` and triggers, the authorizer, the limits, the result caps and
    the clocks; the library and worker declarations; `/help`.
    *Proves:* a save creates exactly the declared tables and catalogue rows; an added column alters and
    changes nothing else; a column or table the source no longer names is dropped with every row in it;
    a revision that does not compile applies no DDL; a declaration the host cannot apply stores the
    revision, reports `PAGE012` at the property and leaves the schema and rows untouched; a query
-   returns only my subject's rows; a two-table join and an aggregate do; `ATTACH`, `PRAGMA`, `CREATE`
-   and a second statement are refused; a statement naming a column the declaration does not have is
-   refused with the statement and SQLite's reason in it; a result over its cap throws naming the
-   setting; a write with no
+   returns only my subject's rows; a two-table join and an aggregate do; the authorizer refuses
+   `ATTACH`, `PRAGMA`, `CREATE`, `SAVEPOINT`, a `sqlite_master` read, `load_extension` and a
+   `pragma_*` function by action, with the action and the name in the message; a statement with two
+   statements in it is refused; a statement naming a column the declaration does not have is
+   refused with the statement and SQLite's reason in it; a write naming `Id` on a Visitor table is
+   refused; a result over its cap throws naming the setting; a write with no
    transaction open answers `Applied` and is durable, one inside a transaction answers `Staged` and is
    gone after a rollback or a dispose; a refused write inside a transaction leaves the earlier rows to
    the page's choice; a second `BeginTransaction` throws; a search answers my subject's rows and never
@@ -891,7 +937,7 @@ separate worktrees. Slice 5 waits for them.
 | File | Change |
 | --- | --- |
 | `src/uk.osric.asp.Sdk/` | `IPageStores`, `IPageSubject`, `IPageVisitorSubject`, `IValueStore`, `IRecordStore`, `IPageRecordTransaction`, `IMessageStore`, `IObjectStore`, `StoreLifetime`, `StoreLifetimeKind`, `StoreFilter`, `StoreEntry`, `StoreSubject`, `PageTableAttribute`, `PageRow`, `PageRecordResult`, `PageRecordOutcome`, `PageParameters`, `PageObject`, `PageObjectRef`, `PageTopic`, `PageMessage`, `PageMessageRead`, `PageMessagePostResult`, `PageMessageRefusal`, `PageValue`'s two new properties, the obsolete marks on the two old interfaces; `PublicAPI.Unshipped.txt` |
-| `src/uk.osric.asp.Core/` | `PageSchema` and its validation, the SQL allow-list and identifier scan, the content-type allow-list, the SHA-256 rule |
+| `src/uk.osric.asp.Core/` | `PageSchema` and its validation, the single-statement rule, the content-type allow-list, the SHA-256 rule |
 | `src/uk.osric.asp.Runtime/` | Declaration extraction on the compile, `CompileResult.Schema`, `PAGE011` and `PAGE012` |
 | `src/uk.osric.asp.Web/Pages/` | `PageStoresScope`, `PageStoresOptions`, `PageStoresCaps`, the internal store seams, `PageChain.CreateLayer`, `PageStorageOptions`'s retirement, `PageStorageScope` and `PageSessionScope` as adapters, `PageSessionResolver` (the reader's subject), `PageSessionRequest`, `PageSessionOptions`'s retirement, the sweep |
 | `src/uk.osric.asp.Web/Storage/` | `StoreValues`, `StoreMessages`, `StoreObjects`, `DeclaredTables`, the migration, the DDL and view generation, the sampler |
@@ -906,8 +952,8 @@ separate worktrees. Slice 5 waits for them.
 
 ## Tests
 
-- **`Core.Tests`** for the lifetime values and their composition, the filter, the SQL allow-list and
-  identifier scan, the schema value and its validation, and the content-type rule: values, no database.
+- **`Core.Tests`** for the lifetime values and their composition, the filter, the single-statement
+  rule, the schema value and its validation, and the content-type rule: values, no database.
 - **`Runtime.Tests`** for the declaration extraction and its diagnostics, beside the shape check: a
   page declaration, a library declaration, a worker declaration, an unsupported type, a `NextRead`
   table, a column over its cap.
@@ -966,8 +1012,14 @@ separate worktrees. Slice 5 waits for them.
   the bounds; every commit releases the writer.
 - **The owner filter is one generated statement from a leak.** A view that forgets `Owner`, a trigger
   that writes a null, or a real name a page can guess all break the guarantee. The real names are
-  random and stored, the generation is one function with one test, the identifier scan refuses
-  `sqlite_master`, and slice 2's integration test asks for another subject's row.
+  random and stored, the subject is a literal the page cannot edit, the generation is one function with
+  one test, the authorizer allows only the handle's own views, and slice 2's integration test asks for
+  another subject's row.
+- **The authorizer is one install from doing nothing.** A connection opened without it answers page SQL
+  with every rule off. It is installed in the one place the handle opens a connection, `Pooling = False`
+  means no connection can arrive without it, and slice 2's tests assert the refusals — a `PRAGMA`, a
+  `CREATE`, a `SELECT` from a name the handle does not own and a `sqlite_master` read — rather than
+  asserting that a callback was wired.
 - **A page edit can destroy a column of every visitor's data.** That is the rule the owner chose: the
   declaration is the table. The editor's diff is the warning, and the assistant's edit safety is the
   guard on the author most likely to tidy a declaration. A restore of an older revision is an ordinary
@@ -1009,6 +1061,13 @@ separate worktrees. Slice 5 waits for them.
 
 ## Considered and rejected
 
+- **A textual keyword and identifier scan over the statement.** It was this plan's first answer: refuse a
+  list of verbs by their first token, then strip quotes and brackets and look for `sqlite_master` and
+  `pragma_`. It is a tokenizer where SQLite has a parser. A comment between the tokens, a quoted
+  identifier, a name reached through a sub-query, or a table-valued function behind an alias defeats it,
+  and every miss is silent — while the authorizer is called by SQLite for each operation the statement
+  actually performs, with the names it actually resolved. Two mechanisms for one rule would also mean
+  two places to get it wrong.
 - **A sixth store beside the patchwork.** The item's premise, and the reason this is one model.
 - **One table per subject rather than subject columns.** A table per account per page needs a catalogue
   and a migration per new account; the subject column and one owner-filtered view keep one schema.
