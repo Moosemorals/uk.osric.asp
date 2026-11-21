@@ -35,9 +35,14 @@ SPDX-License-Identifier: MIT
     <ProjectReference Include="../uk.osric.asp.Core/uk.osric.asp.Core.csproj" />
     <ProjectReference Include="../uk.osric.asp.Runtime/uk.osric.asp.Runtime.csproj" />
     <ProjectReference Include="../uk.osric.asp.Sdk/uk.osric.asp.Sdk.csproj" />
-    <!-- Build-only: the reference corpus is written after the assemblies and read from disk. -->
+    <!-- Build-only: the reference corpus is written after the assemblies and read from disk. It runs
+         on this machine, not in the image, so the image's RID is removed before it is built: an arm64
+         assembly cannot load in an x86 build host. The target below removes it as well, because the
+         path it asks for has to be the path this build wrote. -->
     <ProjectReference Include="../../tools/reference-corpus/reference-corpus.csproj"
-                      ReferenceOutputAssembly="false" />
+                      ReferenceOutputAssembly="false"
+                      Private="false"
+                      GlobalPropertiesToRemove="RuntimeIdentifier" />
   </ItemGroup>
 
   <ItemGroup>
@@ -79,16 +84,46 @@ SPDX-License-Identifier: MIT
     The reference corpus is a build artifact: the compiler's XML documentation, the metadata beside
     it, the declarations Roslyn can spell and the links between entries. The site reads the JSON and
     renders it, so the work happens once per build rather than once per request.
+
+    The four documents are declared here, before anything runs, so `Clean` removes them and
+    `IncrementalClean` leaves them alone: a generated output nothing declares is a stray, and a stray
+    in the output directory is what `IncrementalClean` deletes.
   -->
-  <Target Name="GenerateReferenceCorpus" AfterTargets="Build">
+  <ItemGroup>
+    <ReferenceCorpusOutput Include="$(OutDir)reference.core.json" />
+    <ReferenceCorpusOutput Include="$(OutDir)reference.runtime.json" />
+    <ReferenceCorpusOutput Include="$(OutDir)reference.sdk.json" />
+    <ReferenceCorpusOutput Include="$(OutDir)reference.web.json" />
+    <FileWrites Include="@(ReferenceCorpusOutput)" />
+  </ItemGroup>
+
+  <!-- Asks for the path the referenced build above produced; it must see the same properties that
+       build did, or it names a file that is not there. A target of its own so the corpus below can
+       read both items in its Inputs — and the input glob is taken here, after the build has written
+       the assemblies, because a wildcard evaluated earlier matches nothing. -->
+  <Target Name="GetReferenceCorpusTool">
+    <MSBuild Projects="../../tools/reference-corpus/reference-corpus.csproj" Targets="GetTargetPath"
+             RemoveProperties="RuntimeIdentifier">
+      <Output TaskParameter="TargetOutputs" ItemName="ReferenceCorpusTool" />
+    </MSBuild>
+    <ItemGroup>
+      <ReferenceCorpusInput Include="$(OutDir)uk.osric.asp.*.dll;$(OutDir)uk.osric.asp.*.xml" />
+    </ItemGroup>
+  </Target>
+
+  <!-- The assemblies and their documentation are the whole input, so when none of them moved the
+       JSON beside them is still the answer: the target says so rather than running Roslyn again. -->
+  <Target Name="GenerateReferenceCorpus" AfterTargets="Build" DependsOnTargets="GetReferenceCorpusTool"
+          Inputs="@(ReferenceCorpusTool);@(ReferenceCorpusInput)"
+          Outputs="@(ReferenceCorpusOutput)">
     <PropertyGroup>
       <ReferenceCorpusHost Condition="'$(DOTNET_HOST_PATH)' != ''">$(DOTNET_HOST_PATH)</ReferenceCorpusHost>
       <ReferenceCorpusHost Condition="'$(ReferenceCorpusHost)' == ''">dotnet</ReferenceCorpusHost>
     </PropertyGroup>
-    <MSBuild Projects="../../tools/reference-corpus/reference-corpus.csproj" Targets="GetTargetPath">
-      <Output TaskParameter="TargetOutputs" ItemName="ReferenceCorpusTool" />
-    </MSBuild>
-    <Exec Command="&quot;$(ReferenceCorpusHost)&quot; &quot;@(ReferenceCorpusTool)&quot; &quot;$(OutDir)&quot;" />
+    <!-- High importance: the tool says why it stopped, and a failing build should not need a second
+         run at a higher verbosity to hear it. -->
+    <Exec Command="&quot;$(ReferenceCorpusHost)&quot; &quot;@(ReferenceCorpusTool)&quot; &quot;$(OutDir)&quot;"
+          StandardOutputImportance="high" StandardErrorImportance="high" />
   </Target>
 
   <!-- Publish copies the corpus beside the assembly, where the site reads it. The files are made

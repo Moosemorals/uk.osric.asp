@@ -13,6 +13,17 @@
 DOTNET ?= dotnet
 CONFIGURATION ?= Debug
 
+# How much a publish or an image build says about itself. The SDK's default, `minimal`, prints one
+# line per project and hides everything inside one: the output of a build-time tool is logged at
+# normal importance, so a tool that aborts reports a bare "exited with code 134" and the reason it
+# printed is gone. `normal` keeps that output for the price of a longer log.
+PUBLISH_VERBOSITY ?= normal
+
+# A target that spends minutes in one command says which phase it is starting, so a long run reads as
+# a list of steps rather than one wall of tool output. Keep commas out of the text: a comma starts the
+# next `$(call)` argument.
+step = @printf '\n==> %s\n' '$(1)'
+
 # There is no launchSettings.json, so `dotnet run` would be Production; local runs are Development so
 # the session and antiforgery cookies are not marked Secure over http. Override for a local production
 # rehearsal.
@@ -74,6 +85,10 @@ CONTAINER_BASE_IMAGE ?= mcr.microsoft.com/dotnet/aspnet:11.0-alpine-extra@sha256
 # RID of the server. The host is a Hetzner CAX21 (Ampere, arm64), so arm64 is the default; an x86
 # host builds with CONTAINER_RID=linux-musl-x64. The RID is also the image's platform.
 CONTAINER_RID ?= linux-musl-arm64
+# The machine doing the build. It is the base digest's other half — an x86 host names the amd64 one
+# — and it is what a log needs to say when a build goes wrong, so `image` and `image-check` print it
+# beside the RID.
+HOST_ARCH := $(shell uname -m)
 # The SDK keeps the layers it has packed in a content-addressed cache; `image-check` empties it so
 # the second build has to pack and compress the layers again rather than reuse the first one's work.
 CONTAINER_CACHE := $(HOME)/.cache/dotnet/Containers/Content
@@ -198,11 +213,13 @@ restore:
 	@$(MAKE) --no-print-directory $(RESTORE_STAMP)
 
 $(RESTORE_STAMP): $(RESTORE_INPUTS)
+	$(call step,restore $(SOLUTION))
 	$(DOTNET) restore $(SOLUTION)
 	@mkdir -p $(dir $@)
 	@touch $@
 
 $(BUILD_STAMP): $(BUILD_INPUTS) $(RESTORE_STAMP)
+	$(call step,build $(SOLUTION) ($(CONFIGURATION)))
 	$(DOTNET) build $(SOLUTION) -c $(CONFIGURATION) --no-restore
 	@mkdir -p $(dir $@)
 	@touch $@
@@ -278,17 +295,21 @@ ci-install: | $(SSH_CONTROL_DIR)
 	$(SSH) $(HOST) 'sudo bash /tmp/uk.osric.asp-ci-install/install-host "$(SDK_VERSION)" "$(CI_HOST)"; status=$$?; sudo rm -rf /tmp/uk.osric.asp-ci-install; exit $$status'
 
 test-core: build
+	$(call step,test core)
 	$(DOTNET) test $(CORE_TESTS) -c $(CONFIGURATION) --no-build $(TEST_FAST_ARGS)
 
 test-runtime: build
+	$(call step,test runtime)
 	$(DOTNET) test $(RUNTIME_TESTS) -c $(CONFIGURATION) --no-build $(TEST_FAST_ARGS)
 
 # The editor's server is a tool rather than part of the site, but the protocol it speaks is the one
 # feature of it nobody types by hand, so its suite runs with the rest.
 test-language-server: build
+	$(call step,test language server)
 	$(DOTNET) test $(LANGUAGE_SERVER_TESTS) -c $(CONFIGURATION) --no-build $(TEST_FAST_ARGS)
 
 test-web: build
+	$(call step,test web shell)
 	$(DOTNET) test $(WEB_TESTS) -c $(CONFIGURATION) --no-build --filter "TestCategory!=Slow" $(TEST_FAST_ARGS)
 
 # The wall-clock half of the web suite: the render and compile deadlines, the stream clocks, the job
@@ -296,11 +317,13 @@ test-web: build
 # together they were the slowest thing in the gate and, run beside everything else, the least
 # predictable. They run before a deploy, like the browser suite (`code-slow-tests-are-opt-in`).
 test-web-slow: build
+	$(call step,test web shell slow half)
 	$(DOTNET) test $(WEB_TESTS) -c $(CONFIGURATION) --no-build --filter "TestCategory=Slow" $(TEST_ARGS)
 
 # The host is real: routing, middleware order, exception handling and startup migrations. Slower
 # than the other suites, which is why it has its own target rather than living in the unit tests.
 test-integration: build
+	$(call step,test integration)
 	$(DOTNET) test $(INTEGRATION_TESTS) -c $(CONFIGURATION) --no-build $(TEST_ARGS)
 
 # A browser engine is an external dependency with its own download, so this suite is out of `check`:
@@ -308,11 +331,13 @@ test-integration: build
 # `make deploy` that runs it (`code-browser-suite-is-opt-in`), before anything is pushed. `make browsers` installs Firefox
 # once; the tests launch the built app themselves on a loopback port.
 test-browser: build
+	$(call step,test browser)
 	$(DOTNET) test $(BROWSER_TESTS) -c $(CONFIGURATION) --no-build $(TEST_BROWSER_ARGS)
 
 # The live tests are [Explicit]: they need deploy/deepseek.token (or ASSISTANT_LIVE_TOKEN) and spend
 # real tokens against the configured provider.
 test-browser-live: build
+	$(call step,test browser live)
 	$(DOTNET) test $(BROWSER_TESTS) -c $(CONFIGURATION) --no-build --filter "FullyQualifiedName~AssistantLive" $(TEST_BROWSER_ARGS)
 
 # Playwright ships its own Node, and this downloads the single browser the suite drives. The path is
@@ -444,7 +469,8 @@ run:
 		$(DOTNET) run --project $(WEB_PROJECT)
 
 publish: changelist
-	$(DOTNET) publish $(WEB_PROJECT) -c Release -p:ChangelistFile=$(abspath $(CHANGELIST))
+	$(call step,publish $(WEB_PROJECT) in Release)
+	$(DOTNET) publish $(WEB_PROJECT) -c Release -p:ChangelistFile=$(abspath $(CHANGELIST)) -v:$(PUBLISH_VERBOSITY)
 
 # ---- Decision checks ------------------------------------------------------------------------------
 
@@ -476,6 +502,7 @@ CHECK_PAGES_PROJECT := tools/check-pages/check-pages.csproj
 SEED_DIRECTORY := src/uk.osric.asp.Web/Pages/Seeds
 
 check-pages: $(BUILD_STAMP)
+	$(call step,check-pages: compiling $(SEED_DIRECTORY))
 	$(DOTNET) run --project $(CHECK_PAGES_PROJECT) -c $(CONFIGURATION) --no-build -- $(SEED_DIRECTORY)
 
 # The publish output the image packs: UseArtifactsOutput puts a RID-specific publish beside the
@@ -489,23 +516,28 @@ IMAGE_PUBLISH_DIR := $(ARTIFACTS)/publish/uk.osric.asp.Web/release_$(CONTAINER_R
 # the history entries and the layer mtimes, so two builds of one commit are one image. The value is
 # the commit's own timestamp, so the image says when its source was written, and says it the same way
 # every time. $(1) is the tag; $(2) carries extra flags.
-image_command = SOURCE_DATE_EPOCH=$(SOURCE_DATE_EPOCH) $(DOTNET) publish $(WEB_PROJECT) -c Release -r $(CONTAINER_RID) -t:PublishContainer -p:ContainerBaseImage=$(CONTAINER_BASE_IMAGE) -p:ContainerImageTags=$(1) -p:GIT_COMMIT=$(GIT_COMMIT) -p:ChangelistFile=$(abspath $(CHANGELIST)) $(2)
+image_command = SOURCE_DATE_EPOCH=$(SOURCE_DATE_EPOCH) $(DOTNET) publish $(WEB_PROJECT) -c Release -r $(CONTAINER_RID) -t:PublishContainer -p:ContainerBaseImage=$(CONTAINER_BASE_IMAGE) -p:ContainerImageTags=$(1) -p:GIT_COMMIT=$(GIT_COMMIT) -p:ChangelistFile=$(abspath $(CHANGELIST)) -v:$(PUBLISH_VERBOSITY) $(2)
 
 # The SDK builds the OCI image and hands it to podman; there is no Containerfile, and the SDK is not
 # in the image.
 image: changelist
+	$(call step,image $(LOCAL_IMAGE) for $(CONTAINER_RID) from a $(HOST_ARCH) host)
 	@rm -rf $(IMAGE_PUBLISH_DIR)
 	$(call image_command,$(IMAGE_TAG))
+	$(call step,image built: $(LOCAL_IMAGE))
 
 # Reproducibility is a property that regresses silently, so it is a target: two fresh publishes and
 # two uncached packs of one commit have to produce one image id. The publish directory is deleted
 # between the builds, because an incremental publish leaves the files it already has and their
 # mtimes alone — and the layer cache is emptied so the second pack is not the first one's work.
 image-check: changelist
+	$(call step,image-check 1 of 2: $(IMAGE_REPOSITORY):reproducible-1 for $(CONTAINER_RID) from a $(HOST_ARCH) host)
 	@rm -rf $(IMAGE_PUBLISH_DIR) $(CONTAINER_CACHE)
 	@$(call image_command,reproducible-1)
+	$(call step,image-check 2 of 2: $(IMAGE_REPOSITORY):reproducible-2 for $(CONTAINER_RID) from a $(HOST_ARCH) host)
 	@rm -rf $(IMAGE_PUBLISH_DIR) $(CONTAINER_CACHE)
 	@$(call image_command,reproducible-2)
+	$(call step,image-check: comparing the two image ids)
 	@a=$$(podman image inspect --format '{{.Id}}' $(IMAGE_REPOSITORY):reproducible-1); \
 	b=$$(podman image inspect --format '{{.Id}}' $(IMAGE_REPOSITORY):reproducible-2); \
 	podman rmi $(IMAGE_REPOSITORY):reproducible-1 $(IMAGE_REPOSITORY):reproducible-2 >/dev/null; \
@@ -527,6 +559,7 @@ image-check: changelist
 # change is run against all day, and a deploy is the moment it matters that the site serves a page in
 # a browser at all. Do not run this target with -j; the order is the point.
 deploy: deploy-guard check test-web-slow test-browser image | $(SSH_CONTROL_DIR)
+	$(call step,deploy $(GIT_SHA) to $(HOST))
 	@HOST='$(HOST)' SSH='$(SSH)' \
 		LOCAL_IMAGE='$(LOCAL_IMAGE)' IMAGE_REF='$(IMAGE_REF)' IMAGE_SHA_REF='$(IMAGE_SHA_REF)' \
 		AUTHFILE='$(AUTHFILE)' REMOTE_AUTHFILE='$(REMOTE_AUTHFILE)' \
@@ -559,6 +592,7 @@ pull-install: | $(SSH_CONTROL_DIR)
 # image pushed from an uncommitted tree cannot be rebuilt from the commit its tag names, which is
 # also the only thing a rollback can rely on; ALLOW_DIRTY=1 is the deliberate exception.
 deploy-guard: | $(SSH_CONTROL_DIR)
+	$(call step,deploy-guard: checking the tree and the destination)
 	@test -n "$(strip $(HOST))" || { echo "usage: make deploy HOST=deploy@your.server"; exit 1; }
 	@test -n "$(strip $(GIT_SHA))" || { echo "not a git checkout: there is no commit to tag the image with"; exit 1; }
 	@if [ -z "$(strip $(ALLOW_DIRTY))" ] && [ -n "$$(git status --porcelain)" ]; then \
@@ -567,10 +601,12 @@ deploy-guard: | $(SSH_CONTROL_DIR)
 	@if grep -qE '^[[:space:]]*(example\.com|admin@example\.com)' deploy/Caddyfile; then \
 		echo "deploy/Caddyfile still contains the example.com placeholder"; exit 1; fi
 	@$(SSH) -o ConnectTimeout=10 $(HOST) true || { echo "cannot reach $(HOST)"; exit 1; }
+	@echo "deploy-guard: $(GIT_SHA) passes and $(HOST) is reachable"
 
 # Needs the network: the advisory data comes from the package feed, not from the lock file.
 # `dotnet list package` exits 0 whether or not it finds anything, so the wording is what is checked.
 audit:
+	$(call step,audit: vulnerable and deprecated packages)
 	@out=$$($(DOTNET) list $(SOLUTION) package --vulnerable --include-transitive); \
 	if printf '%s\n' "$$out" | grep -q 'has the following'; then \
 		printf '%s\n' "$$out"; echo "vulnerable packages: update or remove them"; exit 1; fi
@@ -595,11 +631,13 @@ format:
 # diagnostic the build does not raise. Narrowed to layout and using order the check spends about 25
 # CPU-seconds instead, and the cores go to the suites.
 format-check:
+	$(call step,format-check: layout and using order)
 	$(DOTNET) format whitespace $(SOLUTION) --verify-no-changes
 	$(DOTNET) format style $(SOLUTION) --verify-no-changes --diagnostics IMPORTS
 
 # Needs the `reuse` tool (apt install reuse, or pipx install reuse).
 license-check:
+	$(call step,license-check: REUSE compliance)
 	reuse lint
 
 # Mutation testing rewrites a project's source and reruns the suite once per mutant, so it is minutes
