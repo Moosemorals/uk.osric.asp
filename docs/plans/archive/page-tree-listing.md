@@ -7,12 +7,12 @@ SPDX-License-Identifier: MIT
 
 | | |
 | --- | --- |
-| Status | Proposed 2026-11-21 — waits for the owner. Nothing below is built |
+| Status | Merged 2026-11-21 — built on *page-tree-listing* with `make check` green. The three names it proposed are `pages-a-folder-is-a-key-not-a-row`, `pages-a-listing-answers-the-site-tree` and `pages-a-listing-descends-unless-asked` |
 | Size | Moderate: one enum and a reshaped row on the page contract, one request member, one pure fold in `Core`, one predicate and one narrow read in `Web`, the capability, one seed, the manual, the prompt and the documents. No migration, no configuration value, no write path |
 | First customer | The shell's `ls`, `find -type d` and `stat`, and the IDE's T8 tree — both page work, and both after [`tool-surface-is-one-shell`](../backlog/tool-surface-is-one-shell.md). The first caller that has to *not* see the new rows is the editor's own page list, which moves in the same step |
 | Spike | None. Every claim about what exists was read off `trunk` on 2026-11-21: `IPageCatalog`, `PageEntry`, `PageListing`, `PageListingRequest`, `PageCatalogScope`, `IPageReadStore`, `SqlitePageReadStore`, `PageReadOptions`, `PageTree`, `PageStoreReader`, `ReservedPaths`, `ShellCatalogue`, the `/pages` and `/help` seeds, `PageAuthorPrompt`, and the suites named under Tests |
-| Decisions | Three names are stated here and taken at the merge (`product-plan-before-building`); one entry is edited in place because it stops being true, and two gain a clause |
-| Backlog | [`a-page-cannot-list-folders`](../backlog/a-page-cannot-list-folders.md) (this job); it is one of the three blockers of [`tool-surface-is-one-shell`](../backlog/tool-surface-is-one-shell.md) |
+| Decisions | `pages-a-folder-is-a-key-not-a-row`, `pages-a-listing-answers-the-site-tree` and `pages-a-listing-descends-unless-asked` are recorded; `pages-a-listing-carries-facts` and `pages-the-store-is-a-tree` are edited in place, and `pages-a-listing-resumes-from-a-key` gains the depth |
+| Backlog | `a-page-cannot-list-folders` (this job, [closed](../backlog/closed.md)); it was one of the three blockers of [`tool-surface-is-one-shell`](../backlog/tool-surface-is-one-shell.md) |
 
 ## The short version
 
@@ -215,13 +215,13 @@ public sealed record PageListingRequest(
 `PageTree`'s rules used inside it rather than restated:
 
 ```csharp
-public readonly record struct PageListingFact(string Key, bool IsFolder);
+public readonly record struct PageListingKey(string Key, bool IsFolder);
 
-public sealed record PageListingNodes(IReadOnlyList<PageListingFact> Nodes, bool Truncated);
+public sealed record PageListingKeys(IReadOnlyList<PageListingKey> Keys, bool Truncated);
 
 public static class PageListingFold {
-    public static PageListingNodes Of(
-        IReadOnlyList<PageListingFact> facts,
+    public static PageListingKeys Of(
+        IReadOnlyList<PageListingKey> facts,
         string prefix,
         string? after,
         bool recursive,
@@ -323,12 +323,12 @@ is bounded by the build and cannot grow with the store. A route that is also a f
 `Route | Folder` in one row, and a route whose ancestors are not routes gets its folders from the fold
 like any other key.
 
-`ReservedPaths` matches by prefix, which is the right rule for the *policy* (`/admin/scrub` shadows
-everything beneath it) and the wrong rule for a *listing*: a key is a route when the route table names
-it, not when a route is an ancestor of it. The route rows therefore come from
-`reserved.Keys`, the canonical list, and `IsReserved` on a row keeps its current meaning — "the site's
-routes answer this key" — because a stored head can only be at a reserved key by historical accident
-and the fold never invents one.
+The *rows* come from `reserved.Keys`, the canonical list, so the fold never invents a route. The
+*mark* is `IsReserved`, the prefix rule the write policy already uses, because a key beneath a route is
+shadowed by it: a stored head at `/admin/scrub/blog` is unreachable, and the editor must keep saying
+so. The two are different questions — a row exists for a key the table names, and a key says `Route`
+when the site's routes answer it — and keeping the mark's old meaning is what stopped the editor
+offering an Edit link for a page no request can reach.
 
 ### 6. The two properties a walk depends on
 
@@ -394,8 +394,18 @@ step is one branch, one gate and one stop for the owner.
    store narrow to the rows they are about.
 6. The documents, the item's `Status` and `Plan`, and the README row.
 
-The backlog item moves to `planned`, pointing at this plan, in this step. It closes when the work
-merges, and the merge is also what takes the three names.
+The backlog item moved to `planned`, pointing at this plan, in this step. It closed with the work and
+the three names are recorded beside it.
+
+**Built 2026-11-21.** One step, as above. The tests are in place and green: twelve for the fold, seven
+for the read seam's depth and folder statement, and eight new capability cases beside the ones the
+contract moved, with the integration walk and the prompt's own suite. The seeds compile
+(`make check-pages`), and the layout, licence and record gates pass. Two things are worth saying about
+what the evidence does not cover: the browser suite has no case for a tree and was not run, because a
+browser can only see rows a page drew and every claim here is a capability's; and the plan's astral
+character test found that the trap is narrower than §4 said — a length computed in C# cancels against
+`instr` for one astral character, and only two in the prefix make the two disagree — so the statement
+keeps SQLite's `length()` and the test names the case that proves it.
 
 ## Tests
 
@@ -476,7 +486,7 @@ Every test is NUnit and names the behaviour; anything a unit test can prove does
   `pages-the-store-is-a-tree` edited in place to say the capability answers the tree; and
   `pages-a-listing-resumes-from-a-key` given the depth in its list of what a request carries.
 - **The author prompt**: the catalog section and the sample, with `PageAuthorPrompt.Version` moved.
-- **The backlog**: this item's `Status` and `Plan`, and its row in the order; it unblocks one of
+- **The backlog**: this item is closed and its row left the order; it unblocks one of
   [`tool-surface-is-one-shell`](../backlog/tool-surface-is-one-shell.md)'s three.
 
 ## Risks

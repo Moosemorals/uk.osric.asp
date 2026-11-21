@@ -126,9 +126,16 @@ A stored page may read the same store through `ctx.Capabilities.GetRequired<IPag
 (`pages-the-store-is-read-through-one-seam`, `pages-reading-the-store-is-public`, `pages-a-listing-carries-facts`, `product-manual-is-a-page`, `pages-delete-install-and-restore`, `pages-page-first`). The read is a capability of its own rather than `IPageStore` because the latter
 is scoped to the request's context and a page's task can outlive the request: `IPageReadStore` is a
 read-only singleton over the context factory, it answers with small `Web` records and never with a
-`PagePath`, and `PageCatalogScope` maps them to the three `Sdk` values. A listing returns every head
-the store holds — live, tombstoned, seeded and reserved — marked `IsDeleted`, `IsReserved` and
-`IsHtml`, and a prefix selects a subtree rather than a string prefix. `Pages:Read:MaxRowsPerList`
+`PagePath`, and `PageCatalogScope` maps them to the `Sdk` values. A listing answers the tree: the
+heads the store holds — live, tombstoned and seeded — with the folders above them and the keys the
+shell's routes answer, each a key with a kind and the head's facts where a head is stored, and a
+prefix selects a subtree rather than a string prefix. A folder is derived, never stored
+(`pages-a-folder-is-a-key-not-a-row`): `Core`'s `PageListingFold` adds the folders above the keys a read
+answered, so no column, table or write path maintains one and there is no migration. A listing that answers one level also asks
+`ListFoldersAsync`, the seam's one raw statement, because a child whose only content is deeper is not
+a head a one-level read can see; it cuts each key to its segment with SQLite's `length()` and
+`substr`, which count characters where a `string.Length` computed in C# counts UTF-16 units.
+`Pages:Read:MaxRowsPerList`
 (500 shipped) is enforced in the statement and refuses one row past the cap,
 `Pages:Read:MaxSourceCharsPerRender` (512 KiB shipped) is one `ReadBudget` shared by every layer of
 the chain and refuses rather than truncating, and both the deadline and abandonment stop a read. The
