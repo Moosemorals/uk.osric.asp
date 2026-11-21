@@ -132,8 +132,8 @@ its reason, and that no item sits above something that blocks it.
 | | *The browser suite drives a source build while the deploy ships an image built later; this makes the promoted image the one the browser drove, and the host gate now keeps one.* | | | | |
 | [`message-does-not-survive-a-redirect`](message-does-not-survive-a-redirect.md) | A page cannot leave a message for a page it sends a visitor to | protective-dragon 🔥🐉 | high | [planned](../plans/page-inbox.md) | — |
 | | *High use for a capability the page session half gave: a page that sends a visitor somewhere usually has something to tell it, and the plan answers what the sketch left open, so nothing but a yes stands in front of it.* | | | | |
-| [`sec-page-runs-in-process`](sec-page-runs-in-process.md) | Page code has no execution budget and no process boundary | cornered-porcupine 📍🦔 | high | open | — |
-| | *Medium severity and a redesign of how a page runs; the trimmed API policy and the sign-in guard already carry much of it.* | | | | |
+| [`sec-page-runs-in-process`](sec-page-runs-in-process.md) | Page code has no process boundary | cornered-porcupine 📍🦔 | high | open | — |
+| | *High utility and a redesign of how a page runs; the unit is now a long-lived worker per author over a socket rather than a process per render, and the author it keys on is not in the store yet.* | | | | |
 | [`revision-hides-its-diagnostics`](revision-hides-its-diagnostics.md) | A page cannot read a revision's diagnostics | eager-beaver ⚙️🦫 | medium | open | — |
 | | *The store keeps the last compile's answer and the catalog drops it, so a reloaded editor, a history view and a page explaining a broken library can say a revision failed but not what it said.* | | | | |
 | [`ops-no-outage-notification`](ops-no-outage-notification.md) | No outbound notifications when the site breaks | eager-beaver ⚙️🦫 | medium | open | — |
