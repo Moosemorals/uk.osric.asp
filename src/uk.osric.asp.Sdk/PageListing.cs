@@ -25,7 +25,7 @@ public sealed record PageListing(IReadOnlyList<PageEntry> Entries, bool Truncate
     /// A warning, not a refusal: the rows are still the keyset the cursor says, and the caller decides
     /// whether to carry on, start again or ignore it. A first call carries no token and is never
     /// changed. It covers the head rows, not what they compiled to, so a lazy compile or a deploy
-    /// can change a row's state without moving it.
+    /// can change a row's state without moving it (`pages-a-listing-carries-a-fingerprint`).
     /// </remarks>
     public bool Changed { get; init; }
 }

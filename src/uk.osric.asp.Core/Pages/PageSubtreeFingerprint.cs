@@ -39,7 +39,8 @@ public readonly record struct PageFingerprintFact(
 /// <para>
 /// The value is opaque: compare it with a freshly computed one and never parse or order it. It
 /// carries no algorithm marker, so changing the formula would make every token different, which
-/// matters only to a walk that spans the deployment and is the safe direction.
+/// matters only to a walk that spans the deployment and is the safe direction
+/// (`pages-a-fingerprint-is-derived-not-kept`).
 /// </para>
 /// </remarks>
 public static class PageSubtreeFingerprint {

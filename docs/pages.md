@@ -112,7 +112,8 @@ pure renderers, and one that is a fact about the build:
   `PageListing.Version` is the fingerprint of every head under the prefix, read in the same snapshot
   as the rows; pass it back as `PageListingRequest.Version` and `PageListing.Changed` says whether
   the list moved. The token is opaque and compared for equality, a save under another prefix does not
-  move it, and it covers the head rows rather than what they compiled to.
+  move it, and it covers the head rows rather than what they compiled to
+  (`pages-a-listing-carries-a-fingerprint`).
   It reads and never writes. The read is
   as public as the page that calls it — there is no gate, and a page that wants privacy writes the
   ordinary `ctx.User` guard — and the render's deadline, abandonment and the shared chain budgets

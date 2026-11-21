@@ -711,7 +711,7 @@ to pretend otherwise.
 | `check-without-storing` | a hard dependency: [one check](archive/one-check.md) lands the capability and its language set, and the applet is this plan's; it lands first |
 | [`editor-is-a-textarea`](../backlog/editor-is-a-textarea.md) | the terminal's `vi` may share `/vim.js`; unchanged |
 | [`conversation-is-not-a-page`](../backlog/conversation-is-not-a-page.md) | the assistant's own UI; unchanged |
-| [`listing-does-not-date-itself`](../backlog/listing-does-not-date-itself.md) | a shell listing is one shot; unchanged |
+| [`listing-does-not-date-itself`](../backlog/closed.md) | a shell listing is one shot; unchanged, and the item landed 2026-11-21 with the token this plan's `grep` will take |
 | [`view-cannot-submit-a-form`](../backlog/view-cannot-submit-a-form.md) | new, and not this plan |
 | [`terminal-cannot-reach-the-shell`](../backlog/terminal-cannot-reach-the-shell.md) | new, and not this plan |
 

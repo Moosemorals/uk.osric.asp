@@ -158,8 +158,8 @@ smallest changes come first because they are what every later slice is written a
    source to the page. *The owner refined the item on 2026-11-20 — a pattern as well as a literal, a
    bound measured in time, and a cursor that a store version invalidates — so the item and its answers
    are the current statement of this slice, and the proofs above are rewritten when the plan is taken
-   up; the item now waits on [`listing-does-not-date-itself`](../backlog/listing-does-not-date-itself.md)
-   for that token.*
+   up; the token the cursor wanted landed with [`listing-does-not-date-itself`](../backlog/closed.md)
+   on 2026-11-21 (`pages-a-listing-carries-a-fingerprint`), so nothing blocks the slice.*
 5. **042 — the move.** Built on `idea/page-cannot-move` and waiting for the merge; the intended record
    is **pages-a-key-moves-with-its-history**. It turned out not to need 040 and 038: a library move is
    refused rather than recompiled, and the broken-link report is

@@ -1192,6 +1192,34 @@ error.
 
 *Recorded in [pages](pages.md), [IPageCatalog](../src/uk.osric.asp.Sdk/IPageCatalog.cs), [the plan](plans/ide-host.md).*
 
+### pages-a-listing-carries-a-fingerprint
+
+A slice answers an opaque token that fingerprints every head under its prefix, and a request carries
+the token the caller started from, so `PageListing.Changed` can say the set of rows moved between two
+slices: a save under the cursor skipped a page, a save above it showed one twice, and a delete removed
+a row the caller was about to reach. It is a warning and never a refusal — the host answers the fact
+and the caller carries on, starts again or ignores it — because a second gate inside a capability is
+the one `pages-reading-the-store-is-public` rejects. The token is compared for equality and nothing
+else: it names no key and no content, so it is not a security claim, and a token from another prefix
+is a false alarm rather than an error. It covers the head rows and their seed anchors, not what a row
+compiled to, so a lazy compile or a deploy leaves it where it was.
+
+*Recorded in [pages](pages.md), [storage](storage.md), [IPageCatalog](../src/uk.osric.asp.Sdk/IPageCatalog.cs), [PageListing](../src/uk.osric.asp.Sdk/PageListing.cs), [the plan](plans/archive/listing-fingerprint.md).*
+
+### pages-a-fingerprint-is-derived-not-kept
+
+The token is computed from the heads when a slice is read rather than stored in a column, a counter or
+a per-prefix row. No write path participates, so no write can forget to bump it — an adopt, which
+writes only `SeedHash`, and a content-hash repair, which writes only `ContentHash`, move it without
+being told, and both are invisible to a sequence kept on save. It is also exact about the rows rather
+than merely safe: a head whose revision, tombstone, seed anchor and content hash are unchanged leaves
+the token where it was. The price is one scan of the prefix per slice, measured at about 1.15 ms for
+300 heads, dominated by reading the rows rather than hashing them; a subtree of a few thousand heads
+wants a high-water mark per prefix instead, and because the token stays opaque that swap is a later
+step behind the contract rather than a change to it.
+
+*Recorded in [storage](storage.md), [PageSubtreeFingerprint](../src/uk.osric.asp.Core/Pages/PageSubtreeFingerprint.cs), [the plan](plans/archive/listing-fingerprint.md).*
+
 ### pages-the-catalog-knows-the-shell
 
 `IPageCatalog` answers what the shell can do as well as what the store holds: `ShellLinks()` returns

@@ -137,7 +137,8 @@ the ordinary `ctx.User` guard, and a page that reads source publishes it to whoe
 page. A listing's `PageListing.Version` is derived rather than stored: the read fingerprints the head
 rows under the prefix in one deferred read transaction with the slice, so no column, counter or write
 path maintains it and there is no migration. The two statements share the snapshot the token names,
-and nothing is pinned beyond them.
+and nothing is pinned beyond them (`pages-a-listing-carries-a-fingerprint`,
+`pages-a-fingerprint-is-derived-not-kept`).
 
 A page may save its own template through `ctx.Capabilities.GetRequired<IPageWrites>().SaveAsync(template)`, and any page the shell does not route through the same capability's named save (`pages-a-page-may-save-itself`, `pages-any-page-may-write-the-store`, `pages-layouts-are-markup`, `pages-scratch-saves-itself`).
 The write is the shell's save reached from inside a render: `PageSaver` compiles the template and
