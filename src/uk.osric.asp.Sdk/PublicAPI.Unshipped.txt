@@ -300,34 +300,40 @@ uk.osric.asp.Sdk.PageEditResult.Outcome.get -> uk.osric.asp.Sdk.PageEditOutcome
 uk.osric.asp.Sdk.PageEditResult.Outcome.init -> void
 uk.osric.asp.Sdk.PageEditResult.PageEditResult(uk.osric.asp.Sdk.PageEditOutcome Outcome, string? Hash, System.Collections.Generic.IReadOnlyList<uk.osric.asp.Sdk.PageDiagnostic>! Diagnostics) -> void
 uk.osric.asp.Sdk.PageEntry
-uk.osric.asp.Sdk.PageEntry.Deconstruct(out string! Key, out System.DateTimeOffset SavedAt, out string! Hash, out bool IsDeleted, out bool IsReserved, out bool IsHtml) -> void
+uk.osric.asp.Sdk.PageEntry.Deconstruct(out string! Key, out uk.osric.asp.Sdk.PageEntryKind Kind) -> void
 uk.osric.asp.Sdk.PageEntry.Equals(uk.osric.asp.Sdk.PageEntry other) -> bool
-uk.osric.asp.Sdk.PageEntry.Hash.get -> string!
+uk.osric.asp.Sdk.PageEntry.Hash.get -> string?
 uk.osric.asp.Sdk.PageEntry.Hash.init -> void
 uk.osric.asp.Sdk.PageEntry.IsAsset.get -> bool
 uk.osric.asp.Sdk.PageEntry.IsAsset.init -> void
 uk.osric.asp.Sdk.PageEntry.IsDeleted.get -> bool
-uk.osric.asp.Sdk.PageEntry.IsDeleted.init -> void
 uk.osric.asp.Sdk.PageEntry.IsHtml.get -> bool
 uk.osric.asp.Sdk.PageEntry.IsHtml.init -> void
 uk.osric.asp.Sdk.PageEntry.IsLibrary.get -> bool
 uk.osric.asp.Sdk.PageEntry.IsLibrary.init -> void
 uk.osric.asp.Sdk.PageEntry.IsReserved.get -> bool
-uk.osric.asp.Sdk.PageEntry.IsReserved.init -> void
 uk.osric.asp.Sdk.PageEntry.IsWorker.get -> bool
 uk.osric.asp.Sdk.PageEntry.IsWorker.init -> void
 uk.osric.asp.Sdk.PageEntry.Key.get -> string!
 uk.osric.asp.Sdk.PageEntry.Key.init -> void
+uk.osric.asp.Sdk.PageEntry.Kind.get -> uk.osric.asp.Sdk.PageEntryKind
+uk.osric.asp.Sdk.PageEntry.Kind.init -> void
 uk.osric.asp.Sdk.PageEntry.Libraries.get -> System.Collections.Generic.IReadOnlyList<string!>!
 uk.osric.asp.Sdk.PageEntry.Libraries.init -> void
 uk.osric.asp.Sdk.PageEntry.PageEntry() -> void
-uk.osric.asp.Sdk.PageEntry.PageEntry(string! Key, System.DateTimeOffset SavedAt, string! Hash, bool IsDeleted, bool IsReserved, bool IsHtml) -> void
-uk.osric.asp.Sdk.PageEntry.SavedAt.get -> System.DateTimeOffset
+uk.osric.asp.Sdk.PageEntry.PageEntry(string! Key, uk.osric.asp.Sdk.PageEntryKind Kind) -> void
+uk.osric.asp.Sdk.PageEntry.SavedAt.get -> System.DateTimeOffset?
 uk.osric.asp.Sdk.PageEntry.SavedAt.init -> void
 uk.osric.asp.Sdk.PageEntry.Seed.get -> uk.osric.asp.Sdk.PageSeedSummary?
 uk.osric.asp.Sdk.PageEntry.Seed.init -> void
 uk.osric.asp.Sdk.PageEntry.State.get -> string!
 uk.osric.asp.Sdk.PageEntry.State.init -> void
+uk.osric.asp.Sdk.PageEntryKind
+uk.osric.asp.Sdk.PageEntryKind.Folder = 8 -> uk.osric.asp.Sdk.PageEntryKind
+uk.osric.asp.Sdk.PageEntryKind.None = 0 -> uk.osric.asp.Sdk.PageEntryKind
+uk.osric.asp.Sdk.PageEntryKind.Page = 1 -> uk.osric.asp.Sdk.PageEntryKind
+uk.osric.asp.Sdk.PageEntryKind.Route = 4 -> uk.osric.asp.Sdk.PageEntryKind
+uk.osric.asp.Sdk.PageEntryKind.Tombstone = 2 -> uk.osric.asp.Sdk.PageEntryKind
 uk.osric.asp.Sdk.PageFrame
 uk.osric.asp.Sdk.PageFrame.AllowsScripts.get -> bool
 uk.osric.asp.Sdk.PageFrame.AllowsScripts.init -> void
@@ -457,13 +463,15 @@ uk.osric.asp.Sdk.PageListingRequest
 uk.osric.asp.Sdk.PageListingRequest.<Clone>$() -> uk.osric.asp.Sdk.PageListingRequest!
 uk.osric.asp.Sdk.PageListingRequest.After.get -> string?
 uk.osric.asp.Sdk.PageListingRequest.After.init -> void
-uk.osric.asp.Sdk.PageListingRequest.Deconstruct(out string! Prefix, out string? After, out int? Limit, out string? Version) -> void
+uk.osric.asp.Sdk.PageListingRequest.Deconstruct(out string! Prefix, out string? After, out int? Limit, out string? Version, out bool Recursive) -> void
 uk.osric.asp.Sdk.PageListingRequest.Equals(uk.osric.asp.Sdk.PageListingRequest? other) -> bool
 uk.osric.asp.Sdk.PageListingRequest.Limit.get -> int?
 uk.osric.asp.Sdk.PageListingRequest.Limit.init -> void
-uk.osric.asp.Sdk.PageListingRequest.PageListingRequest(string! Prefix = "", string? After = null, int? Limit = null, string? Version = null) -> void
+uk.osric.asp.Sdk.PageListingRequest.PageListingRequest(string! Prefix = "", string? After = null, int? Limit = null, string? Version = null, bool Recursive = true) -> void
 uk.osric.asp.Sdk.PageListingRequest.Prefix.get -> string!
 uk.osric.asp.Sdk.PageListingRequest.Prefix.init -> void
+uk.osric.asp.Sdk.PageListingRequest.Recursive.get -> bool
+uk.osric.asp.Sdk.PageListingRequest.Recursive.init -> void
 uk.osric.asp.Sdk.PageListingRequest.Version.get -> string?
 uk.osric.asp.Sdk.PageListingRequest.Version.init -> void
 uk.osric.asp.Sdk.PageMoveOutcome

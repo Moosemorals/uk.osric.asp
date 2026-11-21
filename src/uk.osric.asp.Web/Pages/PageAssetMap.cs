@@ -74,7 +74,7 @@ internal static class PageAssetMap {
         ArgumentNullException.ThrowIfNull(store);
         ArgumentOutOfRangeException.ThrowIfLessThan(limit, 1);
 
-        PageReadSlice slice = await store.ListAsync("/", after: null, limit, cancellationToken);
+        PageReadSlice slice = await store.ListAsync("/", after: null, limit, cancellationToken: cancellationToken);
 
         Dictionary<string, string> map = [with(StringComparer.Ordinal)];
         foreach (PageReadHead head in slice.Rows) {

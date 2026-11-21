@@ -136,6 +136,16 @@ column is called an exchange.
 **Owner:** assistant — deliberately prose only; a user `Message` and the `Run` it starts, joined by
 `Message.RunId`.
 
+## Folder
+A key with at least one key below it: `/blog` is a folder while `/blog/post` exists.
+
+**Not** a stored thing. There is no folder row, no column and no write path — the host derives a
+folder from the keys a read answers, so the save that first writes `/blog/post` makes the folder and
+scrubbing the last key under it removes it. A page may also be a folder, and a listing says both in
+one row's `PageEntryKind`.
+
+**Owner:** pages — `PageTree` and `PageListingFold`, in `Core`.
+
 ## Head
 The storage row that points a page key at its current revision.
 

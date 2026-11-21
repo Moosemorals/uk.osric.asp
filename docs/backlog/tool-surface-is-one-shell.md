@@ -10,7 +10,7 @@ SPDX-License-Identifier: MIT
 | Difficulty | protective-dragon |
 | Utility | high |
 | Status | blocked |
-| Blocked by | `check-without-storing`, `cannot-search-the-store`, `a-page-cannot-list-folders` |
+| Blocked by | `check-without-storing`, `cannot-search-the-store` |
 | Plan | [assistant-shell-tool](../plans/assistant-shell-tool.md) |
 | Area | Core (Shell, Assistant), Shell, Web (assistant, site), docs, build |
 | Location | `src/uk.osric.asp.Web/Assistant/Tools/ToolRegistry.cs`, `src/uk.osric.asp.Web/Assistant/Shell/`, `src/uk.osric.asp.Core/Shell/`, `src/uk.osric.asp.Shell/` |

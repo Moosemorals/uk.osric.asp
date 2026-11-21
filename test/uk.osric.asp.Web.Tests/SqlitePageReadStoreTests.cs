@@ -151,6 +151,99 @@ public sealed class SqlitePageReadStoreTests {
     }
 
     [Test]
+    public async Task AOneLevelReadAnswersThePrefixAndItsOwnChildrenAsync() {
+        await DatabaseTemplate.SavePageAsync(_options, "/a", "a");
+        await DatabaseTemplate.SavePageAsync(_options, "/a/b", "b");
+        await DatabaseTemplate.SavePageAsync(_options, "/a/b/c", "c");
+
+        PageReadSlice one = await ReadStore().ListAsync("/a", after: null, 10, recursive: false);
+        PageReadSlice all = await ReadStore().ListAsync("/a", after: null, 10);
+
+        Assert.Multiple(() => {
+            Assert.That(one.Rows.Select(row => row.Key), Is.EqualTo(["/a", "/a/b"]));
+            Assert.That(all.Rows.Select(row => row.Key), Is.EqualTo(["/a", "/a/b", "/a/b/c"]));
+        });
+    }
+
+    [Test]
+    public async Task AOneLevelSliceStillAnswersTheWholePrefixsTokenAsync() {
+        await DatabaseTemplate.SavePageAsync(_options, "/a", "a");
+        await DatabaseTemplate.SavePageAsync(_options, "/a/b/c", "c");
+
+        PageReadSlice one = await ReadStore().ListAsync("/a", after: null, 10, recursive: false);
+
+        Assert.That(one.Version, Is.EqualTo(await ReadStore().VersionAsync("/a")),
+            "the fingerprint covers every head under the prefix, not the slice or the level");
+    }
+
+    [Test]
+    public async Task TheFolderReadNamesEachChildThatHoldsSomethingBelowItAsync() {
+        await DatabaseTemplate.SavePageAsync(_options, "/a/b/c", "c");
+        await DatabaseTemplate.SavePageAsync(_options, "/a/d", "d");
+        await DatabaseTemplate.SavePageAsync(_options, "/a/e/f", "f");
+
+        IReadOnlyList<string> folders = await ReadStore().ListFoldersAsync("/a", after: null, 10);
+
+        Assert.That(folders, Is.EqualTo(["/a/b", "/a/e"]),
+            "the prefix's own row is not a child, and a child that holds nothing below it is no folder");
+    }
+
+    [Test]
+    public async Task TheFolderReadFoldsAKeyUnderTheRootAsync() {
+        await DatabaseTemplate.SavePageAsync(_options, "/a/b", "b");
+
+        IReadOnlyList<string> folders = await ReadStore().ListFoldersAsync("/", after: null, 10);
+
+        Assert.That(folders, Is.EqualTo(["/a"]));
+    }
+
+    [Test]
+    public async Task TheFolderReadCountsATombstoneAsync() {
+        await DatabaseTemplate.SavePageAsync(_options, "/a/b/c", "c");
+        await DeleteAsync("/a/b/c");
+
+        IReadOnlyList<string> folders = await ReadStore().ListFoldersAsync("/a", after: null, 10);
+
+        Assert.That(folders, Is.EqualTo(["/a/b"]));
+    }
+
+    [Test]
+    public async Task TheFolderReadTakesTheCursorAndTheLimitAsync() {
+        await DatabaseTemplate.SavePageAsync(_options, "/a/b/x");
+        await DatabaseTemplate.SavePageAsync(_options, "/a/c/x");
+        await DatabaseTemplate.SavePageAsync(_options, "/a/d/x");
+
+        IReadOnlyList<string> after = await ReadStore().ListFoldersAsync("/a", after: "/a/b", 10);
+        IReadOnlyList<string> limited = await ReadStore().ListFoldersAsync("/a", after: null, 2);
+
+        Assert.Multiple(() => {
+            Assert.That(after, Is.EqualTo(["/a/c", "/a/d"]));
+            Assert.That(limited, Is.EqualTo(["/a/b", "/a/c"]));
+        });
+    }
+
+    [Test]
+    public async Task TheFolderReadTreatsAWildcardAsASubtreeAsync() {
+        await DatabaseTemplate.SavePageAsync(_options, "/100%/x/y");
+        await DatabaseTemplate.SavePageAsync(_options, "/1000/x/y");
+
+        IReadOnlyList<string> folders = await ReadStore().ListFoldersAsync("/100%", after: null, 10);
+
+        Assert.That(folders, Is.EqualTo(["/100%/x"]));
+    }
+
+    [Test]
+    public async Task TheFolderReadFoldsAtTheRightSlashWhateverTheKeyHoldsAsync() {
+        // Two astral characters in the prefix: SQLite counts characters and a length measured in C#
+        // counts UTF-16 units, so this is the key where the two would disagree.
+        await DatabaseTemplate.SavePageAsync(_options, "/🚀🚀/x/y/z");
+
+        IReadOnlyList<string> folders = await ReadStore().ListFoldersAsync("/🚀🚀", after: null, 10);
+
+        Assert.That(folders, Is.EqualTo(["/🚀🚀/x"]));
+    }
+
+    [Test]
     public async Task TheHeadRevisionTimeAndHashAreTheCurrentOnesAsync() {
         await DatabaseTemplate.SavePageAsync(_options, "/blog", "first");
         await DatabaseTemplate.SavePageAsync(_options, "/blog", "second");
@@ -197,6 +290,7 @@ public sealed class SqlitePageReadStoreTests {
         string hash = before.Hash;
 
         _ = await RowsAsync("/", after: null, 10);
+        _ = await ReadStore().ListFoldersAsync("/", after: null, 10);
         _ = await ReadStore().VersionAsync("/");
         _ = await ReadStore().GetSourceAsync("/blog");
         _ = await ReadStore().ListRevisionsAsync("/blog");

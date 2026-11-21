@@ -196,8 +196,8 @@ smallest changes come first because they are what every later slice is written a
    - **`/pages` — moving or deleting a folder.** The editor refuses both today, and the refusal is the
      store's own (`FolderNotEmpty` names the keys below). A folder move is a transaction of moves and a
      folder delete a transaction of tombstones, which is precisely the shape this capability was built
-     for. It needs a folder row to act from first, so it waits on
-     [`a-page-cannot-list-folders`](../backlog/a-page-cannot-list-folders.md).
+     for. It needed a folder row to act from first, which
+     [`a-page-cannot-list-folders`](../backlog/closed.md) now gives it.
 
    Everything else the survey found makes one write or none:
    - **`/pages`** saves, moves, deletes, installs, adopts and restores one page at a time. There is no

@@ -521,7 +521,9 @@ using Site.Editor;
 
     if (stage == "listing") {
         PageListing listing = await catalog.ListAsync(new());
-        entries = listing.Entries;
+        // The listing answers folders and the site's own routes as well as pages, and this view is
+        // the pages: the two tables below say live and deleted.
+        entries = [.. listing.Entries.Where(entry => entry.Kind.HasFlag(PageEntryKind.Page))];
         truncated = listing.Truncated;
     }
 
@@ -642,7 +644,9 @@ run.</p>
     } else if (stage == "editor") {
         layout.Title = "Editing " + key;
         bool isEditorItself = string.Equals(key, ctx.Path, System.StringComparison.Ordinal);
-        PageEntry? row = (await catalog.ListAsync(new(key))).Entries.FirstOrDefault(item => string.Equals(item.Key, key, System.StringComparison.Ordinal));
+        PageEntry? row = (await catalog.ListAsync(new(key))).Entries.FirstOrDefault(item =>
+            item.Kind.HasFlag(PageEntryKind.Page)
+            && string.Equals(item.Key, key, System.StringComparison.Ordinal));
         List<NavLink> menu = [new(self, "Page list"), new(ReadUrl(key), "History")];
         if (!isEditorItself && row?.IsLibrary != true) {
             menu.Add(new(MoveUrl(key), "Move"));

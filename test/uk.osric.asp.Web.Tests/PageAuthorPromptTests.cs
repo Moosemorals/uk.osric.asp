@@ -83,7 +83,7 @@ public sealed class PageAuthorPromptTests {
         Assert.Multiple(() => {
             Assert.That(prompt, Does.Contain("type=\"IPageStorage\""));
             Assert.That(prompt, Does.Contain("query=\"cookie\""));
-            Assert.That(prompt, Does.Contain("page-author-v55"));
+            Assert.That(prompt, Does.Contain("page-author-v56"));
         });
     }
 
@@ -290,7 +290,7 @@ public sealed class PageAuthorPromptTests {
     [Test]
     public void ThePromptIsVersionedForNullablePages() {
         Assert.Multiple(() => {
-            Assert.That(PageAuthorPrompt.Version, Is.EqualTo("page-author-v55"));
+            Assert.That(PageAuthorPrompt.Version, Is.EqualTo("page-author-v56"));
             Assert.That(PageAuthorPrompt.Build(), Does.Contain("## Nullable page code"));
         });
     }
@@ -506,9 +506,23 @@ public sealed class PageAuthorPromptTests {
         string prompt = PageAuthorPrompt.Build();
 
         Assert.Multiple(() => {
-            Assert.That(prompt, Does.Contain("PageListingRequest(prefix, after, limit)"));
+            Assert.That(prompt, Does.Contain("PageListingRequest(prefix, after, limit, version, recursive)"));
             Assert.That(prompt, Does.Contain("Truncated"));
             Assert.That(prompt, Does.Contain("exclusive"));
+        });
+    }
+
+    [Test]
+    public void TheCatalogSectionTeachesTheTree() {
+        string prompt = PageAuthorPrompt.Build();
+
+        Assert.Multiple(() => {
+            Assert.That(prompt, Does.Contain("`Kind`"));
+            Assert.That(prompt, Does.Contain("Kind.HasFlag(PageEntryKind.Page)"));
+            Assert.That(prompt, Does.Contain("`Folder`"));
+            Assert.That(prompt, Does.Contain("`Route`"));
+            Assert.That(prompt, Does.Contain("recursive"));
+            Assert.That(prompt, Does.Contain("no `SavedAt`"));
         });
     }
 
@@ -523,7 +537,7 @@ public sealed class PageAuthorPromptTests {
             Assert.That(prompt, Does.Contain("Nothing is stored"));
             Assert.That(prompt, Does.Contain("valid: false"));
             Assert.That(prompt, Does.Contain("SCRIPT002"));
-            Assert.That(PageAuthorPrompt.Version, Is.EqualTo("page-author-v55"));
+            Assert.That(PageAuthorPrompt.Version, Is.EqualTo("page-author-v56"));
         });
     }
 

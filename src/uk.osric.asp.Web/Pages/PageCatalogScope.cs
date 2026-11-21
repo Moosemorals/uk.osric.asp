@@ -62,34 +62,40 @@ internal sealed class PageCatalogScope(
 
         ThrowIfEnded();
 
-        // One row past the limit is how the store says "there are more" without a second query.
-        PageReadSlice slice = await store.ListAsync(key, after, limit + 1, Cancellation());
-        bool truncated = slice.Rows.Count > limit;
+        // One row past the limit is how the store says "there are more" without a second query. A
+        // one-level listing also asks for its folders, because a child whose only content is deeper
+        // is not a head that read can see.
+        PageReadSlice slice = await store.ListAsync(key, after, limit + 1, request.Recursive, Cancellation());
+        IReadOnlyList<string> folders = request.Recursive
+            ? []
+            : await store.ListFoldersAsync(key, after, limit + 1, Cancellation());
 
-        List<PageEntry> entries = [];
-        int shown = Math.Min(slice.Rows.Count, limit);
-        entries.EnsureCapacity(shown);
-        for (int index = 0; index < shown; index++) {
-            PageReadHead row = slice.Rows[index];
-            PageImageState state = PageImageStatus.Describe(
-                row.RuntimeId, row.HasImage, row.HasDiagnostics, currentRuntimeId, row.TemplateKind);
-            entries.Add(new PageEntry(
-                row.Key,
-                row.SavedAt,
-                row.Hash,
-                row.IsDeleted,
-                reserved.IsReserved(PagePath.Normalize(row.Key)),
-                IsHtml(row.Key)) {
-                IsAsset = row.TemplateKind.IsAsset(),
-                IsLibrary = row.TemplateKind.IsLibrary(),
-                IsWorker = row.TemplateKind.IsWorker(),
-                State = state.Describe(),
-                Libraries = PageLibraryFingerprint.KeysOf(row.TemplateLibraries),
-                Seed = Describe(row),
-            });
+        Dictionary<string, PageReadHead> heads = [with(StringComparer.Ordinal)];
+        List<PageListingKey> facts = [];
+        foreach (PageReadHead row in slice.Rows) {
+            heads[row.Key] = row;
+            facts.Add(new PageListingKey(row.Key, IsFolder: false));
         }
 
-        return new PageListing(entries, truncated) {
+        // The route table is the shell's, and a page cannot own it: every route is a fact the fold
+        // filters to the subtree, so a route row costs no read.
+        foreach (PagePath route in reserved.Keys) {
+            facts.Add(new PageListingKey(route.Key, IsFolder: false));
+        }
+
+        foreach (string folder in folders) {
+            facts.Add(new PageListingKey(folder, IsFolder: true));
+        }
+
+        PageListingKeys answer = PageListingFold.Of(facts, key, after, request.Recursive, limit);
+
+        List<PageEntry> entries = [];
+        entries.EnsureCapacity(answer.Keys.Count);
+        foreach (PageListingKey node in answer.Keys) {
+            entries.Add(Describe(node, heads));
+        }
+
+        return new PageListing(entries, answer.Truncated) {
             Version = slice.Version,
             // A first call carries no token and is never changed. Any token that is not the one just
             // read is a warning, not an error: a stale token should not turn a page bug into a 500.
@@ -140,9 +146,43 @@ internal sealed class PageCatalogScope(
         return new PageSource(source.Key, source.Hash, source.SavedAt, source.Template);
     }
 
+    // One row of the answer, from the head the slice answered, the route table, or nothing but the
+    // fact that something lives below the key. The marks are the host's rules and the kind says which
+    // of them apply, so a key that is a page and a folder is one row rather than two.
+    private PageEntry Describe(PageListingKey node, IReadOnlyDictionary<string, PageReadHead> heads) {
+        PageEntryKind kind = node.IsFolder ? PageEntryKind.Folder : PageEntryKind.None;
+        bool isRoute = reserved.IsReserved(PagePath.Normalize(node.Key));
+        if (isRoute) {
+            kind |= PageEntryKind.Route;
+        }
+
+        if (heads.TryGetValue(node.Key, out PageReadHead? head) && head is not null) {
+            kind |= head.IsDeleted ? PageEntryKind.Page | PageEntryKind.Tombstone : PageEntryKind.Page;
+            PageImageState state = PageImageStatus.Describe(
+                head.RuntimeId, head.HasImage, head.HasDiagnostics, currentRuntimeId, head.TemplateKind);
+
+            return new PageEntry(node.Key, kind) {
+                SavedAt = head.SavedAt,
+                Hash = head.Hash,
+                IsHtml = IsHtml(node.Key),
+                IsAsset = head.TemplateKind.IsAsset(),
+                IsLibrary = head.TemplateKind.IsLibrary(),
+                IsWorker = head.TemplateKind.IsWorker(),
+                State = state.Describe(),
+                Libraries = PageLibraryFingerprint.KeysOf(head.TemplateLibraries),
+                Seed = DescribeSeed(head),
+            };
+        }
+
+        // A row with no head has nothing to serve, so the content type matters only for a route.
+        return new PageEntry(node.Key, kind) {
+            IsHtml = isRoute && IsHtml(node.Key),
+        };
+    }
+
     // The row the store answered for, judged against the pack the process read once. A key with no
     // seed on either side is the owner's own page, and carries no summary.
-    private PageSeedSummary? Describe(PageReadHead row) {
+    private PageSeedSummary? DescribeSeed(PageReadHead row) {
         PagePath path = PagePath.Normalize(row.Key);
         SeedFile? seed = seeds.Find(path);
 
