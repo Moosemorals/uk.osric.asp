@@ -129,8 +129,11 @@ trunk changed the seam under it.
    duration — around 30 ms — rather than a count, because a count bounds the answer while the scan's work
    is done whether or not anything matches. One `Pages:Search:` section rather than two settings for one
    behaviour.
-3. **The line and its position, and no window.** A line is what a find list shows and what the tools
-   print; a caller that wants context reads the page through the read it already has.
+3. **A snippet and its position.** The line cut to a window at least as wide as the match and centred on it,
+   64 characters when the caller names no width, with the match's own column and the snippet's column saying
+   where each sits. The search reads the whole line; the assistant's front-ends still print it whole. Refined
+   from "the line and no window" on 2026-11-21, when the plan asked whether an answer was the line or a
+   fragment.
 4. **A tombstone is not a source.** It is the panic button and stays invisible to day-to-day work, so a
    scan never reads one — which is what `SourcesAsync` already does.
 5. **The site's own routes are sources.** Answered on 2026-11-21, after trunk made it visible that the
@@ -139,6 +142,10 @@ trunk changed the seam under it.
    the site says it whether a page wrote it or a route does. A match carries the key, and the listing
    marks a key a route answers (`PageEntryKind.Route`), so a page can tell the two apart with the read it
    already has.
+6. **An interrupted search is an error.** Answered on 2026-11-21, when the plan asked how a scan stopped by
+   its duration should say so: POSIX `grep`'s way, an exit status above 1 — 2 in GNU `grep` — with the
+   diagnostic on standard error and the lines already selected left on standard output. The virtual shell
+   grows the exit code and the error channel; `search_pages` is being deleted and gets neither.
 
 ## After MVP: a revision's history
 
@@ -168,7 +175,8 @@ cursor it resumes from ([`listing-has-no-cursor`](closed.md)). Its own plan, wri
 on 2026-11-21, is [page search](../plans/page-search.md).
 
 The owner refined the shape on 2026-11-20, before any plan: a pattern as well as a literal, so the shell's
-language reaches a page; one bound measured in time rather than a count; the line and its position and no
-window; no tombstones; a cursor that a store version invalidates rather than a snapshot that holds one
-open; and history behind a flag, after MVP. One answer was added on 2026-11-21: a scan reads the site's
-route records as well as live pages, because `search_pages` and `grep` already do.
+language reaches a page; one bound measured in time rather than a count; the line and its position; no
+tombstones; a cursor that a store version invalidates rather than a snapshot that holds one open; and
+history behind a flag, after MVP. Answers were added on 2026-11-21: a scan reads the site's route records
+as well as live pages, because `search_pages` and `grep` already do; a match carries a snippet of its line
+rather than the whole line; and a scan the timer stopped is an interrupted result, said POSIX's way.

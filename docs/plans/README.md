@@ -28,5 +28,5 @@ other; `make decisions` checks the names.
 | [email-configuration](email-configuration.md) | Configuration excerpts for [email](email.md); nothing deployed | — |
 | [ide-host](ide-host.md) | Proposed 2026-11-15; slices 0, 1, 2, 3, 5 and 6 merged, and the search is step 4, with its own plan | [`cannot-search-the-store`](../backlog/cannot-search-the-store.md) |
 | [page-inbox](page-inbox.md) | Superseded in shape 2026-11-21 by [storage-model](storage-model.md) | `message-does-not-survive-a-redirect` |
-| [page-search](page-search.md) | Proposed 2026-11-21, waits for the owner; five questions and nothing built | [`cannot-search-the-store`](../backlog/cannot-search-the-store.md) |
+| [page-search](page-search.md) | Proposed 2026-11-21; the owner answered the five questions, the plan is revised to them and waits for a yes. Nothing built | [`cannot-search-the-store`](../backlog/cannot-search-the-store.md) |
 | [storage-model](storage-model.md) | Proposed and agreed 2026-11-21; nothing built, slice 0 is next | [`storage-is-not-one-model`](../backlog/storage-is-not-one-model.md) |
