@@ -211,6 +211,7 @@ lifetime on `SetAsync` means.
 public interface IRecordStore {
     Task<IReadOnlyList<PageRow>> QueryAsync(string sql, PageParameters? parameters = null);
     Task<PageRecordResult> ExecuteAsync(string sql, PageParameters? parameters = null);
+    Task<IReadOnlyList<PageRow>> SearchAsync(string table, string term, int? limit = null);
     IPageRecordTransaction BeginTransaction();
 }
 
@@ -277,6 +278,13 @@ different table and mixing the two would put a page's counter and its preference
 `GetBoolean`, `GetDateTimeOffset`, `IsNull`, and a column the statement did not produce is a page bug.
 `PageParameters` is a small `Add(name, value)` builder, so a `Dictionary<string, object?>` never has to
 appear in page source.
+
+`SearchAsync` is a call rather than SQL because a `TEMP VIEW` cannot carry `MATCH` and the FTS5 index
+holds every subject's rows — an index a page could query directly would leak the existence of another
+subject's rows. It reads the one column a table declared as `Search`, filters by the subject the way
+the views do, and answers rows of that table, best match first, bounded by `MaxResultRows`. The
+tokenizer is the one the assistant's memory already uses: an invariant in code, because a page that
+could weaken it would weaken every search on the site.
 
 The declaration is part of the revision, in a `<%! %>` type:
 
@@ -513,7 +521,13 @@ finds rows an older build left.
 A declared table's real shape is `Id INTEGER PRIMARY KEY AUTOINCREMENT`, one column per declared
 property, an `Owner TEXT NOT NULL` column for a Visitor table, and, when `Search` is set, an
 external-content FTS5 index with its three triggers created and dropped with the table — the shape
-`AssistantMemorySearch` already has by hand.
+`AssistantMemorySearch` already has by hand. The index is never a view: a page reaches it through
+`SearchAsync`, which filters by the subject before it matches.
+
+The declaration has no index, no unique constraint and no foreign key of its own. The primary key is
+the row id, uniqueness is a statement the page writes (`INSERT … SELECT … WHERE NOT EXISTS`), and a
+child row is deleted by the page's transaction rather than by a cascade — which is enough at the row
+cap, and is the reason the cap is a policy value.
 
 ### What the migration copies
 
@@ -578,7 +592,9 @@ rotation or when the row is swept, which is the same rule seen from the other si
 The `b` cookie is new. The host mints 128 random bits in base64url on the first `Browser` write, as
 `HttpOnly`, `SameSite=Lax`, `Path=/`, `Secure` in production, and re-sets its expiry on each `Browser`
 write. It is not the `s` id, is never linked to an account, and dies when the visitor clears cookies or
-`Pages:Stores:Visitor:Browser:LifetimeDays` passes. `ShellCookies` gains `b` as a fourth owned name, so
+`Pages:Stores:Visitor:Browser:LifetimeDays` passes. It is written after the render, like `s`, so a
+first `Browser` write after `ctx.Response.FlushAsync()` throws for the same reason a first `Session`
+write does: the cookie can no longer be sent. `ShellCookies` gains `b` as a fourth owned name, so
 `Request.Cookies` never hands it to a page. `/privacy` names it, its lifetime and what it holds; today
 that is the editor-mode preference and nothing else.
 
@@ -713,8 +729,8 @@ record does not have yet:
   the declaration is the table: a save adds what is new and drops what the source no longer names, and
   a save is never refused for correctness
 - **pages-a-record-is-sandboxed** — one statement over `TEMP VIEW`s, an owner filter the page cannot
-  name, joins and aggregates, a keyword and identifier allow-list, SQLite's limits, the result caps and
-  the statement and transaction clocks
+  name, joins and aggregates, a keyword and identifier allow-list, SQLite's limits, the result caps,
+  the statement and transaction clocks, and `SearchAsync` as the one call that reaches the FTS5 index
 - **pages-a-library-owns-its-schema** — a library declares its tables and its data under its own key; a
   page calls the library's methods and never queries another source's table, and `For(libraryKey)` is
   how the methods reach it
@@ -767,9 +783,9 @@ is built until the owner says yes to this plan.
    `Until` value; `Pages:Storage` stops the host at startup.
 2. **Records and the sandbox** (`M`). `PageTableAttribute`, `PageSchema` and extraction, `PAGE011` and
    `PAGE012`, `DeclaredTables`, the DDL lifecycle in the save's transaction, `IRecordStore`,
-   `IPageRecordTransaction` as the frame, `PageRecordResult`, `PageRow`, `PageParameters`, the
-   `TEMP VIEW` and triggers, the allow-list, the limits, the result caps and the clocks; the library
-   and worker declarations; `/help`.
+   `IPageRecordTransaction` as the frame, `PageRecordResult`, `PageRow`, `PageParameters`, `SearchAsync`
+   and the FTS5 index, the `TEMP VIEW` and triggers, the allow-list, the limits, the result caps and
+   the clocks; the library and worker declarations; `/help`.
    *Proves:* a save creates exactly the declared tables and catalogue rows; an added column alters and
    changes nothing else; a column or table the source no longer names is dropped with every row in it;
    a revision that does not compile applies no DDL; a declaration the host cannot apply stores the
@@ -778,8 +794,9 @@ is built until the owner says yes to this plan.
    and a second statement are refused; a result over its cap throws naming the setting; a write with no
    transaction open answers `Applied` and is durable, one inside a transaction answers `Staged` and is
    gone after a rollback or a dispose; a refused write inside a transaction leaves the earlier rows to
-   the page's choice; a second `BeginTransaction` throws; a library's table is reached only through
-   `For(libraryKey)`; a worker's own table is shared by its runs.
+   the page's choice; a second `BeginTransaction` throws; a search answers my subject's rows and never
+   another's; a library's table is reached only through `For(libraryKey)`; a worker's own table is
+   shared by its runs.
 3. **Messages** (`M`). `IMessageStore`, `PageTopic`, `StoreMessages`, the address check, the atomic
    take, the caps, the lifetimes and the sweep; the flash example in `/help`; `/privacy`.
    *Proves:* a page posts to another page and the other takes it; a second take is `Empty`; two
@@ -840,7 +857,8 @@ separate worktrees. Slice 5 waits for them.
   cookie, the DDL lifecycle, the sandbox refusals, the join and aggregate, the record transaction (an
   autocommitted write is durable when it answers, a staged one is not until the commit, a rollback and
   a dispose discard it, a read sees the staged write, a refused write leaves the staged rows, a second
-  `BeginTransaction` throws), the message lifecycle, the object lifecycle, the migration up/down/up,
+  `BeginTransaction` throws), the search answering only the reader's rows, the message lifecycle, the
+  object lifecycle, the migration up/down/up,
   and the configuration's shipped, override and refusal cases.
 - **`Web.IntegrationTests`** for the pipeline: a page that writes and reads every shape, a second
   visitor who sees none of the first's, a sign-in that adopts, a `HEAD` that refuses, a layout that
@@ -856,7 +874,11 @@ separate worktrees. Slice 5 waits for them.
 - **`/help` in the same change** for everything a page author gains — the two subjects, the four
   shapes, the lifetimes, `For`, the declaration, the SQL and its refusals, the message take, the object
   route and its content types, the caps, the job's three scopes and the `Browser` preference
-  (`product-manual-is-a-page`).
+  (`product-manual-is-a-page`). Three of those are the ones a page with its own users gets wrong, so
+  they are worked examples and not asides: **the row's owner is in the `WHERE`**, because the store
+  bounds a namespace and not a row; **uniqueness is `INSERT … SELECT … WHERE NOT EXISTS`**, because a
+  declaration has no unique constraint; and **a login is a `Browser` value**, because the page cannot
+  set a cookie and the site's sign-in is not the page's.
 - **`/privacy`** for the visitor store, the `b` cookie, adoption at sign-in, what sign-out clears, what
   a page delete and a scrub take, the object bytes, and what the archive carries.
 - **`PageAuthorPrompt` and its `Version`**, or the assistant keeps reaching for `IPageStorage` and a
@@ -906,6 +928,13 @@ separate worktrees. Slice 5 waits for them.
   and the response exclusions still bound it, and `/help` says so.
 - **The retired keys stop the host at startup.** An operator must remove `Pages:Storage` and
   `Pages:Session`; the message names both and the recommended replacement.
+- **The store bounds a namespace, not a row.** Every render of one page writes that page's tables, so
+  a page with its own users — a forum is the example — must put the row's owner in the `WHERE` of every
+  `UPDATE` and `DELETE` itself. The manual says so plainly; a page that forgets it lets one visitor
+  change another's row, and nothing in the store will notice.
+- **A declaration has no index, unique constraint or foreign key.** Uniqueness is
+  `INSERT … SELECT … WHERE NOT EXISTS` and a parent's children are deleted by the page's transaction,
+  which is correct at the row cap and a surprise for an author who expects a database to do it.
 - **The archive loses a Page one-shot or an expiry.** The owner's answer 6; `/help` says a value that
   must travel is a Page value with the page's own lifetime.
 - **A contract change recompiles every stored image.** The page contract moves, so every image
@@ -928,6 +957,9 @@ separate worktrees. Slice 5 waits for them.
   `pages-writes-are-transactions` exists to prevent: `IPageWrites` carries the writes and
   `IPageTransaction` carries one commit, so a page never chooses between two identical methods. The
   store knowing whether a transaction is open is how one spelling keeps both meanings.
+- **`MATCH` in the page's own SQL.** A `TEMP VIEW` cannot carry it, and the FTS5 index holds every
+  subject's rows, so a page that could name the index would learn that another subject's row exists.
+  `SearchAsync` is the one call that reaches the index, and it filters by the subject first.
 - **Staging statements and running them at the commit**, as the page store stages writes. A page has to
   read what it just wrote, and the atomic counter is `UPDATE … RETURNING`, so the statement has to run
   when it is called; deferring it would make every `QueryAsync` inside a transaction answer nothing.
@@ -952,6 +984,65 @@ separate worktrees. Slice 5 waits for them.
   the store has to sweep and the page has to think about.
 - **An alias forever.** One release is a window; a permanent second surface is what the model removes.
 
+## A forum, as an exercise
+
+The shapes were put to the test of an ordinary forum page: three tables — its own users with hashed
+passwords, its topics and its comments — all `StoreSubject.Page`, because a forum's posts are shared by
+every visitor and its user list is one list rather than one per browser. Nothing was built; this is
+what the model says would happen, and where it pinches.
+
+**It fits, and here is the shape:**
+
+- Three of the eight tables a source may declare, and `long`, `string` and `DateTimeOffset` cover an
+  id, a name, a salt, a hash, a title, a body and a timestamp.
+- The login is the page's, not the site's. `ctx.Request.Form` reads the POST, `HMACSHA256` derives the
+  hash with a per-row salt, `CryptographicOperations.FixedTimeEquals` compares it, and *being logged
+  in* is a `Browser` value — a device that stays logged in across signs-in, sign-outs and restarts. A
+  `Session` value would log the reader out after thirty idle minutes, which is what that lifetime
+  means; a `Person` value follows the site's identity — the account when signed in, the session
+  otherwise — so the forum's login would belong to the site's sign-in or die with the session.
+- Registering is one statement,
+  `INSERT INTO "forum_user" (…) SELECT … WHERE NOT EXISTS (SELECT 1 FROM "forum_user" WHERE "Name" = @name)`,
+  so two claims on one name cannot both land: it is a transaction of one statement and SQLite has one
+  writer.
+- Posting a comment and counting it on the topic is one record transaction — the insert beside
+  `UPDATE "forum_topic" SET "Replies" = "Replies" + 1 WHERE "Id" = @topic` — and the counter is not
+  racy.
+- The topic list is a join with an aggregate over two of the page's own tables, which is the case the
+  owner's first answer put in scope.
+- Avatars are `Objects.PutAsync(bytes, "image/png")` and `<img src="/o/{sha}">`, deduped by content and
+  served by the shell with an `ETag`; a "posted" confirmation is a `NextRead` value taken by the page
+  the redirect lands on.
+
+**Where it pinches:**
+
+1. **Row authorisation is the page's.** The binding is one writer per namespace, not per row: every
+   render of `/forum` writes the forum's tables, so the store cannot stop a visitor editing another
+   visitor's comment. The page does it in the `WHERE` — `UPDATE "forum_comment" SET "Body" = @body
+   WHERE "Id" = @id AND "Author" = @me` — and `/help` has to say so, because the model promises that
+   nobody else can *reach* your namespace, not that nobody else can change your row.
+2. **No declared index, unique constraint or foreign key.** Uniqueness is the `WHERE NOT EXISTS`
+   above; a topic's comments are deleted by the page's transaction, child first. That is enough at the
+   row cap and it is why the cap exists — but a page author must be told, or the forum's registration
+   will be a check followed by an insert.
+3. **A shared table's cap is the whole forum's.** Ten thousand rows across topics and comments is a
+   small forum; the shard is another page — `/forum/2026-11` with the same declaration and its own
+   namespace — and the cap being a policy value is what lets an operator raise it.
+4. **A password KDF is not in the page API.** `System.Security.Cryptography` admits the SHA-2 hashes,
+   the matching HMACs, `RandomNumberGenerator` and `CryptographicOperations`, and denies
+   `Rfc2898DeriveBytes`, so a page that hashes passwords writes its own salted iteration. That is the
+   first real gap the exercise found: either `/help` teaches the loop, or the policy admits PBKDF2 and
+   moves its version, and the owner chooses when a page actually needs it.
+5. **The archive would not carry it.** Page *values* are exported and Page *records* are not, so a
+   forum's users and posts would not leave with an archive. This is the first caller that would want
+   them, and it is the reason "the Page subject grows a shape" is a phrase rather than a promise.
+6. **No rate limit for a page's own auth.** The site's login has one; a page's form login has the
+   render budget, the caps and nothing else, so a page that must throttle keeps a `Browser` value with
+   a timestamp and says so in `/help`.
+
+The exercise changes one thing in the plan and it is not the forum: `Search` was declared with no way
+to query it, so `IRecordStore.SearchAsync` is now the one call that reaches the FTS5 index.
+
 ## What this does not close
 
 - **Assistant memory.** `AssistantMemories`, its versions, pins and FTS5 stay the assistant's
@@ -964,6 +1055,15 @@ separate worktrees. Slice 5 waits for them.
 - **N-read lifetimes.** A countdown is page state; a record makes the decrement atomic.
 - **An image re-encode.** The object store holds the bytes and the route serves them; a transform
   capability is a later idea.
+- **A password KDF in the page API.** `System.Security.Cryptography` still denies
+  `Rfc2898DeriveBytes`, so a page that hashes passwords writes its own salted iteration; admitting
+  PBKDF2 is a policy change the owner takes when a page needs it.
+- **An object private to a page's own user model.** `/o/{sha}` checks the site's identity, so a page
+  with its own logins can have public objects or per-device private ones, not per-forum-user ones.
+- **A shared table in an archive.** Page values travel and Page records do not; the first caller that
+  needs a shared table to leave the site is what makes the archive grow a shape.
+- **Rate limiting for page code.** The site's own login has a limiter; a page's form login has the
+  render budget and its caps, and a page that must throttle keeps its own clock in a value.
 - **Migrating another site's records or objects.** The archive carries Page values and nothing else.
 - **The shell's own flash and its identity.** `PageSessions` and the shell's rotation stay; the shell is
   not offered `IPageStores`.
