@@ -374,8 +374,10 @@ holds and the item does not change it.
 public interface IMessageStore {
     Task<PageMessagePostResult> PostAsync(string toPageKey, string body, StoreLifetime? lifetime = null);
     Task<PageMessagePostResult> PostAsync(PageTopic topic, string body, StoreLifetime? lifetime = null);
-    Task<PageMessageTakeResult> TakeAsync();
-    Task<PageMessageTakeResult> TakeAsync(PageTopic topic);
+    Task<PageMessageRead> TakeAsync();
+    Task<PageMessageRead> TakeAsync(PageTopic topic);
+    Task<PageMessageRead> PeekAsync();
+    Task<PageMessageRead> PeekAsync(PageTopic topic);
 }
 ```
 
@@ -383,19 +385,33 @@ A message is durable, one row, addressed to a page or a topic, and taken once. `
 names a queue with no page behind it; a malformed name throws when the page constructs it, before a
 store is touched. There is no `Flash` topic: the item's model makes the flash a `NextRead` value.
 
+`PageMessageRead` is `(Refusal, Message)` and both calls answer it: `Take` removes the row, `Peek`
+leaves it. One value rather than two, because the only difference between the calls is whether the row
+is still there afterwards, and the caller already knows which one it called.
+
 - The post checks a page address before it writes: the path is normalised, a path that cannot name a
   page is `NotAddressable`, a reserved key is `OwnedBySite`, no live source is `UnknownPage`, and a
   library or a content-only page is `NotASink`. A topic address skips the check because the name is the
   whole address.
 - The take is one `DELETE … WHERE "Id" = (SELECT … ORDER BY "Id" LIMIT 1) RETURNING …` filtered by the
-  reader's subject and the address, so two concurrent takes answer one `Taken` and one `Empty`. There
-  is no peek, count, wait or recall; the take is the test.
+  reader's subject and the address, so two concurrent takes answer one with a message and one `Empty`.
+- The peek is the same statement with `SELECT` instead of `DELETE`, so it answers the one row a take
+  would answer right now, deletes nothing, and needs no transaction because it changes nothing. It is a
+  **preview, not a claim**: another render may take that row between the peek and the take, so a page
+  acts on the message `Take` returns and uses `Peek` only to decide whether to act at all. The pattern
+  it makes possible is the one the take could not: look at a job's result, do the work that depends on
+  it, and take only once the work succeeded, so a failed render leaves the message for the retry.
+- A peek is a read: a `HEAD` may peek and a layout may peek, where both are refused a post and a take.
+  It does not re-arm a job's silence clock, because a worker looking is not a worker working.
+- There is no `Count`. A page that needs a number takes, or peeks and says that something is waiting;
+  the reasons are under [considered and rejected](#considered-and-rejected).
 - A message belongs to the reader's subject, and the reader is always its owner, so the value a page
   sees carries `From`, `Body` and `SentAt` and no owner. `From` is stamped by the host from the layer's
   key, the library's key or the worker's key, never accepted from the page.
 - The lifetime is the subject's default `Person`, or `Session`, `Browser`, or any of those with an
   expiry (`Until`); adoption re-keys a `Person` message, the rotation deletes a `Session` one, and a
-  browser message follows the `b` cookie. Expired rows are swept with the values.
+  browser message follows the `b` cookie. A peek does not extend it. Expired rows are swept with the
+  values.
 - Caps: one body, the messages one subject holds and the bytes they total, all per subject.
 - Deleting a page deletes the messages addressed to it in the tombstone's transaction; a topic is not a
   page and is untouched.
@@ -734,8 +750,8 @@ record does not have yet:
 - **pages-a-library-owns-its-schema** — a library declares its tables and its data under its own key; a
   page calls the library's methods and never queries another source's table, and `For(libraryKey)` is
   how the methods reach it
-- **pages-a-message-is-taken-once** — durable, FIFO, one atomic take, at most once; no peek, count,
-  wait, recall or activity clock
+- **pages-a-message-is-taken-once** — durable, FIFO, one atomic take, at most once; a peek is a preview
+  that takes nothing; no count, wait, recall or activity clock
 - **pages-an-object-is-content-addressed** — SHA-256 bytes, `/o/{sha}` with `ETag`, `Range` and a cache
   policy that follows the subject, ownership checked for a private subject, a fixed content-type
   allow-list
@@ -797,13 +813,17 @@ is built until the owner says yes to this plan.
    the page's choice; a second `BeginTransaction` throws; a search answers my subject's rows and never
    another's; a library's table is reached only through `For(libraryKey)`; a worker's own table is
    shared by its runs.
-3. **Messages** (`M`). `IMessageStore`, `PageTopic`, `StoreMessages`, the address check, the atomic
-   take, the caps, the lifetimes and the sweep; the flash example in `/help`; `/privacy`.
+3. **Messages** (`M`). `IMessageStore`, `PageTopic`, `PageMessageRead`, `StoreMessages`, the address
+   check, the atomic take, the peek, the caps, the lifetimes and the sweep; the flash example and the
+   peek-that-protects-a-retry in `/help`; `/privacy`.
    *Proves:* a page posts to another page and the other takes it; a second take is `Empty`; two
-   concurrent takes answer one `Taken` and one `Empty`; FIFO; a reserved key, an unknown key, a library
-   and a content-only page are values; a signed-in message is on the account and another account does
-   not see it; an anonymous one is adopted at sign-in; a `Session` one dies at rotation; a topic is a
-   separate queue; a page delete takes its messages.
+   concurrent takes answer one with a message and one `Empty`; FIFO; a peek answers the message a take
+   would and the take still answers it; a peek twice answers the same message; a take after another
+   render's take is `Empty`; a `HEAD` peeks but is refused a take; a layout peeks; a peek does not
+   re-arm a job's clock; a reserved key, an unknown key, a library and a content-only page are values; a
+   signed-in message is on the account and another account does not see it; an anonymous one is adopted
+   at sign-in; a `Session` one dies at rotation; a topic is a separate queue; a page delete takes its
+   messages.
 4. **Objects** (`M`). `IObjectStore`, `StoreObjects`, `/o/{sha}` and its reserved key, the content-type
    allow-list, `ETag`, `Range`, the cache policy, ownership and the caps; `/help`, `/privacy`,
    `docs/shell.md`.
@@ -831,7 +851,7 @@ separate worktrees. Slice 5 waits for them.
 
 | File | Change |
 | --- | --- |
-| `src/uk.osric.asp.Sdk/` | `IPageStores`, `IPageSubject`, `IPageVisitorSubject`, `IValueStore`, `IRecordStore`, `IPageRecordTransaction`, `IMessageStore`, `IObjectStore`, `StoreLifetime`, `StoreLifetimeKind`, `StoreFilter`, `StoreEntry`, `StoreSubject`, `PageTableAttribute`, `PageRow`, `PageRecordResult`, `PageRecordOutcome`, `PageParameters`, `PageObject`, `PageObjectRef`, `PageTopic`, the message results and refusals, `PageValue`'s two new properties, the obsolete marks on the two old interfaces; `PublicAPI.Unshipped.txt` |
+| `src/uk.osric.asp.Sdk/` | `IPageStores`, `IPageSubject`, `IPageVisitorSubject`, `IValueStore`, `IRecordStore`, `IPageRecordTransaction`, `IMessageStore`, `IObjectStore`, `StoreLifetime`, `StoreLifetimeKind`, `StoreFilter`, `StoreEntry`, `StoreSubject`, `PageTableAttribute`, `PageRow`, `PageRecordResult`, `PageRecordOutcome`, `PageParameters`, `PageObject`, `PageObjectRef`, `PageTopic`, `PageMessage`, `PageMessageRead`, `PageMessagePostResult`, `PageMessageRefusal`, `PageValue`'s two new properties, the obsolete marks on the two old interfaces; `PublicAPI.Unshipped.txt` |
 | `src/uk.osric.asp.Core/` | `PageSchema` and its validation, the SQL allow-list and identifier scan, the content-type allow-list, the SHA-256 rule |
 | `src/uk.osric.asp.Runtime/` | Declaration extraction on the compile, `CompileResult.Schema`, `PAGE011` and `PAGE012` |
 | `src/uk.osric.asp.Web/Pages/` | `PageStoresScope`, `PageStoresOptions`, `PageStoresCaps`, the internal store seams, `PageChain.CreateLayer`, `PageStorageOptions`'s retirement, `PageStorageScope` and `PageSessionScope` as adapters, `PageSessionResolver` (the reader's subject), `PageSessionRequest`, `PageSessionOptions`'s retirement, the sweep |
@@ -857,7 +877,8 @@ separate worktrees. Slice 5 waits for them.
   cookie, the DDL lifecycle, the sandbox refusals, the join and aggregate, the record transaction (an
   autocommitted write is durable when it answers, a staged one is not until the commit, a rollback and
   a dispose discard it, a read sees the staged write, a refused write leaves the staged rows, a second
-  `BeginTransaction` throws), the search answering only the reader's rows, the message lifecycle, the
+  `BeginTransaction` throws), the search answering only the reader's rows, the message lifecycle
+  (post, take, peek, the peek-then-take race, the `HEAD` rule, the caps), the
   object lifecycle, the migration up/down/up,
   and the configuration's shipped, override and refusal cases.
 - **`Web.IntegrationTests`** for the pipeline: a page that writes and reads every shape, a second
@@ -872,7 +893,8 @@ separate worktrees. Slice 5 waits for them.
 ## Docs
 
 - **`/help` in the same change** for everything a page author gains — the two subjects, the four
-  shapes, the lifetimes, `For`, the declaration, the SQL and its refusals, the message take, the object
+  shapes, the lifetimes, `For`, the declaration, the SQL and its refusals, the message take and peek,
+  the object
   route and its content types, the caps, the job's three scopes and the `Browser` preference
   (`product-manual-is-a-page`). Three of those are the ones a page with its own users gets wrong, so
   they are worked examples and not asides: **the row's owner is in the `WHERE`**, because the store
@@ -922,6 +944,10 @@ separate worktrees. Slice 5 waits for them.
   and `/help` steer away, and the deprecation diagnostic is what finds the pages that still use them.
 - **A `NextRead` take is a write even when empty.** The seeded layout does not do it; a page that opts
   in pays one small `DELETE` per render, which is the price of no check-then-take race.
+- **A peek is not a reservation.** Two renders can peek one message and both act on it, so a page that
+  must act once takes first and acts on what the take answered — the peek is for deciding *whether* to
+  act, and `/help` says so. The job-result pattern it enables (peek, work, then take) is safe only
+  because the work is idempotent or the page's own code serialises it.
 - **Objects grow the database.** A per-subject byte cap bounds the growth but not the backup size; the
   sampler's figure is the operator's warning, and the cap is where a mistake meets a refusal.
 - **A layout that writes runs once per page it wraps.** That is the owner's rule; the one-action rule
@@ -974,8 +1000,18 @@ separate worktrees. Slice 5 waits for them.
   answer to the same question.
 - **A `Flash` topic.** The item's model makes the flash a `NextRead` value, and a topic is only for a
   durable message.
-- **A `HasMessages`, a peek or a wait on the inbox.** The take is the test, so there is no
-  check-then-take gap; a page that wants a stream uses a job and its journal.
+- **A `Count`, and a `HasMessages` beside it.** A count is a single indexed `SELECT COUNT(*)`, and the
+  wish it serves is real: a page could show "three waiting" rather than "something is waiting". What
+  it costs is a number that is wrong by the time it is rendered — the same staleness `Peek` has — and
+  a call every page would be tempted to make on every render, which is the per-request work the
+  activity clock was rejected for. The cap is eight messages per subject, so a page that must know
+  takes in a loop bounded by the render's deadline and has the messages as well as the number, and one
+  that must show a badge without consuming peeks once and says "a message is waiting". `HasMessages` is
+  the same question as `Count > 0` and would be a second way to ask it. If a caller ever needs the
+  number itself — a conversation view with a backlog is the candidate — `Task<int> CountAsync()` and
+  its topic twin are the shape, and adding them later costs no more than adding them now.
+- **A wait on the inbox.** A page render is bounded and answers a visitor, so a wait would hold the
+  request; a worker already has `ReceiveAsync` as its wait, and a page polls.
 - **A filesystem object store.** It needs a second consistency story for delete, scrub, archive and
   backup; the BLOB is the site's existing storage rule.
 - **A stream or `System.IO` for objects.** The page API denies `System.IO`, so bytes cross as `byte[]`
