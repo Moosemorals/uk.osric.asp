@@ -398,6 +398,20 @@ locally; the fixtures that use the real provider are `[Explicit]` and cost token
 
 *Recorded in [testing](testing.md#the-browser-suite), [assistant browser tests](plans/archive/assistant-browser-tests.md).*
 
+### code-slow-tests-are-opt-in
+
+The web suite's wall-clock tests are an NUnit `Slow` category rather than part of `make test-web`: the
+render and compile deadlines, the stream clocks, the job silence clock, the process-wide metric
+fixtures and the fixtures that apply real migrations. Each waits out a clock or drives a real
+database, so together they were the slowest thing in the gate and the family that failed on load
+rather than on behaviour; a gate people learn to skip is worse than one that runs the slow half before
+a deploy. `make test-web` filters `TestCategory!=Slow`, `make test-web-slow` runs only them, and
+`make deploy` depends on that target — the same bargain as `code-browser-suite-is-opt-in`. A test that
+is slow only because it compiles a page is not in it: the shared compile cache and the editor-page
+warm-up make a page one compile a process.
+
+*Recorded in [testing](testing.md#the-slow-half), [Makefile](../Makefile).*
+
 ### code-the-gate-checks-the-backlog
 
 `make check` runs `make backlog`, a tool over `docs/backlog` in the shape of `check-decisions`: a slug

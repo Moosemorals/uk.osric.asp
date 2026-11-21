@@ -18,7 +18,7 @@ internal sealed class ImportHarness : IDisposable {
         PageStorageOptions? storage = null) {
         Options = options ?? TestOptions.Archive;
         Storage = storage ?? TestOptions.Storage;
-        Compiler = new RecordingCompiler(compiler ?? new PageCompiler());
+        Compiler = new RecordingCompiler(compiler ?? TestCompiler.Real);
         Metrics = new PageMetrics();
 
         Images = new PageImageBuilder(

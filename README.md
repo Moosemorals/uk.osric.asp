@@ -107,12 +107,13 @@ The `Makefile` is the only entry point; `make help` lists everything.
 | --- | --- |
 | `make build` | Build the solution, but only when a source or project file changed (the default) |
 | `make restore` | Force a NuGet restore; `build` only restores when an input changed |
-| `make test` | All four suites: core, runtime, web, integration |
-| `make check` | The gate: formatting, licences, package audit, the seeded pages, the four suites and a Release publish |
+| `make test` | All five fast suites: core, runtime, language server, web, integration |
+| `make check` | The gate: formatting, licences, package audit, the seeded pages, the fast suites and a Release publish |
 | `make ci` | `make check` from a clean tree, plus the reproducible-image check |
 | `make test-core` | Core tests only |
 | `make test-runtime` | Runtime tests only |
-| `make test-web` | Web shell and storage tests only |
+| `make test-web` | Web shell and storage tests only (the wall-clock half excluded) |
+| `make test-web-slow` | The web deadlines, stream clocks and real migrations; `make deploy` runs them |
 | `make test-integration` | The composed pipeline against a throwaway database |
 | `make test-browser` | The real host in Firefox, with a scripted provider (`make browsers` installs Firefox once) |
 | `make check-pages` | Compile the seeded pages and print the compiler's diagnostics |

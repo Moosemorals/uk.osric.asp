@@ -16,7 +16,7 @@ public sealed class HelpReferenceLinksTests {
     public async Task EveryAnchorTheHelpPageLinksToExists() {
         string source = TestOptions.SeedSource(PagePath.Normalize("/help"))
             ?? throw new InvalidOperationException("The help seed is missing.");
-        ReferenceLibrary library = new(AppContext.BaseDirectory, NullLogger<ReferenceLibrary>.Instance);
+        ReferenceLibrary library = TestReference.Library;
         List<string> missing = [];
 
         foreach ((string slug, string anchor) in Links(source)) {

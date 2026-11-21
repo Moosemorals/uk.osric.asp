@@ -130,7 +130,7 @@ BUILD_INPUTS := $(shell find src test tools -type f 2>/dev/null) \
 	Directory.Build.props Directory.Build.targets Directory.Packages.props $(SOLUTION) \
 	$(wildcard $(ARTIFACTS)/bin $(ARTIFACTS)/obj)
 
-.PHONY: help build restore check ci ci-install drift-check audit check-pages decisions backlog test test-core test-runtime test-language-server test-web test-integration test-browser test-browser-live browsers vscode-extension migration user-add user-passwd user-list user-remove remote-user-add remote-user-passwd remote-user-list remote-user-remove seeds-list seeds-pull remote-seeds-list remote-seeds-pull run publish image image-check deploy deploy-guard pull-install format format-check license-check mutation-core mutation-runtime mutation-sdk mutation-web worktree worktrees worktree-remove changelist clean
+.PHONY: help build restore check ci ci-install drift-check audit check-pages decisions backlog test test-core test-runtime test-language-server test-web test-web-slow test-integration test-browser test-browser-live browsers vscode-extension migration user-add user-passwd user-list user-remove remote-user-add remote-user-passwd remote-user-list remote-user-remove seeds-list seeds-pull remote-seeds-list remote-seeds-pull run publish image image-check deploy deploy-guard pull-install format format-check license-check mutation-core mutation-runtime mutation-sdk mutation-web worktree worktrees worktree-remove changelist clean
 .DELETE_ON_ERROR:
 
 # ssh will not create the directory its control socket lives in.
@@ -150,11 +150,12 @@ help:
 		'check-pages        Compile the seeded pages and print compiler diagnostics.' \
 		'decisions          Check the decision record: names, areas, duplicates, citations.' \
 		'backlog            Check the backlog record: slugs, fields, the order, plans and citations.' \
-		'test               Run every suite: core, runtime, language server, web and integration (no browser required).' \
+		'test               Run every fast suite: core, runtime, language server, web and integration (no browser required).' \
 		'test-core          Run the NUnit core tests only.' \
 		'test-runtime       Run the NUnit runtime tests only.' \
 		'test-language-server  Run the language server protocol tests only.' \
-		'test-web           Run the NUnit web shell and storage tests only.' \
+		'test-web           Run the NUnit web shell and storage tests only (the slow wall-clock ones excluded).' \
+		'test-web-slow      Run the web shell tests that measure a wall clock: deadlines, streams and migrations.' \
 		'test-integration   Run the composed pipeline tests against a throwaway database.' \
 		'test-browser       Drive the real host in Firefox with Playwright (needs a browser download).' \
 		'test-browser-live  The browser tests that call the configured model provider, which cost tokens.' \
@@ -171,7 +172,7 @@ help:
 		'publish            Publish the app to artifacts/publish.' \
 		'image              Build the container image with the SDK; the base is pinned in the Makefile.' \
 		'image-check        Build it twice and fail if the two builds are not the same image.' \
-		'deploy             Gate with the browser suite, build, push to $(REGISTRY) and restart on HOST=deploy@server.' \
+		'deploy             Gate with the slow web and browser suites, build, push to $(REGISTRY) and restart on HOST=deploy@server.' \
 		'pull-install       Install the backup pull script and its timer on HOST=osric@backuphost.' \
 		'format             Apply formatting and style fixes.' \
 		'format-check       Fail if the tree is not formatted.' \
@@ -215,15 +216,13 @@ test: test-core test-runtime test-language-server test-web test-integration
 # sequence file, which is the good outcome — and a warning nobody can act on is one everybody learns
 # to skip.
 #
-# The three unit suites are supposed to be fast — core under a second, runtime a couple of seconds,
-# web half a minute — but "fast" is not a fixed number and web grew past the minute: with the machine
-# to itself it takes thirty-five seconds, and beside a `dotnet format` and its own eight parallel
-# fixtures it takes fifty-five to seventy-five. A minute therefore aborted healthy runs, and did it
-# by reporting the tests it had run as "Passed!" and then "Test Run Aborted" — a suite that failed for
-# being slow looked, in the log, like a suite that passed. Three minutes is two and a half times the
-# worst measured run and still fails a wedged suite long before anyone would give up on it. The
-# integration and browser suites drive a real host and a browser, so their ceiling stays generous;
-# both can be overridden, as can the fast one on a machine slower than this.
+# The four unit suites are supposed to be fast — core under a second, runtime a couple of seconds,
+# the language server a few, and web under ten with the machine to itself. The web suite's wall-clock
+# half is a category of its own (`test-web-slow`), so the gate no longer measures how long a deadline
+# waits. Three minutes is a wedge detector rather than a speed budget and still fails a wedged suite
+# long before anyone would give up on it. The integration and browser suites drive a real host and a
+# browser, so their ceiling stays generous; both can be overridden, as can the fast one on a machine
+# slower than this.
 #
 # The browser suite has a ceiling of its own because it is the slowest thing here and the least
 # predictable: fifty tests that each open a page in Firefox and wait on a streamed answer take a
@@ -290,7 +289,14 @@ test-language-server: build
 	$(DOTNET) test $(LANGUAGE_SERVER_TESTS) -c $(CONFIGURATION) --no-build $(TEST_FAST_ARGS)
 
 test-web: build
-	$(DOTNET) test $(WEB_TESTS) -c $(CONFIGURATION) --no-build $(TEST_FAST_ARGS)
+	$(DOTNET) test $(WEB_TESTS) -c $(CONFIGURATION) --no-build --filter "TestCategory!=Slow" $(TEST_FAST_ARGS)
+
+# The wall-clock half of the web suite: the render and compile deadlines, the stream clocks, the job
+# silence clock and the real migrations. Each one waits out a deadline or drives a real database, so
+# together they were the slowest thing in the gate and, run beside everything else, the least
+# predictable. They run before a deploy, like the browser suite (`code-slow-tests-are-opt-in`).
+test-web-slow: build
+	$(DOTNET) test $(WEB_TESTS) -c $(CONFIGURATION) --no-build --filter "TestCategory=Slow" $(TEST_ARGS)
 
 # The host is real: routing, middleware order, exception handling and startup migrations. Slower
 # than the other suites, which is why it has its own target rather than living in the unit tests.
@@ -520,7 +526,7 @@ image-check: changelist
 # (`code-browser-suite-is-opt-in`): two minutes is cheap for a deploy and expensive for the gate a
 # change is run against all day, and a deploy is the moment it matters that the site serves a page in
 # a browser at all. Do not run this target with -j; the order is the point.
-deploy: deploy-guard check test-browser image | $(SSH_CONTROL_DIR)
+deploy: deploy-guard check test-web-slow test-browser image | $(SSH_CONTROL_DIR)
 	@HOST='$(HOST)' SSH='$(SSH)' \
 		LOCAL_IMAGE='$(LOCAL_IMAGE)' IMAGE_REF='$(IMAGE_REF)' IMAGE_SHA_REF='$(IMAGE_SHA_REF)' \
 		AUTHFILE='$(AUTHFILE)' REMOTE_AUTHFILE='$(REMOTE_AUTHFILE)' \

@@ -29,10 +29,14 @@ asserts that one report names all of them.
 | --- | --- | --- | --- |
 | `test/uk.osric.asp.Core.Tests` | NUnit | Individual rules in the functional core | Milliseconds |
 | `test/uk.osric.asp.Runtime.Tests` | NUnit | The page compiler: emit, load and run | Milliseconds to seconds |
-| `test/uk.osric.asp.Web.Tests` | NUnit | The endpoints and storage of the web shell | Milliseconds to seconds |
+| `test/uk.osric.asp.Web.Tests` | NUnit | The endpoints and storage of the web shell; the wall-clock half is the `Slow` category, run by `make test-web-slow` | Milliseconds to a few seconds |
 | `test/uk.osric.asp.Web.IntegrationTests` | NUnit + `WebApplicationFactory` | The composed pipeline: routing, middleware, error handling, startup | Seconds |
 | `test/uk.osric.asp.Web.BrowserTests` | NUnit + Playwright | The real host driven in Firefox: the shell pages, the editor and the assistant | Seconds to a couple of minutes |
 | `test/asp-language-server.Tests` | NUnit | The editor's server: framing, template positions and version bookkeeping | Milliseconds to a second |
+
+`make test-web` runs the web suite without its `Slow` category; `make test-web-slow` runs the
+deadlines, stream clocks, job silence clock and real migrations, and `make deploy` runs them before
+the image is built (`code-slow-tests-are-opt-in`).
 
 `tools/check-pages` is outside the suites: it is the product's compiler run over the seeds, with no
 assertions, and `make check-pages` puts it in the gate. The VS Code extension's grammars in
@@ -279,7 +283,8 @@ make test              # the five suites that need no browser
 make test-core         # core tests only
 make test-runtime      # runtime tests only
 make test-language-server  # the editor's server only
-make test-web          # web tests only
+make test-web          # web tests only, without the wall-clock half
+make test-web-slow     # the web deadlines, stream clocks and real migrations; `make deploy` runs it
 make test-integration  # the composed pipeline only, against a throwaway database
 make browsers          # download the Firefox build the browser suite drives, once
 make test-browser      # the real host in Firefox, with a scripted provider; `make deploy` runs it too
@@ -391,19 +396,29 @@ than taste (an unused member, an unnecessary assignment or parameter, a redundan
 that suppresses nothing) are warnings for the same reason. Each product assembly also emits its XML
 documentation, so CS1591 holds "the public surface of `Core` is documented". Beyond that,
 `make audit` fails on a vulnerable or deprecated NuGet package, and every suite runs under a session
-timeout so a wedged run fails instead of sitting there. The three unit suites get three minutes
-(`TEST_FAST_TIMEOUT`, in milliseconds) — core answers in under a second and runtime in a couple of
-seconds, but `Web.Tests` takes thirty-five seconds with the machine to itself and fifty-five to
-seventy-five beside a `dotnet format` and its own eight parallel fixtures, so the minute it used to
-get aborted healthy runs. A run that reaches three minutes is wedged rather than slow. The
-integration suite gets five (`TEST_HANG_TIMEOUT`), because it drives a real host and the budget tests
-burn a wall clock deliberately; the browser suite gets ten (`TEST_BROWSER_TIMEOUT`), because fifty
-tests that each open a page in Firefox take a little over two minutes with the machine to themselves
-and a deploy runs them right after a full gate, so five was close enough to a healthy run to abort
-one. Each can be overridden on a machine slower than this one.
+timeout so a wedged run fails instead of sitting there. The unit suites get three minutes
+(`TEST_FAST_TIMEOUT`, in milliseconds) — core answers in under a second, runtime in a couple of
+seconds, the language server in a few, and `Web.Tests` in under ten with the machine to itself, the
+slow half excluded — so the ceiling is a wedge detector rather than a speed budget. The integration
+suite gets five (`TEST_HANG_TIMEOUT`), because it drives a real host; the slow web half gets the same
+five because it waits out clocks, and the browser suite gets ten (`TEST_BROWSER_TIMEOUT`) because it
+drives a browser; a deploy runs both right after a full gate. Each can be overridden on a machine
+slower than this one.
 The ceiling is VSTest's `RunConfiguration.TestSessionTimeout` rather than `--blame-hang`, because the
 blame collector warns on every run that ends normally that it wrote no sequence file: that is the
 good outcome said as a problem, and a warning nobody can act on is one everybody learns to skip.
+
+### The slow half
+
+`Web.Tests` carries the shell's wall-clock behaviour in a `Slow` category: the render and compile
+deadlines, the stream clocks and the abandoned stream, the job silence clock and ceiling, the
+process-wide metric fixtures, and the fixtures that apply real migrations to a real database. Each one
+waits out a clock or drives SQLite, and beside the rest of the suite they were both the slowest part of
+the gate and the family of tests that failed on load rather than on behaviour. `make test-web` excludes
+them, `make test-web-slow` runs only them, and `make deploy` runs that before the image is built — the
+same bargain as the browser suite, and for the same reason (`code-slow-tests-are-opt-in`). A test that
+is slow because it compiles a page is not in this half: the shared compile cache makes the page cost
+one compile a process, which the fixtures already pay.
 
 That a warning is an error is also why `make format-check` asks `dotnet format` for layout and
 nothing else — every whitespace rule, and the `IMPORTS` fixer that orders using directives — while
@@ -457,23 +472,26 @@ its `TestAssembly.cs`:
 - `Core.Tests` and `Runtime.Tests` run every test in parallel (`ParallelScope.All`). Core is pure
   functions over immutable values, and a Runtime test compiles into its own assembly and its own load
   context through a stateless compiler.
-- `Web.Tests` and `Web.IntegrationTests` run every *fixture* in parallel (`ParallelScope.Fixtures`) and
-  the tests inside a fixture one at a time. A fixture owns its services and storage — and in the
-  integration suite its host and its database — so fixtures are independent, but the tests inside one
-  are not: the budget tests measure a wall clock against a page that burns CPU, a storage test opens
-  the database file the fixture holds the template for, and a fixture signs in once per test.
-- `PageMetricsTests` is `[NonParallelizable]`, because a `MeterListener` hears every instrument in the
-  process, including the page meter another fixture is recording into. `MetricsEndpointTests` reads
-  the same process-wide meter through the exporter, but asserts that a series is present rather than
-  what it counts, so it is safe beside other fixtures.
+- `Web.Tests` and `Web.IntegrationTests` run every *fixture* in parallel (`ParallelScope.Fixtures`),
+  and a fixture whose tests each own their storage opts into running those tests in parallel as well
+  (`ParallelScope.All`). A fixture is the unit of parallelism where its tests share something — the
+  integration suite's host and database, `PageSaverTests`' store, a `MeterListener` that hears the
+  whole process — and a test is the unit where each one copies its own database and builds its own
+  harness. The storage fixtures and the page fixtures are in the second group. `Web.Tests` asks for
+  `LevelOfParallelism(16)` — more workers than cores — because most of it waits on a database or a
+  fake stream rather than using a core.
+- `PageMetricsTests` and the other `MeterListener` fixtures are `[NonParallelizable]`, because a
+  listener hears every instrument in the process, including the page meter another fixture is
+  recording into. `MetricsEndpointTests` reads the same process-wide meter through the exporter, but
+  asserts that a series is present rather than what it counts, so it is safe beside other fixtures.
 - `Web.BrowserTests` runs every test one at a time. Each test owns a browser page, but they share one
   host, one database and one assistant queue, and the tests that measure streaming cannot do that
   beside another test's compile.
 - `PageRendererTests`, `PageImageBuilderTests` and the one budget test in `PageEndpointTests` are
-  `[NonParallelizable]`, for the same reason fixtures are the unit of parallelism: a page that
-  outruns its budget cannot be stopped, so it keeps a core busy while the deadline continuation
-  queues for a thread. Run beside another fixture's compiles, the answer lands late and a timing
-  assertion fails on load rather than behaviour.
+  `[NonParallelizable]` and in the `Slow` category, for the same reason a fixture is a unit of
+  parallelism: a page that outruns its budget cannot be stopped, so it keeps a core busy while the
+  deadline continuation queues for a thread. Run beside another fixture's compiles, the answer lands
+  late and a timing assertion fails on load rather than behaviour.
 
 Parallelism is worth less here than it looks: Roslyn already uses every core inside a single compile,
 so fixtures that compile at the same time contend rather than scale, and the non-parallel fixtures run
@@ -481,6 +499,16 @@ one at a time beside nothing else. That contention is why a fixture holds a budg
 (`TestOptions.FixtureRender` and `FixtureCompile`, and the constants in `AspApplication`) rather than
 the shipped one: what it measures is a page, and the machine it measures it on is running eight
 fixtures and a `dotnet format`.
+
+That contention is also why the two page suites share a compile cache. The first compile in a process
+jits Roslyn and the page policy, which costs a couple of seconds; a dozen fixtures reaching their
+first page at once made that warm-up several seconds slower than it is on its own. [test/Shared/CachingCompiler.cs](../test/Shared/CachingCompiler.cs)
+wraps the real compiler in one cache keyed by the generated source, the libraries in scope and the
+compiler's runtime id, so the same seeded page is compiled once a process rather than once a test, and
+`Web.Tests` compiles the editor page in a `[SetUpFixture]` before the fixtures start. The pages a fixture
+compiles are the pages the host compiles: the cache is test infrastructure, and no assertion is made
+about it beyond the counting compiler's own tests. The unit suite's wall is now a few seconds of
+parallel work plus that one warm-up.
 
 What the budget tests cost is the budget itself, so they run a quarter of a second rather than the
 five a visitor gets: the behaviour under test is the deadline, not its length. `TimeoutSeconds` is a
@@ -493,8 +521,8 @@ The storage fixtures do not migrate a database per test either: each migration c
 milliseconds and every test needs its own file, so a fixture migrates one `DatabaseTemplate` and each
 test starts from a copy.
 
-The four projects are independent processes, so `make -j4 test` runs them at once as well: about 15 s
-against 30 s on an eight-core machine, even though each suite then reports a slightly longer duration.
+The five projects are independent processes, so `make -j4 test` runs them at once as well, even though
+each suite then reports a slightly longer duration.
 
 ## Conventions
 

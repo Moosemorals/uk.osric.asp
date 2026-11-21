@@ -11,6 +11,10 @@ using uk.osric.asp.Web.Storage;
 
 [TestFixture]
 [FixtureLifeCycle(LifeCycle.InstancePerTestCase)]
+// Each test owns its storage - a database file of its own, or a store and harness of its own - so the
+// tests here are independent, and waiting for one to finish before starting the next only makes the
+// suite slower than the work it is doing.
+[Parallelizable(ParallelScope.All)]
 public sealed class ConversationStoreTests {
 
     private static DatabaseTemplate? s_template;

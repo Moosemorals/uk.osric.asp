@@ -18,6 +18,10 @@ using uk.osric.asp.Web.Users;
 
 [TestFixture]
 [FixtureLifeCycle(LifeCycle.InstancePerTestCase)]
+// Every test has its own database copy, its own harness and its own services, so the fixture's tests
+// are independent. They wait on a fake provider and a real database far more than they compute, so
+// running them one at a time held a core idle while the wall clock ran out.
+[Parallelizable(ParallelScope.All)]
 public sealed class RunProcessorTests {
 
     private static DatabaseTemplate? s_template;
@@ -318,6 +322,7 @@ public sealed class RunProcessorTests {
     }
 
     [Test]
+    [Category("Slow")]
     public async Task ARunThatKeepsStreamingOutlivesTheRunTimeoutAsync() {
         ScriptedClient client = new(
             [.. Enumerable.Range(1, 6).Select(index => new ContentDelta($"part {index} "))],
@@ -334,6 +339,7 @@ public sealed class RunProcessorTests {
     }
 
     [Test]
+    [Category("Slow")]
     public async Task ARunThatStopsStreamingFailsWithRunTimeoutAsync() {
         ScriptedClient client = new([new ContentDelta("too late")], delayMilliseconds: 3_000);
         (Conversation conversation, RunStartResult started, _, RunProcessor processor) =
@@ -351,6 +357,7 @@ public sealed class RunProcessorTests {
     }
 
     [Test]
+    [Category("Slow")]
     public async Task AToolThatOutlastsTheRunTimeoutDoesNotFailTheRunAsync() {
         _storage.ReadDelay = TimeSpan.FromSeconds(2);
         SteppedClient client = new([
@@ -375,6 +382,7 @@ public sealed class RunProcessorTests {
     }
 
     [Test]
+    [Category("Slow")]
     public async Task ARunWaitingForApprovalOutlivesTheRunTimeoutAsync() {
         SteppedClient client = new([
             new ToolCallDelta(0, "call-1", "delete_page", """{"path":"/gone"}"""),
@@ -470,6 +478,7 @@ public sealed class RunProcessorTests {
     }
 
     [Test]
+    [Category("Slow")]
     public async Task AQuestionIsNotCutOffByTheToolTimeoutAsync() {
         SteppedClient client = new([
             new ToolCallDelta(0, "call-ask", "ask_user", QuestionArguments()),
@@ -522,6 +531,9 @@ public sealed class RunProcessorTests {
     }
 
     [Test]
+    [Category("Slow")]
+    // The capture hears every meter in the process, so another fixture's tool call would be counted.
+    [NonParallelizable]
     public async Task TheOwnersWaitIsNotCountedAsToolTimeAsync() {
         SteppedClient client = new([
             new ToolCallDelta(0, "call-ask", "ask_user", QuestionArguments()),

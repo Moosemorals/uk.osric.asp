@@ -279,6 +279,16 @@ public sealed class TemplateTokenizerTests {
         }));
     }
 
+    [Test]
+    public void ABlockAfterWindowsLineEndingsKeepsItsLineAndColumn() {
+        IReadOnlyList<Token> tokens = TemplateTokenizer.Tokenize("one\r\ntwo\r\n<%Write(42);%>").Tokens;
+
+        Assert.That(tokens, Is.EqualTo(new Token[] {
+            new(TokenType.Text, "one\r\ntwo\r\n", new TemplatePosition(1, 1)),
+            new(TokenType.Code, "Write(42);", new TemplatePosition(3, 3), new TemplatePosition(3, 1)),
+        }));
+    }
+
     [TestCase("<%#", 1, 1)]
     [TestCase("<%#>", 1, 1)]
     [TestCase("before<%# a note", 1, 7)]

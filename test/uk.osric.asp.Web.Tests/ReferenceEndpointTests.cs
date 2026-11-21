@@ -11,8 +11,7 @@ using uk.osric.asp.Web.Documentation;
 [TestFixture]
 public sealed class ReferenceEndpointTests {
 
-    private static ReferenceLibrary Library() =>
-        new(AppContext.BaseDirectory, NullLogger<ReferenceLibrary>.Instance);
+    private static ReferenceLibrary Library() => TestReference.Library;
 
     [Test]
     public async Task TheIndexListsEveryAssemblyThisBuildCarries() {

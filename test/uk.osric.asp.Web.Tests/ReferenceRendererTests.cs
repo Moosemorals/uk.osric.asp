@@ -13,7 +13,7 @@ public sealed class ReferenceRendererTests {
 
     [Test]
     public void ThePageContractRendersItsIndexAndSections() {
-        ReferenceLibrary library = new(AppContext.BaseDirectory, NullLogger<ReferenceLibrary>.Instance);
+        ReferenceLibrary library = TestReference.Library;
         string html = library.Render("sdk")!;
 
         Assert.Multiple(() => {

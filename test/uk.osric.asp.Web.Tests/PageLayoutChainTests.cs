@@ -20,11 +20,15 @@ using uk.osric.asp.Web.Pages;
 /// </remarks>
 [TestFixture]
 [FixtureLifeCycle(LifeCycle.InstancePerTestCase)]
+// Each test owns its storage - a database file of its own, or a store and harness of its own - so the
+// tests here are independent, and waiting for one to finish before starting the next only makes the
+// suite slower than the work it is doing.
+[Parallelizable(ParallelScope.All)]
 public sealed class PageLayoutChainTests {
 
     private const string DefaultLayout = "/_layout";
 
-    private readonly RecordingCompiler _compiler = new(new PageCompiler());
+    private readonly RecordingCompiler _compiler = TestCompiler.Counting();
     private readonly FakePageFetcher _fetcher = new();
     private readonly FakePageReadStore _readStore = new();
     private readonly FakePageStateStore _state = new();

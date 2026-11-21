@@ -13,6 +13,7 @@ using uk.osric.asp.Web.Pages;
 using uk.osric.asp.Web.Storage;
 
 [TestFixture]
+[Category("Slow")]
 [NonParallelizable]
 public sealed class PageStorageMetricsTests {
     [Test]

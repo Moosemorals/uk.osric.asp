@@ -17,6 +17,10 @@ public sealed class AccessibilityTests {
 
     private static readonly ConcurrentDictionary<string, Task<ShellView>> Rendered = new();
 
+    // The same documents, parsed once: every rule reads them again, and parsing the editor page is
+    // not something a rule should pay for seventeen times.
+    private static readonly ConcurrentDictionary<string, MarkupReader> s_documents = new();
+
     private static readonly Dictionary<string, string> ImplicitRoles = new(StringComparer.Ordinal) {
         ["a"] = "link",
         ["article"] = "article",
@@ -289,8 +293,19 @@ public sealed class AccessibilityTests {
     private static async Task ForEachViewAsync(Action<ShellView, MarkupReader> assert) {
         foreach (string name in ShellViews.Names) {
             ShellView view = await ViewAsync(name);
-            assert(view, MarkupReader.Parse(view.Html));
+            assert(view, await DocumentAsync(name));
         }
+    }
+
+    private static async Task<MarkupReader> DocumentAsync(string name) {
+        if (s_documents.TryGetValue(name, out MarkupReader? parsed)) {
+            return parsed;
+        }
+
+        parsed = MarkupReader.Parse((await ViewAsync(name)).Html);
+        s_documents[name] = parsed;
+
+        return parsed;
     }
 
     // Rendered once per view per run: every rule re-renders the same documents otherwise.

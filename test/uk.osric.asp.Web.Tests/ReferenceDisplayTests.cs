@@ -148,18 +148,17 @@ public sealed class ReferenceDisplayTests {
     [TestCase("uk.osric.asp.Runtime")]
     [TestCase("uk.osric.asp.Web")]
     public void TheRealDocumentHasUniqueAnchors(string assemblyName) {
-        ReferenceAssemblyInfo info = ReferenceAssemblyInfo.All.Single(item => item.AssemblyName == assemblyName);
-        XDocument source = XDocument.Load(Path.Combine(AppContext.BaseDirectory, assemblyName + ".xml"));
-        ReferenceDocument document = ReferenceDocument.Build(info, source);
+        ReferenceAssembly assembly = TestReference.Library.Assemblies.Single(carried => carried.Info.AssemblyName == assemblyName);
+        XDocument document = assembly.Document;
 
-        string[] anchors = [.. document.Content.Descendants()
+        string[] anchors = [.. document.Descendants()
             .Select(element => (string?)element.Attribute("anchor"))
             .OfType<string>()];
 
         Assert.Multiple(() => {
             Assert.That(anchors, Is.Unique);
-            Assert.That(document.TypeCount, Is.GreaterThan(0));
-            Assert.That(document.EntryCount, Is.GreaterThan(0));
+            Assert.That(assembly.TypeCount, Is.GreaterThan(0));
+            Assert.That(assembly.EntryCount, Is.GreaterThan(0));
         });
     }
 }

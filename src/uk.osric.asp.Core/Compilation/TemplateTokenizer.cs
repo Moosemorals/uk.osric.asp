@@ -13,16 +13,17 @@ internal static class TemplateTokenizer {
     /// <param name="input">The template as its author wrote it.</param>
     /// <returns>The tokens, and one error naming the opener of an unterminated block.</returns>
     internal static TokenizeResult Tokenize(string input) {
+        TemplateLineMap lines = TemplateLines.Map(input);
         List<Token> tokens = [];
         int index = 0;
         while (index < input.Length) {
             int codeStart = input.IndexOf("<%", index, StringComparison.Ordinal);
             if (codeStart == -1) {
-                tokens.Add(new Token(TokenType.Text, input[index..], TemplateLines.PositionOf(input, index)));
+                tokens.Add(new Token(TokenType.Text, input[index..], lines.PositionOf(index)));
                 break;
             }
             if (codeStart > index) {
-                tokens.Add(new Token(TokenType.Text, input[index..codeStart], TemplateLines.PositionOf(input, index)));
+                tokens.Add(new Token(TokenType.Text, input[index..codeStart], lines.PositionOf(index)));
             }
             int openerLength = 2;
             TokenType type = TokenType.Code;
@@ -46,12 +47,12 @@ internal static class TemplateTokenizer {
 
             int codeEnd = input.IndexOf("%>", contentStart, StringComparison.Ordinal);
             if (codeEnd == -1) {
-                return new TokenizeResult(tokens, [UnterminatedBlock(input, codeStart, type)]);
+                return new TokenizeResult(tokens, [UnterminatedBlock(lines, codeStart, type)]);
             }
             tokens.Add(new Token(type,
                 input[contentStart..codeEnd],
-                TemplateLines.PositionOf(input, contentStart),
-                TemplateLines.PositionOf(input, codeStart)));
+                lines.PositionOf(contentStart),
+                lines.PositionOf(codeStart)));
             index = codeEnd + 2;
         }
 
@@ -60,7 +61,7 @@ internal static class TemplateTokenizer {
 
     // The author is given a position in the text they typed, not in the generated source, and it
     // names the opener they have to close rather than the end of the template.
-    private static PageDiagnostic UnterminatedBlock(string input, int codeStart, TokenType type) {
+    private static PageDiagnostic UnterminatedBlock(TemplateLineMap lines, int codeStart, TokenType type) {
         (string kind, string opener) = type switch {
             TokenType.Declaration => ("declaration", "<%!"),
             TokenType.Comment => ("comment", "<%#"),
@@ -70,7 +71,7 @@ internal static class TemplateTokenizer {
         };
         return new PageDiagnostic(
             PageDiagnosticSeverity.Error,
-            TemplateLines.PositionOf(input, codeStart),
+            lines.PositionOf(codeStart),
             $"TEMPLATE001: unterminated {kind} block; the '{opener}' has no matching '%>'.");
     }
 }

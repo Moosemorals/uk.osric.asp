@@ -157,8 +157,7 @@ internal static class ShellViews {
 
     private static Task<string> HelpAsync() => StoredPageAsync("/help");
 
-    private static readonly ReferenceLibrary s_reference =
-        new(AppContext.BaseDirectory, NullLogger<ReferenceLibrary>.Instance);
+    private static readonly ReferenceLibrary s_reference = TestReference.Library;
 
     private static async Task<string> ReferenceAsync() {
         DefaultHttpContext context = AuthenticatedContext("/admin/reference");

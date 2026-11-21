@@ -9,6 +9,7 @@ using uk.osric.asp.Web.Pages;
 
 /// <summary>Proves the two clocks and the slot a committed stream holds.</summary>
 [TestFixture]
+[Category("Slow")]
 public sealed class RenderLifetimeTests {
 
     private readonly PageMetrics _metrics = new();

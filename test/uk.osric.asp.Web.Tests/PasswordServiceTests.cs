@@ -14,37 +14,38 @@ public sealed class PasswordServiceTests {
 
     private readonly PasswordService _passwords = new(NullLogger<PasswordService>.Instance);
 
+    // The shipped iteration count is a property of the product rather than of the test, and 600,000
+    // of them cost a third of a second, so the fixture hashes the password it verifies against once.
+    private string _passwordHash = string.Empty;
+
+    [OneTimeSetUp]
+    public void HashOnce() => _passwordHash = _passwords.Hash(User(string.Empty), Password);
+
     [Test]
     public void TheHashIsNotThePassword() {
-        LocalUser user = User(string.Empty);
-
-        string hash = _passwords.Hash(user, Password);
-
-        Assert.That(hash, Is.Not.EqualTo(Password));
-        Assert.That(hash, Does.Not.Contain(Password));
+        Assert.That(_passwordHash, Is.Not.EqualTo(Password));
+        Assert.That(_passwordHash, Does.Not.Contain(Password));
     }
 
     [Test]
     public void TheRightPasswordVerifies() {
-        LocalUser user = User(_passwords.Hash(User(string.Empty), Password));
+        LocalUser user = User(_passwordHash);
 
         Assert.That(_passwords.Verify(user, Password), Is.EqualTo(PasswordVerificationResult.Success));
     }
 
     [Test]
     public void TheWrongPasswordFails() {
-        LocalUser user = User(_passwords.Hash(User(string.Empty), Password));
+        LocalUser user = User(_passwordHash);
 
         Assert.That(_passwords.Verify(user, "wrong password"), Is.EqualTo(PasswordVerificationResult.Failed));
     }
 
     [Test]
     public void TwoHashesOfTheSamePasswordDiffer() {
-        LocalUser user = User(string.Empty);
-        string first = _passwords.Hash(user, Password);
-        string second = _passwords.Hash(user, Password);
+        string second = _passwords.Hash(User(string.Empty), Password);
 
-        Assert.That(first, Is.Not.EqualTo(second));
+        Assert.That(_passwordHash, Is.Not.EqualTo(second));
     }
 
     [Test]
