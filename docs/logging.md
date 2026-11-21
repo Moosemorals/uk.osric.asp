@@ -141,7 +141,7 @@ query strings, page source, prompts and reasoning are never in one. Nor is anyth
 | `Program` | the host starting, with the environment; nothing per request |
 | `PageEndpoint`/`PageRenderer` | render outcomes worth knowing (abandoned, timed out, a stream truncated and why); the rest is metrics |
 | `PageImageBuilder`/`PageCompiler` | compile faults (Error); compile timeouts (Warning); the generated source of a failure (Debug) |
-| `EditorEndpoint`/`PageEditor` | saves (Information); a scrub that did not complete (Error) |
+| `PageEditor`/`PageWritesScope` | saves (Information); a scrub that did not complete (Error) |
 | `PageJobs`/`PageJobRunner` | a start, a stop and a job's end (Information); a refusal and a job that failed or was cut (Warning) |
 | `Authentication` | sign-in, failed sign-in, sign-out (Information); a ticket that would not be deleted (Warning). A refused request writes one line, `Authentication failed:`, which the host's ban reads |
 | `Admin` | imports and exports (Information); a compiler fault during an import (Error); a rejected archive (Debug) |

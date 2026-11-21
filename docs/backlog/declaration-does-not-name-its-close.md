@@ -158,7 +158,7 @@ rule and a footgun.
 - **Colouring the closer per block.** VS Code gets it from the grammar above; the site's editor is
   [`editor-is-a-textarea`](editor-is-a-textarea.md), and a language server is the VS Code slice of `check-without-storing`.
 
-**Origin:** the owner's proposal on 2026-11-18 against [WHIM-02](WHIMS.md)'s `%><%` clause, then
-sharpened twice: the mirror spelling (`!%>`, not `%!>`) because `IndexOf("%>")` keeps working and the
-closer is the opener reversed; and the echo made **required** because optional leaves `name!%>`
-undecidable, which the owner found in `<%! var x = name  !%><%!;!%>`.
+**Origin:** the owner's proposal on 2026-11-18 against the then-recorded `%><%` whim, which this item
+promoted and removed, then sharpened twice: the mirror spelling (`!%>`, not `%!>`) because
+`IndexOf("%>")` keeps working and the closer is the opener reversed; and the echo made **required**
+because optional leaves `name!%>` undecidable, which the owner found in `<%! var x = name  !%><%!;!%>`.

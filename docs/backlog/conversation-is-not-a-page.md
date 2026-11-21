@@ -11,7 +11,7 @@ SPDX-License-Identifier: MIT
 | Utility | medium |
 | Status | blocked |
 | Blocked by | `no-account-store` |
-| Plan | [page-apps](../plans/archive/page-apps.md) |
+| Plan | — |
 | Area | Sdk, Web, assistant |
 | Location | `src/uk.osric.asp.Web/Assistant/AssistantEndpoint.cs`, `src/uk.osric.asp.Web/Assistant/RunQueue.cs`, `src/uk.osric.asp.Sdk/IContext.cs` |
 
@@ -42,7 +42,7 @@ that is page-shaped. Two things are not:
    blocker; the run's journal, its live subscribers and its lifetime are.
 2. **Starting, stopping and approving are host actions.** A message queues a run (`RunQueue`), a stop
    signals the registry (`RunRegistry`), and an approval resolves a waiter in
-   `ToolApprovalCoordinator` — three in-memory singletons a page cannot reach, and three state changes
+   `OwnerInterruptCoordinator` — three in-memory singletons a page cannot reach, and three state changes
    that are not memory's simple row write.
 
 `pages-page-first` puts `/assistant` in the third column: not

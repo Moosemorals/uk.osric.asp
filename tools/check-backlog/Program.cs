@@ -5,12 +5,12 @@ using System.Globalization;
 using System.Text.RegularExpressions;
 
 // Checks docs/backlog as a record rather than as prose, because a scheme nobody verifies is a scheme
-// that drifts. It reads the difficulty scale out of the index and the decision areas out of the
-// record, so each list has one home, and reports what a reader would otherwise find by hand: a slug
-// outside the shape, a slug used twice, a missing field, an item missing from the order or listed
-// twice, a row that disagrees with its item, an order that puts an item above its blocker, a cycle, a
-// plan that does not link back, and a citation of an item that is not in the record. Problems print
-// in the file:line shape a problem matcher reads.
+// that drifts. It reads the difficulty scale out of the backlog index, the order out of docs/README.md
+// and the decision areas out of the record, so each list has one home, and reports what a reader would
+// otherwise find by hand: a slug outside the shape, a slug used twice, a missing field, an item missing
+// from the order or listed twice, a row that disagrees with its item, an order that puts an item above
+// its blocker, a cycle, a plan that does not link back, and a citation of an item that is not in the
+// record. Problems print in the file:line shape a problem matcher reads.
 if (args.Length == 0) {
     Console.Error.WriteLine("usage: check-backlog <repository-root>");
     return 2;
@@ -24,8 +24,17 @@ if (!File.Exists(index)) {
     return 2;
 }
 
+// The order is the site's documentation index, so the table has one home whether it is read by a
+// person or by this check.
+string orderIndex = Path.Combine(root, "docs", "README.md");
+if (!File.Exists(orderIndex)) {
+    Console.Error.WriteLine($"check-backlog: {orderIndex} is missing");
+    return 2;
+}
+
 const string NotSet = "—";
 string shownIndex = Path.GetRelativePath(root, index);
+string shownOrder = Path.GetRelativePath(root, orderIndex);
 List<Problem> problems = [];
 
 HashSet<string> areas = DecisionAreas(root);
@@ -97,12 +106,12 @@ foreach (Item item in items) {
     blocks[item.Slug] = targets;
 }
 
-List<Row> rows = Order(indexLines);
+List<Row> rows = Order(File.ReadAllLines(orderIndex));
 Dictionary<string, Row> rowOf = [];
 foreach (Row row in rows) {
     foreach (string slug in row.Slugs) {
         if (!rowOf.TryAdd(slug, row)) {
-            problems.Add(new(shownIndex, row.Line, $"`{slug}` is listed twice; the first is row {rowOf[slug].Number}"));
+            problems.Add(new(shownOrder, row.Line, $"`{slug}` is listed twice; the first is row {rowOf[slug].Number}"));
         }
     }
 }
@@ -115,48 +124,48 @@ foreach (Item item in items) {
 
     if (row.Slugs.Count > 1) {
         if (Rank(row.Difficulty) < Rank(item.Header.GetValueOrDefault("Difficulty"))) {
-            problems.Add(new(shownIndex, row.Line, $"the step is {row.Difficulty} and `{item.Slug}` is harder"));
+            problems.Add(new(shownOrder, row.Line, $"the step is {row.Difficulty} and `{item.Slug}` is harder"));
         }
 
         if (!string.Equals(row.Utility, item.Header.GetValueOrDefault("Utility"), StringComparison.Ordinal)) {
-            problems.Add(new(shownIndex, row.Line, $"the step is {row.Utility} and `{item.Slug}` is {item.Header.GetValueOrDefault("Utility")}"));
+            problems.Add(new(shownOrder, row.Line, $"the step is {row.Utility} and `{item.Slug}` is {item.Header.GetValueOrDefault("Utility")}"));
         }
 
         continue;
     }
 
     if (!string.Equals(row.Title, item.Title, StringComparison.Ordinal)) {
-        problems.Add(new(shownIndex, row.Line, $"the row is titled \"{row.Title}\" and `{item.Slug}` is \"{item.Title}\""));
+        problems.Add(new(shownOrder, row.Line, $"the row is titled \"{row.Title}\" and `{item.Slug}` is \"{item.Title}\""));
     }
 
     if (!string.Equals(row.Difficulty, item.Header.GetValueOrDefault("Difficulty"), StringComparison.Ordinal)) {
-        problems.Add(new(shownIndex, row.Line, $"the row is {row.Difficulty} and `{item.Slug}` is {item.Header.GetValueOrDefault("Difficulty")}"));
+        problems.Add(new(shownOrder, row.Line, $"the row is {row.Difficulty} and `{item.Slug}` is {item.Header.GetValueOrDefault("Difficulty")}"));
     }
 
     if (!string.Equals(row.Utility, item.Header.GetValueOrDefault("Utility"), StringComparison.Ordinal)) {
-        problems.Add(new(shownIndex, row.Line, $"the row is {row.Utility} and `{item.Slug}` is {item.Header.GetValueOrDefault("Utility")}"));
+        problems.Add(new(shownOrder, row.Line, $"the row is {row.Utility} and `{item.Slug}` is {item.Header.GetValueOrDefault("Utility")}"));
     }
 
     if (!string.Equals(row.Status, item.Header.GetValueOrDefault("Status"), StringComparison.Ordinal)) {
-        problems.Add(new(shownIndex, row.Line, $"the row is {row.Status} and `{item.Slug}` is {item.Header.GetValueOrDefault("Status")}"));
+        problems.Add(new(shownOrder, row.Line, $"the row is {row.Status} and `{item.Slug}` is {item.Header.GetValueOrDefault("Status")}"));
     }
 
     string headerPlan = PlanName(item.Header.GetValueOrDefault("Plan") ?? "—");
     if (row.Status == "planned" && !string.Equals(row.Plan, headerPlan, StringComparison.Ordinal)) {
-        problems.Add(new(shownIndex, row.Line, $"the row is planned for {row.Plan} and `{item.Slug}` names {headerPlan}"));
+        problems.Add(new(shownOrder, row.Line, $"the row is planned for {row.Plan} and `{item.Slug}` names {headerPlan}"));
     } else if (row.Status != "planned" && row.Plan != "—") {
-        problems.Add(new(shownIndex, row.Line, $"the row is {row.Status} and links a plan; only planned needs one"));
+        problems.Add(new(shownOrder, row.Line, $"the row is {row.Status} and links a plan; only planned needs one"));
     }
 }
 
 foreach (Row row in rows) {
     if (!row.Reason) {
-        problems.Add(new(shownIndex, row.Line, "the row has no reason line under it"));
+        problems.Add(new(shownOrder, row.Line, "the row has no reason line under it"));
     }
 
     foreach (string slug in row.Slugs) {
         if (!bySlug.ContainsKey(slug)) {
-            problems.Add(new(shownIndex, row.Line, $"`{slug}` is in the order and is not an item"));
+            problems.Add(new(shownOrder, row.Line, $"`{slug}` is in the order and is not an item"));
         }
     }
 }
@@ -178,7 +187,7 @@ foreach (Item item in items) {
 
     foreach (string blocker in blocks[item.Slug].Where(bySlug.ContainsKey)) {
         if (rowOf.TryGetValue(blocker, out Row? other) && other.Number >= row.Number) {
-            problems.Add(new(shownIndex, row.Line, $"`{item.Slug}` is blocked by `{blocker}`, which is at row {other.Number}"));
+            problems.Add(new(shownOrder, row.Line, $"`{item.Slug}` is blocked by `{blocker}`, which is at row {other.Number}"));
         }
     }
 }

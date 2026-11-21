@@ -7,10 +7,10 @@ SPDX-License-Identifier: MIT
 
 | | |
 | --- | --- |
-| Status | Proposed 2026-11-15 — waits for the owner. Slices 0, 1 and 2 are built and merged; the other four are unbuilt, and nothing below is the IDE |
+| Status | Proposed 2026-11-15 — waits for the owner. Slices 0, 1, 2, 3, 5 and 6 are built and merged; slice 4 is the only capability left unbuilt, and slice 7 is a survey whose two candidates wait on the owner. Nothing below is the IDE |
 | Size | Large as a programme, small as a step: seven capabilities, each its own job and its own branch, ordered so that each ships on its own and can be backed out on its own, and a closing sweep of the pages that could use what they leave behind |
-| Spike | None. Every claim about what exists was read off `trunk` on 2026-11-15: `IPageCatalog`, `IPageEditor`, `PageEditorScope`, `PageWriterScope`, `PageCompiler.MapDiagnostics`, `PageDiagnostics.ToSdk` and `PageJobRunner` |
-| Decisions | `pages-a-diagnostic-names-its-source` (041) and `pages-writes-are-transactions` (047), recorded at their merges. The rest are named at the merge (`product-plan-before-building`); this branch states the names it intends. One entry is retired rather than revised — the one that made the editor's registration the authority — and `pages-a-page-may-save-itself` is revised twice, once by 043 and once by 047 |
+| Spike | None. Every claim about what exists was read off `trunk` on 2026-11-15: `IPageCatalog`, the editor's two capabilities (`IPageEditor` and `IPageWriter`, which slice 3 merged into `IPageWrites`), `PageCompiler.MapDiagnostics`, `PageDiagnostics.ToSdk` and `PageJobRunner` |
+| Decisions | Recorded at their merges: `pages-a-diagnostic-names-its-source` (041), `pages-a-listing-resumes-from-a-key` (039), `pages-a-page-names-its-libraries` (040), `pages-any-page-may-write-the-store` (043), `pages-a-key-moves-with-its-history` (042) and `pages-writes-are-transactions` (047). The rest are named at the merge (`product-plan-before-building`); this branch states the names it intends. One entry is retired rather than revised — the one that made the editor's registration the authority — and `pages-a-page-may-save-itself` is revised twice, once by 043 and once by 047 |
 | Backlog | [`cannot-search-the-store`](../backlog/cannot-search-the-store.md), [`listing-has-no-cursor`](../backlog/closed.md), [`library-edit-cost-is-invisible`](../backlog/closed.md), [IDEA-041](../backlog/closed.md), [`page-cannot-move`](../backlog/closed.md), [IDEA-043](../backlog/closed.md), [IDEA-047](../backlog/closed.md) |
 
 ## The short version
@@ -30,8 +30,8 @@ assistant cannot do for itself is widen the contract, and that is this plan.
 The comparison that produced the backlog is worth stating once: of the IDE plan's twelve wishes, two
 were already jobs ([`no-account-store`](../backlog/no-account-store.md) for per-account preferences and favourites,
 [`editor-is-a-textarea`](../backlog/editor-is-a-textarea.md) for highlighting), one was not the host's business, and seven had
-nothing behind them. One of those seven split into two jobs, and the check it produced now has a
-plan of its own, so the list above is seven.
+nothing behind them. One of those seven split into two jobs, and the check it produced got a plan of
+its own ([one check](archive/one-check.md)), which has landed, so the list above is seven.
 
 ## What the host does, and what it does not
 
@@ -147,11 +147,12 @@ smallest changes come first because they are what every later slice is written a
    is what makes a tree's marks true. Proved: a page that names a library reports it, the page that
    names none reports nothing, and the closure is the one the save stored rather than a second parse
    of the source.
-3. **043 — the widened authority.** The step with its own plan ([page writes](archive/page-writes.md)), because
-   it renames two public interfaces and breaks every stored page that names them. Proves: an anonymous
-   render is refused; a layout never gets the handle; every content page does; two saves answer with
-   their own values; a page writes another key; one render still makes one write; the editor's key is
-   deletable and `/admin/seeds` is the way back.
+3. **043 — the widened authority.** Landed 2026-11-15, and the record is
+   `pages-any-page-may-write-the-store`; the plan is [archived](archive/page-writes.md). The step
+   renamed the editor's two public interfaces into one, because that breaks every stored page that
+   names them. Proved: an anonymous render is refused; a layout never gets the handle; every content
+   page does; two saves answer with their own values; a page writes another key; one render still makes
+   one write; the editor's key is deletable and `/admin/seeds` is the way back.
 4. **038 — the search.** Needs 039 for its cursor; it shares nothing with 043, but it is the last thing
    that reads every source, so it comes after the budget rules are settled.
    Proves: a scan finds a literal in a scope, is bounded, resumes from a cursor and never hands a
@@ -159,9 +160,11 @@ smallest changes come first because they are what every later slice is written a
    bound measured in time, and a cursor that a store version invalidates — so the item and its answers
    are the current statement of this slice, and the proofs above are rewritten when the plan is taken
    up; the token the cursor wanted landed with [`listing-does-not-date-itself`](../backlog/closed.md)
-   on 2026-11-21 (`pages-a-listing-carries-a-fingerprint`), so nothing blocks the slice.*
-5. **042 — the move.** Built on `idea/page-cannot-move` and waiting for the merge; the intended record
-   is **pages-a-key-moves-with-its-history**. It turned out not to need 040 and 038: a library move is
+   on 2026-11-21 (`pages-a-listing-carries-a-fingerprint`), so nothing blocks the slice. One answer was
+   added on 2026-11-21: a scan reads the site's route records as well as live pages, because
+   `search_pages` and `grep` already do.*
+5. **042 — the move.** Landed 2026-11-19, and the record is **pages-a-key-moves-with-its-history**;
+   the plan is [archived](archive/page-move.md). It turned out not to need 040 and 038: a library move is
    refused rather than recompiled, and the broken-link report is
    [`cannot-search-the-store`](../backlog/cannot-search-the-store.md)'s work. It is the only operation
    that writes more than one row, and nothing is left at the old key. Proved: a page moves with its
@@ -292,8 +295,10 @@ The fourth was answered on 2026-11-20: **the assistant's safety rules do not cha
 where it may already write, each write inside is judged by the same per-key rule, and a multi-page
 call is still one approval because approval was already once per call rather than once per write.
 
-1. **What the tree does with 300 pages.** 039 makes it listable; whether the page asks for one listing
-   or one per folder is a page decision, and the host's answer is that both are affordable.
+No question is open. **What the tree does with 300 pages** is a page decision, not the host's: 039
+landed with the cursor, and the tree now also answers one level when asked
+(`pages-a-listing-descends-unless-asked`), so a page may ask for one listing or one per folder and both
+are affordable.
 
 ## Not in scope
 

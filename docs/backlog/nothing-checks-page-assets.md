@@ -30,9 +30,9 @@ until something writes CSS in a page is a reason to pay for a parser.
 ## Sketch
 
 1. **A checker is one type**, carrying its language, how it finds its regions in a template, how it
-   maps a position back to a page line, and its validate — the shape the shell's applets settled on
-   when there were twelve of them. `check`'s `switch` becomes this registry with the third language,
-   and the tool's description renders the list from the registry so the prose cannot fall behind.
+   maps a position back to a page line, and its validate — the shape the shell's applets settled on.
+   The `check` capability's language dispatch becomes this registry with the third language, and the
+   tool's description renders the list from the registry so the prose cannot fall behind.
 
 2. **The regions come from the blanking that already exists.** `TemplateScriptSkeleton` blanks template
    constructs with spaces and keeps every line break, so literal markup, `<style>` and `<svg>` survive

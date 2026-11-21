@@ -9,8 +9,9 @@ The record of what the site should become. One file per item — something the s
 (`bug-`, `sec-`, `ops-`, `arch-`) or something it could usefully become (no kind at all) — named by
 the item's **slug**, which is how it is cited in commits, branches, plans and discussion.
 
-Nothing here is scheduled. The order below is the owner's judgement of what comes next, and every
-step is proposed and waits for the owner ([a step stops](#a-step-stops-and-the-owner-answers)).
+Nothing here is scheduled. The order in [the documentation index](../README.md#the-order) is the
+owner's judgement of what comes next, and every step is proposed and waits for the owner
+([a step stops](#a-step-stops-and-the-owner-answers)).
 
 ## A slug and a title
 
@@ -95,10 +96,12 @@ left of the item is new.
 
 ## The order
 
-The one table is both the inventory and the order. **A row's place is its priority** — the first row
-is next — and there is no number column, because a number that every close has to renumber is churn with
-nothing to show for it. The line under a row in italics is the reason it sits there: markdown has no
-merged cells, so the reason takes a row of its own under the title and the data above stays narrow.
+The table lives in [the documentation index](../README.md#the-order), because the order is the site's
+index as well as the backlog's. It is both the inventory and the order. **A row's place is its
+priority** — the first row is next — and there is no number column, because a number that every close
+has to renumber is churn with nothing to show for it. The line under a row in italics is the reason it
+sits there: markdown has no merged cells, so the reason takes a row of its own under the title and the
+data above stays narrow.
 
 Below its head the order spends the easy utility first: a blocker sits above the item it blocks, and
 everything else sorts by utility descending and then by difficulty ascending, so the most valuable work
@@ -108,53 +111,9 @@ last whatever its utility, because the owner has said it is not work. A `planned
 in its status, so the list says at a glance which items are a yes away — but a plan says an item is
 ready, not that it is urgent, and a planned item sorts by its utility and difficulty like any other.
 
-`make backlog` checks that every open item appears exactly once, that a row's difficulty, utility and
-status are the item's, that a `planned` row links the plan its item names, that every row is followed by
-its reason, and that no item sits above something that blocks it.
-
-| Slug | Title | Difficulty | Utility | Status | Blocked by |
-| --- | --- | --- | --- | --- | --- |
-| [`cannot-search-the-store`](cannot-search-the-store.md) | A page cannot search the store's source | caffeinated-squirrel ☕🐿️ | medium | [planned](../plans/ide-host.md) | — |
-| | *The IDE's find in files, now with the shell's own pattern language; the version token its cursor carries landed with the listing fingerprint, so nothing blocks it.* | | | | |
-| [`tool-surface-is-one-shell`](tool-surface-is-one-shell.md) | The assistant's tool surface is one shell, one question and one memory | protective-dragon 🔥🐉 | high | blocked | `check-without-storing`, `cannot-search-the-store` |
-| | *The shell already carries eleven of the twenty-two commands; making it POSIX, composable and the preferred surface leaves three tools and buys back the ceiling, and building it from the page capabilities names the three gaps in front of it.* | | | | |
-| | *The shell already carries eleven of the twenty-two commands; making it POSIX, composable and the preferred surface leaves three tools and buys back the ceiling, and building it from the page capabilities names the three gaps in front of it.* | | | | |
-| [`storage-is-not-one-model`](storage-is-not-one-model.md) | Storage is not one model: a page reaches a patchwork of stores | protective-dragon 🔥🐉 | high | [planned](../plans/storage-model.md) | — |
-| | *The model every storage gap resolves into; it supersedes the two storage plans waiting for a yes, so it is read before them.* | | | | |
-| [`no-account-store`](no-account-store.md) | A page has no persistent per-account store | protective-dragon 🔥🐉 | high | [planned](../plans/account-store.md) | — |
-| | *The most useful large item, with a plan and a first customer, and a plan's yes is the only thing it waits on.* | | | | |
-| [`conversation-is-not-a-page`](conversation-is-not-a-page.md) | The assistant's conversation is a stream and a set of host actions, not a page | protective-dragon 🔥🐉 | medium | blocked | `no-account-store` |
-| | *The assistant's conversation as a page needs the account store beneath it, and that is [`no-account-store`](no-account-store.md).* | | | | |
-| [`editor-is-a-textarea`](editor-is-a-textarea.md) | The editor is a plain textarea | determined-mountain-goat 💪🐐 | high | open | — |
-| | *High use and high cost; the gutter, the diagnostics and the row state already cover the worst of it.* | | | | |
-| [`ship-the-tested-image`](ship-the-tested-image.md) | A release does not ship the image the tests passed | persistent-salmon ⬆️🐟 | high | open | — |
-| | *The browser suite drives a source build while the deploy ships an image built later; this makes the promoted image the one the browser drove, and the host gate now keeps one.* | | | | |
-| [`message-does-not-survive-a-redirect`](message-does-not-survive-a-redirect.md) | A page cannot leave a message for a page it sends a visitor to | protective-dragon 🔥🐉 | high | [planned](../plans/page-inbox.md) | — |
-| | *High use for a capability the page session half gave: a page that sends a visitor somewhere usually has something to tell it, and the plan answers what the sketch left open, so nothing but a yes stands in front of it.* | | | | |
-| [`sec-page-runs-in-process`](sec-page-runs-in-process.md) | Page code has no process boundary | cornered-porcupine 📍🦔 | high | open | — |
-| | *High utility and a redesign of how a page runs; the unit is now a long-lived worker per author over a socket rather than a process per render, and the author it keys on is not in the store yet.* | | | | |
-| [`revision-hides-its-diagnostics`](revision-hides-its-diagnostics.md) | A page cannot read a revision's diagnostics | eager-beaver ⚙️🦫 | medium | open | — |
-| | *The store keeps the last compile's answer and the catalog drops it, so a reloaded editor, a history view and a page explaining a broken library can say a revision failed but not what it said.* | | | | |
-| [`ops-no-outage-notification`](ops-no-outage-notification.md) | No outbound notifications when the site breaks | eager-beaver ⚙️🦫 | medium | open | — |
-| | *Useful, but one owner and a unit that restarts already notices most outages.* | | | | |
-| [`import-cannot-reset-a-site`](import-cannot-reset-a-site.md) | Import only adds and overwrites, so an archive cannot reset a site | caffeinated-squirrel ☕🐿️ | medium | open | — |
-| | *A destructive reset has to be designed carefully; the additive import is the safe default until it is.* | | | | |
-| [`view-cannot-submit-a-form`](view-cannot-submit-a-form.md) | A run can look at the site but cannot submit one of its forms | determined-mountain-goat 💪🐐 | medium | open | — |
-| | *Testing a page's own form is the one read the view cannot make; it needs a write-scoped credential before it can be a tool.* | | | | |
-| [`terminal-cannot-reach-the-shell`](terminal-cannot-reach-the-shell.md) | A person cannot type into the shell the assistant uses | protective-dragon 🔥🐉 | medium | open | — |
-| | *The kernel already takes an input and an output; a terminal is the other end, and the editor's `/vim.js` is the start of the `vi` it needs.* | | | | |
-| [`declaration-does-not-name-its-close`](declaration-does-not-name-its-close.md) | A declaration block does not name its close | protective-dragon 🔥🐉 | medium | open | — |
-| | *A language change in two releases that rewrites every declaration in the store; the warning that carries release 1 has landed, so this now waits only on its own plan.* | | | | |
-| [`old-response-spelling`](old-response-spelling.md) | The old response spelling is still on `IContext` | contented-capybara 😌🦫 | low | open | — |
-| | *Waits for a release: the alias has to have been out long enough that nothing in the store reports `PAGE009` before it is deleted.* | | | | |
-| [`archive-is-not-a-form`](archive-is-not-a-form.md) | `/admin/import` and `/admin/export` are shell code because an archive is not a form | caffeinated-squirrel ☕🐿️ | low | open | — |
-| | *The two admin routes already work; making them pages buys consistency, not capability.* | | | | |
-| [`no-browser-render`](no-browser-render.md) | A page cannot render a page in a browser | persistent-salmon ⬆️🐟 | low | open | — |
-| | *A spike, a sidecar and a capability for a question the server's own answer often settles.* | | | | |
-| [`nothing-checks-page-assets`](nothing-checks-page-assets.md) | Nothing checks a page's CSS, HTML or SVG | persistent-salmon ⬆️🐟 | low | open | — |
-| | *Pays off once pages write their own CSS and SVG, and each checker is a parser we write, so it waits for that reason rather than a hunch.* | | | | |
-| [`formatter-cannot-align`](formatter-cannot-align.md) | The formatter cannot align a run of declarations, and deletes one aligned by hand | caffeinated-squirrel ☕🐿️ | low | parked | — |
-| | *The owner parked it on 2026-11-20: Roslyn deletes the padding and clang-format corrupts raw strings, so it waits for one of them to move rather than for work here.* | | | | |
+`make backlog` checks that every open item appears exactly once in that table, that a row's difficulty,
+utility and status are the item's, that a `planned` row links the plan its item names, that every row is
+followed by its reason, and that no item sits above something that blocks it.
 
 Every step is one unit of work, on one branch in one worktree named `kind/filename`
 ([how](../../CONTRIBUTING.md#working-on-it)). Two independent steps may run at once, each in its own
@@ -204,8 +163,9 @@ follow-up.
 
 ## The check
 
-`make backlog` reads this file and the items beside it and fails on a slug outside the shape, a slug
-used twice or one that begins with a decision area, a missing or malformed field, a `Status` the
+`make backlog` reads these rules, [the order](../README.md#the-order) and the items beside it, and
+fails on a slug outside the shape, a slug used twice or one that begins with a decision area, a
+missing or malformed field, a `Status` the
 blockers and the plan do not say, an item missing from the order or listed twice, a row whose
 difficulty, utility or status disagrees with the item, a `planned` row that links the wrong plan, an
 order that puts an item above its blocker, a cycle, a plan that does not link back, a kinded

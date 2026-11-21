@@ -22,11 +22,13 @@ The shell is the assistant's tool: one command line over the page store, `/snaps
 site's own files, with the same path policy and the same revisions underneath. The owner would like to
 use it too — a terminal in a page, signed in as the owner, typing the same commands.
 
-The kernel is already the right shape for it. An applet takes a `ShellContext` with an input, an
-output, the mounts, the registry and the options, and writes to the output rather than returning a
-tool result ([`ShellApplet`](../../src/uk.osric.asp.Web/Assistant/Shell/ShellApplet.cs)); the kernel
-is one pipeline, not one tool call. What is missing is the other end: a transport, a screen, a line
-editor, and a full-screen mode for the commands that want one.
+The kernel is already the right shape for it. An applet takes a `ShellContext` carrying the parsed
+command line, the paths, the read seam, the output, the registry and the options, and writes to the
+output rather than returning a tool result
+([`ShellApplet`](../../src/uk.osric.asp.Web/Assistant/Shell/ShellApplet.cs)); the kernel is one
+pipeline, not one tool call. [The shell plan](../plans/assistant-shell-tool.md) adds the mounts and a
+plan before a write runs. What is missing is the other end: an input a person types into, a transport,
+a screen, a line editor, and a full-screen mode for the commands that want one.
 
 `vi`/`vim` is the hard part, and the work is started: `/vim.js` already holds a modal keymap for the
 editor, and a shell `vi` can be an applet with the same keymap over `/tmp` and page keys. It does not

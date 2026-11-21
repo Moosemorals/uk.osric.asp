@@ -13,15 +13,14 @@ SPDX-License-Identifier: MIT
 | Blocked by | — |
 | Plan | [ide-host](../plans/ide-host.md) |
 | Area | Sdk, Core, Web (pages, assistant), docs |
-| Location | `src/uk.osric.asp.Sdk/IPageCatalog.cs`, `src/uk.osric.asp.Web/Pages/PageCatalogScope.cs`, `src/uk.osric.asp.Web/Assistant/PageSourceSearch.cs`, `src/uk.osric.asp.Web/Assistant/PageStoreReader.cs`, `src/uk.osric.asp.Core/Assistant/GrepPattern.cs`, `src/uk.osric.asp.Core/Pages/PageScope.cs`, `src/uk.osric.asp.Web/Pages/Seeds/help`, `src/uk.osric.asp.Web/Assistant/PageAuthorPrompt.cs` |
+| Location | `src/uk.osric.asp.Sdk/IPageCatalog.cs`, `src/uk.osric.asp.Web/Pages/PageCatalogScope.cs`, `src/uk.osric.asp.Web/Assistant/PageSourceSearch.cs`, `src/uk.osric.asp.Web/Assistant/PageStoreReader.cs`, `src/uk.osric.asp.Web/Assistant/Tools/PageTools.cs`, `src/uk.osric.asp.Web/Assistant/Shell/Applets/GrepApplet.cs`, `src/uk.osric.asp.Core/Assistant/GrepPattern.cs`, `src/uk.osric.asp.Core/Pages/PageScope.cs`, `src/uk.osric.asp.Web/Pages/Seeds/help`, `src/uk.osric.asp.Web/Assistant/PageAuthorPrompt.cs` |
 
 ## Idea
 
-A page can list keys and read one source at a time. Nothing searches what the sources say, so the only
-way to find a string is `ReadAsync` per key, and that is charged to
-`Pages:Read:MaxSourceCharsPerRender` — 512 KiB across the whole chain, of which the seeded `/pages`
-already spends a third before it lists anything, and a seeded row now costs one read rather than
-three ([IDEA-036](../plans/archive/seed-provenance.md)). A site of thirty pages works
+A page can list the tree and read one source at a time. Nothing searches what the sources say, so the
+only way to find a string is `ReadAsync` per key, and every such read is charged to
+`Pages:Read:MaxSourceCharsPerRender` — 512 KiB across the whole chain and shared by every layer of it,
+refused rather than trimmed past that (`pages-a-listing-carries-facts`). A site of thirty pages works
 by accident; a site of three hundred cannot be searched at all.
 
 A page cannot ask a question of the whole store either: "every page that names this library", "every
@@ -32,9 +31,9 @@ reads the store itself and pays the budget above.
 The host can already do it, and no page can:
 
 - **`PageSourceSearch.Find`** is the one line scan, and `PageStoreReader.SourcesAsync` decides which
-  keys a scope may read and in what order. Together they answer `search_pages` and the virtual shell's
-  `grep`, with `Assistant:MaxSearchMatches` and `Assistant:ShellMatchLimit` bounding the
-  answer.
+  keys a scope may read and in what order — live pages and the site's own route records, with a
+  tombstone never among them. Together they answer `search_pages` and the virtual shell's `grep`, with
+  `Assistant:MaxSearchMatches` and `Assistant:ShellMatchLimit` bounding the answer.
 - **`GrepPattern`** is the one pattern compiler, and `assistant-the-shell-is-posix` already records what
   it means: a query that is only text is a substring test, and anything else is compiled with
   `RegexOptions.NonBacktracking`, which matches in linear time and refuses what it cannot carry.
@@ -56,11 +55,12 @@ Encoding that as the editor's find box is what makes it look like editor work.
    the currency and a search cannot be used to read the store for free. This is the shape
    `PageSourceSearch.Find` already answers, with a column and a cursor added.
 
-2. **The request is a value, not nine arguments.** A scope (a prefix, a subtree or the whole store), a
-   pattern and its kind (a literal substring or a basic regular expression), whether the match ignores
-   case, a `Limit` and a cursor. The default is an ignore-case literal over the whole store, because that
-   is what a search box means; the kind decides which test runs, so a literal search for `foo.` is a
-   literal search rather than a surprise pattern.
+2. **The request is a value, not nine arguments.** A `Prefix` and a `Recursive` flag — the listing
+   request's own pair (`pages-a-listing-descends-unless-asked`), so a subtree and one level are asked for
+   the same way in both — a pattern and its kind (a literal substring or a basic regular expression),
+   whether the match ignores case, a `Limit` and a cursor. The default is an ignore-case literal over the
+   whole store, because that is what a search box means; the kind decides which test runs, so a literal
+   search for `foo.` is a literal search rather than a surprise pattern.
 
 3. **One pattern compiler, and it is the shell's.** `GrepPattern` moves out of `Core/Assistant` and is
    what the page's search, the shell's `grep` and the assistant's tool all compile with, so a query means
@@ -89,26 +89,32 @@ Encoding that as the editor's find box is what makes it look like editor work.
    again. That is the simple version of the choice made there — a version and a restart, not a read
    snapshot held across requests — and it is enough here because a search walk is a handful of requests
    rather than a listing walked for minutes. The token landed with that item
-   (`pages-a-listing-carries-a-fingerprint`), so this is a caller of it rather than a second reader.
+   (`pages-a-listing-carries-a-fingerprint`), so this is a caller of it rather than a second reader, and
+   it is the prefix's fingerprint whatever depth the walk asked for, because a one-level answer is still
+   a slice of that prefix's list (`pages-a-listing-answers-the-site-tree`).
    [`listing-has-no-cursor`](closed.md) is the other half: a scan with no cursor is a scan of the first
    slice, and a cursor that cannot be trusted is a scan of a store that has moved.
 
 6. **One scan, not two.** `PageSourceSearch.Find` and `SourcesAsync` are lifted out of `Web/Assistant`
    into the seam the catalog already uses, with the two line rules kept apart — the assistant's tools
    count physical template lines because `read_page` names them, and merging the two rules would make an
-   edit address the wrong line (`pages-the-store-is-a-tree` records why they stayed apart). The page's
-   search counts lines the way `read_page` and the editor do, so a match's line is one the author can act
-   on; the shell keeps its own rule for its own output, and the assistant's JSON shapes and the shell's
-   output do not change. `search_pages` gains the pattern flag and its `query` description stops saying
-   "a literal substring", with the literal kind its default so no query already written changes meaning.
+   edit address the wrong line (`pages-the-store-is-a-tree` records that each front-end keeps its own
+   line rule; `PageSourceSearch`'s remarks record why). The page's search counts lines the way
+   `read_page` and the editor do, so a match's line is one the author can act on; the shell keeps its own
+   rule for its own output, and the assistant's JSON shapes and the shell's output do not change. The
+   source set does not change either: the page's scan reads live pages and the site's own route records,
+   as `search_pages` and `grep` do, and no tombstone. `search_pages` gains the pattern flag and its
+   `query` description stops saying "a literal substring", with the literal kind its default so no query
+   already written changes meaning.
 
 7. **The documentation** is a `/help` section (`product-manual-is-a-page`) that teaches the pattern
    language as well as the capability, a `PageAuthorPrompt` section with its `Version` bumped, and a line
-   in [pages](../pages.md) for the tenth read.
+   in [pages](../pages.md) for `IPageCatalog`'s fifth read.
 
 ## What the owner answered
 
-Put to the owner before any plan, and answered on 2026-11-20.
+Put to the owner before any plan, and answered on 2026-11-20, with one answer added on 2026-11-21 after
+trunk changed the seam under it.
 
 1. **A regular expression, matched by the platform's linear-time engine rather than one we write.** The
    article the owner pointed at ([Regular Expression Matching Can Be Simple And
@@ -126,7 +132,13 @@ Put to the owner before any plan, and answered on 2026-11-20.
 3. **The line and its position, and no window.** A line is what a find list shows and what the tools
    print; a caller that wants context reads the page through the read it already has.
 4. **A tombstone is not a source.** It is the panic button and stays invisible to day-to-day work, so a
-   scan sees live pages and nothing else — which is what `SourcesAsync` already does.
+   scan never reads one — which is what `SourcesAsync` already does.
+5. **The site's own routes are sources.** Answered on 2026-11-21, after trunk made it visible that the
+   seam has carried the site's route records since it was built, and that `search_pages` and `grep`
+   already search them. A scan reads those records as well as live pages, so a query finds a link where
+   the site says it whether a page wrote it or a route does. A match carries the key, and the listing
+   marks a key a route answers (`PageEntryKind.Route`), so a page can tell the two apart with the read it
+   already has.
 
 ## After MVP: a revision's history
 
@@ -157,4 +169,5 @@ cursor it resumes from ([`listing-has-no-cursor`](closed.md)).
 The owner refined the shape on 2026-11-20, before any plan: a pattern as well as a literal, so the shell's
 language reaches a page; one bound measured in time rather than a count; the line and its position and no
 window; no tombstones; a cursor that a store version invalidates rather than a snapshot that holds one
-open; and history behind a flag, after MVP.
+open; and history behind a flag, after MVP. One answer was added on 2026-11-21: a scan reads the site's
+route records as well as live pages, because `search_pages` and `grep` already do.
