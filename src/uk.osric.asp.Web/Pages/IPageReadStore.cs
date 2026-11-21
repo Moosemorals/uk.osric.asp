@@ -76,9 +76,32 @@ internal interface IPageReadStore {
     /// <param name="prefix">The canonical subtree prefix; <c>/</c> is the whole store.</param>
     /// <param name="after">The canonical key to resume after, or <see langword="null"/> for the first row.</param>
     /// <param name="limit">The most rows to select, as a limit in the statement.</param>
+    /// <param name="recursive">
+    /// Whether to select the whole subtree or only the prefix and its direct children, which is what a
+    /// listing that descends one folder at a time asks for.
+    /// </param>
     /// <param name="cancellationToken">Cancels the read.</param>
     /// <returns>At most <paramref name="limit"/> heads with a key past the cursor, in ordinal key order.</returns>
-    Task<IReadOnlyList<PageReadHead>> ListAsync(string prefix, string? after, int limit, CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<PageReadHead>> ListAsync(
+        string prefix, string? after, int limit, bool recursive = true, CancellationToken cancellationToken = default);
+
+    /// <summary>Lists the direct children of a prefix that hold something below them.</summary>
+    /// <param name="prefix">The canonical prefix; <c>/</c> is the whole store.</param>
+    /// <param name="after">The canonical key to resume after, or <see langword="null"/> for the first.</param>
+    /// <param name="limit">The most folder keys to select, as a limit in the statement.</param>
+    /// <param name="cancellationToken">Cancels the read.</param>
+    /// <returns>
+    /// The direct children of the prefix with at least one key below them — a tombstone's included —
+    /// in ordinal key order and past the cursor.
+    /// </returns>
+    /// <remarks>
+    /// It exists for the listing that answers one level: a child whose only content is deeper is not
+    /// a head the one-level read can see, and leaving it out would be a tree missing a branch. A
+    /// recursive listing derives its folders from the keys its slice already carries, so it never
+    /// asks this and never pays for a second statement.
+    /// </remarks>
+    Task<IReadOnlyList<string>> ListFoldersAsync(
+        string prefix, string? after, int limit, CancellationToken cancellationToken = default);
 
     /// <summary>Reads one head, which is how a caller learns what a key holds.</summary>
     /// <param name="key">The canonical key to read.</param>

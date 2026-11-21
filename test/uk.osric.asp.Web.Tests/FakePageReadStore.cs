@@ -84,13 +84,16 @@ internal sealed class FakePageReadStore : IPageReadStore {
     }
 
     /// <inheritdoc/>
-    public async Task<IReadOnlyList<PageReadHead>> ListAsync(string prefix, string? after, int limit, CancellationToken cancellationToken = default) {
+    public async Task<IReadOnlyList<PageReadHead>> ListAsync(string prefix, string? after, int limit, bool recursive = true, CancellationToken cancellationToken = default) {
         LastCancellationToken = cancellationToken;
         ReadCount++;
         await Task.Delay(ReadDelay, cancellationToken);
 
+        PagePath at = PagePath.Normalize(prefix);
+
         return [.. _pages
             .Where(item => InSubtree(item.Key, prefix))
+            .Where(item => recursive || IsSelfOrDirectChild(item.Key, at))
             .Where(item => after is null || string.CompareOrdinal(item.Key, after) > 0)
             .OrderBy(item => item.Key, StringComparer.Ordinal)
             .Take(limit)
@@ -101,6 +104,35 @@ internal sealed class FakePageReadStore : IPageReadStore {
                     latest.RuntimeId, latest.HasImage, latest.HasDiagnostics, latest.SeedHash, latest.ContentHash,
                     latest.TemplateLibraries);
             })];
+    }
+
+    /// <inheritdoc/>
+    public async Task<IReadOnlyList<string>> ListFoldersAsync(string prefix, string? after, int limit, CancellationToken cancellationToken = default) {
+        LastCancellationToken = cancellationToken;
+        ReadCount++;
+        await Task.Delay(ReadDelay, cancellationToken);
+
+        PagePath at = PagePath.Normalize(prefix);
+        SortedSet<string> folders = [with(StringComparer.Ordinal)];
+
+        foreach (string key in _pages.Keys) {
+            if (!PagePath.Normalize(key).IsBelow(at)) {
+                continue;
+            }
+
+            // Folders above a key are outermost first, so the one directly below the prefix is the
+            // child the real statement folds the key into.
+            foreach (string folder in PageTree.FoldersAbove(key)) {
+                if (PagePath.Normalize(folder).IsDirectlyBelow(at)) {
+                    _ = folders.Add(folder);
+                    break;
+                }
+            }
+        }
+
+        return [.. folders
+            .Where(folder => after is null || string.CompareOrdinal(folder, after) > 0)
+            .Take(limit)];
     }
 
     /// <inheritdoc/>
@@ -165,6 +197,12 @@ internal sealed class FakePageReadStore : IPageReadStore {
 
     private static PageReadSource Source(string key, FakeRevision revision) =>
         new(key, revision.Hash, revision.SavedAt, revision.Template);
+
+    private static bool IsSelfOrDirectChild(string key, PagePath at) {
+        PagePath path = PagePath.Normalize(key);
+
+        return string.Equals(path.Key, at.Key, StringComparison.Ordinal) || path.IsDirectlyBelow(at);
+    }
 
     private static bool InSubtree(string key, string prefix) =>
         prefix == "/"

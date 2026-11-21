@@ -60,7 +60,9 @@ public sealed class PageLibraryTests : IntegrationTest {
         Assert.That((await PostEditorAsync(client, "plain-page", "<h1>Plain</h1>")).StatusCode,
             Is.EqualTo(HttpStatusCode.OK));
         HttpResponseMessage listing = await PostEditorAsync(client, "closure-listing", """
-            <% foreach (PageEntry entry in (await ctx.Capabilities.GetRequired<IPageCatalog>().ListAsync(new())).Entries) { %>
+            <% foreach (PageEntry entry in System.Linq.Enumerable.Where(
+                   (await ctx.Capabilities.GetRequired<IPageCatalog>().ListAsync(new())).Entries,
+                   entry => entry.Hash is not null)) { %>
             <p><%= entry.Key %>|<%= string.Join(",", entry.Libraries) %>|</p>
             <% } %>
             """);

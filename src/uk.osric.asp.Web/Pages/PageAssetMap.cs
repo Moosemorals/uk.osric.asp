@@ -74,7 +74,7 @@ internal static class PageAssetMap {
         ArgumentNullException.ThrowIfNull(store);
         ArgumentOutOfRangeException.ThrowIfLessThan(limit, 1);
 
-        IReadOnlyList<PageReadHead> heads = await store.ListAsync("/", after: null, limit, cancellationToken);
+        IReadOnlyList<PageReadHead> heads = await store.ListAsync("/", after: null, limit, recursive: true, cancellationToken);
 
         Dictionary<string, string> map = [with(StringComparer.Ordinal)];
         foreach (PageReadHead head in heads) {

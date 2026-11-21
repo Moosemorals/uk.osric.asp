@@ -9,7 +9,7 @@ using uk.osric.asp.Web.Shell;
 
 /// <summary>The system prompt and worked examples that teach the model to write a page.</summary>
 internal static class PageAuthorPrompt {
-    public const string Version = "page-author-v54";
+    public const string Version = "page-author-v55";
 
     public static IReadOnlyList<(string Name, string Source)> Examples { get; } = [
         ("query-driven", """
@@ -60,7 +60,7 @@ internal static class PageAuthorPrompt {
             <h1>Pages under /blog</h1>
             <ul>
             <% foreach (PageEntry entry in listing.Entries) { %>
-                <li><%= entry.Key %> — <%= entry.IsDeleted ? "deleted" : "live" %></li>
+                <li><%= entry.Key %> — <%= entry.Kind.ToString() %></li>
             <% } %>
             </ul>
             """),
@@ -334,18 +334,27 @@ internal static class PageAuthorPrompt {
 
         ## Page store read
         `ctx.Capabilities.GetRequired<IPageCatalog>()` reads the site's page store
-        and never writes. `ListAsync(new PageListingRequest(prefix, after, limit))`
-        lists one slice of the heads under a subtree and returns a `PageListing`:
-        `Entries` with `Key`, `SavedAt`, `Hash` and eight marks — `IsDeleted`,
-        `IsReserved`, `IsHtml`, `IsAsset`, `IsLibrary`, `IsWorker`, `State` and
-        `Libraries` —
-        and `Truncated`, which says something stands after the last row.
+        and never writes. `ListAsync(new PageListingRequest(prefix, after, limit, recursive))`
+        lists one slice of a subtree and returns a `PageListing`: `Entries`, each a
+        `PageEntry` with a `Key` and a `Kind` — flags that combine, `Page`,
+        `Tombstone`, `Route` and `Folder` — and the head's facts when a head is
+        stored: `SavedAt`, `Hash`, `IsHtml`, `IsAsset`, `IsLibrary`, `IsWorker`,
+        `State`, `Libraries` and `Seed`. A folder is not stored: it is a key that
+        has a key below it, so a key that is a page and a folder is one row with
+        both marks, and the site's own routes are rows too. A row with no head has
+        no `SavedAt`, no `Hash` and no `State`, so filter on
+        `Kind.HasFlag(PageEntryKind.Page)` when you want pages. `Truncated`, which
+        is on the answer, says something stands after the last row.
         `after` is the last key you were given and is exclusive, so a loop that
         passes the last key and asks again while `Truncated` is true walks a
         store of any size without skipping or repeating a row; a cursor past the
         last key answers empty with `Truncated` false, which is not an error.
         `limit` is how many rows you want, or null for the host's cap; asking for
-        more than the cap is refused with the setting's name, not trimmed.
+        more than the cap is refused with the setting's name, not trimmed, and
+        folders and routes count towards it. `recursive` is true unless you ask
+        otherwise: true lists every key under the prefix, false the prefix and its
+        own children, which is what a tree that descends one folder at a time
+        wants.
         A prefix is a subtree,
         not a string prefix: `/blog` lists `/blog` and `/blog/post`, never
         `/blogroll`; `""` and `/` are the whole store. `ReadAsync(key)` reads a

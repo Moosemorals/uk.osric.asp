@@ -116,7 +116,7 @@ internal static class SeedCommands {
 
         // A page whose seed this release no longer ships still has an anchor, and saying so is how
         // the owner sees that the pack moved on without them.
-        IReadOnlyList<PageReadHead> heads = await pages.ListAsync("/", after: null, int.MaxValue, cancellationToken);
+        IReadOnlyList<PageReadHead> heads = await pages.ListAsync("/", after: null, int.MaxValue, recursive: true, cancellationToken);
         foreach (PageReadHead head in heads) {
             if (head.SeedHash is not null && !verdicts.ContainsKey(head.Key)) {
                 verdicts[head.Key] = SeedComparison.Of(head.SeedHash, null, head.ContentHash).Describe(null).Verdict;

@@ -611,14 +611,14 @@ public sealed class PageLayoutChainTests {
             <% var layout = ctx.Capabilities.GetRequired<IPageLayout>();
                System.Collections.Generic.IReadOnlyList<PageEntry> entries =
                    (await ctx.Capabilities.GetRequired<IPageCatalog>().ListAsync(new())).Entries; %>
-            <title><%= layout.Title ?? "" %></title><span id="layout-count"><%= entries.Count.ToString() %></span><%== layout.Content?.Body ?? "" %>
+            <title><%= layout.Title ?? "" %></title><span id="layout-count"><%= System.Linq.Enumerable.Count(entries, entry => entry.Hash is not null).ToString() %></span><%== layout.Content?.Body ?? "" %>
             """);
         Store("/page", """
             <% ctx.Capabilities.GetRequired<IPageComposition>().Wrap();
                ctx.Capabilities.GetRequired<IPageLayout>().Title = "Page";
                System.Collections.Generic.IReadOnlyList<PageEntry> entries =
                    (await ctx.Capabilities.GetRequired<IPageCatalog>().ListAsync(new())).Entries; %>
-            <span id="page-count"><%= entries.Count.ToString() %></span>
+            <span id="page-count"><%= System.Linq.Enumerable.Count(entries, entry => entry.Hash is not null).ToString() %></span>
             """);
         _readStore.Save("/blog", "blog");
 

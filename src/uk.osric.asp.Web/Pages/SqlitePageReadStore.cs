@@ -53,13 +53,17 @@ internal sealed class SqlitePageReadStore(IDbContextFactory<StorageDbContext> co
     }
 
     /// <inheritdoc/>
-    public async Task<IReadOnlyList<PageReadHead>> ListAsync(string prefix, string? after, int limit, CancellationToken cancellationToken = default) {
+    public async Task<IReadOnlyList<PageReadHead>> ListAsync(string prefix, string? after, int limit, bool recursive = true, CancellationToken cancellationToken = default) {
         ArgumentNullException.ThrowIfNull(prefix);
         ArgumentOutOfRangeException.ThrowIfLessThan(limit, 1);
 
         // A key may legally contain '%' or '_', so the escape is not decorative: without it a prefix
         // of /100% would match every key that starts /100 followed by any run of characters.
         string like = prefix == "/" ? "/%" : Escape(prefix) + "/%";
+
+        // A direct child is one segment below the prefix, so a key with another slash after it is
+        // below a child rather than a child. The root's own subtree pattern already special-cases it.
+        string deeper = prefix == "/" ? "/%/%" : Escape(prefix) + "/%/%";
 
         await using StorageDbContext database = contexts.CreateDbContext();
 
@@ -68,6 +72,10 @@ internal sealed class SqlitePageReadStore(IDbContextFactory<StorageDbContext> co
         // between two calls cannot make the next one skip a row or repeat one.
         IQueryable<PageHead> heads = database.Set<PageHead>().AsNoTracking()
             .Where(head => head.Path == prefix || EF.Functions.Like(head.Path, like, "\\"));
+
+        if (!recursive) {
+            heads = heads.Where(head => !EF.Functions.Like(head.Path, deeper, "\\"));
+        }
 
         if (after is not null) {
             heads = heads.Where(head => head.Path.CompareTo(after) > 0);
@@ -98,6 +106,36 @@ internal sealed class SqlitePageReadStore(IDbContextFactory<StorageDbContext> co
             row.Path, row.SavedAt, row.Hash, row.IsDeleted, row.TemplateKind,
             row.RuntimeId, row.HasImage, row.HasDiagnostics, row.SeedHash, row.ContentHash,
             row.TemplateLibraries))];
+    }
+
+    /// <inheritdoc/>
+    public async Task<IReadOnlyList<string>> ListFoldersAsync(string prefix, string? after, int limit, CancellationToken cancellationToken = default) {
+        ArgumentNullException.ThrowIfNull(prefix);
+        ArgumentOutOfRangeException.ThrowIfLessThan(limit, 1);
+
+        string like = prefix == "/" ? "/%" : Escape(prefix) + "/%";
+
+        // A cursor names a child that the slice which answered it has already reported, so the keys
+        // below it are not a second folder for the same key.
+        string cursorSubtree = after is null ? string.Empty : Escape(after) + "/%";
+
+        await using StorageDbContext database = contexts.CreateDbContext();
+
+        // A child is a folder when a key lives below it, and its segment is its text up to the next
+        // slash, which EF Core cannot project — so this one statement is raw. `length()` and `substr`
+        // count characters; a length measured in C# counts UTF-16 units, and a key holding an astral
+        // character would be cut one place out.
+        string[] rows = await database.Database.SqlQuery<string>($"""
+            SELECT DISTINCT substr("Path", 1, instr(substr("Path", length({prefix}) + 2), '/') + length({prefix})) AS "Value"
+            FROM "PageHeads"
+            WHERE "Path" LIKE {like} ESCAPE '\'
+              AND instr(substr("Path", length({prefix}) + 2), '/') > 0
+              AND ({after} IS NULL OR ("Path" > {after} AND "Path" NOT LIKE {cursorSubtree} ESCAPE '\'))
+            ORDER BY "Value"
+            LIMIT {limit}
+            """).ToArrayAsync(cancellationToken);
+
+        return rows;
     }
 
     /// <inheritdoc/>

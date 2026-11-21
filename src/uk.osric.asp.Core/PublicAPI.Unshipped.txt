@@ -946,3 +946,33 @@ uk.osric.asp.Core.Assistant.ToolArgumentSchema.Description.get -> string?
 uk.osric.asp.Core.Assistant.ToolArgumentSchema.Description.init -> void
 uk.osric.asp.Core.Assistant.ToolArgumentSchema.Values.get -> System.Collections.Generic.IReadOnlyList<string!>?
 uk.osric.asp.Core.Assistant.ToolArgumentSchema.Values.init -> void
+uk.osric.asp.Core.Pages.PageListingFold
+static uk.osric.asp.Core.Pages.PageListingFold.Of(System.Collections.Generic.IReadOnlyList<uk.osric.asp.Core.Pages.PageListingKey>! facts, string! prefix, string? after, bool recursive, int limit) -> uk.osric.asp.Core.Pages.PageListingKeys!
+uk.osric.asp.Core.Pages.PageListingKey
+uk.osric.asp.Core.Pages.PageListingKey.Deconstruct(out string! Key, out bool IsFolder) -> void
+~override uk.osric.asp.Core.Pages.PageListingKey.Equals(object obj) -> bool
+uk.osric.asp.Core.Pages.PageListingKey.Equals(uk.osric.asp.Core.Pages.PageListingKey other) -> bool
+override uk.osric.asp.Core.Pages.PageListingKey.GetHashCode() -> int
+uk.osric.asp.Core.Pages.PageListingKey.IsFolder.get -> bool
+uk.osric.asp.Core.Pages.PageListingKey.IsFolder.init -> void
+uk.osric.asp.Core.Pages.PageListingKey.Key.get -> string!
+uk.osric.asp.Core.Pages.PageListingKey.Key.init -> void
+uk.osric.asp.Core.Pages.PageListingKey.PageListingKey() -> void
+uk.osric.asp.Core.Pages.PageListingKey.PageListingKey(string! Key, bool IsFolder) -> void
+~override uk.osric.asp.Core.Pages.PageListingKey.ToString() -> string
+static uk.osric.asp.Core.Pages.PageListingKey.operator !=(uk.osric.asp.Core.Pages.PageListingKey left, uk.osric.asp.Core.Pages.PageListingKey right) -> bool
+static uk.osric.asp.Core.Pages.PageListingKey.operator ==(uk.osric.asp.Core.Pages.PageListingKey left, uk.osric.asp.Core.Pages.PageListingKey right) -> bool
+uk.osric.asp.Core.Pages.PageListingKeys
+uk.osric.asp.Core.Pages.PageListingKeys.<Clone>$() -> uk.osric.asp.Core.Pages.PageListingKeys!
+uk.osric.asp.Core.Pages.PageListingKeys.Deconstruct(out System.Collections.Generic.IReadOnlyList<uk.osric.asp.Core.Pages.PageListingKey>! Keys, out bool Truncated) -> void
+override uk.osric.asp.Core.Pages.PageListingKeys.Equals(object? obj) -> bool
+uk.osric.asp.Core.Pages.PageListingKeys.Equals(uk.osric.asp.Core.Pages.PageListingKeys? other) -> bool
+override uk.osric.asp.Core.Pages.PageListingKeys.GetHashCode() -> int
+uk.osric.asp.Core.Pages.PageListingKeys.Keys.get -> System.Collections.Generic.IReadOnlyList<uk.osric.asp.Core.Pages.PageListingKey>!
+uk.osric.asp.Core.Pages.PageListingKeys.Keys.init -> void
+uk.osric.asp.Core.Pages.PageListingKeys.PageListingKeys(System.Collections.Generic.IReadOnlyList<uk.osric.asp.Core.Pages.PageListingKey>! Keys, bool Truncated) -> void
+override uk.osric.asp.Core.Pages.PageListingKeys.ToString() -> string!
+uk.osric.asp.Core.Pages.PageListingKeys.Truncated.get -> bool
+uk.osric.asp.Core.Pages.PageListingKeys.Truncated.init -> void
+static uk.osric.asp.Core.Pages.PageListingKeys.operator !=(uk.osric.asp.Core.Pages.PageListingKeys? left, uk.osric.asp.Core.Pages.PageListingKeys? right) -> bool
+static uk.osric.asp.Core.Pages.PageListingKeys.operator ==(uk.osric.asp.Core.Pages.PageListingKeys? left, uk.osric.asp.Core.Pages.PageListingKeys? right) -> bool

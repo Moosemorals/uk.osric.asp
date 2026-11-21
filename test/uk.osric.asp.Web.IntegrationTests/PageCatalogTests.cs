@@ -30,10 +30,12 @@ public sealed class PageCatalogTests : IntegrationTest {
         </tr>
     </thead>
     <tbody>
-<% foreach (PageEntry entry in (await ctx.Capabilities.GetRequired<IPageCatalog>().ListAsync(new())).Entries) { %>
+<% foreach (PageEntry entry in System.Linq.Enumerable.Where(
+        (await ctx.Capabilities.GetRequired<IPageCatalog>().ListAsync(new())).Entries,
+        entry => entry.Hash is not null)) { %>
         <tr>
             <th scope="row"><%= entry.Key %></th>
-            <td><%= entry.SavedAt.ToUniversalTime().ToString("yyyy-MM-dd HH:mm 'UTC'", System.Globalization.CultureInfo.InvariantCulture) %></td>
+            <td><%= entry.SavedAt!.Value.ToUniversalTime().ToString("yyyy-MM-dd HH:mm 'UTC'", System.Globalization.CultureInfo.InvariantCulture) %></td>
         </tr>
 <% } %>
     </tbody>
@@ -59,6 +61,25 @@ public sealed class PageCatalogTests : IntegrationTest {
 
     private async Task SeedListingAsync() => await SavePageAsync("/catalog-listing", Listing);
 
+    // A page that walks the whole store with the cursor — folders and routes included — and prints
+    // each row's key and kind. It is the shape a tree needs: one row per key, in order, no repeat.
+    private const string Walk = """
+<% ctx.Capabilities.GetRequired<IPageLayout>().Title = "Walk";
+   ctx.Capabilities.GetRequired<IPageComposition>().Wrap();
+   System.Collections.Generic.List<string> rows = [];
+   string? after = null;
+   for (int slice = 0; slice < 200; slice++) {
+       PageListing page = await ctx.Capabilities.GetRequired<IPageCatalog>().ListAsync(
+           new PageListingRequest("", after, 3));
+       foreach (PageEntry entry in page.Entries) { rows.Add(entry.Key + "|" + entry.Kind.ToString()); }
+       if (!page.Truncated || page.Entries.Count == 0) { break; }
+       after = page.Entries[page.Entries.Count - 1].Key;
+   } %>
+<ul>
+<% foreach (string row in rows) { %><li><%= row %></li><% } %>
+</ul>
+""";
+
     [Test]
     public async Task ASliceIsAsLongAsItWasAskedForAndSaysThereIsMoreAsync() {
         await SavePageAsync("/catalog-paged", PagedListing);
@@ -72,6 +93,25 @@ public sealed class PageCatalogTests : IntegrationTest {
             Assert.That(first, Does.Contain("more"));
             Assert.That(past.Split("<li>").Length - 1, Is.Zero, "a cursor past the last key is a complete answer");
             Assert.That(past, Does.Contain("end"));
+        });
+    }
+
+
+    [Test]
+    public async Task AWalkAnswersEveryKeyOnceWithItsKindAsync() {
+        await SavePageAsync("/catalog-walk", Walk);
+        using HttpClient client = CreateClient();
+
+        string body = await client.GetStringAsync("/catalog-walk");
+        string[] rows = [.. body.Split("<li>").Skip(1).Select(part => part[..part.IndexOf('<')])];
+        string[] keys = [.. rows.Select(row => row[..row.IndexOf('|')])];
+
+        Assert.Multiple(() => {
+            Assert.That(keys, Is.Unique, "a walk answers every key once");
+            Assert.That(rows, Does.Contain("/_lib|Folder"), "a folder is a row with no head");
+            Assert.That(rows, Does.Contain("/admin|Route, Folder"), "a route is a row, and a folder when routes live below it");
+            Assert.That(rows, Does.Contain("/help|Page"));
+            Assert.That(rows, Does.Contain("/pages|Page"));
         });
     }
 
