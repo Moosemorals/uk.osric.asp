@@ -46,7 +46,7 @@ authority and TTL belong to the verb.
 
 ## The model
 
-Two subjects, four shapes. `Site` is a reserved row, not a subject, until a use case needs it.
+Two subjects, four shapes. `Site` is a reserved column, not a subject, until a use case needs it.
 
 | | Page | Visitor |
 | --- | --- | --- |
