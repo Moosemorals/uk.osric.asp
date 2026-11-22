@@ -153,7 +153,8 @@ internal sealed class PageImageBuilder(
             result.Symbols,
             PageDiagnostic.SortedForDisplay([.. shape, .. result.Diagnostics]),
             result.Kind ?? generated.Kind,
-            Fingerprint(result.Libraries, libraries));
+            Fingerprint(result.Libraries, libraries),
+            result.Schema);
     }
 
     // The closure is the compiler's answer, and the hashes are the caller's: together they say what

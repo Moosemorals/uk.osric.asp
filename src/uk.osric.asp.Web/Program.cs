@@ -326,13 +326,19 @@ internal class Program {
         // Registered as a scoped store so `users remove` can sweep an account's memories with the
         // rest of its rows.
         builder.Services.AddScoped<IMemoryStore, SqliteMemoryStore>();
+        // A declaration is applied inside the save that carries it, so the applier is what both write
+        // seams are given: the one a single save uses and the one a page's transaction commits through.
+        builder.Services.AddSingleton(services => new DeclaredTableApplier(
+            services.GetRequiredService<PageStoresOptions>().Records));
+
         // The listing judges an image's state against the running build, so the store is told which
         // one that is; a page whose image came from an earlier build says Stale until it is requested.
         builder.Services.AddScoped<IPageStore>(services => new SqlitePageStore(
             services.GetRequiredService<StorageDbContext>(),
             services.GetRequiredService<ILogger<SqlitePageStore>>(),
             services.GetRequiredService<PageStorageRefresh>(),
-            services.GetRequiredService<IPageCompiler>().RuntimeId));
+            services.GetRequiredService<IPageCompiler>().RuntimeId,
+            services.GetRequiredService<DeclaredTableApplier>()));
 
         builder.Services.AddScoped<IPageBatchStore, SqlitePageBatchStore>();
         builder.Services.AddScoped<IUserStore, SqliteUserStore>();

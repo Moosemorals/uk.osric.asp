@@ -58,6 +58,15 @@ internal sealed class StorageDbContext(DbContextOptions<StorageDbContext> option
             value.HasIndex(row => row.ExpiresAt);
         });
 
+        modelBuilder.Entity<DeclaredTableEntry>(table => {
+            table.ToTable("DeclaredTables");
+            table.HasKey(row => row.Id);
+            table.Property(row => row.SourceKey).UseCollation("BINARY");
+            table.Property(row => row.Name).UseCollation("BINARY");
+            // One source declares a name once; the diff and the delete read by source key.
+            table.HasIndex(row => new { row.SourceKey, row.Name }).IsUnique();
+        });
+
         modelBuilder.Entity<PageSessionEntry>(session => {
             session.ToTable("PageSessions");
             session.HasKey(row => row.SessionId);

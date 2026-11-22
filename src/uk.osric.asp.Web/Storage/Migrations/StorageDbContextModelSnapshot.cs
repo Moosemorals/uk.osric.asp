@@ -15,7 +15,7 @@ partial class StorageDbContextModelSnapshot : ModelSnapshot
     // If you encounter a merge conflict in the line below, it means you need to
     // discard one of the migration branches and recreate its migrations on top of
     // the other branch. See https://aka.ms/efcore-docs-migrations-conflicts for more info.
-    public override string LastMigrationId => "20261122082851_AddStoreValues";
+    public override string LastMigrationId => "20261122150522_AddDeclaredTables";
 
     protected override void BuildModel(ModelBuilder modelBuilder)
     {
@@ -378,6 +378,47 @@ partial class StorageDbContextModelSnapshot : ModelSnapshot
                 b.HasIndex("ExpiresAt");
 
                 b.ToTable("AuthTickets");
+            });
+
+        modelBuilder.Entity("uk.osric.asp.Web.Pages.DeclaredTableEntry", b =>
+            {
+                b.Property<long>("Id")
+                    .ValueGeneratedOnAdd()
+                    .HasColumnType("INTEGER");
+
+                b.Property<string>("Columns")
+                    .IsRequired()
+                    .HasColumnType("TEXT");
+
+                b.Property<int>("Lifetime")
+                    .HasColumnType("INTEGER");
+
+                b.Property<string>("Name")
+                    .IsRequired()
+                    .HasColumnType("TEXT")
+                    .UseCollation("BINARY");
+
+                b.Property<string>("RealName")
+                    .IsRequired()
+                    .HasColumnType("TEXT");
+
+                b.Property<string>("Search")
+                    .HasColumnType("TEXT");
+
+                b.Property<string>("SourceKey")
+                    .IsRequired()
+                    .HasColumnType("TEXT")
+                    .UseCollation("BINARY");
+
+                b.Property<int>("Subject")
+                    .HasColumnType("INTEGER");
+
+                b.HasKey("Id");
+
+                b.HasIndex("SourceKey", "Name")
+                    .IsUnique();
+
+                b.ToTable("DeclaredTables");
             });
 
         modelBuilder.Entity("uk.osric.asp.Web.Pages.PageHead", b =>

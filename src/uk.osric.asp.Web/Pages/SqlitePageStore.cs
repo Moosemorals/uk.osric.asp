@@ -19,7 +19,8 @@ internal sealed class SqlitePageStore(
     StorageDbContext database,
     ILogger<SqlitePageStore> logger,
     PageStorageRefresh? storageRefresh = null,
-    string? currentRuntimeId = null) : IPageStore {
+    string? currentRuntimeId = null,
+    DeclaredTableApplier? declarations = null) : IPageStore {
 
     private const int CheckpointAttempts = 3;
 
@@ -220,14 +221,20 @@ internal sealed class SqlitePageStore(
     /// <param name="database">The context to write through, which may be inside a caller's transaction.</param>
     /// <param name="template">The revision to store.</param>
     /// <param name="cancellationToken">Cancels the write.</param>
+    /// <param name="declarations">The applier a declaration is applied through, or <see langword="null"/> for none.</param>
     /// <remarks>
     /// An editor save and an imported batch go through this pair, so the row shape and the head
     /// upsert cannot drift. The revision insert comes first: the head's foreign key points at it.
     /// </remarks>
-    internal static async Task WriteRevisionAsync(StorageDbContext database, PageTemplate template, CancellationToken cancellationToken) {
+    internal static async Task WriteRevisionAsync(
+        StorageDbContext database,
+        PageTemplate template,
+        CancellationToken cancellationToken,
+        DeclaredTableApplier? declarations = null) {
         PageRevision row = ToRevision(template);
         try {
             await database.AddAsync(row, cancellationToken);
+            await ApplyDeclarationsAsync(database, template, row, declarations, cancellationToken);
             await database.SaveChangesAsync(cancellationToken);
         } catch {
             // A failed insert must not leave the row tracked, or the next attempt would try to add it twice.
@@ -256,6 +263,31 @@ internal sealed class SqlitePageStore(
             """, cancellationToken);
     }
 
+    // The declaration is part of the revision, so it is applied inside the save's own transaction: a
+    // rollback takes the tables with the revision, and a revision that cannot be applied stores its
+    // diagnostics and keeps no image, so the page answers them rather than running against a table
+    // that is not there.
+    private static async Task ApplyDeclarationsAsync(
+        StorageDbContext database,
+        PageTemplate template,
+        PageRevision row,
+        DeclaredTableApplier? declarations,
+        CancellationToken cancellationToken) {
+        if (declarations is null || template.Image is not { } image) {
+            return;
+        }
+
+        IReadOnlyList<PageDiagnostic> problems =
+            await declarations.ApplyAsync(database, template.Path, image.Schema ?? PageSchema.Empty, cancellationToken);
+        if (problems.Count == 0) {
+            return;
+        }
+
+        row.Diagnostics = SerializeDiagnostics([.. image.Diagnostics, .. problems]);
+        row.Image = null;
+        row.Symbols = null;
+    }
+
     /// <summary>Gives a batch a fresh revision id and hash after a collision.</summary>
     /// <param name="template">The revision that collided.</param>
     internal static PageTemplate RegenerateRevision(PageTemplate template) {
@@ -282,7 +314,7 @@ internal sealed class SqlitePageStore(
         ArgumentNullException.ThrowIfNull(template);
         ArgumentException.ThrowIfNullOrWhiteSpace(expectedHash);
 
-        return TryStoreRevisionAsync(database, template, expectedHash, logger, cancellationToken);
+        return TryStoreRevisionAsync(database, template, expectedHash, logger, declarations, cancellationToken);
     }
 
     /// <summary>Stores a revision only while the page's head still has the hash the caller saw.</summary>
@@ -290,6 +322,7 @@ internal sealed class SqlitePageStore(
     /// <param name="template">The revision to store.</param>
     /// <param name="expectedHash">The hash the caller saw as the head.</param>
     /// <param name="logger">Notes a retried revision id.</param>
+    /// <param name="declarations">The applier a declaration is applied through, or <see langword="null"/> for none.</param>
     /// <param name="cancellationToken">Cancels the write.</param>
     /// <remarks>
     /// The editor's conditional save, a page's own conditional save and the assistant all come
@@ -300,13 +333,14 @@ internal sealed class SqlitePageStore(
         PageTemplate template,
         string expectedHash,
         ILogger logger,
+        DeclaredTableApplier? declarations,
         CancellationToken cancellationToken) {
         PageTemplate revision = template;
         for (int attempt = 0; ; attempt++) {
             PageRevision row = ToRevision(revision);
             try {
                 await using IDbContextTransaction transaction = await database.Database.BeginTransactionAsync(cancellationToken);
-                bool written = await TryWriteRevisionAsync(database, revision, row, expectedHash, cancellationToken);
+                bool written = await TryWriteRevisionAsync(database, revision, row, expectedHash, declarations, cancellationToken);
                 if (!written) {
                     await transaction.RollbackAsync(cancellationToken);
                     return false;
@@ -327,6 +361,7 @@ internal sealed class SqlitePageStore(
     /// <param name="revision">The revision to store.</param>
     /// <param name="row">The revision's row, built by <see cref="ToRevision"/>.</param>
     /// <param name="expectedHash">The hash the caller saw as the head.</param>
+    /// <param name="declarations">The applier a declaration is applied through, or <see langword="null"/> for none.</param>
     /// <param name="cancellationToken">Cancels the write.</param>
     /// <returns><see langword="false"/> when the head is missing, tombstoned or another hash, so nothing was written.</returns>
     /// <remarks>
@@ -339,6 +374,7 @@ internal sealed class SqlitePageStore(
         PageTemplate revision,
         PageRevision row,
         string expectedHash,
+        DeclaredTableApplier? declarations,
         CancellationToken cancellationToken) {
         int matched = await database.Database.ExecuteSqlAsync($"""
             UPDATE "PageHeads" SET "RevisionId" = "RevisionId"
@@ -354,6 +390,7 @@ internal sealed class SqlitePageStore(
         }
 
         database.Add(row);
+        await ApplyDeclarationsAsync(database, revision, row, declarations, cancellationToken);
         await database.SaveChangesAsync(cancellationToken);
         await database.Database.ExecuteSqlAsync($"""
             UPDATE "PageHeads" SET
