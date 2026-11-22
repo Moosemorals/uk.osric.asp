@@ -10,7 +10,7 @@ SPDX-License-Identifier: MIT
 | Difficulty | determined-mountain-goat |
 | Utility | medium |
 | Status | blocked |
-| Blocked by | `storage-is-not-one-model` |
+| Blocked by | `a-page-cannot-keep-a-secret` |
 | Plan | — |
 | Area | Web (storage, configuration), deploy, docs |
 | Location | `src/uk.osric.asp.Web/Pages/PageStoresOptions.cs`, `StoreSecrets` (new), `src/uk.osric.asp.Web/appsettings.json`, `deploy/operations.md`, `docs/storage.md` |
@@ -20,7 +20,8 @@ SPDX-License-Identifier: MIT
 
 A page that must hold a credential — a signing key, a remote API's token — cannot put it in page source
 or in `IPageStorage`: both are readable through `/pages` and the whole revision history. The shape that
-answers that is a secrets shape on the Page subject, a slice of
+answers that is a secrets shape on the Page subject —
+[`a-page-cannot-keep-a-secret`](a-page-cannot-keep-a-secret.md), a slice of
 [`storage-is-not-one-model`](storage-is-not-one-model.md), which keeps opaque text that
 `IPageCatalog` never returns, that no revision, search or archive carries, and that is deleted and
 scrubbed with the page.
@@ -55,7 +56,8 @@ owner decides what may be kept there.
 
 ## Not in scope
 
-- **The shape itself.** That is the secrets slice of
+- **The shape itself.** That is [`a-page-cannot-keep-a-secret`](a-page-cannot-keep-a-secret.md), the
+  secrets slice of
   [`storage-is-not-one-model`](storage-is-not-one-model.md); this item encrypts what it stores.
 - **A page managing keys.** A page writes and reads its own opaque text; the cipher is the host's.
 - **Other stored data.** Passwords stay hashed and sessions stay tokens; this is the page's secrets.

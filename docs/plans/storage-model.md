@@ -3,23 +3,23 @@ SPDX-FileCopyrightText: Copyright 2026 Osric Wilkinson <osric@fluffypeople.com>
 SPDX-License-Identifier: MIT
 -->
 
-# One storage model: two subjects, four shapes
+# One storage model: two subjects, five shapes
 
 | | |
 | --- | --- |
-| Status | Agreed 2026-11-21 — the owner said yes — and revised against trunk 2026-11-22, after the page search, the reference corpus, the slow test half and the documentation index landed. Slice 0, the [sandbox spike](../spikes/store-sandbox.md), slice 1, values, lifetimes and identity, and slice 2, records and the sandbox, are merged; slice 3, messages, is built on its branch and waits for the owner, and nothing of slice 4 is built |
-| Size | Large as a programme, small as a step: a spike, five slices and the release that closes the window, each its own branch and its own stop. The values slice is the floor; the record slice is the risk |
-| First customer | The two plans this supersedes: the assistant's transcript (a Record for the signed-in visitor) and the redirect flash (a `NextRead` value). Editor mode is the first `Browser` value, and `/help`'s counter is the first Page value |
+| Status | Agreed 2026-11-21 — the owner said yes — and revised against trunk 2026-11-22, after the page search, the reference corpus, the slow test half and the documentation index landed, and again the same day to add the secrets slice at the owner's request. Slice 0, the [sandbox spike](../spikes/store-sandbox.md), slice 1, values, lifetimes and identity, and slice 2, records and the sandbox, are merged; slice 3, messages, is built on its branch and waits for the owner, and nothing of slices 4 and 5 is built |
+| Size | Large as a programme, small as a step: a spike, six slices and the release that closes the window, each its own branch and its own stop. The values slice is the floor; the record slice is the risk; the secrets slice is the one that cannot wait for the window to close |
+| First customer | The two plans this supersedes: the assistant's transcript (a Record for the signed-in visitor) and the redirect flash (a `NextRead` value). Editor mode is the first `Browser` value, and `/help`'s counter is the first Page value. A signing key ([`a-page-cannot-keep-a-secret`](../backlog/a-page-cannot-keep-a-secret.md)) is the first secret |
 | Spike | Slice 0: [the record sandbox](../spikes/store-sandbox.md), written before anything was built. Six of the sandbox section's details were corrected by what it measured |
-| Decisions | Slice 3 records `pages-a-message-is-taken-once`. Slice 2's merge recorded `pages-a-record-is-declared-sql`, `pages-a-record-is-sandboxed` and `pages-a-library-owns-its-schema`. Slice 1's merge recorded `pages-the-subject-is-the-binding`, `pages-a-lifetime-belongs-to-the-entry`, `pages-a-browser-is-a-lifetime`, `pages-adoption-re-keys-at-sign-in` and `pages-one-stores-section`, and edited `pages-page-storage`, `pages-the-session` and `pages-an-archive-is-a-database`. The remaining six names are recorded by the slice that delivers them, and the plan is archived when slice 5's merge closes the programme |
-| Backlog | [`storage-is-not-one-model`](../backlog/storage-is-not-one-model.md) is this job. It absorbs [`no-account-store`](../backlog/no-account-store.md) and [`message-does-not-survive-a-redirect`](../backlog/message-does-not-survive-a-redirect.md), whose plans [account-store](account-store.md) and [page-inbox](page-inbox.md) are superseded in shape |
+| Decisions | Slice 3 records `pages-a-message-is-taken-once`. Slice 2's merge recorded `pages-a-record-is-declared-sql`, `pages-a-record-is-sandboxed` and `pages-a-library-owns-its-schema`. Slice 1's merge recorded `pages-the-subject-is-the-binding`, `pages-a-lifetime-belongs-to-the-entry`, `pages-a-browser-is-a-lifetime`, `pages-adoption-re-keys-at-sign-in` and `pages-one-stores-section`, and edited `pages-page-storage`, `pages-the-session` and `pages-an-archive-is-a-database`. The remaining names are recorded by the slice that delivers them, and the plan is archived when the last slice's merge closes the programme |
+| Backlog | [`storage-is-not-one-model`](../backlog/storage-is-not-one-model.md) is this job. It absorbs [`no-account-store`](../backlog/no-account-store.md), [`message-does-not-survive-a-redirect`](../backlog/message-does-not-survive-a-redirect.md) and, from 2026-11-22, [`a-page-cannot-keep-a-secret`](../backlog/a-page-cannot-keep-a-secret.md), whose plans [account-store](account-store.md) and [page-inbox](page-inbox.md) are superseded in shape |
 
 ## The short version
 
 The owner answered the six questions on the item on 2026-11-21. The model is settled: **the subject is
 the binding, the shape is the interface**. Two subjects — `Page`, shared by every visitor, and
-`Visitor`, this person — carry four shapes: values, records, messages and objects. A lifetime is a
-property of the entry, not of the store. Reads are open across page keys, writes are bound to the
+`Visitor`, this person — carry five shapes: values, records, messages, objects and secrets. A lifetime
+is a property of the entry, not of the store. Reads are open across page keys, writes are bound to the
 caller's key, and `For(key)` is the one deliberate escape, for a library's or a worker's own
 namespace.
 
@@ -30,7 +30,7 @@ This plan does four things the item left to it:
   aggregates over those views, SQLite's own authorizer as the allow-list, its limits, the statement
   and transaction clocks, and the result caps.
 - **It slices the work** so each shape ships alone: the values and identity floor first, then records,
-  then messages, then objects, then the ends. Every slice is one branch and one stop.
+  then messages, then objects, then secrets, then the ends. Every slice is one branch and one stop.
 - **It settles what the item left open in the implementation**: the archive keeps its two tables and
   skips ephemeral values; the old two capabilities stay one release as obsolete adapters over the new
   stores and are then removed; the seeded layout does not take a flash on every render; objects are
@@ -77,7 +77,7 @@ is written in the shape of, and the search's own options and tests stay where th
 
 ## The model
 
-Two subjects and four shapes. `Site` is a reserved column, not a subject, until a use case needs it.
+Two subjects and five shapes. `Site` is a reserved column, not a subject, until a use case needs it.
 
 | | Page | Visitor |
 | --- | --- | --- |
@@ -85,6 +85,7 @@ Two subjects and four shapes. `Site` is a reserved column, not a subject, until 
 | Record (declared table, SQL) | yes | yes |
 | Message (durable, consumed once) | — | yes |
 | Object (bytes, content-addressed) | yes | yes |
+| Secret (opaque text, never returned by anything else) | yes | — |
 
 - **Page** is shared by every visitor and is the page's own data. Its subject key is the canonical page
   key; its default lifetime is the page's own, so an edit or a restore keeps it and a move re-keys it.
@@ -111,9 +112,10 @@ Two rules hold the model together:
 - **The subject is the binding.** A handle is bound to one subject key, and a write uses it. A page's
   handle for `/a` writes `page:/a`; a visitor's handle writes the reader's subject. There is no
   argument that names another subject.
-- **The shape is the interface.** `Values`, `Records`, `Messages` and `Objects` are four interfaces,
-  and a subject offers the shapes it has. `Visitor` has `Messages`; `Page` does not, and its absence is
-  a type, not a runtime surprise.
+- **The shape is the interface.** `Values`, `Records`, `Messages`, `Objects` and `Secrets` are five
+  interfaces, and a subject offers the shapes it has. `Visitor` has `Messages`; `Page` does not, and
+  its absence is a type, not a runtime surprise. `Page` has `Secrets` and `Visitor` does not, for the
+  reason [below](#secrets).
 
 Reads are open across page keys; writes are bound to the caller's key. `/a` reads `/_lib/b`'s Page
 values with `Values.TryGetValueAsync("/_lib/b", key)`. That is **ownership, not protection**: page code
@@ -137,7 +139,7 @@ on one person's budget, and `Pages:Stores` chooses the numbers together.
 
 ## The contract
 
-The capability is one type with two subjects and one escape. The four shape interfaces are what a page
+The capability is one type with two subjects and one escape. The five shape interfaces are what a page
 binds against; the subject interfaces are what a store answers with.
 
 ```csharp
@@ -151,6 +153,7 @@ public interface IPageSubject {
     IValueStore Values { get; }
     IRecordStore Records { get; }
     IObjectStore Objects { get; }
+    ISecretStore Secrets { get; }
 }
 
 public interface IPageVisitorSubject : IPageSubject {
@@ -546,6 +549,49 @@ public interface IObjectStore {
   refused: it is markup and a script vector, and the site already has a page kind for markup.
 - Caps: one object and the bytes one subject holds, per subject.
 
+### Secrets
+
+```csharp
+public interface ISecretStore {
+    Task<string?> TryGetAsync(string name);
+    Task SetAsync(string name, string value);
+    Task<bool> DeleteAsync(string name);
+    Task<IReadOnlyList<string>> NamesAsync();
+}
+```
+
+- **The one shape that is not a store of data.** A value is a page's data and a page is entitled to
+  show it; a secret is authority, and the page is the only reader. So the handle answers its own key's
+  names and nothing else: there is no `TryGetAsync(pageKey, name)` beside `TryGet`, and the open
+  cross-page read that `pages-the-subject-is-the-binding` describes stops at `Values`, `Records` and
+  `Objects`.
+- **Nothing else returns it.** `IPageCatalog` — source, revision, listing, search — never carries a
+  name or a value; `/admin/export` writes no secret and the import reader refuses an archive that
+  carries one; the assistant's tools read the page store, which is source, and never this.
+- **Opaque text.** The signature is `string`, not JSON, so the one-set serializer is not involved and a
+  page cannot be handed a structured secret by accident. The bytes cap is per value and per subject,
+  and it is its own row in `Pages:Stores` rather than the value caps reused.
+- **No lifetime.** A secret is the page's or it is not there: no `Person`, no `Session`, no `NextRead`
+  and no expiry. `NamesAsync` answers names so a page can offer rotation without the store handing out
+  a preview.
+- **It follows the page.** Delete, scrub, move and `users remove` take it with the page exactly as they
+  take a value; a move re-keys it; a scrub destroys its rows.
+- **Two consequences the author needs.** A layer's `Page` handle is its own key
+  (`pages-one-render-three-roles`), so a layout cannot read the content page's secrets, and a
+  page-owned job's `Page` is the starting page (**pages-a-job-gets-three-scopes**), so a worker started
+  by the inbox page holds its key to sign what it sends.
+- **It is not the operator's credential.** `pages-fetch-credentials` still says a page names a
+  credential and never sees the value, and that stands: an operator's token belongs to the site and
+  is attached by the host, because a page bug cannot leak what a page cannot read. A page's own key
+  is the page's property and has to be readable for the page to use it. This shape reverses the
+  archived [page credentials](archive/page-credentials.md) plan's rejection of a per-page secret
+  table — the sentence *"it also makes the value page-readable, which is the property this design
+  exists to avoid"* is right about an operator's token and wrong about a page's own key.
+- **Plaintext at rest.** The rows are text in `storage.db`, the same boundary as a password hash or a
+  session row, and the cipher, key and rotation are
+  [`secrets-are-readable-at-rest`](../backlog/secrets-are-readable-at-rest.md). The shape's docs say
+  so, so nobody assumes a guarantee it does not give.
+
 ### Jobs
 
 A job gets three handles and no run store:
@@ -868,11 +914,18 @@ record does not have yet:
 - **pages-a-job-gets-three-scopes** — `Page` for the starting page, `Visitor` for the starter, and
   `For(workerKey)` for the worker's own data; the run itself has no store and a job gets no `Session`
   or `Browser`
+- **pages-a-secret-is-not-a-value** — `Secrets` is a `Page` shape and only a `Page` shape: opaque text
+  by name, no cross-page read, no lifetime, never in a listing row, a search, a revision or an
+  archive, and deleted, scrubbed and re-keyed with the page. It is not the operator's credential,
+  which a page still never sees (`pages-fetch-credentials`)
 
 The merges also edit `pages-page-storage`, `pages-the-session`, `pages-layouts-are-markup`,
 `pages-one-render-three-roles`, `pages-writes-are-transactions`, `pages-an-archive-is-a-database`,
 `pages-a-job-is-not-durable` and `pages-page-first`, and add the citation of the object route to
-`pages-a-versioned-url-promises-immutable`. `pages-writes-are-transactions` is the entry that already
+`pages-a-versioned-url-promises-immutable`. The secrets slice additionally amends
+`pages-fetch-credentials` — an operator's credential is still never shown to a page, and a page's own
+key is not that credential — and amends `pages-the-subject-is-the-binding` and
+`pages-an-archive-is-a-database` for the shape's two exceptions. `pages-writes-are-transactions` is the entry that already
 says a transaction is a frame and the writes live on the capability, so the record store's shape is
 that rule extended rather than a second one. `pages-there-is-no-sandbox` is unchanged and is what the
 record sandbox says of itself.
@@ -955,7 +1008,17 @@ and slice 2 are merged, and slice 3 is built and waits for the owner.
    open them; a page-subject object is public and immutable, a visitor-subject one is private; `Range`
    answers `206`; `HEAD` answers headers and no body; a missing or foreign sha is `404`; a refused
    content type never stores; the caps refuse at the boundary.
-5. **The ends** (`S`). `users remove` extended to every declared table; the archive's import and export
+5. **Secrets** (`M`). `ISecretStore` and `StoreSecrets`, the shape on `Page` and its absence from
+   `Visitor`, the caps' own row in `Pages:Stores`, delete, scrub, move and `users remove`, the archive's
+   refusal, `/help`, and `docs/storage.md`'s table. It lands before the window closes, because a page
+   that has been given a key to keep needs somewhere to keep it.
+   *Proves:* a page writes a secret and reads it back; another page cannot read it, and no
+   `pageKey` overload exists to try; a layout cannot read the content page's secret and a page-owned
+   job can read its starting page's; `NamesAsync` answers names and never a value; a source read, a
+   revision read, a listing, a search and an export carry neither name nor value; an import that
+   carries one is refused; a move re-keys it and a scrub removes it; a `HEAD` refuses every write; the
+   caps refuse at the boundary with the setting's name.
+6. **The ends** (`S`). `users remove` extended to every declared table; the archive's import and export
    tests for what it refuses to carry; the sampler and `/status`; `/privacy`'s last paragraph;
    `/help`'s index; `docs/storage.md`, `docs/pages.md`, `docs/architecture.md`, `docs/glossary.md`,
    `docs/shell.md`; the two superseded plans.
@@ -963,23 +1026,23 @@ and slice 2 are merged, and slice 3 is built and waits for the owner.
    and no one-shot; an import writes them back under the page's lifetime; the storage figure moves when
    any shape writes; the status page lists the totals and the declared tables; every doc and decision
    names what landed.
-6. **The window closes** (a follow-up release, not a branch of this programme). `IPageStorage` and
+7. **The window closes** (a follow-up release, not a branch of this programme). `IPageStorage` and
    `IPageSession`, their adapters and their `PublicAPI.Shipped.txt` entries go; `old-storage-spelling`
    closes; a stored page that used them reports a compile error until it is edited, which is the price
    of the one surface.
 
-Slices 2, 3 and 4 are independent once slice 1 is in, and may run in that order or in parallel in
-separate worktrees. Slice 5 waits for them.
+Slices 2, 3, 4 and 5 are independent once slice 1 is in, and may run in that order or in parallel in
+separate worktrees. Slice 6 waits for them.
 
 ## What this touches
 
 | File | Change |
 | --- | --- |
-| `src/uk.osric.asp.Sdk/` | `IPageStores`, `IPageSubject`, `IPageVisitorSubject`, `IValueStore`, `IRecordStore`, `IPageRecordTransaction`, `IMessageStore`, `IObjectStore`, `StoreLifetime`, `StoreLifetimeKind`, `StoreFilter`, `StoreEntry`, `StoreSubject`, `PageTableAttribute`, `PageRow`, `PageRecordResult`, `PageRecordOutcome`, `PageParameters`, `PageObject`, `PageObjectRef`, `PageTopic`, `PageMessage`, `PageMessageRead`, `PageMessagePostResult`, `PageMessageRefusal`, `PageValue`'s two new properties, `IContext.Stores`, the obsolete marks on the two old interfaces; `PublicAPI.Unshipped.txt` |
+| `src/uk.osric.asp.Sdk/` | `IPageStores`, `IPageSubject`, `IPageVisitorSubject`, `IValueStore`, `IRecordStore`, `IPageRecordTransaction`, `IMessageStore`, `IObjectStore`, `ISecretStore`, `StoreLifetime`, `StoreLifetimeKind`, `StoreFilter`, `StoreEntry`, `StoreSubject`, `PageTableAttribute`, `PageRow`, `PageRecordResult`, `PageRecordOutcome`, `PageParameters`, `PageObject`, `PageObjectRef`, `PageTopic`, `PageMessage`, `PageMessageRead`, `PageMessagePostResult`, `PageMessageRefusal`, `PageValue`'s two new properties, `IContext.Stores`, the obsolete marks on the two old interfaces; `PublicAPI.Unshipped.txt` |
 | `src/uk.osric.asp.Core/` | `PageSchema` and its validation, the single-statement rule, the content-type allow-list, the SHA-256 rule |
 | `src/uk.osric.asp.Runtime/` | Declaration extraction on the compile, `CompileResult.Schema`, `PAGE011` and `PAGE012` |
 | `src/uk.osric.asp.Web/Pages/` | `PageStoresScope` (new, in the shape `PageCatalogScope` already has), `PageStoresOptions`, `PageStoreCaps`, the internal store seams, `PageChain.CreateLayer`, `PageStorageOptions`'s retirement, `PageStorageScope` and `PageSessionScope` as adapters, `PageSessionResolver` (the reader's subject), `PageSessionRequest`, `PageSessionOptions`'s retirement, the sweep; `PageCatalogScope`, `IPageReadStore` and `PageWritesScope` untouched |
-| `src/uk.osric.asp.Web/Storage/` | `StoreValues`, `StoreMessages`, `StoreObjects`, `DeclaredTables`, the migration pair, the DDL and view generation, `PageStorageSampler`'s payload |
+| `src/uk.osric.asp.Web/Storage/` | `StoreValues`, `StoreMessages`, `StoreObjects`, `StoreSecrets`, `DeclaredTables`, the migration pair, the DDL and view generation, `PageStorageSampler`'s payload |
 | `src/uk.osric.asp.Web/Authentication/` | The `b` cookie, its ticket in `PageSessionCookie`, `PageSessionCookie.RotateAsync`'s adoption transaction, `LoginEndpoint` |
 | `src/uk.osric.asp.Web/Http/` | `ShellCookies`' `b` constant and its `IsOwned` rule, which is what keeps the cookie out of `PageRequestSnapshot` |
 | `src/uk.osric.asp.Web/Work/` | `PageJobRunner`'s three handles |

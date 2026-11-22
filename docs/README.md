@@ -63,6 +63,8 @@ table and the items to it.
 | | *The author's source of truth, ordered by API rather than by what an author wants to do, with an index that has already drifted; it is rewritten once the contract work in front of it has landed.* | | | | |
 | [`storage-is-not-one-model`](backlog/storage-is-not-one-model.md) | Storage is not one model: a page reaches a patchwork of stores | protective-dragon 🔥🐉 | high | [planned](plans/storage-model.md) | — |
 | | *The model every storage gap resolves into; it supersedes the two storage plans waiting for a yes, so it is read before them.* | | | | |
+| [`a-page-cannot-keep-a-secret`](backlog/a-page-cannot-keep-a-secret.md) | A page cannot keep a secret | determined-mountain-goat 💪🐐 | high | blocked | `storage-is-not-one-model` |
+| | *The secrets slice of the storage model, added at the owner's request before the release closes: a fifth shape on the Page subject, with no cross-page read, nothing catalogued, and plaintext at rest until [`secrets-are-readable-at-rest`](backlog/secrets-are-readable-at-rest.md) lands.* | | | | |
 | [`no-account-store`](backlog/no-account-store.md) | A page has no persistent per-account store | protective-dragon 🔥🐉 | high | blocked | `storage-is-not-one-model` |
 | | *The records slice of the storage model, which absorbs the item and its plan; it lands with [`storage-is-not-one-model`](backlog/storage-is-not-one-model.md) rather than beside it.* | | | | |
 | [`conversation-is-not-a-page`](backlog/conversation-is-not-a-page.md) | The assistant's conversation is a stream and a set of host actions, not a page | protective-dragon 🔥🐉 | medium | blocked | `no-account-store` |
@@ -73,7 +75,7 @@ table and the items to it.
 | | *The browser suite drives a source build while the deploy ships an image built later; this makes the promoted image the one the browser drove, and the host gate already builds one twice without keeping it.* | | | | |
 | [`message-does-not-survive-a-redirect`](backlog/message-does-not-survive-a-redirect.md) | A page cannot leave a message for a page it sends a visitor to | protective-dragon 🔥🐉 | high | blocked | `storage-is-not-one-model` |
 | | *The messages slice of the storage model, which absorbs the item and its plan; it lands with [`storage-is-not-one-model`](backlog/storage-is-not-one-model.md) rather than beside it.* | | | | |
-| [`secrets-are-readable-at-rest`](backlog/secrets-are-readable-at-rest.md) | A secret a page keeps is plaintext in the database and in every backup | determined-mountain-goat 💪🐐 | medium | blocked | `storage-is-not-one-model` |
+| [`secrets-are-readable-at-rest`](backlog/secrets-are-readable-at-rest.md) | A secret a page keeps is plaintext in the database and in every backup | determined-mountain-goat 💪🐐 | medium | blocked | `a-page-cannot-keep-a-secret` |
 | | *A second pass over the storage model's secrets shape: the shape lands with [`storage-is-not-one-model`](backlog/storage-is-not-one-model.md), and the cipher, key and rotation land here.* | | | | |
 | [`sec-page-runs-in-process`](backlog/sec-page-runs-in-process.md) | Page code has no process boundary | cornered-porcupine 📍🦔 | high | open | — |
 | | *High utility and a redesign of how a page runs; the unit is now a long-lived worker per author over a socket rather than a process per render, and the author it keys on is not in the store yet.* | | | | |

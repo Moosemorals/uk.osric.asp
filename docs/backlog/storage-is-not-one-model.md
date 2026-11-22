@@ -13,15 +13,17 @@ SPDX-License-Identifier: MIT
 | Blocked by | — |
 | Plan | [storage-model](../plans/storage-model.md) |
 | Area | Sdk, Runtime, Web (pages, storage, work), docs |
-| Location | `src/uk.osric.asp.Sdk/IPageStores.cs` (new), `IValueStore.cs` (new), `IRecordStore.cs` (new), `IMessageStore.cs` (new), `IObjectStore.cs` (new), `StoreLifetime.cs` (new), `StoreFilter.cs` (new), `PageValue.cs`, `IContext.cs`, `IPageResponse.cs`, `src/uk.osric.asp.Web/Pages/PageStoresScope.cs` (new), `PageChain.cs`, `PageStorageScope.cs`, `PageSessionScope.cs`, `src/uk.osric.asp.Web/Storage/`, `src/uk.osric.asp.Web/Pages/Seeds/help`, `privacy`, `_layout`, `editor-mode`, `_lib/editor`, `docs/storage.md`, `docs/pages.md`, `docs/plans/account-store.md`, `docs/plans/page-inbox.md` |
+| Location | `src/uk.osric.asp.Sdk/IPageStores.cs` (new), `IValueStore.cs` (new), `IRecordStore.cs` (new), `IMessageStore.cs` (new), `IObjectStore.cs` (new), `ISecretStore.cs` (new), `StoreLifetime.cs` (new), `StoreFilter.cs` (new), `PageValue.cs`, `IContext.cs`, `IPageResponse.cs`, `src/uk.osric.asp.Web/Pages/PageStoresScope.cs` (new), `PageChain.cs`, `PageStorageScope.cs`, `PageSessionScope.cs`, `src/uk.osric.asp.Web/Storage/`, `src/uk.osric.asp.Web/Pages/Seeds/help`, `privacy`, `_layout`, `editor-mode`, `_lib/editor`, `docs/storage.md`, `docs/pages.md`, `docs/plans/account-store.md`, `docs/plans/page-inbox.md` |
 | Spike | [The record sandbox](../spikes/store-sandbox.md) |
 
 > **Planned 2026-11-21** — [one storage model](../plans/storage-model.md) designs the record sandbox,
-> settles the two subjects and four shapes, and slices the replacement into a spike, five slices and
+> settles the two subjects and five shapes, and slices the replacement into a spike, six slices and
 > the release that closes the window, each its own branch and its own stop. It absorbs the two plans
 > waiting for a yes — records for [`no-account-store`](no-account-store.md), messages for
 > [`message-does-not-survive-a-redirect`](message-does-not-survive-a-redirect.md) — and neither of
-> those should be approved. The old capabilities stay one release as obsolete adapters and then go.
+> those should be approved. The secrets slice was added at the owner's request on 2026-11-22, with
+> [`a-page-cannot-keep-a-secret`](a-page-cannot-keep-a-secret.md) recorded as the item it delivers.
+> The old capabilities stay one release as obsolete adapters and then go.
 > The owner said yes on 2026-11-21. Slice 0 — the sandbox spike — is
 > [written](../spikes/store-sandbox.md); slice 1, values, lifetimes and identity, and slice 2,
 > records and the sandbox, are merged; slice 3, messages, is built and waits for the owner.
@@ -56,7 +58,7 @@ authority and TTL belong to the verb.
 
 ## The model
 
-Two subjects, four shapes. `Site` is a reserved column, not a subject, until a use case needs it.
+Two subjects, five shapes. `Site` is a reserved column, not a subject, until a use case needs it.
 
 | | Page | Visitor |
 | --- | --- | --- |
@@ -64,6 +66,7 @@ Two subjects, four shapes. `Site` is a reserved column, not a subject, until a u
 | Record (declared table, SQL) | yes | yes |
 | Message (durable, consumed once) | — | yes |
 | Object (bytes, content-addressed) | yes | yes |
+| Secret (opaque text, never returned by anything else) | yes | — |
 
 - **Page** — shared by every visitor; the page's own data. Key: the page key. Lifetime: the page's;
   survives edit and restore, moves with the key, and is the only subject an archive carries.

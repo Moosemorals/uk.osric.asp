@@ -34,7 +34,7 @@ exponent a page must pass to `ImportParameters`. PEM import and export are on `R
 
 The old rationale — "a private key has no business in a stored page" — was about where a key is
 *kept*, not about whether a page may compute with one. Where it is kept is the secrets shape in
-[`storage-is-not-one-model`](storage-is-not-one-model.md); this item is only the arithmetic.
+[`a-page-cannot-keep-a-secret`](a-page-cannot-keep-a-secret.md); this item is only the arithmetic.
 
 Ed25519 has no type in .NET 11: `System.Security.Cryptography` carries ML-DSA, SLH-DSA and the
 composite names that mention Ed25519, and no primitive. It cannot be an entry in a list of types, so
@@ -59,7 +59,7 @@ Mastodon peer checks first.
 ## Not in scope
 
 - **Where the key lives.** A key in page source is readable through `/pages` and the history; that is
-  the secrets shape in [`storage-is-not-one-model`](storage-is-not-one-model.md), and this item does
+  the secrets shape in [`a-page-cannot-keep-a-secret`](a-page-cannot-keep-a-secret.md), and this item does
   not create a store.
 - **The wire format.** Building the signature base, canonicalising JSON and the `Digest` header are
   page code and [`outbound-headers-are-an-allow-list`](outbound-headers-are-an-allow-list.md); the
