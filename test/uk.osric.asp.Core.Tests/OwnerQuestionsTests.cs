@@ -135,7 +135,7 @@ public sealed class OwnerQuestionsTests {
 
         Assert.Multiple(() => {
             Assert.That(json, Does.Contain("\"questions\""));
-            Assert.That(json, Does.Not.Contain("header"));
+            Assert.That(json, Does.Contain("\"header\":null"));
             Assert.That(read, Is.Not.Null);
             Assert.That(OwnerQuestions.Write(read!), Is.EqualTo(json));
             Assert.That(read!.Questions[0].Options[0].Description, Is.EqualTo("The about page"));
@@ -167,6 +167,17 @@ public sealed class OwnerQuestionsTests {
             Assert.That(OwnerQuestions.Read("not json"), Is.Null);
             Assert.That(OwnerQuestions.Read(null), Is.Null);
             Assert.That(OwnerQuestions.ReadAnswers("{}"), Is.Null);
+        });
+    }
+
+    [Test]
+    public void AQuestionKeepsItsTextAndMarkupUnescapedInTheStoredForm() {
+        string json = OwnerQuestions.Write(Set(Question("Use <b>bold</b> for café?")));
+
+        Assert.Multiple(() => {
+            Assert.That(json, Does.Contain("<b>bold</b> for café?"));
+            Assert.That(json, Does.Not.Contain("\\u003C"));
+            Assert.That(json, Does.Not.Contain("\\u00E9"));
         });
     }
 

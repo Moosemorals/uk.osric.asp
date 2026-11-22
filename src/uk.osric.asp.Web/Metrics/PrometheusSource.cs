@@ -9,6 +9,7 @@ using System.Net.Sockets;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using uk.osric.asp.Core.Charting;
+using uk.osric.asp.Core.Text;
 
 /// <summary>Talks to Prometheus' <c>query_range</c> API.</summary>
 /// <remarks>
@@ -68,7 +69,7 @@ internal sealed class PrometheusSource : IMetricsSource {
                 return await UnavailableAsync(response, timeout.Token);
             }
 
-            PrometheusResponse? payload = await response.Content.ReadFromJsonAsync<PrometheusResponse>(timeout.Token);
+            PrometheusResponse? payload = await response.Content.ReadFromJsonAsync<PrometheusResponse>(JsonSerialization.Options, timeout.Token);
             return ToResult(payload);
         } catch (OperationCanceledException exception) when (!cancellationToken.IsCancellationRequested) {
             // The dashboard turns any of these into a banner for the reader; the journal keeps the
@@ -101,7 +102,7 @@ internal sealed class PrometheusSource : IMetricsSource {
     // far more than the status code, so read it when the body is the JSON we expect.
     private async Task<QueryResult> UnavailableAsync(HttpResponseMessage response, CancellationToken cancellationToken) {
         try {
-            PrometheusResponse? payload = await response.Content.ReadFromJsonAsync<PrometheusResponse>(cancellationToken);
+            PrometheusResponse? payload = await response.Content.ReadFromJsonAsync<PrometheusResponse>(JsonSerialization.Options, cancellationToken);
             return new MetricsUnavailable(payload?.Error ?? $"Prometheus answered {(int)response.StatusCode}.");
         } catch (JsonException exception) {
             _logger.LogDebug(exception, "Prometheus at {Prometheus} refused a query with {StatusCode} and no readable error body",

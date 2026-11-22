@@ -12,8 +12,6 @@ using uk.osric.asp.Core.Text;
 /// <param name="budget">The content budget one tool result may spend.</param>
 internal sealed class ToolResults(ContextBudget budget) {
 
-    private static readonly JsonSerializerOptions s_jsonOptions = new(JsonSerialization.Options);
-
     // The cap is what a tool's answer may cost; the envelope around it — the flag, the note, the
     // summary and JSON escaping — is not an answer and is allowed this much more. A tool that cut its
     // own answer at the cap therefore keeps its shape, and only a tool that ignored the cap is cut here.
@@ -37,7 +35,7 @@ internal sealed class ToolResults(ContextBudget budget) {
     /// <returns>The envelope a refusal carries.</returns>
     /// <remarks>A refusal is a sentence this host wrote, so there is nothing here for a cap to cut.</remarks>
     public static ToolExecutionResult Refusal(string error, string summary) =>
-        new(false, JsonSerializer.Serialize(new { ok = false, data = (object?)null, error }, s_jsonOptions), summary);
+        new(false, JsonSerializer.Serialize(new { ok = false, data = (object?)null, error }, JsonSerialization.Options), summary);
 
     /// <summary>A result, truncated at its cap so the head is kept and the cut is named.</summary>
     /// <param name="envelope">The envelope to serialize.</param>
@@ -50,7 +48,7 @@ internal sealed class ToolResults(ContextBudget budget) {
     /// a path outside the writable prefix, a missing page.
     /// </remarks>
     private ToolExecutionResult Bounded(object envelope, string summary, bool success = true) {
-        string json = JsonSerializer.Serialize(envelope, s_jsonOptions);
+        string json = JsonSerializer.Serialize(envelope, JsonSerialization.Options);
         int cap = (int)Math.Min(budget.ToolResultChars + EnvelopeChars, int.MaxValue);
         if (json.Length <= cap) {
             return new ToolExecutionResult(success, json, summary);
@@ -64,7 +62,7 @@ internal sealed class ToolResults(ContextBudget budget) {
         string truncated = string.Empty;
         for (int attempt = 0; attempt < 4; attempt++) {
             truncated = JsonSerializer.Serialize(
-                new { ok = success, data = head, truncated = true, note }, s_jsonOptions);
+                new { ok = success, data = head, truncated = true, note }, JsonSerialization.Options);
             if (truncated.Length <= cap) {
                 break;
             }

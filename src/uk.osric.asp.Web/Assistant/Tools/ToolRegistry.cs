@@ -16,8 +16,6 @@ using uk.osric.asp.Core.Text;
 /// </remarks>
 internal sealed class ToolRegistry {
 
-    private static readonly JsonSerializerOptions s_jsonOptions = new(JsonSerialization.Options);
-
     private readonly Dictionary<string, AssistantTool> _byName;
 
     /// <summary>Builds the table from the tools, keeping the order they were declared in.</summary>
@@ -68,7 +66,7 @@ internal sealed class ToolRegistry {
     public AssistantTool? Find(string name) => _byName.GetValueOrDefault(name);
 
     private static string ParametersJson(IReadOnlyList<ToolArgumentSchema> arguments) =>
-        JsonSerializer.Serialize(ObjectSchema(arguments), s_jsonOptions);
+        JsonSerializer.Serialize(ObjectSchema(arguments), JsonSerialization.Options);
 
     private static object ObjectSchema(IReadOnlyList<ToolArgumentSchema> arguments) {
         Dictionary<string, object> properties = [];

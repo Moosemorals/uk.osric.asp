@@ -159,6 +159,25 @@ public sealed class ToolResultMaskerTests {
             new { id, type = "function", function = new { name = "write_page", arguments } },
         }));
 
+    [Test]
+    public void AMaskedCallKeepsItsMarkupAndNonAsciiText() {
+        string arguments = JsonSerializer.Serialize(new {
+            path = "/café",
+            content = new string('x', 2_000),
+            note = "<b>bold</b>",
+        });
+
+        MaskOutcome outcome = Call("call-1", arguments).Mask();
+
+        Assert.Multiple(() => {
+            Assert.That(outcome.Changed, Is.True, "the long content is elided");
+            Assert.That(outcome.Message.ToolCallsJson, Does.Contain("<b>bold</b>"));
+            Assert.That(outcome.Message.ToolCallsJson, Does.Contain("café"));
+            Assert.That(outcome.Message.ToolCallsJson, Does.Not.Contain("\\u003C"));
+            Assert.That(outcome.Message.ToolCallsJson, Does.Not.Contain("\\u00E9"));
+        });
+    }
+
     private static string LongArguments(int length) =>
         $$"""{"path":"/blog","content":"{{new string('x', length)}}"}""";
 

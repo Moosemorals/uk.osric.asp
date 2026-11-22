@@ -305,6 +305,19 @@ A record's positional parameters are the one place the rule reads differently: t
 the product passes around, its properties are set through `init`, and the member that consumes the
 value is where it is checked. A record a page builds is the exception, and is checked on construction.
 
+## JSON
+
+Every JSON the host writes goes through one set of options in `Core.Text.JsonSerialization`. The
+encoder is relaxed, so markup and non-ASCII text are written as themselves and only the quote, the
+backslash and the control characters are escaped; the default encoder guards JSON embedded in HTML,
+which nothing here does. An enum is written by its name, so a stored diagnostic or a value a page
+keeps survives a build that reorders the enumeration. The provider body's field names are dictionary
+keys, written verbatim, so it needs no naming policy.
+
+A call site names the instance rather than building one. A second setting is added to the type only
+when a shape has to differ, with the reason written on the member; nulls are written rather than
+omitted, because the tool envelope, `/health` and a problem document all name their absent members.
+
 ## Logging
 
 Metrics answer "how much"; logs answer "what happened to this one". The two are not substitutes, and

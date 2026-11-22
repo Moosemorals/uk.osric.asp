@@ -5,7 +5,7 @@ namespace uk.osric.asp.Web.Documentation;
 
 using System.Collections.Concurrent;
 using System.Text.Json;
-using System.Text.Json.Serialization;
+using uk.osric.asp.Core.Text;
 
 /// <summary>One assembly's documentation as the site serves it.</summary>
 /// <remarks>A class rather than a record: the rendered fragments are mutable state, not part of the value.</remarks>
@@ -80,12 +80,6 @@ internal sealed class ReferenceLibrary {
 
     /// <summary>The slug the assistant tool reads.</summary>
     public const string ContractSlug = "sdk";
-
-    private static readonly JsonSerializerOptions s_json = new() {
-        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
-        PropertyNameCaseInsensitive = true,
-        DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
-    };
 
     private readonly string _directory;
     private readonly ILogger<ReferenceLibrary> _logger;
@@ -265,7 +259,7 @@ internal sealed class ReferenceLibrary {
             }
 
             try {
-                ReferenceCorpus? corpus = JsonSerializer.Deserialize<ReferenceCorpus>(File.ReadAllText(path), s_json);
+                ReferenceCorpus? corpus = JsonSerializer.Deserialize<ReferenceCorpus>(File.ReadAllText(path), JsonSerialization.Options);
                 if (corpus is null) {
                     throw new InvalidDataException($"{Path.GetFileName(path)} holds no corpus.");
                 }

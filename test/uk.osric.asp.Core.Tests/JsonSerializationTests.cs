@@ -22,4 +22,13 @@ public sealed class JsonSerializationTests {
 
         Assert.That(json, Is.EqualTo("""{"text":"a\"b\\c\nd\te"}"""));
     }
+
+    [Test]
+    public void EnumsAreWrittenByTheirName() {
+        string json = JsonSerializer.Serialize(new { colour = Colour.Green }, JsonSerialization.Options);
+
+        Assert.That(json, Is.EqualTo("""{"colour":"Green"}"""));
+    }
+
+    private enum Colour { Red, Green }
 }

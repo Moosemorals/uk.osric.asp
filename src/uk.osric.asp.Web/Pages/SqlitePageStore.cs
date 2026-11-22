@@ -8,7 +8,6 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage;
 using System.Data.Common;
 using System.Text.Json;
-using System.Text.Json.Serialization;
 using uk.osric.asp.Core.Compilation;
 using uk.osric.asp.Core.Pages;
 using uk.osric.asp.Core.Text;
@@ -23,11 +22,6 @@ internal sealed class SqlitePageStore(
     DeclaredTableApplier? declarations = null) : IPageStore {
 
     private const int CheckpointAttempts = 3;
-
-    private static readonly JsonSerializerOptions s_jsonOptions = new() {
-        Encoder = JsonSerialization.Encoder,
-        Converters = { new JsonStringEnumConverter() },
-    };
 
     public async Task<PageTemplate?> GetPageAsync(PagePath path, CancellationToken cancellationToken = default) {
         PageRevision? revision = await database.Set<PageHead>().AsNoTracking()
@@ -791,13 +785,13 @@ internal sealed class SqlitePageStore(
         }
 
         try {
-            return JsonSerializer.Deserialize<PageDiagnostic[]>(json, s_jsonOptions) ?? [];
+            return JsonSerializer.Deserialize<PageDiagnostic[]>(json, JsonSerialization.Options) ?? [];
         } catch (JsonException exception) {
             // Rows written before diagnostics carried a severity stored a plain string array. The
             // image is the only clue to what they meant: no image means they were errors. Debug
             // rather than a warning: reading an old row is the fallback working, not a fault.
             logger.LogDebug(exception, "A stored diagnostics column is in the pre-severity format and is being read as one");
-            string[]? legacy = JsonSerializer.Deserialize<string[]>(json);
+            string[]? legacy = JsonSerializer.Deserialize<string[]>(json, JsonSerialization.Options);
             if (legacy is null) {
                 return [];
             }
@@ -810,6 +804,6 @@ internal sealed class SqlitePageStore(
     }
 
     private static string SerializeDiagnostics(IReadOnlyList<PageDiagnostic> diagnostics) {
-        return JsonSerializer.Serialize(diagnostics, s_jsonOptions);
+        return JsonSerializer.Serialize(diagnostics, JsonSerialization.Options);
     }
 }

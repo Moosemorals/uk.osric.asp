@@ -6,6 +6,7 @@ namespace uk.osric.asp.Web.Tests;
 using Microsoft.AspNetCore.Http;
 using System.Security.Claims;
 using System.Text.Json;
+using uk.osric.asp.Core.Text;
 using uk.osric.asp.Web.Assistant;
 
 /// <summary>
@@ -130,7 +131,7 @@ public sealed class AssistantChangedPagesTests {
         Content = string.Empty,
         ToolCallsJson = JsonSerializer.Serialize(new[] {
             new { id = callId, type = "function", function = new { name = tool, arguments = $"{{\"path\":\"{path}\"}}" } },
-        }, new JsonSerializerOptions(JsonSerializerDefaults.Web)),
+        }, JsonSerialization.Options),
     };
 
     private static Message ToolResult(string runId, string callId, string tool, string content) => new() {

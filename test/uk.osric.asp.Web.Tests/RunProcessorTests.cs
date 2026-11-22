@@ -10,6 +10,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 using System.Runtime.CompilerServices;
 using System.Text.Json;
 using uk.osric.asp.Core.Assistant;
+using uk.osric.asp.Core.Text;
 using uk.osric.asp.Web.Assistant;
 using uk.osric.asp.Web.Authentication;
 using uk.osric.asp.Web.Pages;
@@ -851,7 +852,7 @@ public sealed class RunProcessorTests {
 
     private static string Call(string id) => JsonSerializer.Serialize(new[] {
         new { id, type = "function", function = new { name = "read_page", arguments = """{"path":"/missing"}""" } },
-    }, new JsonSerializerOptions(JsonSerializerDefaults.Web));
+    }, JsonSerialization.Options);
 
     private async Task<RecordingLoggerFactory.Entry> WaitForEntryAsync(Func<RecordingLoggerFactory.Entry, bool> matches) {
         for (int attempt = 0; attempt < 250; attempt++) {

@@ -15,11 +15,6 @@ using uk.osric.asp.Core.Text;
 /// </remarks>
 public static class ChatRequestJson {
 
-    private static readonly JsonSerializerOptions s_jsonOptions = new() {
-        Encoder = JsonSerialization.Encoder,
-        PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower,
-    };
-
     /// <summary>Builds the JSON body the provider receives.</summary>
     /// <param name="request">The request to serialize.</param>
     /// <returns>The body, as UTF-8 text.</returns>
@@ -52,7 +47,7 @@ public static class ChatRequestJson {
             ["stream_options"] = new { include_usage = true },
         };
 
-        return JsonSerializer.Serialize(body, s_jsonOptions);
+        return JsonSerializer.Serialize(body, JsonSerialization.Options);
     }
 
     /// <summary>Measures one message as the body carries it, in UTF-8 bytes.</summary>
@@ -64,7 +59,7 @@ public static class ChatRequestJson {
     /// </remarks>
     internal static long MeasureMessage(ChatMessage message) {
         ArgumentNullException.ThrowIfNull(message);
-        return Encoding.UTF8.GetByteCount(JsonSerializer.Serialize(Message(message), s_jsonOptions));
+        return Encoding.UTF8.GetByteCount(JsonSerializer.Serialize(Message(message), JsonSerialization.Options));
     }
 
     private static Dictionary<string, object?> Message(ChatMessage source) {

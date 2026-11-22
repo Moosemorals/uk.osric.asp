@@ -8,8 +8,8 @@ using System.Collections.Frozen;
 using System.Data;
 using System.Globalization;
 using System.Text.Json;
-using System.Text.Json.Serialization;
 using uk.osric.asp.Core.Pages;
+using uk.osric.asp.Core.Text;
 using uk.osric.asp.Sdk;
 
 /// <summary>One subject's declared tables, behind the fence slice 0 measured.</summary>
@@ -40,10 +40,6 @@ internal sealed class SqliteRecordStore : RenderBoundCapability, IRecordStore, I
         "substr", "substring", "sum", "time", "total", "trim", "typeof", "unicode", "unichar", "unlikely",
         "upper",
     ], StringComparer.OrdinalIgnoreCase);
-
-    private static readonly JsonSerializerOptions s_columns = new() {
-        Converters = { new JsonStringEnumConverter() },
-    };
 
     private readonly PagePath _source;
     private readonly Func<StoreTableLifetime, string>? _subject;
@@ -603,7 +599,7 @@ internal sealed class SqliteRecordStore : RenderBoundCapability, IRecordStore, I
         stored.Name,
         (StoreTableSubject)stored.Subject,
         (StoreTableLifetime)stored.Lifetime,
-        [.. JsonSerializer.Deserialize<PageColumn[]>(stored.Columns, s_columns) ?? []],
+        [.. JsonSerializer.Deserialize<PageColumn[]>(stored.Columns, JsonSerialization.Options) ?? []],
         stored.Search);
 
     private static string Literal(string value) => "'" + value.Replace("'", "''", StringComparison.Ordinal) + "'";

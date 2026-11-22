@@ -5,9 +5,15 @@ namespace uk.osric.asp.Core.Text;
 
 using System.Text.Encodings.Web;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 
-/// <summary>The one escaping policy for every JSON body the site writes.</summary>
+/// <summary>The one set of JSON serializer options for every JSON the site writes.</summary>
 /// <remarks>
+/// <para>
+/// A call site names <see cref="Options"/>; it never constructs, copies or mutates an instance of its
+/// own. A second setting is added here only when a shape has to differ, and the reason is stated on
+/// the member.
+/// </para>
 /// <para>
 /// <c>System.Text.Json</c> escapes by default for a document: every HTML-significant character
 /// (<c>&lt;</c>, <c>&gt;</c>, <c>&amp;</c>, <c>'</c> and <c>+</c>) and every non-ASCII character becomes
@@ -21,18 +27,20 @@ using System.Text.Json;
 /// validity, and nothing here puts JSON in an HTML context.
 /// </para>
 /// <para>
-/// <see cref="Options"/> is a template, not an instance to configure: copy it with
-/// <c>new JsonSerializerOptions(JsonSerialization.Options)</c> before adding a converter or a naming
-/// policy, because the template becomes read-only the first time it is used.
+/// An enum is written by its name rather than its ordinal, so a stored diagnostic or a value a page
+/// keeps survives a build that reorders the enumeration. The provider body's field names are
+/// dictionary keys, written verbatim and untouched by a naming policy; <c>ChatRequestJsonTests</c>
+/// pins the body's names, which is what keeps the snake_case ones snake_case.
 /// </para>
 /// </remarks>
 public static class JsonSerialization {
 
-    /// <summary>The encoder for every string the site writes as JSON.</summary>
+    /// <summary>The encoder for every string the site writes as JSON, including the log writer.</summary>
     public static JavaScriptEncoder Encoder { get; } = JavaScriptEncoder.UnsafeRelaxedJsonEscaping;
 
-    /// <summary>A template carrying the framework's web defaults and <see cref="Encoder"/>.</summary>
+    /// <summary>The one set: web defaults, the relaxed encoder, and enums by name.</summary>
     public static JsonSerializerOptions Options { get; } = new(JsonSerializerDefaults.Web) {
         Encoder = Encoder,
+        Converters = { new JsonStringEnumConverter() },
     };
 }

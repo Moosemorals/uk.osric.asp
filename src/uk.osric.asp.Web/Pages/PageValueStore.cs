@@ -5,7 +5,6 @@ namespace uk.osric.asp.Web.Pages;
 
 using System.Text;
 using System.Text.Json;
-using System.Text.Json.Serialization;
 using uk.osric.asp.Core.Pages;
 using uk.osric.asp.Core.Text;
 using uk.osric.asp.Sdk;
@@ -25,12 +24,6 @@ using uk.osric.asp.Sdk;
 /// </para>
 /// </remarks>
 internal sealed class PageValueStore : RenderBoundCapability, IValueStore {
-
-    // One instance is enough: JsonSerializerOptions is thread-safe once used, and every store
-    // serialises the same way the old page and session stores did.
-    private static readonly JsonSerializerOptions s_json = new(JsonSerialization.Options) {
-        Converters = { new JsonStringEnumConverter() },
-    };
 
     private readonly PagePath _bound;
     private readonly IStoreValues _store;
@@ -166,7 +159,7 @@ internal sealed class PageValueStore : RenderBoundCapability, IValueStore {
         }
 
         PageStoreCaps caps = CapsFor(kind);
-        string json = JsonSerializer.Serialize(value, s_json);
+        string json = JsonSerializer.Serialize(value, JsonSerialization.Options);
         if (Encoding.UTF8.GetByteCount(json) > caps.MaxValueBytes) {
             throw new ArgumentException(
                 $"The value for {key} is larger than the {caps.MaxValueBytes} byte limit.", nameof(value));
@@ -289,7 +282,7 @@ internal sealed class PageValueStore : RenderBoundCapability, IValueStore {
 
     private PageReaderSubject reader() => _reader ?? throw new InvalidOperationException("A Page subject has no reader.");
 
-    private static PageValue<T> To<T>(StoreValueRow row) => new(true, JsonSerializer.Deserialize<T>(row.Value, s_json)) {
+    private static PageValue<T> To<T>(StoreValueRow row) => new(true, JsonSerializer.Deserialize<T>(row.Value, JsonSerialization.Options)) {
         Lifetime = StoreLifetime.From((StoreLifetimeKind)row.Lifetime, Parse(row.ExpiresAt)),
         Page = row.PageKey,
     };
