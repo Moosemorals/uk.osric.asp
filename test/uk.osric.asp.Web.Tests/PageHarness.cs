@@ -58,8 +58,10 @@ internal sealed class PageHarness : IDisposable {
         IWorkerStore? workerStore = null,
         TimeProvider? clock = null,
         PageSeeds? seeds = null,
-        FakeUserStore? users = null) {
+        FakeUserStore? users = null,
+        FakeStoreMessages? messages = null) {
         State = state ?? new FakeStoreValues();
+        Messages = messages ?? new FakeStoreMessages();
         Sessions = sessionStore ?? new FakePageSessionStore(State);
         Session = new PageSessionRequest(uk.osric.asp.Web.Authentication.PageSessionCookie.Mint(), null, presented: false, exists: false);
         Fetch = fetch ?? new FakePageFetcher();
@@ -123,7 +125,7 @@ internal sealed class PageHarness : IDisposable {
             JobQueue,
             Jobs,
             new PageJobEnvironment(
-                JobOptions, WorkerStore, State, StoresOptions, Sessions, Fetch, FetchOptions, ReadStore, Seeds, ReadOptions,
+                JobOptions, WorkerStore, State, Messages, StoresOptions, Sessions, Fetch, FetchOptions, ReadStore, Seeds, ReadOptions,
                 Scan, Reserved, ContentTypes, Images, Libraries, Compiler, Metrics,
                 _authorities.GetRequiredService<IServiceScopeFactory>(),
                 Catalog),
@@ -144,6 +146,9 @@ internal sealed class PageHarness : IDisposable {
 
     /// <summary>The page state every render in this harness shares.</summary>
     public FakeStoreValues State { get; }
+
+    /// <summary>The messages every render in this harness shares.</summary>
+    public FakeStoreMessages Messages { get; }
 
     /// <summary>Where a record handle finds its declared tables; the harness declares none.</summary>
     public IRecordCatalog Catalog { get; } = new HarnessCatalog();
@@ -340,7 +345,7 @@ internal sealed class PageHarness : IDisposable {
 
         PageReaderSubject reader = new(Session, StoresOptions.Visitor, browserId: null);
         PageStoresScope stores = new(
-            path, reader, State, Sessions, StoresOptions, ReadStore, writable: !isHead, commit: null);
+            path, reader, State, Messages, Reserved, Sessions, StoresOptions, ReadStore, writable: !isHead, commit: null);
 
 #pragma warning disable CS0618 // The obsolete adapters keep the old spelling for one release.
         if (withStorage) {
@@ -426,6 +431,7 @@ internal sealed class PageHarness : IDisposable {
             ReadOptions,
             Scan,
             State,
+            Messages,
             ReadStore,
             Seeds,
             Saver,

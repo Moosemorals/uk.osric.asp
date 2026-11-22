@@ -166,8 +166,8 @@ public sealed class SimpleContextTests {
             TestOptions.Stores.Visitor,
             browserId: null);
         PageStoresScope stores = new(
-            PagePath.Normalize(path), reader, values, new FakePageSessionStore(values), TestOptions.Stores,
-            new FakePageReadStore(), writable: true, commit: null);
+            PagePath.Normalize(path), reader, values, new FakeStoreMessages(), new ReservedPaths(ReservedPaths.Default),
+            new FakePageSessionStore(values), TestOptions.Stores, new FakePageReadStore(), writable: true, commit: null);
 
         return new SimpleContext(
             logs,

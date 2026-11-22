@@ -128,6 +128,8 @@ public sealed class PageStoresScopeTests {
             TestOptions.Stores.Visitor,
             browserId: null),
         new FakeStoreValues(),
+        new FakeStoreMessages(),
+        new ReservedPaths(ReservedPaths.Default),
         new FakePageSessionStore(),
         TestOptions.Stores,
         readStore,
