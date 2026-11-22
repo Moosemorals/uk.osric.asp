@@ -383,6 +383,10 @@ internal sealed class SqliteRecordStore : RenderBoundCapability, IRecordStore, I
         // The frame's own statements: Microsoft.Data.Sqlite brackets a command inside an open
         // transaction with a savepoint, and a page cannot begin one of its own until the store has.
         SQLitePCL.raw.SQLITE_SAVEPOINT or SQLitePCL.raw.SQLITE_TRANSACTION => _transaction is not null,
+        // SQLite asks the connection for this one pragma after a trigger has written, as its own
+        // consistency check. It is a counter of commits, not a schema and not a row, so allowing the
+        // one name leaks nothing; every other pragma is still refused by omission.
+        SQLitePCL.raw.SQLITE_PRAGMA => string.Equals(name, "data_version", StringComparison.Ordinal),
         _ => false,
     };
 

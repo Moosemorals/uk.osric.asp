@@ -241,11 +241,7 @@ public sealed class SqliteRecordStoreTests {
             Throws.InvalidOperationException);
     }
 
-    // Open: FTS5's own constructor reads the schema of the table it indexes, and this store refuses
-    // every read of sqlite_master - which is what keeps the real table names out of a page's reach.
-    // The two need reconciling before a search can be offered; SQL is unaffected.
     [Test]
-    [Ignore("FTS5's constructor reads sqlite_master, which the authorizer refuses; the fence needs a decision first.")]
     public async Task ASearchAnswersTheSubjectsRowsBestMatchFirstAsync() {
         await using StorageDbContext database = new(_options);
         _ = await new DeclaredTableApplier(Records).ApplyAsync(database, PagePath.Normalize(Key), Notes(search: "Body"));
@@ -264,7 +260,6 @@ public sealed class SqliteRecordStoreTests {
     }
 
     [Test]
-    [Ignore("FTS5's constructor reads sqlite_master, which the authorizer refuses; the fence needs a decision first.")]
     public async Task ASearchOfAPageTableSeesEveryRowAsync() {
         await using StorageDbContext database = new(_options);
         _ = await new DeclaredTableApplier(Records).ApplyAsync(database, PagePath.Normalize(Key), PageNotes());
