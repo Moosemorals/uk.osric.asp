@@ -5,7 +5,6 @@ using System.Threading.Tasks;
 using Site.Editor;
 %><%
     IPageLayout layout = ctx.Capabilities.GetRequired<IPageLayout>();
-    IPageSession session = ctx.Capabilities.GetRequired<IPageSession>();
 
     layout.Title = "Editor mode";
     ctx.Capabilities.GetRequired<IPageComposition>().Wrap();
@@ -34,8 +33,14 @@ using Site.Editor;
             ctx.Response.SetStatus(400);
             problem = "That form did not say which editor to use, so nothing was changed.";
         } else {
-            // The one page that writes the key, because a page may only write its own session.
-            await session.SetAsync(Editor.Key, mode);
+            // The one page that writes the key, because a page may only write its own page's values.
+            // A Browser value is the device's preference: it survives signing in and out and is
+            // never linked to an account.
+            // A session value is read before a browser one, and a visitor who chose before this page
+            // had a browser to write to still has one: clearing it is what lets the new choice take
+            // effect for the rest of the visit rather than the next one.
+            await ctx.Stores.Visitor.Values.DeleteAsync(Editor.Key);
+            await ctx.Stores.Visitor.Values.SetAsync(Editor.Key, mode, StoreLifetime.Browser);
             ctx.Response.Redirect(target, 303);
             return;
         }
@@ -67,6 +72,6 @@ ships a plain textarea and no script at all.</p>
         </dl>
     </fieldset>
 </form>
-<p>The answer belongs to this browser, not to the page you were reading. It is kept for the
-length of a session: signing out forgets it, and so does a visit after a long enough pause.
+<p>The answer belongs to this browser, not to the page you were reading and not to your account.
+It is kept until you clear this site's cookies, and signing in or out does not change it.
 <a href="<%= target %>">Go back</a>.</p>

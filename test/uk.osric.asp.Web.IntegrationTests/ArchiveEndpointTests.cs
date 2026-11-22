@@ -60,9 +60,10 @@ public sealed partial class ArchiveEndpointTests : IntegrationTest {
         Assert.That(page.StatusCode, Is.EqualTo(HttpStatusCode.OK));
         Assert.That(await page.Content.ReadAsStringAsync(), Does.Contain("round trip"));
 
-        IReadOnlyList<PageStateValue> state = await WithServicesAsync(services =>
-            services.GetRequiredService<IPageStateStore>().GetValuesAsync(PagePath.Normalize("/round-trip")));
-        Assert.That(state, Is.EqualTo(new List<PageStateValue> { new("visits", "7") }));
+        IReadOnlyList<StoreValueRow> state = await WithServicesAsync(services =>
+            services.GetRequiredService<IStoreValues>().GetPageValuesAsync(PagePath.Normalize("/round-trip")));
+        Assert.That(state.Select(row => new PageStateValue(row.Key, row.Value)),
+            Is.EqualTo(new List<PageStateValue> { new("visits", "7") }));
     }
 
     [Test]
@@ -147,8 +148,8 @@ public sealed partial class ArchiveEndpointTests : IntegrationTest {
 
     private async Task SetStateAsync(string path, string key, string value) {
         await WithServicesAsync(async services => {
-            await services.GetRequiredService<IPageStateStore>()
-                .SetValueAsync(PagePath.Normalize(path), key, value);
+            await services.GetRequiredService<IStoreValues>().WritePageValueAsync(
+                PagePath.Normalize(path), key, value, services.GetRequiredService<PageStoresOptions>().Page);
             return true;
         });
     }

@@ -20,11 +20,15 @@ internal static class ShellCookies {
     /// <summary>The page session's id.</summary>
     public const string Session = "s";
 
+    /// <summary>The browser's id, which outlives the session and is never linked to an account.</summary>
+    public const string Browser = "b";
+
     /// <summary>Whether <paramref name="name"/> belongs to the shell rather than to a page.</summary>
     /// <param name="name">The cookie name to test.</param>
     /// <returns>True when the shell owns the cookie.</returns>
     public static bool IsOwned(string name) =>
         string.Equals(name, Authentication, StringComparison.Ordinal)
             || string.Equals(name, Antiforgery, StringComparison.Ordinal)
-            || string.Equals(name, Session, StringComparison.Ordinal);
+            || string.Equals(name, Session, StringComparison.Ordinal)
+            || string.Equals(name, Browser, StringComparison.Ordinal);
 }

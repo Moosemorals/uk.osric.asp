@@ -3,6 +3,8 @@
 
 namespace uk.osric.asp.Web.Tests;
 
+#pragma warning disable CS0618 // The test proves a capability the old spelling still reaches.
+
 using uk.osric.asp.Sdk;
 using uk.osric.asp.Web.Pages;
 
@@ -111,6 +113,7 @@ public sealed class PageCapabilitiesTests {
         Assert.That(capability.Abandoned, Is.True);
     }
 
+#pragma warning disable CS0618 // The test proves a capability the old spelling still reaches.
     private sealed class TestStorage : IPageStorage {
 
         public Task<PageValue<T>> TryGetValueAsync<T>(string key) =>
@@ -122,6 +125,7 @@ public sealed class PageCapabilitiesTests {
 
         public Task<IReadOnlyList<string>> KeysAsync() => Task.FromResult<IReadOnlyList<string>>([]);
     }
+#pragma warning restore CS0618
 
     private sealed class TestCapability : IRenderBoundCapability {
 

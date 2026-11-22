@@ -5,6 +5,8 @@ namespace uk.osric.asp.Web.Tests;
 
 using Microsoft.EntityFrameworkCore;
 using System.Globalization;
+using uk.osric.asp.Sdk;
+using uk.osric.asp.Web.Authentication;
 using uk.osric.asp.Web.Pages;
 using uk.osric.asp.Web.Storage;
 
@@ -45,143 +47,11 @@ public sealed class SqlitePageSessionStoreTests {
     }
 
     [Test]
-    public async Task AValueSurvivesReopeningTheDatabaseAsync() {
+    public async Task ASessionSurvivesReopeningTheDatabaseAsync() {
         IPageSessionStore store = Store();
         Assert.That(await store.EnsureAsync("session-id", account: null), Is.True);
 
-        await store.SetValueAsync("session-id", "/page", "draft", "\"hello\"", PageSessionCaps.Anonymous);
-
-        Assert.That(await Store().GetValueAsync("session-id", "/page", "draft"), Is.EqualTo("\"hello\""));
-    }
-
-    [Test]
-    public async Task AMissingKeyReadsAsNullAsync() {
-        IPageSessionStore store = Store();
-        _ = await store.EnsureAsync("session-id", account: null);
-
-        Assert.That(await store.GetValueAsync("session-id", "/page", "absent"), Is.Null);
-    }
-
-    [Test]
-    public async Task SessionsAreIsolatedAsync() {
-        IPageSessionStore store = Store();
-        _ = await store.EnsureAsync("first", account: null);
-        _ = await store.EnsureAsync("second", account: null);
-        await store.SetValueAsync("first", "/page", "shared", "1", PageSessionCaps.Anonymous);
-
-        Assert.That(await store.GetValueAsync("second", "/page", "shared"), Is.Null);
-        Assert.That(await store.ListKeysAsync("second", "/page"), Is.Empty);
-    }
-
-    [Test]
-    public async Task PagesAreIsolatedWithinOneSessionAsync() {
-        IPageSessionStore store = Store();
-        _ = await store.EnsureAsync("session-id", account: null);
-        await store.SetValueAsync("session-id", "/first", "draft", "1", PageSessionCaps.Anonymous);
-
-        Assert.That(await store.GetValueAsync("session-id", "/second", "draft"), Is.Null);
-        Assert.That(await store.ListKeysAsync("session-id", "/first"), Is.EqualTo(new List<string> { "draft" }));
-    }
-
-    [Test]
-    public async Task KeysComeBackInOrdinalOrderAsync() {
-        IPageSessionStore store = Store();
-        _ = await store.EnsureAsync("session-id", account: null);
-        await store.SetValueAsync("session-id", "/page", "b", "1", PageSessionCaps.Anonymous);
-        await store.SetValueAsync("session-id", "/page", "A", "1", PageSessionCaps.Anonymous);
-        await store.SetValueAsync("session-id", "/page", "a", "1", PageSessionCaps.Anonymous);
-
-        Assert.That(await store.ListKeysAsync("session-id", "/page"), Is.EqualTo(new List<string> { "A", "a", "b" }));
-    }
-
-    [Test]
-    public async Task AllKeysAreOrderedByPageAndThenKeyAsync() {
-        IPageSessionStore store = Store();
-        _ = await store.EnsureAsync("session-id", account: null);
-        _ = await store.EnsureAsync("other-session", account: null);
-        await store.SetValueAsync("session-id", "/b", "two", "1", PageSessionCaps.Anonymous);
-        await store.SetValueAsync("session-id", "/a", "second", "1", PageSessionCaps.Anonymous);
-        await store.SetValueAsync("session-id", "/a", "first", "1", PageSessionCaps.Anonymous);
-        await store.SetValueAsync("other-session", "/a", "apart", "1", PageSessionCaps.Anonymous);
-
-        Assert.That(await store.ListAllKeysAsync("session-id"), Is.EqualTo(new List<uk.osric.asp.Sdk.PageSessionKey> {
-            new("/a", "first"),
-            new("/a", "second"),
-            new("/b", "two"),
-        }));
-    }
-
-    [Test]
-    public async Task DeleteReportsWhetherTheKeyExistedAsync() {
-        IPageSessionStore store = Store();
-        _ = await store.EnsureAsync("session-id", account: null);
-        await store.SetValueAsync("session-id", "/page", "key", "1", PageSessionCaps.Anonymous);
-
-        Assert.That(await store.DeleteValueAsync("session-id", "/page", "key"), Is.True);
-        Assert.That(await store.DeleteValueAsync("session-id", "/page", "key"), Is.False);
-    }
-
-    [Test]
-    public async Task DeletingASessionTakesItsValuesAsync() {
-        IPageSessionStore store = Store();
-        _ = await store.EnsureAsync("session-id", account: null);
-        await store.SetValueAsync("session-id", "/page", "key", "1", PageSessionCaps.Anonymous);
-
-        Assert.That(await store.DeleteAsync("session-id"), Is.True);
-
-        await using StorageDbContext database = new(_options);
-        Assert.That(await database.Set<PageSessionValueEntry>().CountAsync(), Is.Zero);
-    }
-
-    [Test]
-    public async Task AWriteToAMissingSessionIsRefusedAsync() {
-        IPageSessionStore store = Store();
-
-        ArgumentException? refused = await Assert.ThrowsAsync<ArgumentException>(() =>
-            store.SetValueAsync("gone", "/page", "key", "1", PageSessionCaps.Anonymous));
-
-        Assert.That(refused?.Message, Does.Contain("no longer live"));
-    }
-
-    [Test]
-    public async Task TheKeyCountCapRefusesTheWriteAndLeavesNoRowAsync() {
-        IPageSessionStore store = Store();
-        _ = await store.EnsureAsync("session-id", account: null);
-        PageSessionCaps caps = new(MaxValueBytes: 1024, MaxKeys: 2, MaxTotalBytes: 4096);
-        await store.SetValueAsync("session-id", "/page", "one", "1", caps);
-        await store.SetValueAsync("session-id", "/page", "two", "2", caps);
-
-        ArgumentException? refused = await Assert.ThrowsAsync<ArgumentException>(() =>
-            store.SetValueAsync("session-id", "/page", "three", "3", caps));
-
-        Assert.That(refused?.Message, Does.Contain("2 keys"));
-        Assert.That(await store.ListKeysAsync("session-id", "/page"), Has.Count.EqualTo(2));
-    }
-
-    [Test]
-    public async Task TheByteCapRefusesTheWriteAndLeavesTheOldValueAsync() {
-        IPageSessionStore store = Store();
-        _ = await store.EnsureAsync("session-id", account: null);
-        PageSessionCaps caps = new(MaxValueBytes: 4096, MaxKeys: 8, MaxTotalBytes: 64);
-        await store.SetValueAsync("session-id", "/page", "small", "1", caps);
-
-        await Assert.ThrowsAsync<ArgumentException>(() =>
-            store.SetValueAsync("session-id", "/page", "big", new string('x', 200), caps));
-
-        Assert.That(await store.GetValueAsync("session-id", "/page", "small"), Is.EqualTo("1"));
-        Assert.That(await store.GetValueAsync("session-id", "/page", "big"), Is.Null);
-    }
-
-    [Test]
-    public async Task AnUpdateIsAllowedWhenTheSessionIsAlreadyFullAsync() {
-        IPageSessionStore store = Store();
-        _ = await store.EnsureAsync("session-id", account: null);
-        PageSessionCaps caps = new(MaxValueBytes: 4096, MaxKeys: 8, MaxTotalBytes: 64);
-        await store.SetValueAsync("session-id", "/page", "key", new string('x', 40), caps);
-
-        await store.SetValueAsync("session-id", "/page", "key", new string('y', 40), caps);
-
-        Assert.That(await store.GetValueAsync("session-id", "/page", "key"), Is.EqualTo(new string('y', 40)));
+        Assert.That(await Store().FindAsync("session-id"), Is.Not.Null);
     }
 
     [Test]
@@ -198,6 +68,16 @@ public sealed class SqlitePageSessionStoreTests {
     }
 
     [Test]
+    public async Task DeleteReportsWhetherTheSessionExistedAsync() {
+        IPageSessionStore store = Store();
+        _ = await store.EnsureAsync("session-id", account: null);
+
+        Assert.That(await store.DeleteAsync("session-id"), Is.True);
+        Assert.That(await store.DeleteAsync("session-id"), Is.False);
+        Assert.That(await store.FindAsync("session-id"), Is.Null);
+    }
+
+    [Test]
     public async Task RemoveExpiredDropsThePastItsIdleWindowAndLeavesTheRestAsync() {
         TestClock clock = new();
         IPageSessionStore store = Store(clock);
@@ -210,7 +90,7 @@ public sealed class SqlitePageSessionStoreTests {
 
         Assert.That(sweep.Expired, Is.EqualTo(1));
         Assert.That(await store.FindAsync("anonymous"), Is.Null);
-        Assert.That(await store.FindAsync("signed-in"), Is.Not.Null, "a signed-in session has eight hours");
+        Assert.That(await store.FindAsync("signed-in"), Is.Not.Null, "a signed-in session lives as long as its sign-in");
     }
 
     [Test]
@@ -218,19 +98,22 @@ public sealed class SqlitePageSessionStoreTests {
         TestClock clock = new();
         IPageSessionStore store = Store(clock);
         _ = await store.EnsureAsync("signed-in", account: "owner");
-        clock.Now = DateTimeOffset.UnixEpoch.AddHours(7);
+        clock.Now = DateTimeOffset.UnixEpoch.AddDays(29);
 
         PageSessionSweep sweep = await store.RemoveExpiredAsync();
 
         Assert.That(sweep.Expired, Is.Zero);
         Assert.That(await store.FindAsync("signed-in"), Is.Not.Null);
+
+        clock.Now = DateTimeOffset.UnixEpoch.AddDays(31);
+        _ = await store.RemoveExpiredAsync();
+        Assert.That(await store.FindAsync("signed-in"), Is.Null);
     }
 
     [Test]
     public async Task AMintRemovesExpiredRowsBeforeItEvictsALiveSessionAsync() {
         TestClock clock = new();
-        PageSessionOptions options = TestOptions.Session with { MaxLiveSessions = 2 };
-        IPageSessionStore store = Store(clock, options);
+        IPageSessionStore store = Store(clock, TestOptions.Stores.Visitor with { MaxLiveSessions = 2 });
         _ = await store.EnsureAsync("stale", account: null);
         clock.Now = DateTimeOffset.UnixEpoch.AddMinutes(1);
         _ = await store.EnsureAsync("live", account: "owner");
@@ -246,7 +129,7 @@ public sealed class SqlitePageSessionStoreTests {
     [Test]
     public async Task TheCapEvictsTheMostIdleAnonymousSessionFirstAsync() {
         TestClock clock = new();
-        IPageSessionStore store = Store(clock, TestOptions.Session with { MaxLiveSessions = 2 });
+        IPageSessionStore store = Store(clock, TestOptions.Stores.Visitor with { MaxLiveSessions = 2 });
         _ = await store.EnsureAsync("older-stranger", account: null);
         clock.Now = DateTimeOffset.UnixEpoch.AddMinutes(1);
         _ = await store.EnsureAsync("newer-stranger", account: null);
@@ -263,7 +146,7 @@ public sealed class SqlitePageSessionStoreTests {
     [Test]
     public async Task WithNoAnonymousSessionLeftTheMostIdleSignedInSessionGoesAsync() {
         TestClock clock = new();
-        IPageSessionStore store = Store(clock, TestOptions.Session with { MaxLiveSessions = 2 });
+        IPageSessionStore store = Store(clock, TestOptions.Stores.Visitor with { MaxLiveSessions = 2 });
         _ = await store.EnsureAsync("first", account: "owner");
         clock.Now = DateTimeOffset.UnixEpoch.AddMinutes(1);
         _ = await store.EnsureAsync("second", account: "owner");
@@ -281,7 +164,7 @@ public sealed class SqlitePageSessionStoreTests {
         TestClock clock = new();
         // A cap of zero is what the configuration clamps away from; it is the one state in which the
         // table has room for nothing and holds nothing, so the guard is what answers.
-        IPageSessionStore store = Store(clock, TestOptions.Session with { MaxLiveSessions = 0 });
+        IPageSessionStore store = Store(clock, TestOptions.Stores.Visitor with { MaxLiveSessions = 0 });
 
         Assert.That(await store.EnsureAsync("session-id", account: null), Is.False);
         Assert.That(await store.FindAsync("session-id"), Is.Null);
@@ -290,14 +173,13 @@ public sealed class SqlitePageSessionStoreTests {
     [Test]
     public async Task TheSweepTrimsAnOverfullTableToItsCapAsync() {
         TestClock clock = new();
-        PageSessionOptions options = TestOptions.Session with { MaxLiveSessions = 2 };
-        IPageSessionStore store = Store(clock, options);
+        IPageSessionStore store = Store(clock, TestOptions.Stores.Visitor with { MaxLiveSessions = 2 });
         _ = await store.EnsureAsync("first", account: null);
         clock.Now = DateTimeOffset.UnixEpoch.AddMinutes(1);
         _ = await store.EnsureAsync("second", account: null);
 
         // Shrinking the cap is what a configuration change looks like to a table that is already full.
-        IPageSessionStore smaller = Store(clock, TestOptions.Session with { MaxLiveSessions = 1 });
+        IPageSessionStore smaller = Store(clock, TestOptions.Stores.Visitor with { MaxLiveSessions = 1 });
         PageSessionSweep sweep = await smaller.RemoveExpiredAsync();
 
         Assert.That(sweep.AnonymousEvicted, Is.EqualTo(1));
@@ -308,16 +190,35 @@ public sealed class SqlitePageSessionStoreTests {
     [Test]
     public async Task AnEvictedSessionsValuesGoTooAsync() {
         TestClock clock = new();
-        PageSessionOptions options = TestOptions.Session with { MaxLiveSessions = 1 };
-        IPageSessionStore store = Store(clock, options);
+        IStoreValues values = Values();
+        IPageSessionStore store = Store(clock, TestOptions.Stores.Visitor with { MaxLiveSessions = 1 });
         _ = await store.EnsureAsync("first", account: null);
-        await store.SetValueAsync("first", "/page", "key", "1", PageSessionCaps.Anonymous);
+        await WriteSessionValue(values, "first", "key", "\"1\"");
         clock.Now = DateTimeOffset.UnixEpoch.AddMinutes(1);
 
         _ = await store.EnsureAsync("second", account: null);
 
-        await using StorageDbContext database = new(_options);
-        Assert.That(await database.Set<PageSessionValueEntry>().CountAsync(), Is.Zero);
+        Assert.That(await values.FindAsync([StoreSubjects.ForSession("first")], "/page", "key"), Is.Null);
+    }
+
+    [Test]
+    public async Task AdoptionReKeysThePersonAndOneShotAndDropsTheSessionAsync() {
+        IStoreValues values = Values();
+        IPageSessionStore store = Store();
+        _ = await store.EnsureAsync("old", account: null);
+        await Write(values, StoreSubjects.ForSession("old"), "person", StoreLifetimeKind.Person);
+        await Write(values, StoreSubjects.ForSession("old"), "notice", StoreLifetimeKind.NextRead);
+        await Write(values, StoreSubjects.ForSession("old"), "draft", StoreLifetimeKind.Session);
+
+        Assert.That(await store.AdoptAsync("old", "owner", "new"), Is.True);
+
+        await Assert.MultipleAsync(async () => {
+            Assert.That(await values.FindAsync([StoreSubjects.ForAccount("owner")], "/page", "person"), Is.Not.Null);
+            Assert.That(await values.FindAsync([StoreSubjects.ForAccount("owner")], "/page", "notice"), Is.Not.Null);
+            Assert.That(await values.FindAsync([StoreSubjects.ForSession("old")], "/page", "draft"), Is.Null);
+            Assert.That(await store.FindAsync("old"), Is.Null);
+            Assert.That(await store.FindAsync("new"), Is.Not.Null);
+        });
     }
 
     [Test]
@@ -335,9 +236,23 @@ public sealed class SqlitePageSessionStoreTests {
         Assert.That(parsed.Offset, Is.EqualTo(TimeSpan.Zero));
     }
 
-    private IPageSessionStore Store(TimeProvider? clock = null, PageSessionOptions? options = null) =>
+    private IStoreValues Values() => new SqliteStoreValues(
+        DatabaseTemplate.Factory(_options), TestOptions.Stores, TimeProvider.System);
+
+    private Task Write(IStoreValues values, string subject, string key, StoreLifetimeKind kind) =>
+        values.WriteAsync(
+            new StoreValueWrite(subject, "/page", key, (int)kind, ExpiresAt: null, "\"x\"", RequireLivePage: false),
+            kind == StoreLifetimeKind.Session ? TestOptions.Stores.Visitor.SignedIn : TestOptions.Stores.Visitor.Anonymous);
+
+    private Task WriteSessionValue(IStoreValues values, string sessionId, string key, string json) =>
+        values.WriteAsync(
+            new StoreValueWrite(StoreSubjects.ForSession(sessionId), "/page", key, (int)StoreLifetimeKind.Session, ExpiresAt: null, json, RequireLivePage: false),
+            TestOptions.Stores.Visitor.Anonymous);
+
+    private IPageSessionStore Store(TimeProvider? clock = null, PageVisitorStores? options = null) =>
         new SqlitePageSessionStore(
             DatabaseTemplate.Factory(_options),
-            options ?? TestOptions.Session,
+            TestOptions.Stores with { Visitor = options ?? TestOptions.Stores.Visitor },
+            TestOptions.Authentication,
             clock ?? TimeProvider.System);
 }

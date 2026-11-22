@@ -14,7 +14,13 @@ scripts the site uses are served from here.</p>
     <li><strong>A session.</strong> A page that says &ldquo;saved&rdquo; after a form, or that keeps a
     half-written message, needs somewhere to put it. That is a random key in a cookie; the values
     themselves stay on this server and are deleted when the session expires &mdash; 30 minutes
-    without a visit, or 8 hours if you are signed in.</li>
+    without a visit, or as long as the sign-in it belongs to if you are signed in. Signing out
+    deletes them.</li>
+    <li><strong>A browser preference.</strong> One page keeps a setting that belongs to this device
+    rather than to you &mdash; the editor mode, so your textareas stay the way you chose them. It is a
+    separate random key in a cookie, kept for up to a year and reset whenever you change it. It is
+    never linked to your account, survives signing in and out, and goes when you clear this site's
+    cookies.</li>
     <li><strong>A sign-in.</strong> Only if you sign in as the owner: your account name, a hash of
     your password, and a key that keeps this browser signed in for up to 30 days (or until you close
     the browser, if you did not tick &ldquo;remember me&rdquo;). Signing out deletes it, and a

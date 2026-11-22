@@ -10,7 +10,7 @@ using uk.osric.asp.Web.Http;
 internal sealed class PageBodySink(
     HttpContext context,
     PageEnvironment environment,
-    PageSessionRequest session) : IPageBodySink {
+    PageReaderSubject reader) : IPageBodySink {
 
     private bool _bodyAllowed;
 
@@ -18,7 +18,7 @@ internal sealed class PageBodySink(
     public async Task StartAsync(PageResponse response, CancellationToken cancellationToken) {
         ArgumentNullException.ThrowIfNull(response);
 
-        if (await PageResponseWriter.ApplyAsync(context, response, environment, session, start: true, cancellationToken)) {
+        if (await PageResponseWriter.ApplyAsync(context, response, environment, reader, start: true, cancellationToken)) {
             throw new InvalidOperationException("A redirect has no body to stream.");
         }
 

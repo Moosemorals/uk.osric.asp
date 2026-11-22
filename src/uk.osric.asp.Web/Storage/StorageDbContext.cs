@@ -48,11 +48,14 @@ internal sealed class StorageDbContext(DbContextOptions<StorageDbContext> option
                 .OnDelete(DeleteBehavior.Restrict);
         });
 
-        modelBuilder.Entity<PageStateEntry>(state => {
-            state.ToTable("PageState");
-            state.HasKey(row => new { row.PagePath, row.Key });
-            state.Property(row => row.PagePath).UseCollation("BINARY");
-            state.Property(row => row.Key).UseCollation("BINARY");
+        modelBuilder.Entity<StoreValueEntry>(value => {
+            value.ToTable("StoreValues");
+            value.HasKey(row => new { row.Subject, row.PageKey, row.Key });
+            value.Property(row => row.Subject).UseCollation("BINARY");
+            value.Property(row => row.PageKey).UseCollation("BINARY");
+            value.Property(row => row.Key).UseCollation("BINARY");
+            // The sweep reads a range of ExpiresAt; every other read is the primary key.
+            value.HasIndex(row => row.ExpiresAt);
         });
 
         modelBuilder.Entity<PageSessionEntry>(session => {
@@ -63,18 +66,6 @@ internal sealed class StorageDbContext(DbContextOptions<StorageDbContext> option
             // Expiry reads a range of UpdatedAt per kind of visitor; eviction orders the same way.
             session.HasIndex(row => new { row.Account, row.UpdatedAt });
             session.HasIndex(row => row.UpdatedAt);
-        });
-
-        modelBuilder.Entity<PageSessionValueEntry>(value => {
-            value.ToTable("PageSessionValues");
-            value.HasKey(row => new { row.SessionId, row.PagePath, row.Key });
-            value.Property(row => row.SessionId).UseCollation("BINARY");
-            value.Property(row => row.PagePath).UseCollation("BINARY");
-            value.Property(row => row.Key).UseCollation("BINARY");
-            value.HasOne<PageSessionEntry>()
-                .WithMany()
-                .HasForeignKey(row => row.SessionId)
-                .OnDelete(DeleteBehavior.Cascade);
         });
 
         modelBuilder.Entity<LocalUser>().ToTable("Users");

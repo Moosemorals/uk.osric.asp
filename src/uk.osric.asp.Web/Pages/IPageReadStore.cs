@@ -58,7 +58,7 @@ internal sealed record PageReadRevision(string Hash, DateTimeOffset SavedAt, boo
 /// <para>
 /// It is a seam of its own rather than <see cref="IPageStore"/> because that one is scoped to the
 /// request's <c>StorageDbContext</c>, and a page's task deliberately outlives the request. Every
-/// call here owns its context, as <see cref="IPageStateStore"/> does.
+/// call here owns its context, as <see cref="IStoreValues"/> does.
 /// </para>
 /// <para>
 /// It answers with small records and never with a <c>PagePath</c>: normalising a key and deciding

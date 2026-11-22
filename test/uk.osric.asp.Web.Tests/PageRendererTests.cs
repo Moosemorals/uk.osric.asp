@@ -241,7 +241,7 @@ public sealed class PageRendererTests {
         FakePageStore storage = new();
         RenderOptions options = TestOptions.Render with { TimeoutSeconds = BudgetSeconds };
         PageHealth health = new(options.AbandonedLimit);
-        FakePageStateStore state = new() { ReadDelay = TimeSpan.FromSeconds(30) };
+        FakeStoreValues state = new() { ReadDelay = TimeSpan.FromSeconds(30) };
         state.LivePages.Add("/waiting");
         RecordingLoggerFactory logs = new();
         using PageHarness pages = new(

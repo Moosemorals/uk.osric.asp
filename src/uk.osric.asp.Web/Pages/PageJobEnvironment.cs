@@ -14,8 +14,9 @@ using uk.osric.asp.Web.Work;
 /// </remarks>
 /// <param name="Jobs">The job bounds.</param>
 /// <param name="Store">Where a job reads its worker and stores a rebuilt image.</param>
-/// <param name="State">Where the starting page's state is read and written.</param>
-/// <param name="Storage">The caps on that state.</param>
+/// <param name="StoreValues">Where the job's values are read and written.</param>
+/// <param name="Stores">The page stores' caps and identity bounds.</param>
+/// <param name="SessionStore">The session identity, which a job reads its starter through.</param>
 /// <param name="Fetcher">Where a worker's outbound request goes.</param>
 /// <param name="Fetch">The outbound fetch caps.</param>
 /// <param name="Seeds">The pack this release ships, so a worker's catalog can describe it.</param>
@@ -34,8 +35,9 @@ using uk.osric.asp.Web.Work;
 internal sealed record PageJobEnvironment(
     PageJobOptions Jobs,
     IWorkerStore Store,
-    IPageStateStore State,
-    PageStorageOptions Storage,
+    IStoreValues StoreValues,
+    PageStoresOptions Stores,
+    IPageSessionStore SessionStore,
     IPageFetcher Fetcher,
     PageFetchOptions Fetch,
     IPageReadStore ReadStore,

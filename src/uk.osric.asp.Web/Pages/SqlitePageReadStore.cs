@@ -13,7 +13,7 @@ using uk.osric.asp.Web.Storage;
 /// <remarks>
 /// <para>
 /// Every call creates and disposes its own <see cref="StorageDbContext"/>, for
-/// <see cref="SqlitePageStateStore"/>'s reason: a render that was abandoned can outlive the request
+/// <see cref="SqliteStoreValues"/>'s reason: a render that was abandoned can outlive the request
 /// scope, and a page's task must never touch a disposed context.
 /// </para>
 /// <para>

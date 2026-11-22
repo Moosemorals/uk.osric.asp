@@ -155,7 +155,7 @@ public sealed class PageJobTests {
 
         Assert.Multiple(() => {
             Assert.That(start.Started, Is.True);
-            Assert.That(info.State, Is.EqualTo(PageJobState.Completed));
+            Assert.That(info.State, Is.EqualTo(PageJobState.Completed), info.Failure);
             Assert.That(written, Is.EqualTo("\"hello\""),
                 "the job writes the page's own state, not the worker's");
         });

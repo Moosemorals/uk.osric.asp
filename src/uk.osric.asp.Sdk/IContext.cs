@@ -91,13 +91,20 @@ public interface IContext {
 
     /// <summary>The capabilities this render offers.</summary>
     /// <remarks>
-    /// Storage, outbound HTTP, the document's slots and Markdown live here rather than on the
-    /// context, because a page that needs none of them should never meet them. A capability the
-    /// render does not offer is absent rather than <see langword="null"/>; a page decides whether
-    /// that is fatal with <see cref="IPageCapabilities.Get{T}"/> or
-    /// <see cref="IPageCapabilities.GetRequired{T}"/>.
+    /// Outbound HTTP, the document's slots and Markdown live here rather than on the context,
+    /// because a page that needs none of them should never meet them. A capability the render does
+    /// not offer is absent rather than <see langword="null"/>; a page decides whether that is fatal
+    /// with <see cref="IPageCapabilities.Get{T}"/> or <see cref="IPageCapabilities.GetRequired{T}"/>.
     /// </remarks>
     public IPageCapabilities Capabilities { get; }
+
+    /// <summary>The page's data, by whose it is: this page's, and this visitor's.</summary>
+    /// <remarks>
+    /// Every layer of a render is offered it. A write is refused during a <c>HEAD</c>, an abandoned
+    /// render or a passed deadline, on every subject; the layer's role decides the response it owns,
+    /// not what it may reach.
+    /// </remarks>
+    public IPageStores Stores { get; }
 
     /// <summary>Writes unescaped HTML to the output. Deprecated: use <see cref="Response"/>.</summary>
     /// <param name="message">The HTML to write.</param>

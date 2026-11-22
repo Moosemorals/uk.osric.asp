@@ -540,11 +540,13 @@ public sealed class SqlitePageStoreTests {
             Template = "orphan",
             CreationRuntimeId = "legacy:unknown",
         });
-        database.Add(new PageStateEntry {
-            PagePath = "/state-only",
+        database.Add(new StoreValueEntry {
+            Subject = StoreSubjects.PagePrefix + "/state-only",
+            PageKey = "/state-only",
             Key = "counter",
+            Lifetime = 1,
             Value = "1",
-            UpdatedAt = DateTimeOffset.UtcNow,
+            UpdatedAt = StoreSubjects.Stamp(DateTimeOffset.UtcNow),
         });
         await database.SaveChangesAsync();
 
@@ -562,18 +564,20 @@ public sealed class SqlitePageStoreTests {
         PagePath path = Key("/repair");
         await storage.SavePageAsync(new PageTemplate(path, "first"));
         await storage.SavePageAsync(new PageTemplate(path, "second"));
-        database.Add(new PageStateEntry {
-            PagePath = path.Key,
+        database.Add(new StoreValueEntry {
+            Subject = StoreSubjects.PagePrefix + path.Key,
+            PageKey = path.Key,
             Key = "counter",
+            Lifetime = 1,
             Value = "1",
-            UpdatedAt = DateTimeOffset.UtcNow,
+            UpdatedAt = StoreSubjects.Stamp(DateTimeOffset.UtcNow),
         });
         await database.SaveChangesAsync();
 
         PageScrubResult removed = await storage.ScrubStoredPathAsync(path);
         PageHeadSummary? head = await storage.GetHeadAsync(path);
         int revisionRows = await database.Set<PageRevision>().CountAsync(row => row.Path == path.Key);
-        int stateRows = await database.Set<PageStateEntry>().CountAsync(row => row.PagePath == path.Key);
+        int stateRows = await database.Set<StoreValueEntry>().CountAsync(row => row.PageKey == path.Key);
 
         Assert.Multiple(() => {
             Assert.That(removed, Is.EqualTo(new PageScrubResult(true, 2, 1)));
@@ -753,18 +757,20 @@ public sealed class SqlitePageStoreTests {
         PagePath to = Key("/after");
         await storage.SavePageAsync(new PageTemplate(from, "the source"));
         string expected = (await storage.GetPageAsync(from))!.Hash;
-        database.Set<PageStateEntry>().Add(new PageStateEntry {
-            PagePath = from.Key,
+        database.Set<StoreValueEntry>().Add(new StoreValueEntry {
+            Subject = StoreSubjects.PagePrefix + from.Key,
+            PageKey = from.Key,
             Key = "colour",
+            Lifetime = 1,
             Value = "\"red\"",
-            UpdatedAt = DateTimeOffset.UtcNow,
+            UpdatedAt = StoreSubjects.Stamp(DateTimeOffset.UtcNow),
         });
         await database.SaveChangesAsync();
 
         await storage.MovePageAsync(from, to, expected);
 
-        string[] paths = await database.Set<PageStateEntry>()
-            .Select(entry => entry.PagePath)
+        string[] paths = await database.Set<StoreValueEntry>()
+            .Select(entry => entry.PageKey)
             .ToArrayAsync();
         Assert.That(paths, Is.EqualTo<string[]>([to.Key]));
     }

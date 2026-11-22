@@ -43,6 +43,7 @@ internal sealed class SimpleContext : IContext {
     /// <param name="aborted">The token from the request being served.</param>
     /// <param name="writer">The buffer the body is written to.</param>
     /// <param name="capabilities">The capabilities this layer offers.</param>
+    /// <param name="stores">The page and visitor subjects this layer writes to.</param>
     /// <param name="contentTypes">The media type the page's key names.</param>
     /// <param name="maxBodyChars">How much body this layer may write when no chain budget is given.</param>
     /// <param name="user">The signed-in account, or <see langword="null"/> for an anonymous visitor.</param>
@@ -81,6 +82,7 @@ internal sealed class SimpleContext : IContext {
         CancellationToken aborted,
         StringWriter writer,
         PageCapabilities capabilities,
+        IPageStores stores,
         PageContentTypes contentTypes,
         int maxBodyChars,
         string editorPath,
@@ -98,6 +100,7 @@ internal sealed class SimpleContext : IContext {
         ArgumentNullException.ThrowIfNull(request);
         ArgumentNullException.ThrowIfNull(writer);
         ArgumentNullException.ThrowIfNull(capabilities);
+        ArgumentNullException.ThrowIfNull(stores);
         ArgumentNullException.ThrowIfNull(contentTypes);
         ArgumentException.ThrowIfNullOrWhiteSpace(loginRedirect);
         ArgumentException.ThrowIfNullOrWhiteSpace(editorPath);
@@ -111,6 +114,7 @@ internal sealed class SimpleContext : IContext {
         _assetUrl = assetUrl;
         Aborted = aborted;
         _capabilities = capabilities;
+        Stores = stores;
         User = user;
 
         // The budget and the commit are shared by the whole chain; a layer on its own gets one of each.
@@ -153,6 +157,9 @@ internal sealed class SimpleContext : IContext {
     /// <inheritdoc/>
     public IPageCapabilities Capabilities => _capabilities;
 
+    /// <inheritdoc/>
+    public IPageStores Stores { get; }
+
     /// <summary>Gives the page the render's lifetime, so its I/O and its stream share one clock.</summary>
     /// <param name="lifetime">The lifetime the renderer opened for this request.</param>
     public void AttachLifetime(RenderLifetime lifetime) {
@@ -160,6 +167,10 @@ internal sealed class SimpleContext : IContext {
 
         Response.AttachLifetime(lifetime);
         _capabilities.AttachLifetime(lifetime);
+
+        if (Stores is IRenderBoundCapability bound) {
+            bound.AttachDeadline(lifetime.Token);
+        }
     }
 
     /// <summary>Stops the page writing, once its render has been given up on.</summary>
@@ -170,6 +181,10 @@ internal sealed class SimpleContext : IContext {
     public void Abandon() {
         Response.Abandon();
         _capabilities.Abandon();
+
+        if (Stores is IRenderBoundCapability bound) {
+            bound.Abandon();
+        }
     }
 
     /// <inheritdoc/>

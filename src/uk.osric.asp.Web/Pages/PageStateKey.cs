@@ -5,7 +5,7 @@ namespace uk.osric.asp.Web.Pages;
 
 /// <summary>The rule a page's state key obeys, shared by a page's own write and an imported archive.</summary>
 /// <remarks>
-/// A key is 1 to <see cref="PageStorageOptions.MaxKeyChars"/> characters with no control characters.
+/// A key is 1 to <see cref="PageStoresOptions.MaxKeyChars"/> characters with no control characters.
 /// An archive is validated against this before anything is staged, so an import cannot store a key a
 /// page could not have written itself.
 /// </remarks>

@@ -18,10 +18,10 @@ public sealed class ExportEndpointTests {
 
     private static readonly ReservedPaths Reserved = new(ReservedPaths.Default);
 
-    private FakePageStateStore _state = new();
+    private FakeStoreValues _state = new();
 
     [SetUp]
-    public void NewState() => _state = new FakePageStateStore();
+    public void NewState() => _state = new FakeStoreValues();
 
     [Test]
     public async Task TheListShowsEveryReachableLivePageTickedAsync() {
@@ -203,7 +203,7 @@ public sealed class ExportEndpointTests {
     }
 
     private static PageArchiveReader Reader() =>
-        new(TestOptions.Archive, TestOptions.Storage, Reserved, NullLogger<PageArchiveReader>.Instance);
+        new(TestOptions.Archive, TestOptions.Stores, Reserved, NullLogger<PageArchiveReader>.Instance);
 
     private static PagePath Key(string path) => PagePath.Normalize(path);
 }

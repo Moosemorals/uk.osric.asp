@@ -147,11 +147,10 @@ public sealed class SimpleContextTests {
     }
 
     // A page-level store over an empty one, registered as the capability the endpoint offers.
-    private static PageCapabilities CapabilitiesFor(string path) {
-        PageStorageScope storage = new(
-            PagePath.Normalize(path), new FakePageStateStore(), TestOptions.Storage, writable: true);
-
-        return new PageCapabilities().Add<IPageStorage>(storage);
+    private static PageCapabilities CapabilitiesFor(PageStoresScope stores) {
+#pragma warning disable CS0618 // The test proves the old capability still reaches the same store.
+        return new PageCapabilities().Add<IPageStorage>(new PageStorageScope(stores.PageValues));
+#pragma warning restore CS0618
     }
 
     private static SimpleContext CreateContext(
@@ -161,13 +160,22 @@ public sealed class SimpleContextTests {
         PageContentTypes? contentTypes = null,
         PageUser? user = null) {
         logs = new RecordingLoggerFactory();
+        FakeStoreValues values = new();
+        PageReaderSubject reader = new(
+            new PageSessionRequest(uk.osric.asp.Web.Authentication.PageSessionCookie.Mint(), null, presented: false, exists: false),
+            TestOptions.Stores.Visitor,
+            browserId: null);
+        PageStoresScope stores = new(
+            PagePath.Normalize(path), reader, values, new FakePageSessionStore(values), TestOptions.Stores,
+            new FakePageReadStore(), writable: true, commit: null);
 
         return new SimpleContext(
             logs,
             TestHttp.Request(requestPath ?? path),
             CancellationToken.None,
             new StringWriter(),
-            CapabilitiesFor(path),
+            CapabilitiesFor(stores),
+            stores,
             contentTypes ?? TestContentTypes.Shipped,
             TestOptions.Render.MaxBodyChars,
             TestOptions.Editor.Key,

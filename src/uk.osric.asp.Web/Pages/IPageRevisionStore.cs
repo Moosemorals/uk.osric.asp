@@ -10,7 +10,7 @@ using uk.osric.asp.Core.Pages;
 /// A page's task can outlive the request that started it, so a save made from inside a render cannot
 /// go through <see cref="IPageStore"/>: that one is scoped to the request's <c>StorageDbContext</c>,
 /// which may already be disposed by the time the write lands. The implementation opens its context
-/// per save, for the reason <see cref="SqlitePageStateStore"/> does.
+/// per save, for the reason <see cref="SqliteStoreValues"/> does.
 /// </remarks>
 internal interface IPageRevisionStore {
 

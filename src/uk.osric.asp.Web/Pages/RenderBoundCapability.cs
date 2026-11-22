@@ -20,8 +20,8 @@ internal abstract class RenderBoundCapability : IRenderBoundCapability {
     protected CancellationToken Deadline => _deadline;
 
     /// <inheritdoc/>
-    public void AttachDeadline(CancellationToken deadline) => _deadline = deadline;
+    public virtual void AttachDeadline(CancellationToken deadline) => _deadline = deadline;
 
     /// <inheritdoc/>
-    public void Abandon() => Volatile.Write(ref _abandoned, 1);
+    public virtual void Abandon() => Volatile.Write(ref _abandoned, 1);
 }

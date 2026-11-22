@@ -22,7 +22,7 @@ can improve it at <a href="<%= ctx.EditorPath %>?edit=<%= System.Uri.EscapeDataS
         <li><a href="#markdown">Markdown</a></li>
         <li><a href="#diff">Diff</a></li>
         <li><a href="#private">Private pages and forms</a></li>
-        <li><a href="#session">Per-visitor state</a></li>
+        <li><a href="#storage">Storage</a></li>
         <li><a href="#assets">Assets and recovery</a></li>
         <li><a href="#keeping-current">Keeping this page current</a></li>
     </ul>
@@ -384,9 +384,8 @@ using System.Threading.Tasks;
 namespace Site.Work {
     public sealed class Answer : IWorker {
         public async Task RunAsync(IWorkerContext context) {
-            IPageStorage storage = context.Capabilities.GetRequired&lt;IPageStorage&gt;();
             context.Publish("delta", "thinking");
-            await storage.SetAsync("last-question", context.Input ?? "");
+            await context.Stores.Page.Values.SetAsync("last-question", context.Input ?? "");
             while (await context.ReceiveAsync(30) is { } message) {
                 context.Publish("delta", message);
             }
@@ -395,8 +394,11 @@ namespace Site.Work {
 }
 %&gt;</code></pre>
 <p>A worker has no response: it cannot write, flush, redirect or set a status, and it is offered no
-renderer and no layout. Its storage is the starting page's, so a job and the page that shows it share
-one store; its fetch and catalog are the worker's own, so a credential bound to the worker stays the
+renderer and no layout. It has three stores, and no more: <code>context.Stores.Page</code> is the
+starting page's data, which the page can read again; <code>context.Stores.Visitor</code> is the
+starter's, with only a <code>Person</code> lifetime because a job has no session and no browser; and
+<code>context.Stores.For(context.Worker)</code> is the worker's own namespace, shared by every run of
+that worker. Its fetch and catalog are the worker's own, so a credential bound to the worker stays the
 worker's. It asks for those through <code>context.Capabilities</code> exactly as a page does.</p>
 <p><strong>A job writes with the credential that started it.</strong> The writer is the page store's
 usual <a href="/admin/reference/sdk#t-IPageWrites"><code>IPageWrites</code></a>, bound to the starting
@@ -558,13 +560,17 @@ hash, or <code>null</code> when the build did not come from a checkout:</p>
 <pre class="source" tabindex="0"><code>&lt;% if (ctx.Capabilities.GetRequired&lt;IBuildInfo&gt;().Commit is { } commit) { %&gt;
 &lt;a href="https://github.com/Moosemorals/uk.osric.asp/commit/&lt;%= commit %&gt;"&gt;&lt;%= commit %&gt;&lt;/a&gt;
 &lt;% } %&gt;</code></pre>
-<p><a href="/admin/reference/sdk#t-IPageStorage"><code>IPageStorage</code></a> is the page's own key/value store. Every visitor shares it, a write is
-last-write-wins, and a page cannot reach another page's keys:</p>
-<pre class="source" tabindex="0"><code>&lt;% IPageStorage storage = ctx.Capabilities.GetRequired&lt;IPageStorage&gt;();
-   PageValue&lt;int&gt; stored = await storage.TryGetValueAsync&lt;int&gt;("visits");
+<p><a href="/admin/reference/sdk#t-IPageStores"><code>ctx.Stores</code></a> is the page's data. It is not a capability: every layer of a render is
+offered it, and a write is refused during a <code>HEAD</code> rather than the store being absent.
+<a href="/admin/reference/sdk#t-IPageSubject"><code>Stores.Page</code></a> is this page, shared by every visitor;
+<a href="/admin/reference/sdk#t-IPageVisitorSubject"><code>Stores.Visitor</code></a> is the person reading. A value is JSON and a write is
+last-write-wins:</p>
+<pre class="source" tabindex="0"><code>&lt;% PageValue&lt;int&gt; stored = await ctx.Stores.Page.Values.TryGetValueAsync&lt;int&gt;("visits");
    int visits = (stored.Found ? stored.Value : 0) + 1;
-   await storage.SetAsync("visits", visits); %&gt;
+   await ctx.Stores.Page.Values.SetAsync("visits", visits); %&gt;
 &lt;p&gt;Visited &lt;%= visits.ToString() %&gt; times.&lt;/p&gt;</code></pre>
+<p><a href="#storage">Storage</a> has the whole model: the two subjects, the lifetimes, the caps and
+<a href="/admin/reference/sdk#m-IPageStores.For-string"><code>For</code></a>.</p>
 <p><a href="/admin/reference/sdk#t-IHttpFetch"><code>IHttpFetch</code></a> makes one bounded HTTP request from the host, not the browser, to any
 <code>http</code> or <code>https</code> host the URL names. Failures are values rather than
 exceptions:</p>
@@ -914,38 +920,64 @@ different to align line by line says that the changed middle is shown as replace
 that compares two revisions reads them with <a href="/admin/reference/sdk#m-IPageCatalog.ReadRevisionAsync-string-string"><code>IPageCatalog.ReadRevisionAsync</code></a>; the
 editor's history page compares two revisions for you.</p>
 
-<h2 id="session">Per-visitor state</h2>
-<p><a href="/admin/reference/sdk#t-IPageSession"><code>IPageSession</code></a> is a store of this visitor's own, separate from
-<a href="/admin/reference/sdk#t-IPageStorage"><code>IPageStorage</code></a>: a page storage value is shared by everyone, and a session value belongs to
-one browser. That is what a form needs when it answers with a <code>303</code> and the next render has
-to say what happened.</p>
-<pre class="source" tabindex="0"><code>&lt;% IPageSession session = ctx.Capabilities.GetRequired&lt;IPageSession&gt;();
-   if (ctx.Request.Method == "POST") {
-       await session.SetAsync("notice", "Your note was saved.");
+<h2 id="storage">Storage</h2>
+<p>Two subjects and one shape today. <a href="/admin/reference/sdk#t-IPageSubject"><code>Stores.Page</code></a> is this page's data, shared by
+every visitor; <a href="/admin/reference/sdk#t-IPageVisitorSubject"><code>Stores.Visitor</code></a> is the person reading. A write always uses
+the layer's own key, so a page cannot write another page's data; a read is open across pages, so a
+page can show what another page left for it. Neither handle has an argument that names someone
+else's data.</p>
+<pre class="source" tabindex="0"><code>&lt;% if (ctx.Request.Method == "POST") {
+       await ctx.Stores.Visitor.Values.SetAsync("notice", "Your note was saved.", StoreLifetime.NextRead);
        ctx.Response.Redirect(ctx.Path, 303);
        return;
    }
-   PageValue&lt;string&gt; notice = await session.TryGetValueAsync&lt;string&gt;("notice");
+   PageValue&lt;string&gt; notice = await ctx.Stores.Visitor.Values.TryTakeAsync&lt;string&gt;("notice");
    if (notice.Found) {
-       await session.DeleteAsync("notice");
        ctx.Response.Write("&lt;p&gt;" + notice.Value! + "&lt;/p&gt;");
    } %&gt;</code></pre>
-<p>A page writes, deletes and lists only its own keys: <a href="/admin/reference/sdk#m-IPageSession.SetAsync-g1-string-T"><code>SetAsync</code></a>,
-<a href="/admin/reference/sdk#m-IPageSession.DeleteAsync-string"><code>DeleteAsync</code></a> and <a href="/admin/reference/sdk#m-IPageSession.KeysAsync"><code>KeysAsync</code></a> are bound to this page's path. Reading is open, so
-a page can show what another page left for it — <a href="/admin/reference/sdk#m-IPageSession.TryGetValueAsync-g1-string-string"><code>TryGetValueAsync<T>(pagePath, key)</code></a>
-takes the other page's path, normalised before use. <a href="/admin/reference/sdk#m-IPageSession.AllKeysAsync"><code>AllKeysAsync()</code></a> lists every
-<a href="/admin/reference/sdk#t-PageSessionKey"><code>PageSessionKey</code></a> (a <code>Page</code> and a <code>Key</code>) this visitor holds, because a
-bare key cannot be read without knowing which page wrote it.</p>
-<p>The store is JSON like page storage, keys follow the same rule, and the caps are per visitor
-rather than per page: 8 keys and 16 KiB in total for an anonymous visitor, 32 keys and 64 KiB signed
-in, with 4 KiB or 16 KiB for one value. A write past a cap throws when it is awaited. A session is
-minted when the page first writes and travels in an <code>HttpOnly</code>, <code>SameSite=Strict</code>
-cookie, so a page that only reads sets no cookie. It lasts 30 minutes without a visit, or 8 hours
-when signed in, is cleared when the visitor signs out, and a session that belongs to an account is
-never handed to an anonymous visitor.</p>
-<p>A <code>HEAD</code> render may read and may not write, exactly as page storage behaves, and a
-layout is offered the read and not the write. The seeded <a href="/privacy">/privacy</a> page says
-what the session cookie is for.</p>
+<p>The lifetime is a property of the entry, and a read answers the one it found: <code>Found</code>,
+<code>Value</code>, <code>Lifetime</code> and <code>Page</code>. The lifetimes are:</p>
+<dl>
+    <dt><code>StoreLifetime.Page</code></dt>
+    <dd>Dies when the page goes. It is the Page subject's default.</dd>
+    <dt><code>StoreLifetime.Person</code></dt>
+    <dd>Dies when the account goes; anonymously, when the session does unless signing in adopted it.
+    It is the Visitor subject's default, so <code>SetAsync</code> without a lifetime writes one.</dd>
+    <dt><code>StoreLifetime.Session</code></dt>
+    <dd>Dies when the session rotates — signing in and signing out both — or when the identity is
+    swept.</dd>
+    <dt><code>StoreLifetime.Browser</code></dt>
+    <dd>Dies when this browser's cookie expires or is cleared. It survives signing in and out and is
+    never linked to an account, which is what a device preference wants.</dd>
+    <dt><code>StoreLifetime.NextRead</code></dt>
+    <dd>Dies at the next successful <code>TryTakeAsync</code> of that key, atomically.</dd>
+    <dt><code>StoreLifetime.Until(expiry)</code></dt>
+    <dd>Any of the above with a clock as well; <code>Person.WithExpiry(expiry)</code> narrows a named one.</dd>
+</dl>
+<p><code>NextRead</code> is how a page leaves a message for the page a redirect lands on, without a
+second store: the take is one statement, so two renders cannot both read it. <code>KeysAsync</code>
+and <code>AllKeysAsync</code> list without consuming and take a <code>StoreFilter</code> — a lifetime
+and a limit.</p>
+<p>Signing in adopts what the anonymous session held: its <code>Person</code> and <code>NextRead</code>
+entries are re-keyed into the account in one transaction, so a one-shot survives unread; its
+<code>Session</code> entries go with the rotation, and its <code>Browser</code> entries stay on the
+device. A read searches the session, then the browser, then the account, so the more ephemeral value
+shadows the longer-lived one. A page never sees the session id, the account name or the browser id.</p>
+<p>Keys are ordinal and case-sensitive, 1 to 200 characters, with no control characters. A value is
+JSON; the caps are per subject instance, and a write past one throws when it is awaited. The Page
+subject may hold 256 keys and 256 KiB with 64 KiB for one value. The Visitor subject gets 8 keys and
+16 KiB anonymous, 32 keys and 64 KiB signed in, 8 keys and 16 KiB for a browser, with 4 KiB or
+16 KiB for one value. The first write that needs a session or a browser identity mints it and the
+response carries its <code>HttpOnly</code> cookie; a page that only reads sets none. An anonymous
+session lasts 30 minutes without a visit, and a signed-in one as long as the sign-in it belongs to.</p>
+<p><a href="/admin/reference/sdk#m-IPageStores.For-string"><code>Stores.For(key)</code></a> is the one escape, and only for a live library or worker: a library
+declares its data under its own key and a page reaches it by calling the library's methods, never by
+naming its tables. A page key and a reserved key are refused.</p>
+<p>Deleting a page deletes its Page values; moving it re-keys them; scrubbing it removes them for
+good. Signing out deletes the session's values. A <code>HEAD</code> may read and may not write, on
+every subject; a layout and an embedded page are offered the same handle as the content, because the
+role decides the response a layer owns, not what it can reach. The seeded
+<a href="/privacy">/privacy</a> page says what each cookie is for.</p>
 
 <h2 id="private">Private pages and forms</h2>
 <p>Pages are public unless their own code checks <a href="/admin/reference/sdk#m-IContext.User"><code>ctx.User</code></a>. Put the guard at the top and

@@ -9,7 +9,7 @@ using uk.osric.asp.Web.Shell;
 
 /// <summary>The system prompt and worked examples that teach the model to write a page.</summary>
 internal static class PageAuthorPrompt {
-    public const string Version = "page-author-v57";
+    public const string Version = "page-author-v58";
 
     public static IReadOnlyList<(string Name, string Source)> Examples { get; } = [
         ("query-driven", """
@@ -33,10 +33,9 @@ internal static class PageAuthorPrompt {
             <% } %>
             """),
         ("stored-counter", """
-            <% IPageStorage storage = ctx.Capabilities.GetRequired<IPageStorage>();
-               PageValue<int> stored = await storage.TryGetValueAsync<int>("visits");
+            <% PageValue<int> stored = await ctx.Stores.Page.Values.TryGetValueAsync<int>("visits");
                int visits = (stored.Found ? stored.Value : 0) + 1;
-               await storage.SetAsync("visits", visits); %>
+               await ctx.Stores.Page.Values.SetAsync("visits", visits); %>
             <p>Visited <%= visits.ToString() %> times.</p>
             """),
         ("private-page", """
@@ -299,38 +298,53 @@ internal static class PageAuthorPrompt {
         write a sign-in form, handle a password or read the auth cookie:
         `/login` and `/logout` already exist and are reserved paths.
 
-        ## Page storage
-        `ctx.Capabilities.GetRequired<IPageStorage>()` is this page's own
-        key/value store, shared by every visitor and last-write-wins per key;
-        a page cannot reach another page's keys. Values are JSON, so a record
-        with public properties or a scalar round-trips and a value that cannot
-        be serialised throws. Keys are 1-200 characters, ordinal, with no
-        control characters. Reads and writes are awaited, and a write past a
-        cap throws when it is awaited. `TryGetValueAsync<T>` needs a type
-        argument: it returns `PageValue<T>`, whose `Found` is false when the
-        key is absent and true with a null `Value` when the stored value is
-        JSON null. Write a counter as `IPageStorage storage =
-        ctx.Capabilities.GetRequired<IPageStorage>(); PageValue<int> stored =
-        await storage.TryGetValueAsync<int>("visits")`. A `HEAD` render may
-        read but never write. Never start a storage write and leave the task
-        unawaited: that is a dropped write.
+        ## Page stores
+        `ctx.Stores` is the page's data, and it is not a capability: every
+        layer of a render is offered it, and a write during a `HEAD`, an
+        abandoned render or a passed deadline throws. There are two subjects.
+        `ctx.Stores.Page` is this page, shared by every visitor.
+        `ctx.Stores.Visitor` is the person reading. A write always uses the
+        layer's own key, so a page cannot write another page's data; a read is
+        open across pages, so `TryGetValueAsync<T>(pagePath, key)` shows what
+        another page left for it. Values are JSON, so a record with public
+        properties or a scalar round-trips and a value that cannot be
+        serialised throws. Keys are 1-200 characters, ordinal, with no control
+        characters. Reads and writes are awaited, and a write past a cap throws
+        when it is awaited. `PageValue<T>` has `Found` (false when the key is
+        absent), `Value` (null when the stored value is JSON null), `Lifetime`
+        and `Page`. A counter is `PageValue<int> stored =
+        await ctx.Stores.Page.Values.TryGetValueAsync<int>("visits")`.
+        Never start a write and leave the task unawaited: that is a dropped
+        write.
 
-        ## Page session
-        `ctx.Capabilities.GetRequired<IPageSession>()` is this visitor's own
-        key/value store, separate from `IPageStorage`: a storage value is shared
-        by everyone, a session value belongs to one browser and goes when it
-        signs out. Use it when a form answers with a `303` and the next render
-        has to say what happened. `TryGetValueAsync<T>(key)`, `SetAsync`,
-        `DeleteAsync` and `KeysAsync` use the page's own path, so a page cannot
-        write or delete another page's keys. `TryGetValueAsync<T>(pagePath, key)`
-        reads another page's key by path, and `AllKeysAsync()` lists
-        `PageSessionKey` pairs (`Page` and `Key`) for every page. Values are JSON
-        and keys follow the page-storage rule. The caps are per visitor: 8 keys
-        and 16 KiB anonymously, 32 keys and 64 KiB signed in, with 4 KiB or
-        16 KiB for one value; a write past a cap throws when it is awaited. A
-        `HEAD` render may read and never write, and a layout is read-only.
-        A session is minted on the first write; never write one on a `GET` if a
-        read would do.
+        ## Page lifetimes
+        A lifetime is a property of the entry, not of the store, and a read
+        answers the one it found. `SetAsync(key, value, StoreLifetime.X)`
+        writes one; without a lifetime the subject's default is used: `Page`
+        on the Page subject, `Person` on the Visitor subject.
+        `StoreLifetime.Page` dies when the page goes and is a Page subject's
+        default. `StoreLifetime.Person` dies when the account goes, or with an
+        anonymous session unless signing in adopted it, and is the Visitor
+        subject's default. `StoreLifetime.Session` dies when the session
+        rotates — signing in and out both. `StoreLifetime.Browser` dies when
+        this browser's cookie expires or is cleared: it survives signing in and
+        out, is never linked to an account, and is right for a device
+        preference. `StoreLifetime.NextRead` dies at the next successful
+        `TryTakeAsync` of that key, atomically, which is how a page leaves a
+        message for the page a redirect lands on. `StoreLifetime.Until(expiry)`
+        composes any of them with a clock. A Page subject cannot carry Person,
+        Session or Browser; a Visitor subject cannot carry Page. The caps are
+        per subject: 256 keys and 256 KiB on a page, 8 keys and 16 KiB for an
+        anonymous visitor or a browser, 32 keys and 64 KiB signed in. Signing
+        in adopts the anonymous session's Person and NextRead entries into the
+        account in one transaction, so a one-shot survives unread; Session
+        entries go with the rotation and Browser entries stay on the device.
+        Signing out deletes the session's Session entries. `KeysAsync()` lists
+        the page's entries and `AllKeysAsync()` every entry the visitor holds;
+        both take a `StoreFilter(lifetime, limit)` and consume nothing.
+        `ctx.Stores.For(key)` is the one escape and only for a live library or
+        worker: a library keeps its data under its own key and a page calls its
+        methods rather than naming its tables.
 
         ## Page store read
         `ctx.Capabilities.GetRequired<IPageCatalog>()` reads the site's page store
@@ -647,7 +661,7 @@ internal static class PageAuthorPrompt {
         allowed form instead of another member of it.
 
         The contract's own documentation is in the reference: `reference
-        type="IPageStorage"` for a type you can name, and `reference
+        type="IPageStores"` for a type you can name, and `reference
         query="cookie"` when you cannot. It answers the summary, remarks,
         signatures, parameters and returns the compiler documented, so prefer
         it to guessing a member name or an argument list. It covers the page

@@ -230,6 +230,7 @@ environment variable or a deployment's own settings file.
   | Compile attempts, SQLite retries | `PageRenderer`, `SqliteErrors` | Internal recovery behaviour: a different number is a different algorithm, not an operator preference |
   | Cleanup and sample periods | the background services | A shorter sweep only makes an expired row linger for less time, and the one period that is policy is already `Assistant:BalanceSampleSeconds` |
   | The reserved keys | `Shell/ShellCatalogue` | `shell-reserved-keys-are-an-invariant`: a shorter list lets a stored page shadow a route such as `/login`, so configuration could only weaken it |
+  | The subject prefixes and the lifetime numbers | `StoreSubjects`, `StoreLifetimeKind` | They are the stored form of every value: a prefix and a number are written on the row, so a changed one orphans what every page has already kept |
 
 Each subsystem documents its own keys: [pages](pages.md#page-execution-budget),
 [the shell](shell.md#authentication-and-the-editor), [storage](storage.md),

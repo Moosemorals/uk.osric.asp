@@ -31,7 +31,7 @@ public sealed class PageLayoutChainTests {
     private readonly RecordingCompiler _compiler = TestCompiler.Counting();
     private readonly FakePageFetcher _fetcher = new();
     private readonly FakePageReadStore _readStore = new();
-    private readonly FakePageStateStore _state = new();
+    private readonly FakeStoreValues _state = new();
     private readonly FakePageStore _storage = new();
     private readonly TestAntiforgery _antiforgery = new();
     private readonly PageMetrics _metrics = new();
@@ -797,7 +797,7 @@ public sealed class PageLayoutChainTests {
             TestOptions.Layout with { Default = DefaultLayout },
             options,
             TestContentTypes.Shipped,
-            TestOptions.Storage,
+            TestOptions.Stores,
             TestOptions.Fetch,
             read ?? TestOptions.Read,
             TestOptions.Scan(),
@@ -810,9 +810,9 @@ public sealed class PageLayoutChainTests {
             _antiforgery,
             new MarkdownRenderer(),
             new DiffRenderer(),
-            TestOptions.Session,
             new FakePageSessionStore(),
-            TestSessions.Cookie);
+            TestSessions.Cookie,
+            TestSessions.BrowserCookie);
 
         PageEditor? editor = withWrites ? new PageEditor(_storage, saver) : null;
         await PageEndpoint.HandleAsync(context, CreateRenderer(options), NullLoggerFactory.Instance, environment, editor);

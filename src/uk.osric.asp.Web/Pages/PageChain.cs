@@ -41,6 +41,7 @@ internal sealed class PageChain {
     private readonly IReadOnlyList<ShellLink> _shellLinks;
     private readonly PageRenderer.RenderSession _session;
     private readonly PageSessionRequest _sessionRequest;
+    private readonly PageReaderSubject _reader;
     private readonly PageUser? _user;
     private readonly PageJobAuthority? _jobAuthority;
     private readonly PageTransactionGate _writeGate = new();
@@ -60,6 +61,7 @@ internal sealed class PageChain {
     /// <see langword="null"/> when it presented none.
     /// </param>
     /// <param name="session">The visitor's session, resolved once by the endpoint.</param>
+    /// <param name="reader">The reader's subjects, resolved once by the endpoint.</param>
     /// <param name="isHead">Whether the request is a HEAD, which renders but never writes state.</param>
     /// <param name="bodyBudget">The allowance the whole render shares.</param>
     /// <param name="bodySink">Where a flushing content layer writes its response.</param>
@@ -88,6 +90,7 @@ internal sealed class PageChain {
         PageUser? user,
         PageJobAuthority? jobAuthority,
         PageSessionRequest session,
+        PageReaderSubject reader,
         bool isHead,
         BodyBudget bodyBudget,
         IPageBodySink bodySink,
@@ -118,6 +121,7 @@ internal sealed class PageChain {
         _logger = loggerFactory.CreateLogger(SimpleContext.PageCategory);
         _request = request;
         _sessionRequest = session;
+        _reader = reader;
         _user = user;
         _jobAuthority = jobAuthority;
         _isHead = isHead;
@@ -162,16 +166,26 @@ internal sealed class PageChain {
         ArgumentNullException.ThrowIfNull(budget);
         ArgumentNullException.ThrowIfNull(path);
 
-        PageStorageScope storage = new(key, _environment.StateStore, _environment.Storage, writable: !_isHead);
+        // The stores are the layer's own: Page is bound to its key, Visitor to the request's reader.
+        // A layout gets the same handle and the verbs refuse its HEADs; the old adapters keep their
+        // old exclusion for one release so an unedited page behaves exactly as it did.
         PageCommitState commit = new();
-        PageSessionScope session = new(
+        PageStoresScope stores = new(
             key,
+            _reader,
+            _environment.StoreValues,
             _environment.SessionStore,
-            _environment.Sessions,
-            _sessionRequest,
-            writable: !_isHead && role != PageLayerRole.Layout,
+            _environment.Stores,
+            _environment.ReadStore,
+            writable: !_isHead,
+            commit);
+#pragma warning disable CS0618 // The obsolete adapters keep the old spelling for one release.
+        PageStorageScope storage = new(stores.PageValues);
+        PageSessionScope session = new(stores.VisitorValues.RestrictedTo(
+            StoreLifetimeKind.Session,
             slides: !_isHead,
-            commit: commit);
+            writable: !_isHead && role != PageLayerRole.Layout));
+#pragma warning restore CS0618
         PageHttpFetch fetch = new(
             key,
             _isHead,
@@ -201,6 +215,7 @@ internal sealed class PageChain {
         SimpleResponse? response = null;
         PageCompositionScope compositor = new(this, composition, request, path, depth, key, () => response!);
 
+#pragma warning disable CS0618 // The obsolete adapters keep the old spelling for one release.
         PageCapabilities capabilities = new PageCapabilities()
             .Add<IBuildInfo>(BuildInfo.Current)
             .Add<IPageStorage>(storage)
@@ -211,6 +226,7 @@ internal sealed class PageChain {
             .Add<IMarkdownRenderer>(_environment.Markdown)
             .Add<IDiffRenderer>(_environment.Diff)
             .Add<IPageComposition>(compositor);
+#pragma warning restore CS0618
 
         // A check spends a compile, which is a shared resource, so only a render with a signed-in
         // visitor is offered it. It writes nothing, so it is not a layout's one-action exception.
@@ -242,6 +258,7 @@ internal sealed class PageChain {
             _aborted,
             new StringWriter(),
             capabilities,
+            stores,
             _environment.ContentTypes,
             _environment.Render.MaxBodyChars,
             _environment.Editor.Key,

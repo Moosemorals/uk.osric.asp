@@ -15,9 +15,9 @@ internal sealed class ImportHarness : IDisposable {
     public ImportHarness(
         IPageCompiler? compiler = null,
         ArchiveOptions? options = null,
-        PageStorageOptions? storage = null) {
+        PageStoresOptions? stores = null) {
         Options = options ?? TestOptions.Archive;
-        Storage = storage ?? TestOptions.Storage;
+        Stores = stores ?? TestOptions.Stores;
         Compiler = new RecordingCompiler(compiler ?? TestCompiler.Real);
         Metrics = new PageMetrics();
 
@@ -30,12 +30,12 @@ internal sealed class ImportHarness : IDisposable {
             Images, Batches, new PageLibraries(ReadStore), Metrics, Options, NullLogger<ImportProcessor>.Instance);
         Stages = new ImportStageStore(Options, Clock);
         Queue = new ImportQueue(Options);
-        Reader = new PageArchiveReader(Options, Storage, Reserved, NullLogger<PageArchiveReader>.Instance);
+        Reader = new PageArchiveReader(Options, Stores, Reserved, NullLogger<PageArchiveReader>.Instance);
     }
 
     public ArchiveOptions Options { get; }
 
-    public PageStorageOptions Storage { get; }
+    public PageStoresOptions Stores { get; }
 
     public RecordingCompiler Compiler { get; }
 
@@ -48,7 +48,7 @@ internal sealed class ImportHarness : IDisposable {
 
     public FakePageStore Pages { get; } = new();
 
-    public FakePageStateStore State { get; } = new();
+    public FakeStoreValues State { get; } = new();
 
     public FakeBatchStore Batches { get; } = new();
 

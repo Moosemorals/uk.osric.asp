@@ -15,16 +15,11 @@ namespace Site.Editor {
     /// visitor is allowed to have - only what to send them.
     /// </para>
     /// <para>
-    /// The answer lives in the session of <see cref="TogglePath"/>, because a page may write
-    /// only its own session keys: the page that owns the key is the page that changes it, and
-    /// this class only reads. Absent means <see cref="Vim"/>, so a first visit is a vim editor
-    /// and nothing is written until the visitor says otherwise.
-    /// </para>
-    /// <para>
-    /// A session is not a cookie that outlives a sign-out: it lasts 30 minutes without a visit,
-    /// or 8 hours signed in, and is cleared when the visitor signs out. That is a place to keep
-    /// the answer until the host offers one that belongs to the browser, and the only thing that
-    /// has to change then is <see cref="EnabledAsync"/> and the page that writes the key.
+    /// The answer is a <c>Browser</c> value: it belongs to the device, survives signing in and
+    /// out, and is never linked to an account. A page may write only its own page's values, so
+    /// the page that owns the key is the page that changes it, and this class only reads.
+    /// Absent means <see cref="Vim"/>, so a first visit is a vim editor and nothing is written
+    /// until the visitor says otherwise.
     /// </para>
     /// </remarks>
     public static class Editor {
@@ -32,7 +27,7 @@ namespace Site.Editor {
         /// <summary>The page that owns the stored answer and the form that changes it.</summary>
         public const string TogglePath = "/editor-mode";
 
-        /// <summary>The key <see cref="TogglePath"/> writes, in its own session.</summary>
+        /// <summary>The key <see cref="TogglePath"/> writes, as a browser value.</summary>
         public const string Key = "vim";
 
         /// <summary>The stored value that means a plain textarea.</summary>
@@ -62,11 +57,11 @@ namespace Site.Editor {
         public static async Task<bool> EnabledAsync(IContext ctx) {
             ArgumentNullException.ThrowIfNull(ctx);
 
-            IPageSession session = ctx.Capabilities.GetRequired<IPageSession>();
             // Read across pages: this page may only write its own keys, and the key is the
-            // toggle page's. A read mints no session, so a visitor who has never chosen costs
-            // one lookup and no cookie.
-            PageValue<string> stored = await session.TryGetValueAsync<string>(TogglePath, Key);
+            // toggle page's. A read mints no cookie, so a visitor who has never chosen costs
+            // one lookup and nothing else.
+            PageValue<string> stored = await ctx.Stores.Visitor.Values.TryGetValueAsync<string>(
+                TogglePath, Key);
 
             // A missing key and a stored null both mean "has not chosen", which is the default
             // rather than plain: the site's answer is a vim editor.
@@ -93,7 +88,7 @@ namespace Site.Editor {
         /// <param name="vim">Is this render a vim editor?</param>
         /// <remarks>
         /// A link and not a form, because the write belongs to <see cref="TogglePath"/> and a page
-        /// cannot post to another page's session. So it is a hop: this link opens the toggle page,
+        /// cannot write another page's values. So it is a hop: this link opens the toggle page,
         /// which asks once and sends the visitor back to <see cref="ToggleHref"/>'s path.
         /// </remarks>
         public static void Toggle(IContext ctx, bool vim) {

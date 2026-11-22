@@ -145,8 +145,19 @@ internal sealed class PageJobRunner(
     };
 
     private WorkerContext Context(PageJob job, PageEditor editor, CancellationToken token) {
-        PageStorageScope storage = new(
-            job.Page, environment.State, environment.Storage, writable: true);
+        // A job has no session and no browser: its Visitor subject is the starter's account, and only
+        // Person (and NextRead) lifetimes are allowed. For(workerKey) is the worker's own namespace.
+        PageReaderSubject reader = PageReaderSubject.ForJob(environment.Stores.Visitor, job.Owner.Name);
+        PageStoresScope stores = new(
+            job.Page,
+            reader,
+            environment.StoreValues,
+            environment.SessionStore,
+            environment.Stores,
+            environment.ReadStore,
+            writable: true,
+            commit: null);
+        stores.AttachDeadline(token);
         PageHttpFetch fetch = new(
             job.Worker,
             isHead: false,
@@ -185,17 +196,19 @@ internal sealed class PageJobRunner(
             job.Lifetime.ReArm);
         writes.AttachDeadline(token);
 
+#pragma warning disable CS0618 // The obsolete adapter keeps a worker that has not been edited running.
         PageCapabilities capabilities = new PageCapabilities()
-            .Add<IPageStorage>(storage)
+            .Add<IPageStorage>(new PageStorageScope(stores.PageValues))
             .Add<IHttpFetch>(fetch)
             .Add<IPageCatalog>(catalog)
             .Add<IPageJobs>(jobScope)
             .Add<IPageWrites>(writes);
+#pragma warning restore CS0618
 
         // A job is one lifetime, so its capabilities stop when it does rather than when a render ends.
         capabilities.AttachDeadline(token);
 
-        return new WorkerContext(job, capabilities, environment.Jobs, logger);
+        return new WorkerContext(job, capabilities, stores, environment.Jobs, logger);
     }
 
     // The stored image is used when the template, the build and the libraries it named are unchanged;

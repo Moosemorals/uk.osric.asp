@@ -26,7 +26,7 @@ public sealed class PageEndpointTests {
 
     private static readonly ReservedPaths Reserved = new(ReservedPaths.Default);
     private static readonly RenderOptions Options = TestOptions.Render;
-    private static readonly PageStorageOptions StorageOptions = TestOptions.Storage;
+    private static readonly PageStoresOptions StoresOptions = TestOptions.Stores;
     private static readonly PageFetchOptions FetchOptions = TestOptions.Fetch;
     private static readonly PageLayoutOptions NoLayout = TestOptions.Layout with { Default = null };
     private readonly RecordingCompiler _compiler = TestCompiler.Counting();
@@ -48,11 +48,11 @@ public sealed class PageEndpointTests {
             layout ?? NoLayout,
             render ?? Options,
             contentTypes ?? TestContentTypes.Shipped,
-            StorageOptions,
+            StoresOptions,
             FetchOptions,
             TestOptions.Read,
             TestOptions.Scan(),
-            new FakePageStateStore(),
+            new FakeStoreValues(),
             new FakePageReadStore(),
             TestOptions.Seeds,
             Saver(render ?? Options),
@@ -61,9 +61,9 @@ public sealed class PageEndpointTests {
             _antiforgery,
             new MarkdownRenderer(),
             new DiffRenderer(),
-            TestOptions.Session,
             new FakePageSessionStore(),
-            TestSessions.Cookie);
+            TestSessions.Cookie,
+            TestSessions.BrowserCookie);
     }
 
     [TestCase(null, "/", "/")]

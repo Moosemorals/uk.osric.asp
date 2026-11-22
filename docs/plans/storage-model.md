@@ -7,7 +7,7 @@ SPDX-License-Identifier: MIT
 
 | | |
 | --- | --- |
-| Status | Agreed 2026-11-21 — the owner said yes — and revised against trunk 2026-11-22, after the page search, the reference corpus, the slow test half and the documentation index landed. Slice 0, the sandbox spike, is written on `plan/storage-model`; slice 1 is next and nothing else is built |
+| Status | Agreed 2026-11-21 — the owner said yes — and revised against trunk 2026-11-22, after the page search, the reference corpus, the slow test half and the documentation index landed. Slice 0, the sandbox spike, and slice 1, values, lifetimes and identity, are written on `plan/storage-model`; slice 1 waits for the owner's review and nothing of slice 2 is built |
 | Size | Large as a programme, small as a step: a spike, five slices and the release that closes the window, each its own branch and its own stop. The values slice is the floor; the record slice is the risk |
 | First customer | The two plans this supersedes: the assistant's transcript (a Record for the signed-in visitor) and the redirect flash (a `NextRead` value). Editor mode is the first `Browser` value, and `/help`'s counter is the first Page value |
 | Spike | Slice 0: [the record sandbox](../spikes/store-sandbox.md), written before anything was built. Six of the sandbox section's details were corrected by what it measured |
@@ -881,12 +881,12 @@ record sandbox says of itself.
 
 Each slice is one branch, one step through the gate and one stop for the owner. The programme merges
 phase by phase, so a regression is bisectable and its branch goes when its last slice is in. The
-owner said yes to this plan on 2026-11-21. Slice 0 is [written](../spikes/store-sandbox.md); slice 1 is
-next.
+owner said yes to this plan on 2026-11-21. Slice 0 is [written](../spikes/store-sandbox.md) and slice 1
+is written on this branch, waiting for the owner's review.
 
-0. **The sandbox spike** (`S`, docs only). A scratch console over the real SQLite build: an unpooled
-   connection, a `TEMP VIEW` per table with a literal subject and an `INSTEAD OF` trigger,
-   `sqlite3_set_authorizer` through `SQLitePCL.raw` with the view-and-trigger allowance, a two-view join
+0. **The sandbox spike** (`S`, docs only) — **written**. A scratch console over the real SQLite
+   build: an unpooled connection, a `TEMP VIEW` per table with a literal subject and an `INSTEAD OF`
+   trigger, `sqlite3_set_authorizer` through `SQLitePCL.raw` with the view-and-trigger allowance, a two-view join
    and an aggregate through it, a `RAISE(ABORT)` at a cap, the result caps, `SQLITE_LIMIT_ATTACHED = 0`,
    `trusted_schema = OFF`, `SQLITE_DBCONFIG_DEFENSIVE`, a statement interrupt, and the refusals a
    `PRAGMA`, a `CREATE`, a `sqlite_master` read, a `load_extension` and a `pragma_table_info` call each
@@ -900,8 +900,9 @@ next.
    where a tokenizer would have to guess; `ATTACH`, `PRAGMA`, a second statement and `sqlite_master`
    are refused; the interrupt ends a long statement; the real table cannot be named from the view's SQL,
    and naming `Id` in a write is refused.
-1. **Values, lifetimes and identity** (`L`). `IPageStores`, `IPageSubject`, `IPageVisitorSubject`,
-   `IValueStore`, `StoreLifetime`, `StoreFilter`, `StoreEntry`, `PageValue`'s lifetime and page; the
+1. **Values, lifetimes and identity** (`L`) — **written**. `IPageStores`, `IPageSubject`,
+   `IPageVisitorSubject`, `IValueStore`, `StoreLifetime`, `StoreFilter`, `StoreEntry`, `PageValue`'s
+   lifetime and page; the
    `StoreValues` migration that copies `PageState` and `PageSessionValues`; the `PageStoresScope` and
    its internal seam; `PageChain` and `PageJobRunner`; the `b` cookie and `ShellCookies`; adoption at
    sign-in and the signed-in identity's lifetime; delete, move, scrub, `users remove` and the sweep;
@@ -977,7 +978,7 @@ separate worktrees. Slice 5 waits for them.
 | `src/uk.osric.asp.Sdk/` | `IPageStores`, `IPageSubject`, `IPageVisitorSubject`, `IValueStore`, `IRecordStore`, `IPageRecordTransaction`, `IMessageStore`, `IObjectStore`, `StoreLifetime`, `StoreLifetimeKind`, `StoreFilter`, `StoreEntry`, `StoreSubject`, `PageTableAttribute`, `PageRow`, `PageRecordResult`, `PageRecordOutcome`, `PageParameters`, `PageObject`, `PageObjectRef`, `PageTopic`, `PageMessage`, `PageMessageRead`, `PageMessagePostResult`, `PageMessageRefusal`, `PageValue`'s two new properties, `IContext.Stores`, the obsolete marks on the two old interfaces; `PublicAPI.Unshipped.txt` |
 | `src/uk.osric.asp.Core/` | `PageSchema` and its validation, the single-statement rule, the content-type allow-list, the SHA-256 rule |
 | `src/uk.osric.asp.Runtime/` | Declaration extraction on the compile, `CompileResult.Schema`, `PAGE011` and `PAGE012` |
-| `src/uk.osric.asp.Web/Pages/` | `PageStoresScope` (new, in the shape `PageCatalogScope` already has), `PageStoresOptions`, `PageStoresCaps`, the internal store seams, `PageChain.CreateLayer`, `PageStorageOptions`'s retirement, `PageStorageScope` and `PageSessionScope` as adapters, `PageSessionResolver` (the reader's subject), `PageSessionRequest`, `PageSessionOptions`'s retirement, the sweep; `PageCatalogScope`, `IPageReadStore` and `PageWritesScope` untouched |
+| `src/uk.osric.asp.Web/Pages/` | `PageStoresScope` (new, in the shape `PageCatalogScope` already has), `PageStoresOptions`, `PageStoreCaps`, the internal store seams, `PageChain.CreateLayer`, `PageStorageOptions`'s retirement, `PageStorageScope` and `PageSessionScope` as adapters, `PageSessionResolver` (the reader's subject), `PageSessionRequest`, `PageSessionOptions`'s retirement, the sweep; `PageCatalogScope`, `IPageReadStore` and `PageWritesScope` untouched |
 | `src/uk.osric.asp.Web/Storage/` | `StoreValues`, `StoreMessages`, `StoreObjects`, `DeclaredTables`, the migration pair, the DDL and view generation, `PageStorageSampler`'s payload |
 | `src/uk.osric.asp.Web/Authentication/` | The `b` cookie, its ticket in `PageSessionCookie`, `PageSessionCookie.RotateAsync`'s adoption transaction, `LoginEndpoint` |
 | `src/uk.osric.asp.Web/Http/` | `ShellCookies`' `b` constant and its `IsOwned` rule, which is what keeps the cookie out of `PageRequestSnapshot` |
@@ -991,8 +992,10 @@ separate worktrees. Slice 5 waits for them.
 
 ## Tests
 
-- **`Core.Tests`** for the lifetime values and their composition, the filter, the single-statement
-  rule, the schema value and its validation, and the content-type rule: values, no database.
+- **`Core.Tests`** for the single-statement rule, the schema value and its validation, and the
+  content-type rule: values, no database. The lifetime, its composition and the filter are `Sdk`
+  types, and `Sdk` has no suite of its own, so `Web.Tests` proves them beside the store that enforces
+  them.
 - **`Runtime.Tests`** for the declaration extraction and its diagnostics, beside the shape check: a
   page declaration, a library declaration, a worker declaration, an unsupported type, a `NextRead`
   table, a column over its cap.

@@ -15,6 +15,7 @@ using uk.osric.asp.Web.Pages;
 internal sealed class WorkerContext(
     PageJob job,
     PageCapabilities capabilities,
+    IPageStores stores,
     PageJobOptions options,
     ILogger logger) : IWorkerContext {
 
@@ -38,6 +39,9 @@ internal sealed class WorkerContext(
 
     /// <inheritdoc/>
     public IPageCapabilities Capabilities => capabilities;
+
+    /// <inheritdoc/>
+    public IPageStores Stores => stores;
 
     /// <inheritdoc/>
     public void Log(string message) => logger.LogInformation("{Message}", message);

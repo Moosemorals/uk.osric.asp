@@ -66,9 +66,10 @@ internal sealed class PageStorageSampler(
         long payload = Convert.ToInt64(await command.ExecuteScalarAsync(cancellationToken), CultureInfo.InvariantCulture);
         command.CommandText = """
             SELECT COALESCE(SUM(
-                length(CAST(PagePath AS BLOB)) + length(CAST(Key AS BLOB)) +
-                length(CAST(Value AS BLOB)) + length(CAST(UpdatedAt AS BLOB))), 0)
-            FROM PageState;
+                length(CAST(Subject AS BLOB)) + length(CAST(PageKey AS BLOB)) +
+                length(CAST(Key AS BLOB)) + length(CAST(Value AS BLOB)) +
+                length(CAST(UpdatedAt AS BLOB)) + COALESCE(length(CAST(ExpiresAt AS BLOB)), 0)), 0)
+            FROM StoreValues;
             """;
         payload += Convert.ToInt64(await command.ExecuteScalarAsync(cancellationToken), CultureInfo.InvariantCulture);
         command.CommandText = "PRAGMA page_count";

@@ -78,17 +78,18 @@ internal static class PageSessionCookie {
         context.Response.Cookies.Delete(options.Name, CookieOptionsFor(context, options));
     }
 
-    /// <summary>Discards the visitor's session and mints one that belongs to an account.</summary>
+    /// <summary>Adopts the visitor's person data into the account and mints the account's session.</summary>
     /// <param name="context">The request being answered.</param>
-    /// <param name="store">Where the session row lives.</param>
+    /// <param name="store">Where the session row and its subjects live.</param>
     /// <param name="options">The cookie's name and secure policy.</param>
     /// <param name="account">The normalised account name that now owns the session.</param>
     /// <param name="cancellationToken">Cancels the work.</param>
     /// <returns>Whether the new session was minted and its cookie written.</returns>
     /// <remarks>
-    /// A sign-in rotates rather than adopts: the pre-existing row is deleted so the account cannot
-    /// inherit what an anonymous visitor (or a previous account) left behind. A site with no room
-    /// for another session leaves the visitor signed in without per-visitor state.
+    /// The anonymous session's <c>Person</c> and <c>NextRead</c> entries are re-keyed into the account
+    /// in one transaction, so a one-shot survives sign-in unread; its <c>Session</c> entries go with
+    /// the rotation, and its <c>Browser</c> entries are untouched because they belong to the device.
+    /// A site with no room for another session leaves the visitor signed in without per-visitor state.
     /// </remarks>
     public static async Task<bool> RotateAsync(
         HttpContext context,
@@ -101,12 +102,8 @@ internal static class PageSessionCookie {
         ArgumentNullException.ThrowIfNull(options);
         ArgumentException.ThrowIfNullOrWhiteSpace(account);
 
-        if (Read(context, options) is { } previous) {
-            _ = await store.DeleteAsync(previous, cancellationToken);
-        }
-
         string sessionId = Mint();
-        if (!await store.EnsureAsync(sessionId, account, cancellationToken)) {
+        if (!await store.AdoptAsync(Read(context, options), account, sessionId, cancellationToken)) {
             return false;
         }
 

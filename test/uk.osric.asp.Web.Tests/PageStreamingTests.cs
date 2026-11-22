@@ -27,7 +27,7 @@ public sealed class PageStreamingTests {
     private readonly RecordingCompiler _compiler = TestCompiler.Counting();
     private readonly FakePageFetcher _fetcher = new();
     private readonly FakePageReadStore _readStore = new();
-    private readonly FakePageStateStore _state = new();
+    private readonly FakeStoreValues _state = new();
     private readonly FakePageStore _storage = new();
     private readonly TestAntiforgery _antiforgery = new();
     private readonly PageMetrics _metrics = new();
@@ -432,7 +432,7 @@ public sealed class PageStreamingTests {
             TestOptions.Layout with { Default = layout },
             render,
             TestContentTypes.Shipped,
-            TestOptions.Storage,
+            TestOptions.Stores,
             TestOptions.Fetch,
             TestOptions.Read,
             TestOptions.Scan(),
@@ -445,9 +445,9 @@ public sealed class PageStreamingTests {
             _antiforgery,
             new MarkdownRenderer(),
             new DiffRenderer(),
-            TestOptions.Session,
             new FakePageSessionStore(),
-            TestSessions.Cookie);
+            TestSessions.Cookie,
+            TestSessions.BrowserCookie);
 
         ILoggerFactory factory = logs is null ? NullLoggerFactory.Instance : logs;
 

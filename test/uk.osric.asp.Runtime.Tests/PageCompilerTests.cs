@@ -200,10 +200,22 @@ public sealed class PageCompilerTests {
 
     [Test]
     public void APageThatSaysCapabilitiesCompilesWithoutWarnings() {
-        CompileResult result = Compile("<% ctx.Capabilities.Get<IPageStorage>(); %>");
+        CompileResult result = Compile("<% ctx.Capabilities.Get<IBuildInfo>(); %>");
 
         Assert.That(result.IsSuccess, Is.True, string.Join(Environment.NewLine, result.Diagnostics));
         Assert.That(result.Diagnostics, Is.Empty, string.Join(Environment.NewLine, result.Diagnostics));
+    }
+
+    // The two old stores are obsolete rather than gone: a page that still says them compiles while the
+    // window is open, and says which member replaces it.
+    [Test]
+    public void APageThatSaysTheOldStorageSpellingWarnsAndStillCompiles() {
+        CompileResult result = Compile("<% ctx.Capabilities.Get<IPageStorage>(); %>");
+
+        Assert.That(result.IsSuccess, Is.True, string.Join(Environment.NewLine, result.Diagnostics));
+        Assert.That(result.Diagnostics, Has.Exactly(1).Matches<PageDiagnostic>(
+            diagnostic => diagnostic is not null
+                && diagnostic.Message.Contains("ctx.Stores.Page.Values", StringComparison.Ordinal)));
     }
 
     [Test]
@@ -562,6 +574,9 @@ public sealed class PageCompilerTests {
         public CancellationToken Aborted => CancellationToken.None;
 
         public IPageResponse Response => this;
+
+        public IPageStores Stores =>
+            throw new NotSupportedException("This runtime fixture never reaches a store.");
 
         public string Output => _output.ToString();
 

@@ -3,9 +3,6 @@
 
 namespace uk.osric.asp.Web.Pages;
 
-using System.Text;
-using System.Text.Json;
-using uk.osric.asp.Core.Text;
 using uk.osric.asp.Sdk;
 using uk.osric.asp.Web.Authentication;
 
@@ -19,8 +16,6 @@ using uk.osric.asp.Web.Authentication;
 // there is nothing to dispose: the class is not IDisposable for a field that would be a no-op.
 #pragma warning disable CA1001
 internal sealed class PageSessionRequest(string id, string? account, bool presented, bool exists) {
-
-    private static readonly JsonSerializerOptions s_jsonOptions = new(JsonSerialization.Options);
 
     private readonly SemaphoreSlim _gate = new(1, 1);
     private bool _touched;
@@ -94,68 +89,6 @@ internal sealed class PageSessionRequest(string id, string? account, bool presen
         }
     }
 
-    /// <summary>Reads a string the shell wrote.</summary>
-    /// <param name="store">Where the value lives.</param>
-    /// <param name="pagePath">The canonical page key the value belongs to.</param>
-    /// <param name="key">The key to read.</param>
-    /// <param name="cancellationToken">Cancels the read.</param>
-    /// <returns>The stored string, or <see langword="null"/> when the key is absent.</returns>
-    public async Task<string?> GetStringAsync(
-        IPageSessionStore store,
-        string pagePath,
-        string key,
-        CancellationToken cancellationToken) {
-        ArgumentNullException.ThrowIfNull(store);
-
-        string? json = await store.GetValueAsync(Id, pagePath, key, cancellationToken);
-
-        return json is null ? null : JsonSerializer.Deserialize<string>(json, s_jsonOptions);
-    }
-
-    /// <summary>Writes a value for the shell's own use, minting the session when it does not exist.</summary>
-    /// <param name="store">Where the value lives.</param>
-    /// <param name="options">The caps the session obeys.</param>
-    /// <param name="pagePath">The canonical page key the value belongs to.</param>
-    /// <param name="key">The key to write.</param>
-    /// <param name="text">The text to store.</param>
-    /// <param name="cancellationToken">Cancels the write.</param>
-    public async Task SetTextAsync(
-        IPageSessionStore store,
-        PageSessionOptions options,
-        string pagePath,
-        string key,
-        string text,
-        CancellationToken cancellationToken) {
-        ArgumentNullException.ThrowIfNull(store);
-        ArgumentNullException.ThrowIfNull(options);
-
-        PageStateKey.Validate(key, options.MaxKeyChars);
-
-        string json = JsonSerializer.Serialize(text, s_jsonOptions);
-        PageSessionCaps caps = options.For(Account);
-        if (Encoding.UTF8.GetByteCount(json) > caps.MaxValueBytes) {
-            throw new ArgumentException($"The value for {key} is larger than the {caps.MaxValueBytes} byte limit.", nameof(text));
-        }
-
-        await EnsureAsync(store, cancellationToken);
-        await store.SetValueAsync(Id, pagePath, key, json, caps, cancellationToken);
-    }
-
-    /// <summary>Removes a value the shell wrote.</summary>
-    /// <param name="store">Where the value lives.</param>
-    /// <param name="pagePath">The canonical page key the value belongs to.</param>
-    /// <param name="key">The key to remove.</param>
-    /// <param name="cancellationToken">Cancels the write.</param>
-    /// <returns>Whether the key existed.</returns>
-    public Task<bool> DeleteTextAsync(
-        IPageSessionStore store,
-        string pagePath,
-        string key,
-        CancellationToken cancellationToken) {
-        ArgumentNullException.ThrowIfNull(store);
-
-        return store.DeleteValueAsync(Id, pagePath, key, cancellationToken);
-    }
 }
 
 /// <summary>Resolves the request's session once, before any layer sees it.</summary>

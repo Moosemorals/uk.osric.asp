@@ -52,22 +52,13 @@ pure renderers, and one that is a fact about the build:
 - `IBuildInfo` says which build is answering: `Commit` is the full git commit hash, or `null` when
   the build did not come from a checkout. It is a capability because the page API denies both the
   assembly and the environment, and the seeded `/about` page links the commit.
-- `IPageStorage` is the page's own key/value store. It is bound to the page's key, so a page cannot
-  name another page's state; the handle is the isolation. Values are JSON round-tripped by the
-  host, keys are ordinal, and writes are last-write-wins. A `HEAD` render may read but never write
-  (`pages-page-storage`).
-- `IPageSession` is one visitor's key/value store, separate from `IPageStorage`: a page session
-  value belongs to the browser that wrote it, is bounded per visitor, and goes when the visitor
-  signs out. `TryGetValueAsync<T>(key)` reads the caller's own key and
-  `TryGetValueAsync<T>(pagePath, key)` reads another page's by path, which is how a page shows what
-  another page left for it. `SetAsync`, `DeleteAsync` and `KeysAsync` are bound to the caller's
-  path, so a page cannot write, delete or list another page's keys; `AllKeysAsync` returns
-  `PageSessionKey` (`Page` and `Key`) pairs because a bare key cannot be read. Values are JSON like
-  page storage, keys follow the same rule, and the caps are per session (8 keys and 16 KiB
-  anonymously, 32 keys and 64 KiB signed in). A session is minted on the first write, lives in an
-  `HttpOnly` cookie the shell owns, slides for 30 minutes (8 hours signed in) and is cleared on
-  sign-out. A `HEAD` render and a layout may read and not write. The identity, the ownership rule
-  and the caps are `pages-the-session`; see [storage](storage.md#page-sessions).
+- `IPageStorage` and `IPageSession` are the two value stores of the release before this one, and
+  both are obsolete adapters over [the page's data](#page-data): `IPageStorage` is
+  `ctx.Stores.Page.Values` read and written under the page's own lifetime, and `IPageSession` is
+  `ctx.Stores.Visitor.Values` restricted to the session lifetime, so a page that has not been edited
+  and one that has read and write the same rows instead of two stores that drift. Their identity, the
+  ownership rule and the caps are `pages-page-storage` and `pages-the-session`. They go at the end of
+  the release, and a page that used them reports a compile error until it is edited.
 - `IHttpFetch` makes one outbound HTTP request from the host, not the browser, to any `http` or
   `https` host the URL names: there is no host allow-list (`pages-outbound-fetch`). Every request carries
   `moosemorals.com (page) fetchmoose@fluffypeople.com` as its `User-Agent`, set by the host after the
@@ -230,6 +221,33 @@ pure renderers, and one that is a fact about the build:
   sideways scroll container; an unchanged pair says so, and a comparison too different to align
   says why. A page compares two revisions by reading both with `IPageCatalog.ReadRevisionAsync`
   (`pages-diff`).
+
+### Page data
+
+`ctx.Stores` is a member of the contract rather than a capability, because every page has it: a page's
+data is not one of the things a render may or may not offer. It has two subjects and a handle for the
+page's own keys:
+
+- `ctx.Stores.Page` is the page itself, shared by every visitor, bound to the layer's own key.
+- `ctx.Stores.Visitor` is the person reading, resolved by the shell once per request from the session,
+  the browser and the signed-in account.
+- `ctx.Stores.For(key)` is a live library's or worker's namespace, for the library to hand out and a page
+  to reach only through that library's methods.
+
+Each subject carries the shapes it has — `Values` today, and the record, message and object shapes as
+their slices land — and a shape a subject does not have is absent from the type rather than a runtime
+surprise. `Values` is a JSON key/value store: `TryGetValueAsync<T>(key)` reads the bound page's key,
+`TryGetValueAsync<T>(pageKey, key)` reads what another page left, `TryTakeAsync<T>(key)` consumes a
+one-shot, `SetAsync` and `DeleteAsync` write and remove, and `KeysAsync`/`AllKeysAsync` list without
+consuming. A read answers the lifetime the entry carries and the page that wrote it.
+
+A handle is bound to the writer's key, so a page cannot write, delete or list another page's keys —
+the write names no path — while reading another page's value is one call. Every value carries a
+lifetime: `Page`, `Person`, `Session`, `Browser` or `NextRead`, optionally with an expiry. A write
+without one takes the subject's own, a lifetime the subject cannot carry throws, and a `HEAD` render,
+an abandoned render and a passed deadline are refused every write. The caps are per subject instance
+and are enforced in the statement that writes. [Storage](storage.md#values) has the table, the
+subjects, the lifetimes and the caps; `/help` is the author's manual.
 
 A page's log entries are filed under the single `uk.osric.asp.Pages` category with the page's key on
 a `Path` scope, and `SimpleContext` is where that enters the shell, so `Core` never names a logging

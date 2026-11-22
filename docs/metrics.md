@@ -30,7 +30,7 @@ the other half of the same question and live in [logging](logging.md).
 | `page.layout.fallback` | counter | — | `page.path` — pages served without the default layout because it could not be served |
 | `page.composition.recursive` | counter | — | `page.path` — pages composed inside themselves with a different request, which the depth cap bounds |
 | `page.asset.requests` | counter | — | `outcome` (`served`, `not-modified`, `unknown`, `non-asset`) — no path label; the access log names the URL |
-| `page.storage.payload.size` | observable gauge | By | — logical UTF-8 bytes for every revision text column plus image/symbol blobs, and the `PageState` key and value bytes; excludes indexes and SQLite overhead |
+| `page.storage.payload.size` | observable gauge | By | — logical UTF-8 bytes for every revision text column plus image/symbol blobs, and the `StoreValues` subject, page key, key, value, timestamp and expiry bytes; excludes indexes and SQLite overhead |
 | `page.storage.database.size` | observable gauge | By | — whole database `page_count * page_size`, including indexes and freelist pages; excludes the separate WAL |
 | `page.storage.volume.capacity` | observable gauge | By | — total capacity of the filesystem volume containing the database |
 | `page.cache.lookups` | counter | — | `result` (`hit`, `stale`, `absent`) |

@@ -11,6 +11,8 @@ namespace uk.osric.asp.Web.Pages;
 /// </remarks>
 internal sealed class PageSessionCleanupService(
     IPageSessionStore sessions,
+    IStoreValues values,
+    PageStoresOptions stores,
     ILogger<PageSessionCleanupService> logger) : BackgroundService {
 
     private static readonly TimeSpan Period = TimeSpan.FromMinutes(5);
@@ -21,10 +23,13 @@ internal sealed class PageSessionCleanupService(
         while (await timer.WaitForNextTickAsync(stoppingToken)) {
             try {
                 PageSessionSweep sweep = await sessions.RemoveExpiredAsync(stoppingToken);
-                if (sweep.Expired > 0 || sweep.AnonymousEvicted > 0 || sweep.SignedInEvicted > 0) {
+                int valueRows = await values.RemoveExpiredAsync(
+                    TimeSpan.FromDays(stores.Visitor.BrowserLifetimeDays), stoppingToken);
+
+                if (sweep.Expired > 0 || sweep.AnonymousEvicted > 0 || sweep.SignedInEvicted > 0 || valueRows > 0) {
                     logger.LogInformation(
-                        "Removed {Expired} expired page sessions and evicted {Anonymous} anonymous and {SignedIn} signed-in sessions",
-                        sweep.Expired, sweep.AnonymousEvicted, sweep.SignedInEvicted);
+                        "Removed {Expired} expired page sessions, evicted {Anonymous} anonymous and {SignedIn} signed-in sessions, and removed {Values} expired or stale values",
+                        sweep.Expired, sweep.AnonymousEvicted, sweep.SignedInEvicted, valueRows);
                 }
             } catch (Exception exception) {
                 logger.LogWarning(exception, "Could not sweep page sessions.");

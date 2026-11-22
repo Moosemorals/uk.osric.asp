@@ -114,7 +114,7 @@ public sealed class PageArchiveReaderTests {
             [("/about", "About")],
             [("/about", new string('k', 24), "1")]);
 
-        AssertRejected(Reader(storage: TestOptions.Storage with { MaxKeyChars = 16 }).Read(bytes), "state key");
+        AssertRejected(Reader(stores: TestOptions.Stores with { MaxKeyChars = 16 }).Read(bytes), "state key");
     }
 
     [Test]
@@ -123,7 +123,7 @@ public sealed class PageArchiveReaderTests {
             [("/about", "About")],
             [("/about", "visits", $"\"{new string('v', 64)}\"")]);
 
-        AssertRejected(Reader(storage: TestOptions.Storage with { MaxValueBytes = 16 }).Read(bytes), "state value");
+        AssertRejected(Reader(stores: TestOptions.Stores with { Page = TestOptions.Stores.Page with { MaxValueBytes = 16, MaxTotalBytes = 16 } }).Read(bytes), "state value");
     }
 
     [Test]
@@ -229,9 +229,9 @@ public sealed class PageArchiveReaderTests {
         Assert.That(string.Join(" ", result.Problems), Does.Contain(fragment));
     }
 
-    private static PageArchiveReader Reader(ArchiveOptions? options = null, PageStorageOptions? storage = null) =>
+    private static PageArchiveReader Reader(ArchiveOptions? options = null, PageStoresOptions? stores = null) =>
         new(options ?? TestOptions.Archive,
-            storage ?? TestOptions.Storage,
+            stores ?? TestOptions.Stores,
             new ReservedPaths(ReservedPaths.Default),
             NullLogger<PageArchiveReader>.Instance);
 }

@@ -20,11 +20,11 @@ using uk.osric.asp.Web.Work;
 /// <param name="Layout">The page every HTML page with code is wrapped in unless it says otherwise.</param>
 /// <param name="Render">The render budget and body cap.</param>
 /// <param name="ContentTypes">The media type and script policy each page key's extension names.</param>
-/// <param name="Storage">The storage caps.</param>
+/// <param name="Stores">The page stores' caps and identity bounds.</param>
 /// <param name="Fetch">The outbound fetch caps.</param>
 /// <param name="Read">The caps on a page's read of the page store.</param>
 /// <param name="Search">The allowance, limits and snippet width a page's search runs with.</param>
-/// <param name="StateStore">Where a page's state is read and written.</param>
+/// <param name="StoreValues">Where a page's values are read and written.</param>
 /// <param name="ReadStore">Where a page's catalog reads the page store.</param>
 /// <param name="Seeds">The pack this release ships, read once.</param>
 /// <param name="Saver">Where a page's save, and the editor's, compiles and stores a revision.</param>
@@ -33,9 +33,9 @@ using uk.osric.asp.Web.Work;
 /// <param name="Antiforgery">Validates a page's post and mints the field a form carries.</param>
 /// <param name="Markdown">The renderer every page layer offers as <c>IMarkdownRenderer</c>.</param>
 /// <param name="Diff">The renderer every page layer offers as <c>IDiffRenderer</c>.</param>
-/// <param name="Sessions">The bounds on one visitor's session.</param>
-/// <param name="SessionStore">Where a visitor's session is read and written.</param>
+/// <param name="SessionStore">Where a visitor's session identity is read and written.</param>
 /// <param name="SessionCookie">The cookie that names the visitor's session.</param>
+/// <param name="BrowserCookie">The cookie that names the visitor's browser.</param>
 /// <param name="Jobs">
 /// Where a page's jobs are started and read, or <see langword="null"/> when this host offers none. A
 /// host without one simply does not offer the capability, which is what a page is already prepared for.
@@ -56,11 +56,11 @@ internal sealed record PageEnvironment(
     PageLayoutOptions Layout,
     RenderOptions Render,
     PageContentTypes ContentTypes,
-    PageStorageOptions Storage,
+    PageStoresOptions Stores,
     PageFetchOptions Fetch,
     PageReadOptions Read,
     PageSourceScan Search,
-    IPageStateStore StateStore,
+    IStoreValues StoreValues,
     IPageReadStore ReadStore,
     PageSeeds Seeds,
     PageSaver Saver,
@@ -69,9 +69,9 @@ internal sealed record PageEnvironment(
     IAntiforgery Antiforgery,
     MarkdownRenderer Markdown,
     DiffRenderer Diff,
-    PageSessionOptions Sessions,
     IPageSessionStore SessionStore,
     PageSessionCookieOptions SessionCookie,
+    PageBrowserCookieOptions BrowserCookie,
     PageJobs? Jobs = null,
     PageChecks? Checks = null,
     PageJobAuthorityFactory? JobAuthorities = null);
