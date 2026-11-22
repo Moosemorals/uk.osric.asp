@@ -861,13 +861,11 @@ uk.osric.asp.Sdk.PageRecordOutcome.Busy = 2 -> uk.osric.asp.Sdk.PageRecordOutcom
 uk.osric.asp.Sdk.PageRecordOutcome.Full = 3 -> uk.osric.asp.Sdk.PageRecordOutcome
 uk.osric.asp.Sdk.PageRecordOutcome.Staged = 1 -> uk.osric.asp.Sdk.PageRecordOutcome
 uk.osric.asp.Sdk.PageRecordResult
-uk.osric.asp.Sdk.PageRecordResult.Affected.get -> int
-uk.osric.asp.Sdk.PageRecordResult.Affected.init -> void
-uk.osric.asp.Sdk.PageRecordResult.Deconstruct(out int Affected, out uk.osric.asp.Sdk.PageRecordOutcome Outcome) -> void
+uk.osric.asp.Sdk.PageRecordResult.Deconstruct(out uk.osric.asp.Sdk.PageRecordOutcome Outcome) -> void
 uk.osric.asp.Sdk.PageRecordResult.Equals(uk.osric.asp.Sdk.PageRecordResult other) -> bool
 uk.osric.asp.Sdk.PageRecordResult.Outcome.get -> uk.osric.asp.Sdk.PageRecordOutcome
 uk.osric.asp.Sdk.PageRecordResult.Outcome.init -> void
-uk.osric.asp.Sdk.PageRecordResult.PageRecordResult(int Affected, uk.osric.asp.Sdk.PageRecordOutcome Outcome) -> void
+uk.osric.asp.Sdk.PageRecordResult.PageRecordResult(uk.osric.asp.Sdk.PageRecordOutcome Outcome) -> void
 uk.osric.asp.Sdk.PageRecordResult.PageRecordResult() -> void
 uk.osric.asp.Sdk.PageRow
 uk.osric.asp.Sdk.PageRow.Columns.get -> System.Collections.Generic.IReadOnlyList<string!>!

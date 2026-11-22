@@ -502,13 +502,13 @@ internal sealed class SqliteRecordStore : RenderBoundCapability, IRecordStore, I
             }
 
             Bind(command, parameters);
-            int affected = await command.ExecuteNonQueryAsync(deadline.Token);
+            _ = await command.ExecuteNonQueryAsync(deadline.Token);
 
-            return new PageRecordResult(affected, _transaction is null ? PageRecordOutcome.Applied : PageRecordOutcome.Staged);
+            return new PageRecordResult(_transaction is null ? PageRecordOutcome.Applied : PageRecordOutcome.Staged);
         } catch (SqliteException exception) when (exception.SqliteErrorCode == 5) {
-            return new PageRecordResult(0, PageRecordOutcome.Busy);
+            return new PageRecordResult(PageRecordOutcome.Busy);
         } catch (SqliteException exception) when (exception.Message.Contains("FULL", StringComparison.Ordinal)) {
-            return new PageRecordResult(0, PageRecordOutcome.Full);
+            return new PageRecordResult(PageRecordOutcome.Full);
         } catch (SqliteException exception) when (exception.SqliteErrorCode == 9) {
             throw new TimeoutException(
                 $"This statement ran longer than Pages:Stores:Records:StatementMaxSeconds ({_records.StatementMaxSeconds}) and was interrupted.",

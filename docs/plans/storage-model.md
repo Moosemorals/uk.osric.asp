@@ -265,10 +265,10 @@ them all at no cost; here the statements have already run, and only the page kno
 before the refusal are worth keeping or are half a form. The refusal is the value the call answers,
 and the page is the one that acts on it.
 
-`PageRecordResult` is `(Affected, Outcome)` and `PageRecordOutcome` is `Applied`, `Staged`, `Busy`
-(another writer held the store, so nothing was written) or `Full` (the subject is at its row or byte
-cap). The last two are values because they depend on data the page did not choose; `Busy` is the same
-value `PageWriteOutcome.Busy` is.
+`PageRecordResult` carries the `Outcome` alone — `Applied`, `Staged`, `Busy` (another writer held the
+store, so nothing was written) or `Full` (the subject is at its row or byte cap) — because a view's
+trigger is what changes the row and SQLite counts nothing it changed. The last two are values because
+they depend on data the page did not choose; `Busy` is the same value `PageWriteOutcome.Busy` is.
 
 Everything the page itself got wrong throws, which is the site's rule for storage misuse
 (`pages-outbound-fetch`): an action the authorizer denies, an undeclared table a statement names, a
@@ -432,7 +432,7 @@ holds and the item does not change it.
   `SqliteCommand` runs whatever follows a `;` — `SELECT 1; INSERT INTO "notes" …` ran the insert — and
   that the authorizer allowed every callback it made, because a second legitimate statement is not an
   authority question. So the rule is shape, not authority: `QueryAsync` answers one result set and
-  `ExecuteAsync` one `(Affected, Outcome)`, the caps and the clock attach to one statement, and two
+  `ExecuteAsync` one outcome, the caps and the clock attach to one statement, and two
   statements buy no atomicity because a page's `BEGIN` is refused and they are two autocommit
   transactions. It is detected by SQLite's own parser: prepare the text with `sqlite3_prepare_v2`, take
   the tail, prepare the tail, and refuse when a second statement resolves. `SQLitePCLRaw` exposes that

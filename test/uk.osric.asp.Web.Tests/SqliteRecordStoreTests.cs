@@ -60,8 +60,8 @@ public sealed class SqliteRecordStoreTests {
         IReadOnlyList<PageRow> rows = await store.QueryAsync("""SELECT "Title", "Body" FROM "notes" """);
 
         Assert.Multiple(() => {
-            Assert.That(written, Is.EqualTo(new PageRecordResult(0, PageRecordOutcome.Applied)),
-                "a view's trigger changes the row, and SQLite counts what the statement itself changed");
+            Assert.That(written, Is.EqualTo(new PageRecordResult(PageRecordOutcome.Applied)),
+                "a write outside a transaction is durable");
             Assert.That(rows, Has.Count.EqualTo(1));
             Assert.That(rows[0].GetString("Title"), Is.EqualTo("first"));
             Assert.That(rows[0].GetString("Body"), Is.EqualTo("kept"));
@@ -166,7 +166,6 @@ public sealed class SqliteRecordStoreTests {
 
         Assert.Multiple(() => {
             Assert.That(refused.Outcome, Is.EqualTo(PageRecordOutcome.Full));
-            Assert.That(refused.Affected, Is.Zero);
         });
     }
 

@@ -3,12 +3,11 @@
 
 namespace uk.osric.asp.Sdk;
 
-/// <summary>How many rows a write changed, and what became of it.</summary>
-/// <param name="Affected">
-/// The rows the statement itself changed. A write reaches a declared table through a view, and SQLite
-/// counts nothing a view's trigger changed, so this is zero for every write a page makes: read the
-/// count back with a statement if the page needs one. It is also zero for
-/// <see cref="PageRecordOutcome.Busy"/> and <see cref="PageRecordOutcome.Full"/>.
-/// </param>
+/// <summary>What became of a write: durable, staged, or refused.</summary>
 /// <param name="Outcome">Whether the write is durable, staged, or was refused.</param>
-public readonly record struct PageRecordResult(int Affected, PageRecordOutcome Outcome);
+/// <remarks>
+/// The rows a statement changed are not part of the answer: a write reaches a declared table through
+/// a view, and SQLite counts nothing a view's trigger changed, so a page that needs a count reads it
+/// back with a statement.
+/// </remarks>
+public readonly record struct PageRecordResult(PageRecordOutcome Outcome);

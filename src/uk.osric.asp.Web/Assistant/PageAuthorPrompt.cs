@@ -9,7 +9,7 @@ using uk.osric.asp.Web.Shell;
 
 /// <summary>The system prompt and worked examples that teach the model to write a page.</summary>
 internal static class PageAuthorPrompt {
-    public const string Version = "page-author-v59";
+    public const string Version = "page-author-v60";
 
     public static IReadOnlyList<(string Name, string Source)> Examples { get; } = [
         ("query-driven", """
@@ -338,13 +338,13 @@ internal static class PageAuthorPrompt {
         column name — `GetString`, `GetInt64`, `GetDouble`, `GetBoolean`,
         `GetDateTimeOffset`, `IsNull` — and `ExecuteAsync(sql, parameters)`
         answers `Applied` (durable), `Staged` (inside your transaction),
-        `Busy` or `Full`. `Affected` is always 0: a write reaches the table
-        through a view, and SQLite counts nothing a view's trigger changed, so
-        read a count back if you need one. One statement per call, never two,
-        and always `PageParameters` with `$name` in the SQL — the store cannot
-        tell a safe statement from an unsafe one, so pasting a visitor's text
-        into SQL is a bug nothing refuses. `Id` is the store's; naming it is
-        refused.
+        `Busy` or `Full`. A count is not in the answer: a write reaches the
+        table through a view, and SQLite counts nothing a view's trigger
+        changed, so read a count back with a statement if you need one. One
+        statement per call, never two, and always `PageParameters` with
+        `$name` in the SQL — the store cannot tell a safe statement from an
+        unsafe one, so pasting a visitor's text into SQL is a bug nothing
+        refuses. `Id` is the store's; naming it is refused.
 
         A declaration has no unique constraint and no foreign key, so
         uniqueness is `INSERT INTO "notes" (...) SELECT ... WHERE NOT EXISTS

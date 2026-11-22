@@ -39,7 +39,7 @@ public interface IRecordStore {
     /// <summary>Runs one statement that writes, and answers what became of it.</summary>
     /// <param name="sql">One <c>INSERT</c>, <c>UPDATE</c> or <c>DELETE</c> statement.</param>
     /// <param name="parameters">The statement's parameters, or <see langword="null"/> for none.</param>
-    /// <returns>The rows changed, and whether the write is durable or staged.</returns>
+    /// <returns>Whether the write is durable, staged, or was refused.</returns>
     /// <exception cref="ArgumentException">The text is not exactly one statement.</exception>
     /// <exception cref="InvalidOperationException">The statement was refused, or this render may not write.</exception>
     public Task<PageRecordResult> ExecuteAsync(string sql, PageParameters? parameters = null);
