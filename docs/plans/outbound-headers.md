@@ -7,7 +7,7 @@ SPDX-License-Identifier: MIT
 
 | | |
 | --- | --- |
-| Status | Proposed 2026-11-22 — waits for the owner (`product-steps-wait-for-the-owner`). Nothing below is built |
+| Status | Agreed 2026-11-22 — the owner said yes, and nothing below is built |
 | Size | Medium — one SDK member, one replaced policy list, one attempt path, and the tests that pin the wire |
 | Area | Sdk, Web (pages), docs |
 | Spike | None. Every rule is a pure decision over the request's headers, and `StubHttpMessageHandler` already asserts what reaches the wire |
