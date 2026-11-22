@@ -51,6 +51,7 @@ internal sealed class SqliteRecordStore : RenderBoundCapability, IRecordStore, I
     private readonly IRecordCatalog _catalog;
     private readonly PageRecordOptions _records;
     private readonly bool _writable;
+    private readonly Func<CancellationToken, Task>? _validate;
 
     private SqliteConnection? _connection;
     private FrozenDictionary<string, PageTable> _tables = [];
@@ -73,13 +74,18 @@ internal sealed class SqliteRecordStore : RenderBoundCapability, IRecordStore, I
     /// <param name="catalog">Where the catalogue and the database are read.</param>
     /// <param name="records">The caps and the clocks.</param>
     /// <param name="writable">Whether this render may write.</param>
+    /// <param name="validate">
+    /// A check made once before the handle opens, or <see langword="null"/>: the proof a
+    /// <c>For</c> handle owes that its key is a live library or worker.
+    /// </param>
     public SqliteRecordStore(
         PagePath source,
         Func<StoreTableLifetime, string>? subject,
         SubjectKind kind,
         IRecordCatalog catalog,
         PageRecordOptions records,
-        bool writable) {
+        bool writable,
+        Func<CancellationToken, Task>? validate = null) {
         ArgumentNullException.ThrowIfNull(source);
         ArgumentNullException.ThrowIfNull(catalog);
         ArgumentNullException.ThrowIfNull(records);
@@ -90,6 +96,7 @@ internal sealed class SqliteRecordStore : RenderBoundCapability, IRecordStore, I
         _catalog = catalog;
         _records = records;
         _writable = writable;
+        _validate = validate;
     }
 
     /// <summary>Whose rows a handle reaches.</summary>
@@ -219,6 +226,10 @@ internal sealed class SqliteRecordStore : RenderBoundCapability, IRecordStore, I
     private async Task OpenAsync(CancellationToken cancellationToken) {
         if (_connection is not null) {
             return;
+        }
+
+        if (_validate is not null) {
+            await _validate(cancellationToken);
         }
 
         string dataSource = new SqliteConnectionStringBuilder(_catalog.ConnectionString).DataSource;

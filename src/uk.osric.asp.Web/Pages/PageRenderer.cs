@@ -524,6 +524,10 @@ internal sealed class PageRenderer(
         /// <summary>Whether the render's deadline has fired.</summary>
         internal bool TokenCancelled => _lifetime?.Token.IsCancellationRequested == true;
 
+        /// <summary>Registers asynchronous cleanup at the end of the render.</summary>
+        /// <param name="cleanup">The work to run when the render stops, or never if it never started.</param>
+        internal void RegisterCleanup(Func<Task> cleanup) => _lifetime?.RegisterCleanup(cleanup);
+
         /// <summary>Renders one layer of the chain under this session's lifetime.</summary>
         /// <param name="path">The layer's canonical key.</param>
         /// <param name="context">The context the layer writes to.</param>

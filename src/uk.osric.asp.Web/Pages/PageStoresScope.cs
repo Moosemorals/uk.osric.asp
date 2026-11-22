@@ -15,7 +15,7 @@ using HostPageKind = uk.osric.asp.Core.Pages.PageKind;
 /// role decides the response it owns, not what it reaches, so every layer gets the same handle and
 /// the verbs refuse a <c>HEAD</c>, an abandoned render or a passed deadline.
 /// </remarks>
-internal sealed class PageStoresScope : RenderBoundCapability, IPageStores {
+internal sealed class PageStoresScope : RenderBoundCapability, IPageStores, IAsyncDisposable {
 
     private readonly PagePath _key;
     private readonly IRecordCatalog? _records;
@@ -25,6 +25,7 @@ internal sealed class PageStoresScope : RenderBoundCapability, IPageStores {
     private readonly bool _writable;
     private readonly SubjectHandle _page;
     private readonly VisitorHandle _visitor;
+    private readonly List<SqliteRecordStore> _stores = [];
     private CancellationToken _deadline;
 
     /// <summary>Creates the layer's handles.</summary>
@@ -89,19 +90,23 @@ internal sealed class PageStoresScope : RenderBoundCapability, IPageStores {
         }
 
         Task? checkedOnce = null;
+        Task ConfirmAsync(CancellationToken cancellationToken) => checkedOnce ??= ValidateAsync(other, cancellationToken);
+
         PageValueStore values = new(
             other,
             _store,
             _options.Page,
             _options.MaxKeyChars,
             _writable,
-            cancellationToken => checkedOnce ??= ValidateAsync(other, cancellationToken));
+            ConfirmAsync);
         values.AttachDeadline(_deadline);
         if (IsAbandoned) {
             values.Abandon();
         }
 
-        return new SubjectHandle(values, RecordsFor(other, SqliteRecordStore.SubjectKind.Page, null, _writable));
+        return new SubjectHandle(
+            values,
+            RecordsFor(other, SqliteRecordStore.SubjectKind.Page, null, _writable, ConfirmAsync));
     }
 
     // A declared table's lifetime is Core's, and the reader's subjects are the contract's: one enum
@@ -120,18 +125,31 @@ internal sealed class PageStoresScope : RenderBoundCapability, IPageStores {
         PagePath source,
         SqliteRecordStore.SubjectKind kind,
         PageReaderSubject? reader,
-        bool writable) {
+        bool writable,
+        Func<CancellationToken, Task>? validate = null) {
         if (_records is null) {
             return null;
         }
 
-        return new SqliteRecordStore(
+        SqliteRecordStore store = new(
             source,
             reader is null ? null : lifetime => reader.SubjectFor(KindOf(lifetime)),
             kind,
             _records,
             _options.Records,
-            writable);
+            writable,
+            validate);
+        _stores.Add(store);
+        return store;
+    }
+
+    /// <summary>Ends every record store this scope made: the render's cleanup, not the page's.</summary>
+    public async ValueTask DisposeAsync() {
+        foreach (SqliteRecordStore store in _stores) {
+            await store.DisposeAsync();
+        }
+
+        _stores.Clear();
     }
 
     /// <inheritdoc/>
@@ -150,7 +168,7 @@ internal sealed class PageStoresScope : RenderBoundCapability, IPageStores {
     }
 
     // The handle is bound before the head is read, because For is a synchronous call; the first use
-    // of the handle proves the key is a live library or worker.
+    // of either shape proves the key is a live library or worker.
     private async Task ValidateAsync(PagePath key, CancellationToken cancellationToken) {
         PageReadHead? head = await _readStore.GetHeadAsync(key.Key, cancellationToken);
 

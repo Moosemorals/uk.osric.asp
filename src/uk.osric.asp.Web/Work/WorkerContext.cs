@@ -15,9 +15,9 @@ using uk.osric.asp.Web.Pages;
 internal sealed class WorkerContext(
     PageJob job,
     PageCapabilities capabilities,
-    IPageStores stores,
+    PageStoresScope stores,
     PageJobOptions options,
-    ILogger logger) : IWorkerContext {
+    ILogger logger) : IWorkerContext, IAsyncDisposable {
 
     /// <inheritdoc/>
     public string Id => job.Id;
@@ -79,4 +79,7 @@ internal sealed class WorkerContext(
 
         job.Lifetime.ReArm();
     }
+
+    /// <summary>Ends the stores this job held, once it has returned.</summary>
+    public ValueTask DisposeAsync() => stores.DisposeAsync();
 }

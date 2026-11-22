@@ -3,6 +3,7 @@
 
 namespace uk.osric.asp.Web.Work;
 
+using System.Diagnostics.CodeAnalysis;
 using uk.osric.asp.Core.Compilation;
 using uk.osric.asp.Core.Pages;
 using uk.osric.asp.Runtime;
@@ -113,7 +114,8 @@ internal sealed class PageJobRunner(
             using LoadedWorker worker = environment.Compiler.LoadWorker(image.Bytes, image.Symbols);
             IWorker instance = worker.Create();
 
-            await instance.RunAsync(Context(job, editor, linked.Token));
+            await using WorkerContext context = Context(job, editor, linked.Token);
+            await instance.RunAsync(context);
 
             // A worker that returns is not always a job that finished: one that ignored its token and
             // outran a clock has been cut, and the owner is owed the reason.
@@ -144,6 +146,8 @@ internal sealed class PageJobRunner(
         _ => (PageJobState.Completed, null),
     };
 
+    [SuppressMessage("Reliability", "CA2000:Dispose objects before losing scope",
+        Justification = "The context owns the scope and disposes it when the job returns.")]
     private WorkerContext Context(PageJob job, PageEditor editor, CancellationToken token) {
         // A job has no session and no browser: its Visitor subject is the starter's account, and only
         // Person (and NextRead) lifetimes are allowed. For(workerKey) is the worker's own namespace.

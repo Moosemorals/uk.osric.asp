@@ -144,6 +144,7 @@ internal sealed class PageValueStore : RenderBoundCapability, IValueStore {
         ValidateKey(key);
         ThrowIfReadOnly();
         ThrowIfEnded();
+        await ConfirmedAsync(Cancellation());
 
         string? pageKey = _reader is null ? _bound.Key : null;
         StoreValueRow? row = await _store.TakeAsync(Subjects(), pageKey, key, Cancellation());
@@ -159,6 +160,7 @@ internal sealed class PageValueStore : RenderBoundCapability, IValueStore {
         ValidateKey(key);
         ThrowIfReadOnly();
         ThrowIfEnded();
+        await ConfirmedAsync(Cancellation());
 
         StoreLifetimeKind kind = Resolve(lifetime ?? StoreLifetime.Default);
         if (_only is not null && kind != _only) {
@@ -198,6 +200,7 @@ internal sealed class PageValueStore : RenderBoundCapability, IValueStore {
         ValidateKey(key);
         ThrowIfReadOnly();
         ThrowIfEnded();
+        await ConfirmedAsync(Cancellation());
 
         return await _store.DeleteAsync(Subjects(), _bound.Key, key, Cancellation());
     }
@@ -213,6 +216,7 @@ internal sealed class PageValueStore : RenderBoundCapability, IValueStore {
     private async Task<PageValue<T>> ReadAsync<T>(string pageKey, string key, CancellationToken cancellationToken) {
         ValidateKey(key);
         ThrowIfEnded();
+        await ConfirmedAsync(cancellationToken);
         await TouchAsync(cancellationToken);
 
         StoreLifetimeKind? lifetime = _only;
@@ -232,6 +236,7 @@ internal sealed class PageValueStore : RenderBoundCapability, IValueStore {
         StoreFilter? filter,
         CancellationToken cancellationToken) {
         ThrowIfEnded();
+        await ConfirmedAsync(cancellationToken);
         await TouchAsync(cancellationToken);
 
         StoreLifetimeKind? lifetime = _only;
@@ -296,6 +301,14 @@ internal sealed class PageValueStore : RenderBoundCapability, IValueStore {
 
     private static DateTimeOffset? Parse(string? stamp) =>
         stamp is null ? null : DateTimeOffset.Parse(stamp, System.Globalization.CultureInfo.InvariantCulture);
+
+    // For's proof that the key is a live library or worker runs on first use, and the caller's
+    // delegate memoises the read so every later call answers at once.
+    private async Task ConfirmedAsync(CancellationToken cancellationToken) {
+        if (_validate is not null) {
+            await _validate(cancellationToken);
+        }
+    }
 
     private Task EnsureAsync(CancellationToken cancellationToken) =>
         _reader is null ? Task.CompletedTask : _reader.EnsureSessionAsync(_sessions!, cancellationToken);

@@ -180,6 +180,7 @@ internal sealed class PageChain {
             writable: !_isHead,
             commit,
             _environment.Records);
+        _session.RegisterCleanup(() => stores.DisposeAsync().AsTask());
 #pragma warning disable CS0618 // The obsolete adapters keep the old spelling for one release.
         PageStorageScope storage = new(stores.PageValues);
         PageSessionScope session = new(stores.VisitorValues.RestrictedTo(
