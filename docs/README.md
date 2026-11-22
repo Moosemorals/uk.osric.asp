@@ -47,6 +47,20 @@ table and the items to it.
 | | *The shell already carries eleven of the twenty tools; making it POSIX, composable and the preferred surface leaves three tools and buys back the ceiling. `check` and the page's search have landed, so this is the next step.* | | | | |
 | [`update-the-prompt`](backlog/update-the-prompt.md) | The assistant's prompt is a reference manual with the instructions at the bottom | determined-mountain-goat 💪🐐 | high | blocked | `tool-surface-is-one-shell` |
 | | *51,800 characters sent as the head of every request, of which 3,000 restate tool descriptions that travel beside it and the operating rules start past 34,000. It is rewritten once the shell has landed, so it is built against three tools and a POSIX command set rather than optimising a surface about to disappear.* | | | | |
+| [`outbound-headers-are-an-allow-list`](backlog/outbound-headers-are-an-allow-list.md) | Outbound headers are an allow-list, so a page cannot sign a request | caffeinated-squirrel ☕🐿️ | high | [planned](plans/outbound-headers.md) | — |
+| | *The federation node's delivery cannot be signed because the host refuses `Signature`, `Digest`, `Date` and `Host`; the same change stops a redirect replaying the page's headers to another host.* | | | | |
+| [`the-page-api-signs`](backlog/the-page-api-signs.md) | The page API admits no asymmetric key, so a page cannot verify a signature | eager-beaver ⚙️🦫 | high | open | — |
+| | *The cheapest step and independent of the rest: four entries admit RSA, so an inbound request can be verified before anything else lands. Ed25519 waits for the framework.* | | | | |
+| [`a-page-sees-its-request`](backlog/a-page-sees-its-request.md) | A page cannot see its request body, its raw target or a repeated header | determined-mountain-goat 💪🐐 | high | open | — |
+| | *The body's bytes, the raw target and a repeated header are the three facts a signature is rebuilt from; the header names are already visible.* | | | | |
+| [`fetch-is-a-rate`](backlog/fetch-is-a-rate.md) | A fetch allowance is a total, and a job gets one for its whole life | determined-mountain-goat 💪🐐 | high | open | — |
+| | *A render keeps today's count when it runs its deadline and a job gets its own rate; the bucket's figures are what the next row publishes.* | | | | |
+| [`the-site-is-one-type`](backlog/the-site-is-one-type.md) | The site's own facts are a capability each, and two of them are not reachable at all | protective-dragon 🔥🐉 | high | blocked | `fetch-is-a-rate` |
+| | *One home for the site's own facts — origin, editor, build, the image's documents and corpus, and the live bounds — so the surface stops growing a door per fact.* | | | | |
+| [`a-page-can-own-a-job`](backlog/a-page-can-own-a-job.md) | A job needs a signed-in visitor, so an inbound request cannot start one | protective-dragon 🔥🐉 | high | blocked | `a-page-sees-its-request`, `the-site-is-one-type` |
+| | *Work a page can start on behalf of nobody: a page-owned job with `Page` data only, its own queue and its own rate, which is what an inbox needs and what no visitor-scoped start can do.* | | | | |
+| [`manual-is-a-reference-dump`](backlog/manual-is-a-reference-dump.md) | The author manual is a reference dump whose contents list has drifted | determined-mountain-goat 💪🐐 | high | open | — |
+| | *The author's source of truth, ordered by API rather than by what an author wants to do, with an index that has already drifted; it is rewritten once the contract work in front of it has landed.* | | | | |
 | [`storage-is-not-one-model`](backlog/storage-is-not-one-model.md) | Storage is not one model: a page reaches a patchwork of stores | protective-dragon 🔥🐉 | high | [planned](plans/storage-model.md) | — |
 | | *The model every storage gap resolves into; it supersedes the two storage plans waiting for a yes, so it is read before them.* | | | | |
 | [`no-account-store`](backlog/no-account-store.md) | A page has no persistent per-account store | protective-dragon 🔥🐉 | high | blocked | `storage-is-not-one-model` |
@@ -59,6 +73,8 @@ table and the items to it.
 | | *The browser suite drives a source build while the deploy ships an image built later; this makes the promoted image the one the browser drove, and the host gate already builds one twice without keeping it.* | | | | |
 | [`message-does-not-survive-a-redirect`](backlog/message-does-not-survive-a-redirect.md) | A page cannot leave a message for a page it sends a visitor to | protective-dragon 🔥🐉 | high | blocked | `storage-is-not-one-model` |
 | | *The messages slice of the storage model, which absorbs the item and its plan; it lands with [`storage-is-not-one-model`](backlog/storage-is-not-one-model.md) rather than beside it.* | | | | |
+| [`secrets-are-readable-at-rest`](backlog/secrets-are-readable-at-rest.md) | A secret a page keeps is plaintext in the database and in every backup | determined-mountain-goat 💪🐐 | medium | blocked | `storage-is-not-one-model` |
+| | *A second pass over the storage model's secrets shape: the shape lands with [`storage-is-not-one-model`](backlog/storage-is-not-one-model.md), and the cipher, key and rotation land here.* | | | | |
 | [`sec-page-runs-in-process`](backlog/sec-page-runs-in-process.md) | Page code has no process boundary | cornered-porcupine 📍🦔 | high | open | — |
 | | *High utility and a redesign of how a page runs; the unit is now a long-lived worker per author over a socket rather than a process per render, and the author it keys on is not in the store yet.* | | | | |
 | [`revision-hides-its-diagnostics`](backlog/revision-hides-its-diagnostics.md) | A page cannot read a revision's diagnostics | eager-beaver ⚙️🦫 | medium | open | — |
