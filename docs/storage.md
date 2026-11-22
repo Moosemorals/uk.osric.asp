@@ -5,7 +5,7 @@ SPDX-License-Identifier: MIT
 
 # Storage
 
-The SQLite database behind the site: pages and their revisions, the values a page keeps, a
+The SQLite database behind the site: pages and their revisions, the values and messages a page keeps, a
 visitor's session and browser, and the archive that moves pages between sites. [Pages](pages.md#compiled-pages) says what a stored image is and when it
 is stale; [running it](../deploy/operations.md#storage-and-migrations) is the volume, the migrations
 and the backups.
@@ -63,6 +63,36 @@ closest owner wins (`pages-a-browser-is-a-lifetime`). A read of another page's v
 key; a write cannot, because the handle is bound to the layer's own key and there is no argument that
 names another writer (`pages-the-subject-is-the-binding`).
 
+### Messages
+
+`StoreMessages` is a visitor's queue: one row per message, with the reader's subject, exactly one
+address — a destination page key or a topic name — the source that posted it, the body, a lifetime and
+an expiry, and a sent time. The subject is the reader's, not the poster's: a page posts to a page it
+names, and the reader who visits that page takes it. `IMessageStore` is offered only on
+`ctx.Stores.Visitor`, because a Page subject is shared by every visitor and has no queue.
+
+A **take** is one statement — `DELETE … WHERE "Id" = (SELECT … ORDER BY "Id" LIMIT 1) RETURNING …` —
+filtered by the reader's subjects and the address, so two renders racing for a message answer one with
+it and one with `Empty`; the order is the row id, so it is FIFO. A **peek** is the same statement with a
+select: it answers what a take would answer right now and removes nothing, which makes it a read rather
+than a claim. A post validates its address first — a key that cannot name a page, a reserved key, a
+missing page and a library or a content-only page are values, and so is a full queue — and a body over
+`Pages:Stores:Messages:MaxMessageBytes` throws.
+
+A message's lifetime is `Person` by default on the Visitor subject, or `Session` or `Browser`, each
+optionally with `Until`; there is no `NextRead` message, because a one-shot is a value, and no `Page`
+one. Adoption re-keys a `Person` message into the account, the rotation deletes a `Session` one, and a
+browser message follows the `b` cookie. A topic is `PageTopic.Named`, and its name is canonicalised as a
+page key is — lowercased with the invariant culture and composed to NFC — so two spellings are one
+queue; a topic has no page behind it and is untouched by a page's delete.
+
+The caps are per subject and are proved in the statement that writes: the number of messages and the
+total body bytes, beside the one-body cap. Deleting a page deletes the messages addressed to it in the
+tombstone's transaction, whoever posted them; moving it re-addresses them; signing out, the session
+sweep and `users remove` delete the subject's messages with its values and its declared rows; the
+five-minute sweep deletes expired messages and a `browser:` subject nothing has written for the
+browser's lifetime (`pages-a-message-is-taken-once`).
+
 ### Declared tables
 
 A source can declare tables, and the declaration is the table. `DeclaredTables` is the catalogue that
@@ -110,10 +140,11 @@ total inside its cap, all proved in the statement that writes, so a concurrent w
 is refused. The caps are per subject instance, not per page, so one page's keys can use the room
 another would have had.
 
-A visitor's expiry is the sliding window on their `PageSessions` row; a value's expiry is its own
-column. The sweep is `PageSessionCleanupService`, a five-minute `PeriodicTimer` that deletes expired
-sessions, expired values and browser rows nobody has written for the browser's lifetime, and trims an
-overfull session table, logging one line with the counts by kind when it removed anything. A mint pays
+A visitor's expiry is the sliding window on their `PageSessions` row; a value's or a message's expiry
+is its own column. The sweep is `PageSessionCleanupService`, a five-minute `PeriodicTimer` that deletes
+expired sessions, expired values and messages, and browser rows nobody has written for the browser's
+lifetime, and trims an overfull session table, logging one line with the counts by kind when it removed
+anything. A mint pays
 for housekeeping only when it would otherwise have evicted: it deletes expired rows first, then
 evicts the most idle anonymous session, and only reaches a signed-in session when no anonymous one is
 left. That order is what keeps a flood of new anonymous visitors from pushing the owner's own session

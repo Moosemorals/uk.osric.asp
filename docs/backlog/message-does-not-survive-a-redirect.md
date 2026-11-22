@@ -20,7 +20,8 @@ SPDX-License-Identifier: MIT
 > superseded in shape and should not be approved. A message belongs to the visitor subject: an
 > account's when signed in, the session's when anonymous, and a one-shot value is a lifetime rather
 > than an inbox. The take stays one atomic statement and every expected outcome is a value; the
-> model's messages slice settles the rest. Nothing is built until the storage model's slices land.
+> model's messages slice, slice 3, settles the rest and is built; this item closes when the storage
+> model's remaining slices land.
 
 ## Idea
 
