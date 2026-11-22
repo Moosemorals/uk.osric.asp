@@ -45,6 +45,8 @@ table and the items to it.
 | --- | --- | --- | --- | --- | --- |
 | [`tool-surface-is-one-shell`](backlog/tool-surface-is-one-shell.md) | The assistant's tool surface is one shell, one question and one memory | protective-dragon 🔥🐉 | high | [planned](plans/assistant-shell-tool.md) | — |
 | | *The shell already carries eleven of the twenty tools; making it POSIX, composable and the preferred surface leaves three tools and buys back the ceiling. `check` and the page's search have landed, so this is the next step.* | | | | |
+| [`update-the-prompt`](backlog/update-the-prompt.md) | The assistant's prompt is a reference manual with the instructions at the bottom | determined-mountain-goat 💪🐐 | high | blocked | `tool-surface-is-one-shell` |
+| | *51,800 characters sent as the head of every request, of which 3,000 restate tool descriptions that travel beside it and the operating rules start past 34,000. It is rewritten once the shell has landed, so it is built against three tools and a POSIX command set rather than optimising a surface about to disappear.* | | | | |
 | [`storage-is-not-one-model`](backlog/storage-is-not-one-model.md) | Storage is not one model: a page reaches a patchwork of stores | protective-dragon 🔥🐉 | high | [planned](plans/storage-model.md) | — |
 | | *The model every storage gap resolves into; it supersedes the two storage plans waiting for a yes, so it is read before them.* | | | | |
 | [`no-account-store`](backlog/no-account-store.md) | A page has no persistent per-account store | protective-dragon 🔥🐉 | high | blocked | `storage-is-not-one-model` |
