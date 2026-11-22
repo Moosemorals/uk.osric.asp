@@ -36,4 +36,12 @@ public sealed record CompileResult(byte[]? Image, byte[]? Symbols, IReadOnlyList
     /// declarations are a <see cref="PageKind.Worker"/> is a question only the compiled types answer.
     /// </summary>
     public PageKind? Kind { get; init; }
+
+    /// <summary>The tables this source declares; <see cref="PageSchema.Empty"/> when it declares none.</summary>
+    /// <remarks>
+    /// The declaration is part of the revision, so a save applies it and a rollback takes it with the
+    /// revision. A schema with a <c>PAGE011</c> or <c>PAGE012</c> against it is stored and applied by
+    /// nothing: the page answers its diagnostics until it is fixed.
+    /// </remarks>
+    public PageSchema Schema { get; init; } = PageSchema.Empty;
 }
