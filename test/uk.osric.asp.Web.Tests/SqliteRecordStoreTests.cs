@@ -215,6 +215,31 @@ public sealed class SqliteRecordStoreTests {
         Assert.That(await later.QueryAsync("""SELECT "Title" FROM "notes" """), Is.Empty);
     }
 
+    // A refusal leaves the rows before it alone: the page decides whether they are worth keeping,
+    // which is the whole difference between this transaction and the page store's all-or-nothing one.
+    [Test]
+    public async Task ARefusedWriteInsideATransactionLeavesTheEarlierRowsToThePageAsync() {
+        await using SqliteRecordStore store = Store("session:one");
+
+        await using (IPageRecordTransaction transaction = store.BeginTransaction()) {
+            for (int index = 0; index < Records.MaxRowsPerSubject; index++) {
+                _ = await store.ExecuteAsync("""INSERT INTO "notes" ("Title", "Body") VALUES ('filler', 'x')""");
+            }
+
+            PageRecordResult refused = await store.ExecuteAsync(
+                """INSERT INTO "notes" ("Title", "Body") VALUES ('one too many', 'x')""");
+            Assert.That(refused.Outcome, Is.EqualTo(PageRecordOutcome.Full));
+
+            await transaction.CommitAsync();
+        }
+
+        await using SqliteRecordStore later = Store("session:one");
+        IReadOnlyList<PageRow> counted = await later.QueryAsync("""SELECT COUNT(*) AS "n" FROM "notes" """);
+
+        Assert.That(counted[0].GetInt64("n"), Is.EqualTo((long)Records.MaxRowsPerSubject),
+            "the rows before the refusal were kept");
+    }
+
     [Test]
     public async Task ASecondTransactionOnOneHandleThrowsAsync() {
         await using SqliteRecordStore store = Store("session:one");

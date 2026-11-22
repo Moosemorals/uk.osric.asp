@@ -180,7 +180,7 @@ internal sealed class SqlitePageStore(
     public Task SavePageAsync(PageTemplate template, CancellationToken cancellationToken = default) {
         ArgumentNullException.ThrowIfNull(template);
 
-        return StoreRevisionAsync(database, template, logger, cancellationToken);
+        return StoreRevisionAsync(database, template, logger, cancellationToken, declarations);
     }
 
     /// <summary>Stores one revision and its head, retrying a revision id another writer took.</summary>
@@ -188,6 +188,7 @@ internal sealed class SqlitePageStore(
     /// <param name="template">The revision to store.</param>
     /// <param name="logger">Where a retry is recorded.</param>
     /// <param name="cancellationToken">Cancels the write.</param>
+    /// <param name="declarations">The applier a declaration is applied through, or <see langword="null"/> for none.</param>
     /// <returns>The revision that was stored, which is a retry when another writer took the id.</returns>
     /// <remarks>
     /// The editor's save, an imported batch and a page saving its own source all end here, so the
@@ -199,12 +200,13 @@ internal sealed class SqlitePageStore(
         StorageDbContext database,
         PageTemplate template,
         ILogger logger,
-        CancellationToken cancellationToken) {
+        CancellationToken cancellationToken,
+        DeclaredTableApplier? declarations = null) {
         PageTemplate revision = template;
         for (int attempt = 0; ; attempt++) {
             try {
                 await using IDbContextTransaction transaction = await database.Database.BeginTransactionAsync(cancellationToken);
-                await WriteRevisionAsync(database, revision, cancellationToken);
+                await WriteRevisionAsync(database, revision, cancellationToken, declarations);
                 await transaction.CommitAsync(cancellationToken);
 
                 return revision;
@@ -273,12 +275,19 @@ internal sealed class SqlitePageStore(
         PageRevision row,
         DeclaredTableApplier? declarations,
         CancellationToken cancellationToken) {
-        if (declarations is null || template.Image is not { } image) {
+        if (declarations is null || template.Image is not { } image || (image.Schema?.IsEmpty ?? true)) {
+            return;
+        }
+
+        // A source that does not compile applies no DDL at all, not the additions and not the drops:
+        // the declaration is part of the revision, and a revision that cannot run can only describe a
+        // schema the page does not have.
+        if (image.Diagnostics.Any(diagnostic => diagnostic.Severity == PageDiagnosticSeverity.Error)) {
             return;
         }
 
         IReadOnlyList<PageDiagnostic> problems =
-            await declarations.ApplyAsync(database, template.Path, image.Schema ?? PageSchema.Empty, cancellationToken);
+            await declarations.ApplyAsync(database, template.Path, image.Schema, cancellationToken);
         if (problems.Count == 0) {
             return;
         }

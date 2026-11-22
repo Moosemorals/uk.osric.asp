@@ -5,6 +5,7 @@ namespace uk.osric.asp.Web.Tests;
 
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging.Abstractions;
 using uk.osric.asp.Core.Compilation;
 using uk.osric.asp.Core.Pages;
 using uk.osric.asp.Web.Pages;
@@ -176,6 +177,71 @@ public sealed class DeclaredTableApplierTests {
         Assert.That(error.Message, Does.Contain("FULL"));
     }
 
+    // The save is where the declaration is applied, so the store is proved to do it rather than the
+    // applier on its own: a page saved with a declaration has its table, and one saved without an
+    // image — a source that does not compile — makes nothing at all.
+    [Test]
+    public async Task ASaveAppliesTheDeclarationTheRevisionCarriesAsync() {
+        await using (StorageDbContext database = new(_options)) {
+            SqlitePageStore saving = new(database, NullLogger<SqlitePageStore>.Instance, declarations: Applier());
+            await saving.SavePageAsync(Template(Notes("Title").Tables));
+        }
+
+        Assert.That((await ListAsync()).Single().Name, Is.EqualTo("notes"));
+    }
+
+    // A library carries a declaration and no image, and does apply it; a revision that failed to
+    // compile carries a declaration too, and applies nothing at all.
+    [Test]
+    public async Task ARevisionThatDoesNotCompileAppliesNoDdlAsync() {
+        PageDiagnostic broken = new(PageDiagnosticSeverity.Error, null, "PAGE002: a page must render something.");
+
+        await using (StorageDbContext database = new(_options)) {
+            SqlitePageStore saving = new(database, NullLogger<SqlitePageStore>.Instance, declarations: Applier());
+            await saving.SavePageAsync(new PageTemplate(
+                PagePath.Normalize(Key), "<p>broken</p>",
+                new PageImage("hash", "runtime", null, null, [broken], Schema: Notes("Title"))));
+        }
+
+        Assert.That(await ListAsync(), Is.Empty, "a revision that does not compile applies nothing");
+    }
+
+    [Test]
+    public async Task ALibraryWithNoImageAppliesItsDeclarationAsync() {
+        await using (StorageDbContext database = new(_options)) {
+            SqlitePageStore saving = new(database, NullLogger<SqlitePageStore>.Instance, declarations: Applier());
+            await saving.SavePageAsync(new PageTemplate(
+                PagePath.Normalize(Key), "<%! [PageTable(\"notes\")] public sealed class Note { public long N { get; set; } } %>",
+                new PageImage("hash", "runtime", null, null, [], Schema: Notes("Title"), Libraries: null)));
+        }
+
+        Assert.That((await ListAsync()).Single().Name, Is.EqualTo("notes"),
+            "a library owns its tables, so its save is what applies them");
+    }
+
+    [Test]
+    public async Task ARefusedDeclarationKeepsNoImageAndStoresItsDiagnosticAsync() {
+        PageTable[] tooMany = [.. Enumerable.Range(0, Records.MaxTablesPerSource + 1)
+            .Select(index => new PageTable($"t{index}", StoreTableSubject.Page, StoreTableLifetime.Page,
+                [new PageColumn("A", PageColumnType.Text)]))];
+
+        await using (StorageDbContext database = new(_options)) {
+            SqlitePageStore saving = new(database, NullLogger<SqlitePageStore>.Instance, declarations: Applier());
+            await saving.SavePageAsync(new PageTemplate(
+                PagePath.Normalize(Key), "<p>hi</p>", new PageImage("hash", "runtime", [1], [2], [], Schema: new PageSchema(tooMany))));
+        }
+
+        await using (StorageDbContext database = new(_options)) {
+            PageRevision row = await database.Set<PageRevision>().AsNoTracking().SingleAsync(revision => revision.Path == Key);
+            Assert.Multiple(() => {
+                Assert.That(row.Image, Is.Null, "the page answers its diagnostic rather than running without its table");
+                Assert.That(row.Diagnostics, Does.Contain("PAGE012"));
+            });
+        }
+
+        Assert.That(await ListAsync(), Is.Empty, "and the schema is left alone");
+    }
+
     [Test]
     public async Task DroppingASourceRemovesEveryTableItDeclaredAsync() {
         await ApplyAsync(Notes("Title"));
@@ -193,6 +259,11 @@ public sealed class DeclaredTableApplierTests {
 
     private static readonly string[] OwnedColumns = ["Id", "Owner", "Title"];
     private static readonly string[] ColumnNames = ["Id", "Owner", "Title", "Body"];
+
+    private DeclaredTableApplier Applier() => new(Records);
+
+    private PageTemplate Template(IReadOnlyList<PageTable> tables) => new(
+        PagePath.Normalize(Key), "<p>hi</p>", new PageImage("hash", "runtime", [1], [2], [], Schema: new PageSchema(tables)));
 
     private static PageSchema Notes(params string[] columns) => new([NotesTable(columns)]);
 
