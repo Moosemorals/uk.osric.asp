@@ -769,15 +769,82 @@ strings of 1–200 characters with no control characters, and writes are last-wr
 returns `PageValue<T>` — found-with-a-value, found-with-null, or not found — because an `out` parameter
 is illegal on an asynchronous method and a separate has-key check would race.
 
-The state lives in a `PageState` table, per path rather than per revision and with no foreign key to the
-head: SQLite's enforcement depends on the connection and the deletes are explicit anyway. Editing,
+The state lives in a `StoreValues` table, per path rather than per revision and with no foreign key to
+the head: SQLite's enforcement depends on the connection and the deletes are explicit anyway. Editing,
 restoring or reformatting a page keeps its state; deleting or scrubbing clears it, and the delete is
 what stops a deleted page gaining state from a render that was already running. Each call takes its own
 `StorageDbContext` from a factory, commits immediately and is cancelled by the render's deadline, with
 no page-wide transaction, because the contract has no end-of-render hook and a buffered response is not
 a transaction.
 
-*Recorded in [fetch and storage](plans/archive/page-fetch-and-storage.md).*
+The capability is the spelling rather than the store: the page's own values are now
+`ctx.Stores.Page.Values` under the `Page` lifetime (`pages-the-subject-is-the-binding`,
+`pages-a-lifetime-belongs-to-the-entry`), and `IPageStorage` survives one release as an obsolete adapter
+over that handle so a page that has not been edited and one that has read and write the same rows.
+
+*Recorded in [fetch and storage](plans/archive/page-fetch-and-storage.md), [pages](pages.md#page-data).*
+
+### pages-the-subject-is-the-binding
+
+A page's data is reached through `ctx.Stores`, which carries two subjects and one escape:
+`ctx.Stores.Page` is the page itself, `ctx.Stores.Visitor` is the reader, and `ctx.Stores.For(key)` is a
+live library's or worker's own namespace. The handle is the binding: it is written with one subject key
+and one page key, so a write, a delete and a listing cannot name another writer, while a read is open
+across page keys because showing what another page left is what the read is for. A page never sees a
+subject key, a session id or an account name — the shell resolves the reader once per request and hands
+the layer a handle. The binding is ownership, not protection: it decides whose row is written, and
+`For(key)` hands a library's namespace to the methods its callers reach it by.
+
+*Recorded in [pages](pages.md#page-data), [IPageStores](../src/uk.osric.asp.Sdk/IPageStores.cs), [PageValueStore](../src/uk.osric.asp.Web/Pages/PageValueStore.cs).*
+
+### pages-a-lifetime-belongs-to-the-entry
+
+Every stored value carries the rule that kills it, on the row and out of a read: `Page` dies with the
+page, `Person` with the account, `Session` with the visit, `Browser` with the browser cookie, and
+`NextRead` at the first successful take. A write that names no lifetime takes the subject's own, a
+lifetime the subject cannot carry throws rather than being stored somewhere else, and `Until(expiry)`
+composes with the default while `WithExpiry` puts an expiry on a named lifetime. A read answers the
+lifetime it found, a listing can select one, and an expired row is neither read nor listed. A countdown
+is not a lifetime: `Until` is the whole of timing out, so there is no second shape for a value that
+expires.
+
+*Recorded in [storage](storage.md#values), [StoreLifetime](../src/uk.osric.asp.Sdk/StoreLifetime.cs).*
+
+### pages-a-browser-is-a-lifetime
+
+A device preference survives signing in and out through the `b` cookie, which the shell mints on the
+first `Browser` write and never links to an account. The browser is a subject — `browser:<id>` — and a
+lifetime on a value rather than a capability, so a page stores a preference with `SetAsync` and
+`StoreLifetime.Browser` and never meets an identity. A read searches `session:`, then `browser:`, then
+`account:`, so the closest owner wins and a person's own choice shadows the device's. A visitor who never
+writes one costs nothing: no cookie and no row. The `b` cookie is `HttpOnly`, `SameSite=Lax` and as
+secure as every other shell cookie, and a page can neither read nor set it.
+
+*Recorded in [the shell](shell.md#page-sessions), [PageBrowserCookie](../src/uk.osric.asp.Web/Authentication/PageBrowserCookie.cs).*
+
+### pages-adoption-re-keys-at-sign-in
+
+Signing in ends a visit rather than carrying it: one transaction re-keys the leaving session's `Person`
+and `NextRead` rows from `session:<old>` into `account:<name>`, deletes whatever is left under the old
+subject — a `Session` value dies with the session that held it — and inserts the account's session. A
+`Browser` value is not touched, because it never belonged to the session. A one-shot therefore survives
+sign-in unread, and a value a page left for a person is still there afterwards; nothing is copied,
+nothing is offered to the page, and the rotated cookie names a subject the old one cannot reach.
+
+*Recorded in [storage](storage.md#page-sessions-and-the-browser), [AdoptAsync](../src/uk.osric.asp.Web/Pages/IPageSessionStore.cs).*
+
+### pages-one-stores-section
+
+Every cap over stored data is one record, `Pages:Stores`: the longest key, the command and busy
+timeouts, and one row of caps per subject instance — a value's bytes, the key count and the byte total —
+for the page, an anonymous visitor, a browser and a signed-in visitor, with the anonymous idle window,
+the browser's lifetime and the live-session cap beside them. The caps are chosen together because they
+draw on one budget per subject, so they are read and refused together. The two sections this replaces,
+`Pages:Storage` and `Pages:Session`, are refused at startup rather than ignored: an operator who kept one
+believes it still bounds something, and it does not. The subject prefixes and the lifetime numbers stay
+in code, because they are the stored form of every row and configuration could only orphan them.
+
+*Recorded in [storage](storage.md#values), [PageStoresOptions](../src/uk.osric.asp.Web/Pages/PageStoresOptions.cs), [configuration](architecture.md#configuration).*
 
 ### pages-outbound-fetch
 
@@ -1592,25 +1659,26 @@ act, with the route and the words in `shell-reserved-rows-are-scrubbed-not-serve
 
 A page session is minted lazily by the shell, on the first write and never on a read: 128 random bits in
 base64url travel in an `HttpOnly` cookie the page cannot set, written after the render on every path that
-leaves the page pipeline. Two tables carry it — `PageSessions` and `PageSessionValues` — so a visitor
-keeps a half-written form across a restart. A row whose account does not match the request's principal is
-deleted and replaced, sign-in rotates the row, sign-out deletes it, and reading slides the idle timer
-while a `HEAD` and a layout do not.
+leaves the page pipeline. One row in `PageSessions` carries it, and the values it holds are
+`StoreValues` rows under the `session:` subject, so a visitor keeps a half-written form across a
+restart. A row whose account does not match the request's principal is deleted and replaced, sign-in
+rotates the row and adopts what should outlive the visit (`pages-adoption-re-keys-at-sign-in`),
+sign-out deletes it, and reading slides the idle timer while a `HEAD` and a layout do not.
 
-Ownership is structural rather than checked: the capability composes the path itself, so `SetAsync` stores
-under the rendering page's path and a page cannot name a key outside its own space. Reads are addressed by
-`(page, key)` and are open, because showing what another page left is what the read is for;
-`AllKeysAsync` answers `PageSessionKey` pairs because a bare key cannot be read. Serialisation is page
-storage's `JsonSerializerOptions`, a stored JSON `null` is a found value, and misuse throws as page
-storage throws.
+Ownership is structural rather than checked: the handle is bound to the reader's subject and the
+rendering page's key, so `SetAsync` stores under the page that wrote it and a page cannot name a key
+outside its own space. Reads are addressed by `(page, key)` and are open, because showing what another
+page left is what the read is for; `AllKeysAsync` answers page-and-key pairs because a bare key cannot
+be read. Serialisation is page storage's `JsonSerializerOptions`, a stored JSON `null` is a found value,
+and misuse throws as page storage throws (`pages-the-subject-is-the-binding`).
 
-`Pages:Session` bounds the store per session rather than per page, with different limits anonymous and
-signed in. A total live-session cap evicts the most idle **anonymous** session first and a signed-in one
+`Pages:Stores` bounds the store per subject instance rather than per page, with different limits
+anonymous and signed in (`pages-one-stores-section`). A total live-session cap evicts the most idle **anonymous** session first and a signed-in one
 only when no anonymous row is left, because the owner's session is the one nobody can mint again, and a
 mint is refused only when nothing can be evicted. Expired rows are deleted before the count, eviction is
 one bounded batch, and a five-minute sweep logs one line per sweep that removed anything.
 
-*Recorded in [page session](plans/archive/page-session.md), [IPageSession](../src/uk.osric.asp.Sdk/IPageSession.cs).*
+*Recorded in [page session](plans/archive/page-session.md), [IPageSession](../src/uk.osric.asp.Sdk/IPageSession.cs), [storage](storage.md#page-sessions-and-the-browser).*
 
 ### pages-build-info
 
@@ -1640,8 +1708,11 @@ the assistant's bounded tools — and a page gets a bounded read; there is no se
 A page archive is a SQLite database, not a zip: `Pages(Path, Source)` and `PageState(PagePath, Key,
 Value)`, identified by `PRAGMA application_id` and `user_version`, built in memory and serialized, and
 read by deserializing an upload read-only with `query_only` and `trusted_schema = OFF` before any query.
-It carries source and state only — history, tombstones, users and configuration stay with the site that
-made it. Import is additive and all or nothing: every row is validated before anything is staged, the
+It carries source and a page's own values only — history, tombstones, users and configuration stay with
+the site that made it, and so does every value that is somebody's rather than the page's: `PageState`
+keeps the shape it had before `StoreValues` replaced it and holds only a `Page` lifetime row with no
+expiry, so an archive from an earlier release still imports and a `Person`, `Session`, `Browser` or
+`NextRead` row never leaves the site. Import is additive and all or nothing: every row is validated before anything is staged, the
 approved batch is compiled one page at a time with nothing written, then every page, head and state key
 is written in one transaction, so a compile failure is a stored revision with diagnostics and a crash or
 failed write leaves nothing applied.

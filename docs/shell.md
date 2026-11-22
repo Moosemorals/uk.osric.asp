@@ -412,14 +412,14 @@ shell owns the identity:
 - **Rotated on sign-in, and the person comes with it.** A session row carries the account it belongs
   to. Signing in deletes the row the browser presented and mints one for the account in the same
   transaction, re-keying the session's `Person` and `NextRead` values into the account and deleting
-  the rest, so a one-shot survives sign-in unread and a stale cookie cannot inherit anything else.
-  Signing out deletes the row and clears the cookie. Neither writes a flash message: a message
+  the rest, so a one-shot survives sign-in unread and a stale cookie cannot inherit anything else
+  (`pages-adoption-re-keys-at-sign-in`). Signing out deletes the row and clears the cookie. Neither writes a flash message: a message
   written after a sign-out has nowhere to live.
 - **Swept on a timer.** `PageSessionCleanupService` removes expired rows and expired values every
   five minutes, and the mint path deletes expired rows before it evicts anything live, so a burst of
   new visitors cannot push a live session out because stale ones are holding the room.
 - **Capped.** `Pages:Stores` bounds the keys and bytes each subject instance may hold
-  (see [storage](storage.md#page-sessions-and-the-browser)). A live session cap evicts the most idle
+  (see [storage](storage.md#page-sessions-and-the-browser), `pages-one-stores-section`). A live session cap evicts the most idle
   **anonymous** session first and only touches a signed-in one when no anonymous session is left, so
   a flood sheds strangers rather than the person using the site.
 
@@ -428,7 +428,7 @@ writes, on the same response, and is never linked to an account. It survives a s
 and a session that ends, which is what makes it the place for a preference that should outlast one
 visit — the seeded editor-mode toggle is the first one. A visitor who never writes one never gets the
 cookie, and it costs no row. A page can neither read nor set it: `Browser` is a lifetime on a value,
-and the identity behind it is the shell's.
+and the identity behind it is the shell's (`pages-a-browser-is-a-lifetime`).
 
 The shell keeps no flash message of its own. The editor page's notices are written into the render
 that produced them: it answers a save in place, so a message that a redirect would have to carry is

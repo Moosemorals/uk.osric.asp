@@ -54,12 +54,14 @@ A **lifetime** is the rule that kills a value, and it is on the row so that a re
 A write without a lifetime takes the subject's own — `Page` on a Page subject, `Person` on a Visitor
 — and a lifetime the subject cannot carry is a page bug that throws rather than a value quietly kept
 somewhere else. `Until` adds an expiry to the subject's default and `WithExpiry` adds one to a named
-lifetime; an expired row is never answered and the sweep deletes it.
+lifetime; an expired row is never answered and the sweep deletes it
+(`pages-a-lifetime-belongs-to-the-entry`).
 
 A Value read searches the reader's subjects in order — `session:`, then `browser:`, then `account:`
 — so a page's own preference shadows nothing, a browser's preference shadows the account's, and the
-closest owner wins. A read of another page's value names that page's key; a write cannot, because the
-handle is bound to the layer's own key and there is no argument that names another writer.
+closest owner wins (`pages-a-browser-is-a-lifetime`). A read of another page's value names that page's
+key; a write cannot, because the handle is bound to the layer's own key and there is no argument that
+names another writer (`pages-the-subject-is-the-binding`).
 
 ### Page sessions and the browser
 
@@ -75,8 +77,8 @@ caps per subject instance — a value's bytes, the key count and the byte total 
 anonymous visitor, a browser and a signed-in visitor, with the anonymous idle window, the browser's
 lifetime in days and the live-session cap beside them. Every value is required: a missing or
 out-of-range one stops the site at startup with a message naming the key, its range and the shipped
-value ([configuration](architecture.md#configuration)). Each write is one statement that refuses at
-the cap: a Page write also needs a live head, the key count must stay inside its cap and the byte
+value ([configuration](architecture.md#configuration), `pages-one-stores-section`). Each write is one
+statement that refuses at the cap: a Page write also needs a live head, the key count must stay inside its cap and the byte
 total inside its cap, all proved in the statement that writes, so a concurrent writer either fits or
 is refused. The caps are per subject instance, not per page, so one page's keys can use the room
 another would have had.
@@ -94,7 +96,8 @@ Signing in is where a subject changes. One transaction re-keys the leaving sessi
 `NextRead` rows into `account:<name>`, deletes whatever is left under `session:<old>` — a `Session`
 value dies with the session that held it — and inserts the account's session. A one-shot therefore
 survives sign-in unread, and the value a page left for a person is still there afterwards. A
-`Browser` value is not touched at all: it never belonged to the session.
+`Browser` value is not touched at all: it never belonged to the session
+(`pages-adoption-re-keys-at-sign-in`).
 
 The migration that built `StoreValues` copied both tables it replaced — `PageState` as
 `page:<key>` rows under the `Page` lifetime, `PageSessionValues` as `session:<id>` rows under

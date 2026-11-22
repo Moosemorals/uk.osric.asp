@@ -242,12 +242,14 @@ one-shot, `SetAsync` and `DeleteAsync` write and remove, and `KeysAsync`/`AllKey
 consuming. A read answers the lifetime the entry carries and the page that wrote it.
 
 A handle is bound to the writer's key, so a page cannot write, delete or list another page's keys —
-the write names no path — while reading another page's value is one call. Every value carries a
-lifetime: `Page`, `Person`, `Session`, `Browser` or `NextRead`, optionally with an expiry. A write
-without one takes the subject's own, a lifetime the subject cannot carry throws, and a `HEAD` render,
-an abandoned render and a passed deadline are refused every write. The caps are per subject instance
-and are enforced in the statement that writes. [Storage](storage.md#values) has the table, the
-subjects, the lifetimes and the caps; `/help` is the author's manual.
+the write names no path — while reading another page's value is one call
+(`pages-the-subject-is-the-binding`). Every value carries a lifetime: `Page`, `Person`, `Session`,
+`Browser` or `NextRead`, optionally with an expiry. A write without one takes the subject's own, a
+lifetime the subject cannot carry throws, and a `HEAD` render, an abandoned render and a passed
+deadline are refused every write (`pages-a-lifetime-belongs-to-the-entry`). The caps are per subject
+instance and are enforced in the statement that writes (`pages-one-stores-section`).
+[Storage](storage.md#values) has the table, the subjects, the lifetimes and the caps; `/help` is the
+author's manual.
 
 A page's log entries are filed under the single `uk.osric.asp.Pages` category with the page's key on
 a `Path` scope, and `SimpleContext` is where that enters the shell, so `Core` never names a logging

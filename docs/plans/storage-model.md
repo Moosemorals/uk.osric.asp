@@ -7,11 +7,11 @@ SPDX-License-Identifier: MIT
 
 | | |
 | --- | --- |
-| Status | Agreed 2026-11-21 — the owner said yes — and revised against trunk 2026-11-22, after the page search, the reference corpus, the slow test half and the documentation index landed. Slice 0, the sandbox spike, and slice 1, values, lifetimes and identity, are written on `plan/storage-model`; slice 1 waits for the owner's review and nothing of slice 2 is built |
+| Status | Agreed 2026-11-21 — the owner said yes — and revised against trunk 2026-11-22, after the page search, the reference corpus, the slow test half and the documentation index landed. Slice 0, the [sandbox spike](../spikes/store-sandbox.md), and slice 1, values, lifetimes and identity, are merged; slice 2 is next and nothing of it is built |
 | Size | Large as a programme, small as a step: a spike, five slices and the release that closes the window, each its own branch and its own stop. The values slice is the floor; the record slice is the risk |
 | First customer | The two plans this supersedes: the assistant's transcript (a Record for the signed-in visitor) and the redirect flash (a `NextRead` value). Editor mode is the first `Browser` value, and `/help`'s counter is the first Page value |
 | Spike | Slice 0: [the record sandbox](../spikes/store-sandbox.md), written before anything was built. Six of the sandbox section's details were corrected by what it measured |
-| Decisions | None recorded yet. Taken at each merge; this plan states the eleven names it intends, and the eight entries it edits |
+| Decisions | Slice 1's merge recorded `pages-the-subject-is-the-binding`, `pages-a-lifetime-belongs-to-the-entry`, `pages-a-browser-is-a-lifetime`, `pages-adoption-re-keys-at-sign-in` and `pages-one-stores-section`, and edited `pages-page-storage`, `pages-the-session` and `pages-an-archive-is-a-database`. The remaining six names are recorded by the slice that delivers them, and the plan is archived when slice 5's merge closes the programme |
 | Backlog | [`storage-is-not-one-model`](../backlog/storage-is-not-one-model.md) is this job. It absorbs [`no-account-store`](../backlog/no-account-store.md) and [`message-does-not-survive-a-redirect`](../backlog/message-does-not-survive-a-redirect.md), whose plans [account-store](account-store.md) and [page-inbox](page-inbox.md) are superseded in shape |
 
 ## The short version
@@ -882,7 +882,7 @@ record sandbox says of itself.
 Each slice is one branch, one step through the gate and one stop for the owner. The programme merges
 phase by phase, so a regression is bisectable and its branch goes when its last slice is in. The
 owner said yes to this plan on 2026-11-21. Slice 0 is [written](../spikes/store-sandbox.md) and slice 1
-is written on this branch, waiting for the owner's review.
+is merged; slice 2 is next.
 
 0. **The sandbox spike** (`S`, docs only) — **written**. A scratch console over the real SQLite
    build: an unpooled connection, a `TEMP VIEW` per table with a literal subject and an `INSTEAD OF`
@@ -900,7 +900,7 @@ is written on this branch, waiting for the owner's review.
    where a tokenizer would have to guess; `ATTACH`, `PRAGMA`, a second statement and `sqlite_master`
    are refused; the interrupt ends a long statement; the real table cannot be named from the view's SQL,
    and naming `Id` in a write is refused.
-1. **Values, lifetimes and identity** (`L`) — **written**. `IPageStores`, `IPageSubject`,
+1. **Values, lifetimes and identity** (`L`) — **merged**. `IPageStores`, `IPageSubject`,
    `IPageVisitorSubject`, `IValueStore`, `StoreLifetime`, `StoreFilter`, `StoreEntry`, `PageValue`'s
    lifetime and page; the
    `StoreValues` migration that copies `PageState` and `PageSessionValues`; the `PageStoresScope` and
