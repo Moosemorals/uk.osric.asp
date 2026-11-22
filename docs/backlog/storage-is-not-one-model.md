@@ -23,7 +23,8 @@ SPDX-License-Identifier: MIT
 > [`message-does-not-survive-a-redirect`](message-does-not-survive-a-redirect.md) — and neither of
 > those should be approved. The old capabilities stay one release as obsolete adapters and then go.
 > The owner said yes on 2026-11-21. Slice 0 — the sandbox spike — is
-> [written](../spikes/store-sandbox.md); slice 1 is next.
+> [written](../spikes/store-sandbox.md); slice 1, values, lifetimes and identity, and slice 2,
+> records and the sandbox, are merged; slice 3, messages, is next.
 
 ## Idea
 
