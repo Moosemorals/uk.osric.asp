@@ -11,7 +11,6 @@ using uk.osric.asp.Core.Text;
 
 /// <summary>One run's journal of events and its live subscribers.</summary>
 internal sealed class RunStream(string runId, AssistantOptions options, TimeProvider clock) : IDisposable {
-    private static readonly JsonSerializerOptions s_jsonOptions = new(JsonSerialization.Options);
 
     private readonly Lock _gate = new();
     private readonly Queue<RunEvent> _journal = new();
@@ -38,7 +37,7 @@ internal sealed class RunStream(string runId, AssistantOptions options, TimeProv
     public RunEvent Publish(string type, object data) {
         ArgumentException.ThrowIfNullOrWhiteSpace(type);
         ArgumentNullException.ThrowIfNull(data);
-        string json = JsonSerializer.Serialize(data, s_jsonOptions);
+        string json = JsonSerializer.Serialize(data, JsonSerialization.Options);
         lock (_gate) {
             if (_completed) {
                 throw new InvalidOperationException("The run stream is complete.");
@@ -140,7 +139,7 @@ internal sealed class RunStream(string runId, AssistantOptions options, TimeProv
         RunId,
         _sequence,
         "stream.reset",
-        JsonSerializer.Serialize(new { reason }, s_jsonOptions));
+        JsonSerializer.Serialize(new { reason }, JsonSerialization.Options));
 
     /// <summary>Releases the stop source once nothing can still be waiting on the run.</summary>
     public void Dispose() => _stop.Dispose();

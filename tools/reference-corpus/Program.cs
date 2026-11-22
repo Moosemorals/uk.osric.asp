@@ -5,9 +5,9 @@ namespace ReferenceCorpus;
 
 using Microsoft.CodeAnalysis;
 using System.Text.Json;
-using System.Text.Json.Serialization;
 using System.Xml;
 using System.Xml.Linq;
+using uk.osric.asp.Core.Text;
 using uk.osric.asp.Web.Documentation;
 
 /// <summary>Builds the reference corpus the site serves and the assistant reads.</summary>
@@ -17,12 +17,6 @@ using uk.osric.asp.Web.Documentation;
 /// one JSON document per assembly. The site then has no XML to massage and no XSLT to run.
 /// </remarks>
 internal static class Program {
-
-    private static readonly JsonSerializerOptions s_json = new() {
-        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
-        PropertyNameCaseInsensitive = true,
-        DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
-    };
 
     /// <summary>Runs the corpus build.</summary>
     /// <param name="args">The optional directory holding the assemblies and their XML.</param>
@@ -78,7 +72,7 @@ internal static class Program {
         foreach (ReferenceDocument document in documents) {
             ReferenceCorpus corpus = ReferenceModelBuilder.Build(document, declarations);
             string path = Path.Combine(directory, "reference." + document.Info.Slug + ".json");
-            File.WriteAllText(path, JsonSerializer.Serialize(corpus, s_json));
+            File.WriteAllText(path, JsonSerializer.Serialize(corpus, JsonSerialization.Options));
             Console.WriteLine($"{document.Info.Slug}: {corpus.TypeCount} types, {corpus.EntryCount} entries -> {Path.GetFileName(path)}");
         }
 

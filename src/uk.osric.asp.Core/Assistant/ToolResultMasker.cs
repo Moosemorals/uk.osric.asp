@@ -5,6 +5,7 @@ namespace uk.osric.asp.Core.Assistant;
 
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using uk.osric.asp.Core.Text;
 
 /// <summary>The outcome of offering one message to the masker.</summary>
 /// <param name="Message">The message to send: the original when nothing was elided.</param>
@@ -112,14 +113,14 @@ internal static class ToolResultMasker {
 
             int elided = ElideLongStrings(parsed, depth: 0);
             if (elided > 0) {
-                function["arguments"] = parsed.ToJsonString();
+                function["arguments"] = parsed.ToJsonString(JsonSerialization.Options);
                 masked += elided;
             }
         }
 
         return masked == 0
             ? new MaskOutcome(message, 0, 0)
-            : new MaskOutcome(message with { ToolCallsJson = calls.ToJsonString() }, 0, masked);
+            : new MaskOutcome(message with { ToolCallsJson = calls.ToJsonString(JsonSerialization.Options) }, 0, masked);
     }
 
     private static int ElideLongStrings(JsonNode node, int depth) {

@@ -5,7 +5,7 @@ namespace uk.osric.asp.Core.Assistant;
 
 using System.Globalization;
 using System.Text.Json;
-using System.Text.Json.Serialization;
+using uk.osric.asp.Core.Text;
 
 /// <summary>One choice a question offers.</summary>
 /// <param name="Label">What the option is called, and what the answer records.</param>
@@ -60,17 +60,13 @@ public sealed record OwnerAnswersResult(OwnerAnswerSet? Answers, string? Error) 
 /// </remarks>
 public static class OwnerQuestions {
 
-    private static readonly JsonSerializerOptions s_jsonOptions = new(JsonSerializerDefaults.Web) {
-        DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
-    };
-
     /// <summary>Writes a question set as the interrupt request stores it.</summary>
     /// <param name="questions">The questions to write.</param>
     /// <returns>The stored JSON.</returns>
     public static string Write(OwnerQuestionSet questions) {
         ArgumentNullException.ThrowIfNull(questions);
 
-        return JsonSerializer.Serialize(questions, s_jsonOptions);
+        return JsonSerializer.Serialize(questions, JsonSerialization.Options);
     }
 
     /// <summary>Reads a stored question set, or null when the JSON is not one this build understands.</summary>
@@ -94,7 +90,7 @@ public static class OwnerQuestions {
     public static string WriteAnswers(OwnerAnswerSet answers) {
         ArgumentNullException.ThrowIfNull(answers);
 
-        return JsonSerializer.Serialize(answers, s_jsonOptions);
+        return JsonSerializer.Serialize(answers, JsonSerialization.Options);
     }
 
     /// <summary>Reads a stored set of answers, or null when the JSON is not one this build understands.</summary>
@@ -244,7 +240,7 @@ public static class OwnerQuestions {
         }
 
         try {
-            return JsonSerializer.Deserialize<T>(json, s_jsonOptions);
+            return JsonSerializer.Deserialize<T>(json, JsonSerialization.Options);
         } catch (JsonException) {
             return null;
         }

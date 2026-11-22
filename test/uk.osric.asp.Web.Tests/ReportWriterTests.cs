@@ -22,8 +22,8 @@ public sealed class HealthReportWriterTests {
 
         string body = await TestHttp.ReadBodyAsync(context);
         Assert.That(body, Does.Not.Contain(Secret));
-        Assert.That(body, Does.Contain("\"error\": null"));
-        Assert.That(body, Does.Contain("\"data\": null"));
+        Assert.That(body, Does.Contain("\"error\":null"));
+        Assert.That(body, Does.Contain("\"data\":null"));
     }
 
     [Test]
@@ -48,7 +48,7 @@ public sealed class HealthReportWriterTests {
 
         string body = await TestHttp.ReadBodyAsync(context);
         Assert.That(context.Response.StatusCode, Is.EqualTo(StatusCodes.Status503ServiceUnavailable));
-        Assert.That(body, Does.Contain("\"status\": \"Unhealthy\""));
+        Assert.That(body, Does.Contain("\"status\":\"Unhealthy\""));
         Assert.That(body, Does.Contain("\"storage\""));
         Assert.That(body, Does.Contain("\"durationMs\""));
     }

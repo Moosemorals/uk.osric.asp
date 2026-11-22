@@ -4,15 +4,10 @@
 namespace uk.osric.asp.Web.Health;
 
 using Microsoft.Extensions.Diagnostics.HealthChecks;
-using System.Text.Json;
 using uk.osric.asp.Core.Text;
 
 /// <summary>Renders a health report as the JSON body of the <c>/health</c> response.</summary>
 internal static class ReportWriter {
-
-    private static readonly JsonSerializerOptions JsonOptions = new(JsonSerialization.Options) {
-        WriteIndented = true,
-    };
 
     /// <summary>Writes the report, answering 200 when healthy and 503 otherwise.</summary>
     public static async Task WriteAsync(HttpContext context, HealthReport report) {
@@ -42,7 +37,7 @@ internal static class ReportWriter {
         }
 
         HealthPayload payload = new(report.Status.ToString(), report.TotalDuration.TotalMilliseconds, checks);
-        await context.Response.WriteAsJsonAsync(payload, JsonOptions, context.RequestAborted);
+        await context.Response.WriteAsJsonAsync(payload, JsonSerialization.Options, context.RequestAborted);
     }
 
     private sealed record CheckResult(string Name, string Status, string? Description,

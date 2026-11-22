@@ -6,7 +6,6 @@ namespace uk.osric.asp.Web.Errors;
 using Microsoft.AspNetCore.Mvc;
 using System.Net;
 using System.Text.Json;
-using System.Text.Json.Serialization;
 using uk.osric.asp.Core.Pages;
 using uk.osric.asp.Core.Text;
 using uk.osric.asp.Sdk;
@@ -28,10 +27,6 @@ using uk.osric.asp.Web.Pages;
 /// </para>
 /// </remarks>
 internal static class ErrorResponses {
-
-    private static readonly JsonSerializerOptions s_jsonOptions = new(JsonSerialization.Options) {
-        DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
-    };
 
     /// <summary>Writes the error as HTML or as a problem document, whichever the request accepts.</summary>
     /// <param name="context">The failing request.</param>
@@ -117,7 +112,7 @@ internal static class ErrorResponses {
 
         context.Response.StatusCode = statusCode;
         context.Response.ContentType = "application/problem+json; charset=utf-8";
-        await context.Response.WriteAsync(JsonSerializer.Serialize(problem, s_jsonOptions), cancellationToken);
+        await context.Response.WriteAsync(JsonSerializer.Serialize(problem, JsonSerialization.Options), cancellationToken);
     }
 
     /// <summary>The error as an <see cref="IResult"/>, for an endpoint that has to return one.</summary>

@@ -27,8 +27,6 @@ internal sealed class RunProcessor(
     ViewTokenStore views,
     ILogger<RunProcessor> logger) {
 
-    private static readonly JsonSerializerOptions s_jsonOptions = new(JsonSerialization.Options);
-
     public async Task RunAsync(QueuedRun queued, CancellationToken hostStopping) {
         // The run's ids are the worker's scope: it is open before the processor is resolved and
         // outlives this call, so opening them again here would put two identical objects on every
@@ -704,7 +702,7 @@ internal sealed class RunProcessor(
 
         OwnerInterrupt? interrupt = await StoreAsync(store => store.GetInterruptAsync(queued.RunId, cancellationToken));
         JsonElement? resolution = interrupt?.ResolutionJson is { } json
-            ? JsonSerializer.Deserialize<JsonElement>(json)
+            ? JsonSerializer.Deserialize<JsonElement>(json, JsonSerialization.Options)
             : null;
         stream.Publish("interrupt.resolved", new {
             step,
@@ -912,7 +910,7 @@ internal sealed class RunProcessor(
             id = call.Id,
             type = "function",
             function = new { name = call.Name, arguments = call.Arguments },
-        }), s_jsonOptions);
+        }), JsonSerialization.Options);
 
     private sealed record PreparedToolCall(string Id, string Name, string Arguments) {
 

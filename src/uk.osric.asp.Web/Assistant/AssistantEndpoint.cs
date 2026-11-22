@@ -25,8 +25,6 @@ using static uk.osric.asp.Web.Html.Markup;
 /// <summary>Serves the assistant page and the JSON endpoints its stream and approvals use.</summary>
 internal static class AssistantEndpoint {
 
-    private static readonly JsonSerializerOptions s_jsonOptions = new(JsonSerialization.Options);
-
     public static async Task ListAsync(
         HttpContext context,
         IConversationStore conversations,
@@ -173,7 +171,7 @@ internal static class AssistantEndpoint {
             }
             context.Response.StatusCode = StatusCodes.Status202Accepted;
             context.Response.ContentType = "application/json; charset=utf-8";
-            await context.Response.WriteAsync(JsonSerializer.Serialize(new { runId = started.RunId }, s_jsonOptions));
+            await context.Response.WriteAsync(JsonSerializer.Serialize(new { runId = started.RunId }, JsonSerialization.Options));
         } finally {
             if (!reservationConsumed) {
                 queue.ReleaseReservation();
@@ -602,7 +600,7 @@ internal static class AssistantEndpoint {
         int heartbeatSeconds,
         [EnumeratorCancellation] CancellationToken cancellationToken) {
         if (reset) {
-            yield return new SseItem<string>(JsonSerializer.Serialize(new { reason = "event id belongs to a different run" }, s_jsonOptions), "stream.reset");
+            yield return new SseItem<string>(JsonSerializer.Serialize(new { reason = "event id belongs to a different run" }, JsonSerialization.Options), "stream.reset");
             yield break;
         }
         await using IAsyncEnumerator<RunEvent> events = stream.ReadAfterAsync(after, cancellationToken).GetAsyncEnumerator(cancellationToken);
@@ -615,7 +613,7 @@ internal static class AssistantEndpoint {
                 if (!await nextHeartbeat) {
                     yield break;
                 }
-                yield return new SseItem<string>(JsonSerializer.Serialize(new { at = DateTimeOffset.UtcNow }, s_jsonOptions), "heartbeat");
+                yield return new SseItem<string>(JsonSerializer.Serialize(new { at = DateTimeOffset.UtcNow }, JsonSerialization.Options), "heartbeat");
                 nextHeartbeat = heartbeat.WaitForNextTickAsync(cancellationToken).AsTask();
                 continue;
             }
@@ -633,7 +631,7 @@ internal static class AssistantEndpoint {
         long conversationId,
         [EnumeratorCancellation] CancellationToken cancellationToken = default) {
         cancellationToken.ThrowIfCancellationRequested();
-        yield return new SseItem<string>(JsonSerializer.Serialize(new { conversationId }, s_jsonOptions), "run.idle");
+        yield return new SseItem<string>(JsonSerializer.Serialize(new { conversationId }, JsonSerialization.Options), "run.idle");
         await Task.CompletedTask;
     }
 

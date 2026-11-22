@@ -5,6 +5,7 @@ namespace uk.osric.asp.Web.Tests;
 
 using System.Text.Json;
 using uk.osric.asp.Core.Assistant;
+using uk.osric.asp.Core.Text;
 using uk.osric.asp.Web.Assistant;
 
 /// <summary>
@@ -46,6 +47,6 @@ public sealed class AssistantBudgetTests {
         Content = string.Empty,
         ToolCallsJson = JsonSerializer.Serialize(new[] {
             new { id, type = "function", function = new { name = "read_page", arguments } },
-        }, new JsonSerializerOptions(JsonSerializerDefaults.Web)),
+        }, JsonSerialization.Options),
     };
 }

@@ -6,9 +6,9 @@ namespace uk.osric.asp.Web.Pages;
 using Microsoft.EntityFrameworkCore;
 using System.Data.Common;
 using System.Text.Json;
-using System.Text.Json.Serialization;
 using uk.osric.asp.Core.Compilation;
 using uk.osric.asp.Core.Pages;
+using uk.osric.asp.Core.Text;
 using uk.osric.asp.Web.Storage;
 
 /// <summary>Applies a source's declaration to the database, inside the transaction that saves it.</summary>
@@ -26,12 +26,6 @@ using uk.osric.asp.Web.Storage;
 /// </para>
 /// </remarks>
 internal sealed class DeclaredTableApplier(PageRecordOptions records) {
-
-    // The declaration as the catalogue keeps it: readable JSON, so an operator looking at the table
-    // can see what was applied without decoding anything.
-    private static readonly JsonSerializerOptions s_json = new() {
-        Converters = { new JsonStringEnumConverter() },
-    };
 
     /// <summary>Reads the catalogue rows one source declared.</summary>
     /// <param name="database">The context to read through.</param>
@@ -331,10 +325,10 @@ internal sealed class DeclaredTableApplier(PageRecordOptions records) {
         }
     }
 
-    private static string Write(IReadOnlyList<PageColumn> columns) => JsonSerializer.Serialize(columns, s_json);
+    private static string Write(IReadOnlyList<PageColumn> columns) => JsonSerializer.Serialize(columns, JsonSerialization.Options);
 
     private static List<PageColumn> Read(string json) =>
-        [.. (JsonSerializer.Deserialize<PageColumn[]>(json, s_json) ?? [])];
+        [.. (JsonSerializer.Deserialize<PageColumn[]>(json, JsonSerialization.Options) ?? [])];
 
     private static string Describe(PageColumn column) =>
         $"{(column.Nullable ? "a nullable " : "a ")}{Describe(column.Type)}";

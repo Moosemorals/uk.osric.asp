@@ -17,7 +17,7 @@ public sealed class HealthEndpointTests : IntegrationTest {
 
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
         Assert.That(response.Content.Headers.ContentType?.MediaType, Is.EqualTo("application/json"));
-        Assert.That(body, Does.Contain("\"status\": \"Healthy\""));
+        Assert.That(body, Does.Contain("\"status\":\"Healthy\""));
         Assert.That(body, Does.Contain("\"storage\""));
         Assert.That(body, Does.Contain("\"durationMs\""));
     }

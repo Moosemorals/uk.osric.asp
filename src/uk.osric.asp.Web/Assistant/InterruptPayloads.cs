@@ -5,6 +5,7 @@ namespace uk.osric.asp.Web.Assistant;
 
 using System.Text.Json;
 using uk.osric.asp.Core.Assistant;
+using uk.osric.asp.Core.Text;
 
 /// <summary>A flagged tool call the owner is asked to allow or refuse.</summary>
 /// <param name="Name">The tool the call names.</param>
@@ -32,11 +33,9 @@ internal sealed record OwnerResolution(string Decision);
 /// </remarks>
 internal static class InterruptPayloads {
 
-    private static readonly JsonSerializerOptions s_jsonOptions = new(JsonSerializerDefaults.Web);
-
     /// <summary>The stored form of a request or a resolution.</summary>
     /// <param name="payload">The value to store.</param>
-    public static string Write(object payload) => JsonSerializer.Serialize(payload, s_jsonOptions);
+    public static string Write(object payload) => JsonSerializer.Serialize(payload, JsonSerialization.Options);
 
     /// <summary>The approval a request describes, or null when it is not one this build understands.</summary>
     /// <param name="requestJson">The stored request.</param>
@@ -64,7 +63,7 @@ internal static class InterruptPayloads {
         }
 
         try {
-            return JsonSerializer.Deserialize<T>(json, s_jsonOptions);
+            return JsonSerializer.Deserialize<T>(json, JsonSerialization.Options);
         } catch (JsonException) {
             return null;
         }

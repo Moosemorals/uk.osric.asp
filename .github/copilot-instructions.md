@@ -115,6 +115,15 @@ deferred, so no `defer` or document-position workaround is needed. A page that s
 its own `text/javascript` content type and `Cache-Control: no-cache`; a stored page that loads one
 opts in with `ctx.AllowScripts()`.
 
+## JSON
+
+Every JSON the host writes or reads goes through the one set of options in
+`Core.Text.JsonSerialization`: web defaults, a relaxed encoder that writes markup and non-ASCII text
+as themselves, and enums by name. A call site names that instance; it never constructs, copies or
+mutates options of its own. A second setting is added to the type only when a shape has to differ, and
+the reason is written on the member. A page's own code may build its own options, because its types
+and its API are its own.
+
 ## Testing
 
 See `docs/testing.md`. Test-first: write the failing test, make it pass, then refactor. Every test is

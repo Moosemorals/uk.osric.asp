@@ -22,4 +22,9 @@ SPDX-License-Identifier: MIT
     <Compile Include="../../src/uk.osric.asp.Web/Documentation/ReferenceModel.cs" Link="Corpus/ReferenceModel.cs" />
   </ItemGroup>
 
+  <ItemGroup>
+    <!-- The corpus is written with the same serializer settings the site reads it with. -->
+    <ProjectReference Include="../../src/uk.osric.asp.Core/uk.osric.asp.Core.csproj" />
+  </ItemGroup>
+
 </Project>
