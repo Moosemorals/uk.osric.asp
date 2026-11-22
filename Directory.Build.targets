@@ -6,6 +6,24 @@ SPDX-License-Identifier: MIT
 <Project>
 
   <!--
+    The tainted-data rules (CA3001-CA3012: SQL injection, XSS and the rest of the family) run a
+    data-flow pass over the whole compilation, and together they cost about 24 of the 31 seconds
+    Web takes to compile. A development build cannot spend that on every edit, so Debug leaves them
+    out; every other configuration runs them, which is what makes a deployment build strict. Release
+    is the deployment configuration the Makefile publishes and images, and `make check` runs that
+    publish, so a rule found there still fails the gate before anything ships. The condition names
+    Debug rather than Release so a configuration nobody anticipated gets the analysis rather than a
+    silent exemption.
+
+    This sits here rather than beside `AnalysisMode` because the SDK's own props set `$(NoWarn)` too,
+    and appending after them is what keeps their defaults. `$(Configuration)` is still empty for a
+    bare `dotnet build`, which names none and lets the SDK default it to Debug, so empty is Debug.
+  -->
+  <PropertyGroup Condition="'$(Configuration)' == '' or '$(Configuration)' == 'Debug'">
+    <NoWarn>$(NoWarn);CA3001;CA3002;CA3003;CA3004;CA3005;CA3006;CA3007;CA3008;CA3009;CA3010;CA3011;CA3012</NoWarn>
+  </PropertyGroup>
+
+  <!--
     Every test asserts, so the framework is one project-wide using rather than a line repeated in
     every file. Helpers and fakes in a test project share it with no harm.
   -->
