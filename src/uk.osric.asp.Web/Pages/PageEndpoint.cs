@@ -194,6 +194,11 @@ internal sealed class PageEndpoint() {
         PageSessionRequest session = await PageSessionResolver.ResolveAsync(
             context, environment.SessionStore, environment.SessionCookie, user, context.RequestAborted);
 
+        // The reader's subjects are resolved beside the session: one answer for every layer, and the
+        // browser id is minted only if something writes a Browser value.
+        PageReaderSubject reader = PageReaderSubjectResolver.Resolve(
+            context, session, environment.Stores.Visitor, environment.BrowserCookie);
+
         // The antiforgery pair is minted once per request: a page and the layout around it must be
         // verifiable against the same token, and a second would leave the first unverifiable.
         string? antiforgeryField = null;
@@ -206,7 +211,7 @@ internal sealed class PageEndpoint() {
         // One body, one fetch allowance and one template allowance for the whole chain: the chrome is
         // part of the response, so a layout must not be able to buffer, fetch or read beside the
         // page's own budgets.
-        PageBodySink bodySink = new(context, environment, session);
+        PageBodySink bodySink = new(context, environment, reader);
 
         // The shell's links are a render fact: this request's path and query and the editor's
         // configured key decide them, so they are built once and every layer's catalog answers the same.
@@ -223,6 +228,7 @@ internal sealed class PageEndpoint() {
             user,
             jobAuthority,
             session,
+            reader,
             isHead,
             new BodyBudget(environment.Render.MaxBodyChars),
             bodySink,
@@ -333,7 +339,7 @@ internal sealed class PageEndpoint() {
 
         Task write = (await chain.WrapAsync(path, page, page.Context.Response.ToResponse())) switch {
             PageChainResult.Failed failure => ErrorResponses.WriteAsync(context, failure.StatusCode, failure.Error),
-            PageChainResult.Served served => WritePageAsync(context, served.Response, served.Body, environment, session),
+            PageChainResult.Served served => WritePageAsync(context, served.Response, served.Body, environment, reader),
         };
 
         await write;
@@ -440,9 +446,9 @@ internal sealed class PageEndpoint() {
         PageResponse response,
         string body,
         PageEnvironment environment,
-        PageSessionRequest session) {
+        PageReaderSubject reader) {
         if (await PageResponseWriter.ApplyAsync(
-            context, response, environment, session, start: false, context.RequestAborted)) {
+            context, response, environment, reader, start: false, context.RequestAborted)) {
             return;
         }
 

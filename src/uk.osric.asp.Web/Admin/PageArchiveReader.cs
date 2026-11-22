@@ -36,7 +36,7 @@ internal sealed record PageArchiveReadResult(IReadOnlyList<PageArchiveEntry> Pag
 /// </remarks>
 internal sealed class PageArchiveReader(
     ArchiveOptions options,
-    PageStorageOptions storage,
+    PageStoresOptions stores,
     ReservedPaths reserved,
     ILogger<PageArchiveReader> logger) {
 
@@ -371,13 +371,13 @@ internal sealed class PageArchiveReader(
                     continue;
                 }
 
-                if (!PageStateKey.IsValid(key, storage.MaxKeyChars)) {
-                    Add(problems, $"That archive has the state key \"{MessageText.Sanitize(key)}\" for \"{MessageText.Sanitize(pagePath)}\", which is not a key this site stores (1–{storage.MaxKeyChars.ToString(CultureInfo.InvariantCulture)} characters, no control characters).");
+                if (!PageStateKey.IsValid(key, stores.MaxKeyChars)) {
+                    Add(problems, $"That archive has the state key \"{MessageText.Sanitize(key)}\" for \"{MessageText.Sanitize(pagePath)}\", which is not a key this site stores (1–{stores.MaxKeyChars.ToString(CultureInfo.InvariantCulture)} characters, no control characters).");
                     continue;
                 }
 
                 int valueBytes = Encoding.UTF8.GetByteCount(value);
-                if (valueBytes > storage.MaxValueBytes) {
+                if (valueBytes > stores.Page.MaxValueBytes) {
                     Add(problems, $"That archive's state value for \"{MessageText.Sanitize(key)}\" on \"{MessageText.Sanitize(pagePath)}\" is larger than this site stores.");
                     continue;
                 }
@@ -396,12 +396,12 @@ internal sealed class PageArchiveReader(
         }
 
         foreach ((string pagePath, List<PageStateValue> values) in state) {
-            if (values.Count > storage.MaxKeysPerPage) {
+            if (values.Count > stores.Page.MaxKeys) {
                 Add(problems, $"That archive holds more state keys for \"{MessageText.Sanitize(pagePath)}\" than this site stores for one page.");
                 continue;
             }
 
-            if (byteTotals[pagePath] > storage.MaxPageBytes) {
+            if (byteTotals[pagePath] > stores.Page.MaxTotalBytes) {
                 Add(problems, $"That archive holds more state for \"{MessageText.Sanitize(pagePath)}\" than this site stores for one page.");
             }
         }

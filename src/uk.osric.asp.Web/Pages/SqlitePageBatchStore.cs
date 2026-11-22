@@ -25,7 +25,7 @@ using uk.osric.asp.Web.Storage;
 /// </remarks>
 internal class SqlitePageBatchStore(
     StorageDbContext database,
-    PageStorageOptions options,
+    PageStoresOptions options,
     TimeProvider clock,
     ILogger<SqlitePageBatchStore> logger,
     PageStorageRefresh? refresh = null) : IPageBatchStore {
@@ -92,7 +92,19 @@ internal class SqlitePageBatchStore(
         PageStateValue value,
         DateTimeOffset updatedAt,
         CancellationToken cancellationToken) =>
-        SqlitePageStateStore.UpsertAsync(database, path, value.Key, value.Value, updatedAt, options, cancellationToken);
+        StoreValueSql.UpsertAsync(
+            database,
+            new StoreValueWrite(
+                StoreSubjects.ForPage(path),
+                path.Key,
+                value.Key,
+                (int)uk.osric.asp.Sdk.StoreLifetimeKind.Page,
+                ExpiresAt: null,
+                value.Value,
+                RequireLivePage: true),
+            StoreSubjects.Stamp(updatedAt),
+            options.Page,
+            cancellationToken);
 
     // The keys the archive does not mention keep their rows, so the merged total is what both the
     // existing state and the incoming state would add up to.
@@ -107,15 +119,16 @@ internal class SqlitePageBatchStore(
             string pagePath = page.Template.Path.Key;
             string[] incoming = [.. page.State.Select(value => value.Key)];
 
-            int otherKeys = await database.Set<PageStateEntry>()
-                .CountAsync(row => row.PagePath == pagePath && !incoming.Contains(row.Key), cancellationToken);
-            long otherBytes = await database.Set<PageStateEntry>()
-                .Where(row => row.PagePath == pagePath && !incoming.Contains(row.Key))
+            string subject = StoreSubjects.PagePrefix + pagePath;
+            int otherKeys = await database.Set<StoreValueEntry>()
+                .CountAsync(row => row.Subject == subject && !incoming.Contains(row.Key), cancellationToken);
+            long otherBytes = await database.Set<StoreValueEntry>()
+                .Where(row => row.Subject == subject && !incoming.Contains(row.Key))
                 .SumAsync(row => (long)row.Key.Length + row.Value.Length, cancellationToken);
             long addedBytes = page.State.Sum(value =>
                 (long)Encoding.UTF8.GetByteCount(value.Key) + Encoding.UTF8.GetByteCount(value.Value));
 
-            if (otherKeys + page.State.Count > options.MaxKeysPerPage || otherBytes + addedBytes > options.MaxPageBytes) {
+            if (otherKeys + page.State.Count > options.Page.MaxKeys || otherBytes + addedBytes > options.Page.MaxTotalBytes) {
                 refused.Add(page.Template.Path);
             }
         }

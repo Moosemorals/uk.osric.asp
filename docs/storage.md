@@ -5,8 +5,8 @@ SPDX-License-Identifier: MIT
 
 # Storage
 
-The SQLite database behind the site: pages and their revisions, page state, a visitor's session, and
-the archive that moves pages between sites. [Pages](pages.md#compiled-pages) says what a stored image is and when it
+The SQLite database behind the site: pages and their revisions, the values a page keeps, a
+visitor's session and browser, and the archive that moves pages between sites. [Pages](pages.md#compiled-pages) says what a stored image is and when it
 is stale; [running it](../deploy/operations.md#storage-and-migrations) is the volume, the migrations
 and the backups.
 
@@ -21,39 +21,88 @@ This is template storage: `PageEditor` writes a page's template, `PageEndpoint` 
 path and runs its compiled image. Pure rules still receive the values loaded by the shell rather
 than being given `IPageStore`.
 
-`PageState` holds a page's key/value store: one row per page and key, with the value as JSON and a
-primary key of the whole access path, so no separate index is needed. There is no foreign key — the
-deletes that keep state from outliving its page are explicit, and SQLite's enforcement depends on the
-connection. State is per path, not per revision: an edit or a restore keeps it, and deleting the page
-clears it in the same transaction as the tombstone.
+### Values
 
-### Page sessions
+`StoreValues` holds every value a page keeps, whoever holds it. One row is the subject, the page key
+that wrote it, the key, the lifetime and the expiry that lifetime carries, the value as JSON and when
+it was last written; the primary key is `(Subject, PageKey, Key)`, so a key is unique per page within
+a subject and the whole access path is the key. There is no foreign key to `PageHeads` — the deletes
+that keep a value from outliving its page are explicit, and SQLite's enforcement depends on the
+connection. A value belongs to a page key, not to a revision: an edit or a restore keeps it, and
+deleting the page removes its Page subject's values in the same transaction as the tombstone.
 
-A visitor's session is two tables in the same database, added by one migration. `PageSessions` is one
-row per visitor — the id the `s` cookie carries, the account it belongs to or `NULL`, and a created
-and a sliding timestamp, both UTC ISO-8601 text so a range delete and an eviction order can run
-inside one statement. `PageSessionValues` is one row per value keyed by session, page path and key,
-with the value as JSON and a cascade delete from the session row. The page path is required on every
-row — the shell is a session owner with a reserved path, exactly like a page — so there is no null or
-empty-string area and SQLite's NULL-is-distinct rule never reaches the unique key. Two indexes back
-the sweep and the eviction order: one on `(Account, UpdatedAt)` and one on `UpdatedAt`.
+A **subject** is whose the values are, spelled as one text key so that a subject is a range:
 
-The caps live in `Pages:Session`: one value's bytes, one session's key count and byte total, and the
-idle lifetime, for an anonymous visitor and for a signed-in one, plus the live-session cap and a
-command timeout. Every value is required: a missing or out-of-range one stops the site at startup
-with a message naming the key, its range and the shipped value
-([configuration](architecture.md#configuration)). The key length is `Pages:Storage:MaxKeyChars`
-because a session key is the same kind of key. Each write is
-one statement that refuses at the cap, the way `SqlitePageStateStore.UpsertAsync` does: the session
-must still exist, the key count must stay inside its cap and the byte total inside its cap. The caps
-are per visitor, not per page, so one page's keys can use the room another would have had.
+- `page:<key>` — the page itself, shared by every visitor.
+- `account:<name>` — the person, once they have signed in.
+- `session:<id>` — the visitor the `s` cookie names, before they have signed in.
+- `browser:<id>` — the browser the `b` cookie names, which outlives a sign-in and a sign-out.
 
-Expiry is a sliding window per row; the sweep is `PageSessionCleanupService`, a five-minute
-`PeriodicTimer` that deletes expired rows and trims an overfull table, logging one line with the
-counts by kind when it removed anything. A mint pays for housekeeping only when it would otherwise
-have evicted: it deletes expired rows first, then evicts the most idle anonymous session, and only
-reaches a signed-in session when no anonymous one is left. That order is what keeps a flood of new
-anonymous visitors from pushing the owner's own session out.
+A page never sees a subject key, a session id or an account name: the shell resolves one reader
+(`PageReaderSubject`) per request and hands the page `ctx.Stores.Page` and `ctx.Stores.Visitor`.
+
+A **lifetime** is the rule that kills a value, and it is on the row so that a read can report it:
+
+| Lifetime | Dies when | Who may hold it |
+| --- | --- | --- |
+| `Page` | the page goes | a Page subject |
+| `Person` | the account goes; anonymously, when the session does | a Visitor |
+| `Session` | the session rotates, is signed out, or is swept | a Visitor |
+| `Browser` | the browser cookie expires or is cleared | a Visitor |
+| `NextRead` | the first successful take of that key | either |
+
+A write without a lifetime takes the subject's own — `Page` on a Page subject, `Person` on a Visitor
+— and a lifetime the subject cannot carry is a page bug that throws rather than a value quietly kept
+somewhere else. `Until` adds an expiry to the subject's default and `WithExpiry` adds one to a named
+lifetime; an expired row is never answered and the sweep deletes it
+(`pages-a-lifetime-belongs-to-the-entry`).
+
+A Value read searches the reader's subjects in order — `session:`, then `browser:`, then `account:`
+— so a page's own preference shadows nothing, a browser's preference shadows the account's, and the
+closest owner wins (`pages-a-browser-is-a-lifetime`). A read of another page's value names that page's
+key; a write cannot, because the handle is bound to the layer's own key and there is no argument that
+names another writer (`pages-the-subject-is-the-binding`).
+
+### Page sessions and the browser
+
+A visitor's identity is one table, `PageSessions`, added by its own migration: one row per visitor —
+the id the `s` cookie carries, the account it belongs to or `NULL`, and a created and a sliding
+timestamp, both UTC ISO-8601 text so a range delete and an eviction order can run inside one
+statement. Two indexes back the sweep and the eviction order: one on `(Account, UpdatedAt)` and one
+on `UpdatedAt`. The values that used to sit beside it are rows in `StoreValues` now, so a session's
+delete removes them in the same transaction rather than through a cascade.
+
+The caps live in `Pages:Stores`: the longest key, the command and busy timeouts, and then one set of
+caps per subject instance — a value's bytes, the key count and the byte total — for a page, an
+anonymous visitor, a browser and a signed-in visitor, with the anonymous idle window, the browser's
+lifetime in days and the live-session cap beside them. Every value is required: a missing or
+out-of-range one stops the site at startup with a message naming the key, its range and the shipped
+value ([configuration](architecture.md#configuration), `pages-one-stores-section`). Each write is one
+statement that refuses at the cap: a Page write also needs a live head, the key count must stay inside its cap and the byte
+total inside its cap, all proved in the statement that writes, so a concurrent writer either fits or
+is refused. The caps are per subject instance, not per page, so one page's keys can use the room
+another would have had.
+
+A visitor's expiry is the sliding window on their `PageSessions` row; a value's expiry is its own
+column. The sweep is `PageSessionCleanupService`, a five-minute `PeriodicTimer` that deletes expired
+sessions, expired values and browser rows nobody has written for the browser's lifetime, and trims an
+overfull session table, logging one line with the counts by kind when it removed anything. A mint pays
+for housekeeping only when it would otherwise have evicted: it deletes expired rows first, then
+evicts the most idle anonymous session, and only reaches a signed-in session when no anonymous one is
+left. That order is what keeps a flood of new anonymous visitors from pushing the owner's own session
+out.
+
+Signing in is where a subject changes. One transaction re-keys the leaving session's `Person` and
+`NextRead` rows into `account:<name>`, deletes whatever is left under `session:<old>` — a `Session`
+value dies with the session that held it — and inserts the account's session. A one-shot therefore
+survives sign-in unread, and the value a page left for a person is still there afterwards. A
+`Browser` value is not touched at all: it never belonged to the session
+(`pages-adoption-re-keys-at-sign-in`).
+
+The migration that built `StoreValues` copied both tables it replaced — `PageState` as
+`page:<key>` rows under the `Page` lifetime, `PageSessionValues` as `session:<id>` rows under
+`Session` — and then dropped them. Its `Down` restores the two tables from the rows that can still be
+expressed in them, so a `Person`, `Browser`, `NextRead` or expiring row does not survive a rollback.
 
 `PageRevisions` holds every save as a separate row, including its source, revision hash, creation
 runtime id, optional compilation result and a nullable `TemplateKind` verdict. The verdict is
@@ -74,7 +123,7 @@ holding the one writer from its first statement, so the heads it re-proves its e
 cannot move under it. Everything slow happens outside it: a staged save compiles first, and the commit
 is statements only. The store runs in WAL, which is set and verified at startup — a reader never blocks
 a commit and a commit never blocks a reader — and a commit that cannot take the writer answers that it
-is busy after `Pages:Storage:BusyTimeoutSeconds` rather than waiting the client's default out. A
+is busy after `Pages:Stores:BusyTimeoutSeconds` rather than waiting the client's default out. A
 refusal writes nothing: the operations are applied in the order the page staged them, each proving its
 own condition against the rows the ones before it wrote — so a create, a move and a delete of one page
 in one transaction are a sequence that succeeds — and a refusal rolls the whole transaction back and
@@ -113,8 +162,9 @@ copies separately. Runtime-change cleanup of obsolete images and symbols is futu
 revision identity are retained unless explicitly scrubbed.
 
 A move re-files a page in one transaction: the head row at the old key is deleted, every revision's
-`Path` is updated to the new key, `PageState` rows are re-keyed, and a head is inserted at the new key
-with the revision the page already had and the anchor and content hash it already carried. The head
+`Path` is updated to the new key, the page's values are re-keyed from `page:<old>` to `page:<new>`,
+and a head is inserted at the new key with the revision the page already had and the anchor and
+content hash it already carried. The head
 goes first and comes back last because `PageHeads(RevisionId, Path)` points at a revision of the head's
 own path, so the foreign key would refuse any other order; nothing is recompiled. Every hash is kept,
 so the history is one history under the new name, and nothing is left at the old key. A tombstone at
@@ -215,11 +265,16 @@ same file back behind the `Editor` policy. The archive is a SQLite database — 
 and `PageState(PagePath, Key, Value)`, identified by `PRAGMA application_id` and `user_version` —
 built in memory with `sqlite3_serialize` and read by deserializing an upload read-only with
 `sqlite3_deserialize`, so neither direction needs a temporary file (`pages-an-archive-is-a-database`).
+The second table keeps the name and the shape it had before `StoreValues` replaced it, so an archive
+written by an earlier release still imports.
 
-The archive carries source and state and nothing else: revision history, tombstones, users, page
-sessions and configuration belong to the site that made them — a session is a visitor's scratch
-space rather than content — and shipping hashes and runtime ids across sites would import code
-nobody built. Import is additive — pages absent from the archive are untouched and
+The archive carries source and the page's own values and nothing else. Only a `Page` lifetime row
+with no expiry under `page:<key>` goes into `PageState`; a `Person`, `Session`, `Browser` or
+`NextRead` row is somebody's rather than the page's, and an expiring row is not content. Revision
+history, tombstones, users, page sessions and configuration belong to the site that made them — a
+session is a visitor's scratch space rather than content — and shipping hashes and runtime ids across
+sites would import code nobody built. An import writes each value back under the `Page` lifetime, so
+a page arrives with the same shared data it left with. Import is additive — pages absent from the archive are untouched and
 nothing is deleted — and it never invents a storage path: each approved page becomes a revision
 through the same factory an editor save uses, so an overwrite is an ordinary new revision and the old
 source stays in history.

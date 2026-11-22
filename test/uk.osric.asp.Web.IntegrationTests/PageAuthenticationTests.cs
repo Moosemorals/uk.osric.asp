@@ -96,8 +96,9 @@ public sealed class PageAuthenticationTests : IntegrationTest {
         Assert.That(await response.Content.ReadAsStringAsync(), Does.Contain("could not be verified"));
         Assert.That(response.Headers.CacheControl?.NoStore, Is.True);
 
-        string? ran = await WithServicesAsync(services =>
-            services.GetRequiredService<IPageStateStore>().GetValueAsync(PagePath.Normalize("/private-refused"), "ran"));
+        string? ran = await WithServicesAsync(async services =>
+            (await services.GetRequiredService<IStoreValues>().FindAsync(
+                [StoreSubjects.PagePrefix + "/private-refused"], "/private-refused", "ran"))?.Value);
         Assert.That(ran, Is.Null, "a refused request must not execute the page");
     }
 

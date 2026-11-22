@@ -107,7 +107,7 @@ internal sealed class ExportEndpoint {
     public static async Task DownloadAsync(
         HttpContext context,
         IPageStore pages,
-        IPageStateStore state,
+        IStoreValues state,
         ReservedPaths reserved,
         ILoggerFactory loggers) {
         ArgumentNullException.ThrowIfNull(loggers);
@@ -194,7 +194,8 @@ internal sealed class ExportEndpoint {
                 return;
             }
 
-            IReadOnlyList<PageStateValue> values = await state.GetValuesAsync(path, context.RequestAborted);
+            IReadOnlyList<StoreValueRow> rows = await state.GetPageValuesAsync(path, context.RequestAborted);
+            IReadOnlyList<PageStateValue> values = [.. rows.Select(row => new PageStateValue(row.Key, row.Value))];
             PageHeadSummary? head = await pages.GetHeadAsync(path, context.RequestAborted);
             entries.Add(new PageArchiveEntry(path, source, values, head?.SeedHash));
         }

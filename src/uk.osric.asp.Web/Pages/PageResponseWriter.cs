@@ -19,7 +19,7 @@ internal static class PageResponseWriter {
     /// <param name="context">The response being written.</param>
     /// <param name="response">What the page asked the response to be.</param>
     /// <param name="environment">The session the cookie belongs to.</param>
-    /// <param name="session">The visitor's session for this request.</param>
+    /// <param name="reader">The reader's subjects for this request.</param>
     /// <param name="start">Whether to start the response after applying it.</param>
     /// <param name="cancellationToken">Cancels the start.</param>
     /// <returns>Whether the response is a redirect, which has no body.</returns>
@@ -27,19 +27,19 @@ internal static class PageResponseWriter {
         HttpContext context,
         PageResponse response,
         PageEnvironment environment,
-        PageSessionRequest session,
+        PageReaderSubject reader,
         bool start,
         CancellationToken cancellationToken) {
         ArgumentNullException.ThrowIfNull(context);
         ArgumentNullException.ThrowIfNull(response);
         ArgumentNullException.ThrowIfNull(environment);
-        ArgumentNullException.ThrowIfNull(session);
+        ArgumentNullException.ThrowIfNull(reader);
 
         if (response.Location is not null) {
             // A redirect can carry the promise of a page the visitor is not yet allowed to see, so it
             // is never cached, whoever asked.
             SecurityHeaders.NoStore(context);
-            WriteSessionCookie(context, environment, session);
+            WriteCookies(context, environment, reader);
             Redirect.To(context, response.Status, response.Location);
             return true;
         }
@@ -60,7 +60,7 @@ internal static class PageResponseWriter {
         // Copies first, then overrides, so a page cannot weaken it with SetHeader.
         SecurityHeaders.NoStore(context);
         context.Response.Headers.Remove("ETag");
-        WriteSessionCookie(context, environment, session);
+        WriteCookies(context, environment, reader);
 
         if (start) {
             await context.Response.StartAsync(cancellationToken);
@@ -79,14 +79,19 @@ internal static class PageResponseWriter {
             and not StatusCodes.Status304NotModified;
     }
 
-    // Minted lazily, so a page that only reads costs a visitor no cookie and the next write is the
-    // first thing that needs one.
-    private static void WriteSessionCookie(
+    // Both identities are minted lazily, so a page that only reads costs a visitor no cookie and the
+    // next write is the first thing that needs one. A browser identity is written only when this
+    // request minted or re-set it.
+    private static void WriteCookies(
         HttpContext context,
         PageEnvironment environment,
-        PageSessionRequest session) {
-        if (session.NeedsCookie) {
-            PageSessionCookie.Write(context, session.Id, environment.SessionCookie);
+        PageReaderSubject reader) {
+        if (reader.NeedsSessionCookie) {
+            PageSessionCookie.Write(context, reader.SessionId, environment.SessionCookie);
+        }
+
+        if (reader.NeedsBrowserCookie && reader.BrowserId is { } browserId) {
+            PageBrowserCookie.Write(context, browserId, environment.BrowserCookie);
         }
     }
 }

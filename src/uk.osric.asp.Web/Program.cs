@@ -113,8 +113,7 @@ internal class Program {
         PageReadOptions read = PageReadOptions.FromConfiguration(settings.At("Pages:Read"));
         PageSearchOptions search = PageSearchOptions.FromConfiguration(settings.At("Pages:Search"));
         PageJobOptions jobOptions = PageJobOptions.FromConfiguration(settings.At("Pages:Jobs"));
-        PageSessionOptions session = PageSessionOptions.FromConfiguration(settings.At("Pages:Session"));
-        PageStorageOptions storage = PageStorageOptions.FromConfiguration(settings.At("Pages:Storage"));
+        PageStoresOptions stores = PageStoresOptions.FromConfiguration(settings.At("Pages:Stores"));
         RenderOptions render = RenderOptions.FromConfiguration(settings.At("Pages:Render"));
         SiteOptions site = SiteOptions.FromConfiguration(settings.At("Site"));
         StreamOptions stream = StreamOptions.FromConfiguration(settings.At("Pages:Stream"));
@@ -125,12 +124,16 @@ internal class Program {
         ConfigurationReader pageSettings = settings.At("Pages");
         pageSettings.FailIf(pageSettings.Has("ReservedPaths"), "ReservedPaths",
             "is no longer read. The shell's own route table is the reserved list, so remove the key and restart");
+        pageSettings.FailIf(pageSettings.Has("Storage"), "Storage",
+            "is no longer read. Pages:Stores carries the page's value caps, so remove the key and restart");
+        pageSettings.FailIf(pageSettings.Has("Session"), "Session",
+            "is no longer read. Pages:Stores:Visitor carries the session's caps and idle bounds, so remove the key and restart");
         settings.Complete();
         ReservedPaths reserved = new(ReservedPaths.Default);
 
         // The store's busy timeout is the page's, not the client's thirty-second default: a commit
         // that cannot take the writer answers "busy" after the time the owner chose.
-        connection.DefaultTimeout = storage.BusyTimeoutSeconds;
+        connection.DefaultTimeout = stores.BusyTimeoutSeconds;
 
         // Configuration: the database, its options, and the proxy trust the host depends on.
         // The scoped context is what the stores on the request inject; the factory is what lets a
@@ -216,14 +219,15 @@ internal class Program {
         builder.Services.AddSingleton(search);
         builder.Services.AddSingleton(render);
         builder.Services.AddSingleton(reserved);
-        builder.Services.AddSingleton(session);
         builder.Services.AddSingleton(site);
-        builder.Services.AddSingleton(storage);
+        builder.Services.AddSingleton(stores);
         builder.Services.AddSingleton(stream);
         builder.Services.AddSingleton(fetch);
 
         // Singletons, sort alphabetically so the list is easy to scan.
         builder.Services.AddSingleton(PageSessionCookieOptions.For(builder.Environment));
+        builder.Services.AddSingleton(services => PageBrowserCookieOptions.For(
+            builder.Environment, services.GetRequiredService<PageStoresOptions>().Visitor));
         builder.Services.AddSingleton(TimeProvider.System);
         builder.Services.AddSingleton(services => new PageEnvironment(
               services.GetRequiredService<ReservedPaths>(),
@@ -231,11 +235,11 @@ internal class Program {
               services.GetRequiredService<PageLayoutOptions>(),
               services.GetRequiredService<RenderOptions>(),
               services.GetRequiredService<PageContentTypes>(),
-              services.GetRequiredService<PageStorageOptions>(),
+              services.GetRequiredService<PageStoresOptions>(),
               services.GetRequiredService<PageFetchOptions>(),
               services.GetRequiredService<PageReadOptions>(),
               services.GetRequiredService<PageSourceScan>(),
-              services.GetRequiredService<IPageStateStore>(),
+              services.GetRequiredService<IStoreValues>(),
               services.GetRequiredService<IPageReadStore>(),
               services.GetRequiredService<PageSeeds>(),
               services.GetRequiredService<PageSaver>(),
@@ -244,9 +248,9 @@ internal class Program {
               services.GetRequiredService<IAntiforgery>(),
               services.GetRequiredService<MarkdownRenderer>(),
               services.GetRequiredService<DiffRenderer>(),
-              services.GetRequiredService<PageSessionOptions>(),
               services.GetRequiredService<IPageSessionStore>(),
               services.GetRequiredService<PageSessionCookieOptions>(),
+              services.GetRequiredService<PageBrowserCookieOptions>(),
               services.GetRequiredService<PageJobs>(),
               services.GetRequiredService<PageChecks>(),
               services.GetRequiredService<PageJobAuthorityFactory>()));
@@ -265,7 +269,7 @@ internal class Program {
         builder.Services.AddSingleton<IPageCommitStore, SqlitePageCommitStore>();
         builder.Services.AddSingleton<IPageRevisionStore, SqlitePageRevisionStore>();
         builder.Services.AddSingleton<IPageSessionStore, SqlitePageSessionStore>();
-        builder.Services.AddSingleton<IPageStateStore, SqlitePageStateStore>();
+        builder.Services.AddSingleton<IStoreValues, SqliteStoreValues>();
         builder.Services.AddSingleton<IPasswordService, PasswordService>();
         builder.Services.AddSingleton<IUserConsole, SystemUserConsole>();
         builder.Services.AddSingleton<ImportQueue>();
@@ -284,8 +288,9 @@ internal class Program {
         builder.Services.AddSingleton(services => new PageJobEnvironment(
             services.GetRequiredService<PageJobOptions>(),
             services.GetRequiredService<IWorkerStore>(),
-            services.GetRequiredService<IPageStateStore>(),
-            services.GetRequiredService<PageStorageOptions>(),
+            services.GetRequiredService<IStoreValues>(),
+            services.GetRequiredService<PageStoresOptions>(),
+            services.GetRequiredService<IPageSessionStore>(),
             services.GetRequiredService<IPageFetcher>(),
             services.GetRequiredService<PageFetchOptions>(),
             services.GetRequiredService<IPageReadStore>(),

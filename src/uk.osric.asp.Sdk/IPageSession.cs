@@ -29,6 +29,7 @@ namespace uk.osric.asp.Sdk;
 /// The idle lifetime is thirty minutes anonymously and eight hours when signed in.
 /// </para>
 /// </remarks>
+[System.Obsolete("Use ctx.Stores.Visitor.Values with StoreLifetime.Session or StoreLifetime.Browser. This spelling is removed one release after the storage model lands.")]
 public interface IPageSession {
     /// <summary>Reads one of this page's values and reports whether the key exists.</summary>
     /// <typeparam name="T">The type to deserialise the stored JSON as.</typeparam>

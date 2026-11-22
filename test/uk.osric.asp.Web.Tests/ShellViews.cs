@@ -237,11 +237,11 @@ internal static class ShellViews {
                 TestOptions.Layout with { Default = "/_layout" },
                 TestOptions.Render,
                 TestContentTypes.Shipped,
-                TestOptions.Storage,
+                TestOptions.Stores,
                 TestOptions.Fetch,
                 TestOptions.Read,
                 TestOptions.Scan(),
-                new FakePageStateStore(),
+                new FakeStoreValues(),
                 readStore ?? new FakePageReadStore(),
                 TestOptions.Seeds,
                 harness.Saver,
@@ -250,9 +250,9 @@ internal static class ShellViews {
                 new TestAntiforgery(),
                 new MarkdownRenderer(),
                 new DiffRenderer(),
-                TestOptions.Session,
                 new FakePageSessionStore(),
-                TestSessions.Cookie),
+                TestSessions.Cookie,
+                TestSessions.BrowserCookie),
             harness.Editor);
 
         return await TestHttp.ReadBodyAsync(context);
@@ -343,11 +343,11 @@ internal static class ShellViews {
                 TestOptions.Layout,
                 TestOptions.Render,
                 TestContentTypes.Shipped,
-                TestOptions.Storage,
+                TestOptions.Stores,
                 TestOptions.Fetch,
                 TestOptions.Read,
             TestOptions.Scan(),
-                new FakePageStateStore(),
+                new FakeStoreValues(),
                 new FakePageReadStore(),
                 TestOptions.Seeds,
                 pages.Saver,
@@ -356,9 +356,9 @@ internal static class ShellViews {
                 new TestAntiforgery(),
                 new MarkdownRenderer(),
                 new DiffRenderer(),
-                TestOptions.Session,
                 new FakePageSessionStore(),
-                TestSessions.Cookie));
+                TestSessions.Cookie,
+                TestSessions.BrowserCookie));
 
         return await TestHttp.ReadBodyAsync(context);
     }
@@ -544,7 +544,7 @@ internal static class ShellViews {
 
         await ImportEndpoint.UploadAsync(
             context,
-            new PageArchiveReader(TestOptions.Archive, TestOptions.Storage, Reserved, NullLogger<PageArchiveReader>.Instance),
+            new PageArchiveReader(TestOptions.Archive, TestOptions.Stores, Reserved, NullLogger<PageArchiveReader>.Instance),
             new ImportStageStore(TestOptions.Archive, new TestClock()),
             TestOptions.Archive,
             NullLoggerFactory.Instance);

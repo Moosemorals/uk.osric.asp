@@ -47,6 +47,14 @@ public interface IWorkerContext {
     /// <summary>What this job offers, which is fewer things than a page's render does.</summary>
     public IPageCapabilities Capabilities { get; }
 
+    /// <summary>The job's data: the starting page's, the starter's, and the worker's own namespace.</summary>
+    /// <remarks>
+    /// A job has no session and no browser, so its <see cref="IPageStores.Visitor"/> has only
+    /// <see cref="StoreLifetime.Person"/>; <see cref="StoreLifetime.Session"/> and
+    /// <see cref="StoreLifetime.Browser"/> are refused.
+    /// </remarks>
+    public IPageStores Stores { get; }
+
     /// <summary>Writes to the job's log.</summary>
     /// <param name="message">The message.</param>
     public void Log(string message);

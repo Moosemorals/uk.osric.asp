@@ -59,8 +59,8 @@ public sealed class PageStorageTests : IntegrationTest {
         });
 
         int rows = await WithServicesAsync(services => services.GetRequiredService<StorageDbContext>()
-            .Set<PageStateEntry>()
-            .Where(row => row.PagePath == "/counter")
+            .Set<StoreValueEntry>()
+            .Where(row => row.PageKey == "/counter")
             .CountAsync());
 
         Assert.That(rows, Is.Zero);

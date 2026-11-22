@@ -384,39 +384,51 @@ stops being self-explanatory:
 | `a` | The authentication ticket: the key whose row lives in `AuthTickets` |
 | `f` | The antiforgery pair's cookie |
 | `s` | The per-visitor page session: 128 random bits, one row in `PageSessions` |
+| `b` | The visitor's browser: 128 random bits, minted by the first `Browser` value a page writes |
 
-A page cannot read or set any of them: `Set-Cookie` is refused by the header allow-list, all three
+A page cannot read or set any of them: `Set-Cookie` is refused by the header allow-list, all four
 are `HttpOnly`, and `PageRequestSnapshot` leaves them out of the `Cookies` a page sees. The names
-live in one place, `ShellCookies`. `a` is `SameSite=Lax` so a link from elsewhere still arrives
-signed in; `f` and `s` are `Strict`. All three follow the same `SecurePolicy`, which is `Always` in
-production. The names are short rather than long on purpose — the session cookie's value changed
-meaning with the [page session](plans/archive/page-session.md), and this was the cheapest moment
-to rename the other two (`shell-the-cookie-names`).
+live in one place, `ShellCookies`. `a` and `b` are `SameSite=Lax` — a link from elsewhere still
+arrives signed in, and a browser is still recognised when it does — and `f` and `s` are `Strict`.
+All four follow the same `SecurePolicy`, which is `Always` in production. The names are short rather
+than long on purpose — the session cookie's value changed meaning with the
+[page session](plans/archive/page-session.md), and this was the cheapest moment to rename the other
+two (`shell-the-cookie-names`).
 
 ### Page sessions
 
-A page keeps per-visitor state through `ctx.Capabilities.GetRequired<IPageSession>()` (see
-[pages](pages.md#page-contract)). The shell owns the identity:
+A page keeps per-visitor data through `ctx.Stores.Visitor` (see [pages](pages.md#page-data)). The
+shell owns the identity:
 
-- **Minted lazily.** `PageEndpoint` resolves the visitor's session once per request, before any layer
-  runs. A row is created on the page's first write and the cookie is set on the response that wrote
-  it, so a page that only reads sets no cookie and costs no row.
+- **Minted lazily.** `PageEndpoint` resolves the visitor once per request, before any layer runs. A
+  session row is created on the first write that needs one and the cookie is set on the response that
+  wrote it, so a page that only reads sets no cookie and costs no row.
 - **Bound to the request, not the page.** Every layer of the chain — the page and each layout —
-  shares one session id, so two layers cannot see different sessions. A layout and a `HEAD` render
-  get a read-only handle.
+  shares one session id and one browser id, so two layers cannot see different visitors. A layout and
+  a `HEAD` render get a handle that may not write.
 - **Slid once.** Reading or writing slides the idle timer with one `UPDATE` per request, never one
-  per key, and a `HEAD` render does not slide it. An anonymous session lives 30 minutes, a
-  signed-in one 8 hours.
-- **Rotated on sign-in.** A session row carries the account it belongs to. Signing in deletes the
-  row the browser presented and mints one for the account, so a stale cookie cannot inherit what an
-  anonymous visitor or a previous account left behind. Signing out deletes the row and clears the
-  cookie. Neither writes a flash message: a message written after a sign-out has nowhere to live.
-- **Swept on a timer.** `PageSessionCleanupService` removes expired rows every five minutes, and the
-  mint path deletes expired rows before it evicts anything live, so a burst of new visitors cannot
-  push a live session out because stale ones are holding the room.
-- **Capped.** `Pages:Session` bounds the values (see [storage](storage.md#page-sessions)). A live
-  session cap evicts the most idle **anonymous** session first and only touches a signed-in one when
-  no anonymous session is left, so a flood sheds strangers rather than the person using the site.
+  per key, and a `HEAD` render does not slide it. An anonymous session lives 30 minutes; a signed-in
+  one lives as long as its ticket.
+- **Rotated on sign-in, and the person comes with it.** A session row carries the account it belongs
+  to. Signing in deletes the row the browser presented and mints one for the account in the same
+  transaction, re-keying the session's `Person` and `NextRead` values into the account and deleting
+  the rest, so a one-shot survives sign-in unread and a stale cookie cannot inherit anything else
+  (`pages-adoption-re-keys-at-sign-in`). Signing out deletes the row and clears the cookie. Neither writes a flash message: a message
+  written after a sign-out has nowhere to live.
+- **Swept on a timer.** `PageSessionCleanupService` removes expired rows and expired values every
+  five minutes, and the mint path deletes expired rows before it evicts anything live, so a burst of
+  new visitors cannot push a live session out because stale ones are holding the room.
+- **Capped.** `Pages:Stores` bounds the keys and bytes each subject instance may hold
+  (see [storage](storage.md#page-sessions-and-the-browser), `pages-one-stores-section`). A live session cap evicts the most idle
+  **anonymous** session first and only touches a signed-in one when no anonymous session is left, so
+  a flood sheds strangers rather than the person using the site.
+
+A browser is separate from a session, and later: `b` is minted by the first `Browser` value a page
+writes, on the same response, and is never linked to an account. It survives a sign-in, a sign-out
+and a session that ends, which is what makes it the place for a preference that should outlast one
+visit — the seeded editor-mode toggle is the first one. A visitor who never writes one never gets the
+cookie, and it costs no row. A page can neither read nor set it: `Browser` is a lifetime on a value,
+and the identity behind it is the shell's (`pages-a-browser-is-a-lifetime`).
 
 The shell keeps no flash message of its own. The editor page's notices are written into the render
 that produced them: it answers a save in place, so a message that a redirect would have to carry is

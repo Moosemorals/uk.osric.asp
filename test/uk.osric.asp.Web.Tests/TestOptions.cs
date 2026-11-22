@@ -55,11 +55,8 @@ internal static class TestOptions {
     /// <summary>The job bounds the site ships with.</summary>
     public static PageJobOptions Jobs { get; } = PageJobOptions.FromConfiguration(Configuration);
 
-    /// <summary>The page store's limits.</summary>
-    public static PageStorageOptions Storage { get; } = PageStorageOptions.FromConfiguration(Configuration);
-
-    /// <summary>The session limits.</summary>
-    public static PageSessionOptions Session { get; } = PageSessionOptions.FromConfiguration(Configuration);
+    /// <summary>The page stores' caps and identity bounds.</summary>
+    public static PageStoresOptions Stores { get; } = PageStoresOptions.FromConfiguration(Configuration);
 
     /// <summary>The outbound fetch limits.</summary>
     public static PageFetchOptions Fetch { get; } = PageFetchOptions.FromConfiguration(Configuration);

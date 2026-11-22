@@ -12,4 +12,11 @@ namespace uk.osric.asp.Sdk;
 /// <typeparam name="T">The type the value was deserialised as.</typeparam>
 /// <param name="Found">Whether the key exists.</param>
 /// <param name="Value">The stored value, or the default when the key is absent.</param>
-public readonly record struct PageValue<T>(bool Found, T? Value);
+public readonly record struct PageValue<T>(bool Found, T? Value) {
+
+    /// <summary>The rule the entry follows, or <see cref="StoreLifetime.Default"/> when nothing was found.</summary>
+    public StoreLifetime Lifetime { get; init; }
+
+    /// <summary>The canonical key of the page that wrote the entry, or <see langword="null"/> when nothing was found.</summary>
+    public string? Page { get; init; }
+}

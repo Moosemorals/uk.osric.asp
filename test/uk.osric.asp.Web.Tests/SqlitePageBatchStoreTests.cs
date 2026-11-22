@@ -88,19 +88,19 @@ public sealed class SqlitePageBatchStoreTests {
         Assert.That(await HeadRevisionAsync(database, "/two"), Is.EqualTo(twoHead), "the second page's head must not move");
         Assert.That(await database.Set<PageRevision>().CountAsync(row => row.Path == "/one"), Is.EqualTo(1));
         Assert.That(await database.Set<PageRevision>().CountAsync(row => row.Path == "/two"), Is.EqualTo(1));
-        Assert.That(await database.Set<PageStateEntry>().CountAsync(), Is.EqualTo(0));
+        Assert.That(await database.Set<StoreValueEntry>().CountAsync(), Is.EqualTo(0));
     }
 
     [Test]
     public async Task AMergedStateOverTheCapWritesNothing() {
         await DatabaseTemplate.SavePageAsync(_options, "/one", "old one");
         await DatabaseTemplate.SavePageAsync(_options, "/two", "old two");
-        await new SqlitePageStateStore(DatabaseTemplate.Factory(_options), TestOptions.Storage, TimeProvider.System)
-            .SetValueAsync(Key("/two"), "kept", "\"kept\"");
+        await new SqliteStoreValues(DatabaseTemplate.Factory(_options), TestOptions.Stores, TimeProvider.System)
+            .WritePageValueAsync(Key("/two"), "kept", "\"kept\"", TestOptions.Stores.Page);
         (string oneHead, string twoHead) = await HeadsAsync();
 
         // Sixteen bytes cannot hold both the key the page already has and the one the archive brings.
-        ObservingStore store = Store(TestOptions.Storage with { MaxPageBytes = 16, MaxValueBytes = 16 });
+        ObservingStore store = Store(TestOptions.Stores with { Page = TestOptions.Stores.Page with { MaxTotalBytes = 16, MaxValueBytes = 16 } });
 
         PageBatchResult result = await store.SaveBatchAsync([
             Batch("/one", "new one", [new("visits", "1")]),
@@ -115,15 +115,16 @@ public sealed class SqlitePageBatchStoreTests {
         Assert.That(await HeadRevisionAsync(database, "/two"), Is.EqualTo(twoHead));
         Assert.That(await database.Set<PageRevision>().CountAsync(), Is.EqualTo(2));
 
-        IPageStateStore state = new SqlitePageStateStore(DatabaseTemplate.Factory(_options), TestOptions.Storage, TimeProvider.System);
-        Assert.That(await state.ListKeysAsync(Key("/two")), Is.EqualTo(new List<string> { "kept" }));
+        IStoreValues state = new SqliteStoreValues(DatabaseTemplate.Factory(_options), TestOptions.Stores, TimeProvider.System);
+        IReadOnlyList<StoreValueRow> kept = await state.ListAsync([StoreSubjects.PagePrefix + "/two"], "/two", null, 10);
+        Assert.That(kept.Select(row => row.Key), Is.EqualTo(new List<string> { "kept" }));
     }
 
     private static PageBatchSave Batch(string path, string source, IReadOnlyList<PageStateValue> state) =>
         new(PageTemplate.NewRevision(Key(path), source, null, "test-runtime"), state);
 
-    private ObservingStore Store(PageStorageOptions? storage = null) {
-        return new ObservingStore(new StorageDbContext(_options), storage ?? TestOptions.Storage, TimeProvider.System);
+    private ObservingStore Store(PageStoresOptions? stores = null) {
+        return new ObservingStore(new StorageDbContext(_options), stores ?? TestOptions.Stores, TimeProvider.System);
     }
 
     private async Task<(string One, string Two)> HeadsAsync() {
@@ -141,7 +142,7 @@ public sealed class SqlitePageBatchStoreTests {
     /// <summary>A batch store that can observe or fail one page's state write.</summary>
     private sealed class ObservingStore(
         StorageDbContext database,
-        PageStorageOptions options,
+        PageStoresOptions options,
         TimeProvider clock) : SqlitePageBatchStore(database, options, clock, NullLogger<SqlitePageBatchStore>.Instance) {
 
         /// <summary>Runs once, inside the transaction, before the next state row is written.</summary>

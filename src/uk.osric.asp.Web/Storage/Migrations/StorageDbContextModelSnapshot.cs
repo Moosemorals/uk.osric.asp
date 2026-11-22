@@ -15,7 +15,7 @@ partial class StorageDbContextModelSnapshot : ModelSnapshot
     // If you encounter a merge conflict in the line below, it means you need to
     // discard one of the migration branches and recreate its migrations on top of
     // the other branch. See https://aka.ms/efcore-docs-migrations-conflicts for more info.
-    public override string LastMigrationId => "20261118151514_AddOwnerInterrupts";
+    public override string LastMigrationId => "20261122082851_AddStoreValues";
 
     protected override void BuildModel(ModelBuilder modelBuilder)
     {
@@ -493,13 +493,13 @@ partial class StorageDbContextModelSnapshot : ModelSnapshot
                 b.ToTable("PageSessions");
             });
 
-        modelBuilder.Entity("uk.osric.asp.Web.Pages.PageSessionValueEntry", b =>
+        modelBuilder.Entity("uk.osric.asp.Web.Pages.StoreValueEntry", b =>
             {
-                b.Property<string>("SessionId")
+                b.Property<string>("Subject")
                     .HasColumnType("TEXT")
                     .UseCollation("BINARY");
 
-                b.Property<string>("PagePath")
+                b.Property<string>("PageKey")
                     .HasColumnType("TEXT")
                     .UseCollation("BINARY");
 
@@ -507,35 +507,25 @@ partial class StorageDbContextModelSnapshot : ModelSnapshot
                     .HasColumnType("TEXT")
                     .UseCollation("BINARY");
 
-                b.Property<string>("Value")
-                    .IsRequired()
+                b.Property<string>("ExpiresAt")
                     .HasColumnType("TEXT");
 
-                b.HasKey("SessionId", "PagePath", "Key");
+                b.Property<int>("Lifetime")
+                    .HasColumnType("INTEGER");
 
-                b.ToTable("PageSessionValues");
-            });
-
-        modelBuilder.Entity("uk.osric.asp.Web.Pages.PageStateEntry", b =>
-            {
-                b.Property<string>("PagePath")
-                    .HasColumnType("TEXT")
-                    .UseCollation("BINARY");
-
-                b.Property<string>("Key")
-                    .HasColumnType("TEXT")
-                    .UseCollation("BINARY");
-
-                b.Property<DateTimeOffset>("UpdatedAt")
+                b.Property<string>("UpdatedAt")
+                    .IsRequired()
                     .HasColumnType("TEXT");
 
                 b.Property<string>("Value")
                     .IsRequired()
                     .HasColumnType("TEXT");
 
-                b.HasKey("PagePath", "Key");
+                b.HasKey("Subject", "PageKey", "Key");
 
-                b.ToTable("PageState");
+                b.HasIndex("ExpiresAt");
+
+                b.ToTable("StoreValues");
             });
 
         modelBuilder.Entity("uk.osric.asp.Web.Users.LocalUser", b =>
@@ -612,15 +602,6 @@ partial class StorageDbContextModelSnapshot : ModelSnapshot
                     .HasForeignKey("RevisionId", "Path")
                     .HasPrincipalKey("RevisionId", "Path")
                     .OnDelete(DeleteBehavior.Restrict)
-                    .IsRequired();
-            });
-
-        modelBuilder.Entity("uk.osric.asp.Web.Pages.PageSessionValueEntry", b =>
-            {
-                b.HasOne("uk.osric.asp.Web.Pages.PageSessionEntry", null)
-                    .WithMany()
-                    .HasForeignKey("SessionId")
-                    .OnDelete(DeleteBehavior.Cascade)
                     .IsRequired();
             });
 #pragma warning restore 612, 618

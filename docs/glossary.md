@@ -15,6 +15,17 @@ The entries are alphabetical across all three vocabularies. A term is defined on
 [architecture](architecture.md) explains how the words fit together. **Turn** is not one of them: it
 was used for two different units, so **exchange** and **step** replace it.
 
+## Adoption
+What signing in does to the values of the visit it ends: in one transaction the `Person` and
+`NextRead` rows are re-keyed from `session:<old>` into `account:<name>`, what is left under the old
+subject is deleted, and the account's session is minted. A one-shot therefore survives sign-in unread.
+
+**Not** a merge. Nothing is copied, nothing is offered to the page, and two accounts never see each
+other's rows: the values change subject and the rest go with the session.
+
+**Owner:** the shell — `IPageSessionStore.AdoptAsync`, `SqlitePageSessionStore` and
+`PageSessionCookie.RotateAsync`.
+
 ## Asset
 A revision with no code: it is a complete representation, the site writes no chrome around it, and
 a URL naming one revision may promise never to change.
@@ -32,6 +43,17 @@ and a route for one a page cannot serve yet has a job behind it (`pages-page-fir
 that is never in the page column, because a page cannot answer when the page pipeline is what failed.
 **Owner:** site — `LoginEndpoint`, `StatusEndpoint`, `ChartEndpoint`, `SeedsEndpoint` and
 `ScrubEndpoint`; the audit is in [architecture](architecture.md#where-a-view-lives).
+
+## Browser
+One browser, named by the `b` cookie the first `Browser` value mints. It is not a person: it survives
+a sign-in, a sign-out and the end of a session, is never linked to an account, and holds what should
+outlast one visit — the seeded editor-mode toggle is the first such value.
+
+**Not** a device fingerprint and not a tracker: the id is random, it is minted only when a page stores
+something for it, and no page can read or set the cookie.
+
+**Owner:** pages and the shell — `PageBrowserCookie`, `ShellCookies.Browser` and the `Browser`
+lifetime.
 
 ## Budget
 The process-wide limit on how long a render or compile may take and how many may run at once,
@@ -227,6 +249,16 @@ It is not a `System.Threading.Thread` and not a task: it is a stored program the
 loads into a collectible context and invokes once per job, so the host owns its lifetime, its slot
 and its clocks. Nor is it a *page* with a hidden response — a job has no document, which is why
 `IWorkerContext` is not an `IContext`.
+
+## Lifetime
+What kills a value: `Page` when the page goes, `Person` when the account goes, `Session` when the
+visit ends, `Browser` when the browser cookie goes, and `NextRead` at the first successful take. A
+lifetime may also carry an expiry, which is the only part of it a later read can report precisely.
+
+**Not** a cache policy. A lifetime decides when a row is deleted, not how long a response may be
+reused; every page response is `no-store`.
+
+**Owner:** pages — `StoreLifetime`, `StoreLifetimeKind` and `PageValue<T>.Lifetime`.
 
 ## Markdown
 The source format a page may render to HTML, and the format an assistant reply is written in.
@@ -466,16 +498,17 @@ the token estimate is `TokenEstimator` and `ContextPlan.EstimatedTokens`
 (`assistant-tokens-anchor-on-the-last-report`).
 
 ## Session
-One visitor's key/value store, which a page reaches through `IPageSession`: JSON values under short
-keys, bounded per visitor and addressed by the page that wrote them.
+One visit: the row in `PageSessions` that the `s` cookie names, which carries the account the visitor
+is signed in to and the idle clock that ends it. A page reaches it only as
+`ctx.Stores.Visitor`, whose `Session` lifetime dies with it.
 
-**Not** page state. `IPageStorage` is one store per page that every visitor shares, and it is content
-— exported, imported and measured; a session value is a visitor's scratch space, lives in
-`PageSessions` and `PageSessionValues`, and never leaves the site. Nor is it the browser's `ISession`:
-it is not ASP.NET Core's session, has no in-process cache and survives a restart.
+**Not** a value store of its own. The values a visit holds are rows in `StoreValues` under the
+`session:` subject, in the same table and under the same caps as every other value. Nor is it the
+browser's `ISession`: it is not ASP.NET Core's session, has no in-process cache and survives a
+restart. Nor is it the browser — see **browser**.
 
-**Owner:** pages — `IPageSession`, `PageSessionScope`, the `PageSessions` tables, the
-`Pages:Session` configuration and the `s` cookie.
+**Owner:** the shell — `PageSessions`, `SqlitePageSessionStore`, `PageSessionCookie` and the `s`
+cookie (`pages-the-session`, `shell-the-cookie-names`).
 
 ## Shell
 The assistant's fake command interpreter: its kernel, its applets and the `shell` tool, under
@@ -549,6 +582,30 @@ many steps, bounded by `Assistant:MaxSteps`.
 
 **Owner:** assistant — no row; `Run.StepCount`, the `step` field on every run event and the
 `assistant.run.steps` instrument; `Assistant:MaxSteps`.
+
+## Store
+The one place a page keeps anything: `StoreValues` for the values a page reads and writes, and the
+tables each later shape adds. A page never names a table, a subject key or a row's owner; it asks
+`ctx.Stores` for a subject and a shape, and the shell supplies the binding.
+
+**Not** the page store. Pages, revisions and heads are the shell's, written through `IPageWrites` and
+read through `IPageCatalog`; a page's data is the store. Nor is it a memory: that is the assistant's,
+belongs to one owner, and is read into a prompt (`assistant-memory-is-the-owners`).
+
+**Owner:** pages — `StoreValues`, `IStoreValues`, `SqliteStoreValues`, `PageStoresScope`,
+`PageValueStore` and `Pages:Stores`.
+
+## Subject
+Whose data a handle addresses: the page (`page:<key>`), the signed-in account (`account:<name>`), the
+visit (`session:<id>`) or the browser (`browser:<id>`). A subject is one text key, so a subject's rows
+are a range, and a page reaches one as `ctx.Stores.Page`, `ctx.Stores.Visitor` or
+`ctx.Stores.For(libraryKey)`.
+
+**Not** an owner inside a row. A record's owner column is the page's own business; a subject bounds a
+namespace and not a row.
+
+**Owner:** pages — `IPageStores`, `IPageSubject`, `IPageVisitorSubject`, `PageReaderSubject` and
+`StoreSubjects`.
 
 ## System prompt
 The fixed instructions at the head of every request: `PageAuthorPrompt`, versioned so a change to it
@@ -647,6 +704,16 @@ shown separately. Cached is part of prompt and reasoning part of completion, so 
 
 **Owner:** assistant — `TokenUsage`, `RunUsage`, the `AssistantRuns` totals and
 `AssistantMetrics.RecordUsage` (`assistant-usage-is-accumulated`).
+
+## Value
+One key and one JSON document, held by a subject for a page, under a lifetime. A page reads one with
+`TryGetValueAsync`, consumes a one-shot with `TryTakeAsync` and writes one with `SetAsync`.
+
+**Not** a record: a value has no schema, no query and no owner column, and a page that needs to find
+rows rather than fetch a key is asking for the record shape.
+
+**Owner:** pages — `IValueStore`, `PageValue<T>`, `StoreEntry`, `StoreFilter` and
+`StoreValues`.
 
 ## View
 The site as a signed-in owner sees it, which one assistant run may read over HTTP while it works. The

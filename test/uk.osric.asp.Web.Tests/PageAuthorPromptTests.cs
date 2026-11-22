@@ -81,9 +81,9 @@ public sealed class PageAuthorPromptTests {
         string prompt = PageAuthorPrompt.Build();
 
         Assert.Multiple(() => {
-            Assert.That(prompt, Does.Contain("type=\"IPageStorage\""));
+            Assert.That(prompt, Does.Contain("type=\"IPageStores\""));
             Assert.That(prompt, Does.Contain("query=\"cookie\""));
-            Assert.That(prompt, Does.Contain("page-author-v57"));
+            Assert.That(prompt, Does.Contain("page-author-v58"));
         });
     }
 
@@ -103,8 +103,9 @@ public sealed class PageAuthorPromptTests {
         string prompt = PageAuthorPrompt.Build();
 
         Assert.Multiple(() => {
-            Assert.That(prompt, Does.Contain("## Page storage"));
-            Assert.That(prompt, Does.Contain("ctx.Capabilities.GetRequired<IPageStorage>()"));
+            Assert.That(prompt, Does.Contain("## Page stores"));
+            Assert.That(prompt, Does.Contain("ctx.Stores.Page"));
+            Assert.That(prompt, Does.Contain("ctx.Stores.Visitor"));
             Assert.That(prompt, Does.Contain("TryGetValueAsync<T>"));
             Assert.That(prompt, Does.Contain("SetAsync"));
             Assert.That(prompt, Does.Contain("PageValue<int>"));
@@ -194,12 +195,12 @@ public sealed class PageAuthorPromptTests {
         string prompt = PageAuthorPrompt.Build();
 
         Assert.Multiple(() => {
-            Assert.That(prompt, Does.Contain("## Page session"));
-            Assert.That(prompt, Does.Contain("IPageSession"));
-            Assert.That(prompt, Does.Contain("separate from `IPageStorage`"));
+            Assert.That(prompt, Does.Contain("## Page lifetimes"));
+            Assert.That(prompt, Does.Contain("StoreLifetime.Browser"));
+            Assert.That(prompt, Does.Contain("StoreLifetime.NextRead"));
             Assert.That(prompt, Does.Contain("TryGetValueAsync<T>(pagePath, key)"));
             Assert.That(prompt, Does.Contain("AllKeysAsync()"));
-            Assert.That(prompt, Does.Contain("`HEAD` render may read and never write"));
+            Assert.That(prompt, Does.Contain("`HEAD`"));
         });
     }
 
@@ -290,7 +291,7 @@ public sealed class PageAuthorPromptTests {
     [Test]
     public void ThePromptIsVersionedForNullablePages() {
         Assert.Multiple(() => {
-            Assert.That(PageAuthorPrompt.Version, Is.EqualTo("page-author-v57"));
+            Assert.That(PageAuthorPrompt.Version, Is.EqualTo("page-author-v58"));
             Assert.That(PageAuthorPrompt.Build(), Does.Contain("## Nullable page code"));
         });
     }
@@ -549,7 +550,7 @@ public sealed class PageAuthorPromptTests {
             Assert.That(prompt, Does.Contain("Nothing is stored"));
             Assert.That(prompt, Does.Contain("valid: false"));
             Assert.That(prompt, Does.Contain("SCRIPT002"));
-            Assert.That(PageAuthorPrompt.Version, Is.EqualTo("page-author-v57"));
+            Assert.That(PageAuthorPrompt.Version, Is.EqualTo("page-author-v58"));
         });
     }
 

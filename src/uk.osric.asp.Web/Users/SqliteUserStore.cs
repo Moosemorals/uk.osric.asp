@@ -4,6 +4,8 @@
 namespace uk.osric.asp.Web.Users;
 
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Storage;
+using uk.osric.asp.Web.Pages;
 using uk.osric.asp.Web.Storage;
 
 /// <summary>The SQLite-backed account store.</summary>
@@ -74,10 +76,28 @@ internal sealed class SqliteUserStore(
 
     /// <inheritdoc/>
     public async Task<bool> RemoveAsync(string userName, CancellationToken cancellationToken = default) {
-        int removed = await database.Set<LocalUser>()
-            .Where(user => user.UserName == userName)
+        string normalized = UserName.Normalize(userName);
+        await using IDbContextTransaction transaction = await database.Database.BeginTransactionAsync(cancellationToken);
+
+        // The account's person data and every session that names it go before the account does, so a
+        // removal leaves no row of it anywhere. The session subjects are explicit: there is no foreign
+        // key from a subject string to PageSessions.
+        string[] sessions = await database.Set<PageSessionEntry>().AsNoTracking()
+            .Where(row => row.Account == normalized)
+            .Select(row => row.SessionId)
+            .ToArrayAsync(cancellationToken);
+
+        _ = await StoreValueSql.DeleteSubjectAsync(database, StoreSubjects.ForAccount(normalized), cancellationToken);
+        _ = await StoreValueSql.DeleteSessionsAsync(database, sessions, cancellationToken);
+        _ = await database.Set<PageSessionEntry>()
+            .Where(row => row.Account == normalized)
             .ExecuteDeleteAsync(cancellationToken);
 
+        int removed = await database.Set<LocalUser>()
+            .Where(user => user.UserName == normalized)
+            .ExecuteDeleteAsync(cancellationToken);
+
+        await transaction.CommitAsync(cancellationToken);
         return removed > 0;
     }
 }

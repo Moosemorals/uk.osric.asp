@@ -760,3 +760,81 @@ static uk.osric.asp.Sdk.PageSearchRequest.operator ==(uk.osric.asp.Sdk.PageSearc
 ~override uk.osric.asp.Sdk.PageSearchCursor.ToString() -> string
 ~override uk.osric.asp.Sdk.PageSearchMatch.Equals(object obj) -> bool
 ~override uk.osric.asp.Sdk.PageSearchMatch.ToString() -> string
+override uk.osric.asp.Sdk.StoreEntry.GetHashCode() -> int
+override uk.osric.asp.Sdk.StoreLifetime.GetHashCode() -> int
+override uk.osric.asp.Sdk.StoreFilter.Equals(object? obj) -> bool
+override uk.osric.asp.Sdk.StoreFilter.GetHashCode() -> int
+override uk.osric.asp.Sdk.StoreFilter.ToString() -> string!
+static uk.osric.asp.Sdk.StoreEntry.operator !=(uk.osric.asp.Sdk.StoreEntry left, uk.osric.asp.Sdk.StoreEntry right) -> bool
+static uk.osric.asp.Sdk.StoreEntry.operator ==(uk.osric.asp.Sdk.StoreEntry left, uk.osric.asp.Sdk.StoreEntry right) -> bool
+static uk.osric.asp.Sdk.StoreFilter.operator !=(uk.osric.asp.Sdk.StoreFilter? left, uk.osric.asp.Sdk.StoreFilter? right) -> bool
+static uk.osric.asp.Sdk.StoreFilter.operator ==(uk.osric.asp.Sdk.StoreFilter? left, uk.osric.asp.Sdk.StoreFilter? right) -> bool
+static uk.osric.asp.Sdk.StoreLifetime.Browser.get -> uk.osric.asp.Sdk.StoreLifetime
+static uk.osric.asp.Sdk.StoreLifetime.From(uk.osric.asp.Sdk.StoreLifetimeKind kind, System.DateTimeOffset? expiresAt = null) -> uk.osric.asp.Sdk.StoreLifetime
+static uk.osric.asp.Sdk.StoreLifetime.Default.get -> uk.osric.asp.Sdk.StoreLifetime
+static uk.osric.asp.Sdk.StoreLifetime.NextRead.get -> uk.osric.asp.Sdk.StoreLifetime
+static uk.osric.asp.Sdk.StoreLifetime.operator !=(uk.osric.asp.Sdk.StoreLifetime left, uk.osric.asp.Sdk.StoreLifetime right) -> bool
+static uk.osric.asp.Sdk.StoreLifetime.operator ==(uk.osric.asp.Sdk.StoreLifetime left, uk.osric.asp.Sdk.StoreLifetime right) -> bool
+static uk.osric.asp.Sdk.StoreLifetime.Page.get -> uk.osric.asp.Sdk.StoreLifetime
+static uk.osric.asp.Sdk.StoreLifetime.Person.get -> uk.osric.asp.Sdk.StoreLifetime
+static uk.osric.asp.Sdk.StoreLifetime.Session.get -> uk.osric.asp.Sdk.StoreLifetime
+static uk.osric.asp.Sdk.StoreLifetime.Until(System.DateTimeOffset expiry) -> uk.osric.asp.Sdk.StoreLifetime
+uk.osric.asp.Sdk.IContext.Stores.get -> uk.osric.asp.Sdk.IPageStores!
+uk.osric.asp.Sdk.IPageStores
+uk.osric.asp.Sdk.IPageStores.For(string! key) -> uk.osric.asp.Sdk.IPageSubject!
+uk.osric.asp.Sdk.IPageStores.Page.get -> uk.osric.asp.Sdk.IPageSubject!
+uk.osric.asp.Sdk.IPageStores.Visitor.get -> uk.osric.asp.Sdk.IPageVisitorSubject!
+uk.osric.asp.Sdk.IPageSubject
+uk.osric.asp.Sdk.IPageSubject.Values.get -> uk.osric.asp.Sdk.IValueStore!
+uk.osric.asp.Sdk.IPageVisitorSubject
+uk.osric.asp.Sdk.IValueStore
+uk.osric.asp.Sdk.IValueStore.AllKeysAsync(uk.osric.asp.Sdk.StoreFilter? filter = null) -> System.Threading.Tasks.Task<System.Collections.Generic.IReadOnlyList<uk.osric.asp.Sdk.StoreEntry>!>!
+uk.osric.asp.Sdk.IValueStore.DeleteAsync(string! key) -> System.Threading.Tasks.Task<bool>!
+uk.osric.asp.Sdk.IValueStore.KeysAsync(uk.osric.asp.Sdk.StoreFilter? filter = null) -> System.Threading.Tasks.Task<System.Collections.Generic.IReadOnlyList<uk.osric.asp.Sdk.StoreEntry>!>!
+uk.osric.asp.Sdk.IValueStore.SetAsync<T>(string! key, T value, uk.osric.asp.Sdk.StoreLifetime? lifetime = null) -> System.Threading.Tasks.Task!
+uk.osric.asp.Sdk.IValueStore.TryGetValueAsync<T>(string! key) -> System.Threading.Tasks.Task<uk.osric.asp.Sdk.PageValue<T>>!
+uk.osric.asp.Sdk.IValueStore.TryGetValueAsync<T>(string! pageKey, string! key) -> System.Threading.Tasks.Task<uk.osric.asp.Sdk.PageValue<T>>!
+uk.osric.asp.Sdk.IValueStore.TryTakeAsync<T>(string! key) -> System.Threading.Tasks.Task<uk.osric.asp.Sdk.PageValue<T>>!
+uk.osric.asp.Sdk.IWorkerContext.Stores.get -> uk.osric.asp.Sdk.IPageStores!
+uk.osric.asp.Sdk.PageValue<T>.Lifetime.get -> uk.osric.asp.Sdk.StoreLifetime
+uk.osric.asp.Sdk.PageValue<T>.Lifetime.init -> void
+uk.osric.asp.Sdk.PageValue<T>.Page.get -> string?
+uk.osric.asp.Sdk.PageValue<T>.Page.init -> void
+uk.osric.asp.Sdk.StoreEntry
+uk.osric.asp.Sdk.StoreEntry.Deconstruct(out string! Page, out string! Key, out uk.osric.asp.Sdk.StoreLifetime Lifetime) -> void
+uk.osric.asp.Sdk.StoreEntry.Equals(uk.osric.asp.Sdk.StoreEntry other) -> bool
+uk.osric.asp.Sdk.StoreEntry.ExpiresAt.get -> System.DateTimeOffset?
+uk.osric.asp.Sdk.StoreEntry.Key.get -> string!
+uk.osric.asp.Sdk.StoreEntry.Key.init -> void
+uk.osric.asp.Sdk.StoreEntry.Lifetime.get -> uk.osric.asp.Sdk.StoreLifetime
+uk.osric.asp.Sdk.StoreEntry.Lifetime.init -> void
+uk.osric.asp.Sdk.StoreEntry.Page.get -> string!
+uk.osric.asp.Sdk.StoreEntry.Page.init -> void
+uk.osric.asp.Sdk.StoreEntry.StoreEntry(string! Page, string! Key, uk.osric.asp.Sdk.StoreLifetime Lifetime) -> void
+uk.osric.asp.Sdk.StoreEntry.StoreEntry() -> void
+uk.osric.asp.Sdk.StoreFilter
+uk.osric.asp.Sdk.StoreFilter.<Clone>$() -> uk.osric.asp.Sdk.StoreFilter!
+uk.osric.asp.Sdk.StoreFilter.Deconstruct(out uk.osric.asp.Sdk.StoreLifetimeKind? Lifetime, out int? Limit) -> void
+uk.osric.asp.Sdk.StoreFilter.Equals(uk.osric.asp.Sdk.StoreFilter? other) -> bool
+uk.osric.asp.Sdk.StoreFilter.Lifetime.get -> uk.osric.asp.Sdk.StoreLifetimeKind?
+uk.osric.asp.Sdk.StoreFilter.Lifetime.init -> void
+uk.osric.asp.Sdk.StoreFilter.Limit.get -> int?
+uk.osric.asp.Sdk.StoreFilter.Limit.init -> void
+uk.osric.asp.Sdk.StoreFilter.StoreFilter(uk.osric.asp.Sdk.StoreLifetimeKind? Lifetime = null, int? Limit = null) -> void
+uk.osric.asp.Sdk.StoreLifetime
+uk.osric.asp.Sdk.StoreLifetime.Equals(uk.osric.asp.Sdk.StoreLifetime other) -> bool
+uk.osric.asp.Sdk.StoreLifetime.ExpiresAt.get -> System.DateTimeOffset?
+uk.osric.asp.Sdk.StoreLifetime.Kind.get -> uk.osric.asp.Sdk.StoreLifetimeKind
+uk.osric.asp.Sdk.StoreLifetime.StoreLifetime() -> void
+uk.osric.asp.Sdk.StoreLifetime.WithExpiry(System.DateTimeOffset expiry) -> uk.osric.asp.Sdk.StoreLifetime
+uk.osric.asp.Sdk.StoreLifetimeKind
+uk.osric.asp.Sdk.StoreLifetimeKind.Browser = 4 -> uk.osric.asp.Sdk.StoreLifetimeKind
+uk.osric.asp.Sdk.StoreLifetimeKind.Default = 0 -> uk.osric.asp.Sdk.StoreLifetimeKind
+uk.osric.asp.Sdk.StoreLifetimeKind.NextRead = 5 -> uk.osric.asp.Sdk.StoreLifetimeKind
+uk.osric.asp.Sdk.StoreLifetimeKind.Page = 1 -> uk.osric.asp.Sdk.StoreLifetimeKind
+uk.osric.asp.Sdk.StoreLifetimeKind.Person = 2 -> uk.osric.asp.Sdk.StoreLifetimeKind
+uk.osric.asp.Sdk.StoreLifetimeKind.Session = 3 -> uk.osric.asp.Sdk.StoreLifetimeKind
+~override uk.osric.asp.Sdk.StoreEntry.Equals(object obj) -> bool
+~override uk.osric.asp.Sdk.StoreEntry.ToString() -> string
+~override uk.osric.asp.Sdk.StoreLifetime.Equals(object obj) -> bool
+~override uk.osric.asp.Sdk.StoreLifetime.ToString() -> string

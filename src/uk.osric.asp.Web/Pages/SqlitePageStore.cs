@@ -75,8 +75,9 @@ internal sealed class SqlitePageStore(
             .Distinct()
             .ToArrayAsync(cancellationToken);
 
-        string[] state = await database.Set<PageStateEntry>().AsNoTracking()
-            .Select(row => row.PagePath)
+        string[] state = await database.Set<StoreValueEntry>().AsNoTracking()
+            .Where(row => row.Subject.StartsWith(StoreSubjects.PagePrefix))
+            .Select(row => row.PageKey)
             .Distinct()
             .ToArrayAsync(cancellationToken);
 
@@ -418,9 +419,7 @@ internal sealed class SqlitePageStore(
         // State is live data, not history: a new page saved at the same path must not inherit the
         // state of the page that was deleted before it.
         if (updated > 0) {
-            await database.Set<PageStateEntry>()
-                .Where(row => row.PagePath == path.Key)
-                .ExecuteDeleteAsync(cancellationToken);
+            _ = await StoreValueSql.DeletePageAsync(database, path, cancellationToken);
         }
 
         return updated > 0;
@@ -504,8 +503,7 @@ internal sealed class SqlitePageStore(
             // because history survives a delete; its state belonged to the dead page and does not.
             await database.Database.ExecuteSqlAsync(
                 $"""DELETE FROM "PageHeads" WHERE "Path" = {to.Key}""", cancellationToken);
-            await database.Database.ExecuteSqlAsync(
-                $"""DELETE FROM "PageState" WHERE "PagePath" = {to.Key}""", cancellationToken);
+            _ = await StoreValueSql.DeletePageAsync(database, to, cancellationToken);
         }
 
         // The head has to go before its revisions change path: the composite foreign key points at a
@@ -523,9 +521,7 @@ internal sealed class SqlitePageStore(
         await database.Database.ExecuteSqlAsync($"""
             UPDATE "PageRevisions" SET "Path" = {to.Key} WHERE "Path" = {from.Key}
             """, cancellationToken);
-        await database.Database.ExecuteSqlAsync($"""
-            UPDATE "PageState" SET "PagePath" = {to.Key} WHERE "PagePath" = {from.Key}
-            """, cancellationToken);
+        _ = await StoreValueSql.MovePageAsync(database, from, to, cancellationToken);
         await database.Database.ExecuteSqlAsync($"""
             INSERT INTO "PageHeads" ("Path", "RevisionId", "IsDeleted", "SeedHash", "ContentHash")
             VALUES ({to.Key}, {source.RevisionId}, 0, {source.SeedHash}, {source.ContentHash})
@@ -625,9 +621,7 @@ internal sealed class SqlitePageStore(
                     // Only when a tombstoned head was actually removed, so a database written by an
                     // older build cannot leave orphaned rows behind. The repair has no head to
                     // require: a row at a shell path can never be deleted through a page.
-                    state = await database.Set<PageStateEntry>()
-                        .Where(row => row.PagePath == path.Key)
-                        .ExecuteDeleteAsync(cancellationToken);
+                    state = await StoreValueSql.DeletePageAsync(database, path, cancellationToken);
                     revisions = await database.Set<PageRevision>()
                         .Where(revision => revision.Path == path.Key)
                         .ExecuteDeleteAsync(cancellationToken);

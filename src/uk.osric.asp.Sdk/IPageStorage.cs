@@ -18,6 +18,7 @@ namespace uk.osric.asp.Sdk;
 /// detected before the row is written.
 /// </para>
 /// </remarks>
+[System.Obsolete("Use ctx.Stores.Page.Values. This spelling is removed one release after the storage model lands.")]
 public interface IPageStorage {
     /// <summary>Reads a value and reports whether the key exists.</summary>
     /// <typeparam name="T">The type to deserialise the stored JSON as.</typeparam>

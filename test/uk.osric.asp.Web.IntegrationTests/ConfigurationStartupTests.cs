@@ -54,6 +54,32 @@ public sealed class ConfigurationStartupTests {
         });
     }
 
+    // The two value sections of the release before this one are folded into Pages:Stores, so a
+    // deployment that kept them would believe it still bounded a page's or a session's values.
+    [Test]
+    public void AStorageSectionFromAnEarlierReleaseStopsTheHost() {
+        string report = ReportFor(new Dictionary<string, string?> {
+            ["Pages:Storage:MaxPageBytes"] = "1024",
+        });
+
+        Assert.Multiple(() => {
+            Assert.That(report, Does.Contain("Pages:Storage is no longer read"));
+            Assert.That(report, Does.Contain("Pages:Stores"));
+        });
+    }
+
+    [Test]
+    public void ASessionSectionFromAnEarlierReleaseStopsTheHost() {
+        string report = ReportFor(new Dictionary<string, string?> {
+            ["Pages:Session:IdleMinutes"] = "5",
+        });
+
+        Assert.Multiple(() => {
+            Assert.That(report, Does.Contain("Pages:Session is no longer read"));
+            Assert.That(report, Does.Contain("Pages:Stores:Visitor"));
+        });
+    }
+
     [Test]
     public void AMissingProviderKeyStopsTheHostAndNamesIt() {
         string report = ReportFor(new Dictionary<string, string?> {

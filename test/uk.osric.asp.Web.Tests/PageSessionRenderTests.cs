@@ -3,6 +3,7 @@
 
 namespace uk.osric.asp.Web.Tests;
 
+using uk.osric.asp.Sdk;
 using uk.osric.asp.Web.Pages;
 
 /// <summary>Proves a stored page can reach its session through the real compiler and renderer.</summary>
@@ -41,9 +42,10 @@ public sealed class PageSessionRenderTests {
 
     [Test]
     public async Task TwoVisitorsSeeDifferentValuesAsync() {
-        FakePageSessionStore store = new();
-        using PageHarness first = new(new FakePageStore(), sessionStore: store);
-        using PageHarness second = new(new FakePageStore(), sessionStore: store);
+        FakeStoreValues values = new();
+        FakePageSessionStore store = new(values);
+        using PageHarness first = new(new FakePageStore(), state: values, sessionStore: store);
+        using PageHarness second = new(new FakePageStore(), state: values, sessionStore: store);
         const string page = """
             <% IPageSession session = ctx.Capabilities.GetRequired<IPageSession>();
                PageValue<string> stored = await session.TryGetValueAsync<string>("name"); %>
@@ -51,7 +53,8 @@ public sealed class PageSessionRenderTests {
             """;
         await first.StoreCompiledAsync("/page", page);
         await second.StoreCompiledAsync("/page", page);
-        store.SeedText(first.Session.Id, "/page", "name", "visitor");
+        values.SeedVisitor(
+            StoreSubjects.ForSession(first.Session.Id), "/page", "name", "\"visitor\"", StoreLifetimeKind.Session);
 
         (_, string firstOutput) = await first.RenderAsync("/page");
         (_, string secondOutput) = await second.RenderAsync("/page");
@@ -63,7 +66,8 @@ public sealed class PageSessionRenderTests {
     [Test]
     public async Task APageReadsAnotherPagesValueByPathAsync() {
         using PageHarness pages = new(new FakePageStore());
-        pages.Sessions.Seed(pages.Session.Id, "/other", "draft", "\"left for you\"");
+        pages.State.SeedVisitor(
+            StoreSubjects.ForSession(pages.Session.Id), "/other", "draft", "\"left for you\"", StoreLifetimeKind.Session);
         await pages.StoreCompiledAsync("/page", """
             <% IPageSession session = ctx.Capabilities.GetRequired<IPageSession>();
                PageValue<string> left = await session.TryGetValueAsync<string>("/other", "draft"); %>
@@ -101,8 +105,8 @@ public sealed class PageSessionRenderTests {
         InvalidOperationException? refused = await Assert.ThrowsAsync<InvalidOperationException>(
             () => pages.RenderAsync("/counter", isHead: true));
 
-        Assert.That(refused?.Message, Does.Contain("this render"));
-        Assert.That(pages.Sessions.ValueCount, Is.Zero);
+        Assert.That(refused?.Message, Does.Contain("HEAD"));
+        Assert.That(pages.State.Rows, Is.Empty);
     }
 
     [Test]

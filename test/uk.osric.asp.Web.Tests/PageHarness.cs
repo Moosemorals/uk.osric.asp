@@ -4,6 +4,7 @@
 namespace uk.osric.asp.Web.Tests;
 
 using Microsoft.AspNetCore.Antiforgery;
+using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -12,6 +13,7 @@ using uk.osric.asp.Runtime;
 using uk.osric.asp.Sdk;
 using uk.osric.asp.Web.Authentication;
 using uk.osric.asp.Web.Editor;
+using uk.osric.asp.Web.Http;
 using uk.osric.asp.Web.Pages;
 using uk.osric.asp.Web.Shell;
 using uk.osric.asp.Web.Users;
@@ -33,12 +35,12 @@ internal sealed class PageHarness : IDisposable {
         RenderOptions? options = null,
         PageBudget? budget = null,
         PageHealth? health = null,
-        FakePageStateStore? state = null,
+        FakeStoreValues? state = null,
         FakePageFetcher? fetch = null,
         FakePageReadStore? readStore = null,
         FakePageRevisionStore? revisionStore = null,
         FakePageSessionStore? sessionStore = null,
-        PageStorageOptions? storageOptions = null,
+        PageStoresOptions? storesOptions = null,
         ILogger<PageRenderer>? rendererLogger = null,
         PageFetchOptions? fetchOptions = null,
         PageContentTypes? contentTypes = null,
@@ -49,15 +51,15 @@ internal sealed class PageHarness : IDisposable {
         TimeProvider? clock = null,
         PageSeeds? seeds = null,
         FakeUserStore? users = null) {
-        State = state ?? new FakePageStateStore();
-        Sessions = sessionStore ?? new FakePageSessionStore();
+        State = state ?? new FakeStoreValues();
+        Sessions = sessionStore ?? new FakePageSessionStore(State);
         Session = new PageSessionRequest(uk.osric.asp.Web.Authentication.PageSessionCookie.Mint(), null, presented: false, exists: false);
         Fetch = fetch ?? new FakePageFetcher();
         ReadStore = readStore ?? new FakePageReadStore();
         ContentTypes = contentTypes ?? TestContentTypes.Shipped;
         Markdown = markdown ?? new MarkdownRenderer();
         Diff = diff ?? new DiffRenderer();
-        StorageOptions = storageOptions ?? TestOptions.Storage;
+        StoresOptions = storesOptions ?? TestOptions.Stores;
         FetchOptions = fetchOptions ?? TestOptions.Fetch;
         ReadOptions = TestOptions.Read;
         SearchOptions = TestOptions.Search;
@@ -113,7 +115,7 @@ internal sealed class PageHarness : IDisposable {
             JobQueue,
             Jobs,
             new PageJobEnvironment(
-                JobOptions, WorkerStore, State, StorageOptions, Fetch, FetchOptions, ReadStore, Seeds, ReadOptions,
+                JobOptions, WorkerStore, State, StoresOptions, Sessions, Fetch, FetchOptions, ReadStore, Seeds, ReadOptions,
                 Scan, Reserved, ContentTypes, Images, Libraries, Compiler, Metrics,
                 _authorities.GetRequiredService<IServiceScopeFactory>()),
             NullLoggerFactory.Instance,
@@ -132,7 +134,7 @@ internal sealed class PageHarness : IDisposable {
     public FakePageStore Storage { get; }
 
     /// <summary>The page state every render in this harness shares.</summary>
-    public FakePageStateStore State { get; }
+    public FakeStoreValues State { get; }
 
     /// <summary>The session state every render in this harness shares.</summary>
     public FakePageSessionStore Sessions { get; }
@@ -164,7 +166,7 @@ internal sealed class PageHarness : IDisposable {
     /// <summary>The diff renderer every context in this harness offers.</summary>
     public DiffRenderer Diff { get; }
 
-    public PageStorageOptions StorageOptions { get; }
+    public PageStoresOptions StoresOptions { get; }
 
     public PageFetchOptions FetchOptions { get; }
 
@@ -324,16 +326,22 @@ internal sealed class PageHarness : IDisposable {
         string method = "GET") {
         PageCapabilities capabilities = new();
 
+        PageReaderSubject reader = new(Session, StoresOptions.Visitor, browserId: null);
+        PageStoresScope stores = new(
+            path, reader, State, Sessions, StoresOptions, ReadStore, writable: !isHead, commit: null);
+
+#pragma warning disable CS0618 // The obsolete adapters keep the old spelling for one release.
         if (withStorage) {
-            PageStorageScope storage = new(path, State, StorageOptions, writable: !isHead);
+            PageStorageScope storage = new(stores.PageValues);
             capabilities.Add<IPageStorage>(storage);
         }
 
         if (withSession) {
-            PageSessionScope session = new(
-                path, Sessions, TestOptions.Session, Session, writable: !isHead, slides: !isHead);
+            PageSessionScope session = new(stores.VisitorValues.RestrictedTo(
+                StoreLifetimeKind.Session, slides: !isHead));
             capabilities.Add<IPageSession>(session);
         }
+#pragma warning restore CS0618
 
         if (withFetch) {
             PageHttpFetch fetch = new(
@@ -377,6 +385,7 @@ internal sealed class PageHarness : IDisposable {
             CancellationToken.None,
             new StringWriter(),
             capabilities,
+            stores,
             ContentTypes,
             maxBodyChars ?? TestOptions.Render.MaxBodyChars,
             TestOptions.Editor.Key,
@@ -400,7 +409,7 @@ internal sealed class PageHarness : IDisposable {
             TestOptions.Layout with { Default = layout },
             Options,
             ContentTypes,
-            StorageOptions,
+            StoresOptions,
             FetchOptions,
             ReadOptions,
             Scan,
@@ -413,9 +422,9 @@ internal sealed class PageHarness : IDisposable {
             antiforgery,
             Markdown,
             Diff,
-            TestOptions.Session,
             Sessions,
             TestSessions.Cookie,
+            new PageBrowserCookieOptions(ShellCookies.Browser, CookieSecurePolicy.SameAsRequest, TimeSpan.FromDays(365)),
             Jobs,
             JobAuthorities: Authorities);
     }

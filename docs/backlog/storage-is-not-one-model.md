@@ -14,7 +14,7 @@ SPDX-License-Identifier: MIT
 | Plan | [storage-model](../plans/storage-model.md) |
 | Area | Sdk, Runtime, Web (pages, storage, work), docs |
 | Location | `src/uk.osric.asp.Sdk/IPageStores.cs` (new), `IValueStore.cs` (new), `IRecordStore.cs` (new), `IMessageStore.cs` (new), `IObjectStore.cs` (new), `StoreLifetime.cs` (new), `StoreFilter.cs` (new), `PageValue.cs`, `IContext.cs`, `IPageResponse.cs`, `src/uk.osric.asp.Web/Pages/PageStoresScope.cs` (new), `PageChain.cs`, `PageStorageScope.cs`, `PageSessionScope.cs`, `src/uk.osric.asp.Web/Storage/`, `src/uk.osric.asp.Web/Pages/Seeds/help`, `privacy`, `_layout`, `editor-mode`, `_lib/editor`, `docs/storage.md`, `docs/pages.md`, `docs/plans/account-store.md`, `docs/plans/page-inbox.md` |
-| Spike | None yet; the plan's slice 0 writes the SQL sandbox |
+| Spike | [The record sandbox](../spikes/store-sandbox.md) |
 
 > **Planned 2026-11-21** — [one storage model](../plans/storage-model.md) designs the record sandbox,
 > settles the two subjects and four shapes, and slices the replacement into a spike, five slices and
@@ -22,7 +22,8 @@ SPDX-License-Identifier: MIT
 > waiting for a yes — records for [`no-account-store`](no-account-store.md), messages for
 > [`message-does-not-survive-a-redirect`](message-does-not-survive-a-redirect.md) — and neither of
 > those should be approved. The old capabilities stay one release as obsolete adapters and then go.
-> The owner said yes on 2026-11-21, so slice 0 — the sandbox spike — is next.
+> The owner said yes on 2026-11-21. Slice 0 — the sandbox spike — is
+> [written](../spikes/store-sandbox.md); slice 1 is next.
 
 ## Idea
 
