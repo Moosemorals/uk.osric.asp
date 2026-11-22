@@ -775,7 +775,6 @@ uk.osric.asp.Core.Pages.PageQueryFingerprint
 *REMOVED*static uk.osric.asp.Core.Charting.NiceTicks.ForTime(System.DateTimeOffset from, System.DateTimeOffset to, System.TimeZoneInfo! zone) -> System.Collections.Generic.IReadOnlyList<uk.osric.asp.Core.Charting.ChartTick>!
 static uk.osric.asp.Core.Charting.NiceTicks.ForTime(System.DateTimeOffset from, System.DateTimeOffset to, System.TimeZoneInfo! zone, double availableWidth = Infinity) -> System.Collections.Generic.IReadOnlyList<uk.osric.asp.Core.Charting.ChartTick>!
 uk.osric.asp.Core.Charting.ChartSize.PlotWidth.get -> double
-
 uk.osric.asp.Core.Assistant.ChatRequest.MaxTokens.get -> int
 uk.osric.asp.Core.Assistant.ChatRequest.MaxTokens.init -> void
 uk.osric.asp.Core.Assistant.ChatRequest.Deconstruct(out string! Model, out System.Collections.Generic.IReadOnlyList<uk.osric.asp.Core.Assistant.ChatMessage!>! Messages, out System.Collections.Generic.IReadOnlyList<uk.osric.asp.Core.Assistant.ToolDefinition!>! Tools, out double Temperature, out int MaxTokens, out string! ReasoningField) -> void
@@ -823,12 +822,6 @@ uk.osric.asp.Core.Assistant.TokenEstimator.Anchor.get -> uk.osric.asp.Core.Assis
 *REMOVED*uk.osric.asp.Core.Assistant.ChatRequest.IncludeUsage.init -> void
 *REMOVED*uk.osric.asp.Core.Assistant.ChatRequest.MaxOutputTokens.get -> int
 *REMOVED*uk.osric.asp.Core.Assistant.ChatRequest.MaxOutputTokens.init -> void
-*REMOVED*uk.osric.asp.Core.Assistant.ChatRequest.ChatRequest(string! Model, System.Collections.Generic.IReadOnlyList<uk.osric.asp.Core.Assistant.ChatMessage!>! Messages, System.Collections.Generic.IReadOnlyList<uk.osric.asp.Core.Assistant.ToolDefinition!>! Tools, double Temperature, int MaxOutputTokens, string! ReasoningField, bool IncludeUsage) -> void
-*REMOVED*uk.osric.asp.Core.Assistant.ChatRequest.Deconstruct(out string! Model, out System.Collections.Generic.IReadOnlyList<uk.osric.asp.Core.Assistant.ChatMessage!>! Messages, out System.Collections.Generic.IReadOnlyList<uk.osric.asp.Core.Assistant.ToolDefinition!>! Tools, out double Temperature, out int MaxOutputTokens, out string! ReasoningField, out bool IncludeUsage) -> void
-*REMOVED*uk.osric.asp.Core.Assistant.ChatRequest.IncludeUsage.get -> bool
-*REMOVED*uk.osric.asp.Core.Assistant.ChatRequest.IncludeUsage.init -> void
-*REMOVED*uk.osric.asp.Core.Assistant.ChatRequest.MaxOutputTokens.get -> int
-*REMOVED*uk.osric.asp.Core.Assistant.ChatRequest.MaxOutputTokens.init -> void
 uk.osric.asp.Core.Assistant.ChatRequestJson
 uk.osric.asp.Core.Assistant.RunUsage.PromptTokens.get -> int
 override uk.osric.asp.Core.Assistant.RunUsage.Equals(object? obj) -> bool
@@ -838,9 +831,6 @@ const uk.osric.asp.Core.Assistant.TokenEstimator.DefaultBytesPerToken = 1.6 -> d
 const uk.osric.asp.Core.Assistant.TokenEstimator.MinimumBytesPerToken = 1 -> double
 uk.osric.asp.Core.Assistant.ContextPlan
 static uk.osric.asp.Core.Assistant.ContextPlan.operator !=(uk.osric.asp.Core.Assistant.ContextPlan? left, uk.osric.asp.Core.Assistant.ContextPlan? right) -> bool
-*REMOVED*static uk.osric.asp.Core.Assistant.BudgetSnapshot.Measure(System.Collections.Generic.IReadOnlyList<uk.osric.asp.Core.Assistant.ChatMessage!>! messages, int steps, int toolCalls, int? completionTokens) -> uk.osric.asp.Core.Assistant.BudgetSnapshot!
-*REMOVED*uk.osric.asp.Core.Assistant.BudgetSnapshot.BudgetSnapshot(long ContextChars, int Steps, int ToolCalls, int LongestArguments, int LongestResult, int CompletionTokens) -> void
-*REMOVED*uk.osric.asp.Core.Assistant.BudgetSnapshot.Deconstruct(out long ContextChars, out int Steps, out int ToolCalls, out int LongestArguments, out int LongestResult, out int CompletionTokens) -> void
 *REMOVED*static uk.osric.asp.Core.Assistant.BudgetSnapshot.Measure(System.Collections.Generic.IReadOnlyList<uk.osric.asp.Core.Assistant.ChatMessage!>! messages, int steps, int toolCalls, int? completionTokens) -> uk.osric.asp.Core.Assistant.BudgetSnapshot!
 *REMOVED*uk.osric.asp.Core.Assistant.BudgetSnapshot.BudgetSnapshot(long ContextChars, int Steps, int ToolCalls, int LongestArguments, int LongestResult, int CompletionTokens) -> void
 *REMOVED*uk.osric.asp.Core.Assistant.BudgetSnapshot.Deconstruct(out long ContextChars, out int Steps, out int ToolCalls, out int LongestArguments, out int LongestResult, out int CompletionTokens) -> void
@@ -1018,3 +1008,98 @@ static uk.osric.asp.Core.Pages.LineSnippet.operator !=(uk.osric.asp.Core.Pages.L
 static uk.osric.asp.Core.Pages.LineSnippet.operator ==(uk.osric.asp.Core.Pages.LineSnippet left, uk.osric.asp.Core.Pages.LineSnippet right) -> bool
 ~override uk.osric.asp.Core.Pages.LineSnippet.Equals(object obj) -> bool
 ~override uk.osric.asp.Core.Pages.LineSnippet.ToString() -> string
+override uk.osric.asp.Core.Pages.PageColumn.Equals(object? obj) -> bool
+override uk.osric.asp.Core.Pages.PageColumn.GetHashCode() -> int
+override uk.osric.asp.Core.Pages.PageColumn.ToString() -> string!
+override uk.osric.asp.Core.Pages.PageSchema.Equals(object? obj) -> bool
+override uk.osric.asp.Core.Pages.PageSchema.GetHashCode() -> int
+override uk.osric.asp.Core.Pages.PageSchemaLimits.Equals(object? obj) -> bool
+override uk.osric.asp.Core.Pages.PageSchemaLimits.GetHashCode() -> int
+override uk.osric.asp.Core.Pages.PageSchemaLimits.ToString() -> string!
+override uk.osric.asp.Core.Pages.PageSchemaProblem.Equals(object? obj) -> bool
+override uk.osric.asp.Core.Pages.PageSchemaProblem.GetHashCode() -> int
+override uk.osric.asp.Core.Pages.PageSchemaProblem.ToString() -> string!
+override uk.osric.asp.Core.Pages.PageSchema.ToString() -> string!
+override uk.osric.asp.Core.Pages.PageTable.Equals(object? obj) -> bool
+override uk.osric.asp.Core.Pages.PageTable.GetHashCode() -> int
+override uk.osric.asp.Core.Pages.PageTable.ToString() -> string!
+static uk.osric.asp.Core.Pages.PageColumn.operator !=(uk.osric.asp.Core.Pages.PageColumn? left, uk.osric.asp.Core.Pages.PageColumn? right) -> bool
+static uk.osric.asp.Core.Pages.PageColumn.operator ==(uk.osric.asp.Core.Pages.PageColumn? left, uk.osric.asp.Core.Pages.PageColumn? right) -> bool
+static uk.osric.asp.Core.Pages.PageSchema.Empty.get -> uk.osric.asp.Core.Pages.PageSchema!
+static uk.osric.asp.Core.Pages.PageSchemaLimits.operator !=(uk.osric.asp.Core.Pages.PageSchemaLimits? left, uk.osric.asp.Core.Pages.PageSchemaLimits? right) -> bool
+static uk.osric.asp.Core.Pages.PageSchemaLimits.operator ==(uk.osric.asp.Core.Pages.PageSchemaLimits? left, uk.osric.asp.Core.Pages.PageSchemaLimits? right) -> bool
+static uk.osric.asp.Core.Pages.PageSchema.operator !=(uk.osric.asp.Core.Pages.PageSchema? left, uk.osric.asp.Core.Pages.PageSchema? right) -> bool
+static uk.osric.asp.Core.Pages.PageSchema.operator ==(uk.osric.asp.Core.Pages.PageSchema? left, uk.osric.asp.Core.Pages.PageSchema? right) -> bool
+static uk.osric.asp.Core.Pages.PageSchemaProblem.operator !=(uk.osric.asp.Core.Pages.PageSchemaProblem? left, uk.osric.asp.Core.Pages.PageSchemaProblem? right) -> bool
+static uk.osric.asp.Core.Pages.PageSchemaProblem.operator ==(uk.osric.asp.Core.Pages.PageSchemaProblem? left, uk.osric.asp.Core.Pages.PageSchemaProblem? right) -> bool
+static uk.osric.asp.Core.Pages.PageTable.operator !=(uk.osric.asp.Core.Pages.PageTable? left, uk.osric.asp.Core.Pages.PageTable? right) -> bool
+static uk.osric.asp.Core.Pages.PageTable.operator ==(uk.osric.asp.Core.Pages.PageTable? left, uk.osric.asp.Core.Pages.PageTable? right) -> bool
+uk.osric.asp.Core.Pages.PageColumn
+uk.osric.asp.Core.Pages.PageColumn.<Clone>$() -> uk.osric.asp.Core.Pages.PageColumn!
+uk.osric.asp.Core.Pages.PageColumn.Deconstruct(out string! Name, out uk.osric.asp.Core.Pages.PageColumnType Type, out bool Nullable) -> void
+uk.osric.asp.Core.Pages.PageColumn.Equals(uk.osric.asp.Core.Pages.PageColumn? other) -> bool
+uk.osric.asp.Core.Pages.PageColumn.Name.get -> string!
+uk.osric.asp.Core.Pages.PageColumn.Name.init -> void
+uk.osric.asp.Core.Pages.PageColumn.Nullable.get -> bool
+uk.osric.asp.Core.Pages.PageColumn.Nullable.init -> void
+uk.osric.asp.Core.Pages.PageColumn.PageColumn(string! Name, uk.osric.asp.Core.Pages.PageColumnType Type, bool Nullable = false) -> void
+uk.osric.asp.Core.Pages.PageColumnType
+uk.osric.asp.Core.Pages.PageColumnType.Flag = 3 -> uk.osric.asp.Core.Pages.PageColumnType
+uk.osric.asp.Core.Pages.PageColumn.Type.get -> uk.osric.asp.Core.Pages.PageColumnType
+uk.osric.asp.Core.Pages.PageColumn.Type.init -> void
+uk.osric.asp.Core.Pages.PageColumnType.Number = 2 -> uk.osric.asp.Core.Pages.PageColumnType
+uk.osric.asp.Core.Pages.PageColumnType.Text = 0 -> uk.osric.asp.Core.Pages.PageColumnType
+uk.osric.asp.Core.Pages.PageColumnType.Timestamp = 4 -> uk.osric.asp.Core.Pages.PageColumnType
+uk.osric.asp.Core.Pages.PageColumnType.WholeNumber = 1 -> uk.osric.asp.Core.Pages.PageColumnType
+uk.osric.asp.Core.Pages.PageSchema
+uk.osric.asp.Core.Pages.PageSchema.<Clone>$() -> uk.osric.asp.Core.Pages.PageSchema!
+uk.osric.asp.Core.Pages.PageSchema.Equals(uk.osric.asp.Core.Pages.PageSchema? other) -> bool
+uk.osric.asp.Core.Pages.PageSchema.IsEmpty.get -> bool
+uk.osric.asp.Core.Pages.PageSchemaLimits
+uk.osric.asp.Core.Pages.PageSchemaLimits.<Clone>$() -> uk.osric.asp.Core.Pages.PageSchemaLimits!
+uk.osric.asp.Core.Pages.PageSchemaLimits.Deconstruct(out int MaxTablesPerSource, out int MaxColumnsPerTable, out int MaxNameChars) -> void
+uk.osric.asp.Core.Pages.PageSchemaLimits.Equals(uk.osric.asp.Core.Pages.PageSchemaLimits? other) -> bool
+uk.osric.asp.Core.Pages.PageSchemaLimits.MaxColumnsPerTable.get -> int
+uk.osric.asp.Core.Pages.PageSchemaLimits.MaxColumnsPerTable.init -> void
+uk.osric.asp.Core.Pages.PageSchemaLimits.MaxNameChars.get -> int
+uk.osric.asp.Core.Pages.PageSchemaLimits.MaxNameChars.init -> void
+uk.osric.asp.Core.Pages.PageSchemaLimits.MaxTablesPerSource.get -> int
+uk.osric.asp.Core.Pages.PageSchemaLimits.MaxTablesPerSource.init -> void
+uk.osric.asp.Core.Pages.PageSchemaLimits.PageSchemaLimits(int MaxTablesPerSource, int MaxColumnsPerTable, int MaxNameChars) -> void
+uk.osric.asp.Core.Pages.PageSchema.PageSchema(System.Collections.Generic.IReadOnlyList<uk.osric.asp.Core.Pages.PageTable!>! tables) -> void
+uk.osric.asp.Core.Pages.PageSchemaProblem
+uk.osric.asp.Core.Pages.PageSchemaProblem.<Clone>$() -> uk.osric.asp.Core.Pages.PageSchemaProblem!
+uk.osric.asp.Core.Pages.PageSchemaProblem.Column.get -> string?
+uk.osric.asp.Core.Pages.PageSchemaProblem.Column.init -> void
+uk.osric.asp.Core.Pages.PageSchemaProblem.Deconstruct(out string? Table, out string? Column, out string! Message) -> void
+uk.osric.asp.Core.Pages.PageSchemaProblem.Equals(uk.osric.asp.Core.Pages.PageSchemaProblem? other) -> bool
+uk.osric.asp.Core.Pages.PageSchemaProblem.Message.get -> string!
+uk.osric.asp.Core.Pages.PageSchemaProblem.Message.init -> void
+uk.osric.asp.Core.Pages.PageSchemaProblem.PageSchemaProblem(string? Table, string? Column, string! Message) -> void
+uk.osric.asp.Core.Pages.PageSchemaProblem.Table.get -> string?
+uk.osric.asp.Core.Pages.PageSchemaProblem.Table.init -> void
+uk.osric.asp.Core.Pages.PageSchema.Tables.get -> System.Collections.Generic.IReadOnlyList<uk.osric.asp.Core.Pages.PageTable!>!
+uk.osric.asp.Core.Pages.PageSchema.Validate(uk.osric.asp.Core.Pages.PageSchemaLimits! limits) -> System.Collections.Generic.IReadOnlyList<uk.osric.asp.Core.Pages.PageSchemaProblem!>!
+uk.osric.asp.Core.Pages.PageTable
+uk.osric.asp.Core.Pages.PageTable.<Clone>$() -> uk.osric.asp.Core.Pages.PageTable!
+uk.osric.asp.Core.Pages.PageTable.Columns.get -> System.Collections.Generic.IReadOnlyList<uk.osric.asp.Core.Pages.PageColumn!>!
+uk.osric.asp.Core.Pages.PageTable.Columns.init -> void
+uk.osric.asp.Core.Pages.PageTable.Deconstruct(out string! Name, out uk.osric.asp.Core.Pages.StoreTableSubject Subject, out uk.osric.asp.Core.Pages.StoreTableLifetime Lifetime, out System.Collections.Generic.IReadOnlyList<uk.osric.asp.Core.Pages.PageColumn!>! Columns, out string? Search) -> void
+uk.osric.asp.Core.Pages.PageTable.Equals(uk.osric.asp.Core.Pages.PageTable? other) -> bool
+uk.osric.asp.Core.Pages.PageTable.Lifetime.get -> uk.osric.asp.Core.Pages.StoreTableLifetime
+uk.osric.asp.Core.Pages.PageTable.Lifetime.init -> void
+uk.osric.asp.Core.Pages.PageTable.Name.get -> string!
+uk.osric.asp.Core.Pages.PageTable.Name.init -> void
+uk.osric.asp.Core.Pages.PageTable.PageTable(string! Name, uk.osric.asp.Core.Pages.StoreTableSubject Subject, uk.osric.asp.Core.Pages.StoreTableLifetime Lifetime, System.Collections.Generic.IReadOnlyList<uk.osric.asp.Core.Pages.PageColumn!>! Columns, string? Search = null) -> void
+uk.osric.asp.Core.Pages.PageTable.Search.get -> string?
+uk.osric.asp.Core.Pages.PageTable.Search.init -> void
+uk.osric.asp.Core.Pages.PageTable.Subject.get -> uk.osric.asp.Core.Pages.StoreTableSubject
+uk.osric.asp.Core.Pages.PageTable.Subject.init -> void
+uk.osric.asp.Core.Pages.StoreTableLifetime
+uk.osric.asp.Core.Pages.StoreTableLifetime.Browser = 3 -> uk.osric.asp.Core.Pages.StoreTableLifetime
+uk.osric.asp.Core.Pages.StoreTableLifetime.Page = 0 -> uk.osric.asp.Core.Pages.StoreTableLifetime
+uk.osric.asp.Core.Pages.StoreTableLifetime.Person = 1 -> uk.osric.asp.Core.Pages.StoreTableLifetime
+uk.osric.asp.Core.Pages.StoreTableLifetime.Session = 2 -> uk.osric.asp.Core.Pages.StoreTableLifetime
+uk.osric.asp.Core.Pages.StoreTableSubject
+uk.osric.asp.Core.Pages.StoreTableSubject.Page = 0 -> uk.osric.asp.Core.Pages.StoreTableSubject
+uk.osric.asp.Core.Pages.StoreTableSubject.Visitor = 1 -> uk.osric.asp.Core.Pages.StoreTableSubject
