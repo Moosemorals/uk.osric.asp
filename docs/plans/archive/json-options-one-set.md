@@ -7,14 +7,14 @@ SPDX-License-Identifier: MIT
 
 | | |
 | --- | --- |
-| Status | Proposed 2026-11-22 — the owner asked for the consolidation and for one copy of each variation in a type in Core. Nothing below is built; it waits for a yes |
+| Status | Merged 2026-11-22 — built on *json-options* and merged into trunk with `make check` green. The record is `code-json-options-are-one-set` |
 | Size | Small: one type, one instance, and the call sites that stop naming their own |
-| Decisions | The merge records **code-json-options-are-one-set** |
+| Decisions | `code-json-options-are-one-set`, recorded with this plan |
 | Backlog | — (the owner asked for the change directly) |
 
 ## The problem
 
-Seventeen `JsonSerializerOptions` instances live in seventeen files, in ten configurations. Five are
+Seventeen `JsonSerializerOptions` instances live in seventeen files, in nine configurations. Five are
 byte-for-byte copies of the template in `Core.Text.JsonSerialization` and add nothing. Three differ
 only by accident: the two halves of an interrupt row were written with different encoders and
 different null policies, and the page store's diagnostics and the record catalogue's columns were the

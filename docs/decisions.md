@@ -438,6 +438,18 @@ shared C# instructions.
 
 *Recorded in [REUSE.toml](../REUSE.toml), [LICENSE](../LICENSE).*
 
+### code-json-options-are-one-set
+
+Every `JsonSerializerOptions` the host's own code uses is the one instance in
+`Core.Text.JsonSerialization`: web defaults, the relaxed encoder and enums by name. A call site names
+it; it never constructs, copies or mutates options of its own. A second setting is added there only
+when a shape has to differ, and the reason is written on the member. A private field per file is how
+seventeen instances in nine configurations accumulated, five of them copies that changed nothing and
+one of them the strict encoder writing a row its neighbour read in the relaxed one. A page's own code
+may still build its own options, because its types and its API are its own.
+
+*Recorded in [json options](plans/archive/json-options-one-set.md), [JSON](architecture.md#json).*
+
 ## Pages
 
 ### pages-the-contract-is-the-seam

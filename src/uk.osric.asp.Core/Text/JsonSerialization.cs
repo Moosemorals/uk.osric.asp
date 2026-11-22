@@ -11,8 +11,8 @@ using System.Text.Json.Serialization;
 /// <remarks>
 /// <para>
 /// A call site names <see cref="Options"/>; it never constructs, copies or mutates an instance of its
-/// own. A second setting is added here only when a shape has to differ, and the reason is stated on
-/// the member.
+/// own (`code-json-options-are-one-set`). A second setting is added here only when a shape has to
+/// differ, and the reason is stated on the member.
 /// </para>
 /// <para>
 /// <c>System.Text.Json</c> escapes by default for a document: every HTML-significant character

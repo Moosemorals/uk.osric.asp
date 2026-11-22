@@ -307,7 +307,8 @@ value is where it is checked. A record a page builds is the exception, and is ch
 
 ## JSON
 
-Every JSON the host writes goes through one set of options in `Core.Text.JsonSerialization`. The
+Every JSON the host writes goes through one set of options in `Core.Text.JsonSerialization`
+(`code-json-options-are-one-set`). The
 encoder is relaxed, so markup and non-ASCII text are written as themselves and only the quote, the
 backslash and the control characters are escaped; the default encoder guards JSON embedded in HTML,
 which nothing here does. An enum is written by its name, so a stored diagnostic or a value a page

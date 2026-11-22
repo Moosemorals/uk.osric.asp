@@ -27,6 +27,5 @@ other; `make decisions` checks the names.
 | [email](email.md) | Proposed 2026-11-06, not implemented | — (operations, not the site) |
 | [email-configuration](email-configuration.md) | Configuration excerpts for [email](email.md); nothing deployed | — |
 | [ide-host](ide-host.md) | Proposed 2026-11-15; slices 0–6 merged, the search with its own archived plan; slice 7 waits on the owner | [`cannot-search-the-store`](../backlog/closed.md) |
-| [json-options-one-set](json-options-one-set.md) | Proposed 2026-11-22, waits for the owner; nothing built | — (asked for directly) |
 | [page-inbox](page-inbox.md) | Superseded in shape 2026-11-21 by [storage-model](storage-model.md) | `message-does-not-survive-a-redirect` |
 | [storage-model](storage-model.md) | Agreed 2026-11-21, revised against trunk 2026-11-22; slice 0, the [sandbox spike](../spikes/store-sandbox.md), and slice 1, values, lifetimes and identity, and slice 2, records and the sandbox, are merged; slice 3 is next | [`storage-is-not-one-model`](../backlog/storage-is-not-one-model.md) |
