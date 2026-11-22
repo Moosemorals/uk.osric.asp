@@ -858,10 +858,34 @@ for the page, an anonymous visitor, a browser and a signed-in visitor, with the 
 the browser's lifetime and the live-session cap beside them. The caps are chosen together because they
 draw on one budget per subject, so they are read and refused together. The two sections this replaces,
 `Pages:Storage` and `Pages:Session`, are refused at startup rather than ignored: an operator who kept one
-believes it still bounds something, and it does not. The subject prefixes and the lifetime numbers stay
-in code, because they are the stored form of every row and configuration could only orphan them.
+believes it still bounds something, and it does not. The message shape's body, count and total caps are
+rows of the same record, for the same reason: they draw on the subject's budget. The subject prefixes,
+the lifetime numbers and a topic's canonical form stay in code, because they are the stored form of
+every row and configuration could only orphan them.
 
 *Recorded in [storage](storage.md#values), [PageStoresOptions](../src/uk.osric.asp.Web/Pages/PageStoresOptions.cs), [configuration](architecture.md#configuration).*
+
+### pages-a-message-is-taken-once
+
+A message is one durable row addressed to a page or a named topic and owned by the reader's subject:
+`ctx.Stores.Visitor.Messages` is the only handle, because a Page subject is shared by every visitor and
+has no queue. A post names its destination — a page key, or a `PageTopic` whose name is lowercased and
+composed to NFC as a page key is, so two spellings are one queue — and is stamped with the posting
+layer's key. A take removes the oldest message the reader would see for the bound page or topic in one
+statement, so two renders racing for it answer one with it and one `Empty`; a peek is the same statement
+with a select, so it answers what a take would and reserves nothing.
+
+A peek is a read: a `HEAD` and a layout may use it, where a post and a take are writes and are refused.
+The address is checked before the write, and what depends on the page store is a value rather than an
+exception — `NotAddressable`, `OwnedBySite`, `UnknownPage`, `NotASink` and a full queue's `Full` — while a
+body over its cap and a lifetime a Visitor cannot carry are page bugs. A lifetime is `Person` by default,
+or `Session`, `Browser` or any of those with an expiry; there is no `NextRead` message, because a
+one-shot is a value, and no `Page` one. Adoption re-keys a `Person` message, the rotation deletes a
+`Session` one, and a `Browser` one follows the cookie. There is no count, wait, recall or activity clock:
+a page that must not lose a message takes it and acts on what the take answered, and a page that must
+retry peeks first and takes only after the work succeeded.
+
+*Recorded in [pages](pages.md#page-data), [storage](storage.md#messages), [IMessageStore](../src/uk.osric.asp.Sdk/IMessageStore.cs), [PageMessageStore](../src/uk.osric.asp.Web/Pages/PageMessageStore.cs).*
 
 ### pages-a-record-is-declared-sql
 
@@ -1740,8 +1764,10 @@ page left is what the read is for; `AllKeysAsync` answers page-and-key pairs bec
 be read. Serialisation is page storage's `JsonSerializerOptions`, a stored JSON `null` is a found value,
 and misuse throws as page storage throws (`pages-the-subject-is-the-binding`).
 
-`Pages:Stores` bounds the store per subject instance rather than per page, with different limits
-anonymous and signed in (`pages-one-stores-section`). A total live-session cap evicts the most idle **anonymous** session first and a signed-in one
+The values and the messages a session holds live under its subject, and its end deletes both in the
+same transaction, so nothing outlives the visit that wrote it. `Pages:Stores` bounds the store per
+subject instance rather than per page, with different limits anonymous and signed in
+(`pages-one-stores-section`). A total live-session cap evicts the most idle **anonymous** session first and a signed-in one
 only when no anonymous row is left, because the owner's session is the one nobody can mint again, and a
 mint is refused only when nothing can be evicted. Expired rows are deleted before the count, eviction is
 one bounded batch, and a five-minute sweep logs one line per sweep that removed anything.
@@ -1886,8 +1912,9 @@ re-running one after a crash is a different feature.
 
 A job has its own lifetime and its own slot. It takes one of `Pages:Jobs:MaxConcurrent` job slots rather
 than a render slot, because it answers nobody. Its deadline is `Pages:Jobs:SilenceSeconds`, re-armed by
-every publish and every returned receive, plus `Pages:Jobs:MaxDurationSeconds` from the start, because a
-job that runs for a working day is the point. A wait in `ReceiveAsync` pauses the silence clock but not
+every publish, every returned receive and every message it posts or takes, plus
+`Pages:Jobs:MaxDurationSeconds` from the start, because a job that runs for a working day is the point; a
+message that is only peeked does not re-arm it, because a worker looking is not a worker working. A wait in `ReceiveAsync` pauses the silence clock but not
 the ceiling: a worker waiting for its owner has not gone quiet, and the ceiling is what bounds the wait; a
 timed wait returns and the clock resumes, which is how a worker does periodic work without a sleep
 primitive. A job that works but never publishes or receives is cut, and a worker that ignores its token

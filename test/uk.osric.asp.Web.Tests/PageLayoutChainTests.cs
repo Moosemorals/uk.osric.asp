@@ -32,6 +32,7 @@ public sealed class PageLayoutChainTests {
     private readonly FakePageFetcher _fetcher = new();
     private readonly FakePageReadStore _readStore = new();
     private readonly FakeStoreValues _state = new();
+    private readonly FakeStoreMessages _messages = new();
     private readonly FakePageStore _storage = new();
     private readonly TestAntiforgery _antiforgery = new();
     private readonly PageMetrics _metrics = new();
@@ -100,6 +101,25 @@ public sealed class PageLayoutChainTests {
         Assert.That(rendered.Body, Does.StartWith("<!DOCTYPE html>"));
         Assert.That(rendered.Body, Does.Contain("<title>Signed out</title>"));
         Assert.That(rendered.Body, Does.Not.Contain("<h1>Signed in</h1>"));
+    }
+
+    [Test]
+    public async Task AWrapperMayPeekAMessageTheContentLeftAsync() {
+        _readStore.Save("/peek-layout", "layout", templateKind: uk.osric.asp.Core.Pages.PageKind.Page);
+        Store("/peek-layout", """
+            <% PageMessageRead read = await ctx.Stores.Visitor.Messages.PeekAsync(); %>
+            <p class="peek"><%= read.Found ? read.Message!.Body : "empty" %></p><%== ctx.Capabilities.GetRequired<IPageLayout>().Content?.Body ?? "" %>
+            """);
+        Store("/page", """
+            <% ctx.Capabilities.GetRequired<IPageComposition>().Wrap("/peek-layout");
+               PageMessagePostResult posted = await ctx.Stores.Visitor.Messages.PostAsync("/peek-layout", "queued");
+               ctx.Capabilities.GetRequired<IPageLayout>().Title = "Page"; %><p class="post"><%= posted.Refusal.ToString() %></p><h1>Page</h1>
+            """);
+
+        Rendered rendered = await RenderAsync("/page");
+
+        Assert.That(rendered.Body, Does.Contain("<p class=\"post\">None</p>"));
+        Assert.That(rendered.Body, Does.Contain("<p class=\"peek\">queued</p>"));
     }
 
     [Test]
@@ -802,6 +822,7 @@ public sealed class PageLayoutChainTests {
             read ?? TestOptions.Read,
             TestOptions.Scan(),
             _state,
+            _messages,
             _readStore,
             TestOptions.Seeds,
             saver,

@@ -58,6 +58,20 @@ internal sealed class StorageDbContext(DbContextOptions<StorageDbContext> option
             value.HasIndex(row => row.ExpiresAt);
         });
 
+        modelBuilder.Entity<StoreMessageEntry>(message => {
+            message.ToTable("StoreMessages", table =>
+                table.HasCheckConstraint("CK_StoreMessages_Address", "(\"ToPageKey\" IS NULL) <> (\"Topic\" IS NULL)"));
+            message.HasKey(row => row.Id);
+            // One address is a page and one is a topic, so the take reads either index; the sweep
+            // reads ExpiresAt as a range.
+            message.Property(row => row.Subject).UseCollation("BINARY");
+            message.Property(row => row.ToPageKey).UseCollation("BINARY");
+            message.Property(row => row.Topic).UseCollation("BINARY");
+            message.HasIndex(row => new { row.Subject, row.ToPageKey, row.Id });
+            message.HasIndex(row => new { row.Subject, row.Topic, row.Id });
+            message.HasIndex(row => row.ExpiresAt);
+        });
+
         modelBuilder.Entity<DeclaredTableEntry>(table => {
             table.ToTable("DeclaredTables");
             table.HasKey(row => row.Id);

@@ -9,7 +9,7 @@ using uk.osric.asp.Web.Shell;
 
 /// <summary>The system prompt and worked examples that teach the model to write a page.</summary>
 internal static class PageAuthorPrompt {
-    public const string Version = "page-author-v60";
+    public const string Version = "page-author-v61";
 
     public static IReadOnlyList<(string Name, string Source)> Examples { get; } = [
         ("query-driven", """
@@ -384,6 +384,26 @@ internal static class PageAuthorPrompt {
         `ctx.Stores.For(key)` is the one escape and only for a live library or
         worker: a library keeps its data under its own key and a page calls its
         methods rather than naming its tables.
+
+        ## Page messages
+        `ctx.Stores.Visitor.Messages` is the visitor's queue: a message is durable,
+        addressed to a page or a named topic, and taken once. A page posts with
+        `await ctx.Stores.Visitor.Messages.PostAsync("/landing", "Saved.")` and the
+        page at `/landing` takes it with
+        `PageMessageRead read = await ctx.Stores.Visitor.Messages.TakeAsync();`
+        then reads `read.Found` and `read.Message` (`From`, `Body`, `SentAt`). A
+        topic is `PageTopic.Named("job")`; its name is lowercased and composed to
+        NFC, so two spellings are one queue. A take is one statement that removes
+        the message it answers, so two renders cannot both take it; `PeekAsync()`
+        answers what a take would remove and removes nothing. A peek is a read —
+        a `HEAD` and a layout may peek — while a post and a take are writes. Use
+        a peek to decide whether to act, then take and act on what the take
+        answered: a peek is a preview, not a reservation.
+        `PostAsync` answers a `PageMessagePostResult`: `UnknownPage`,
+        `OwnedBySite`, `NotASink` (a library or a content-only page),
+        `NotAddressable` or `Full` are values. A message is `Person` by default,
+        or `Session`, `Browser` or `Until`; a one-shot is a value, not a message,
+        and there is no count, wait or recall.
 
         ## Page store read
         `ctx.Capabilities.GetRequired<IPageCatalog>()` reads the site's page store

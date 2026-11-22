@@ -234,9 +234,9 @@ page's own keys:
 - `ctx.Stores.For(key)` is a live library's or worker's namespace, for the library to hand out and a page
   to reach only through that library's methods.
 
-Each subject carries the shapes it has — `Values` and `Records` today, and the message and object
-shapes as their slices land — and a shape a subject does not have is absent from the type rather than
-a runtime surprise. `Values` is a JSON key/value store: `TryGetValueAsync<T>(key)` reads the bound page's key,
+Each subject carries the shapes it has — `Values` and `Records`, and `Messages` on the Visitor; the
+object shape arrives with its slice — and a shape a subject does not have is absent from the type
+rather than a runtime surprise. `Values` is a JSON key/value store: `TryGetValueAsync<T>(key)` reads the bound page's key,
 `TryGetValueAsync<T>(pageKey, key)` reads what another page left, `TryTakeAsync<T>(key)` consumes a
 one-shot, `SetAsync` and `DeleteAsync` write and remove, and `KeysAsync`/`AllKeysAsync` list without
 consuming. A read answers the lifetime the entry carries and the page that wrote it.
@@ -250,6 +250,14 @@ deadline are refused every write (`pages-a-lifetime-belongs-to-the-entry`). The 
 instance and are enforced in the statement that writes (`pages-one-stores-section`).
 [Storage](storage.md#values) has the table, the subjects, the lifetimes and the caps; `/help` is the
 author's manual.
+
+`Messages` is the visitor's queue: a message is durable, addressed to a page key or a named topic, and
+taken once. `PostAsync` names the destination, `TakeAsync` removes the oldest message for the bound page
+or topic in one statement, and `PeekAsync` is the same statement with a select, so it answers what a
+take would and reserves nothing. A post and a take are writes, a peek is a read, and the address checks
+and a full queue are values rather than exceptions (`pages-a-message-is-taken-once`). A topic's name is
+canonicalised as a page key is — lowercase and NFC — so two spellings are one queue. A one-shot flash is
+still a `NextRead` value; a message is for a page the visitor has not reached yet.
 
 `Records` is rows rather than keys: a source declares a table with `[PageTable]` on a class in a
 `<%! %>` block, and the properties are the columns. The declaration is part of the revision, so a save

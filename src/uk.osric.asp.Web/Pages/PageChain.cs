@@ -174,6 +174,8 @@ internal sealed class PageChain {
             key,
             _reader,
             _environment.StoreValues,
+            _environment.Messages,
+            _environment.Reserved,
             _environment.SessionStore,
             _environment.Stores,
             _environment.ReadStore,

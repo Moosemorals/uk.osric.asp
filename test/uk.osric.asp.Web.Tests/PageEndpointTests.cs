@@ -53,6 +53,7 @@ public sealed class PageEndpointTests {
             TestOptions.Read,
             TestOptions.Scan(),
             new FakeStoreValues(),
+            new FakeStoreMessages(),
             new FakePageReadStore(),
             TestOptions.Seeds,
             Saver(render ?? Options),

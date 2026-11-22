@@ -7,11 +7,11 @@ SPDX-License-Identifier: MIT
 
 | | |
 | --- | --- |
-| Status | Agreed 2026-11-21 — the owner said yes — and revised against trunk 2026-11-22, after the page search, the reference corpus, the slow test half and the documentation index landed. Slice 0, the [sandbox spike](../spikes/store-sandbox.md), slice 1, values, lifetimes and identity, and slice 2, records and the sandbox, are merged; slice 3 is next and nothing of it is built |
+| Status | Agreed 2026-11-21 — the owner said yes — and revised against trunk 2026-11-22, after the page search, the reference corpus, the slow test half and the documentation index landed. Slice 0, the [sandbox spike](../spikes/store-sandbox.md), slice 1, values, lifetimes and identity, and slice 2, records and the sandbox, are merged; slice 3, messages, is built on its branch and waits for the owner, and nothing of slice 4 is built |
 | Size | Large as a programme, small as a step: a spike, five slices and the release that closes the window, each its own branch and its own stop. The values slice is the floor; the record slice is the risk |
 | First customer | The two plans this supersedes: the assistant's transcript (a Record for the signed-in visitor) and the redirect flash (a `NextRead` value). Editor mode is the first `Browser` value, and `/help`'s counter is the first Page value |
 | Spike | Slice 0: [the record sandbox](../spikes/store-sandbox.md), written before anything was built. Six of the sandbox section's details were corrected by what it measured |
-| Decisions | Slice 2's merge recorded `pages-a-record-is-declared-sql`, `pages-a-record-is-sandboxed` and `pages-a-library-owns-its-schema`. Slice 1's merge recorded `pages-the-subject-is-the-binding`, `pages-a-lifetime-belongs-to-the-entry`, `pages-a-browser-is-a-lifetime`, `pages-adoption-re-keys-at-sign-in` and `pages-one-stores-section`, and edited `pages-page-storage`, `pages-the-session` and `pages-an-archive-is-a-database`. The remaining six names are recorded by the slice that delivers them, and the plan is archived when slice 5's merge closes the programme |
+| Decisions | Slice 3 records `pages-a-message-is-taken-once`. Slice 2's merge recorded `pages-a-record-is-declared-sql`, `pages-a-record-is-sandboxed` and `pages-a-library-owns-its-schema`. Slice 1's merge recorded `pages-the-subject-is-the-binding`, `pages-a-lifetime-belongs-to-the-entry`, `pages-a-browser-is-a-lifetime`, `pages-adoption-re-keys-at-sign-in` and `pages-one-stores-section`, and edited `pages-page-storage`, `pages-the-session` and `pages-an-archive-is-a-database`. The remaining six names are recorded by the slice that delivers them, and the plan is archived when slice 5's merge closes the programme |
 | Backlog | [`storage-is-not-one-model`](../backlog/storage-is-not-one-model.md) is this job. It absorbs [`no-account-store`](../backlog/no-account-store.md) and [`message-does-not-survive-a-redirect`](../backlog/message-does-not-survive-a-redirect.md), whose plans [account-store](account-store.md) and [page-inbox](page-inbox.md) are superseded in shape |
 
 ## The short version
@@ -881,8 +881,8 @@ record sandbox says of itself.
 
 Each slice is one branch, one step through the gate and one stop for the owner. The programme merges
 phase by phase, so a regression is bisectable and its branch goes when its last slice is in. The
-owner said yes to this plan on 2026-11-21. Slice 0 is [written](../spikes/store-sandbox.md) and slice 1
-is merged; slice 2 is next.
+owner said yes to this plan on 2026-11-21. Slice 0 is [written](../spikes/store-sandbox.md), slice 1
+and slice 2 are merged, and slice 3 is built and waits for the owner.
 
 0. **The sandbox spike** (`S`, docs only) — **written**. A scratch console over the real SQLite
    build: an unpooled connection, a `TEMP VIEW` per table with a literal subject and an `INSTEAD OF`
@@ -937,7 +937,7 @@ is merged; slice 2 is next.
    the page's choice; a second `BeginTransaction` throws; a search answers my subject's rows and never
    another's; a library's table is reached only through `For(libraryKey)`; a worker's own table is
    shared by its runs.
-3. **Messages** (`M`). `IMessageStore`, `PageTopic`, `PageMessageRead`, `StoreMessages`, the address
+3. **Messages** (`M`) — **built, waits for the owner**. `IMessageStore`, `PageTopic`, `PageMessageRead`, `StoreMessages`, the address
    check, the atomic take, the peek, the caps, the lifetimes and the sweep; the flash example and the
    peek-that-protects-a-retry in `/help`; `/privacy`.
    *Proves:* a page posts to another page and the other takes it; a second take is `Empty`; two

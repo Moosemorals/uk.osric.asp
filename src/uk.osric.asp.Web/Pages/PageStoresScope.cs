@@ -32,25 +32,33 @@ internal sealed class PageStoresScope : RenderBoundCapability, IPageStores, IAsy
     /// <param name="key">The layer's canonical key.</param>
     /// <param name="reader">The reader's subjects, resolved once by the endpoint.</param>
     /// <param name="store">Where values live.</param>
+    /// <param name="messages">Where messages live.</param>
+    /// <param name="reserved">The keys the site's own routes answer for, which a post cannot address.</param>
     /// <param name="sessions">Where the session row is minted.</param>
     /// <param name="options">The store's bounds.</param>
     /// <param name="readStore">Where a <c>For</c> key is judged a library or a worker.</param>
     /// <param name="writable">Whether this render may write.</param>
     /// <param name="commit">Whether the response was flushed, or <see langword="null"/>.</param>
     /// <param name="records">Where a record handle's catalogue and database are read, or <see langword="null"/>.</param>
+    /// <param name="activity">What a posted or taken message re-arms, or <see langword="null"/>.</param>
     public PageStoresScope(
         PagePath key,
         PageReaderSubject reader,
         IStoreValues store,
+        IStoreMessages messages,
+        ReservedPaths reserved,
         IPageSessionStore sessions,
         PageStoresOptions options,
         IPageReadStore readStore,
         bool writable,
         PageCommitState? commit,
-        IRecordCatalog? records = null) {
+        IRecordCatalog? records = null,
+        Action? activity = null) {
         ArgumentNullException.ThrowIfNull(key);
         ArgumentNullException.ThrowIfNull(reader);
         ArgumentNullException.ThrowIfNull(store);
+        ArgumentNullException.ThrowIfNull(messages);
+        ArgumentNullException.ThrowIfNull(reserved);
         ArgumentNullException.ThrowIfNull(sessions);
         ArgumentNullException.ThrowIfNull(options);
         ArgumentNullException.ThrowIfNull(readStore);
@@ -64,9 +72,14 @@ internal sealed class PageStoresScope : RenderBoundCapability, IPageStores, IAsy
 
         PageValues = new PageValueStore(key, store, options.Page, options.MaxKeyChars, writable);
         VisitorValues = new PageValueStore(key, store, sessions, reader, options.MaxKeyChars, writable, commit);
+        Messages = new PageMessageStore(
+            key, messages, sessions, reader, readStore, reserved, options.Messages, writable, commit, activity);
 
         _page = new SubjectHandle(PageValues, RecordsFor(key, SqliteRecordStore.SubjectKind.Page, reader, writable));
-        _visitor = new VisitorHandle(VisitorValues, RecordsFor(key, SqliteRecordStore.SubjectKind.Visitor, reader, writable));
+        _visitor = new VisitorHandle(
+            VisitorValues,
+            Messages,
+            RecordsFor(key, SqliteRecordStore.SubjectKind.Visitor, reader, writable));
     }
 
     /// <summary>The Page subject's value store, which the old storage adapter wraps.</summary>
@@ -74,6 +87,9 @@ internal sealed class PageStoresScope : RenderBoundCapability, IPageStores, IAsy
 
     /// <summary>The Visitor subject's value store, which the old session adapter restricts.</summary>
     internal PageValueStore VisitorValues { get; }
+
+    /// <summary>The Visitor subject's messages.</summary>
+    internal PageMessageStore Messages { get; }
 
     /// <inheritdoc/>
     public IPageSubject Page => _page;
@@ -158,6 +174,7 @@ internal sealed class PageStoresScope : RenderBoundCapability, IPageStores, IAsy
         _deadline = deadline;
         PageValues.AttachDeadline(deadline);
         VisitorValues.AttachDeadline(deadline);
+        Messages.AttachDeadline(deadline);
     }
 
     /// <inheritdoc/>
@@ -165,6 +182,7 @@ internal sealed class PageStoresScope : RenderBoundCapability, IPageStores, IAsy
         base.Abandon();
         PageValues.Abandon();
         VisitorValues.Abandon();
+        Messages.Abandon();
     }
 
     // The handle is bound before the head is read, because For is a synchronous call; the first use
@@ -186,8 +204,11 @@ internal sealed class PageStoresScope : RenderBoundCapability, IPageStores, IAsy
             ?? throw new InvalidOperationException("This layer has no record store.");
     }
 
-    private sealed class VisitorHandle(IValueStore values, IRecordStore? records) : IPageVisitorSubject {
+    private sealed class VisitorHandle(IValueStore values, IMessageStore messages, IRecordStore? records)
+        : IPageVisitorSubject {
         public IValueStore Values { get; } = values;
+
+        public IMessageStore Messages { get; } = messages;
 
         public IRecordStore Records => records
             ?? throw new InvalidOperationException("This layer has no record store.");

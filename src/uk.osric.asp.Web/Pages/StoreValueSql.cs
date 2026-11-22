@@ -13,7 +13,9 @@ using uk.osric.asp.Web.Storage;
 /// <remarks>
 /// A page's delete, move and scrub own a transaction of their own, and a session's sweep and an
 /// account's removal own another. They cannot call the store's seam, because that opens its own
-/// context, so the statements live here and every caller uses the same spelling of the subject.
+/// context, so the statements live here and every caller uses the same spelling of the subject. A
+/// subject's ending covers its values, its messages and its declared rows: the helpers call every
+/// statement, so a caller cannot forget one of the three.
 /// </remarks>
 internal static class StoreValueSql {
 
@@ -71,11 +73,18 @@ internal static class StoreValueSql {
     /// <param name="key">The page's canonical key.</param>
     /// <param name="cancellationToken">Cancels the statement.</param>
     /// <returns>How many rows were removed.</returns>
-    public static Task<int> DeletePageAsync(StorageDbContext database, PagePath key, CancellationToken cancellationToken) {
+    public static async Task<int> DeletePageAsync(
+        StorageDbContext database,
+        PagePath key,
+        CancellationToken cancellationToken) {
         ArgumentNullException.ThrowIfNull(database);
         ArgumentNullException.ThrowIfNull(key);
 
-        return DeleteSubjectAsync(database, StoreSubjects.ForPage(key), cancellationToken);
+        int removed = await DeleteSubjectAsync(database, StoreSubjects.ForPage(key), cancellationToken);
+
+        // A message addressed to the page belongs to whoever posted it, so it is not the Page
+        // subject's to delete: every subject's message to this page goes with the page.
+        return removed + await StoreMessageSql.DeletePageAsync(database, key, cancellationToken);
     }
 
     /// <summary>Re-keys a page's Page subject to a new key.</summary>
@@ -84,7 +93,7 @@ internal static class StoreValueSql {
     /// <param name="to">The key it should have.</param>
     /// <param name="cancellationToken">Cancels the statement.</param>
     /// <returns>How many rows were re-keyed.</returns>
-    public static Task<int> MovePageAsync(
+    public static async Task<int> MovePageAsync(
         StorageDbContext database,
         PagePath from,
         PagePath to,
@@ -93,11 +102,13 @@ internal static class StoreValueSql {
         ArgumentNullException.ThrowIfNull(from);
         ArgumentNullException.ThrowIfNull(to);
 
-        return database.Database.ExecuteSqlAsync($"""
+        int moved = await database.Database.ExecuteSqlAsync($"""
             UPDATE "StoreValues"
             SET "Subject" = {StoreSubjects.ForPage(to)}, "PageKey" = {to.Key}
             WHERE "Subject" = {StoreSubjects.ForPage(from)};
             """, cancellationToken);
+
+        return moved + await StoreMessageSql.MovePageAsync(database, from, to, cancellationToken);
     }
 
     /// <summary>Removes every value one subject holds.</summary>
@@ -112,12 +123,17 @@ internal static class StoreValueSql {
         ArgumentNullException.ThrowIfNull(database);
         ArgumentException.ThrowIfNullOrWhiteSpace(subject);
 
-        // One helper and not two: a subject's values and the rows it holds in a declared table are
-        // the same ending, and a caller that forgot the second would leave a stranger's rows behind.
+        // One helper and not three: a subject's values, its messages and the rows it holds in a
+        // declared table are the same ending, and a caller that forgot one would leave a stranger's
+        // rows behind.
         int values = await database.Database.ExecuteSqlAsync(
             $"""DELETE FROM "StoreValues" WHERE "Subject" = {subject}""", cancellationToken);
 
-        return values + await DeclaredTableApplier.RemoveSubjectAsync(database, subject, cancellationToken);
+        int messages = await StoreMessageSql.DeleteSubjectAsync(database, subject, cancellationToken);
+
+        return values
+            + messages
+            + await DeclaredTableApplier.RemoveSubjectAsync(database, subject, cancellationToken);
     }
 
     /// <summary>Removes every value held by a set of sessions.</summary>
@@ -142,6 +158,8 @@ internal static class StoreValueSql {
             .Where(row => subjects.Contains(row.Subject))
             .ExecuteDeleteAsync(cancellationToken);
 
+        removed += await StoreMessageSql.DeleteSubjectsAsync(database, subjects, cancellationToken);
+
         foreach (string subject in subjects) {
             removed += await DeclaredTableApplier.RemoveSubjectAsync(database, subject, cancellationToken);
         }
@@ -160,7 +178,7 @@ internal static class StoreValueSql {
     /// a <see cref="StoreLifetimeKind.Session"/> value belongs to the session the rotation ends, and a
     /// browser value belongs to the device and is never adopted.
     /// </remarks>
-    public static Task<int> AdoptAsync(
+    public static async Task<int> AdoptAsync(
         StorageDbContext database,
         string sessionId,
         string account,
@@ -169,11 +187,13 @@ internal static class StoreValueSql {
         ArgumentException.ThrowIfNullOrWhiteSpace(sessionId);
         ArgumentException.ThrowIfNullOrWhiteSpace(account);
 
-        return database.Database.ExecuteSqlAsync($"""
+        int values = await database.Database.ExecuteSqlAsync($"""
             UPDATE "StoreValues"
             SET "Subject" = {StoreSubjects.ForAccount(account)}
             WHERE "Subject" = {StoreSubjects.ForSession(sessionId)}
               AND "Lifetime" IN ({(int)StoreLifetimeKind.Person}, {(int)StoreLifetimeKind.NextRead});
             """, cancellationToken);
+
+        return values + await StoreMessageSql.AdoptAsync(database, sessionId, account, cancellationToken);
     }
 }

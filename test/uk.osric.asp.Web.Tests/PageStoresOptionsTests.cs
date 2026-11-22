@@ -24,6 +24,7 @@ public sealed class PageStoresOptionsTests {
             Assert.That(stores.Visitor.AnonymousIdle, Is.EqualTo(TimeSpan.FromMinutes(30)));
             Assert.That(stores.Visitor.BrowserLifetimeDays, Is.EqualTo(365));
             Assert.That(stores.Visitor.MaxLiveSessions, Is.EqualTo(2_048));
+            Assert.That(stores.Messages, Is.EqualTo(new PageMessageOptions(16_384, 8, 65_536)));
         });
     }
 
@@ -47,7 +48,10 @@ public sealed class PageStoresOptionsTests {
             ("Pages:Stores:Visitor:SignedIn:MaxValueBytes", "1024"),
             ("Pages:Stores:Visitor:SignedIn:MaxKeys", "5"),
             ("Pages:Stores:Visitor:SignedIn:MaxTotalBytes", "4096"),
-            ("Pages:Stores:Visitor:MaxLiveSessions", "64")));
+            ("Pages:Stores:Visitor:MaxLiveSessions", "64"),
+            ("Pages:Stores:Messages:MaxMessageBytes", "2048"),
+            ("Pages:Stores:Messages:MaxMessagesPerSubject", "3"),
+            ("Pages:Stores:Messages:MaxSubjectBytes", "8192")));
 
         Assert.Multiple(() => {
             Assert.That(stores.MaxKeyChars, Is.EqualTo(32));
@@ -60,6 +64,7 @@ public sealed class PageStoresOptionsTests {
             Assert.That(stores.Visitor.AnonymousIdle, Is.EqualTo(TimeSpan.FromMinutes(5)));
             Assert.That(stores.Visitor.BrowserLifetimeDays, Is.EqualTo(10));
             Assert.That(stores.Visitor.MaxLiveSessions, Is.EqualTo(64));
+            Assert.That(stores.Messages, Is.EqualTo(new PageMessageOptions(2_048, 3, 8_192)));
         });
     }
 
@@ -87,6 +92,17 @@ public sealed class PageStoresOptionsTests {
                 ("Pages:Stores:Page:MaxTotalBytes", "2048"))))!;
 
         Assert.That(error.Message, Does.Contain("Pages:Stores:Page:MaxTotalBytes is 2048, which is smaller than MaxValueBytes (4096)"));
+    }
+
+    [Test]
+    public void AMessageTotalSmallerThanOneBodyStopsTheSite() {
+        ConfigurationException error = Assert.Throws<ConfigurationException>(() =>
+            PageStoresOptions.FromConfiguration(ShippedConfiguration.Read(
+                ("Pages:Stores:Messages:MaxMessageBytes", "4096"),
+                ("Pages:Stores:Messages:MaxSubjectBytes", "2048"))))!;
+
+        Assert.That(error.Message, Does.Contain(
+            "Pages:Stores:Messages:MaxSubjectBytes is 2048, which is smaller than MaxMessageBytes (4096)"));
     }
 
     [Test]

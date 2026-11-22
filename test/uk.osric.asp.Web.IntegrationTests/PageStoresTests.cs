@@ -72,6 +72,104 @@ public sealed class PageStoresTests : IntegrationTest {
         <p><%= notice.Found ? notice.Value! : "nothing" %></p>
         """;
 
+    private const string PostMessage = """
+        <% PageMessagePostResult posted = await ctx.Stores.Visitor.Messages.PostAsync("/stores-message-take", "Saved."); %>
+        <p><%= posted.Posted ? "posted" : posted.Refusal.ToString() %></p>
+        """;
+
+    private const string TakeMessage = """
+        <% PageMessageRead read = await ctx.Stores.Visitor.Messages.TakeAsync(); %>
+        <p><%= read.Found ? read.Message!.Body : "nothing" %></p>
+        """;
+
+    private const string PeekMessage = """
+        <% PageMessageRead read = await ctx.Stores.Visitor.Messages.PeekAsync(); %>
+        <p><%= read.Found ? read.Message!.Body : "nothing" %></p>
+        """;
+
+    [Test]
+    public async Task AMessageFromOnePageIsTakenOnceByTheNextAsync() {
+        await SavePageAsync("/stores-message-post", PostMessage);
+        await SavePageAsync("/stores-message-take", TakeMessage);
+        using HttpClient client = CreateClient();
+
+        Assert.That(await client.GetStringAsync("/stores-message-post"), Does.Contain("posted"));
+        Assert.That(await client.GetStringAsync("/stores-message-take"), Does.Contain("Saved."));
+        Assert.That(await client.GetStringAsync("/stores-message-take"), Does.Contain("nothing"));
+    }
+
+    [Test]
+    public async Task AnotherVisitorCannotTakeTheMessageAsync() {
+        await SavePageAsync("/stores-message-post", PostMessage);
+        await SavePageAsync("/stores-message-take", TakeMessage);
+        using HttpClient first = CreateClient();
+        using HttpClient second = CreateClient();
+        _ = await first.GetStringAsync("/stores-message-post");
+
+        Assert.That(await second.GetStringAsync("/stores-message-take"), Does.Contain("nothing"));
+        Assert.That(await first.GetStringAsync("/stores-message-take"), Does.Contain("Saved."));
+    }
+
+    [Test]
+    public async Task AHeadMayPeekTheMessageAndLeavesItAsync() {
+        await SavePageAsync("/stores-message-post", PostMessage);
+        await SavePageAsync("/stores-message-peek", PeekMessage);
+        await SavePageAsync("/stores-message-take", TakeMessage);
+        using HttpClient client = CreateClient();
+        _ = await client.GetStringAsync("/stores-message-post");
+
+        using HttpRequestMessage head = new(HttpMethod.Head, "/stores-message-peek");
+        HttpResponseMessage response = await client.SendAsync(head);
+
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK), "a peek is a read");
+        Assert.That(await client.GetStringAsync("/stores-message-take"), Does.Contain("Saved."),
+            "the peek removed nothing");
+    }
+
+    [Test]
+    public async Task AHeadCannotTakeTheMessageAsync() {
+        await SavePageAsync("/stores-message-post", PostMessage);
+        await SavePageAsync("/stores-message-take", TakeMessage);
+        using HttpClient client = CreateClient();
+        _ = await client.GetStringAsync("/stores-message-post");
+
+        using HttpRequestMessage head = new(HttpMethod.Head, "/stores-message-take");
+        HttpResponseMessage response = await client.SendAsync(head);
+
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.InternalServerError));
+        Assert.That(await client.GetStringAsync("/stores-message-take"), Does.Contain("Saved."),
+            "the refused take removed nothing");
+    }
+
+    [Test]
+    public async Task SigningInAdoptsAPersonMessageAsync() {
+        await SavePageAsync("/stores-message-post", PostMessage);
+        await SavePageAsync("/stores-message-take", TakeMessage);
+        using HttpClient client = CreateClient();
+        _ = await client.GetStringAsync("/stores-message-post");
+
+        await SignInAsync(client);
+
+        Assert.That(await client.GetStringAsync("/stores-message-take"), Does.Contain("Saved."),
+            "a Person message survives sign-in unread");
+    }
+
+    [Test]
+    public async Task ASessionMessageDiesAtSignInAsync() {
+        await SavePageAsync("/stores-message-session-post", """
+            <% _ = await ctx.Stores.Visitor.Messages.PostAsync("/stores-message-take", "Saved.", StoreLifetime.Session); %>
+            <p>posted</p>
+            """);
+        await SavePageAsync("/stores-message-take", TakeMessage);
+        using HttpClient client = CreateClient();
+        _ = await client.GetStringAsync("/stores-message-session-post");
+
+        await SignInAsync(client);
+
+        Assert.That(await client.GetStringAsync("/stores-message-take"), Does.Contain("nothing"),
+            "a Session message goes with the rotation that adopts the rest");
+    }
+
     [Test]
     public async Task ThePageSubjectIsSharedByEveryVisitorAsync() {
         await SavePageAsync("/stores-page", PageCounter);

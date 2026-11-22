@@ -32,6 +32,7 @@ public sealed class PageCompositionTests {
     private readonly FakePageFetcher _fetcher = new();
     private readonly FakePageReadStore _readStore = new();
     private readonly FakeStoreValues _state = new();
+    private readonly FakeStoreMessages _messages = new();
     private readonly FakePageStore _storage = new();
     private readonly TestAntiforgery _antiforgery = new();
     private readonly PageMetrics _metrics = new();
@@ -584,6 +585,7 @@ public sealed class PageCompositionTests {
             TestOptions.Read,
             TestOptions.Scan(),
             _state,
+            _messages,
             _readStore,
             TestOptions.Seeds,
             saver,

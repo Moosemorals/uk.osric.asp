@@ -23,6 +23,7 @@ can improve it at <a href="<%= ctx.EditorPath %>?edit=<%= System.Uri.EscapeDataS
         <li><a href="#diff">Diff</a></li>
         <li><a href="#private">Private pages and forms</a></li>
         <li><a href="#storage">Storage</a></li>
+        <li><a href="#messages">Messages between pages</a></li>
         <li><a href="#assets">Assets and recovery</a></li>
         <li><a href="#keeping-current">Keeping this page current</a></li>
     </ul>
@@ -921,7 +922,7 @@ that compares two revisions reads them with <a href="/admin/reference/sdk#m-IPag
 editor's history page compares two revisions for you.</p>
 
 <h2 id="storage">Storage</h2>
-<p>Two subjects and one shape today. <a href="/admin/reference/sdk#t-IPageSubject"><code>Stores.Page</code></a> is this page's data, shared by
+<p>Two subjects, and each offers the shapes it has. <a href="/admin/reference/sdk#t-IPageSubject"><code>Stores.Page</code></a> is this page's data, shared by
 every visitor; <a href="/admin/reference/sdk#t-IPageVisitorSubject"><code>Stores.Visitor</code></a> is the person reading. A write always uses
 the layer's own key, so a page cannot write another page's data; a read is open across pages, so a
 page can show what another page left for it. Neither handle has an argument that names someone
@@ -954,8 +955,9 @@ else's data.</p>
     <dt><code>StoreLifetime.Until(expiry)</code></dt>
     <dd>Any of the above with a clock as well; <code>Person.WithExpiry(expiry)</code> narrows a named one.</dd>
 </dl>
-<p><code>NextRead</code> is how a page leaves a message for the page a redirect lands on, without a
-second store: the take is one statement, so two renders cannot both read it. <code>KeysAsync</code>
+<p><code>NextRead</code> is how a page leaves a flash for the same page after a redirect, without a
+second store: the take is one statement, so two renders cannot both read it. For a page the visitor
+lands on somewhere else, use a <a href="#messages">message</a> instead. <code>KeysAsync</code>
 and <code>AllKeysAsync</code> list without consuming and take a <code>StoreFilter</code> — a lifetime
 and a limit.</p>
 <p>Signing in adopts what the anonymous session held: its <code>Person</code> and <code>NextRead</code>
@@ -1035,6 +1037,61 @@ so bound it with <code>LIMIT</code>; a statement that runs too long is interrupt
 <p>Deleting a page drops the tables it declared; moving one re-keys them and leaves the rows where they
 are; signing out removes the session's rows; removing an account removes its rows. A
 <code>HEAD</code> may read and may not write.</p>
+
+<h2 id="messages">Messages between pages</h2>
+<p>A message is durable, addressed, and taken once. It is how one page leaves something for a page the
+visitor has not reached yet, which a value cannot do without the receiver knowing the sender's key.
+<a href="/admin/reference/sdk#t-IPageVisitorSubject"><code>Stores.Visitor.Messages</code></a> is the
+visitor's queue; a page has none, because its data is shared by everyone.</p>
+<p>A post names a page key or a named topic, and a take reads the bound page's queue — the key of the
+layer that runs, so a layout takes from the layout's key. A topic is
+<a href="/admin/reference/sdk#t-PageTopic"><code>PageTopic.Named(name)</code></a>: a queue with no
+page behind it, most useful when a library owns both ends.</p>
+<pre class="source" tabindex="0"><code>&lt;% if (ctx.Request.Method == "POST") {
+       await ctx.Stores.Visitor.Messages.PostAsync("/thanks", "Your note was saved.");
+       ctx.Response.Redirect("/thanks", 303);
+       return;
+   } %&gt;</code></pre>
+<pre class="source" tabindex="0"><code>&lt;% PageMessageRead read = await ctx.Stores.Visitor.Messages.TakeAsync();
+   if (read.Found) {
+       ctx.Response.Write("&lt;p&gt;" + read.Message!.Body + "&lt;/p&gt;");
+   } %&gt;</code></pre>
+<p>The take is one statement that removes the row it answers, so two renders racing for it answer one
+with the message and one with <code>PageMessageRefusal.Empty</code>. It is FIFO: the oldest message for
+that address is the one answered. A post is refused with a value rather than an exception when the
+destination is not a page: <code>UnknownPage</code>, <code>OwnedBySite</code> (a reserved key),
+<code>NotASink</code> (a library or a content-only page) or <code>NotAddressable</code>; a queue at its
+cap answers <code>Full</code>.</p>
+<p><strong>A peek is a preview, not a reservation.</strong> <code>PeekAsync</code> answers the message a
+take would answer right now and removes nothing. It is a read, so a <code>HEAD</code> and a layout may
+use it, where a post and a take are writes and refused. Use it to decide whether to act, do the work
+that depends on the message, and take only when the work succeeded: a failed render then leaves the
+message for the retry.</p>
+<pre class="source" tabindex="0"><code>&lt;% PageMessageRead waiting = await ctx.Stores.Visitor.Messages.PeekAsync();
+   if (!waiting.Found) {
+       ctx.Response.Write("&lt;p&gt;Nothing waiting.&lt;/p&gt;");
+       return;
+   }
+   if (!await ImportAsync(waiting.Message!.Body)) {
+       ctx.Response.Write("&lt;p&gt;The import failed; the message stays for the next try.&lt;/p&gt;");
+       return;
+   }
+   _ = await ctx.Stores.Visitor.Messages.TakeAsync();
+   ctx.Response.Write("&lt;p&gt;Imported.&lt;/p&gt;"); %&gt;</code></pre>
+<p>Two renders can peek the same message and both act on it, so the work has to be idempotent or
+serialised by your own code. A page that must act exactly once takes first and acts on what the take
+answered; a page that must retry peeks first. There is no count, no wait and no recall: the cap is eight
+messages per subject, so a page that needs to know how many are waiting takes in a loop, or peeks once
+and says that something is waiting.</p>
+<p>A message is <code>StoreLifetime.Person</code> by default, or <code>Session</code>,
+<code>Browser</code>, or any of them with an expiry. There is no <code>NextRead</code> message — a
+one-shot is a value — and no <code>Page</code> one. Signing in adopts a <code>Person</code> message into
+the account, so it survives unread; a <code>Session</code> message dies with the rotation, and a
+<code>Browser</code> one follows the cookie. One message is at most 16 KiB, and a subject holds at most
+eight messages and 64 KiB of them. A topic name is lowercased and composed to NFC, so
+<code>Job</code> and <code>job</code> are one queue. Deleting a page deletes the messages addressed to
+it, whoever sent them; moving it re-addresses them; a topic is not a page and is untouched. The seeded
+<a href="/privacy">/privacy</a> page says what a message is and how long it lives.</p>
 
 <h2 id="private">Private pages and forms</h2>
 <p>Pages are public unless their own code checks <a href="/admin/reference/sdk#m-IContext.User"><code>ctx.User</code></a>. Put the guard at the top and

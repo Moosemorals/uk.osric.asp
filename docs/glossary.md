@@ -303,7 +303,7 @@ the assistant reads it as a site file it may not save. The view moves with the a
 
 **Owner:** assistant — `AssistantMemoryEndpoint`, `/assistant.css` and `assistant-memory-page`.
 
-## Message
+## Assistant message
 One row of a conversation's transcript, with role `user`, `assistant` or `tool`, a per-conversation
 `Sequence`, and the `RunId` that produced it.
 
@@ -311,6 +311,19 @@ One row of a conversation's transcript, with role `user`, `assistant` or `tool`,
 result, and the run's messages are the transcript rather than the provider round trip that made them.
 
 **Owner:** assistant — `Message`, the `AssistantMessages` table and `Message.ToChatMessage()`.
+
+## Message
+One durable row a page leaves for a page the visitor has not reached yet: a reader's subject, one
+address — a page key or a named topic — the source that posted it, a body and a lifetime. A page takes
+the oldest one for the bound page or topic in one statement, so it is delivered at most once; a peek
+answers what a take would and removes nothing.
+
+**Not** a value. A value is last-write-wins by key and the receiver has to know the sender's page; a
+message is a queue that names its destination, and a flash on the same page is a `NextRead` value
+rather than a message.
+
+**Owner:** pages — `IMessageStore`, `PageTopic`, `PageMessage`, `PageMessageRead` and `StoreMessages`
+(`pages-a-message-is-taken-once`).
 
 ## Meter
 A named, versioned group that instruments are created on.
