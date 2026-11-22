@@ -454,9 +454,11 @@ internal sealed class SqlitePageStore(
             .ExecuteUpdateAsync(setters => setters.SetProperty(head => head.IsDeleted, true), cancellationToken);
 
         // State is live data, not history: a new page saved at the same path must not inherit the
-        // state of the page that was deleted before it.
+        // state of the page that was deleted before it. A declared table is the same bargain, and a
+        // visitor's rows in it go with the page that declared them.
         if (updated > 0) {
             _ = await StoreValueSql.DeletePageAsync(database, path, cancellationToken);
+            await DeclaredTableApplier.DropAsync(database, path, cancellationToken);
         }
 
         return updated > 0;
@@ -559,6 +561,12 @@ internal sealed class SqlitePageStore(
             UPDATE "PageRevisions" SET "Path" = {to.Key} WHERE "Path" = {from.Key}
             """, cancellationToken);
         _ = await StoreValueSql.MovePageAsync(database, from, to, cancellationToken);
+
+        // The catalogue follows the key and the real names do not: the tables and every row in them
+        // stay exactly where they are, which is what makes a move a rename rather than a rebuild.
+        _ = await database.Set<DeclaredTableEntry>()
+            .Where(row => row.SourceKey == from.Key)
+            .ExecuteUpdateAsync(setters => setters.SetProperty(row => row.SourceKey, to.Key), cancellationToken);
         await database.Database.ExecuteSqlAsync($"""
             INSERT INTO "PageHeads" ("Path", "RevisionId", "IsDeleted", "SeedHash", "ContentHash")
             VALUES ({to.Key}, {source.RevisionId}, 0, {source.SeedHash}, {source.ContentHash})
@@ -659,6 +667,7 @@ internal sealed class SqlitePageStore(
                     // older build cannot leave orphaned rows behind. The repair has no head to
                     // require: a row at a shell path can never be deleted through a page.
                     state = await StoreValueSql.DeletePageAsync(database, path, cancellationToken);
+                    await DeclaredTableApplier.DropAsync(database, path, cancellationToken);
                     revisions = await database.Set<PageRevision>()
                         .Where(revision => revision.Path == path.Key)
                         .ExecuteDeleteAsync(cancellationToken);

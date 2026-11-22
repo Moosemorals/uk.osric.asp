@@ -87,6 +87,36 @@ internal sealed class DeclaredTableApplier(PageRecordOptions records) {
         return [];
     }
 
+    /// <summary>Removes every row one subject holds in every visitor's declared table.</summary>
+    /// <param name="database">The context whose transaction the delete belongs to.</param>
+    /// <param name="subject">The subject string.</param>
+    /// <param name="cancellationToken">Cancels the work.</param>
+    /// <returns>How many rows were removed.</returns>
+    /// <remarks>
+    /// A declared table belongs to the source that declared it and holds one subject's rows behind an
+    /// owner column, so ending a session, or removing an account, has to walk the catalogue: the
+    /// subjects a page may hold are not known to any one table.
+    /// </remarks>
+    public static async Task<int> RemoveSubjectAsync(
+        StorageDbContext database,
+        string subject,
+        CancellationToken cancellationToken = default) {
+        ArgumentNullException.ThrowIfNull(database);
+        ArgumentException.ThrowIfNullOrWhiteSpace(subject);
+
+        DeclaredTableEntry[] tables = await database.Set<DeclaredTableEntry>().AsNoTracking()
+            .Where(row => row.Subject == (int)StoreTableSubject.Visitor)
+            .ToArrayAsync(cancellationToken);
+
+        int removed = 0;
+        foreach (DeclaredTableEntry table in tables) {
+            removed += await database.Database.ExecuteSqlAsync(
+                $"""DELETE FROM "{table.RealName}" WHERE "Owner" = {subject}""", cancellationToken);
+        }
+
+        return removed;
+    }
+
     /// <summary>Removes every table one source declared, and its catalogue rows.</summary>
     /// <param name="database">The context whose transaction the drops belong to.</param>
     /// <param name="source">The source that declared them.</param>
