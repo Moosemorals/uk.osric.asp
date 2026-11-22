@@ -7,10 +7,10 @@ SPDX-License-Identifier: MIT
 
 | | |
 | --- | --- |
-| Status | Agreed 2026-11-21 — the owner said yes — and revised against trunk 2026-11-22, after the page search, the reference corpus, the slow test half and the documentation index landed. Nothing below is built, and slice 0, the sandbox spike, is next |
+| Status | Agreed 2026-11-21 — the owner said yes — and revised against trunk 2026-11-22, after the page search, the reference corpus, the slow test half and the documentation index landed. Slice 0, the sandbox spike, is written on `plan/storage-model`; slice 1 is next and nothing else is built |
 | Size | Large as a programme, small as a step: a spike, five slices and the release that closes the window, each its own branch and its own stop. The values slice is the floor; the record slice is the risk |
 | First customer | The two plans this supersedes: the assistant's transcript (a Record for the signed-in visitor) and the redirect flash (a `NextRead` value). Editor mode is the first `Browser` value, and `/help`'s counter is the first Page value |
-| Spike | Slice 0: the sandbox console, written to `docs/spikes/store-sandbox.md` before anything is built. The item names it as the spike this plan needs |
+| Spike | Slice 0: [the record sandbox](../spikes/store-sandbox.md), written before anything was built. Six of the sandbox section's details were corrected by what it measured |
 | Decisions | None recorded yet. Taken at each merge; this plan states the eleven names it intends, and the eight entries it edits |
 | Backlog | [`storage-is-not-one-model`](../backlog/storage-is-not-one-model.md) is this job. It absorbs [`no-account-store`](../backlog/no-account-store.md) and [`message-does-not-survive-a-redirect`](../backlog/message-does-not-survive-a-redirect.md), whose plans [account-store](account-store.md) and [page-inbox](page-inbox.md) are superseded in shape |
 
@@ -396,10 +396,18 @@ holds and the item does not change it.
   - `SQLITE_READ`, `SQLITE_INSERT`, `SQLITE_UPDATE` and `SQLITE_DELETE` on the handle's own view names,
     and on a real table only when the innermost trigger or view the callback names is one of those views
     or one of their generated triggers — which is how the `INSTEAD OF` triggers write, and why the
-    allowance has to name both;
+    allowance has to name both. The generated set is every trigger, the cap trigger included: the
+    spike traced its `READ` of the real table as `READ Declared_notes Owner db=main inner=notes_cap`,
+    which a list of only the three write triggers would refuse;
+  - `SQLITE_READ` when the callback names **no database**. That is not a table: a common table
+    expression is read with a null database and shadows any table of the same name, so allowing it
+    leaks nothing — and refusing it refuses every `WITH RECURSIVE` statement, because the self-reference
+    is reported as `READ c  db=- inner=-`. The spike found this by measuring, not by reasoning;
   - `SQLITE_FUNCTION` for a closed list of names, so `load_extension`, `readfile`, `sqlite_dbpage` and
     the `pragma_*` table-valued functions are refused even when they are quoted, bracketed or spelled
-    through a schema.
+    through a schema. The function's name arrives in the callback's **second** parameter, not its
+    first; and a function SQLite cannot resolve never reaches the callback at all, so
+    `no_such_function(1)` is answered by SQLite's own `no such function` before the allow-list sees it.
 
   Everything else is denied by omission: `PRAGMA`, `ATTACH`, `DETACH`, every `CREATE`, `ALTER` and
   `DROP`, `REINDEX`, `ANALYZE`, `SQLITE_TRANSACTION` and `SQLITE_SAVEPOINT`, and any `SQLITE_READ` of
@@ -420,10 +428,17 @@ holds and the item does not change it.
   `SqliteConnection.Handle` to call `sqlite3_interrupt`. The authorizer is the third use of the same
   handle, it is called at `prepare` time rather than per row, and statements are not cached, so it adds
   a few delegate calls to a call that was going to parse anyway.
-- **One statement per call.** The text may hold exactly one statement: `SqliteCommand` would otherwise
-  run whatever follows a `;` and answer the first statement's rows, and the `prepare` tail that would
-  let the host refuse the rest is not exposed. It is the one textual rule, and it is about shape rather
-  than authority.
+- **One statement per call.** The text may hold exactly one statement. The spike confirmed that
+  `SqliteCommand` runs whatever follows a `;` — `SELECT 1; INSERT INTO "notes" …` ran the insert — and
+  that the authorizer allowed every callback it made, because a second legitimate statement is not an
+  authority question. So the rule is shape, not authority: `QueryAsync` answers one result set and
+  `ExecuteAsync` one `(Affected, Outcome)`, the caps and the clock attach to one statement, and two
+  statements buy no atomicity because a page's `BEGIN` is refused and they are two autocommit
+  transactions. It is detected by SQLite's own parser: prepare the text with `sqlite3_prepare_v2`, take
+  the tail, prepare the tail, and refuse when a second statement resolves. `SQLitePCLRaw` exposes that
+  overload with an `out string tail`; the tail is what `SqliteCommand` does not expose, not what the
+  handle cannot read. A trailing semicolon, whitespace, a comment and a semicolon inside a string
+  literal all count as one statement; `SELECT 1; DROP TABLE "t"` counts as two.
 - **SQL is allowed, bounded.** `SELECT`, `WITH`, `INSERT`, `UPDATE` and `DELETE` are the verbs; joins,
   sub-queries, `GROUP BY`, `HAVING`, `ORDER BY`, `LIMIT` and aggregates are in scope, because the owner
   answered that they are. A write may not name `Id`: the trigger refuses a non-NULL `Id` on a Visitor
@@ -432,12 +447,20 @@ holds and the item does not change it.
   code can do, which is `pages-there-is-no-sandbox`.
 - **SQLite's own limits, set once on the connection**: `SQLITE_DBCONFIG_DEFENSIVE`,
   `trusted_schema = OFF`, `SQLITE_LIMIT_ATTACHED = 0`, loadable extensions off, and
-  `SQLITE_LIMIT_LENGTH`/`SQLITE_LIMIT_SQL_LENGTH` at the configuration's noise level.
+  `SQLITE_LIMIT_LENGTH`/`SQLITE_LIMIT_SQL_LENGTH` at the configuration's noise level. The spike
+  measured what each does: `SQLITE_LIMIT_ATTACHED = 0` refuses `ATTACH` even for the host, defensive
+  mode refuses a write to `sqlite_master`, and `trusted_schema = OFF` refuses a view over a
+  non-innocuous function **in `main` only** — a temp view over the same function is not covered by it,
+  which is what the authorizer's function list is for. An FTS5 external-content table and its triggers
+  work with it off, so the declared table's index needs no exemption.
 - **The result caps refuse rather than truncate.** `MaxResultRows` and `MaxResultChars` are read into a
   result and a row past the cap throws, naming the setting and the cap, as
   `Pages:Read:MaxSourceCharsPerRender` refuses rather than truncating; `StatementMaxSeconds` interrupts
   the statement and throws the same way, and `TransactionMaxSeconds` closes a transaction that is
-  merely slow.
+  merely slow. The interrupt is the store's own: `CommandTimeout`, `DefaultTimeout` and a
+  `CancellationToken` all leave a running statement alone in `Microsoft.Data.Sqlite` 11.0.0, so the
+  clock arms a timer that calls `sqlite3_interrupt` — the sampler's existing pattern — and a statement
+  clock built on `CommandTimeout` would not exist.
 - **The caps are enforced inside the statement that writes**, the way `SqlitePageStateStore` does
   today: the trigger checks the subject's row and byte totals before it inserts and answers
   `RAISE(ABORT, …)` naming the cap. A concurrent writer therefore either fits or is refused, and the
@@ -858,7 +881,8 @@ record sandbox says of itself.
 
 Each slice is one branch, one step through the gate and one stop for the owner. The programme merges
 phase by phase, so a regression is bisectable and its branch goes when its last slice is in. The
-owner said yes to this plan on 2026-11-21, so slice 0 is next.
+owner said yes to this plan on 2026-11-21. Slice 0 is [written](../spikes/store-sandbox.md); slice 1 is
+next.
 
 0. **The sandbox spike** (`S`, docs only). A scratch console over the real SQLite build: an unpooled
    connection, a `TEMP VIEW` per table with a literal subject and an `INSTEAD OF` trigger,
