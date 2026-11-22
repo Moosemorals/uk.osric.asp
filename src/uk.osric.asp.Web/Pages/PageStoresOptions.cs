@@ -3,6 +3,7 @@
 
 namespace uk.osric.asp.Web.Pages;
 
+using uk.osric.asp.Core.Pages;
 using uk.osric.asp.Web.Configuration;
 
 /// <summary>Bounds what the page stores may cost, by subject.</summary>
@@ -28,6 +29,9 @@ internal sealed record PageStoresOptions {
 
     /// <summary>The Visitor subject's caps and identity bounds.</summary>
     public required PageVisitorStores Visitor { get; init; }
+
+    /// <summary>The record shape's caps.</summary>
+    public required PageRecordOptions Records { get; init; }
 
     /// <summary>The command timeout as a time span.</summary>
     public TimeSpan CommandTimeout => TimeSpan.FromSeconds(CommandTimeoutSeconds);
@@ -55,6 +59,7 @@ internal sealed record PageStoresOptions {
             BusyTimeoutSeconds = reader.Number("BusyTimeoutSeconds", recommended: 5, minimum: 1, maximum: 120),
             Page = PageStoreCaps.Read(reader.For("Page"), PageStoreCaps.Page),
             Visitor = PageVisitorStores.Read(reader.For("Visitor")),
+            Records = PageRecordOptions.Read(reader.For("Records")),
         };
         return options;
     }
@@ -137,5 +142,63 @@ internal sealed record PageVisitorStores(
             reader.For("Anonymous").Minutes("IdleMinutes", recommended: 30, minimum: 1, maximum: 525_600),
             reader.For("Browser").Number("LifetimeDays", recommended: 365, minimum: 1, maximum: 3_650),
             reader.Number("MaxLiveSessions", recommended: 2_048, minimum: 1, maximum: 1_000_000));
+    }
+}
+
+/// <summary>The record shape's caps: what a declaration may declare and what a statement may cost.</summary>
+/// <param name="MaxTablesPerSource">The most tables one source may declare.</param>
+/// <param name="MaxColumnsPerTable">The most columns one table may declare.</param>
+/// <param name="MaxNameChars">The longest table or column name.</param>
+/// <param name="MaxRowsPerSubject">The most rows one subject may hold in one table.</param>
+/// <param name="MaxBytesPerSubject">The most bytes one subject may hold in one table.</param>
+/// <param name="MaxResultRows">The most rows one statement may answer.</param>
+/// <param name="MaxResultChars">The most text one statement may answer.</param>
+/// <param name="StatementMaxSeconds">How long one statement may run before it is interrupted.</param>
+/// <param name="TransactionMaxSeconds">How long a page's transaction may stay open.</param>
+internal sealed record PageRecordOptions(
+    int MaxTablesPerSource,
+    int MaxColumnsPerTable,
+    int MaxNameChars,
+    int MaxRowsPerSubject,
+    int MaxBytesPerSubject,
+    int MaxResultRows,
+    int MaxResultChars,
+    int StatementMaxSeconds,
+    int TransactionMaxSeconds) {
+
+    /// <summary>The shipped record caps.</summary>
+    public static PageRecordOptions Shipped { get; } = new(8, 24, 64, 10_000, 64 * 1024 * 1024, 500, 256 * 1024, 5, 10);
+
+    /// <summary>How long one statement may run.</summary>
+    public TimeSpan StatementTimeout => TimeSpan.FromSeconds(StatementMaxSeconds);
+
+    /// <summary>How long a transaction may stay open.</summary>
+    public TimeSpan TransactionTimeout => TimeSpan.FromSeconds(TransactionMaxSeconds);
+
+    /// <summary>The declaration caps, as the schema value states them.</summary>
+    public PageSchemaLimits SchemaLimits => new(MaxTablesPerSource, MaxColumnsPerTable, MaxNameChars);
+
+    /// <summary>Reads <c>Pages:Stores:Records</c>.</summary>
+    /// <param name="reader">A reader opened on <c>Pages:Stores:Records</c>, which the caller completes.</param>
+    /// <exception cref="ConfigurationException">A value is missing or unusable.</exception>
+    public static PageRecordOptions Read(ConfigurationReader reader) {
+        ArgumentNullException.ThrowIfNull(reader);
+
+        PageRecordOptions shipped = Shipped;
+        PageRecordOptions options = new(
+            reader.Number("MaxTablesPerSource", shipped.MaxTablesPerSource, minimum: 1, maximum: 64),
+            reader.Number("MaxColumnsPerTable", shipped.MaxColumnsPerTable, minimum: 1, maximum: 256),
+            reader.Number("MaxNameChars", shipped.MaxNameChars, minimum: 8, maximum: 512),
+            reader.Number("MaxRowsPerSubject", shipped.MaxRowsPerSubject, minimum: 1, maximum: 10_000_000),
+            reader.Number("MaxBytesPerSubject", shipped.MaxBytesPerSubject, minimum: 1024, maximum: int.MaxValue),
+            reader.Number("MaxResultRows", shipped.MaxResultRows, minimum: 1, maximum: 100_000),
+            reader.Number("MaxResultChars", shipped.MaxResultChars, minimum: 1024, maximum: 64 * 1024 * 1024),
+            reader.Number("StatementMaxSeconds", shipped.StatementMaxSeconds, minimum: 1, maximum: 300),
+            reader.Number("TransactionMaxSeconds", shipped.TransactionMaxSeconds, minimum: 1, maximum: 300));
+
+        reader.FailIf(options.MaxResultRows > options.MaxRowsPerSubject, "MaxResultRows",
+            $"is {options.MaxResultRows}, which is more than MaxRowsPerSubject ({options.MaxRowsPerSubject})");
+
+        return options;
     }
 }

@@ -4,7 +4,6 @@ uk.osric.asp.Runtime.MarkdownRenderer.MarkdownRenderer() -> void
 uk.osric.asp.Runtime.MarkdownRenderer.ToHtml(string! markdown) -> string!
 uk.osric.asp.Runtime.MarkdownRenderer.ToHtml(string! markdown, uk.osric.asp.Sdk.MarkdownOptions! options) -> string!
 static uk.osric.asp.Runtime.MarkdownRenderer.ToRestrictedHtml(string! markdown) -> string!
-
 uk.osric.asp.Runtime.DiffRenderer
 uk.osric.asp.Runtime.DiffRenderer.DiffRenderer() -> void
 uk.osric.asp.Runtime.DiffRenderer.ToHtml(string! before, string! after) -> string!
@@ -40,3 +39,5 @@ uk.osric.asp.Runtime.LoadedWorker.Create() -> uk.osric.asp.Sdk.IWorker!
 uk.osric.asp.Runtime.LoadedWorker.Dispose() -> void
 uk.osric.asp.Runtime.LoadedWorker.LoadedWorker(byte[]! image, byte[]? symbols = null) -> void
 uk.osric.asp.Runtime.PageCompiler.LoadWorker(byte[]! image, byte[]? symbols = null) -> uk.osric.asp.Runtime.LoadedWorker!
+uk.osric.asp.Runtime.CompileResult.Schema.get -> uk.osric.asp.Core.Pages.PageSchema!
+uk.osric.asp.Runtime.CompileResult.Schema.init -> void

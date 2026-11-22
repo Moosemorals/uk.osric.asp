@@ -18,6 +18,7 @@ using HostPageKind = uk.osric.asp.Core.Pages.PageKind;
 internal sealed class PageStoresScope : RenderBoundCapability, IPageStores {
 
     private readonly PagePath _key;
+    private readonly IRecordCatalog? _records;
     private readonly IStoreValues _store;
     private readonly PageStoresOptions _options;
     private readonly IPageReadStore _readStore;
@@ -35,6 +36,7 @@ internal sealed class PageStoresScope : RenderBoundCapability, IPageStores {
     /// <param name="readStore">Where a <c>For</c> key is judged a library or a worker.</param>
     /// <param name="writable">Whether this render may write.</param>
     /// <param name="commit">Whether the response was flushed, or <see langword="null"/>.</param>
+    /// <param name="records">Where a record handle's catalogue and database are read, or <see langword="null"/>.</param>
     public PageStoresScope(
         PagePath key,
         PageReaderSubject reader,
@@ -43,7 +45,8 @@ internal sealed class PageStoresScope : RenderBoundCapability, IPageStores {
         PageStoresOptions options,
         IPageReadStore readStore,
         bool writable,
-        PageCommitState? commit) {
+        PageCommitState? commit,
+        IRecordCatalog? records = null) {
         ArgumentNullException.ThrowIfNull(key);
         ArgumentNullException.ThrowIfNull(reader);
         ArgumentNullException.ThrowIfNull(store);
@@ -52,6 +55,7 @@ internal sealed class PageStoresScope : RenderBoundCapability, IPageStores {
         ArgumentNullException.ThrowIfNull(readStore);
 
         _key = key;
+        _records = records;
         _store = store;
         _options = options;
         _readStore = readStore;
@@ -60,8 +64,8 @@ internal sealed class PageStoresScope : RenderBoundCapability, IPageStores {
         PageValues = new PageValueStore(key, store, options.Page, options.MaxKeyChars, writable);
         VisitorValues = new PageValueStore(key, store, sessions, reader, options.MaxKeyChars, writable, commit);
 
-        _page = new SubjectHandle(PageValues);
-        _visitor = new VisitorHandle(VisitorValues);
+        _page = new SubjectHandle(PageValues, RecordsFor(key, SqliteRecordStore.SubjectKind.Page, reader, writable));
+        _visitor = new VisitorHandle(VisitorValues, RecordsFor(key, SqliteRecordStore.SubjectKind.Visitor, reader, writable));
     }
 
     /// <summary>The Page subject's value store, which the old storage adapter wraps.</summary>
@@ -97,7 +101,37 @@ internal sealed class PageStoresScope : RenderBoundCapability, IPageStores {
             values.Abandon();
         }
 
-        return new SubjectHandle(values);
+        return new SubjectHandle(values, RecordsFor(other, SqliteRecordStore.SubjectKind.Page, null, _writable));
+    }
+
+    // A declared table's lifetime is Core's, and the reader's subjects are the contract's: one enum
+    // for the schema and one for the handle, mapped where a handle is made.
+    private static StoreLifetimeKind KindOf(StoreTableLifetime lifetime) => lifetime switch {
+        StoreTableLifetime.Person => StoreLifetimeKind.Person,
+        StoreTableLifetime.Session => StoreLifetimeKind.Session,
+        StoreTableLifetime.Browser => StoreLifetimeKind.Browser,
+        _ => throw new ArgumentOutOfRangeException(
+            nameof(lifetime), lifetime, "A visitor's table follows the person, the visit or the browser."),
+    };
+
+    // A record store owns its own unpooled connection, its temp views and its authorizer, so it is
+    // made per handle and disposed with the layer rather than shared with anything else.
+    private SqliteRecordStore? RecordsFor(
+        PagePath source,
+        SqliteRecordStore.SubjectKind kind,
+        PageReaderSubject? reader,
+        bool writable) {
+        if (_records is null) {
+            return null;
+        }
+
+        return new SqliteRecordStore(
+            source,
+            reader is null ? null : lifetime => reader.SubjectFor(KindOf(lifetime)),
+            kind,
+            _records,
+            _options.Records,
+            writable);
     }
 
     /// <inheritdoc/>
@@ -127,11 +161,17 @@ internal sealed class PageStoresScope : RenderBoundCapability, IPageStores {
         }
     }
 
-    private sealed class SubjectHandle(IValueStore values) : IPageSubject {
+    private sealed class SubjectHandle(IValueStore values, IRecordStore? records) : IPageSubject {
         public IValueStore Values { get; } = values;
+
+        public IRecordStore Records => records
+            ?? throw new InvalidOperationException("This layer has no record store.");
     }
 
-    private sealed class VisitorHandle(IValueStore values) : IPageVisitorSubject {
+    private sealed class VisitorHandle(IValueStore values, IRecordStore? records) : IPageVisitorSubject {
         public IValueStore Values { get; } = values;
+
+        public IRecordStore Records => records
+            ?? throw new InvalidOperationException("This layer has no record store.");
     }
 }

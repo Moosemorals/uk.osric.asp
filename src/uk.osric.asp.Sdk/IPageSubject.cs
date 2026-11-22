@@ -12,4 +12,7 @@ public interface IPageSubject {
 
     /// <summary>The subject's key/value store.</summary>
     public IValueStore Values { get; }
+
+    /// <summary>The subject's declared tables.</summary>
+    public IRecordStore Records { get; }
 }

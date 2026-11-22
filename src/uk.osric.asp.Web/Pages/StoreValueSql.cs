@@ -105,15 +105,19 @@ internal static class StoreValueSql {
     /// <param name="subject">The subject string.</param>
     /// <param name="cancellationToken">Cancels the statement.</param>
     /// <returns>How many rows were removed.</returns>
-    public static Task<int> DeleteSubjectAsync(
+    public static async Task<int> DeleteSubjectAsync(
         StorageDbContext database,
         string subject,
         CancellationToken cancellationToken) {
         ArgumentNullException.ThrowIfNull(database);
         ArgumentException.ThrowIfNullOrWhiteSpace(subject);
 
-        return database.Database.ExecuteSqlAsync(
+        // One helper and not two: a subject's values and the rows it holds in a declared table are
+        // the same ending, and a caller that forgot the second would leave a stranger's rows behind.
+        int values = await database.Database.ExecuteSqlAsync(
             $"""DELETE FROM "StoreValues" WHERE "Subject" = {subject}""", cancellationToken);
+
+        return values + await DeclaredTableApplier.RemoveSubjectAsync(database, subject, cancellationToken);
     }
 
     /// <summary>Removes every value held by a set of sessions.</summary>
@@ -121,7 +125,7 @@ internal static class StoreValueSql {
     /// <param name="sessionIds">The sessions that are ending.</param>
     /// <param name="cancellationToken">Cancels the statement.</param>
     /// <returns>How many rows were removed.</returns>
-    public static Task<int> DeleteSessionsAsync(
+    public static async Task<int> DeleteSessionsAsync(
         StorageDbContext database,
         IReadOnlyList<string> sessionIds,
         CancellationToken cancellationToken) {
@@ -129,14 +133,20 @@ internal static class StoreValueSql {
         ArgumentNullException.ThrowIfNull(sessionIds);
 
         if (sessionIds.Count == 0) {
-            return Task.FromResult(0);
+            return 0;
         }
 
         string[] subjects = [.. sessionIds.Select(StoreSubjects.ForSession)];
 
-        return database.Set<StoreValueEntry>()
+        int removed = await database.Set<StoreValueEntry>()
             .Where(row => subjects.Contains(row.Subject))
             .ExecuteDeleteAsync(cancellationToken);
+
+        foreach (string subject in subjects) {
+            removed += await DeclaredTableApplier.RemoveSubjectAsync(database, subject, cancellationToken);
+        }
+
+        return removed;
     }
 
     /// <summary>Re-keys an anonymous session's person and one-shot entries into the account.</summary>

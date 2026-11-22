@@ -24,6 +24,10 @@ using uk.osric.asp.Core.Pages;
 /// The fingerprint of the libraries the image was compiled against, or <see langword="null"/> when
 /// it named none. A page whose closure has moved is compiled again before it runs.
 /// </param>
+/// <param name="Schema">
+/// The tables the source declares, or <see langword="null"/> when it declares none. The save applies
+/// it inside its own transaction, and a refusal applies nothing.
+/// </param>
 internal sealed record PageImage(
     string TemplateHash,
     string RuntimeId,
@@ -31,7 +35,8 @@ internal sealed record PageImage(
     byte[]? Symbols,
     IReadOnlyList<PageDiagnostic> Diagnostics,
     PageKind? Kind = PageKind.Page,
-    string? Libraries = null) {
+    string? Libraries = null,
+    PageSchema? Schema = null) {
 
     /// <summary>Whether the stored image still matches the template, the build and the libraries.</summary>
     /// <param name="templateHash">The fingerprint of the template as it is now.</param>

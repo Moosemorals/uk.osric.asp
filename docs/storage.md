@@ -63,6 +63,33 @@ closest owner wins (`pages-a-browser-is-a-lifetime`). A read of another page's v
 key; a write cannot, because the handle is bound to the layer's own key and there is no argument that
 names another writer (`pages-the-subject-is-the-binding`).
 
+### Declared tables
+
+A source can declare tables, and the declaration is the table. `DeclaredTables` is the catalogue that
+makes a save a difference rather than a rebuild: one row per table holding the source key, the name the
+source writes, its subject and lifetime, the declaration as JSON, the search column and an unguessable
+real name. A save applies the difference inside its own transaction — creating a table it has not made,
+adding a column it has not made, and dropping a column or table the source no longer names, with every
+row in it — so a rollback takes the tables with the revision, and a revision that did not compile
+applies nothing. A move re-keys the catalogue and leaves `RealName` alone, so the rows never move house.
+
+A real table is `Id INTEGER PRIMARY KEY AUTOINCREMENT`, one column per declared property, an
+`Owner TEXT NOT NULL` column for a visitor's table, and, when the declaration names a search column, an
+external-content FTS5 index with the three triggers that keep it. Two cap triggers per table refuse a
+write that would pass the subject's row or byte cap, inside the statement that writes, and every save
+rewrites them so a changed cap takes effect. A type, subject or lifetime that changed since the table
+was made is a refusal rather than an alteration: nothing here reinterprets a row.
+
+`DeclaredTableApplier` is the seam; `SqliteRecordStore` is the fence. It opens one unpooled connection
+per call — or per transaction, when the page opened one — makes a temporary view per declared table with
+the subject as a literal in its predicate plus an `INSTEAD OF` trigger per verb, and installs
+`sqlite3_set_authorizer`. The allow-list is SELECT and RECURSIVE, the handle's own view names, a real
+table only when the innermost view or trigger is one of the table's, a read with no database (a common
+table expression, which is not a table), the FTS shadow tables by name, a closed list of functions, and
+`PRAGMA data_version`, which SQLite asks for itself after a trigger writes. Everything else is denied by
+omission, by SQLite's own parser rather than a scanner. One statement per call is detected by preparing
+the text and asking whether what follows it is a statement.
+
 ### Page sessions and the browser
 
 A visitor's identity is one table, `PageSessions`, added by its own migration: one row per visitor —

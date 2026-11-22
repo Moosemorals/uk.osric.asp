@@ -29,6 +29,10 @@ using uk.osric.asp.Web.Work;
 /// <param name="Libraries">The live libraries a worker may be compiled with.</param>
 /// <param name="Compiler">Loads the worker's image and finds its entry point.</param>
 /// <param name="Metrics">Where a worker's own fetches are recorded.</param>
+/// <param name="Records">
+/// Where a record handle finds its declared tables, or <see langword="null"/> when this host has no
+/// store.
+/// </param>
 /// <param name="Scopes">
 /// Where a job's own scope comes from, so its writer has the scoped store a render's writer has.
 /// </param>
@@ -50,4 +54,5 @@ internal sealed record PageJobEnvironment(
     PageLibraries Libraries,
     IPageCompiler Compiler,
     PageMetrics Metrics,
-    IServiceScopeFactory Scopes);
+    IServiceScopeFactory Scopes,
+    IRecordCatalog? Records = null);

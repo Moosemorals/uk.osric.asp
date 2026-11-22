@@ -27,7 +27,10 @@ using uk.osric.asp.Web.Storage;
 internal sealed class SqlitePageCommitStore(
     IDbContextFactory<StorageDbContext> factory,
     ILogger<SqlitePageCommitStore> logger,
-    PageStorageRefresh? refresh = null) : IPageCommitStore {
+    PageStorageRefresh? refresh = null,
+    DeclaredTableApplier? declarations = null) : IPageCommitStore {
+
+    private readonly DeclaredTableApplier? _declarations = declarations;
 
     /// <inheritdoc/>
     public async Task<IReadOnlyList<PageCommitAnswer>> CommitAsync(
@@ -52,7 +55,7 @@ internal sealed class SqlitePageCommitStore(
                 List<PageCommitAnswer> answers = [];
                 PageCommitAnswer? refused = null;
                 foreach (PageCommit operation in batch) {
-                    PageCommitAnswer answer = await ApplyAsync(database, operation, cancellationToken);
+                    PageCommitAnswer answer = await ApplyAsync(database, operation, _declarations, cancellationToken);
                     answers.Add(answer);
 
                     if (IsRefusal(answer.Outcome)) {
@@ -118,8 +121,9 @@ internal sealed class SqlitePageCommitStore(
     private static async Task<PageCommitAnswer> ApplyAsync(
         StorageDbContext database,
         PageCommit operation,
+        DeclaredTableApplier? declarations,
         CancellationToken cancellationToken) => operation.Kind switch {
-            PageCommitKind.Put or PageCommitKind.Save or PageCommitKind.Create => await SaveAsync(database, operation, cancellationToken),
+            PageCommitKind.Put or PageCommitKind.Save or PageCommitKind.Create => await SaveAsync(database, operation, declarations, cancellationToken),
             PageCommitKind.Move => await MoveAsync(database, operation, cancellationToken),
             PageCommitKind.Delete => await DeleteAsync(database, operation, cancellationToken),
             _ => await AdoptAsync(database, operation, cancellationToken),
@@ -128,6 +132,7 @@ internal sealed class SqlitePageCommitStore(
     private static async Task<PageCommitAnswer> SaveAsync(
         StorageDbContext database,
         PageCommit operation,
+        DeclaredTableApplier? declarations,
         CancellationToken cancellationToken) {
         if (operation.Revision is not { } revision) {
             throw new InvalidOperationException($"A save of {operation.Key.Key} arrived without a revision.");
@@ -143,19 +148,20 @@ internal sealed class SqlitePageCommitStore(
                     return new(operation.Key, PageCommitOutcome.Stale);
                 }
 
-                await SqlitePageStore.WriteRevisionAsync(database, revision, cancellationToken);
+                await SqlitePageStore.WriteRevisionAsync(database, revision, cancellationToken, declarations);
                 return new(operation.Key, PageCommitOutcome.Saved, revision.Hash, Stored: revision);
 
             case PageCommitKind.Save:
                 bool written = await SqlitePageStore.TryWriteRevisionAsync(
-                    database, revision, SqlitePageStore.ToRevision(revision), operation.ExpectedHash ?? string.Empty, cancellationToken);
+                    database, revision, SqlitePageStore.ToRevision(revision), operation.ExpectedHash ?? string.Empty,
+                    declarations, cancellationToken);
 
                 return written
                     ? new(operation.Key, PageCommitOutcome.Saved, revision.Hash, Stored: revision)
                     : new(operation.Key, PageCommitOutcome.Stale);
 
             default:
-                await SqlitePageStore.WriteRevisionAsync(database, revision, cancellationToken);
+                await SqlitePageStore.WriteRevisionAsync(database, revision, cancellationToken, declarations);
                 return new(operation.Key, PageCommitOutcome.Saved, revision.Hash, Stored: revision);
         }
     }

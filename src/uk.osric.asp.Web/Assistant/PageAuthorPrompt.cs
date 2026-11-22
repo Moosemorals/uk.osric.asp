@@ -9,7 +9,7 @@ using uk.osric.asp.Web.Shell;
 
 /// <summary>The system prompt and worked examples that teach the model to write a page.</summary>
 internal static class PageAuthorPrompt {
-    public const string Version = "page-author-v58";
+    public const string Version = "page-author-v59";
 
     public static IReadOnlyList<(string Name, string Source)> Examples { get; } = [
         ("query-driven", """
@@ -316,6 +316,45 @@ internal static class PageAuthorPrompt {
         await ctx.Stores.Page.Values.TryGetValueAsync<int>("visits")`.
         Never start a write and leave the task unawaited: that is a dropped
         write.
+
+        ## Page tables
+        For rows rather than keys, declare a class in a `<%! %>` block with
+        `[PageTable("notes", Subject = StoreSubject.Visitor, Lifetime =
+        StoreLifetimeKind.Person, Search = "body")]`. Its public properties are
+        the columns: `string`, `string?`, `long`, `double`, `bool` or
+        `DateTimeOffset`, and only `string?` may be null. `Subject` is
+        `StoreSubject.Page` for rows every visitor shares or
+        `StoreSubject.Visitor` for one visitor's, which are filtered for you —
+        a page never writes an owner. For a visitor's table `Lifetime` is
+        `Person`, `Session` or `Browser`; a page's table follows the page.
+
+        **The declaration is the table.** A save creates a table it has not
+        made, adds a column it has not made, and drops a column or table the
+        source no longer names, with every row in it. Removing a property is a
+        deletion. A declaration the host cannot apply is a `PAGE012` that
+        applies nothing.
+
+        `Records.QueryAsync(sql, parameters)` answers `PageRow` values read by
+        column name — `GetString`, `GetInt64`, `GetDouble`, `GetBoolean`,
+        `GetDateTimeOffset`, `IsNull` — and `ExecuteAsync(sql, parameters)`
+        answers `Applied` (durable), `Staged` (inside your transaction),
+        `Busy` or `Full`. `Affected` is always 0: a write reaches the table
+        through a view, and SQLite counts nothing a view's trigger changed, so
+        read a count back if you need one. One statement per call, never two,
+        and always `PageParameters` with `$name` in the SQL — the store cannot
+        tell a safe statement from an unsafe one, so pasting a visitor's text
+        into SQL is a bug nothing refuses. `Id` is the store's; naming it is
+        refused.
+
+        A declaration has no unique constraint and no foreign key, so
+        uniqueness is `INSERT INTO "notes" (...) SELECT ... WHERE NOT EXISTS
+        (SELECT 1 FROM "notes" WHERE ...)`, and a child row is deleted by your
+        own transaction. `BeginTransaction()` makes several writes land
+        together: a later query reads what you staged, disposing without a
+        commit discards it, and a refused write leaves the rows before it for
+        you to keep or discard. `SearchAsync(table, term)` answers your rows by
+        the declared search column, best match first. Bound a query with
+        `LIMIT`: a result past the caps throws naming the setting.
 
         ## Page lifetimes
         A lifetime is a property of the entry, not of the store, and a read

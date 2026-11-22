@@ -25,6 +25,14 @@ using PageKind = uk.osric.asp.Core.Pages.PageKind;
 /// The three classes share the budget, the health count and the meter exactly as the host wires them,
 /// so a test can save through one and render through another without guessing at the wiring.
 /// </remarks>
+internal sealed class HarnessCatalog : IRecordCatalog {
+
+    public string ConnectionString => "Data Source=:memory:";
+
+    public Task<IReadOnlyList<DeclaredTable>> ListAsync(PagePath source, CancellationToken cancellationToken = default) =>
+        Task.FromResult<IReadOnlyList<DeclaredTable>>([]);
+}
+
 internal sealed class PageHarness : IDisposable {
 
     private readonly ServiceProvider _authorities;
@@ -117,7 +125,8 @@ internal sealed class PageHarness : IDisposable {
             new PageJobEnvironment(
                 JobOptions, WorkerStore, State, StoresOptions, Sessions, Fetch, FetchOptions, ReadStore, Seeds, ReadOptions,
                 Scan, Reserved, ContentTypes, Images, Libraries, Compiler, Metrics,
-                _authorities.GetRequiredService<IServiceScopeFactory>()),
+                _authorities.GetRequiredService<IServiceScopeFactory>(),
+                Catalog),
             NullLoggerFactory.Instance,
             NullLogger<PageJobRunner>.Instance);
     }
@@ -135,6 +144,9 @@ internal sealed class PageHarness : IDisposable {
 
     /// <summary>The page state every render in this harness shares.</summary>
     public FakeStoreValues State { get; }
+
+    /// <summary>Where a record handle finds its declared tables; the harness declares none.</summary>
+    public IRecordCatalog Catalog { get; } = new HarnessCatalog();
 
     /// <summary>The session state every render in this harness shares.</summary>
     public FakePageSessionStore Sessions { get; }
@@ -426,7 +438,9 @@ internal sealed class PageHarness : IDisposable {
             TestSessions.Cookie,
             new PageBrowserCookieOptions(ShellCookies.Browser, CookieSecurePolicy.SameAsRequest, TimeSpan.FromDays(365)),
             Jobs,
-            JobAuthorities: Authorities);
+            Checks: null,
+            Authorities,
+            Catalog);
     }
 
     // The timeout tests measure the page, not the compiler: a page compiled on its first request

@@ -72,6 +72,7 @@ public sealed class PageCompiler : IPageCompiler {
         if (prepared.Violations.Count > 0) {
             return new CompileResult(null, null, PageDiagnostic.SortedForDisplay(prepared.Violations)) {
                 Libraries = prepared.Used,
+                Schema = prepared.Schema,
             };
         }
 
@@ -99,6 +100,7 @@ public sealed class PageCompiler : IPageCompiler {
             return new CompileResult(null, null, PageDiagnostic.SortedForDisplay(problems)) {
                 Libraries = prepared.Used,
                 Kind = kind,
+                Schema = prepared.Schema,
             };
         }
 
@@ -108,6 +110,7 @@ public sealed class PageCompiler : IPageCompiler {
                 prepared.SourcesByTree)) {
                 Libraries = prepared.Used,
                 Kind = kind,
+                Schema = prepared.Schema,
             };
         }
 
@@ -143,7 +146,8 @@ public sealed class PageCompiler : IPageCompiler {
         SyntaxTree Source,
         IReadOnlyList<string> Used,
         List<PageDiagnostic> Violations,
-        IReadOnlyDictionary<SyntaxTree, string> SourcesByTree);
+        IReadOnlyDictionary<SyntaxTree, string> SourcesByTree,
+        PageSchema Schema);
 
     // A declaration-only unit is held to the library rules: it has no handler, so declaring a
     // namespace is exactly what a worker does and a page may not.
@@ -174,12 +178,19 @@ public sealed class PageCompiler : IPageCompiler {
                 .Select(diagnostic => diagnostic with { Source = key }));
         }
 
+        // The declaration is part of the revision, so it is read from the tree the compile already
+        // holds rather than parsed again. Only the page's own tree is read: a library owns its tables,
+        // and a page that names one reaches them through the library's methods.
+        (PageSchema schema, List<PageDiagnostic> declarations) = PageSchemaExtractor.Extract(page, compilation);
+        violations.AddRange(declarations);
+
         return new Prepared(
             compilation,
             page,
             used,
             violations,
-            used.ToDictionary(key => candidates[key], key => key));
+            used.ToDictionary(key => candidates[key], key => key),
+            schema);
     }
 
     private static CompileResult Emit(Prepared prepared, CancellationToken cancellationToken) {
@@ -202,6 +213,7 @@ public sealed class PageCompiler : IPageCompiler {
             result.Success ? symbols.ToArray() : null,
             diagnostics) {
             Libraries = prepared.Used,
+            Schema = prepared.Schema,
         };
     }
 

@@ -838,3 +838,56 @@ uk.osric.asp.Sdk.StoreLifetimeKind.Session = 3 -> uk.osric.asp.Sdk.StoreLifetime
 ~override uk.osric.asp.Sdk.StoreEntry.ToString() -> string
 ~override uk.osric.asp.Sdk.StoreLifetime.Equals(object obj) -> bool
 ~override uk.osric.asp.Sdk.StoreLifetime.ToString() -> string
+~override uk.osric.asp.Sdk.PageRecordResult.Equals(object obj) -> bool
+override uk.osric.asp.Sdk.PageRecordResult.GetHashCode() -> int
+~override uk.osric.asp.Sdk.PageRecordResult.ToString() -> string
+static uk.osric.asp.Sdk.PageRecordResult.operator !=(uk.osric.asp.Sdk.PageRecordResult left, uk.osric.asp.Sdk.PageRecordResult right) -> bool
+static uk.osric.asp.Sdk.PageRecordResult.operator ==(uk.osric.asp.Sdk.PageRecordResult left, uk.osric.asp.Sdk.PageRecordResult right) -> bool
+uk.osric.asp.Sdk.IPageRecordTransaction
+uk.osric.asp.Sdk.IPageRecordTransaction.CommitAsync() -> System.Threading.Tasks.Task!
+uk.osric.asp.Sdk.IPageRecordTransaction.RollbackAsync() -> System.Threading.Tasks.Task!
+uk.osric.asp.Sdk.IRecordStore
+uk.osric.asp.Sdk.IRecordStore.BeginTransaction() -> uk.osric.asp.Sdk.IPageRecordTransaction!
+uk.osric.asp.Sdk.IRecordStore.ExecuteAsync(string! sql, uk.osric.asp.Sdk.PageParameters? parameters = null) -> System.Threading.Tasks.Task<uk.osric.asp.Sdk.PageRecordResult>!
+uk.osric.asp.Sdk.IRecordStore.QueryAsync(string! sql, uk.osric.asp.Sdk.PageParameters? parameters = null) -> System.Threading.Tasks.Task<System.Collections.Generic.IReadOnlyList<uk.osric.asp.Sdk.PageRow!>!>!
+uk.osric.asp.Sdk.IRecordStore.SearchAsync(string! table, string! term, int? limit = null) -> System.Threading.Tasks.Task<System.Collections.Generic.IReadOnlyList<uk.osric.asp.Sdk.PageRow!>!>!
+uk.osric.asp.Sdk.PageParameters
+uk.osric.asp.Sdk.PageParameters.Add(string! name, object? value) -> uk.osric.asp.Sdk.PageParameters!
+uk.osric.asp.Sdk.PageParameters.PageParameters() -> void
+uk.osric.asp.Sdk.PageParameters.Values.get -> System.Collections.Generic.IReadOnlyList<System.Collections.Generic.KeyValuePair<string!, object?>>!
+uk.osric.asp.Sdk.PageRecordOutcome
+uk.osric.asp.Sdk.PageRecordOutcome.Applied = 0 -> uk.osric.asp.Sdk.PageRecordOutcome
+uk.osric.asp.Sdk.PageRecordOutcome.Busy = 2 -> uk.osric.asp.Sdk.PageRecordOutcome
+uk.osric.asp.Sdk.PageRecordOutcome.Full = 3 -> uk.osric.asp.Sdk.PageRecordOutcome
+uk.osric.asp.Sdk.PageRecordOutcome.Staged = 1 -> uk.osric.asp.Sdk.PageRecordOutcome
+uk.osric.asp.Sdk.PageRecordResult
+uk.osric.asp.Sdk.PageRecordResult.Affected.get -> int
+uk.osric.asp.Sdk.PageRecordResult.Affected.init -> void
+uk.osric.asp.Sdk.PageRecordResult.Deconstruct(out int Affected, out uk.osric.asp.Sdk.PageRecordOutcome Outcome) -> void
+uk.osric.asp.Sdk.PageRecordResult.Equals(uk.osric.asp.Sdk.PageRecordResult other) -> bool
+uk.osric.asp.Sdk.PageRecordResult.Outcome.get -> uk.osric.asp.Sdk.PageRecordOutcome
+uk.osric.asp.Sdk.PageRecordResult.Outcome.init -> void
+uk.osric.asp.Sdk.PageRecordResult.PageRecordResult(int Affected, uk.osric.asp.Sdk.PageRecordOutcome Outcome) -> void
+uk.osric.asp.Sdk.PageRecordResult.PageRecordResult() -> void
+uk.osric.asp.Sdk.PageRow
+uk.osric.asp.Sdk.PageRow.Columns.get -> System.Collections.Generic.IReadOnlyList<string!>!
+uk.osric.asp.Sdk.PageRow.GetBoolean(string! column) -> bool?
+uk.osric.asp.Sdk.PageRow.GetDateTimeOffset(string! column) -> System.DateTimeOffset?
+uk.osric.asp.Sdk.PageRow.GetDouble(string! column) -> double?
+uk.osric.asp.Sdk.PageRow.GetInt64(string! column) -> long?
+uk.osric.asp.Sdk.PageRow.GetString(string! column) -> string?
+uk.osric.asp.Sdk.PageRow.IsNull(string! column) -> bool
+uk.osric.asp.Sdk.PageRow.PageRow(System.Collections.Generic.IReadOnlyList<string!>! columns, System.Collections.Generic.IReadOnlyList<object?>! values) -> void
+uk.osric.asp.Sdk.PageTableAttribute
+uk.osric.asp.Sdk.PageTableAttribute.Lifetime.get -> uk.osric.asp.Sdk.StoreLifetimeKind
+uk.osric.asp.Sdk.PageTableAttribute.Lifetime.set -> void
+uk.osric.asp.Sdk.PageTableAttribute.Name.get -> string!
+uk.osric.asp.Sdk.PageTableAttribute.PageTableAttribute(string! name) -> void
+uk.osric.asp.Sdk.PageTableAttribute.Search.get -> string?
+uk.osric.asp.Sdk.PageTableAttribute.Search.set -> void
+uk.osric.asp.Sdk.PageTableAttribute.Subject.get -> uk.osric.asp.Sdk.StoreSubject
+uk.osric.asp.Sdk.PageTableAttribute.Subject.set -> void
+uk.osric.asp.Sdk.StoreSubject
+uk.osric.asp.Sdk.StoreSubject.Page = 0 -> uk.osric.asp.Sdk.StoreSubject
+uk.osric.asp.Sdk.StoreSubject.Visitor = 1 -> uk.osric.asp.Sdk.StoreSubject
+uk.osric.asp.Sdk.IPageSubject.Records.get -> uk.osric.asp.Sdk.IRecordStore!

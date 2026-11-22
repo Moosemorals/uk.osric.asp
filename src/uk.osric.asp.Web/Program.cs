@@ -253,7 +253,8 @@ internal class Program {
               services.GetRequiredService<PageBrowserCookieOptions>(),
               services.GetRequiredService<PageJobs>(),
               services.GetRequiredService<PageChecks>(),
-              services.GetRequiredService<PageJobAuthorityFactory>()));
+              services.GetRequiredService<PageJobAuthorityFactory>(),
+              services.GetRequiredService<IRecordCatalog>()));
         builder.Services.AddSingleton(services => new PageHealth(services.GetRequiredService<RenderOptions>().AbandonedLimit));
 
         builder.Services.AddSingleton<AssistantMetrics>();
@@ -303,7 +304,8 @@ internal class Program {
             services.GetRequiredService<PageLibraries>(),
             services.GetRequiredService<IPageCompiler>(),
             services.GetRequiredService<PageMetrics>(),
-            services.GetRequiredService<IServiceScopeFactory>()));
+            services.GetRequiredService<IServiceScopeFactory>(),
+            services.GetRequiredService<IRecordCatalog>()));
         builder.Services.AddSingleton<PageLibraries>();
         builder.Services.AddSingleton<PageMetrics>();
         builder.Services.AddSingleton<PagePathPolicy>();
@@ -326,13 +328,21 @@ internal class Program {
         // Registered as a scoped store so `users remove` can sweep an account's memories with the
         // rest of its rows.
         builder.Services.AddScoped<IMemoryStore, SqliteMemoryStore>();
+        // A declaration is applied inside the save that carries it, so the applier is what both write
+        // seams are given: the one a single save uses and the one a page's transaction commits through.
+        builder.Services.AddSingleton<IRecordCatalog>(services => new SqliteRecordCatalog(
+            services.GetRequiredService<IDbContextFactory<StorageDbContext>>()));
+        builder.Services.AddSingleton(services => new DeclaredTableApplier(
+            services.GetRequiredService<PageStoresOptions>().Records));
+
         // The listing judges an image's state against the running build, so the store is told which
         // one that is; a page whose image came from an earlier build says Stale until it is requested.
         builder.Services.AddScoped<IPageStore>(services => new SqlitePageStore(
             services.GetRequiredService<StorageDbContext>(),
             services.GetRequiredService<ILogger<SqlitePageStore>>(),
             services.GetRequiredService<PageStorageRefresh>(),
-            services.GetRequiredService<IPageCompiler>().RuntimeId));
+            services.GetRequiredService<IPageCompiler>().RuntimeId,
+            services.GetRequiredService<DeclaredTableApplier>()));
 
         builder.Services.AddScoped<IPageBatchStore, SqlitePageBatchStore>();
         builder.Services.AddScoped<IUserStore, SqliteUserStore>();
