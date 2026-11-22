@@ -7,11 +7,11 @@ SPDX-License-Identifier: MIT
 
 | | |
 | --- | --- |
-| Status | Agreed 2026-11-21 — the owner said yes — and revised against trunk 2026-11-22, after the page search, the reference corpus, the slow test half and the documentation index landed. Slice 0, the [sandbox spike](../spikes/store-sandbox.md), and slice 1, values, lifetimes and identity, are merged; slice 2 is next and nothing of it is built |
+| Status | Agreed 2026-11-21 — the owner said yes — and revised against trunk 2026-11-22, after the page search, the reference corpus, the slow test half and the documentation index landed. Slice 0, the [sandbox spike](../spikes/store-sandbox.md), slice 1, values, lifetimes and identity, and slice 2, records and the sandbox, are merged; slice 3 is next and nothing of it is built |
 | Size | Large as a programme, small as a step: a spike, five slices and the release that closes the window, each its own branch and its own stop. The values slice is the floor; the record slice is the risk |
 | First customer | The two plans this supersedes: the assistant's transcript (a Record for the signed-in visitor) and the redirect flash (a `NextRead` value). Editor mode is the first `Browser` value, and `/help`'s counter is the first Page value |
 | Spike | Slice 0: [the record sandbox](../spikes/store-sandbox.md), written before anything was built. Six of the sandbox section's details were corrected by what it measured |
-| Decisions | Slice 1's merge recorded `pages-the-subject-is-the-binding`, `pages-a-lifetime-belongs-to-the-entry`, `pages-a-browser-is-a-lifetime`, `pages-adoption-re-keys-at-sign-in` and `pages-one-stores-section`, and edited `pages-page-storage`, `pages-the-session` and `pages-an-archive-is-a-database`. The remaining six names are recorded by the slice that delivers them, and the plan is archived when slice 5's merge closes the programme |
+| Decisions | Slice 2's merge recorded `pages-a-record-is-declared-sql`, `pages-a-record-is-sandboxed` and `pages-a-library-owns-its-schema`. Slice 1's merge recorded `pages-the-subject-is-the-binding`, `pages-a-lifetime-belongs-to-the-entry`, `pages-a-browser-is-a-lifetime`, `pages-adoption-re-keys-at-sign-in` and `pages-one-stores-section`, and edited `pages-page-storage`, `pages-the-session` and `pages-an-archive-is-a-database`. The remaining six names are recorded by the slice that delivers them, and the plan is archived when slice 5's merge closes the programme |
 | Backlog | [`storage-is-not-one-model`](../backlog/storage-is-not-one-model.md) is this job. It absorbs [`no-account-store`](../backlog/no-account-store.md) and [`message-does-not-survive-a-redirect`](../backlog/message-does-not-survive-a-redirect.md), whose plans [account-store](account-store.md) and [page-inbox](page-inbox.md) are superseded in shape |
 
 ## The short version
@@ -917,7 +917,7 @@ is merged; slice 2 is next.
    key is impossible; a `HEAD` refuses every write; the caps refuse at the boundary; the migration
    copies both old tables and its `Down` restores them; an exported archive has no `NextRead` or
    `Until` value; `Pages:Storage` stops the host at startup.
-2. **Records and the sandbox** (`M`). `PageTableAttribute`, `PageSchema` and extraction, `PAGE011` and
+2. **Records and the sandbox** (`M`) — **merged**. `PageTableAttribute`, `PageSchema` and extraction, `PAGE011` and
    `PAGE012`, `DeclaredTables`, the DDL lifecycle in the save's transaction, `IRecordStore`,
    `IPageRecordTransaction` as the frame, `PageRecordResult`, `PageRow`, `PageParameters`, `SearchAsync`
    and the FTS5 index, the `TEMP VIEW` and triggers, the authorizer, the limits, the result caps and

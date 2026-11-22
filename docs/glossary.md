@@ -414,6 +414,17 @@ the provider is sent, and its `max_tokens` is computed from what its prompt leav
 
 **Owner:** assistant — `ChatRequest`, `ChatRequestJson` and `ContextPlan.Request`.
 
+## Record
+One row of a table a source declared: the declaration is the table, a save applies the difference, and
+a page reaches its own rows through `ctx.Stores.<subject>.Records` with one statement at a time.
+
+**Not** a value. A value is one key and one JSON document with no schema and no query; a record has
+columns, a declared subject and a lifetime, and a page that needs to find rows rather than fetch a key is
+asking for this shape.
+
+**Owner:** pages — `PageTableAttribute`, `PageSchema`, `IRecordStore`, `PageRow`, `DeclaredTables` and
+`SqliteRecordStore` (`pages-a-record-is-declared-sql`, `pages-a-record-is-sandboxed`).
+
 ## Restore
 Saving a retained revision's source as a new revision of the page, through the ordinary compile-and-save
 path.

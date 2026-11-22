@@ -3,12 +3,12 @@
 
 namespace uk.osric.asp.Web.Pages;
 
+using Microsoft.Data.Sqlite;
 using System.Collections.Frozen;
 using System.Data;
 using System.Globalization;
 using System.Text.Json;
 using System.Text.Json.Serialization;
-using Microsoft.Data.Sqlite;
 using uk.osric.asp.Core.Pages;
 using uk.osric.asp.Sdk;
 
@@ -154,8 +154,7 @@ internal sealed class SqliteRecordStore : RenderBoundCapability, IRecordStore, I
         }
 
         OpenAsync(CancellationToken.None).GetAwaiter().GetResult();
-        using (Host())
-        {
+        using (Host()) {
             _transaction = _connection!.BeginTransaction();
         }
 

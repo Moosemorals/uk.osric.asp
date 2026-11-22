@@ -851,6 +851,57 @@ in code, because they are the stored form of every row and configuration could o
 
 *Recorded in [storage](storage.md#values), [PageStoresOptions](../src/uk.osric.asp.Web/Pages/PageStoresOptions.cs), [configuration](architecture.md#configuration).*
 
+### pages-a-record-is-declared-sql
+
+A page keeps rows by declaring them: a class in a `<%! %>` block carrying `[PageTable]`, whose public
+properties are the columns — `string`, `string?`, `long`, `double`, `bool` or `DateTimeOffset`, and only
+a string may be null. The declaration is part of the revision, extracted from the tree the compile
+already holds, so it is judged when the page is compiled and needs no second parse.
+
+**The declaration is the table.** A save creates a table it has not made, adds a column it has not made,
+and drops a column or table the source no longer names, with every visitor's rows in it, inside its own
+transaction — a rollback takes the tables with the revision. A declaration the host cannot apply stores
+the revision with a `PAGE012` and applies nothing, and a revision that does not compile applies nothing
+at all. A type, subject or lifetime that changed since the table was made is a refusal rather than an
+alteration, because nothing here reinterprets a row. A declaration has no index, no unique constraint and
+no foreign key: uniqueness is `INSERT … SELECT … WHERE NOT EXISTS`, and a child row is deleted by the
+page's transaction.
+
+*Recorded in [pages](pages.md#page-data), [storage](storage.md#declared-tables), [PageSchema](../src/uk.osric.asp.Core/Pages/PageSchema.cs).*
+
+### pages-a-record-is-sandboxed
+
+A page's SQL is one statement over temporary views. Each declared table exists once in `main` under an
+unguessable name; the store makes, in `temp`, one view per table with the subject as a literal in its
+predicate and an `INSTEAD OF` trigger per verb writing the same literal back, so a join or an aggregate
+sees only the subject's rows and the real table cannot be named. `sqlite3_set_authorizer` is the
+allow-list: SELECT and RECURSIVE, the handle's own view names, a real table only when the innermost view
+or trigger is one of the table's, a read with no database (a common table expression, which is not a
+table), the FTS shadow tables by name, a closed list of functions, and `PRAGMA data_version`, which
+SQLite asks for itself after a trigger writes. Everything else is denied by omission, by SQLite's own
+parser rather than a scanner.
+
+The rest is what bounds one statement: exactly one statement per call, detected by preparing the text and
+asking whether what follows is a statement; the result row and character caps, which throw naming the
+setting; and a statement clock built on `sqlite3_interrupt`, because Microsoft.Data.Sqlite's own timeout
+is a busy timeout and leaves a running statement alone. Misuse throws — a refused statement, an
+undeclared table, a write naming `Id`, a `HEAD` — and a write that meets a cap, or cannot take the
+writer, answers `Full` or `Busy` instead. The fence is one statement deep: `pages-there-is-no-sandbox`
+still holds.
+
+*Recorded in [storage](storage.md#declared-tables), [SqliteRecordStore](../src/uk.osric.asp.Web/Pages/SqliteRecordStore.cs), [the spike](spikes/store-sandbox.md).*
+
+### pages-a-library-owns-its-schema
+
+A library declares its own tables and they are applied under the library's key, on the save that
+declares them. A page that names the library does not inherit or re-apply its tables: the page's own tree
+is the only one read, and a page reaches a library's data by calling the library's methods, which reach
+it through `ctx.Stores.For(libraryKey)`. So one source is the authority for the tables it declares, a
+move re-keys that source's catalogue without touching a row, and a delete drops what that one source
+declared.
+
+*Recorded in [pages](pages.md#page-data), [storage](storage.md#declared-tables), [PageSchemaExtractor](../src/uk.osric.asp.Runtime/PageSchemaExtractor.cs).*
+
 ### pages-outbound-fetch
 
 Outbound fetch is bounded, not allow-listed: page code and the assistant's `fetch` tool may reach any

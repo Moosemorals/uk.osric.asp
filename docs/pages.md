@@ -234,9 +234,9 @@ page's own keys:
 - `ctx.Stores.For(key)` is a live library's or worker's namespace, for the library to hand out and a page
   to reach only through that library's methods.
 
-Each subject carries the shapes it has — `Values` today, and the record, message and object shapes as
-their slices land — and a shape a subject does not have is absent from the type rather than a runtime
-surprise. `Values` is a JSON key/value store: `TryGetValueAsync<T>(key)` reads the bound page's key,
+Each subject carries the shapes it has — `Values` and `Records` today, and the message and object
+shapes as their slices land — and a shape a subject does not have is absent from the type rather than
+a runtime surprise. `Values` is a JSON key/value store: `TryGetValueAsync<T>(key)` reads the bound page's key,
 `TryGetValueAsync<T>(pageKey, key)` reads what another page left, `TryTakeAsync<T>(key)` consumes a
 one-shot, `SetAsync` and `DeleteAsync` write and remove, and `KeysAsync`/`AllKeysAsync` list without
 consuming. A read answers the lifetime the entry carries and the page that wrote it.
@@ -250,6 +250,15 @@ deadline are refused every write (`pages-a-lifetime-belongs-to-the-entry`). The 
 instance and are enforced in the statement that writes (`pages-one-stores-section`).
 [Storage](storage.md#values) has the table, the subjects, the lifetimes and the caps; `/help` is the
 author's manual.
+
+`Records` is rows rather than keys: a source declares a table with `[PageTable]` on a class in a
+`<%! %>` block, and the properties are the columns. The declaration is part of the revision, so a save
+applies the difference — creating a table it has not made, adding a column it has not made, and
+dropping a column or table the source no longer names, with every row in it
+(`pages-a-record-is-declared-sql`). A statement is one statement of text and `PageParameters`, run
+against a temporary view of the subject's rows, with `sqlite3_set_authorizer` as the allow-list
+(`pages-a-record-is-sandboxed`). A library declares its tables under its own key and a page reaches them
+through the library's methods (`pages-a-library-owns-its-schema`).
 
 A page's log entries are filed under the single `uk.osric.asp.Pages` category with the page's key on
 a `Path` scope, and `SimpleContext` is where that enters the shell, so `Core` never names a logging

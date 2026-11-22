@@ -979,6 +979,63 @@ every subject; a layout and an embedded page are offered the same handle as the 
 role decides the response a layer owns, not what it can reach. The seeded
 <a href="/privacy">/privacy</a> page says what each cookie is for.</p>
 
+<h2 id="records">Tables a page declares</h2>
+<p>A page can keep rows, not only keys: declare a class in a <code>&lt;%! %&gt;</code> block with a
+<a href="/admin/reference/sdk#t-PageTableAttribute"><code>[PageTable]</code></a> attribute and its properties are the columns. The
+declaration is part of the revision, so it is saved with the source and judged when the page compiles.</p>
+<pre class="source" tabindex="0"><code>&lt;%!
+    using System;
+
+    [PageTable("notes", Subject = StoreSubject.Visitor, Lifetime = StoreLifetimeKind.Person, Search = "body")]
+    public sealed class Note {
+        public string Title { get; set; } = "";
+        public string Body { get; set; } = "";
+        public DateTimeOffset Written { get; set; }
+    }
+%&gt;</code></pre>
+<p><code>Subject</code> is <code>StoreSubject.Page</code> for rows every visitor shares, or
+<code>StoreSubject.Visitor</code> for one visitor's, which are filtered for you: the page never
+writes an owner. <code>Lifetime</code> is <code>Person</code>, <code>Session</code> or
+<code>Browser</code> for a visitor's table and follows the page for the page's own. A column is
+<code>string</code>, <code>string?</code>, <code>long</code>, <code>double</code>, <code>bool</code> or
+<code>DateTimeOffset</code>, and only <code>string?</code> may be null. <code>Search</code> names the
+one column that <code>SearchAsync</code> matches.</p>
+<p><strong>The declaration is the table.</strong> A save creates a table it has not made, adds a
+column it has not made, and <strong>drops a column or a table the source no longer names, with every
+row in it</strong>. Removing a property is a deletion, so the editor's diff is the warning. A
+declaration the host cannot apply stores the revision with a <code>PAGE012</code> and applies
+nothing; a revision that does not compile applies nothing either.</p>
+<p>Read and write with one statement at a time. <code>QueryAsync</code> answers
+<a href="/admin/reference/sdk#t-PageRow"><code>PageRow</code></a> values read by column name, and
+<code>ExecuteAsync</code> answers a <code>PageRecordResult</code>: <code>Applied</code> is durable,
+<code>Staged</code> is inside your transaction, <code>Busy</code> means another writer held the store
+and <code>Full</code> means you are at the cap. Neither wrote anything when it says the last two.</p>
+<pre class="source" tabindex="0"><code>&lt;% var notes = await ctx.Stores.Visitor.Records.QueryAsync(
+       """SELECT "Title", "Written" FROM "notes" ORDER BY "Written" DESC LIMIT 20""");
+   foreach (PageRow row in notes) { %&gt;
+&lt;p&gt;&lt;%= row.GetString("Title") %&gt; &amp;mdash; &lt;%= row.GetDateTimeOffset("Written") %&gt;&lt;/p&gt;
+&lt;% } %&gt;</code></pre>
+<p><strong>Parameters, never interpolation.</strong> Build a
+<a href="/admin/reference/sdk#t-PageParameters"><code>PageParameters</code></a> and write
+<code>$since</code> in the statement: the store cannot tell a safe statement from an unsafe one, so
+pasting a visitor's text into the SQL is a bug nothing refuses.</p>
+<p><strong>A declaration has no unique constraint</strong>, so uniqueness is a statement:
+<code>INSERT INTO "notes" ("Title", "Body") SELECT $t, $b WHERE NOT EXISTS (SELECT 1 FROM "notes"
+WHERE "Title" = $t)</code>. It has no foreign key either, so a child row is deleted by your own
+transaction, not by a cascade. A row's <code>Id</code> is the store's: naming it is refused.</p>
+<h3 id="record-transactions">Several writes that land together</h3>
+<p><code>BeginTransaction()</code> answers an <code>IPageRecordTransaction</code> and every statement
+you run until it ends is in it: a later query reads what you staged, and disposing it without a commit
+discards the lot. A write that is refused inside one writes nothing, and the rows before it are yours
+to keep or discard — that is the difference between this and the page store's all-or-nothing
+transaction. One handle holds one transaction at a time.</p>
+<p><code>SearchAsync(table, term)</code> finds your rows by the declared search column, best match
+first, and never another subject's. A result over its row or character cap throws naming the setting,
+so bound it with <code>LIMIT</code>; a statement that runs too long is interrupted and throws.</p>
+<p>Deleting a page drops the tables it declared; moving one re-keys them and leaves the rows where they
+are; signing out removes the session's rows; removing an account removes its rows. A
+<code>HEAD</code> may read and may not write.</p>
+
 <h2 id="private">Private pages and forms</h2>
 <p>Pages are public unless their own code checks <a href="/admin/reference/sdk#m-IContext.User"><code>ctx.User</code></a>. Put the guard at the top and
 return after redirecting:</p>
