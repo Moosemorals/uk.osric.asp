@@ -7,7 +7,7 @@ SPDX-License-Identifier: MIT
 
 | | |
 | --- | --- |
-| Status | Proposed and agreed 2026-11-21 — the owner said yes. Nothing below is built, and slice 0, the sandbox spike, is next |
+| Status | Agreed 2026-11-21 — the owner said yes — and revised against trunk 2026-11-22, after the page search, the reference corpus, the slow test half and the documentation index landed. Nothing below is built, and slice 0, the sandbox spike, is next |
 | Size | Large as a programme, small as a step: a spike, five slices and the release that closes the window, each its own branch and its own stop. The values slice is the floor; the record slice is the risk |
 | First customer | The two plans this supersedes: the assistant's transcript (a Record for the signed-in visitor) and the redirect flash (a `NextRead` value). Editor mode is the first `Browser` value, and `/help`'s counter is the first Page value |
 | Spike | Slice 0: the sandbox console, written to `docs/spikes/store-sandbox.md` before anything is built. The item names it as the spike this plan needs |
@@ -67,6 +67,13 @@ The rest of the current shape is known and load-bearing: a capability is either 
 absent from stored-null; a write on `HEAD`, an abandoned render or a passed deadline is a page bug and
 throws; and the store's caps are enforced in the same statement as the write, so a concurrent writer
 either fits or is refused (`pages-page-storage`, `pages-the-session`).
+
+The page store has moved on since this plan was written, without changing the model: `IPageCatalog`
+now carries a fifth read, `SearchAsync`, over the same live sources and the shell's route records, and
+the write the editor and a page share is one capability, `IPageWrites` through `PageWritesScope`
+(`pages-a-search-returns-matches`, `pages-any-page-may-write-the-store`). Neither is a data store and
+neither moves in these slices; `PageCatalogScope` and `IPageReadStore` are the read seam a store scope
+is written in the shape of, and the search's own options and tests stay where they are.
 
 ## The model
 
@@ -503,8 +510,10 @@ public interface IObjectStore {
   copy, slice or re-wrap them with the BCL types the page API admits; an image re-encode needs a
   capability that does not exist yet, and the object store is what it would reach.
 - `/o/{sha}` is a site route because a page cannot stream bytes and because the cache policy is a
-  response rule. Its entry in the route table sits at the key `/o`, so the whole prefix is reserved and
-  no page can claim a path beneath it. It serves a page-subject object as
+  response rule. Its entry is one row of `ShellCatalogue` at the key `/o` — the same table that
+  answers `/login`, reserves every route's prefix and describes each to the assistant by its methods,
+  its access and its purpose — so the whole prefix is reserved and no page can claim a path beneath
+  it. It serves a page-subject object as
   `public, max-age=31536000, immutable`, and a
   visitor-subject object as `private, no-store`, with `ETag: "<sha>"`, `Accept-Ranges: bytes`,
   `Range`/`206`, `X-Content-Type-Options: nosniff` and `HEAD` support. A missing object, or one the
@@ -699,9 +708,11 @@ its `Visitor` handle has only `Person`.
 
 One section, `Pages:Stores`, read through `ConfigurationReader` into a `PageStoresOptions` record with
 a `FromConfiguration` factory, and each value added by the slice that enforces it
-(`code-policy-values-are-configuration`). A missing or out-of-range value stops the site at startup
-with the key, the accepted range and the recommended value, and every section's problems are reported
-together.
+(`code-policy-values-are-configuration`). It is the shape `PageSearchOptions` already has — a record,
+one factory, and a test for the shipped value, an override and a refusal — and `Pages:Search` stays
+beside it: the page search reads the source store, not a data subject. A missing or out-of-range value
+stops the site at startup with the key, the accepted range and the recommended value, and every
+section's problems are reported together.
 
 ```json
 "Pages": {
@@ -855,8 +866,10 @@ owner said yes to this plan on 2026-11-21, so slice 0 is next.
    and an aggregate through it, a `RAISE(ABORT)` at a cap, the result caps, `SQLITE_LIMIT_ATTACHED = 0`,
    `trusted_schema = OFF`, `SQLITE_DBCONFIG_DEFENSIVE`, a statement interrupt, and the refusals a
    `PRAGMA`, a `CREATE`, a `sqlite_master` read, a `load_extension` and a `pragma_table_info` call each
-   get. The findings go in `docs/spikes/store-sandbox.md` and amend this plan's sandbox section if they
-   disagree with it.
+   get. The findings go in `docs/spikes/store-sandbox.md`, the spike is added to the index in
+   `docs/spikes/README.md`, and this plan's sandbox section is amended if they disagree with it. The
+   console is scratch: slice 0 commits the document, not a tool, and the real connection code arrives
+   with slice 2.
    *Proves:* a join and an aggregate see only the owner's rows through the views; the authorizer allows
    the view reads and the trigger writes and denies everything else by action, with the action and the
    name in the refusal; a quoted or bracketed `load_extension` and a `pragma_table_info` are refused
@@ -870,7 +883,8 @@ owner said yes to this plan on 2026-11-21, so slice 0 is next.
    sign-in and the signed-in identity's lifetime; delete, move, scrub, `users remove` and the sweep;
    the archive's export and import over `StoreValues` (the Page rows only); the sampler's payload;
    `Pages:Stores`'s value section and the retired keys; the obsolete adapters; `/help`,
-   `/editor-mode`, `_lib/editor` and the prompt.
+   `/editor-mode`, `_lib/editor` and the prompt. `PageCatalogScope`, `IPageReadStore`,
+   `PageSearchOptions` and `PageWritesScope` are not touched: the page store is not a data store.
    *Proves:* a page writes a Page value and every visitor reads it; a visitor writes a `Session` value
    and another visitor does not; a `Person` value survives sign-in and is on the account; an anonymous
    `NextRead` survives adoption unread and is gone after one take; a `Browser` value survives sign-in
@@ -936,19 +950,20 @@ separate worktrees. Slice 5 waits for them.
 
 | File | Change |
 | --- | --- |
-| `src/uk.osric.asp.Sdk/` | `IPageStores`, `IPageSubject`, `IPageVisitorSubject`, `IValueStore`, `IRecordStore`, `IPageRecordTransaction`, `IMessageStore`, `IObjectStore`, `StoreLifetime`, `StoreLifetimeKind`, `StoreFilter`, `StoreEntry`, `StoreSubject`, `PageTableAttribute`, `PageRow`, `PageRecordResult`, `PageRecordOutcome`, `PageParameters`, `PageObject`, `PageObjectRef`, `PageTopic`, `PageMessage`, `PageMessageRead`, `PageMessagePostResult`, `PageMessageRefusal`, `PageValue`'s two new properties, the obsolete marks on the two old interfaces; `PublicAPI.Unshipped.txt` |
+| `src/uk.osric.asp.Sdk/` | `IPageStores`, `IPageSubject`, `IPageVisitorSubject`, `IValueStore`, `IRecordStore`, `IPageRecordTransaction`, `IMessageStore`, `IObjectStore`, `StoreLifetime`, `StoreLifetimeKind`, `StoreFilter`, `StoreEntry`, `StoreSubject`, `PageTableAttribute`, `PageRow`, `PageRecordResult`, `PageRecordOutcome`, `PageParameters`, `PageObject`, `PageObjectRef`, `PageTopic`, `PageMessage`, `PageMessageRead`, `PageMessagePostResult`, `PageMessageRefusal`, `PageValue`'s two new properties, `IContext.Stores`, the obsolete marks on the two old interfaces; `PublicAPI.Unshipped.txt` |
 | `src/uk.osric.asp.Core/` | `PageSchema` and its validation, the single-statement rule, the content-type allow-list, the SHA-256 rule |
 | `src/uk.osric.asp.Runtime/` | Declaration extraction on the compile, `CompileResult.Schema`, `PAGE011` and `PAGE012` |
-| `src/uk.osric.asp.Web/Pages/` | `PageStoresScope`, `PageStoresOptions`, `PageStoresCaps`, the internal store seams, `PageChain.CreateLayer`, `PageStorageOptions`'s retirement, `PageStorageScope` and `PageSessionScope` as adapters, `PageSessionResolver` (the reader's subject), `PageSessionRequest`, `PageSessionOptions`'s retirement, the sweep |
-| `src/uk.osric.asp.Web/Storage/` | `StoreValues`, `StoreMessages`, `StoreObjects`, `DeclaredTables`, the migration, the DDL and view generation, the sampler |
-| `src/uk.osric.asp.Web/Authentication/` | The `b` cookie, `ShellCookies`, `PageSessionCookie.RotateAsync`'s adoption transaction, `LoginEndpoint` |
+| `src/uk.osric.asp.Web/Pages/` | `PageStoresScope` (new, in the shape `PageCatalogScope` already has), `PageStoresOptions`, `PageStoresCaps`, the internal store seams, `PageChain.CreateLayer`, `PageStorageOptions`'s retirement, `PageStorageScope` and `PageSessionScope` as adapters, `PageSessionResolver` (the reader's subject), `PageSessionRequest`, `PageSessionOptions`'s retirement, the sweep; `PageCatalogScope`, `IPageReadStore` and `PageWritesScope` untouched |
+| `src/uk.osric.asp.Web/Storage/` | `StoreValues`, `StoreMessages`, `StoreObjects`, `DeclaredTables`, the migration pair, the DDL and view generation, `PageStorageSampler`'s payload |
+| `src/uk.osric.asp.Web/Authentication/` | The `b` cookie, its ticket in `PageSessionCookie`, `PageSessionCookie.RotateAsync`'s adoption transaction, `LoginEndpoint` |
+| `src/uk.osric.asp.Web/Http/` | `ShellCookies`' `b` constant and its `IsOwned` rule, which is what keeps the cookie out of `PageRequestSnapshot` |
 | `src/uk.osric.asp.Web/Work/` | `PageJobRunner`'s three handles |
-| `src/uk.osric.asp.Web/Admin/` | The archive reader and writer over `StoreValues`, `users remove` |
-| `src/uk.osric.asp.Web/Shell/` | The `/o/{sha}` route, its `/o` entry in the site's route table and the reserved key |
+| `src/uk.osric.asp.Web/Admin/` | `PageArchiveReader` and `PageArchiveWriter` over `StoreValues`, and `user-remove` |
+| `src/uk.osric.asp.Web/Shell/` | The `/o/{sha}` route and its `/o` row in `ShellCatalogue`, which reserves the key and describes it to the assistant |
 | `src/uk.osric.asp.Web/Pages/Seeds/` | `help`, `privacy`, `editor-mode`, `_lib/editor`; `_layout` unchanged |
-| `src/uk.osric.asp.Web/Assistant/PageAuthorPrompt.cs` | The stores section and `Version` to `page-author-v55` |
-| `src/uk.osric.asp.Web/appsettings.json` | `Pages:Stores`; `Pages:Storage` and `Pages:Session` removed |
-| `docs/` | `storage.md`, `pages.md`, `architecture.md`, `shell.md`, `glossary.md`, `decisions.md` at each merge, the plan and the backlog |
+| `src/uk.osric.asp.Web/Assistant/PageAuthorPrompt.cs` | The stores section and `Version` to `page-author-v58` |
+| `src/uk.osric.asp.Web/appsettings.json` | `Pages:Stores`; `Pages:Storage` and `Pages:Session` removed; `Pages:Search` unchanged |
+| `docs/` | `storage.md`, `pages.md`, `architecture.md`, `shell.md`, `glossary.md`, `testing.md`, `decisions.md` at each merge, the plan, [`README.md`](../README.md)'s order, [`plans/README.md`](README.md), [`spikes/README.md`](../spikes/README.md) and the backlog |
 
 ## Tests
 
@@ -965,15 +980,18 @@ separate worktrees. Slice 5 waits for them.
   `BeginTransaction` throws), the search answering only the reader's rows, the message lifecycle
   (post, take, peek, the peek-then-take race, the `HEAD` rule, the caps), the
   object lifecycle, the migration up/down/up,
-  and the configuration's shipped, override and refusal cases.
+  and the configuration's shipped, override and refusal cases. The migration tests live in the `Slow`
+  category and run under `make test-web-slow`, with the other fixtures that apply a real migration
+  (`code-slow-tests-are-opt-in`); the rest of the suite copies a migrated `DatabaseTemplate`.
 - **`Web.IntegrationTests`** for the pipeline: a page that writes and reads every shape, a second
   visitor who sees none of the first's, a sign-in that adopts, a `HEAD` that refuses, a layout that
   writes, a job's three scopes, `/o/{sha}` with `ETag` and `Range`, an archive that skips a one-shot,
   and a `users remove` that leaves nothing.
 - **Nothing in a browser test**: none of this is markup, and the editor-mode toggle is an integration
   test over the seeded pages.
-- **`make check`** is the gate for every slice; **`make decisions`** and **`make backlog`** are what
-  prove the names and the record at each merge.
+- **`make check`** is the gate for every slice, and `make test-web-slow` is part of what it owes: a
+  slice whose tests are in the `Slow` half has not run them until that target has. **`make decisions`**
+  and **`make backlog`** are what prove the names and the record at each merge.
 
 ## Docs
 
@@ -999,10 +1017,13 @@ separate worktrees. Slice 5 waits for them.
   **record**, **message**, **object**, **browser** and **adoption**, and rewrites **session**.
 - **[the record](../decisions.md)** at each merge: the eleven names above, the eight edited entries and
   the citation the object route adds.
+- **The indexes** as they move: [`docs/README.md`](../README.md)'s order row and
+  [`plans/README.md`](README.md)'s status at each merge, and [`spikes/README.md`](../spikes/README.md)
+  in slice 0, because `make backlog` reads the first and `make decisions` the rest.
 - **The backlog** at the first merge: this item is already `planned` with this plan; the two plans it
   supersedes are archived with a note, and `no-account-store` and `message-does-not-survive-a-redirect`
   point at this plan with the slice that delivers them; `old-storage-spelling` is added for the window's
-  close.
+  close. Slice 0 fills the item's `Spike` field with the document it writes.
 
 ## Risks
 
