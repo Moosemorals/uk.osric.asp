@@ -240,6 +240,7 @@ internal class Program {
               services.GetRequiredService<PageReadOptions>(),
               services.GetRequiredService<PageSourceScan>(),
               services.GetRequiredService<IStoreValues>(),
+              services.GetRequiredService<IStoreMessages>(),
               services.GetRequiredService<IPageReadStore>(),
               services.GetRequiredService<PageSeeds>(),
               services.GetRequiredService<PageSaver>(),
@@ -271,6 +272,7 @@ internal class Program {
         builder.Services.AddSingleton<IPageRevisionStore, SqlitePageRevisionStore>();
         builder.Services.AddSingleton<IPageSessionStore, SqlitePageSessionStore>();
         builder.Services.AddSingleton<IStoreValues, SqliteStoreValues>();
+        builder.Services.AddSingleton<IStoreMessages, SqliteStoreMessages>();
         builder.Services.AddSingleton<IPasswordService, PasswordService>();
         builder.Services.AddSingleton<IUserConsole, SystemUserConsole>();
         builder.Services.AddSingleton<ImportQueue>();
@@ -290,6 +292,7 @@ internal class Program {
             services.GetRequiredService<PageJobOptions>(),
             services.GetRequiredService<IWorkerStore>(),
             services.GetRequiredService<IStoreValues>(),
+            services.GetRequiredService<IStoreMessages>(),
             services.GetRequiredService<PageStoresOptions>(),
             services.GetRequiredService<IPageSessionStore>(),
             services.GetRequiredService<IPageFetcher>(),

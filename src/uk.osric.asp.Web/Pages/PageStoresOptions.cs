@@ -33,6 +33,9 @@ internal sealed record PageStoresOptions {
     /// <summary>The record shape's caps.</summary>
     public required PageRecordOptions Records { get; init; }
 
+    /// <summary>The message shape's caps.</summary>
+    public required PageMessageOptions Messages { get; init; }
+
     /// <summary>The command timeout as a time span.</summary>
     public TimeSpan CommandTimeout => TimeSpan.FromSeconds(CommandTimeoutSeconds);
 
@@ -60,6 +63,7 @@ internal sealed record PageStoresOptions {
             Page = PageStoreCaps.Read(reader.For("Page"), PageStoreCaps.Page),
             Visitor = PageVisitorStores.Read(reader.For("Visitor")),
             Records = PageRecordOptions.Read(reader.For("Records")),
+            Messages = PageMessageOptions.Read(reader.For("Messages")),
         };
         return options;
     }
@@ -200,5 +204,32 @@ internal sealed record PageRecordOptions(
             $"is {options.MaxResultRows}, which is more than MaxRowsPerSubject ({options.MaxRowsPerSubject})");
 
         return options;
+    }
+}
+
+/// <summary>The message shape's caps: one body, and what one subject may hold.</summary>
+/// <param name="MaxMessageBytes">The largest one message body may be, in bytes.</param>
+/// <param name="MaxMessagesPerSubject">The most messages one subject may hold.</param>
+/// <param name="MaxSubjectBytes">The most bytes one subject's message bodies may total.</param>
+internal sealed record PageMessageOptions(int MaxMessageBytes, int MaxMessagesPerSubject, int MaxSubjectBytes) {
+
+    /// <summary>The shipped message caps.</summary>
+    public static PageMessageOptions Shipped { get; } = new(16 * 1024, 8, 64 * 1024);
+
+    /// <summary>Reads <c>Pages:Stores:Messages</c>.</summary>
+    /// <param name="reader">A reader opened on <c>Pages:Stores:Messages</c>, which the caller completes.</param>
+    /// <exception cref="ConfigurationException">A value is missing or unusable.</exception>
+    internal static PageMessageOptions Read(ConfigurationReader reader) {
+        ArgumentNullException.ThrowIfNull(reader);
+
+        int maxMessageBytes = reader.Number("MaxMessageBytes", Shipped.MaxMessageBytes, minimum: 256, maximum: 4 * 1024 * 1024);
+        int maxSubjectBytes = reader.Number("MaxSubjectBytes", Shipped.MaxSubjectBytes, minimum: 1024, maximum: 64 * 1024 * 1024);
+        reader.FailIf(maxSubjectBytes < maxMessageBytes, "MaxSubjectBytes",
+            $"is {maxSubjectBytes}, which is smaller than MaxMessageBytes ({maxMessageBytes})");
+
+        return new PageMessageOptions(
+            maxMessageBytes,
+            reader.Number("MaxMessagesPerSubject", Shipped.MaxMessagesPerSubject, minimum: 1, maximum: 1_024),
+            maxSubjectBytes);
     }
 }

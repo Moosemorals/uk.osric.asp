@@ -15,7 +15,7 @@ partial class StorageDbContextModelSnapshot : ModelSnapshot
     // If you encounter a merge conflict in the line below, it means you need to
     // discard one of the migration branches and recreate its migrations on top of
     // the other branch. See https://aka.ms/efcore-docs-migrations-conflicts for more info.
-    public override string LastMigrationId => "20261122150522_AddDeclaredTables";
+    public override string LastMigrationId => "20261122190711_AddStoreMessages";
 
     protected override void BuildModel(ModelBuilder modelBuilder)
     {
@@ -532,6 +532,57 @@ partial class StorageDbContextModelSnapshot : ModelSnapshot
                 b.HasIndex("Account", "UpdatedAt");
 
                 b.ToTable("PageSessions");
+            });
+
+        modelBuilder.Entity("uk.osric.asp.Web.Pages.StoreMessageEntry", b =>
+            {
+                b.Property<long>("Id")
+                    .ValueGeneratedOnAdd()
+                    .HasColumnType("INTEGER");
+
+                b.Property<string>("Body")
+                    .IsRequired()
+                    .HasColumnType("TEXT");
+
+                b.Property<string>("ExpiresAt")
+                    .HasColumnType("TEXT");
+
+                b.Property<string>("FromPageKey")
+                    .IsRequired()
+                    .HasColumnType("TEXT");
+
+                b.Property<int>("Lifetime")
+                    .HasColumnType("INTEGER");
+
+                b.Property<string>("SentAt")
+                    .IsRequired()
+                    .HasColumnType("TEXT");
+
+                b.Property<string>("Subject")
+                    .IsRequired()
+                    .HasColumnType("TEXT")
+                    .UseCollation("BINARY");
+
+                b.Property<string>("ToPageKey")
+                    .HasColumnType("TEXT")
+                    .UseCollation("BINARY");
+
+                b.Property<string>("Topic")
+                    .HasColumnType("TEXT")
+                    .UseCollation("BINARY");
+
+                b.HasKey("Id");
+
+                b.HasIndex("ExpiresAt");
+
+                b.HasIndex("Subject", "ToPageKey", "Id");
+
+                b.HasIndex("Subject", "Topic", "Id");
+
+                b.ToTable("StoreMessages", t =>
+                    {
+                        t.HasCheckConstraint("CK_StoreMessages_Address", "(\"ToPageKey\" IS NULL) <> (\"Topic\" IS NULL)");
+                    });
             });
 
         modelBuilder.Entity("uk.osric.asp.Web.Pages.StoreValueEntry", b =>
