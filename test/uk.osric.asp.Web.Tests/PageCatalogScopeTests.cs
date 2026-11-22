@@ -867,7 +867,9 @@ public sealed class PageCatalogScopeTests {
             ShellCatalogue.Links("/test", string.Empty, "/pages"),
             store,
             read,
-            new PageSourceScan(search ?? TestOptions.Search, clock ?? TimeProvider.System, new PageMetrics()),
+            // The scan's allowance is wall-clock, so a frozen clock keeps a snippet assertion from
+            // failing when a parallel run starves the thread pool past the shipped allowance.
+            new PageSourceScan(search ?? TestOptions.Search, clock ?? new TestClock(), new PageMetrics()),
             budget ?? new ReadBudget(read.MaxSourceCharsPerRender),
             new ReservedPaths(routes ?? ReservedPaths.Default),
             TestContentTypes.Shipped,

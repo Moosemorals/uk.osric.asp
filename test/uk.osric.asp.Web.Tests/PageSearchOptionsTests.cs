@@ -12,12 +12,12 @@ public sealed class PageSearchOptionsTests {
     [Test]
     public void TheShippedValuesAreTheDocumentedOnes() {
         Assert.Multiple(() => {
-            Assert.That(TestOptions.Search.MaxDurationMs, Is.EqualTo(30));
+            Assert.That(TestOptions.Search.MaxDurationMs, Is.EqualTo(60));
             Assert.That(TestOptions.Search.DefaultMatches, Is.EqualTo(100));
             Assert.That(TestOptions.Search.MaxMatches, Is.EqualTo(1000));
             Assert.That(TestOptions.Search.DefaultContextChars, Is.EqualTo(64));
             Assert.That(TestOptions.Search.MaxContextChars, Is.EqualTo(1024));
-            Assert.That(TestOptions.Search.Duration, Is.EqualTo(TimeSpan.FromMilliseconds(30)));
+            Assert.That(TestOptions.Search.Duration, Is.EqualTo(TimeSpan.FromMilliseconds(60)));
         });
     }
 

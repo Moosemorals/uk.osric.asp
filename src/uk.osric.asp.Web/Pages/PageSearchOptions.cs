@@ -78,7 +78,7 @@ internal sealed record PageSearchOptions {
             $"is {defaultContextChars}, which is larger than MaxContextChars ({maxContextChars})");
 
         PageSearchOptions options = new() {
-            MaxDurationMs = reader.Number("MaxDurationMs", recommended: 30, minimum: 1, maximum: MaximumDurationMs),
+            MaxDurationMs = reader.Number("MaxDurationMs", recommended: 60, minimum: 1, maximum: MaximumDurationMs),
             DefaultMatches = defaultMatches,
             MaxMatches = maxMatches,
             DefaultContextChars = defaultContextChars,
