@@ -386,10 +386,14 @@ build the host is running. It needs podman and the pinned base image, which is w
 rather than in `check`.
 
 Warnings are errors (`Directory.Build.props`) and the full `CA` rule set is on (`AnalysisMode=All`),
-so a project that builds locally will pass the gate. The exceptions are named in `.editorconfig` with
-their reason — the `ConfigureAwait` rule an ASP.NET Core application has no context for, the logging
-generator the tree does not need, the string rules a page contract written in strings cannot follow —
-and the test tree has its own short list for NUnit's fixture shape and for content `HttpClient` owns.
+so a project that builds locally will pass the gate — with one deliberate exception. The tainted-data
+family (`CA3001`-`CA3012`) is a Release-only pass (`Directory.Build.targets`), because it is most of
+`Web`'s compile time, so a Debug build does not run it; the gate's Release publish does, before
+anything ships. Every other exception holds in every configuration and is named in `.editorconfig`
+with its reason — the `ConfigureAwait` rule an ASP.NET Core application has no context for, the
+logging generator the tree does not need, the string rules a page contract written in strings cannot
+follow — and the test tree has its own short list for NUnit's fixture shape and for content
+`HttpClient` owns.
 A rule that is not in that list stays on everywhere, which is why `CA1001`, `CA1062`, `CA1068` and
 the rest found real work when the set was first turned up. Five `IDE` rules that find defects rather
 than taste (an unused member, an unnecessary assignment or parameter, a redundant cast, a suppression

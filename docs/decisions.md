@@ -348,9 +348,14 @@ not follow is named in `.editorconfig` beside its reason, and the test tree has 
 NUnit's fixture shape. Product assemblies emit their XML documentation, so CS1591 holds the public
 surface to what is written down. The set stays strict because turning it on found real work — a leaked
 cancellation source, culture-dependent generated source, calls that blocked inside async methods — not
-noise to be muted.
+noise to be muted. One part of the set is configuration-dependent: the tainted-data family
+(`CA3001`-`CA3012`) is an interprocedural data-flow pass that costs about three quarters of `Web`'s
+compile, so a Debug build leaves it out and every other configuration runs it. A development loop pays
+its seconds on every edit; a deployment build is where the family's answer ships, and `make check`
+runs that build, so nothing reaches a host unanalysed.
 
-*Recorded in [analyzers](plans/archive/analyzers.md), [testing](testing.md#the-gate).*
+*Recorded in [analyzers](plans/archive/analyzers.md), [testing](testing.md#the-gate),
+[Directory.Build.props](../Directory.Build.props), [Directory.Build.targets](../Directory.Build.targets).*
 
 ### code-fixtures-hold-no-deadline
 

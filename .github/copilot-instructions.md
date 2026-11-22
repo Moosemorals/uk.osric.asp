@@ -176,4 +176,6 @@ framework conventions are deliberately not restated here. The judgement calls it
 - The full `CA` rule set is on (`AnalysisMode=All`) and a warning is an error. A rule this codebase
   does not follow is turned off in `.editorconfig` beside its reason; a `#pragma` at a call site
   carries one too. Never mute a warning without saying why, and never add an exception to save a
-  single line.
+  single line. The tainted-data family (`CA3001`-`CA3012`) is the one configuration-dependent part
+  (`Directory.Build.targets`): it runs everywhere except Debug, because it is most of `Web`'s compile
+  time — so a Debug build will not find a rule there and `make check`'s Release publish will.

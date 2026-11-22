@@ -262,7 +262,8 @@ TEST_BROWSER_ARGS := --results-directory $(TEST_RESULTS) -- RunConfiguration.Tes
 # The gate. Cheap checks first, so a formatting mistake fails in seconds rather than after the suites.
 # Every part is a target of its own, so this is as runnable on a laptop as it is in CI: there is no
 # second definition of "green" to drift from this one. `publish` is here because Release is what
-# actually ships — a Release-only break should not wait for a deploy to be discovered.
+# actually ships — a Release-only break should not wait for a deploy to be discovered, and the
+# tainted-data rules that a Debug build leaves out (Directory.Build.targets) run only there.
 check: format-check license-check audit decisions backlog check-pages test publish
 
 # A clean tree in, a clean tree out. The stamps in artifacts/ make repeat runs cheap, which is also
@@ -625,11 +626,11 @@ format:
 # error (Directory.Build.props) — so asking for it here would run the whole analysis a second time
 # for no answer the build has not already given.
 #
-# It is not a small second time. Measured on this tree, the analyzer phase is 419 of the 503
-# CPU-seconds the whole of `dotnet format` spends — seven minutes of cores for a minute and a half of
-# wall clock, the busiest thing the gate does — and the style phase is another 70 for the one
-# diagnostic the build does not raise. Narrowed to layout and using order the check spends about 25
-# CPU-seconds instead, and the cores go to the suites.
+# It is not a small second time. Measured on this tree before the tainted-data family moved to
+# Release, the analyzer phase was 419 of the 503 CPU-seconds the whole of `dotnet format` spends —
+# seven minutes of cores for a minute and a half of wall clock, the busiest thing the gate does — and
+# the style phase was another 70 for the one diagnostic the build does not raise. Narrowed to layout
+# and using order the check spends about 25 CPU-seconds instead, and the cores go to the suites.
 format-check:
 	$(call step,format-check: layout and using order)
 	$(DOTNET) format whitespace $(SOLUTION) --verify-no-changes
