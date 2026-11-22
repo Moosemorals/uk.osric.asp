@@ -45,6 +45,11 @@ using uk.osric.asp.Web.Work;
 /// without one offers no <c>IPageCheck</c>, and a render without a signed-in visitor is offered none
 /// either way.
 /// </param>
+/// <param name="Records">
+/// Where a record handle finds its declared tables and the database, or <see langword="null"/> when
+/// this host has no store: a handle then reports that it has none rather than reading a table that is
+/// not there.
+/// </param>
 /// <param name="JobAuthorities">
 /// Where a render's credential is captured for the jobs it starts, or <see langword="null"/> when this
 /// host offers none. A host without one starts no job from a render, because a job must act with its
@@ -74,4 +79,5 @@ internal sealed record PageEnvironment(
     PageBrowserCookieOptions BrowserCookie,
     PageJobs? Jobs = null,
     PageChecks? Checks = null,
-    PageJobAuthorityFactory? JobAuthorities = null);
+    PageJobAuthorityFactory? JobAuthorities = null,
+    IRecordCatalog? Records = null);

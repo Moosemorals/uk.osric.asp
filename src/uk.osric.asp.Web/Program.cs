@@ -253,7 +253,8 @@ internal class Program {
               services.GetRequiredService<PageBrowserCookieOptions>(),
               services.GetRequiredService<PageJobs>(),
               services.GetRequiredService<PageChecks>(),
-              services.GetRequiredService<PageJobAuthorityFactory>()));
+              services.GetRequiredService<PageJobAuthorityFactory>(),
+              services.GetRequiredService<IRecordCatalog>()));
         builder.Services.AddSingleton(services => new PageHealth(services.GetRequiredService<RenderOptions>().AbandonedLimit));
 
         builder.Services.AddSingleton<AssistantMetrics>();
@@ -303,7 +304,8 @@ internal class Program {
             services.GetRequiredService<PageLibraries>(),
             services.GetRequiredService<IPageCompiler>(),
             services.GetRequiredService<PageMetrics>(),
-            services.GetRequiredService<IServiceScopeFactory>()));
+            services.GetRequiredService<IServiceScopeFactory>(),
+            services.GetRequiredService<IRecordCatalog>()));
         builder.Services.AddSingleton<PageLibraries>();
         builder.Services.AddSingleton<PageMetrics>();
         builder.Services.AddSingleton<PagePathPolicy>();
@@ -328,6 +330,8 @@ internal class Program {
         builder.Services.AddScoped<IMemoryStore, SqliteMemoryStore>();
         // A declaration is applied inside the save that carries it, so the applier is what both write
         // seams are given: the one a single save uses and the one a page's transaction commits through.
+        builder.Services.AddSingleton<IRecordCatalog>(services => new SqliteRecordCatalog(
+            services.GetRequiredService<IDbContextFactory<StorageDbContext>>()));
         builder.Services.AddSingleton(services => new DeclaredTableApplier(
             services.GetRequiredService<PageStoresOptions>().Records));
 

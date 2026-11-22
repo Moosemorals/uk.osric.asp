@@ -890,3 +890,4 @@ uk.osric.asp.Sdk.PageTableAttribute.Subject.set -> void
 uk.osric.asp.Sdk.StoreSubject
 uk.osric.asp.Sdk.StoreSubject.Page = 0 -> uk.osric.asp.Sdk.StoreSubject
 uk.osric.asp.Sdk.StoreSubject.Visitor = 1 -> uk.osric.asp.Sdk.StoreSubject
+uk.osric.asp.Sdk.IPageSubject.Records.get -> uk.osric.asp.Sdk.IRecordStore!
