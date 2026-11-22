@@ -889,3 +889,74 @@ uk.osric.asp.Sdk.StoreSubject
 uk.osric.asp.Sdk.StoreSubject.Page = 0 -> uk.osric.asp.Sdk.StoreSubject
 uk.osric.asp.Sdk.StoreSubject.Visitor = 1 -> uk.osric.asp.Sdk.StoreSubject
 uk.osric.asp.Sdk.IPageSubject.Records.get -> uk.osric.asp.Sdk.IRecordStore!
+uk.osric.asp.Sdk.IMessageStore
+uk.osric.asp.Sdk.IMessageStore.PeekAsync() -> System.Threading.Tasks.Task<uk.osric.asp.Sdk.PageMessageRead>!
+uk.osric.asp.Sdk.IMessageStore.PeekAsync(uk.osric.asp.Sdk.PageTopic! topic) -> System.Threading.Tasks.Task<uk.osric.asp.Sdk.PageMessageRead>!
+uk.osric.asp.Sdk.IMessageStore.PostAsync(string! toPageKey, string! body, uk.osric.asp.Sdk.StoreLifetime? lifetime = null) -> System.Threading.Tasks.Task<uk.osric.asp.Sdk.PageMessagePostResult>!
+uk.osric.asp.Sdk.IMessageStore.PostAsync(uk.osric.asp.Sdk.PageTopic! topic, string! body, uk.osric.asp.Sdk.StoreLifetime? lifetime = null) -> System.Threading.Tasks.Task<uk.osric.asp.Sdk.PageMessagePostResult>!
+uk.osric.asp.Sdk.IMessageStore.TakeAsync() -> System.Threading.Tasks.Task<uk.osric.asp.Sdk.PageMessageRead>!
+uk.osric.asp.Sdk.IMessageStore.TakeAsync(uk.osric.asp.Sdk.PageTopic! topic) -> System.Threading.Tasks.Task<uk.osric.asp.Sdk.PageMessageRead>!
+uk.osric.asp.Sdk.IPageVisitorSubject.Messages.get -> uk.osric.asp.Sdk.IMessageStore!
+uk.osric.asp.Sdk.PageMessage
+uk.osric.asp.Sdk.PageMessage.<Clone>$() -> uk.osric.asp.Sdk.PageMessage!
+uk.osric.asp.Sdk.PageMessage.Body.get -> string!
+uk.osric.asp.Sdk.PageMessage.Body.init -> void
+uk.osric.asp.Sdk.PageMessage.Deconstruct(out string! From, out string! Body, out System.DateTimeOffset SentAt) -> void
+uk.osric.asp.Sdk.PageMessage.Equals(uk.osric.asp.Sdk.PageMessage? other) -> bool
+uk.osric.asp.Sdk.PageMessage.From.get -> string!
+uk.osric.asp.Sdk.PageMessage.From.init -> void
+uk.osric.asp.Sdk.PageMessage.PageMessage(string! From, string! Body, System.DateTimeOffset SentAt) -> void
+uk.osric.asp.Sdk.PageMessage.SentAt.get -> System.DateTimeOffset
+uk.osric.asp.Sdk.PageMessage.SentAt.init -> void
+override uk.osric.asp.Sdk.PageMessage.Equals(object? obj) -> bool
+override uk.osric.asp.Sdk.PageMessage.GetHashCode() -> int
+override uk.osric.asp.Sdk.PageMessage.ToString() -> string!
+static uk.osric.asp.Sdk.PageMessage.operator !=(uk.osric.asp.Sdk.PageMessage? left, uk.osric.asp.Sdk.PageMessage? right) -> bool
+static uk.osric.asp.Sdk.PageMessage.operator ==(uk.osric.asp.Sdk.PageMessage? left, uk.osric.asp.Sdk.PageMessage? right) -> bool
+uk.osric.asp.Sdk.PageMessagePostResult
+uk.osric.asp.Sdk.PageMessagePostResult.Deconstruct(out uk.osric.asp.Sdk.PageMessageRefusal Refusal) -> void
+uk.osric.asp.Sdk.PageMessagePostResult.Equals(uk.osric.asp.Sdk.PageMessagePostResult other) -> bool
+uk.osric.asp.Sdk.PageMessagePostResult.PageMessagePostResult() -> void
+uk.osric.asp.Sdk.PageMessagePostResult.PageMessagePostResult(uk.osric.asp.Sdk.PageMessageRefusal Refusal) -> void
+uk.osric.asp.Sdk.PageMessagePostResult.Posted.get -> bool
+uk.osric.asp.Sdk.PageMessagePostResult.Refusal.get -> uk.osric.asp.Sdk.PageMessageRefusal
+uk.osric.asp.Sdk.PageMessagePostResult.Refusal.init -> void
+~override uk.osric.asp.Sdk.PageMessagePostResult.Equals(object obj) -> bool
+override uk.osric.asp.Sdk.PageMessagePostResult.GetHashCode() -> int
+~override uk.osric.asp.Sdk.PageMessagePostResult.ToString() -> string
+static uk.osric.asp.Sdk.PageMessagePostResult.operator !=(uk.osric.asp.Sdk.PageMessagePostResult left, uk.osric.asp.Sdk.PageMessagePostResult right) -> bool
+static uk.osric.asp.Sdk.PageMessagePostResult.operator ==(uk.osric.asp.Sdk.PageMessagePostResult left, uk.osric.asp.Sdk.PageMessagePostResult right) -> bool
+uk.osric.asp.Sdk.PageMessageRead
+uk.osric.asp.Sdk.PageMessageRead.Deconstruct(out uk.osric.asp.Sdk.PageMessageRefusal Refusal, out uk.osric.asp.Sdk.PageMessage? Message) -> void
+uk.osric.asp.Sdk.PageMessageRead.Equals(uk.osric.asp.Sdk.PageMessageRead other) -> bool
+uk.osric.asp.Sdk.PageMessageRead.Found.get -> bool
+uk.osric.asp.Sdk.PageMessageRead.Message.get -> uk.osric.asp.Sdk.PageMessage?
+uk.osric.asp.Sdk.PageMessageRead.Message.init -> void
+uk.osric.asp.Sdk.PageMessageRead.PageMessageRead() -> void
+uk.osric.asp.Sdk.PageMessageRead.PageMessageRead(uk.osric.asp.Sdk.PageMessageRefusal Refusal, uk.osric.asp.Sdk.PageMessage? Message) -> void
+uk.osric.asp.Sdk.PageMessageRead.Refusal.get -> uk.osric.asp.Sdk.PageMessageRefusal
+uk.osric.asp.Sdk.PageMessageRead.Refusal.init -> void
+~override uk.osric.asp.Sdk.PageMessageRead.Equals(object obj) -> bool
+override uk.osric.asp.Sdk.PageMessageRead.GetHashCode() -> int
+~override uk.osric.asp.Sdk.PageMessageRead.ToString() -> string
+static uk.osric.asp.Sdk.PageMessageRead.operator !=(uk.osric.asp.Sdk.PageMessageRead left, uk.osric.asp.Sdk.PageMessageRead right) -> bool
+static uk.osric.asp.Sdk.PageMessageRead.operator ==(uk.osric.asp.Sdk.PageMessageRead left, uk.osric.asp.Sdk.PageMessageRead right) -> bool
+static uk.osric.asp.Sdk.PageMessageRead.Empty.get -> uk.osric.asp.Sdk.PageMessageRead
+uk.osric.asp.Sdk.PageMessageRefusal
+uk.osric.asp.Sdk.PageMessageRefusal.Empty = 1 -> uk.osric.asp.Sdk.PageMessageRefusal
+uk.osric.asp.Sdk.PageMessageRefusal.Full = 6 -> uk.osric.asp.Sdk.PageMessageRefusal
+uk.osric.asp.Sdk.PageMessageRefusal.None = 0 -> uk.osric.asp.Sdk.PageMessageRefusal
+uk.osric.asp.Sdk.PageMessageRefusal.NotASink = 5 -> uk.osric.asp.Sdk.PageMessageRefusal
+uk.osric.asp.Sdk.PageMessageRefusal.NotAddressable = 2 -> uk.osric.asp.Sdk.PageMessageRefusal
+uk.osric.asp.Sdk.PageMessageRefusal.OwnedBySite = 3 -> uk.osric.asp.Sdk.PageMessageRefusal
+uk.osric.asp.Sdk.PageMessageRefusal.UnknownPage = 4 -> uk.osric.asp.Sdk.PageMessageRefusal
+uk.osric.asp.Sdk.PageTopic
+uk.osric.asp.Sdk.PageTopic.<Clone>$() -> uk.osric.asp.Sdk.PageTopic!
+uk.osric.asp.Sdk.PageTopic.Equals(uk.osric.asp.Sdk.PageTopic? other) -> bool
+uk.osric.asp.Sdk.PageTopic.Name.get -> string!
+override uk.osric.asp.Sdk.PageTopic.Equals(object? obj) -> bool
+override uk.osric.asp.Sdk.PageTopic.GetHashCode() -> int
+override uk.osric.asp.Sdk.PageTopic.ToString() -> string!
+static uk.osric.asp.Sdk.PageTopic.Named(string! name) -> uk.osric.asp.Sdk.PageTopic!
+static uk.osric.asp.Sdk.PageTopic.operator !=(uk.osric.asp.Sdk.PageTopic? left, uk.osric.asp.Sdk.PageTopic? right) -> bool
+static uk.osric.asp.Sdk.PageTopic.operator ==(uk.osric.asp.Sdk.PageTopic? left, uk.osric.asp.Sdk.PageTopic? right) -> bool

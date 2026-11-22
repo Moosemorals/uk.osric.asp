@@ -5,7 +5,11 @@ namespace uk.osric.asp.Sdk;
 
 /// <summary>This person's subject: the shapes a visitor has that a page does not.</summary>
 /// <remarks>
-/// The type exists so a shape a visitor has — a message queue, from the slice that adds it — can be
-/// added here without ever being offered to a page, whose subject is shared by everyone.
+/// The type exists so a shape a visitor has — the message queue — can be offered here without ever
+/// being offered to a page, whose subject is shared by everyone.
 /// </remarks>
-public interface IPageVisitorSubject : IPageSubject;
+public interface IPageVisitorSubject : IPageSubject {
+
+    /// <summary>This person's messages: durable, addressed to a page or a topic, and taken once.</summary>
+    public IMessageStore Messages { get; }
+}
