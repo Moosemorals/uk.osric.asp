@@ -7,7 +7,7 @@ SPDX-License-Identifier: MIT
 
 | | |
 | --- | --- |
-| Status | Agreed 2026-11-21 — the owner said yes — and revised against trunk 2026-11-22, after the page search, the reference corpus, the slow test half and the documentation index landed, and again the same day to add the secrets slice at the owner's request, and on 2026-11-23 to make `IPageSubject` and `IVisitorSubject` independent of each other, to call a configured maximum a limit, and to give a page a streaming object reader at the owner's request. Slices 0 to 3 are merged; slice 4 is built on its branch and waits for the owner, and nothing of slice 5 is built |
+| Status | Agreed 2026-11-21 — the owner said yes — and revised against trunk 2026-11-22, after the page search, the reference corpus, the slow test half and the documentation index landed, and again the same day to add the secrets slice at the owner's request, and on 2026-11-23 to make `IPageSubject` and `IVisitorSubject` independent of each other, to call a configured maximum a limit, and to give a page a streaming object reader at the owner's request. Slices 0 to 4 are merged and nothing of slice 5 is built |
 | Size | Large as a programme, small as a step: a spike, six slices and the release that closes the window, each its own branch and its own stop. The values slice is the floor; the record slice is the risk; the secrets slice is the one that cannot wait for the window to close |
 | First customer | The two plans this supersedes: the assistant's transcript (a Record for the signed-in visitor) and the redirect flash (a `NextRead` value). Editor mode is the first `Browser` value, and `/help`'s counter is the first Page value. A signing key ([`a-page-cannot-keep-a-secret`](../backlog/a-page-cannot-keep-a-secret.md)) is the first secret |
 | Spike | Slice 0: [the record sandbox](../spikes/store-sandbox.md), written before anything was built. Six of the sandbox section's details were corrected by what it measured |
@@ -954,7 +954,7 @@ record sandbox says of itself.
 Each slice is one branch, one step through the gate and one stop for the owner. The programme merges
 phase by phase, so a regression is bisectable and its branch goes when its last slice is in. The
 owner said yes to this plan on 2026-11-21. Slice 0 is [written](../spikes/store-sandbox.md), and
-slices 1, 2 and 3 are merged.
+slices 1 to 4 are merged; slice 5 is next.
 
 0. **The sandbox spike** (`S`, docs only) — **written**. A scratch console over the real SQLite
    build: an unpooled connection, a `TEMP VIEW` per table with a literal subject and an `INSTEAD OF`
@@ -1020,7 +1020,7 @@ slices 1, 2 and 3 are merged.
    signed-in message is on the account and another account does not see it; an anonymous one is adopted
    at sign-in; a `Session` one dies at rotation; a topic is a separate queue; a page delete takes its
    messages.
-4. **Objects** (`M`) — **built, waits for the owner**. `IObjectStore`, `StoreObjects`,
+4. **Objects** (`M`) — **merged**. `IObjectStore`, `StoreObjects`,
    `PageObjectStream`, `/o/{sha}` and its reserved key, the content-type allow-list, `ETag`, `Range`,
    the cache policy, ownership and the limits; `/help`, `/privacy`, `docs/shell.md`.
    *Proves:* bytes round-trip; the same bytes under one subject are one row; another subject cannot
