@@ -22,7 +22,7 @@ no verbs, a closed set of typed members and never a key lookup:
 | Fact | Today | After |
 | --- | --- | --- |
 | The editor's key | `IContext.EditorPath` | `ISiteInfo.EditorPath`; `IContext.EditorPath` is obsolete for one release |
-| The build's commit | `IBuildInfo.Commit` | `ISiteInfo.Commit`; `IBuildInfo` is obsolete for one release |
+| The build's commit | `IBuildInfo.Commit` | `ISiteInfo.DeployCommit`; `IBuildInfo` is obsolete for one release |
 | The public origin | `Site:Origin`, read only by `SiteOptions` | `ISiteInfo.Origin` |
 | The repository URL | a constant in `ChangesEndpoint` | `ISiteInfo.RepositoryUrl` |
 | The site's name and contact | constants in `OutboundUserAgent` | `ISiteInfo.Name`, `ISiteInfo.Contact` |
@@ -77,12 +77,12 @@ not ask the host to look one up.
 public interface ISiteInfo {
     public Uri Origin { get; }
     public string EditorPath { get; }
-    public string? Commit { get; }
+    public string? DeployCommit { get; }
     public string RepositoryUrl { get; }
     public string Name { get; }
     public string Contact { get; }
     public IReadOnlyList<SiteDocument> Documents { get; }
-    public IReadOnlyList<SiteCommit>? Commits { get; }
+    public IReadOnlyList<SiteCommit> Commits { get; }
     public IReadOnlyList<ReferenceCorpus> Reference { get; }
     public SiteBounds Bounds { get; }
 }
@@ -92,13 +92,19 @@ public interface ISiteInfo {
   there is no `Resolve` and no `//` guard, because a page is the site's own code. `SiteOptions.TryResolve`
   stays exactly as it is for the assistant, which takes a URL from a model.
 - `EditorPath` is the canonical key `Pages:Editor:Key` decides.
-- `Commit` is the full hash or `null`, the same value `IBuildInfo.Commit` answers.
+- `DeployCommit` is the full hash of the commit this build was made from, or `null` when the build has
+  none. The name says what it is: it is **not** `Commits[0]`. The changelist is the history the build
+  carries, newest first, and a missing, stale or hand-edited changelist must not be able to change what
+  the site says it is running; `DeployCommit` is assembly metadata read at build time. The obsolete
+  `IBuildInfo.Commit` answers exactly this value.
 - `RepositoryUrl`, `Name` and `Contact` are constants for now. Development runs on loopback while the
   site's identity is unchanged, as the owner chose; making them configuration is a later item if that
   stops being true.
 - `Documents`, `Commits` and `Reference` are lazy and process-wide. A page that asks for none pays
-  nothing; the first page that asks pays the same read `/admin/copyright`, `/admin/changes` and
-  `/admin/reference` already pay, and the result is held for the life of the process.
+  nothing; a read is done once and held for the life of the process. The host starts a background
+  warm-up at startup (below), so the first page that asks normally finds the value already there; a
+  page that asks while the warm-up is still running waits for that same read rather than starting a
+  second.
 - `Bounds` is a snapshot, read again after a fan-out. It is the one member that moves; every other
   member is immutable for the life of the process.
 
@@ -130,9 +136,14 @@ public sealed record SiteBounds(
   name, then `REUSE.toml` — so a page can draw the list without sorting it. A build that carries none
   of a file leaves it out rather than inventing an empty one; the copyright route keeps naming what is
   missing from the library's own nullable members.
+- `Commits` is never `null`: a build with no changelist answers an empty list, and so does a changelist
+  with no lines. The distinction between "missing" and "empty" is gone by the owner's choice, and the
+  `/admin/changes` message is the same for both.
 - A `SiteCommit.Hash` is a full 40-character ASCII hex hash, or `null` for a line that is not a commit.
-  `Commits` is `null` when the build carries no changelist and an empty list when it carries an empty
-  one: absent and empty are different facts.
+  `make changelist` writes `git log --no-decorate --format='%H %s'`, so every line a real build carries
+  has a hash; a `null` means a hand-edited or malformed changelist, and the route shows that line
+  unlinked rather than dropping it. A strictly non-null type would either lose the line or need a second
+  list for non-commit text, which is a worse trade for a malformed file.
 - `SiteAllowance` is a rate and its burst: `Capacity` is the most one burst may spend, `Available` is
   what is left now, `PerSecond` is the configured rate, and `Key` names the configuration key that sets
   it. It is used for fetches (units) and for template characters, because both enforcers already answer
@@ -170,13 +181,24 @@ on the wire and no longer charged, so `Body.Remaining` stops moving.
 `ISiteInfo` is one interface, and its work is split in two so the process-wide read and the per-render
 snapshot cannot be confused:
 
-- **`SiteFacts`** is a `Web` singleton: the origin, the editor key, the commit, the identity constants,
-  and the three lazy sources (`LicenceLibrary`, `ChangeList`, `ReferenceLibrary`). The three routes keep
-  reading those same sources, so a fact still has one home.
+- **`SiteFacts`** is a `Web` singleton: the origin, the editor key, `DeployCommit`, the identity
+  constants, and three readers — one each for the documents, the changelist and the corpus. A reader is
+  a `Func<T>` rather than a nullable source, so the host wires `LicenceLibrary.Documents`,
+  `ChangeList.Commits` and `ReferenceLibrary.Corpora`, and a test wires an empty value without a
+  special case. `SiteFacts` holds one `Lazy<T>` per reader, so the warm-up and every caller share one
+  read, and a caller for the documents does not wait for the corpus. The three routes keep reading
+  those same sources, so a fact still has one home.
 - **`SiteInfo`** is a thin `ISiteInfo` built for one layer or one job from a `SiteFacts` and a
   `Func<SiteBounds>`. Every fact forwards; `Bounds` re-runs the snapshot on each read.
 - **`SiteBoundsSnapshot`** is one internal `Web` type with two factories, `ForRender` and `ForJob`, so
   the mapping from the five enforcers to the five figures is written once and tested directly.
+- **`SiteFactsWarmUp`** is a hosted service started with the host. It reads each of the three sources
+  on the thread pool, so the listener is not held up and the three reads can overlap. An early caller
+  still blocks on the source it asks for until that one read finishes; because each source is a
+  process-wide lazy, the caller and the warm-up share one read rather than racing. The loaders answer
+  a value rather than throwing for a missing or unreadable file — an absent or unreadable document is
+  left out with a warning, a malformed corpus is left out with a warning — so an early `Lazy<T>` cannot
+  cache a file failure and the warm-up cannot take the host down.
 - **`SiteIdentity`** is one internal static class in `Web` holding `Name`, `Contact` and
   `RepositoryUrl`. `OutboundUserAgent`, `ChangesEndpoint`, `ReferenceEndpoint`, `CopyrightEndpoint` and
   `SiteFacts` all read it, so the identity has one home and its existing callers keep their behaviour.
@@ -185,9 +207,9 @@ snapshot cannot be confused:
 
 Two doors retire behind one-release obsolete shims, so an unedited stored page still compiles and runs:
 
-- **`IBuildInfo`** is marked `[Obsolete]`, naming `ISiteInfo.Commit` and carrying a diagnostic id in the
-  same way the old response spelling does. Both `IBuildInfo` and `ISiteInfo` are registered: the old
-  interface answers from `BuildInfo.Current` exactly as it does today.
+- **`IBuildInfo`** is marked `[Obsolete]`, naming `ISiteInfo.DeployCommit` and carrying a diagnostic id
+  in the same way the old response spelling does. Both `IBuildInfo` and `ISiteInfo` are registered: the
+  old interface answers from `BuildInfo.Current` exactly as it does today.
 - **`IContext.EditorPath`** is marked `[Obsolete]`, naming
   `ctx.Capabilities.GetRequired<ISiteInfo>().EditorPath`. `SimpleContext` still answers it. The seeds,
   `/help`, `/about` and the assistant's prompt move to the capability in this change; the member itself
@@ -206,32 +228,33 @@ A page whose only fault is an obsolete door compiles and renders: an obsolete wa
 | `src/uk.osric.asp.Sdk/SiteBounds.cs` | New: `SiteBounds`, `SiteAllowance`, `SiteCounter`, `SiteTime` |
 | `src/uk.osric.asp.Sdk/ReferenceModel.cs` | Moved from `Web/Documentation`; namespace becomes `uk.osric.asp.Sdk`; every record becomes public |
 | `src/uk.osric.asp.Sdk/ReferenceAssemblyInfo.cs` | Moved from `Web/Documentation` and public, so the generator can use it without a link |
-| `src/uk.osric.asp.Sdk/IBuildInfo.cs` | Obsolete, pointing at `ISiteInfo.Commit` |
+| `src/uk.osric.asp.Sdk/IBuildInfo.cs` | Obsolete, pointing at `ISiteInfo.DeployCommit` |
 | `src/uk.osric.asp.Sdk/IContext.cs` | `EditorPath` obsolete, pointing at the capability |
 | `src/uk.osric.asp.Sdk/PublicAPI.Unshipped.txt` | Every new and moved public member, including the whole reference model |
 | `src/uk.osric.asp.Web/SiteIdentity.cs` | New: `Name`, `Contact`, `RepositoryUrl` |
-| `src/uk.osric.asp.Web/Pages/SiteFacts.cs` | New: the process-wide facts and the three lazy sources |
+| `src/uk.osric.asp.Web/Pages/SiteFacts.cs` | New: the process-wide facts and the three readers |
 | `src/uk.osric.asp.Web/Pages/SiteInfo.cs` | New: `ISiteInfo` over `SiteFacts` and a bounds snapshot |
 | `src/uk.osric.asp.Web/Pages/SiteBoundsSnapshot.cs` | New: `ForRender` and `ForJob`, the one mapping from enforcers to figures |
+| `src/uk.osric.asp.Web/Pages/SiteFactsWarmUp.cs` | New: the hosted service that reads the three sources on the thread pool at startup |
 | `src/uk.osric.asp.Web/Pages/PageChain.cs` | Register `ISiteInfo` on every layer; capture the layer's body budget, the chain's budgets, embeds and time |
 | `src/uk.osric.asp.Web/Pages/PageEnvironment.cs` | Carry `SiteFacts` |
 | `src/uk.osric.asp.Web/Pages/RenderLifetime.cs` | Take the render's start and total; expose `Remaining` |
 | `src/uk.osric.asp.Web/Pages/PageRenderer.cs` | Pass the timestamp `OpenSessionAsync` already records; expose `TimeRemaining` on the session |
 | `src/uk.osric.asp.Web/Pages/RenderOptions.cs` | The three key constants |
 | `src/uk.osric.asp.Web/Pages/PageJobOptions.cs` | `MaxDurationKey` |
-| `src/uk.osric.asp.Web/Admin/LicenceLibrary.cs` | Read the files as `SiteDocument`s, in the fixed order; keep the nullable members the copyright route names |
-| `src/uk.osric.asp.Web/Admin/ChangeList.cs` | New: the file `Admin:Changelist` names, read lazily once and parsed by the pure function |
-| `src/uk.osric.asp.Web/Admin/ChangesEndpoint.cs` | Read `ChangeList`; `RepositoryUrl` and the nested `Commit` go; use `SiteCommit` |
+| `src/uk.osric.asp.Web/Admin/LicenceLibrary.cs` | Read the files as `SiteDocument`s, in the fixed order; keep the nullable members the copyright route names; take a logger and leave an unreadable file out with a warning rather than caching a failure |
+| `src/uk.osric.asp.Web/Admin/ChangeList.cs` | New: the file `Admin:Changelist` names, read lazily once and parsed by the pure function; take a logger; `Commits` is an empty list for a missing, unreadable or empty file |
+| `src/uk.osric.asp.Web/Admin/ChangesEndpoint.cs` | Read `ChangeList`; `RepositoryUrl` and the nested `Commit` go; use `SiteCommit`; one message for zero commits |
 | `src/uk.osric.asp.Web/Admin/CopyrightEndpoint.cs` | Use the `SiteDocument`s and `SiteIdentity.RepositoryUrl` |
-| `src/uk.osric.asp.Web/Documentation/ReferenceLibrary.cs` | Read the moved model; add `Corpora`, the list `ISiteInfo.Reference` answers |
+| `src/uk.osric.asp.Web/Documentation/ReferenceLibrary.cs` | Read the moved model; add `Corpora`, the list `ISiteInfo.Reference` answers; its existing per-file catch gains the unreadable case |
 | `src/uk.osric.asp.Web/Documentation/ReferenceEndpoint.cs` | No route change; use `SiteIdentity.RepositoryUrl` and the moved model |
 | `src/uk.osric.asp.Web/Assistant/OutboundUserAgent.cs` | Read `SiteIdentity.Name` and `SiteIdentity.Contact`; the user agent on the wire is unchanged |
 | `src/uk.osric.asp.Web/Pages/PageJobEnvironment.cs` | Carry `SiteFacts` |
 | `src/uk.osric.asp.Web/Work/JobLifetime.cs` | Expose `Total` and `Remaining` from the ceiling it already runs |
 | `src/uk.osric.asp.Web/Work/PageJobRunner.cs` | Register `ISiteInfo` with the job's budgets and lifetime |
-| `src/uk.osric.asp.Web/Program.cs` | Register `ChangeList` and `SiteFacts`; pass `SiteFacts` into both environments |
+| `src/uk.osric.asp.Web/Program.cs` | Register `ChangeList`, `SiteFacts` and the warm-up; pass `SiteFacts` into both environments |
 | `src/uk.osric.asp.Web/Pages/Seeds/help` | The capability's section, the editor link, the facts and the bounds; `IBuildInfo` and `ctx.EditorPath` gone from the prose and examples |
-| `src/uk.osric.asp.Web/Pages/Seeds/about` | Read `ISiteInfo.Commit` and `ISiteInfo.RepositoryUrl` |
+| `src/uk.osric.asp.Web/Pages/Seeds/about` | Read `ISiteInfo.DeployCommit` and `ISiteInfo.RepositoryUrl` |
 | `src/uk.osric.asp.Web/Assistant/PageAuthorPrompt.cs` | Name `ISiteInfo` instead of `IBuildInfo` and `ctx.EditorPath`; add the facts and the bounds rule |
 | `tools/reference-corpus/reference-corpus.csproj` | A `ProjectReference` to `Sdk` replaces the two linked `Compile` items |
 | `tools/reference-corpus/**/*.cs` | `using uk.osric.asp.Web.Documentation` becomes `using uk.osric.asp.Sdk`; the three `Corpus` files that borrowed `Web`'s namespace move to the tool's own |
@@ -252,21 +275,26 @@ New tests, each of which fails before the change:
 - **A job is offered it.** A worker reads `ISiteInfo` and answers the job's fetch key, template key and
   duration key; `Body` and `Embeds` are `null`.
 - **The identity is the site's.** `Origin` is `SiteOptions.Origin`, `EditorPath` is
-  `PageEditorOptions.Key`, `Commit` is the build metadata (or `null`), and `RepositoryUrl`, `Name` and
-  `Contact` are the identity constants. A separate test keeps the outbound `User-Agent` byte-for-byte
-  unchanged.
+  `PageEditorOptions.Key`, `DeployCommit` is the build metadata (or `null`), and `RepositoryUrl`,
+  `Name` and `Contact` are the identity constants. A separate test keeps the outbound `User-Agent`
+  byte-for-byte unchanged, and another proves `DeployCommit` does not move when the changelist is
+  missing, empty or names a different newest commit.
 - **The documents are the files the image carries.** A temporary folder with `LICENSE`,
   `THIRD-PARTY-NOTICES.md`, two `LICENSES` texts and `REUSE.toml` yields five `SiteDocument`s with the
   expected kinds, names and formats, in the fixed order; a missing file is absent and the others still
   answer. `CopyrightEndpointTests` keeps proving the route renders the same files.
 - **The changelist is one read and two callers.** A full hash and subject become `SiteCommit(hash,
-  subject)`; a line that is not a commit becomes `SiteCommit(null, line)`; a missing file answers `null`
-  and an empty file answers an empty list; `/admin/changes` renders the same list `ISiteInfo.Commits`
-  answers.
+  subject)`; a line that is not a commit becomes `SiteCommit(null, line)`; a missing file and an empty
+  file both answer an empty list and the route says the same thing for each; `/admin/changes` renders
+  the same list `ISiteInfo.Commits` answers.
 - **The corpus is the process's corpus.** `ISiteInfo.Reference` carries the same `ReferenceCorpus`
   values as `ReferenceLibrary.Assemblies`, including the contract's `sdk` corpus, and a stored page can
   render a type's `Display` and `Summary.Text` from it without the shell. The generator's existing
   round-trip tests prove the JSON shape did not change when the records moved.
+- **The warm-up and the first caller share one read.** `SiteFacts` is built over three counting readers;
+  `WarmAsync` starts them and a concurrent first ask for one value waits on the same `Lazy<T>` rather
+  than starting a second, so each counter is one. A caller that asks for the documents does not wait
+  for the corpus, because the three reads are separate.
 - **The bounds agree with the refusals.** A page that reads `Bounds`, spends a fetch and reads again
   sees `Fetches.Available` drop by one; an embed moves `Embeds.Remaining`; a write moves
   `Body.Remaining`; `Template` answers the read budget's figures; and each `Key` is the key the
@@ -292,18 +320,20 @@ Existing tests that move with the code:
 - `PageAssetSeederTests`, `PageAuthorPromptTests` and `SiteChromeTests` assert `ISiteInfo` instead of
   `IBuildInfo`; the about page still links the commit the build records.
 - `ChangesEndpointTests` constructs a `ChangeList` and keeps every parsing case; `CopyrightEndpointTests`
-  keeps every rendering case.
+  keeps every rendering case. Both libraries gain a logger argument, which the tests pass as a
+  `NullLogger` except where the unreadable-file warning is the behaviour under test.
 - `ShippedConfigurationTests` does not change: no new configuration key is read. `Site:Origin` and
   `Pages:Editor:Key` keep their existing readers.
 
 ## Docs
 
 - `/help` gains a **The site's own facts** section: `ISiteInfo` is always offered, the identity values,
-  the documents and their formats, the changelist (including the `null`/empty distinction), the corpus,
-  and `Bounds` as a snapshot with its five figures and their keys. Every `ctx.EditorPath` example
-  becomes the capability, and the `IBuildInfo` example becomes `site.Commit` plus `site.RepositoryUrl`.
+  the documents and their formats, the changelist (empty when there is none), the corpus, and `Bounds`
+  as a snapshot with its five figures and their keys. Every `ctx.EditorPath` example becomes the
+  capability, and the `IBuildInfo` example becomes `site.DeployCommit` plus `site.RepositoryUrl`.
 - [pages](../pages.md#page-contract) counts `ISiteInfo` among the capabilities and describes its
-  members; the `IContext` member list marks `EditorPath` obsolete and names its replacement.
+  members, including that the three lists are read once and warmed at startup; the `IContext` member
+  list marks `EditorPath` obsolete and names its replacement.
 - [the shell](../shell.md#the-copyright-page), [the reference](../shell.md#the-reference) and [a run's
   view](../shell.md#a-runs-view) say that the files and the corpus are page values now and the routes
   keep reading the same sources.
@@ -314,12 +344,16 @@ Existing tests that move with the code:
 
 ## Risks
 
-- **The corpus is expensive to parse.** It is read lazily and held, as it is today, but the first page
-  that asks for `Reference` pays a parse that `/admin/reference` used to pay alone. A render that asks
-  on a cold process can lose its deadline to it. The mitigation is the existing behaviour: a page that
-  does not ask pays nothing, and the value is process-wide after the first ask. If that proves too
-  sharp, a later item can warm it at startup; this one does not make startup slower.
-- **The page contract grows by the whole reference model.** Moving the records into `Sdk` makes twenty
+- **The corpus is expensive to parse.** It is warmed on the thread pool at startup, so the common case
+  is that the first page finds it ready. The cost is a startup CPU spike while the site is already
+  listening, and a page that asks during the warm-up still waits for the corpus read. The warm-up is
+  three separate reads, so a page that asks for the documents is not held behind the corpus; a
+  deployment that finds the spike too sharp can later move the read behind a readiness gate, which this
+  plan does not add.
+- **The warm-up changes when the work happens, not what it is.** A missing file is still an empty list
+  and a malformed corpus is still left out with a warning, so the warm-up cannot fail the host and a
+  caller's answer is the same one it would have got from a cold read.
+- **The page contract grows by the whole reference model.** Moving the records into `Sdk` makes a dozen
   data records public and adds them to `PublicAPI.Unshipped.txt`. They add no way to reach a resource,
   so the API policy admits them by the rule it already has, but the surface is wider and the next reader
   should know it was a deliberate trade for one value and two callers.
@@ -329,10 +363,11 @@ Existing tests that move with the code:
 - **A body figure that is the layer's, not the request's.** A wrapper's `Body` is its own chrome budget,
   the content's is its own buffer and an embed's is its slice. That is what the page writing is charged
   to, and the docs say so rather than implying a single number for the tree.
-- **Synchronous lazy reads in a page render.** The contract's members are properties, so the first read
-  of a document or the corpus is synchronous, as `LicenceLibrary` and `ReferenceLibrary` already are.
-  The item's rules require a fact sheet rather than verbs; the alternative, a `Task` property, would make
-  every fact an await and put the read on the page's own code.
+- **Synchronous reads in a page render.** The contract's members are properties, so a read is
+  synchronous, as `LicenceLibrary` and `ReferenceLibrary` already are. The warm-up makes the common case
+  a hit; an early caller blocks on the `Lazy<T>`, which is the same behaviour a cold read has today.
+  The alternative, a `Task` property, would make every fact an await and put the read on the page's own
+  code.
 - **Two obsolete warnings on an unedited page.** A page that uses both old doors reports two warnings
   and still renders. Nothing in the host treats a page warning as an error; the compiler tests prove
   it.
@@ -364,6 +399,9 @@ Existing tests that move with the code:
 
 None. On 2026-11-22 the owner chose one type rather than a capability per fact, the corpus in the same
 step, the identity constants exposed but not yet configured, and the `EditorPath` door retired with
-every seed and the manual updated. The item's questions were answered before this plan was written; the
-choices left here are the record names and the exact members, and the plan states them so they are
-reviewed rather than asked again.
+every seed and the manual updated. On 2026-11-23 they settled the three shapes that follow from that:
+the build's commit is named `DeployCommit` so it cannot be mistaken for the changelist's newest entry;
+the changelist is an empty list rather than `null`, losing the missing-versus-empty distinction; and
+the documents, changelist and corpus are warmed on the thread pool at startup, with an early caller
+waiting on the same read. The choices left here are the exact members, and the plan states them so they
+are reviewed rather than asked again.

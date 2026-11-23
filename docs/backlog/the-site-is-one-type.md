@@ -48,15 +48,16 @@ the policy. The policy — one *home* per fact — is right; the home should be 
 
 One capability, `ISiteInfo`, registered with every layer and with a job, carrying facts and no verbs:
 
-- **Identity.** `Origin` (a `Uri`), `EditorPath`, `Commit` (null when the build has none),
-  `RepositoryUrl`, and the site's `Name` and `Contact`. The last two stay constants for now, because
-  development runs on loopback while the identity stays the same.
+- **Identity.** `Origin` (a `Uri`), `EditorPath`, `DeployCommit` (null when the build has none),
+  `RepositoryUrl`, and the site's `Name` and `Contact`. The commit is the one this build was made from,
+  never the changelist's newest entry. The name and contact stay constants for now, because development
+  runs on loopback while the identity stays the same.
 - **Documents.** `IReadOnlyList<SiteDocument>` for the files the image carries: a
   `SiteDocument(Kind, Name, Format, Text)` where `Kind` says the site's licence, the third-party
   notices, a licence text or `REUSE.toml`, and `Format` says text or Markdown. No heading and no
   markup — the page decides how to present it.
-- **The changelist.** `Commits`, the parsed hashes and subjects, or null when the build carries no
-  file. The parse is a pure function, and the page links a hash with `RepositoryUrl`.
+- **The changelist.** `Commits`, the parsed hashes and subjects, empty when the build carries no file
+  or an empty one. The parse is a pure function, and the page links a hash with `RepositoryUrl`.
 - **The corpus.** `Reference`, the documentation the build carries, as the model
   `ReferenceLibrary` already reads. The records move from `Web/Documentation` to `Sdk`, the
   generator references `Sdk` instead of linking two files out of `Web`, and a page can render a
@@ -77,13 +78,14 @@ The rules that keep it a fact sheet:
    list and operator data stay out. The test is whether a page may know it, not whether it is
    configured.
 4. **Live where it ticks.** `Bounds` is a snapshot; read it again after a fan-out and it has moved.
-5. **Lazy and process-wide.** The documents and the corpus are read on first use and held; a page that
-   asks for none pays nothing.
+5. **Lazy and process-wide.** The documents, the changelist and the corpus are read once and held; a
+   page that asks for none pays nothing, and a background warm-up at startup means the first page
+   normally finds them. A page that asks while the warm-up runs waits for the same read.
 6. **No presentation.** The type says what a document is, never what it looks like.
 
 Two doors retire behind one-release obsolete shims, so an unedited stored page still compiles:
 
-- **`IBuildInfo`** — its `Commit` is `ISiteInfo.Commit`. `pages-build-info` is folded into the new
+- **`IBuildInfo`** — its `Commit` is `ISiteInfo.DeployCommit`. `pages-build-info` is folded into the new
   entry and its name retired.
 - **`IContext.EditorPath`** — it becomes a documented forwarding door for one release, then goes; the
   seeds, `/help` and the assistant's prompt use the capability. A page offering "edit this" says
@@ -120,7 +122,9 @@ them).
 
 None. On 2026-11-22 the owner chose one type rather than a capability per fact, the corpus in the same
 step, the identity constants exposed but not yet configured, and the `EditorPath` door retired with
-every seed and the manual updated.
+every seed and the manual updated. On 2026-11-23 they named the build's commit `DeployCommit` so it
+cannot be confused with the changelist, preferred an empty list to a nullable one, and asked for the
+documents, changelist and corpus to be warmed on a background thread at startup.
 
 **Origin:** the owner's ask 5 of 2026-11-22, and their correction that the site's facts belong in one
 type, with the copyright page, the changelist and the reference as the cases that made the gap
