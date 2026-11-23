@@ -77,10 +77,9 @@ public sealed class PageFetchRenderTests {
     }
 
     [Test]
-    public async Task AStreamRequestCountsAgainstTheRenderFetchLimitAsync() {
+    public async Task AStreamCostsOneFromTheRenderAllowanceAsync() {
         FakePageFetcher fetcher = new();
-        PageFetchOptions options = TestOptions.Fetch with { MaxRequestsPerRender = 1 };
-        using PageHarness pages = new(new FakePageStore(), fetch: fetcher, fetchOptions: options);
+        using PageHarness pages = new(new FakePageStore(), fetch: fetcher);
         await pages.StoreCompiledAsync("/limited", """
             <% IHttpFetch fetch = ctx.Capabilities.GetRequired<IHttpFetch>();
                HttpFetchStream first = await fetch.StreamAsync(new HttpFetchRequest("https://api.example.com/first"));
@@ -90,7 +89,8 @@ public sealed class PageFetchRenderTests {
                await second.CloseAsync(); %>
             """);
 
-        (RenderResult result, string output) = await pages.RenderAsync("/limited");
+        (RenderResult result, string output) = await pages.RenderAsync(
+            "/limited", fetchBudget: OneFetch(pages));
 
         Assert.Multiple(() => {
             Assert.That(result.Status, Is.EqualTo(RenderStatus.Rendered));
@@ -117,15 +117,14 @@ public sealed class PageFetchRenderTests {
     }
 
     [Test]
-    public async Task ARenderMakesNoMoreRequestsThanItsLimitAsync() {
+    public async Task ARenderMakesNoMoreRequestsThanItsAllowanceAsync() {
         FakePageFetcher fetcher = new(_ => new HttpFetchResponse(
             200,
             new Dictionary<string, string>(),
             "ok",
             HttpFetchFailure.None,
             false));
-        PageFetchOptions options = TestOptions.Fetch with { MaxRequestsPerRender = 2 };
-        using PageHarness pages = new(new FakePageStore(), fetch: fetcher, fetchOptions: options);
+        using PageHarness pages = new(new FakePageStore(), fetch: fetcher);
         await pages.StoreCompiledAsync("/greedy", """
             <%
                 IHttpFetch fetch = ctx.Capabilities.GetRequired<IHttpFetch>();
@@ -137,7 +136,8 @@ public sealed class PageFetchRenderTests {
             %>
             """);
 
-        (RenderResult result, string output) = await pages.RenderAsync("/greedy");
+        (RenderResult result, string output) = await pages.RenderAsync(
+            "/greedy", fetchBudget: new FetchBudget(2, 0.001, pages.Clock, PageFetchOptions.RateKey));
 
         Assert.That(result.Status, Is.EqualTo(RenderStatus.Rendered));
         Assert.That(output, Does.Contain("None None TooManyRequests TooManyRequests"));
@@ -212,9 +212,8 @@ public sealed class PageFetchRenderTests {
     [Test]
     public async Task TwoLayersSharingABudgetMakeOneRequestTooManyAsync() {
         FakePageFetcher fetcher = new();
-        PageFetchOptions options = TestOptions.Fetch with { MaxRequestsPerRender = 1 };
-        using PageHarness pages = new(new FakePageStore(), fetch: fetcher, fetchOptions: options);
-        RenderFetchBudget budget = new(options.MaxRequestsPerRender);
+        using PageHarness pages = new(new FakePageStore(), fetch: fetcher);
+        FetchBudget budget = new(1, 0.001, pages.Clock, PageFetchOptions.RateKey);
         IHttpFetch outer = pages.CreateContext(PageHarness.Key("/page"), budget: budget)
             .Capabilities.GetRequired<IHttpFetch>();
         IHttpFetch inner = pages.CreateContext(PageHarness.Key("/page"), budget: budget)
@@ -226,6 +225,116 @@ public sealed class PageFetchRenderTests {
         Assert.That(second.Failure, Is.EqualTo(HttpFetchFailure.TooManyRequests));
         Assert.That(fetcher.Requests, Has.Count.EqualTo(1));
     }
+
+    [Test]
+    public async Task ARequestTheSeamRefusesCostsNothingAsync() {
+        FakePageFetcher fetcher = new(_ => new HttpFetchResponse(
+            200,
+            new Dictionary<string, string>(),
+            "ok",
+            HttpFetchFailure.None,
+            false)) {
+            Valid = request => !request.Url.Contains("refused", StringComparison.Ordinal),
+        };
+        using PageHarness pages = new(new FakePageStore(), fetch: fetcher);
+        await pages.StoreCompiledAsync("/careful", """
+            <%
+                IHttpFetch fetch = ctx.Capabilities.GetRequired<IHttpFetch>();
+                ctx.Response.Write((await fetch.GetAsync("https://api.example.com/refused")).Failure.ToString());
+                ctx.Response.Write(" ");
+                ctx.Response.Write((await fetch.GetAsync("https://api.example.com/kept")).Failure.ToString());
+            %>
+            """);
+
+        (RenderResult result, string output) = await pages.RenderAsync(
+            "/careful", fetchBudget: OneFetch(pages));
+
+        Assert.Multiple(() => {
+            Assert.That(result.Status, Is.EqualTo(RenderStatus.Rendered));
+            Assert.That(output, Is.EqualTo("InvalidRequest None"),
+                "a refused request costs nothing, so the allowance still pays for the request the page meant to make");
+            Assert.That(fetcher.Requests, Has.Count.EqualTo(1));
+            Assert.That(fetcher.Requests.Single().Url, Does.Contain("kept"));
+        });
+    }
+
+    [Test]
+    public async Task AStreamTheSeamRefusesCostsNothingAsync() {
+        FakePageFetcher fetcher = new() {
+            Valid = _ => false,
+        };
+        using PageHarness pages = new(new FakePageStore(), fetch: fetcher);
+        await pages.StoreCompiledAsync("/careful", """
+            <% IHttpFetch fetch = ctx.Capabilities.GetRequired<IHttpFetch>();
+               ctx.Response.Write((await fetch.StreamAsync(new HttpFetchRequest("https://api.example.com/"))).Failure.ToString()); %>
+            """);
+
+        (RenderResult result, string output) = await pages.RenderAsync(
+            "/careful", fetchBudget: OneFetch(pages));
+
+        Assert.Multiple(() => {
+            Assert.That(result.Status, Is.EqualTo(RenderStatus.Rendered));
+            Assert.That(output, Is.EqualTo(nameof(HttpFetchFailure.InvalidRequest)));
+            Assert.That(fetcher.StreamRequests, Is.Empty);
+        });
+    }
+
+    [Test]
+    public async Task AFailedAttemptStillCostsOneAsync() {
+        FakePageFetcher fetcher = new(_ => new HttpFetchResponse(
+            0,
+            new Dictionary<string, string>(),
+            string.Empty,
+            HttpFetchFailure.Network,
+            false));
+        using PageHarness pages = new(new FakePageStore(), fetch: fetcher);
+        await pages.StoreCompiledAsync("/careful", """
+            <%
+                IHttpFetch fetch = ctx.Capabilities.GetRequired<IHttpFetch>();
+                ctx.Response.Write((await fetch.GetAsync("https://api.example.com/first")).Failure.ToString());
+                ctx.Response.Write(" ");
+                ctx.Response.Write((await fetch.GetAsync("https://api.example.com/second")).Failure.ToString());
+            %>
+            """);
+
+        (RenderResult result, string output) = await pages.RenderAsync(
+            "/careful", fetchBudget: OneFetch(pages));
+
+        Assert.Multiple(() => {
+            Assert.That(result.Status, Is.EqualTo(RenderStatus.Rendered));
+            Assert.That(output, Is.EqualTo("Network TooManyRequests"),
+                "a request that was attempted was paid for, whatever came back");
+            Assert.That(fetcher.Requests, Has.Count.EqualTo(1));
+        });
+    }
+
+    [Test]
+    public async Task ARateRefusalNamesTheRateTheKeyAndTheBurstAsync() {
+        FakePageFetcher fetcher = new();
+        RecordingLoggerFactory logs = new();
+        using PageHarness pages = new(new FakePageStore(), fetch: fetcher, loggers: logs);
+        await pages.StoreCompiledAsync("/greedy", """
+            <%
+                IHttpFetch fetch = ctx.Capabilities.GetRequired<IHttpFetch>();
+                await fetch.GetAsync("https://api.example.com/first");
+                await fetch.GetAsync("https://api.example.com/second");
+            %>
+            """);
+
+        (RenderResult result, _) = await pages.RenderAsync(
+            "/greedy", fetchBudget: new FetchBudget(1, 2, pages.Clock, PageFetchOptions.RateKey));
+
+        Assert.Multiple(() => {
+            Assert.That(result.Status, Is.EqualTo(RenderStatus.Rendered));
+            Assert.That(
+                logs.Entries.Select(entry => entry.Message),
+                Has.Some.Contains("2 fetches per second").And.Contains(PageFetchOptions.RateKey).And.Contains("1 at most in one burst"),
+                "the refusal names the rate, the key that sets it and the burst");
+        });
+    }
+
+    private static FetchBudget OneFetch(PageHarness pages) =>
+        new(1, 0.001, pages.Clock, PageFetchOptions.RateKey);
 
     [Test]
     public async Task ARequiredFetchIsRefusedWhenTheRenderOffersNoneAsync() {

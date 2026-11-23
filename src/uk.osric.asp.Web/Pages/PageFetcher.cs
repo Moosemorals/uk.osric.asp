@@ -21,6 +21,16 @@ internal sealed class PageFetcher(
     ILogger<PageFetcher> logger) : IPageFetcher {
 
     /// <inheritdoc/>
+    public bool TryValidate(HttpFetchRequest request, string pagePath, out string reason) {
+        ArgumentNullException.ThrowIfNull(request);
+        ArgumentException.ThrowIfNullOrWhiteSpace(pagePath);
+
+        PagePath path = PagePath.Normalize(pagePath);
+        return TryResolveCredential(request, path, out FetchCredential? credential, out reason)
+            && OutboundFetcher.TryValidate(request, credential, out reason);
+    }
+
+    /// <inheritdoc/>
     public async Task<HttpFetchResponse> FetchAsync(
         HttpFetchRequest request,
         string pagePath,
@@ -49,7 +59,9 @@ internal sealed class PageFetcher(
 
         PagePath path = PagePath.Normalize(pagePath);
         long start = Stopwatch.GetTimestamp();
-        if (!TryResolveCredential(request, path, out FetchCredential? credential)) {
+        if (!TryResolveCredential(request, path, out FetchCredential? credential, out string why)) {
+            LogRefusal(path, request.Url, why);
+
             return new EmptyHttpFetchStream(HttpFetchFailure.InvalidRequest, stream =>
                 metrics.RecordFetch(path, OutcomeOf(stream), Stopwatch.GetElapsedTime(start)));
         }
@@ -69,27 +81,34 @@ internal sealed class PageFetcher(
         PagePath path,
         CancellationToken aborted,
         CancellationToken deadline) {
-        if (!TryResolveCredential(request, path, out FetchCredential? credential)) {
+        if (!TryResolveCredential(request, path, out FetchCredential? credential, out string why)) {
+            LogRefusal(path, request.Url, why);
+
             return Empty(HttpFetchFailure.InvalidRequest);
         }
 
         return await fetcher.FetchAsync(request, path.Key, OutboundOrigin.Page, credential, aborted, deadline);
     }
 
-    private bool TryResolveCredential(HttpFetchRequest request, PagePath path, out FetchCredential? credential) {
+    private bool TryResolveCredential(
+        HttpFetchRequest request,
+        PagePath path,
+        out FetchCredential? credential,
+        out string reason) {
         credential = null;
+        reason = string.Empty;
         if (request.Credential is null) {
             return true;
         }
 
         if (!options.Credentials.TryGetValue(request.Credential, out credential)) {
-            LogRefusal(path, request.Url, "an unknown credential was named");
+            reason = "an unknown credential was named";
 
             return false;
         }
 
         if (!credential.IsBoundTo(path.Key)) {
-            LogRefusal(path, request.Url, $"{credential.Name} is bound to {credential.Scope}");
+            reason = $"{credential.Name} is bound to {credential.Scope}";
             credential = null;
 
             return false;
@@ -100,7 +119,7 @@ internal sealed class PageFetcher(
                 continue;
             }
 
-            LogRefusal(path, request.Url, $"the request sets {credential.Header}, which {credential.Name} also sets");
+            reason = $"the request sets {credential.Header}, which {credential.Name} also sets";
             credential = null;
 
             return false;

@@ -247,8 +247,10 @@ UTF-16 units. Because a folder is derived from the head rows, its token moves ex
 the heads under it does, and the routes sit outside it because the route table is the build's.
 `Pages:Read:MaxRowsPerList`
 (500 shipped) is enforced in the statement and refuses one row past the limit,
-`Pages:Read:MaxSourceCharsPerRender` (512 KiB shipped) is one `ReadBudget` shared by every layer of
-the chain and refuses rather than truncating, and both the deadline and abandonment stop a read. The
+`Pages:Read:SourceCharsPerSecond` (104858 shipped, whose burst is that rate times
+`Pages:Render:TimeoutSeconds`) is one `ReadBudget` shared by every layer of the chain and refuses
+rather than truncating, and both the deadline and abandonment stop a read. A job reads at its own
+`Pages:Jobs:SourceCharsPerSecond`, refilled for as long as the job runs. The
 read is as public as the page that calls it: the host adds no gate, a page that wants privacy writes
 the ordinary `ctx.User` guard, and a page that reads source publishes it to whoever can reach that
 page. A listing's `PageListing.Version` is derived rather than stored: the read fingerprints the head

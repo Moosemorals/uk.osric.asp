@@ -94,12 +94,10 @@ makes each request itself.
 
 ### The attempt
 
-Today `PageHttpFetch` spends the allowance before `OutboundFetcher` validates the request, so a
-refused request costs a token; that is
-[`fetch-is-a-rate`](../backlog/fetch-is-a-rate.md)'s to change, and it will need the policy's answer
-before it takes one. This plan leaves the validation and the denial where they are, in
-`OutboundFetcher`, and leaves the charge where it is, so the two changes do not fight over the same
-lines.
+`PageHttpFetch` now validates through `IPageFetcher.TryValidate` before it spends a unit, so a
+refused request costs nothing ([`fetch-is-a-rate`](../backlog/closed.md) landed 2026-11-23). This plan
+leaves the validation and the denial where they are, in `OutboundFetcher` and `PageFetcher`, and
+leaves the charge where it is, so the two changes do not fight over the same lines.
 
 ## What changes
 

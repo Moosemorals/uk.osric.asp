@@ -13,7 +13,7 @@ public sealed class PageReadOptionsTests {
     public void TheShippedValuesAreTheDocumentedOnes() {
         Assert.Multiple(() => {
             Assert.That(TestOptions.Read.MaxRowsPerList, Is.EqualTo(500));
-            Assert.That(TestOptions.Read.MaxSourceCharsPerRender, Is.EqualTo(512 * 1024));
+            Assert.That(TestOptions.Read.SourceCharsPerSecond, Is.EqualTo(104_858));
         });
     }
 
@@ -21,11 +21,11 @@ public sealed class PageReadOptionsTests {
     public void ConfiguredValuesAreRead() {
         PageReadOptions options = PageReadOptions.FromConfiguration(ShippedConfiguration.Read(
             ("Pages:Read:MaxRowsPerList", "50"),
-            ("Pages:Read:MaxSourceCharsPerRender", "4096")));
+            ("Pages:Read:SourceCharsPerSecond", "4096")));
 
         Assert.Multiple(() => {
             Assert.That(options.MaxRowsPerList, Is.EqualTo(50));
-            Assert.That(options.MaxSourceCharsPerRender, Is.EqualTo(4096));
+            Assert.That(options.SourceCharsPerSecond, Is.EqualTo(4096));
         });
     }
 
@@ -54,10 +54,21 @@ public sealed class PageReadOptionsTests {
     }
 
     [Test]
-    public void ASourceBudgetBelowTheFloorStopsTheSite() {
+    public void ASourceRateBelowTheFloorStopsTheSite() {
         ConfigurationException error = Assert.Throws<ConfigurationException>(() =>
-            PageReadOptions.FromConfiguration(ShippedConfiguration.Read(("Pages:Read:MaxSourceCharsPerRender", "1"))))!;
+            PageReadOptions.FromConfiguration(ShippedConfiguration.Read(("Pages:Read:SourceCharsPerSecond", "1"))))!;
 
-        Assert.That(error.Message, Does.Contain("Pages:Read:MaxSourceCharsPerRender is 1"));
+        Assert.That(error.Message, Does.Contain("Pages:Read:SourceCharsPerSecond is 1"));
+    }
+
+    [Test]
+    public void TheRetiredCountStopsTheSite() {
+        ConfigurationException error = Assert.Throws<ConfigurationException>(() =>
+            PageReadOptions.FromConfiguration(ShippedConfiguration.Read(("Pages:Read:MaxSourceCharsPerRender", "4096"))))!;
+
+        Assert.Multiple(() => {
+            Assert.That(error.Message, Does.Contain("Pages:Read:MaxSourceCharsPerRender is no longer read"));
+            Assert.That(error.Message, Does.Contain(PageReadOptions.RateKey));
+        });
     }
 }

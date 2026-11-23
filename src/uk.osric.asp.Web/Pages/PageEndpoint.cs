@@ -232,8 +232,16 @@ internal sealed class PageEndpoint() {
             isHead,
             new BodyBudget(environment.Render.MaxBodyChars),
             bodySink,
-            new RenderFetchBudget(environment.Fetch.MaxRequestsPerRender),
-            new ReadBudget(environment.Read.MaxSourceCharsPerRender),
+            new FetchBudget(
+                environment.Render.BurstFor(environment.Fetch.FetchesPerSecond),
+                environment.Fetch.FetchesPerSecond,
+                environment.Clock,
+                PageFetchOptions.RateKey),
+            new ReadBudget(
+                environment.Render.BurstFor(environment.Read.SourceCharsPerSecond),
+                environment.Read.SourceCharsPerSecond,
+                environment.Clock,
+                PageReadOptions.RateKey),
             assets,
             shellLinks,
             path.LoginUrl(context.Request.QueryString),

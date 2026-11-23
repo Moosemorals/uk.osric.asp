@@ -436,7 +436,7 @@ public sealed class PageCatalogScopeTests {
         FakePageReadStore store = new();
         store.Save("/page", "123456");
         store.Save("/layout", "123456");
-        ReadBudget budget = new(10);
+        ReadBudget budget = new(10, 1, TimeProvider.System, PageReadOptions.RateKey);
         PageCatalogScope page = Scope(store, budget: budget);
         PageCatalogScope layout = Scope(store, budget: budget);
 
@@ -448,12 +448,12 @@ public sealed class PageCatalogScopeTests {
     public async Task ASourcePastTheBudgetIsRefusedAsync() {
         FakePageReadStore store = new();
         store.Save("/blog", new string('x', 20));
-        PageCatalogScope scope = Scope(store, budget: new ReadBudget(10));
+        PageCatalogScope scope = Scope(store, budget: new ReadBudget(10, 1, TimeProvider.System, PageReadOptions.RateKey));
 
         InvalidOperationException? refused = await Assert.ThrowsAsync<InvalidOperationException>(
             () => scope.ReadAsync("/blog"));
 
-        Assert.That(refused?.Message, Does.Contain("MaxSourceCharsPerRender"));
+        Assert.That(refused?.Message, Does.Contain(PageReadOptions.RateKey));
     }
 
     [Test]
@@ -757,7 +757,7 @@ public sealed class PageCatalogScopeTests {
     public async Task ASearchDoesNotSpendTheRenderSourceAllowanceAsync() {
         FakePageReadStore store = new();
         store.Save("/a", "needle" + new string('x', 200));
-        PageCatalogScope scope = Scope(store, budget: new ReadBudget(64));
+        PageCatalogScope scope = Scope(store, budget: new ReadBudget(64, 1, TimeProvider.System, PageReadOptions.RateKey));
 
         PageSearch result = await scope.SearchAsync(new PageSearchRequest("needle"));
 
@@ -870,7 +870,7 @@ public sealed class PageCatalogScopeTests {
             // The scan's allowance is wall-clock, so a frozen clock keeps a snippet assertion from
             // failing when a parallel run starves the thread pool past the shipped allowance.
             new PageSourceScan(search ?? TestOptions.Search, clock ?? new TestClock(), new PageMetrics()),
-            budget ?? new ReadBudget(read.MaxSourceCharsPerRender),
+            budget ?? new ReadBudget(read.SourceCharsPerSecond, read.SourceCharsPerSecond, TimeProvider.System, PageReadOptions.RateKey),
             new ReservedPaths(routes ?? ReservedPaths.Default),
             TestContentTypes.Shipped,
             TestOptions.Seeds,

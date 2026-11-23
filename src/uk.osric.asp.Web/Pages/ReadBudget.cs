@@ -3,26 +3,58 @@
 
 namespace uk.osric.asp.Web.Pages;
 
-/// <summary>The template allowance one request's whole layout chain shares.</summary>
+using System.Globalization;
+using uk.osric.asp.Core.Pages;
+
+/// <summary>The template allowance one request's whole layout chain, or one job, shares.</summary>
 /// <remarks>
-/// The limit names the render rather than the layer, so a layout must not double the allowance simply
-/// because there are two layers reading under it. A read that would go over is refused rather than
-/// clamped, because half a template is a misleading answer.
+/// <para>
+/// The limit names the render or the job rather than the layer, so a layout must not double the
+/// allowance simply because there are two layers reading under it, and a worker that reads for nine
+/// hours is refilled rather than starved (<c>pages-one-request-one-chain</c>). A read that would go
+/// over is refused rather than clamped, because half a template is a misleading answer.
+/// </para>
+/// <para>
+/// A read is whole, so the capacity is also the largest single template that can ever be read.
+/// </para>
 /// </remarks>
 internal sealed class ReadBudget {
 
-    private int _used;
+    private readonly Lock _gate = new();
+    private readonly TimeProvider _clock;
+    private Allowance _allowance;
 
-    /// <summary>Creates the counter for one render.</summary>
-    /// <param name="maxChars">How much template one render may pull in.</param>
-    public ReadBudget(int maxChars) {
-        ArgumentOutOfRangeException.ThrowIfLessThan(maxChars, 1);
+    /// <summary>Creates the allowance for one render or one job.</summary>
+    /// <param name="capacity">The most one burst may spend, from the rate and the render's deadline.</param>
+    /// <param name="perSecond">The rate the configuration sets.</param>
+    /// <param name="clock">The clock a charge is measured against.</param>
+    /// <param name="key">The configuration key that sets the rate, named in a refusal.</param>
+    public ReadBudget(int capacity, double perSecond, TimeProvider clock, string key) {
+        ArgumentNullException.ThrowIfNull(clock);
+        ArgumentException.ThrowIfNullOrWhiteSpace(key);
 
-        MaxChars = maxChars;
+        _clock = clock;
+        Key = key;
+        _allowance = new Allowance(capacity, perSecond, clock.GetUtcNow());
     }
 
-    /// <summary>How much template one render may pull in.</summary>
-    public int MaxChars { get; }
+    /// <summary>The most one burst may spend, and so the largest single read.</summary>
+    public int Capacity => _allowance.Capacity;
+
+    /// <summary>The rate the configuration sets.</summary>
+    public double PerSecond => _allowance.PerSecond;
+
+    /// <summary>The configuration key that sets the rate.</summary>
+    public string Key { get; }
+
+    /// <summary>How many characters are available at this instant.</summary>
+    public int Available {
+        get {
+            lock (_gate) {
+                return _allowance.Available(_clock.GetUtcNow());
+            }
+        }
+    }
 
     /// <summary>Charges one template against the budget.</summary>
     /// <param name="chars">The template's length.</param>
@@ -32,15 +64,21 @@ internal sealed class ReadBudget {
             return false;
         }
 
-        while (true) {
-            int used = Volatile.Read(ref _used);
-            if (used + chars > MaxChars) {
-                return false;
-            }
-
-            if (Interlocked.CompareExchange(ref _used, used + chars, used) == used) {
+        lock (_gate) {
+            if (_allowance.TryTake(chars, _clock.GetUtcNow(), out Allowance next)) {
+                _allowance = next;
                 return true;
             }
+
+            return false;
         }
+    }
+
+    /// <summary>The sentence a refusal reads: the rate, the key and the burst.</summary>
+    /// <returns>One sentence naming what was spent and which key sets it.</returns>
+    public string DescribeRefusal() {
+        return string.Create(
+            CultureInfo.InvariantCulture,
+            $"more than {PerSecond:0.###} characters of page source per second ({Key}), {Capacity} at most in one burst");
     }
 }

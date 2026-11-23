@@ -20,6 +20,12 @@ using uk.osric.asp.Web.Configuration;
 /// </remarks>
 internal sealed record PageJobOptions {
 
+    /// <summary>The key that sets a job's fetch rate, named in a refusal.</summary>
+    public const string FetchRateKey = "Pages:Jobs:FetchesPerSecond";
+
+    /// <summary>The key that sets a job's read rate, named in a refusal.</summary>
+    public const string ReadRateKey = "Pages:Jobs:SourceCharsPerSecond";
+
     /// <summary>Jobs waiting for a runner.</summary>
     public required int QueueCapacity { get; init; }
 
@@ -31,6 +37,16 @@ internal sealed record PageJobOptions {
 
     /// <summary>The longest a job may run, measured from its start.</summary>
     public required double MaxDurationSeconds { get; init; }
+
+    /// <summary>The rate one job may fetch at, for as long as it runs.</summary>
+    /// <remarks>
+    /// The burst is what this rate spends in a whole render, and its duration is the only ceiling: a
+    /// job that lives nine hours is refilled for nine hours.
+    /// </remarks>
+    public required double FetchesPerSecond { get; init; }
+
+    /// <summary>The rate one job may read page source at, for as long as it runs.</summary>
+    public required int SourceCharsPerSecond { get; init; }
 
     /// <summary>Events one job's journal keeps before it drops the oldest.</summary>
     public required int MaxEvents { get; init; }
@@ -86,6 +102,10 @@ internal sealed record PageJobOptions {
                 minimum: PageBudget.MinimumTimeoutSeconds, maximum: 3_600),
             MaxDurationSeconds = reader.Decimal("MaxDurationSeconds", recommended: 32_400,
                 minimum: PageBudget.MinimumTimeoutSeconds, maximum: 604_800),
+            FetchesPerSecond = reader.Decimal("FetchesPerSecond", recommended: 2,
+                minimum: 0.01, maximum: 100),
+            SourceCharsPerSecond = reader.Number("SourceCharsPerSecond", recommended: 104_858,
+                minimum: PageReadOptions.MinimumSourceCharsPerSecond, maximum: 16 * 1024 * 1024),
             MaxEvents = reader.Number("MaxEvents", recommended: 512, minimum: 1, maximum: 100_000),
             MaxEventBytes = reader.Number("MaxEventBytes", recommended: 256 * 1024,
                 minimum: 1024, maximum: 16 * 1024 * 1024),

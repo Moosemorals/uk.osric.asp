@@ -50,6 +50,7 @@ internal sealed class PageHarness : IDisposable {
         FakePageSessionStore? sessionStore = null,
         PageStoresOptions? storesOptions = null,
         ILogger<PageRenderer>? rendererLogger = null,
+        ILoggerFactory? loggers = null,
         PageFetchOptions? fetchOptions = null,
         PageContentTypes? contentTypes = null,
         MarkdownRenderer? markdown = null,
@@ -74,11 +75,13 @@ internal sealed class PageHarness : IDisposable {
         ReadOptions = TestOptions.Read;
         SearchOptions = TestOptions.Search;
         Options = options ?? TestOptions.FixtureRender;
+        Clock = clock ?? TimeProvider.System;
+        Loggers = loggers ?? NullLoggerFactory.Instance;
         Budget = budget ?? new PageBudget(Options, TestOptions.FixtureCompile, TestOptions.Stream);
         Health = health ?? new PageHealth(Options.AbandonedLimit);
         Compiler = new RecordingCompiler(compiler ?? TestCompiler.Real);
         Metrics = new PageMetrics();
-        Scan = new PageSourceScan(SearchOptions, clock ?? TimeProvider.System, Metrics);
+        Scan = new PageSourceScan(SearchOptions, Clock, Metrics);
         Seeds = seeds ?? TestOptions.Seeds;
 
         Storage = storage;
@@ -103,7 +106,7 @@ internal sealed class PageHarness : IDisposable {
         Reserved = new ReservedPaths(ReservedPaths.Default);
         JobQueue = new PageJobQueue(JobOptions);
         Jobs = new PageJobs(
-            JobOptions, JobQueue, Reserved, ReadStore, clock ?? TimeProvider.System, NullLogger<PageJobs>.Instance);
+            JobOptions, JobQueue, Reserved, ReadStore, Clock, NullLogger<PageJobs>.Instance);
         // A job's writer needs a scope of its own and a credential to prove, so the harness wires the
         // real verifier over an in-memory account store: a test mints a run's token and can forget it.
         Users = users ?? new FakeUserStore();
@@ -118,7 +121,7 @@ internal sealed class PageHarness : IDisposable {
             _authorities.GetRequiredService<IServiceScopeFactory>(),
             new AuthTicketStore(_authorities.GetRequiredService<IServiceScopeFactory>()),
             Views,
-            clock ?? TimeProvider.System);
+            Clock);
         Authorities = new PageJobAuthorityFactory(Views, AuthorityVerifier, NullLoggerFactory.Instance);
 
         JobRunner = new PageJobRunner(
@@ -128,10 +131,18 @@ internal sealed class PageHarness : IDisposable {
                 JobOptions, WorkerStore, State, Messages, StoresOptions, Sessions, Fetch, FetchOptions, ReadStore, Seeds, ReadOptions,
                 Scan, Reserved, ContentTypes, Images, Libraries, Compiler, Metrics,
                 _authorities.GetRequiredService<IServiceScopeFactory>(),
+                Options,
+                Clock,
                 Catalog),
             NullLoggerFactory.Instance,
             NullLogger<PageJobRunner>.Instance);
     }
+
+    /// <summary>The clock the harness measures an allowance against.</summary>
+    public TimeProvider Clock { get; }
+
+    /// <summary>Where a page's own log lines are written, which a test can capture.</summary>
+    public ILoggerFactory Loggers { get; }
 
     public RenderOptions Options { get; }
 
@@ -317,10 +328,13 @@ internal sealed class PageHarness : IDisposable {
         PageUser? user = null,
         bool withFetch = true,
         bool withStorage = true,
-        bool withSession = true) {
+        bool withSession = true,
+        FetchBudget? fetchBudget = null,
+        ReadBudget? readBudget = null) {
         PagePath key = Key(path);
         SimpleContext context = CreateContext(
-            key, maxBodyChars, isHead, user, withFetch: withFetch, withStorage: withStorage, withSession: withSession);
+            key, maxBodyChars, isHead, user, fetchBudget, readBudget,
+            withFetch: withFetch, withStorage: withStorage, withSession: withSession);
 
         RenderResult result = await Renderer.RenderAsync(key, context, CancellationToken.None);
 
@@ -333,7 +347,7 @@ internal sealed class PageHarness : IDisposable {
         int? maxBodyChars = null,
         bool isHead = false,
         PageUser? user = null,
-        RenderFetchBudget? budget = null,
+        FetchBudget? budget = null,
         ReadBudget? readBudget = null,
         bool withFetch = true,
         bool withStorage = true,
@@ -366,10 +380,13 @@ internal sealed class PageHarness : IDisposable {
                 isHead,
                 CancellationToken.None,
                 Fetch,
-                FetchOptions,
-                budget ?? new RenderFetchBudget(FetchOptions.MaxRequestsPerRender),
+                budget ?? new FetchBudget(
+                    Options.BurstFor(FetchOptions.FetchesPerSecond),
+                    FetchOptions.FetchesPerSecond,
+                    Clock,
+                    PageFetchOptions.RateKey),
                 Metrics,
-                NullLoggerFactory.Instance.CreateLogger(SimpleContext.PageCategory));
+                Loggers.CreateLogger(SimpleContext.PageCategory));
             capabilities.Add<IHttpFetch>(fetch);
         }
 
@@ -383,7 +400,11 @@ internal sealed class PageHarness : IDisposable {
                 ReadStore,
                 ReadOptions,
                 Scan,
-                readBudget ?? new ReadBudget(ReadOptions.MaxSourceCharsPerRender),
+                readBudget ?? new ReadBudget(
+                    Options.BurstFor(ReadOptions.SourceCharsPerSecond),
+                    ReadOptions.SourceCharsPerSecond,
+                    Clock,
+                    PageReadOptions.RateKey),
                 new ReservedPaths(ReservedPaths.Default),
                 ContentTypes,
                 Seeds,
@@ -443,6 +464,7 @@ internal sealed class PageHarness : IDisposable {
             Sessions,
             TestSessions.Cookie,
             new PageBrowserCookieOptions(ShellCookies.Browser, CookieSecurePolicy.SameAsRequest, TimeSpan.FromDays(365)),
+            Clock,
             Jobs,
             Checks: null,
             Authorities,

@@ -106,6 +106,7 @@ internal class Program {
         AuthenticationOptions authentication = AuthenticationOptions.FromConfiguration(settings.At("Authentication"));
         CompileOptions compile = CompileOptions.FromConfiguration(settings.At("Pages:Compile"));
         MetricsOptions metrics = MetricsOptions.FromConfiguration(settings.At("Metrics"));
+        RenderOptions render = RenderOptions.FromConfiguration(settings.At("Pages:Render"));
         PageContentTypes contentTypes = PageContentTypesConfiguration.FromConfiguration(settings.At("Pages:ContentTypes"));
         PageEditorOptions editor = PageEditorOptions.FromConfiguration(settings.At("Pages:Editor"));
         PageFetchOptions fetch = PageFetchOptions.FromConfiguration(settings.At("Pages:Fetch"));
@@ -114,7 +115,6 @@ internal class Program {
         PageSearchOptions search = PageSearchOptions.FromConfiguration(settings.At("Pages:Search"));
         PageJobOptions jobOptions = PageJobOptions.FromConfiguration(settings.At("Pages:Jobs"));
         PageStoresOptions stores = PageStoresOptions.FromConfiguration(settings.At("Pages:Stores"));
-        RenderOptions render = RenderOptions.FromConfiguration(settings.At("Pages:Render"));
         SiteOptions site = SiteOptions.FromConfiguration(settings.At("Site"));
         StreamOptions stream = StreamOptions.FromConfiguration(settings.At("Pages:Stream"));
 
@@ -128,6 +128,11 @@ internal class Program {
             "is no longer read. Pages:Stores carries the page's value limits, so remove the key and restart");
         pageSettings.FailIf(pageSettings.Has("Session"), "Session",
             "is no longer read. Pages:Stores:Visitor carries the session's limits and idle bounds, so remove the key and restart");
+
+        // A rate and the render's deadline are read from different sections, so a burst that is too
+        // small to spend is checked here, in the same report as everything else.
+        PageAllowanceRules.RequireOneWholeUnit(pageSettings, "Fetch:FetchesPerSecond", fetch.FetchesPerSecond, render);
+        PageAllowanceRules.RequireOneWholeUnit(pageSettings, "Jobs:FetchesPerSecond", jobOptions.FetchesPerSecond, render);
         settings.Complete();
         ReservedPaths reserved = new(ReservedPaths.Default);
 
@@ -252,6 +257,7 @@ internal class Program {
               services.GetRequiredService<IPageSessionStore>(),
               services.GetRequiredService<PageSessionCookieOptions>(),
               services.GetRequiredService<PageBrowserCookieOptions>(),
+              services.GetRequiredService<TimeProvider>(),
               services.GetRequiredService<PageJobs>(),
               services.GetRequiredService<PageChecks>(),
               services.GetRequiredService<PageJobAuthorityFactory>(),
@@ -308,6 +314,8 @@ internal class Program {
             services.GetRequiredService<IPageCompiler>(),
             services.GetRequiredService<PageMetrics>(),
             services.GetRequiredService<IServiceScopeFactory>(),
+            render,
+            services.GetRequiredService<TimeProvider>(),
             services.GetRequiredService<IRecordCatalog>()));
         builder.Services.AddSingleton<PageLibraries>();
         builder.Services.AddSingleton<PageMetrics>();

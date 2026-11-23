@@ -63,7 +63,7 @@ the manual keeps the narrative and the task order, and the reference keeps the s
 4. **The rewrite carries the current contract.** The `EditorPath` retirement
    ([`the-site-is-one-type`](the-site-is-one-type.md)), the request fidelity
    ([`a-page-sees-its-request`](a-page-sees-its-request.md)), the fetch rate
-   ([`fetch-is-a-rate`](fetch-is-a-rate.md)) and the page-owned job
+   ([`fetch-is-a-rate`](closed.md)) and the page-owned job
    ([`a-page-can-own-a-job`](a-page-can-own-a-job.md)) each update the manual in their own change; this
    item is the pass that makes the result read as one document.
 5. **It stays a page.** The manual is a seeded page the owner can edit, so the rewrite is the seed and

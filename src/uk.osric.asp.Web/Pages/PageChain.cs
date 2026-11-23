@@ -30,7 +30,7 @@ internal sealed class PageChain {
     private readonly BodyBudget _bodyBudget;
     private readonly PageEnvironment _environment;
     private readonly PageEditor? _editor;
-    private readonly RenderFetchBudget _fetchBudget;
+    private readonly FetchBudget _fetchBudget;
     private readonly bool _isHead;
     private readonly IReadOnlyDictionary<string, string> _assets;
     private readonly ILogger _logger;
@@ -94,7 +94,7 @@ internal sealed class PageChain {
         bool isHead,
         BodyBudget bodyBudget,
         IPageBodySink bodySink,
-        RenderFetchBudget fetchBudget,
+        FetchBudget fetchBudget,
         ReadBudget readBudget,
         IReadOnlyDictionary<string, string> assets,
         IReadOnlyList<ShellLink> shellLinks,
@@ -195,7 +195,6 @@ internal sealed class PageChain {
             _isHead,
             _aborted,
             _environment.Fetcher,
-            _environment.Fetch,
             _fetchBudget,
             _environment.Metrics,
             _loggerFactory.CreateLogger(SimpleContext.PageCategory));

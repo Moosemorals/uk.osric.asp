@@ -731,9 +731,9 @@ public sealed class PageLayoutChainTests {
             """);
 
         InvalidOperationException? refused = await Assert.ThrowsAsync<InvalidOperationException>(
-            () => RenderAsync("/page", read: TestOptions.Read with { MaxSourceCharsPerRender = 12 }));
+            () => RenderAsync("/page", read: TestOptions.Read with { SourceCharsPerSecond = 2 }));
 
-        Assert.That(refused?.Message, Does.Contain("MaxSourceCharsPerRender"));
+        Assert.That(refused?.Message, Does.Contain(PageReadOptions.RateKey));
     }
 
     [Test]
@@ -833,7 +833,8 @@ public sealed class PageLayoutChainTests {
             new DiffRenderer(),
             new FakePageSessionStore(),
             TestSessions.Cookie,
-            TestSessions.BrowserCookie);
+            TestSessions.BrowserCookie,
+            TimeProvider.System);
 
         PageEditor? editor = withWrites ? new PageEditor(_storage, saver) : null;
         await PageEndpoint.HandleAsync(context, CreateRenderer(options), NullLoggerFactory.Instance, environment, editor);

@@ -66,8 +66,11 @@ pure renderers, and one that is a fact about the build:
   `SendAsync(HttpFetchRequest)`; `StreamAsync` opens the same request rules and returns an
   `HttpFetchStream` that reads decoded text lines with `ReadLineAsync()`, exposes response metadata
   and failure values, and can be closed explicitly. Open streams close when the render ends or is
-  abandoned. The render's shared request count, the deadline and abandonment bound the request
-  (`pages-outbound-fetch`, `pages-capabilities-are-one-seam`). A request may name an operator-configured credential with
+  abandoned. The render's shared fetch rate (`Pages:Fetch:FetchesPerSecond`), the deadline and
+  abandonment bound the request: a request the policy would refuse costs nothing and one that is
+  attempted costs one, whatever its outcome, and a stream costs one at open. A job fetches at its
+  own `Pages:Jobs:FetchesPerSecond` for as long as it runs
+  (`pages-outbound-fetch`, `pages-capabilities-are-one-seam`, `pages-allowances-are-a-rate`). A request may name an operator-configured credential with
   `Credential`: the host supplies the header, only to that credential's host and only from the page
   the credential is bound to — or from a page under it, when the entry's `Page` ends in `/*`, so a
   page family and its worker can share one token. The page never reads the value, and an unknown
@@ -708,6 +711,15 @@ waits for it against one deadline that covers both queueing and running:
   rather than by this setting. An embed renders into a view of what is left, and the caller is charged
   once when it writes the result, so the embedded text is neither counted twice nor able to skip the
   limit.
+- `Pages:Fetch:FetchesPerSecond` and `Pages:Read:SourceCharsPerSecond` bound outbound requests and
+  template reads as rates with a burst. The burst is what the rate spends in
+  `Pages:Render:TimeoutSeconds`, so a render starts with today's count available at once and refills
+  while it still runs; a rate whose burst is under one unit stops the site at startup. A job has its
+  own pair under `Pages:Jobs`, because a worker that lives nine hours must not be given a page's
+  lifetime allowance, and its duration is the only ceiling. A read is whole, so the read burst is
+  also the largest single template that can ever be read. A listing, a search and a body write do not
+  charge the read rate, and neither does a request the fetch policy refuses
+  (`pages-allowances-are-a-rate`).
 - `Pages:Render:MaxLayoutDepth` bounds the pages that wrap one page, and `Pages:Render:MaxEmbedDepth`
   bounds the embeds nested below the layer that is running, so a page composed out of data-driven
   recursion stops. They are chosen apart because a widget is not chrome.

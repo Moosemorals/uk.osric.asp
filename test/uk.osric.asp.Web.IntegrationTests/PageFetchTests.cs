@@ -78,6 +78,11 @@ public sealed class PageFetchTests : IntegrationTest {
             LastPagePath = null;
         }
 
+        public bool TryValidate(HttpFetchRequest request, string pagePath, out string reason) {
+            reason = string.Empty;
+            return true;
+        }
+
         public Task<HttpFetchResponse> FetchAsync(
             HttpFetchRequest request,
             string pagePath,

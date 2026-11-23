@@ -253,7 +253,8 @@ internal static class ShellViews {
                 new DiffRenderer(),
                 new FakePageSessionStore(),
                 TestSessions.Cookie,
-                TestSessions.BrowserCookie),
+                TestSessions.BrowserCookie,
+                TimeProvider.System),
             harness.Editor);
 
         return await TestHttp.ReadBodyAsync(context);
@@ -360,7 +361,8 @@ internal static class ShellViews {
                 new DiffRenderer(),
                 new FakePageSessionStore(),
                 TestSessions.Cookie,
-                TestSessions.BrowserCookie));
+                TestSessions.BrowserCookie,
+                TimeProvider.System));
 
         return await TestHttp.ReadBodyAsync(context);
     }

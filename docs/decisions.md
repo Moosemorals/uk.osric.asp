@@ -2066,6 +2066,37 @@ which is how the value is tuned.
 
 *Recorded in [page search](plans/archive/page-search.md), [IPageCatalog](../src/uk.osric.asp.Sdk/IPageCatalog.cs), [PageSourceScan](../src/uk.osric.asp.Web/Pages/PageSourceScan.cs), [PageSearchOptions](../src/uk.osric.asp.Web/Pages/PageSearchOptions.cs).*
 
+### pages-allowances-are-a-rate
+
+**An allowance is a rate with a burst.** `Pages:Fetch:FetchesPerSecond` and
+`Pages:Read:SourceCharsPerSecond` bound outbound requests and template reads. The burst an allowance
+starts with is what its rate spends in `Pages:Render:TimeoutSeconds`, derived once by
+`RenderOptions.BurstFor` rather than configured, so no second key can disagree and nothing a deployment
+could spend before is refused now. A rate whose burst is under one unit stops the site at startup,
+naming both keys and the smallest rate that works, because a burst of zero would refuse every caller
+forever rather than tighten a guard. `Allowance` in `Core.Pages` is the bucket itself: a capacity, a
+rate and the instant the caller passes, refilled at the rate and capped at the capacity, banking no
+idle hour, taking nothing larger than the burst in one whole take, and refusing without cost.
+`FetchBudget` and `ReadBudget` hold one under a lock, one per chain (`pages-one-request-one-chain`),
+and publish the capacity, what is available and the rate, because the object that refuses is the only
+one that can say what it has left.
+
+**A job is refilled for as long as it runs.** `Pages:Jobs:FetchesPerSecond` and
+`Pages:Jobs:SourceCharsPerSecond` give a worker its own allowance, and the job's duration is its only
+ceiling: a job that lives nine hours must not be given the allowance of a page that lives five
+seconds.
+
+**A refusal costs nothing and an attempt costs one.** The fetch charge follows validation —
+`IPageFetcher.TryValidate`, which is the credential rules and the transport's shape rules — so a
+request the policy would refuse, from a URL with credentials to an unknown credential or a header the
+deny list refuses, spends nothing; one that is attempted spends exactly one whatever its outcome; and
+a stream spends one at open, which pays for the request rather than for its lines. A refused fetch
+keeps `TooManyRequests`, and the line names the rate, the key that sets it and the burst. A read is
+whole: a template larger than the burst is refused at any rate rather than half-read, and a listing, a
+search and a body write charge nothing.
+
+*Recorded in [pages](pages.md#page-execution-budget), [Allowance](../src/uk.osric.asp.Core/Pages/Allowance.cs), [FetchBudget](../src/uk.osric.asp.Web/Pages/FetchBudget.cs), [ReadBudget](../src/uk.osric.asp.Web/Pages/ReadBudget.cs), [PageFetchOptions](../src/uk.osric.asp.Web/Pages/PageFetchOptions.cs), [PageReadOptions](../src/uk.osric.asp.Web/Pages/PageReadOptions.cs), [fetch-is-a-rate](plans/archive/fetch-is-a-rate.md).*
+
 ## Shell
 
 ### shell-redirect-is-one-helper

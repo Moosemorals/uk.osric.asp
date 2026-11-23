@@ -64,7 +64,8 @@ public sealed class PageEndpointTests {
             new DiffRenderer(),
             new FakePageSessionStore(),
             TestSessions.Cookie,
-            TestSessions.BrowserCookie);
+            TestSessions.BrowserCookie,
+            TimeProvider.System);
     }
 
     [TestCase(null, "/", "/")]

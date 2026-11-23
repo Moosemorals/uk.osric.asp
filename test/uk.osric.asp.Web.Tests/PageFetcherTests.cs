@@ -836,7 +836,8 @@ public sealed class PageFetcherTests {
             ("Pages:Fetch:MaxRedirects", "0"),
             ("Pages:Fetch:StreamSilenceSeconds", "12"),
             ("Pages:Fetch:StreamMaxSeconds", "300"),
-            ("Pages:Fetch:MaxStreamBytes", "2097152")));
+            ("Pages:Fetch:MaxStreamBytes", "2097152"),
+            ("Pages:Fetch:FetchesPerSecond", "0.5")));
 
         Assert.Multiple(() => {
             Assert.That(options.TimeoutSeconds, Is.EqualTo(2.5));
@@ -845,6 +846,87 @@ public sealed class PageFetcherTests {
             Assert.That(options.StreamSilenceSeconds, Is.EqualTo(12));
             Assert.That(options.StreamMaxSeconds, Is.EqualTo(300));
             Assert.That(options.MaxStreamBytes, Is.EqualTo(2097152));
+            Assert.That(options.FetchesPerSecond, Is.EqualTo(0.5));
+        });
+    }
+
+    [Test]
+    public void TheShippedRateIsTwoPerSecond() {
+        Assert.That(TestOptions.Fetch.FetchesPerSecond, Is.EqualTo(2));
+    }
+
+    [Test]
+    public void TheRetiredCountStopsStartup() {
+        ConfigurationException? error = Assert.Throws<ConfigurationException>(() => PageFetchOptions.FromConfiguration(
+            ShippedConfiguration.Read(("Pages:Fetch:MaxRequestsPerRender", "10"))));
+
+        Assert.Multiple(() => {
+            Assert.That(error?.Message, Does.Contain("Pages:Fetch:MaxRequestsPerRender is no longer read"));
+            Assert.That(error?.Message, Does.Contain(PageFetchOptions.RateKey));
+        });
+    }
+
+    [Test]
+    public void AWellFormedRequestPassesTheSeam() {
+        PageFetcher fetcher = Fetcher(new StubHttpMessageHandler(Respond(HttpStatusCode.OK, string.Empty)), TestOptions.Fetch);
+
+        Assert.Multiple(() => {
+            Assert.That(fetcher.TryValidate(Request("https://api.example.com/"), "/page", out string reason), Is.True);
+            Assert.That(reason, Is.Empty);
+        });
+    }
+
+    [TestCase("ftp://api.example.com/")]
+    [TestCase("https://user:pass@api.example.com/")]
+    [TestCase("https://api.example.com/#fragment")]
+    [TestCase("not a url")]
+    public void AUrlTheTransportWouldRefuseFailsTheSeam(string url) {
+        PageFetcher fetcher = Fetcher(new StubHttpMessageHandler(Respond(HttpStatusCode.OK, string.Empty)), TestOptions.Fetch);
+
+        Assert.Multiple(() => {
+            Assert.That(fetcher.TryValidate(Request(url), "/page", out string reason), Is.False);
+            Assert.That(reason, Does.Contain("URL"));
+        });
+    }
+
+    [Test]
+    public void ARefusedHeaderFailsTheSeam() {
+        PageFetcher fetcher = Fetcher(new StubHttpMessageHandler(Respond(HttpStatusCode.OK, string.Empty)), TestOptions.Fetch);
+        HttpFetchRequest request = new("https://api.example.com/") {
+            Headers = new Dictionary<string, string> { ["Cookie"] = "a=b" },
+        };
+
+        Assert.That(fetcher.TryValidate(request, "/page", out _), Is.False);
+    }
+
+    [Test]
+    public void AGetWithABodyFailsTheSeam() {
+        PageFetcher fetcher = Fetcher(new StubHttpMessageHandler(Respond(HttpStatusCode.OK, string.Empty)), TestOptions.Fetch);
+
+        Assert.That(fetcher.TryValidate(new("https://api.example.com/") { Body = "{}" }, "/page", out _), Is.False);
+    }
+
+    [Test]
+    public void AnUnknownCredentialFailsTheSeam() {
+        PageFetcher fetcher = Fetcher(
+            new StubHttpMessageHandler(Respond(HttpStatusCode.OK, string.Empty)), TestOptions.Fetch);
+        HttpFetchRequest request = new("https://api.example.com/") { Credential = "missing" };
+
+        Assert.Multiple(() => {
+            Assert.That(fetcher.TryValidate(request, "/page", out string reason), Is.False);
+            Assert.That(reason, Does.Contain("unknown credential"));
+        });
+    }
+
+    [Test]
+    public void ACredentialBoundElsewhereFailsTheSeam() {
+        PageFetcher fetcher = Fetcher(
+            new StubHttpMessageHandler(Respond(HttpStatusCode.OK, string.Empty)), CredentialOptions(page: "/other"));
+        HttpFetchRequest request = new("https://api.example.com/") { Credential = "assistant" };
+
+        Assert.Multiple(() => {
+            Assert.That(fetcher.TryValidate(request, "/page", out string reason), Is.False);
+            Assert.That(reason, Does.Contain("/other"));
         });
     }
 

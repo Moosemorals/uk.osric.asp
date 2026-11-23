@@ -49,7 +49,7 @@ needs a new configured number if the existing ones carry the second owner.
    person's job waits in. The existing `BoundedWorkQueue` is the mechanism; the setting is a second
    value beside `Pages:Jobs:QueueCapacity`.
 3. **The rate is the bound.** A page-owned job's fetch allowance comes from
-   [`fetch-is-a-rate`](fetch-is-a-rate.md) and is published through
+   [`fetch-is-a-rate`](closed.md) and is published through
    [`the-site-is-one-type`](the-site-is-one-type.md), so a fan-out is sized rather than hoped for.
 4. **The body is the message.** `StartAsync` already takes a first message; the body
    [`a-page-sees-its-request`](a-page-sees-its-request.md) makes visible is what the inbox page passes,

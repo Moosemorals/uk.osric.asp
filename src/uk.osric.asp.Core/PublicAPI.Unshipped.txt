@@ -1103,3 +1103,16 @@ uk.osric.asp.Core.Pages.StoreTableLifetime.Session = 2 -> uk.osric.asp.Core.Page
 uk.osric.asp.Core.Pages.StoreTableSubject
 uk.osric.asp.Core.Pages.StoreTableSubject.Page = 0 -> uk.osric.asp.Core.Pages.StoreTableSubject
 uk.osric.asp.Core.Pages.StoreTableSubject.Visitor = 1 -> uk.osric.asp.Core.Pages.StoreTableSubject
+uk.osric.asp.Core.Pages.Allowance
+uk.osric.asp.Core.Pages.Allowance.Allowance() -> void
+uk.osric.asp.Core.Pages.Allowance.Allowance(int capacity, double perSecond, System.DateTimeOffset fullAt) -> void
+uk.osric.asp.Core.Pages.Allowance.Available(System.DateTimeOffset now) -> int
+uk.osric.asp.Core.Pages.Allowance.Capacity.get -> int
+uk.osric.asp.Core.Pages.Allowance.PerSecond.get -> double
+uk.osric.asp.Core.Pages.Allowance.TryTake(int units, System.DateTimeOffset now, out uk.osric.asp.Core.Pages.Allowance next) -> bool
+~override uk.osric.asp.Core.Pages.Allowance.Equals(object obj) -> bool
+override uk.osric.asp.Core.Pages.Allowance.GetHashCode() -> int
+uk.osric.asp.Core.Pages.Allowance.Equals(uk.osric.asp.Core.Pages.Allowance other) -> bool
+static uk.osric.asp.Core.Pages.Allowance.operator !=(uk.osric.asp.Core.Pages.Allowance left, uk.osric.asp.Core.Pages.Allowance right) -> bool
+static uk.osric.asp.Core.Pages.Allowance.operator ==(uk.osric.asp.Core.Pages.Allowance left, uk.osric.asp.Core.Pages.Allowance right) -> bool
+~override uk.osric.asp.Core.Pages.Allowance.ToString() -> string
