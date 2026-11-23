@@ -180,14 +180,17 @@ maps themselves are answers, not files (Decision 8).
 `osric+anything@moosemorals.com` must reach `osric@moosemorals.com` with no alias line, and the
 extension must survive, because it is the most useful thing in the message:
 
-- **`recipient_delimiter = +` on both sides.** Postfix consults its maps with the extension stripped —
-  so the address is known to exist — and delivers the recipient with it intact; Dovecot resolves the
-  same user.
+- **`recipient_delimiter = +` in both places, and it is a delivery setting, not an identity.**
+  Postfix consults its maps with the extension stripped — so the address is known to exist — and
+  delivers the recipient with it intact. Dovecot's LMTP splits it at `smtp_address_detail_parse_temp`
+  and delivers to the user before the `+`; **authentication does not split it at all** — `+` appears
+  nowhere in `src/auth` — so a plus address is something a sender uses, never a way to log in
+  ([spike](../spikes/mail-stack-preflight.md)).
 - **`propagate_unmatched_extensions`** stays at its default (`canonical, virtual`), written out because
   it is load-bearing: `shopping+order@` → `osric@` arrives as `osric+order@`.
-- **Sieve gets the detail** as the envelope's, and `mail-check` asserts the resolution
-  (`doveadm user osric+probe@…` returns `osric@…`), because a userdb that failed to strip it would
-  tempfail every plus address.
+- **Sieve gets the detail** as the envelope's, and `mail-check` asserts the resolution by delivering,
+  not by asking the userdb: `doveadm user` consults the userdb, which never sees a split, so the check
+  is a message to `osric+probe@` landing in `osric@`'s mailbox.
 
 If the pinned Dovecot does not strip the detail, the fallback is a Postfix regexp map that does — and
 its cost is exactly the detail Sieve would then lose.
@@ -203,14 +206,15 @@ host hands the message to a listener that trusts it.
   glance and at a filter. A send-only SMTP client is TLS, DNS, SASL, address parsing and
   dot-stuffing somebody else already got wrong; we own four lines of config.
 - **`local_submission` on 2525**, published as `127.0.0.1:2525` only: no SASL, no TLS, `permit_mynetworks`
-  with a `mynetworks` of the pod's loopback plus the address the publication arrives from, and
+  with a `mynetworks` of the pod's loopback plus **the host's own address**, and
   `milter_macro_daemon_name=ORIGINATING`.
 - **Header qualification gets its own `cleanup`**, because that is where the setting lives: `From: root`
   becomes `From: root@neith.moosemorals.com`.
-- **The address the publication arrives from is read in Phase 0.** A `rootlessport` publication appears
-  at the container as the pod network's gateway, and that value follows backend and creation order —
-  `vmail`'s first network is not the app's. Pinned in `mynetworks`; omitted, 25 accepts and 2525
-  rejects, which is loud.
+- **The address the publication arrives from is the host's, and it is measured.** Pasta forwards a
+  published port itself and preserves the source, so the container sees the host's own address rather
+  than a pod gateway: `mail-deploy` writes that address into `mynetworks` where it writes the rest of
+  the host's facts. Omitted, 25 accepts and 2525 rejects, which is loud
+  ([spike](../spikes/mail-stack-preflight.md)).
 
 `myhostname = neith.moosemorals.com`, `myorigin = $myhostname`, empty `mydestination`: `root` becomes
 the machine's address, matched by an alias, delivered to the owner's mailbox. `neith.moosemorals.com` is
@@ -264,12 +268,13 @@ service rather than rendering a page:
 - **A passdb cannot fill the userdb instead.** `auth_password_verify` may return a fields table, but
   with a userdb configured Dovecot still looks the user up; the round trip is saved by the userdb being
   local, not by the passdb being chatty.
-- **None of this traffic goes through Caddy.** The mail containers call the app at
-  `http://127.0.0.1:8080` — the address Caddy proxies to — reached through pasta's host-loopback
-  mapping. No name, no TLS, nothing off the host; plain HTTP is the same clear hop Caddy already
-  makes. That is the one assumption here that is not already true, so Phase 0 proves it; the fallback
-  is the public name behind a loopback-only edge rule, which is worse because the edge must then trust
-  the container's source address.
+- **None of this traffic goes through Caddy.** The mail containers call the app at a **mapped literal,
+  `http://169.254.42.42:8080`**, which pasta translates to the host's `127.0.0.1:8080` — the address
+  Caddy proxies to. Nothing off the host, no name, no TLS; plain HTTP is the same clear hop Caddy
+  already makes. `127.0.0.1` is *not* the answer: inside the pod it is the pod's own loopback. The
+  mapping is one option on the pod (`pasta:--map-host-loopback=169.254.42.42`), proven in
+  [the spike](../spikes/mail-stack-preflight.md), and the host sees the request as coming from
+  `127.0.0.1`.
 - **`/internal/*` is refused at the edge.** Caddy answers `404` for the whole prefix in the website's
   site block. Defence in depth: the routes live on the app's loopback listener, and the edge rule makes
   a leaked token useless from the internet.
@@ -389,6 +394,16 @@ requirement. `backend = "sqlite3"` with a `path` per statfile keeps the token co
   deleting both files and seeding again.
 - **Not backed up.** The tokens are derived data, so the backup carries the mailbox and not the
   classifier (Decision 14).
+- **The extractor declares its own map, because the named lookup does not work.** `get_maps()` returns
+  an array rather than a name-keyed table, so `get_maps()['ALIASES']` is nil and the extractor quietly
+  falls back to the recipient — the exact failure this design has to avoid.
+  `rspamd_config:add_map{ type = 'map'; url = 'file://…' }` inside the `per_user` chunk is what works,
+  and [the spike](../spikes/mail-stack-preflight.md) proves an alias, a plus address and a second
+  account land in the corpora they should.
+- **The state directory is the entrypoint's job.** The image does not create `/var/lib/rspamd/bayes`,
+  and the classifier refuses to start without it.
+- **Seeding reports its skips.** The shipped `learn_condition` declines a learn the classifier already
+  agrees with, so `make mail-learn` prints how many of each class were taken.
 - **`rspamadm configdump classifier` is the check** that the backend and both paths landed, in place of
   a config file to read.
 
@@ -688,19 +703,27 @@ work for other plans; each names its own level where it is filed.
 
 - Read the VM's addresses from the Hetzner console; record the current SPF and the absent MX.
 - Confirm the quota arithmetic: 5 GB per mailbox against 80 GB shared with everything else.
-- Spike, together: `vmail` with no shell and a subuid range; a pod publishing 25 through
-  `rootlessport`; a certificate the root timer copied into `vmail`'s home; units starting at boot under
-  `enable-linger`. Read the published port's source address from `vmail`'s own network and pin it.
-- Spike pasta's host-loopback mapping: can a container in `vmail` reach `http://127.0.0.1:8080`?
-- Spike Rspamd's `external_map` selector: can it name the SMTP recipient? The answer decides endpoint
-  or export, so it is asked before either is written.
-- Spike the classifier's `per_user` extractor: can a `map:get_key` lookup run there, and does an alias
-  resolve to the account's user name in time to key the tokens? Per-account Bayes stands or falls on
-  that call, so it is spiked against a real message, not a config dump.
-- Confirm Dovecot 2.4 with `recipient_delimiter = +` resolves `osric+probe@…` to `osric@` and leaves
-  `probe` in the envelope detail `doveadm` and Sieve see.
-- Confirm the Mythic Beasts key is scoped as intended by asking it to write the apex `A` and expecting
-  `403`.
+
+**Measured on the dev box, and done** — [the spike](../spikes/mail-stack-preflight.md) has the commands
+and the numbers:
+
+- Pasta reaches the site's loopback at a mapped literal, not `127.0.0.1`, and the pod carries the
+  option; the host sees `127.0.0.1` as the client.
+- A published port is forwarded by pasta, which refuses 25 until the sysctl is lowered and preserves the
+  source address, so the host's own address is what `mynetworks` names.
+- Per-account Bayes keys an alias, a plus address and a whole account correctly, through
+  `rspamd_config:add_map` inside the `per_user` chunk.
+- Dovecot 2.4 wants `userdb_fields` for the static userdb's values, `%{user | lower}` for the username
+  format, and a Lua passdb can name the account; `+detail` is split by LMTP and never by auth.
+
+**Still needs the CAX21**, and is the rest of this phase:
+
+- `vmail` with no shell and a subuid range, `enable-linger`, a pod publishing 25 once
+  `net.ipv4.ip_unprivileged_port_start` is 25, a certificate the root timer copied into `vmail`'s home,
+  and units that start at boot.
+- The Mythic Beasts key asked to write the apex `A`, expecting `403`.
+- Rspamd's `external_map` selector: can it name the SMTP recipient? The answer decides endpoint or
+  export, so it is asked before either is written.
 
 ### Phase 1 — the website answers (`determined-mountain-goat`)
 
