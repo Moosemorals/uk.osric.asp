@@ -62,15 +62,23 @@ internal sealed record RenderOptions {
     /// <summary>The budget as a time span.</summary>
     public TimeSpan Timeout => TimeSpan.FromSeconds(TimeoutSeconds);
 
-    /// <summary>The count a rate spends in a whole render.</summary>
+    /// <summary>The count a rate spends in a whole render, never less than one.</summary>
     /// <param name="perSecond">A configured rate: a fetch rate or a read rate.</param>
-    /// <returns>How many whole units the rate buys in one deadline.</returns>
+    /// <returns>How many whole units the rate buys in one deadline, at least one.</returns>
     /// <remarks>
+    /// <para>
     /// It is the one derivation of a burst. An allowance starts full at that many units, so nothing a
     /// deployment could spend before is refused now, and no second key can disagree with the rate
     /// that sets it.
+    /// </para>
+    /// <para>
+    /// The floor of one unit is what keeps the derivation from switching the allowance off: a rate
+    /// that spends less than a unit in the deadline would otherwise start empty of the thing it is
+    /// meant to meter, and the two keys it reads — a fractional render deadline and a modest rate —
+    /// are each valid on their own. One unit is the least that can always be spent once.
+    /// </para>
     /// </remarks>
-    public int BurstFor(double perSecond) => (int)Math.Floor(perSecond * TimeoutSeconds);
+    public int BurstFor(double perSecond) => Math.Max(1, (int)Math.Floor(perSecond * TimeoutSeconds));
 
     /// <summary>Reads <c>Pages:Render</c>.</summary>
     /// <param name="configuration">The application configuration.</param>

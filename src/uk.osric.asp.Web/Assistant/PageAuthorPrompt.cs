@@ -9,7 +9,7 @@ using uk.osric.asp.Web.Shell;
 
 /// <summary>The system prompt and worked examples that teach the model to write a page.</summary>
 internal static class PageAuthorPrompt {
-    public const string Version = "page-author-v62";
+    public const string Version = "page-author-v63";
 
     public static IReadOnlyList<(string Name, string Source)> Examples { get; } = [
         ("query-driven", """
@@ -412,6 +412,23 @@ internal static class PageAuthorPrompt {
         `NotAddressable` or `Full` are values. A message is `Person` by default,
         or `Session`, `Browser` or `Until`; a one-shot is a value, not a message,
         and there is no count, wait or recall.
+
+        ## Page objects
+        `ctx.Stores.Page.Objects` and `ctx.Stores.Visitor.Objects` store bytes,
+        addressed by their SHA-256. `PageObjectRef reference =
+        await ctx.Stores.Page.Objects.PutAsync(bytes, "image/png")`: the page's
+        object is public and immutable and any page may open it by digest; a
+        visitor's is private to the reader. The content type is one of `image/png`,
+        `image/jpeg`, `image/gif`, `image/webp`, `text/plain; charset=utf-8` or
+        `application/octet-stream`; SVG is refused, and a type outside the list
+        throws before anything is stored. `reference.Sha` is the `/o/{sha}` URL.
+        Read with `await using PageObjectStream stream =
+        (await ctx.Stores.Page.Objects.OpenAsync(sha))!;` and loop on
+        `await stream.ReadAsync(buffer, 0, buffer.Length, ctx.Aborted)`; the
+        synchronous `Read`, `Seek` and `Write` throw, so always dispose it with
+        `await using`, which releases the connection. `Length` and `ContentType`
+        answer without reading. A page object is cached for a year; a visitor's is
+        `private, no-store`. The limits are 8 MiB per object and 64 MiB per subject.
 
         ## Page store read
         `ctx.Capabilities.GetRequired<IPageCatalog>()` reads the site's page store

@@ -14,6 +14,8 @@ public sealed class StoreValuesMigrationTests {
 
     private const string PreviousMigration = "20261118151514_AddOwnerInterrupts";
 
+    private const string BeforeObjects = "20261122190711_AddStoreMessages";
+
     private static readonly string[] Migrated = [
         "page:/p|/p|k|1||v|2026-11-20T10:00:00.1230000Z",
         "session:s1|/p|sk|3||sv|2026-11-20T11:00:00.0000000Z",
@@ -68,6 +70,32 @@ public sealed class StoreValuesMigrationTests {
         Assert.That(await RowsAsync(database), Has.Length.EqualTo(2));
     }
 
+    [Test]
+    public async Task TheObjectMigrationCreatesItsTableAndIndexesAsync() {
+        await using StorageDbContext database = new(DatabaseTemplate.Options(_databasePath));
+        await database.Database.MigrateAsync(BeforeObjects);
+
+        await database.Database.MigrateAsync();
+
+        Assert.Multiple(() => {
+            Assert.That(SchemaNames(database), Does.Contain("StoreObjects"));
+            Assert.That(IndexNames(database), Does.Contain("IX_StoreObjects_Sha"));
+        });
+    }
+
+    [Test]
+    public async Task TheDownObjectMigrationRemovesTheTableAndUpRebuildsItAsync() {
+        await using StorageDbContext database = new(DatabaseTemplate.Options(_databasePath));
+        await database.Database.MigrateAsync(BeforeObjects);
+        await database.Database.MigrateAsync();
+
+        await database.Database.MigrateAsync(BeforeObjects);
+        Assert.That(SchemaNames(database), Does.Not.Contain("StoreObjects"));
+
+        await database.Database.MigrateAsync();
+        Assert.That(SchemaNames(database), Does.Contain("StoreObjects"));
+    }
+
     // A database that already holds both kinds of value, as a real one does: the migration has to
     // carry the rows across rather than only to build the table.
     private static async Task WriteOldRowsAsync(StorageDbContext database) {
@@ -113,5 +141,9 @@ public sealed class StoreValuesMigrationTests {
 
     private static string[] SchemaNames(StorageDbContext database) => [.. database.Database
         .SqlQueryRaw<string>("SELECT \"name\" AS \"Value\" FROM sqlite_master WHERE \"type\" IN ('table', 'trigger')")
+        .ToArray()];
+
+    private static string[] IndexNames(StorageDbContext database) => [.. database.Database
+        .SqlQueryRaw<string>("SELECT \"name\" AS \"Value\" FROM sqlite_master WHERE \"type\" = 'index'")
         .ToArray()];
 }

@@ -233,6 +233,7 @@ environment variable or a deployment's own settings file.
   | The subject prefixes and the lifetime numbers | `StoreSubjectKeys`, `StoreLifetimeKind` | They are the stored form of every value: a prefix and a number are written on the row, so a changed one orphans what every page has already kept |
   | The record allow-list, the SQLite limits and the one-statement rule | `SqliteRecordStore` | `pages-a-record-is-sandboxed`. A wider list lets a page reach a real table, another subject's rows or another page's schema; the limits and the rule are what keep one statement from outlasting the render |
   | A message's one address and a topic's canonical form | `StoreMessages`, `PageTopic` | `pages-a-message-is-taken-once`. A row is a page or a topic and never both, and a topic's name is lowercase NFC: a second spelling would be a second queue, and a row with two addresses has no take |
+  | The object content-type allow-list, the digest's spelling, the blob read and the route's cache policy | `PageObjectTypes`, `PageObjectHash`, `SqliteStoreObjects`, `ObjectEndpoint` | `pages-an-object-is-content-addressed`. An SVG is markup and a script vector, a digest has one spelling or a URL has two, and a cache policy is what makes a public object immutable and a private one unshareable; configuration could only widen one of them |
 
 Each subsystem documents its own keys: [pages](pages.md#page-execution-budget),
 [the shell](shell.md#authentication-and-the-editor), [storage](storage.md),

@@ -29,6 +29,7 @@ using uk.osric.asp.Web.Http;
 using uk.osric.asp.Web.Logging;
 using uk.osric.asp.Web.Metrics;
 using uk.osric.asp.Web.Pages;
+using uk.osric.asp.Web.Shell;
 using uk.osric.asp.Web.Storage;
 using uk.osric.asp.Web.Users;
 using uk.osric.asp.Web.Work;
@@ -129,10 +130,6 @@ internal class Program {
         pageSettings.FailIf(pageSettings.Has("Session"), "Session",
             "is no longer read. Pages:Stores:Visitor carries the session's limits and idle bounds, so remove the key and restart");
 
-        // A rate and the render's deadline are read from different sections, so a burst that is too
-        // small to spend is checked here, in the same report as everything else.
-        PageAllowanceRules.RequireOneWholeUnit(pageSettings, "Fetch:FetchesPerSecond", fetch.FetchesPerSecond, render);
-        PageAllowanceRules.RequireOneWholeUnit(pageSettings, "Jobs:FetchesPerSecond", jobOptions.FetchesPerSecond, render);
         settings.Complete();
         ReservedPaths reserved = new(ReservedPaths.Default);
 
@@ -246,6 +243,7 @@ internal class Program {
               services.GetRequiredService<PageSourceScan>(),
               services.GetRequiredService<IStoreValues>(),
               services.GetRequiredService<IStoreMessages>(),
+              services.GetRequiredService<IStoreObjects>(),
               services.GetRequiredService<IPageReadStore>(),
               services.GetRequiredService<PageSeeds>(),
               services.GetRequiredService<PageSaver>(),
@@ -280,6 +278,7 @@ internal class Program {
         builder.Services.AddSingleton<IPageSessionStore, SqlitePageSessionStore>();
         builder.Services.AddSingleton<IStoreValues, SqliteStoreValues>();
         builder.Services.AddSingleton<IStoreMessages, SqliteStoreMessages>();
+        builder.Services.AddSingleton<IStoreObjects, SqliteStoreObjects>();
         builder.Services.AddSingleton<IPasswordService, PasswordService>();
         builder.Services.AddSingleton<IUserConsole, SystemUserConsole>();
         builder.Services.AddSingleton<ImportQueue>();
@@ -306,6 +305,7 @@ internal class Program {
             services.GetRequiredService<IWorkerStore>(),
             services.GetRequiredService<IStoreValues>(),
             services.GetRequiredService<IStoreMessages>(),
+            services.GetRequiredService<IStoreObjects>(),
             services.GetRequiredService<PageStoresOptions>(),
             services.GetRequiredService<IPageSessionStore>(),
             services.GetRequiredService<IPageFetcher>(),
@@ -636,6 +636,10 @@ internal class Program {
         app.MapGet("/logout", LoginEndpoint.LogoutConfirmationAsync);
         app.MapPost("/logout", LoginEndpoint.LogoutAsync)
             .WithMetadata(new RequireAntiforgeryTokenAttribute(true));
+
+        // A stored object, by digest. The route streams the bytes from SQLite and is answered before
+        // the page catch-all, so an image works even when the page pipeline does not.
+        app.MapMethods("/o/{sha}", ["GET", "HEAD"], ObjectEndpoint.HandleAsync);
 
         app.MapHealthChecks(MachineTrafficMetrics.HealthPath, new HealthCheckOptions {
             ResponseWriter = ReportWriter.WriteAsync,

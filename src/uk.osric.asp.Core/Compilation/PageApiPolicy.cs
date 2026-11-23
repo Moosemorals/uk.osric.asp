@@ -125,6 +125,13 @@ public static class PageApiPolicy {
         "System.Threading.Tasks.Task.GetAwaiter",
         "System.Threading.Tasks.Task.Delay",
         "System.Threading.Tasks.Task.Yield",
+        // The object stream is a Stream for the familiar shape, but a blocking read, seek or write
+        // is work the render's deadline cannot cancel.
+        "uk.osric.asp.Sdk.PageObjectStream.Read",
+        "uk.osric.asp.Sdk.PageObjectStream.ReadByte",
+        "uk.osric.asp.Sdk.PageObjectStream.Seek",
+        "uk.osric.asp.Sdk.PageObjectStream.SetLength",
+        "uk.osric.asp.Sdk.PageObjectStream.Write",
     }.ToFrozenSet(StringComparer.Ordinal);
 
     /// <summary>Reports every reference the policy does not allow.</summary>

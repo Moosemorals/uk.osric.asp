@@ -36,6 +36,9 @@ internal sealed record PageStoresOptions {
     /// <summary>The message shape's limits.</summary>
     public required PageMessageOptions Messages { get; init; }
 
+    /// <summary>The object shape's limits.</summary>
+    public required PageObjectOptions Objects { get; init; }
+
     /// <summary>The command timeout as a time span.</summary>
     public TimeSpan CommandTimeout => TimeSpan.FromSeconds(CommandTimeoutSeconds);
 
@@ -64,6 +67,7 @@ internal sealed record PageStoresOptions {
             Visitor = VisitorOptions.Read(reader.For("Visitor")),
             Records = PageRecordOptions.Read(reader.For("Records")),
             Messages = PageMessageOptions.Read(reader.For("Messages")),
+            Objects = PageObjectOptions.Read(reader.For("Objects")),
         };
         return options;
     }
@@ -231,5 +235,28 @@ internal sealed record PageMessageOptions(int MaxMessageBytes, int MaxMessagesPe
             maxMessageBytes,
             reader.Number("MaxMessagesPerSubject", Shipped.MaxMessagesPerSubject, minimum: 1, maximum: 1_024),
             maxSubjectBytes);
+    }
+}
+
+/// <summary>The object shape's limits: one object, and what one subject may hold.</summary>
+/// <param name="MaxObjectBytes">The largest one object may be, in bytes.</param>
+/// <param name="MaxSubjectBytes">The most bytes one subject's objects may total.</param>
+internal sealed record PageObjectOptions(int MaxObjectBytes, long MaxSubjectBytes) {
+
+    /// <summary>The shipped object limits.</summary>
+    public static PageObjectOptions Shipped { get; } = new(8 * 1024 * 1024, 64L * 1024 * 1024);
+
+    /// <summary>Reads <c>Pages:Stores:Objects</c>.</summary>
+    /// <param name="reader">A reader opened on <c>Pages:Stores:Objects</c>, which the caller completes.</param>
+    /// <exception cref="ConfigurationException">A value is missing or unusable.</exception>
+    internal static PageObjectOptions Read(ConfigurationReader reader) {
+        ArgumentNullException.ThrowIfNull(reader);
+
+        int maxObjectBytes = reader.Number("MaxObjectBytes", Shipped.MaxObjectBytes, minimum: 1024, maximum: 256 * 1024 * 1024);
+        long maxSubjectBytes = reader.Number("MaxSubjectBytes", (int)Shipped.MaxSubjectBytes, minimum: 1024, maximum: int.MaxValue);
+        reader.FailIf(maxSubjectBytes < maxObjectBytes, "MaxSubjectBytes",
+            $"is {maxSubjectBytes}, which is smaller than MaxObjectBytes ({maxObjectBytes})");
+
+        return new PageObjectOptions(maxObjectBytes, maxSubjectBytes);
     }
 }

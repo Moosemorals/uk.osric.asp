@@ -89,6 +89,11 @@ internal static class ShellCatalogue {
         new ShellRoute("/status.css", "GET", ShellAudience.Everyone,
             "The status dashboard's sheet, served from the web root: the banner, the window nav and the panels."),
 
+        // A stored object, by digest. The entry reserves the whole /o prefix, so no page can claim a
+        // path beneath it, and tells the assistant what the route is.
+        new ShellRoute("/o", "GET, HEAD", ShellAudience.Everyone,
+            "A stored object by its SHA-256 digest: a page's object is public and immutable, a visitor's private and uncacheable, with ETag, Range and HEAD."),
+
         // Served by Caddy from the host's CI status directory, not by this app: the entry reserves the
         // key so a stored page cannot shadow it, and tells the assistant what the path is.
         new ShellRoute("/ci/status.json", "GET", ShellAudience.Everyone,

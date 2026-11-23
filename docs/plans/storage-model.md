@@ -7,11 +7,11 @@ SPDX-License-Identifier: MIT
 
 | | |
 | --- | --- |
-| Status | Agreed 2026-11-21 — the owner said yes — and revised against trunk 2026-11-22, after the page search, the reference corpus, the slow test half and the documentation index landed, and again the same day to add the secrets slice at the owner's request, and on 2026-11-23 to make `IPageSubject` and `IVisitorSubject` independent of each other and to call a configured maximum a limit. Slices 0 to 3 are merged and nothing of slices 4 and 5 is built |
+| Status | Agreed 2026-11-21 — the owner said yes — and revised against trunk 2026-11-22, after the page search, the reference corpus, the slow test half and the documentation index landed, and again the same day to add the secrets slice at the owner's request, and on 2026-11-23 to make `IPageSubject` and `IVisitorSubject` independent of each other, to call a configured maximum a limit, and to give a page a streaming object reader at the owner's request. Slices 0 to 4 are merged and nothing of slice 5 is built |
 | Size | Large as a programme, small as a step: a spike, six slices and the release that closes the window, each its own branch and its own stop. The values slice is the floor; the record slice is the risk; the secrets slice is the one that cannot wait for the window to close |
 | First customer | The two plans this supersedes: the assistant's transcript (a Record for the signed-in visitor) and the redirect flash (a `NextRead` value). Editor mode is the first `Browser` value, and `/help`'s counter is the first Page value. A signing key ([`a-page-cannot-keep-a-secret`](../backlog/a-page-cannot-keep-a-secret.md)) is the first secret |
 | Spike | Slice 0: [the record sandbox](../spikes/store-sandbox.md), written before anything was built. Six of the sandbox section's details were corrected by what it measured |
-| Decisions | Slice 3 records `pages-a-message-is-taken-once`. Slice 2's merge recorded `pages-a-record-is-declared-sql`, `pages-a-record-is-sandboxed` and `pages-a-library-owns-its-schema`. Slice 1's merge recorded `pages-the-subject-is-the-binding`, `pages-a-lifetime-belongs-to-the-entry`, `pages-a-browser-is-a-lifetime`, `pages-adoption-re-keys-at-sign-in` and `pages-one-stores-section`, and edited `pages-page-storage`, `pages-the-session` and `pages-an-archive-is-a-database`. The remaining names are recorded by the slice that delivers them, and the plan is archived when the last slice's merge closes the programme |
+| Decisions | Slice 4 records `pages-an-object-is-content-addressed`. Slice 3 records `pages-a-message-is-taken-once`. Slice 2's merge recorded `pages-a-record-is-declared-sql`, `pages-a-record-is-sandboxed` and `pages-a-library-owns-its-schema`. Slice 1's merge recorded `pages-the-subject-is-the-binding`, `pages-a-lifetime-belongs-to-the-entry`, `pages-a-browser-is-a-lifetime`, `pages-adoption-re-keys-at-sign-in` and `pages-one-stores-section`, and edited `pages-page-storage`, `pages-the-session` and `pages-an-archive-is-a-database`. The remaining names are recorded by the slice that delivers them, and the plan is archived when the last slice's merge closes the programme |
 | Backlog | [`storage-is-not-one-model`](../backlog/storage-is-not-one-model.md) is this job. It absorbs [`no-account-store`](../backlog/no-account-store.md), [`message-does-not-survive-a-redirect`](../backlog/message-does-not-survive-a-redirect.md) and, from 2026-11-22, [`a-page-cannot-keep-a-secret`](../backlog/a-page-cannot-keep-a-secret.md), whose plans [account-store](account-store.md) and [page-inbox](page-inbox.md) are superseded in shape |
 
 ## The short version
@@ -537,7 +537,7 @@ is still there afterwards, and the caller already knows which one it called.
 ```csharp
 public interface IObjectStore {
     Task<PageObjectRef> PutAsync(byte[] content, string contentType, StoreLifetime? lifetime = null);
-    Task<PageObject?> OpenAsync(string sha);       // null when absent or not the reader's
+    Task<PageObjectStream?> OpenAsync(string sha);  // null when absent or not the reader's
     Task<bool> ExistsAsync(string sha);
 }
 ```
@@ -545,8 +545,12 @@ public interface IObjectStore {
 - Content is addressed by lowercase hexadecimal SHA-256 and stored as a BLOB in `StoreObjects`. The same
   bytes put twice under one subject are one row: content addressing is the dedupe, and there is no
   second blob table to keep.
-- `OpenAsync` answers the bytes, their length and content type, bounded by `MaxObjectBytes`. A page can
-  copy, slice or re-wrap them with the BCL types the page API admits; an image re-encode needs a
+- `OpenAsync` answers a `PageObjectStream`: the bytes, their length and content type, read in chunks
+  and bounded by `MaxObjectBytes`. It is a `Stream` for the familiar shape, but every member a page
+  calls is declared on the contract type and synchronous reads throw, so the page API admits no
+  `System.IO` type and the render's deadline can cancel a read. The store opens the BLOB with SQLite's
+  incremental blob API rather than materialising it; the route streams the same way. A page can copy,
+  slice or re-wrap the bytes with the BCL types the page API admits; an image re-encode needs a
   capability that does not exist yet, and the object store is what it would reach.
 - `/o/{sha}` is a site route because a page cannot stream bytes and because the cache policy is a
   response rule. Its entry is one row of `ShellCatalogue` at the key `/o` — the same table that
@@ -921,9 +925,9 @@ record does not have yet:
   how the methods reach it
 - **pages-a-message-is-taken-once** — durable, FIFO, one atomic take, at most once; a peek is a preview
   that takes nothing; no count, wait, recall or activity clock
-- **pages-an-object-is-content-addressed** — SHA-256 bytes, `/o/{sha}` with `ETag`, `Range` and a cache
-  policy that follows the subject, ownership checked for a private subject, a fixed content-type
-  allow-list
+- **pages-an-object-is-content-addressed** — SHA-256 bytes read through `PageObjectStream` and SQLite's
+  incremental blob API, `/o/{sha}` with `ETag`, `Range` and a cache policy that follows the subject,
+  ownership checked for a private subject, a fixed content-type allow-list
 - **pages-a-job-gets-three-scopes** — `Page` for the starting page, `Visitor` for the starter, and
   `For(workerKey)` for the worker's own data; the run itself has no store and a job gets no `Session`
   or `Browser`
@@ -950,7 +954,7 @@ record sandbox says of itself.
 Each slice is one branch, one step through the gate and one stop for the owner. The programme merges
 phase by phase, so a regression is bisectable and its branch goes when its last slice is in. The
 owner said yes to this plan on 2026-11-21. Slice 0 is [written](../spikes/store-sandbox.md), and
-slices 1, 2 and 3 are merged.
+slices 1 to 4 are merged; slice 5 is next.
 
 0. **The sandbox spike** (`S`, docs only) — **written**. A scratch console over the real SQLite
    build: an unpooled connection, a `TEMP VIEW` per table with a literal subject and an `INSTEAD OF`
@@ -1016,9 +1020,9 @@ slices 1, 2 and 3 are merged.
    signed-in message is on the account and another account does not see it; an anonymous one is adopted
    at sign-in; a `Session` one dies at rotation; a topic is a separate queue; a page delete takes its
    messages.
-4. **Objects** (`M`). `IObjectStore`, `StoreObjects`, `/o/{sha}` and its reserved key, the content-type
-   allow-list, `ETag`, `Range`, the cache policy, ownership and the limits; `/help`, `/privacy`,
-   `docs/shell.md`.
+4. **Objects** (`M`) — **merged**. `IObjectStore`, `StoreObjects`,
+   `PageObjectStream`, `/o/{sha}` and its reserved key, the content-type allow-list, `ETag`, `Range`,
+   the cache policy, ownership and the limits; `/help`, `/privacy`, `docs/shell.md`.
    *Proves:* bytes round-trip; the same bytes under one subject are one row; another subject cannot
    open them; a page-subject object is public and immutable, a visitor-subject one is private; `Range`
    answers `206`; `HEAD` answers headers and no body; a missing or foreign sha is `404`; a refused
@@ -1053,16 +1057,16 @@ separate worktrees. Slice 6 waits for them.
 
 | File | Change |
 | --- | --- |
-| `src/uk.osric.asp.Sdk/` | `IPageStores`, `IPageSubject`, `IVisitorSubject`, `IValueStore`, `IRecordStore`, `IPageRecordTransaction`, `IMessageStore`, `IObjectStore`, `ISecretStore`, `StoreLifetime`, `StoreLifetimeKind`, `StoreFilter`, `StoreEntry`, `StoreSubject`, `PageTableAttribute`, `PageRow`, `PageRecordResult`, `PageRecordOutcome`, `PageParameters`, `PageObject`, `PageObjectRef`, `PageTopic`, `PageMessage`, `PageMessageRead`, `PageMessagePostResult`, `PageMessageRefusal`, `PageValue`'s two new properties, `IContext.Stores`, the obsolete marks on the two old interfaces; `PublicAPI.Unshipped.txt` |
-| `src/uk.osric.asp.Core/` | `PageSchema` and its validation, the single-statement rule, the content-type allow-list, the SHA-256 rule |
+| `src/uk.osric.asp.Sdk/` | `IPageStores`, `IPageSubject`, `IVisitorSubject`, `IValueStore`, `IRecordStore`, `IPageRecordTransaction`, `IMessageStore`, `IObjectStore`, `ISecretStore`, `StoreLifetime`, `StoreLifetimeKind`, `StoreFilter`, `StoreEntry`, `StoreSubject`, `PageTableAttribute`, `PageRow`, `PageRecordResult`, `PageRecordOutcome`, `PageParameters`, `PageObjectStream`, `PageObjectRef`, `PageTopic`, `PageMessage`, `PageMessageRead`, `PageMessagePostResult`, `PageMessageRefusal`, `PageValue`'s two new properties, `IContext.Stores`, the obsolete marks on the two old interfaces; `PublicAPI.Unshipped.txt` |
+| `src/uk.osric.asp.Core/` | `PageSchema` and its validation, the single-statement rule, `PageObjectTypes` and `PageObjectHash` |
 | `src/uk.osric.asp.Runtime/` | Declaration extraction on the compile, `CompileResult.Schema`, `PAGE011` and `PAGE012` |
-| `src/uk.osric.asp.Web/Pages/` | `PageStoresScope` (new, in the shape `PageCatalogScope` already has), `PageStoresOptions`, `SubjectLimits`, `IStoreValues`, `IStoreMessages`, `SqliteStoreValues`, `SqliteStoreMessages`, `StoreSubjectKeys`, the internal store seams, `PageChain.CreateLayer`, `PageStorageOptions`'s retirement, `PageStorageScope` and `PageSessionScope` as adapters, `PageSessionResolver`, `PageReaderSubjectResolver` (the reader's subject), `PageSessionRequest`, `PageSessionOptions`'s retirement, the sweep; `PageCatalogScope`, `IPageReadStore` and `PageWritesScope` untouched |
+| `src/uk.osric.asp.Web/Pages/` | `PageStoresScope` (new, in the shape `PageCatalogScope` already has), `PageStoresOptions`, `SubjectLimits`, `IStoreValues`, `IStoreMessages`, `SqliteStoreValues`, `SqliteStoreMessages`, `IStoreObjects`, `SqliteStoreObjects`, `SqliteStoreObjectStream`, `PageObjectStore`, `StoreSubjectKeys`, the internal store seams, `PageChain.CreateLayer`, `PageStorageOptions`'s retirement, `PageStorageScope` and `PageSessionScope` as adapters, `PageSessionResolver`, `PageReaderSubjectResolver` (the reader's subject), `PageSessionRequest`, `PageSessionOptions`'s retirement, the sweep; `PageCatalogScope`, `IPageReadStore` and `PageWritesScope` untouched |
 | `src/uk.osric.asp.Web/Storage/` | `StoreObjects`, `StoreSecrets`, `DeclaredTables`, the migration pair, the DDL and view generation, `PageStorageSampler`'s payload |
 | `src/uk.osric.asp.Web/Authentication/` | The `b` cookie, its ticket in `PageSessionCookie`, `PageSessionCookie.RotateAsync`'s adoption transaction, `LoginEndpoint` |
 | `src/uk.osric.asp.Web/Http/` | `ShellCookies`' `b` constant and its `IsOwned` rule, which is what keeps the cookie out of `PageRequestSnapshot` |
 | `src/uk.osric.asp.Web/Work/` | `PageJobRunner`'s three handles |
 | `src/uk.osric.asp.Web/Admin/` | `PageArchiveReader` and `PageArchiveWriter` over `StoreValues`, and `user-remove` |
-| `src/uk.osric.asp.Web/Shell/` | The `/o/{sha}` route and its `/o` row in `ShellCatalogue`, which reserves the key and describes it to the assistant |
+| `src/uk.osric.asp.Web/Shell/` | `ObjectEndpoint`, the `/o/{sha}` route and its `/o` row in `ShellCatalogue`, which reserves the key and describes it to the assistant |
 | `src/uk.osric.asp.Web/Pages/Seeds/` | `help`, `privacy`, `editor-mode`, `_lib/editor`; `_layout` unchanged |
 | `src/uk.osric.asp.Web/Assistant/PageAuthorPrompt.cs` | The stores section and `Version` to `page-author-v58` |
 | `src/uk.osric.asp.Web/appsettings.json` | `Pages:Stores`; `Pages:Storage` and `Pages:Session` removed; `Pages:Search` unchanged |
@@ -1249,8 +1253,12 @@ separate worktrees. Slice 6 waits for them.
   request; a worker already has `ReceiveAsync` as its wait, and a page polls.
 - **A filesystem object store.** It needs a second consistency story for delete, scrub, archive and
   backup; the BLOB is the site's existing storage rule.
-- **A stream or `System.IO` for objects.** The page API denies `System.IO`, so bytes cross as `byte[]`
-  and the route, not a page, does the streaming.
+- **A byte array for objects.** The first answer was `byte[]`, because the page API denies
+  `System.IO` and the bytes had to cross as something. The owner chose a stream on 2026-11-23 rather
+  than spool an object the size of the limit: `PageObjectStream` is a `Stream`, but only the members it
+  declares are usable — the synchronous reads, seeks and writes throw — and SQLite's incremental blob
+  API keeps both the page and the route from holding the whole object as one array. The content-type
+  allow-list, the SHA-256 spelling and the object's ownership are unchanged.
 - **An `Until`-only lifetime.** It composes with the others; alone it would make every value a clock
   the store has to sweep and the page has to think about.
 - **An alias forever.** One release is a window; a permanent second surface is what the model removes.

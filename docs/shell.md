@@ -222,6 +222,23 @@ for the owner to scrub. `/site.css` and the editor's and assistant's sheets and 
 are still seeded, because a stored page links them and the owner may want to fix one without a
 release.
 
+## The object route
+
+`/o/{sha}` serves the bytes a page stored under a `PageObjectRef`. The shell owns it for the same three
+reasons it owns the error and health routes: a page cannot stream a response, the cache policy is a
+response rule, and it has to answer when the page pipeline is broken. The `/o` key is in the shell's
+route table, so the whole prefix is reserved and the assistant reads the route as a shell file.
+
+The route opens the BLOB through SQLite's incremental blob API and writes it in chunks, so the object
+is never held as one array. A page subject's object is `Cache-Control: public, max-age=31536000,
+immutable`; a visitor subject's is `private, no-store` and is answered only for the reader's session,
+browser or account. Both carry a strong `ETag` that is the digest, `Accept-Ranges: bytes`, a single
+`Range` as `206` with its `Content-Range`, `If-None-Match` as `304` and `HEAD` as the headers alone. A
+missing digest, or a visitor object the reader does not hold, is a `404` with an empty body, so the route
+cannot be used to probe another visitor's existence. The content type is the one the object was stored
+with, from a fixed allow-list that refuses SVG, and the response carries the shell's `nosniff` header
+(`pages-an-object-is-content-addressed`).
+
 ## The reference
 
 `/admin/reference` reads the corpus the build emits. The four product assemblies emit XML
