@@ -15,7 +15,7 @@ partial class StorageDbContextModelSnapshot : ModelSnapshot
     // If you encounter a merge conflict in the line below, it means you need to
     // discard one of the migration branches and recreate its migrations on top of
     // the other branch. See https://aka.ms/efcore-docs-migrations-conflicts for more info.
-    public override string LastMigrationId => "20261122190711_AddStoreMessages";
+    public override string LastMigrationId => "20261123082135_AddStoreObjects";
 
     protected override void BuildModel(ModelBuilder modelBuilder)
     {
@@ -583,6 +583,47 @@ partial class StorageDbContextModelSnapshot : ModelSnapshot
                     {
                         t.HasCheckConstraint("CK_StoreMessages_Address", "(\"ToPageKey\" IS NULL) <> (\"Topic\" IS NULL)");
                     });
+            });
+
+        modelBuilder.Entity("uk.osric.asp.Web.Pages.StoreObjectEntry", b =>
+            {
+                b.Property<string>("Subject")
+                    .HasColumnType("TEXT")
+                    .UseCollation("BINARY");
+
+                b.Property<string>("Sha")
+                    .HasColumnType("TEXT")
+                    .UseCollation("BINARY");
+
+                b.Property<byte[]>("Content")
+                    .IsRequired()
+                    .HasColumnType("BLOB");
+
+                b.Property<string>("ContentType")
+                    .IsRequired()
+                    .HasColumnType("TEXT")
+                    .UseCollation("BINARY");
+
+                b.Property<string>("CreatedAt")
+                    .IsRequired()
+                    .HasColumnType("TEXT");
+
+                b.Property<string>("ExpiresAt")
+                    .HasColumnType("TEXT");
+
+                b.Property<long>("Length")
+                    .HasColumnType("INTEGER");
+
+                b.Property<int>("Lifetime")
+                    .HasColumnType("INTEGER");
+
+                b.HasKey("Subject", "Sha");
+
+                b.HasIndex("ExpiresAt");
+
+                b.HasIndex("Sha");
+
+                b.ToTable("StoreObjects");
             });
 
         modelBuilder.Entity("uk.osric.asp.Web.Pages.StoreValueEntry", b =>

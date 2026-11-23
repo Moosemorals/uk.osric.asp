@@ -1116,3 +1116,11 @@ uk.osric.asp.Core.Pages.Allowance.Equals(uk.osric.asp.Core.Pages.Allowance other
 static uk.osric.asp.Core.Pages.Allowance.operator !=(uk.osric.asp.Core.Pages.Allowance left, uk.osric.asp.Core.Pages.Allowance right) -> bool
 static uk.osric.asp.Core.Pages.Allowance.operator ==(uk.osric.asp.Core.Pages.Allowance left, uk.osric.asp.Core.Pages.Allowance right) -> bool
 ~override uk.osric.asp.Core.Pages.Allowance.ToString() -> string
+const uk.osric.asp.Core.Pages.PageObjectHash.Length = 64 -> int
+static uk.osric.asp.Core.Pages.PageObjectHash.IsCanonical(string? sha) -> bool
+static uk.osric.asp.Core.Pages.PageObjectHash.Of(byte[]! content) -> string!
+static uk.osric.asp.Core.Pages.PageObjectTypes.Allowed.get -> System.Collections.Generic.IReadOnlyList<string!>!
+static uk.osric.asp.Core.Pages.PageObjectTypes.Canonical(string! contentType) -> string!
+static uk.osric.asp.Core.Pages.PageObjectTypes.IsAllowed(string? contentType) -> bool
+uk.osric.asp.Core.Pages.PageObjectHash
+uk.osric.asp.Core.Pages.PageObjectTypes

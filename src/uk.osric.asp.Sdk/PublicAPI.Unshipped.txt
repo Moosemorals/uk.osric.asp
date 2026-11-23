@@ -962,3 +962,53 @@ override uk.osric.asp.Sdk.PageTopic.ToString() -> string!
 static uk.osric.asp.Sdk.PageTopic.Named(string! name) -> uk.osric.asp.Sdk.PageTopic!
 static uk.osric.asp.Sdk.PageTopic.operator !=(uk.osric.asp.Sdk.PageTopic? left, uk.osric.asp.Sdk.PageTopic? right) -> bool
 static uk.osric.asp.Sdk.PageTopic.operator ==(uk.osric.asp.Sdk.PageTopic? left, uk.osric.asp.Sdk.PageTopic? right) -> bool
+abstract uk.osric.asp.Sdk.PageObjectStream.ContentType.get -> string!
+abstract uk.osric.asp.Sdk.PageObjectStream.DisposeCoreAsync() -> System.Threading.Tasks.ValueTask
+abstract uk.osric.asp.Sdk.PageObjectStream.DisposeCore() -> void
+abstract uk.osric.asp.Sdk.PageObjectStream.ReadCoreAsync(System.Memory<byte> buffer, long offset, System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.ValueTask<int>
+abstract uk.osric.asp.Sdk.PageObjectStream.Sha.get -> string!
+override abstract uk.osric.asp.Sdk.PageObjectStream.Length.get -> long
+override uk.osric.asp.Sdk.PageObjectStream.CanRead.get -> bool
+override uk.osric.asp.Sdk.PageObjectStream.CanSeek.get -> bool
+override uk.osric.asp.Sdk.PageObjectStream.CanWrite.get -> bool
+override uk.osric.asp.Sdk.PageObjectStream.DisposeAsync() -> System.Threading.Tasks.ValueTask
+override uk.osric.asp.Sdk.PageObjectStream.Dispose(bool disposing) -> void
+override uk.osric.asp.Sdk.PageObjectStream.FlushAsync(System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task!
+override uk.osric.asp.Sdk.PageObjectStream.Flush() -> void
+override uk.osric.asp.Sdk.PageObjectStream.Position.get -> long
+override uk.osric.asp.Sdk.PageObjectStream.Position.set -> void
+override uk.osric.asp.Sdk.PageObjectStream.ReadAsync(byte[]! buffer, int offset, int count, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<int>!
+override uk.osric.asp.Sdk.PageObjectStream.ReadAsync(System.Memory<byte> buffer, System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.ValueTask<int>
+override uk.osric.asp.Sdk.PageObjectStream.Read(byte[]! buffer, int offset, int count) -> int
+override uk.osric.asp.Sdk.PageObjectStream.ReadByte() -> int
+override uk.osric.asp.Sdk.PageObjectStream.Read(System.Span<byte> buffer) -> int
+override uk.osric.asp.Sdk.PageObjectStream.Seek(long offset, System.IO.SeekOrigin origin) -> long
+override uk.osric.asp.Sdk.PageObjectStream.SetLength(long value) -> void
+override uk.osric.asp.Sdk.PageObjectStream.WriteAsync(byte[]! buffer, int offset, int count, System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task!
+override uk.osric.asp.Sdk.PageObjectStream.WriteAsync(System.ReadOnlyMemory<byte> buffer, System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.ValueTask
+override uk.osric.asp.Sdk.PageObjectStream.Write(byte[]! buffer, int offset, int count) -> void
+override uk.osric.asp.Sdk.PageObjectStream.Write(System.ReadOnlySpan<byte> buffer) -> void
+~override uk.osric.asp.Sdk.PageObjectRef.Equals(object obj) -> bool
+override uk.osric.asp.Sdk.PageObjectRef.GetHashCode() -> int
+~override uk.osric.asp.Sdk.PageObjectRef.ToString() -> string
+static uk.osric.asp.Sdk.PageObjectRef.operator !=(uk.osric.asp.Sdk.PageObjectRef left, uk.osric.asp.Sdk.PageObjectRef right) -> bool
+static uk.osric.asp.Sdk.PageObjectRef.operator ==(uk.osric.asp.Sdk.PageObjectRef left, uk.osric.asp.Sdk.PageObjectRef right) -> bool
+uk.osric.asp.Sdk.IObjectStore
+uk.osric.asp.Sdk.IObjectStore.ExistsAsync(string! sha) -> System.Threading.Tasks.Task<bool>!
+uk.osric.asp.Sdk.IObjectStore.OpenAsync(string! sha) -> System.Threading.Tasks.Task<uk.osric.asp.Sdk.PageObjectStream?>!
+uk.osric.asp.Sdk.IObjectStore.PutAsync(byte[]! content, string! contentType, uk.osric.asp.Sdk.StoreLifetime? lifetime = null) -> System.Threading.Tasks.Task<uk.osric.asp.Sdk.PageObjectRef>!
+uk.osric.asp.Sdk.IPageSubject.Objects.get -> uk.osric.asp.Sdk.IObjectStore!
+uk.osric.asp.Sdk.IVisitorSubject.Objects.get -> uk.osric.asp.Sdk.IObjectStore!
+uk.osric.asp.Sdk.PageObjectStream
+uk.osric.asp.Sdk.PageObjectStream.PageObjectStream() -> void
+uk.osric.asp.Sdk.PageObjectRef
+uk.osric.asp.Sdk.PageObjectRef.ContentType.get -> string!
+uk.osric.asp.Sdk.PageObjectRef.ContentType.init -> void
+uk.osric.asp.Sdk.PageObjectRef.Deconstruct(out string! Sha, out long Length, out string! ContentType) -> void
+uk.osric.asp.Sdk.PageObjectRef.Equals(uk.osric.asp.Sdk.PageObjectRef other) -> bool
+uk.osric.asp.Sdk.PageObjectRef.Length.get -> long
+uk.osric.asp.Sdk.PageObjectRef.Length.init -> void
+uk.osric.asp.Sdk.PageObjectRef.PageObjectRef(string! Sha, long Length, string! ContentType) -> void
+uk.osric.asp.Sdk.PageObjectRef.PageObjectRef() -> void
+uk.osric.asp.Sdk.PageObjectRef.Sha.get -> string!
+uk.osric.asp.Sdk.PageObjectRef.Sha.init -> void

@@ -14,8 +14,8 @@ using uk.osric.asp.Web.Storage;
 /// A page's delete, move and scrub own a transaction of their own, and a session's sweep and an
 /// account's removal own another. They cannot call the store's seam, because that opens its own
 /// context, so the statements live here and every caller uses the same spelling of the subject. A
-/// subject's ending covers its values, its messages and its declared rows: the helpers call every
-/// statement, so a caller cannot forget one of the three.
+/// subject's ending covers its values, its messages, its objects and its declared rows: the helpers
+/// call every statement, so a caller cannot forget one of the four.
 /// </remarks>
 internal static class StoreValueSql {
 
@@ -82,9 +82,11 @@ internal static class StoreValueSql {
 
         int removed = await DeleteSubjectAsync(database, StoreSubjectKeys.ForPage(key), cancellationToken);
 
+        int values = removed + await StoreObjectSql.DeletePageAsync(database, key, cancellationToken);
+
         // A message addressed to the page belongs to whoever posted it, so it is not the Page
         // subject's to delete: every subject's message to this page goes with the page.
-        return removed + await StoreMessageSql.DeletePageAsync(database, key, cancellationToken);
+        return values + await StoreMessageSql.DeletePageAsync(database, key, cancellationToken);
     }
 
     /// <summary>Re-keys a page's Page subject to a new key.</summary>
@@ -108,6 +110,8 @@ internal static class StoreValueSql {
             WHERE "Subject" = {StoreSubjectKeys.ForPage(from)};
             """, cancellationToken);
 
+        moved += await StoreObjectSql.MovePageAsync(database, from, to, cancellationToken);
+
         return moved + await StoreMessageSql.MovePageAsync(database, from, to, cancellationToken);
     }
 
@@ -123,9 +127,9 @@ internal static class StoreValueSql {
         ArgumentNullException.ThrowIfNull(database);
         ArgumentException.ThrowIfNullOrWhiteSpace(subject);
 
-        // One helper and not three: a subject's values, its messages and the rows it holds in a
-        // declared table are the same ending, and a caller that forgot one would leave a stranger's
-        // rows behind.
+        // One helper and not four: a subject's values, its messages, its objects and the rows it holds
+        // in a declared table are the same ending, and a caller that forgot one would leave a
+        // stranger's rows behind.
         int values = await database.Database.ExecuteSqlAsync(
             $"""DELETE FROM "StoreValues" WHERE "Subject" = {subject}""", cancellationToken);
 
@@ -133,6 +137,7 @@ internal static class StoreValueSql {
 
         return values
             + messages
+            + await StoreObjectSql.DeleteSubjectAsync(database, subject, cancellationToken)
             + await DeclaredTableApplier.RemoveSubjectAsync(database, subject, cancellationToken);
     }
 
@@ -159,6 +164,7 @@ internal static class StoreValueSql {
             .ExecuteDeleteAsync(cancellationToken);
 
         removed += await StoreMessageSql.DeleteSubjectsAsync(database, subjects, cancellationToken);
+        removed += await StoreObjectSql.DeleteSubjectsAsync(database, subjects, cancellationToken);
 
         foreach (string subject in subjects) {
             removed += await DeclaredTableApplier.RemoveSubjectAsync(database, subject, cancellationToken);
@@ -193,6 +199,8 @@ internal static class StoreValueSql {
             WHERE "Subject" = {StoreSubjectKeys.ForSession(sessionId)}
               AND "Lifetime" IN ({(int)StoreLifetimeKind.Person}, {(int)StoreLifetimeKind.NextRead});
             """, cancellationToken);
+
+        values += await StoreObjectSql.AdoptAsync(database, sessionId, account, cancellationToken);
 
         return values + await StoreMessageSql.AdoptAsync(database, sessionId, account, cancellationToken);
     }

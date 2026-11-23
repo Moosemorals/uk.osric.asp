@@ -24,6 +24,7 @@ public sealed class PageStoresScopeTests {
 
     private static DatabaseTemplate? s_template;
 
+    private readonly FakeStoreObjects _objects = new();
     private string _databasePath = string.Empty;
     private DbContextOptions<StorageDbContext> _options = new DbContextOptionsBuilder<StorageDbContext>().Options;
 
@@ -71,6 +72,29 @@ public sealed class PageStoresScopeTests {
             .QueryAsync("SELECT 1 AS one");
 
         Assert.That(rows, Has.Count.EqualTo(1));
+    }
+
+    [Test]
+    public async Task AForOfALiveLibraryReachesItsObjectsAsync() {
+        FakePageReadStore readStore = new();
+        readStore.Save(LibraryKey, "a library", templateKind: PageKind.Library);
+        PageStoresScope scope = Scope(readStore);
+
+        PageObjectRef reference = await scope.For(LibraryKey).Objects.PutAsync([1, 2, 3], "application/octet-stream");
+
+        Assert.That(await scope.Page.Objects.ExistsAsync(reference.Sha), Is.True);
+    }
+
+    [Test]
+    public async Task AForOfAPageKeyIsRefusedByObjectsAsync() {
+        FakePageReadStore readStore = new();
+        readStore.Save("/plain", "a page");
+        IPageSubject other = Scope(readStore).For("/plain");
+
+        ArgumentException refused = (await Assert.ThrowsAsync<ArgumentException>(
+            async () => await other.Objects.PutAsync([1], "application/octet-stream")))!;
+
+        Assert.That(refused.Message, Does.Contain("not a live library or worker"));
     }
 
     [Test]
@@ -135,7 +159,8 @@ public sealed class PageStoresScopeTests {
         readStore,
         writable: true,
         commit: new PageCommitState(),
-        records: new SqliteRecordCatalog(DatabaseTemplate.Factory(_options)));
+        records: new SqliteRecordCatalog(DatabaseTemplate.Factory(_options)),
+        objects: _objects);
 
     private async Task InsertTitleAsync(string title) {
         await using SqliteRecordStore library = new(

@@ -13,6 +13,7 @@ internal sealed class PageSessionCleanupService(
     IPageSessionStore sessions,
     IStoreValues values,
     IStoreMessages messages,
+    IStoreObjects objects,
     PageStoresOptions stores,
     ILogger<PageSessionCleanupService> logger) : BackgroundService {
 
@@ -28,12 +29,14 @@ internal sealed class PageSessionCleanupService(
                     TimeSpan.FromDays(stores.Visitor.BrowserLifetimeDays), stoppingToken);
                 int messageRows = await messages.RemoveExpiredAsync(
                     TimeSpan.FromDays(stores.Visitor.BrowserLifetimeDays), stoppingToken);
+                int objectRows = await objects.RemoveExpiredAsync(
+                    TimeSpan.FromDays(stores.Visitor.BrowserLifetimeDays), stoppingToken);
 
                 if (sweep.Expired > 0 || sweep.AnonymousEvicted > 0 || sweep.SignedInEvicted > 0
-                    || valueRows > 0 || messageRows > 0) {
+                    || valueRows > 0 || messageRows > 0 || objectRows > 0) {
                     logger.LogInformation(
-                        "Removed {Expired} expired page sessions, evicted {Anonymous} anonymous and {SignedIn} signed-in sessions, and removed {Values} expired or stale values and {Messages} expired or stale messages",
-                        sweep.Expired, sweep.AnonymousEvicted, sweep.SignedInEvicted, valueRows, messageRows);
+                        "Removed {Expired} expired page sessions, evicted {Anonymous} anonymous and {SignedIn} signed-in sessions, and removed {Values} expired or stale values, {Messages} expired or stale messages and {Objects} expired or stale objects",
+                        sweep.Expired, sweep.AnonymousEvicted, sweep.SignedInEvicted, valueRows, messageRows, objectRows);
                 }
             } catch (Exception exception) {
                 logger.LogWarning(exception, "Could not sweep page sessions.");

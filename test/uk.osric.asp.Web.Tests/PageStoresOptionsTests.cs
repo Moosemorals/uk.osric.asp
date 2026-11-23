@@ -25,6 +25,7 @@ public sealed class PageStoresOptionsTests {
             Assert.That(stores.Visitor.BrowserLifetimeDays, Is.EqualTo(365));
             Assert.That(stores.Visitor.MaxLiveSessions, Is.EqualTo(2_048));
             Assert.That(stores.Messages, Is.EqualTo(new PageMessageOptions(16_384, 8, 65_536)));
+            Assert.That(stores.Objects, Is.EqualTo(new PageObjectOptions(8_388_608, 67_108_864)));
         });
     }
 
@@ -51,7 +52,9 @@ public sealed class PageStoresOptionsTests {
             ("Pages:Stores:Visitor:MaxLiveSessions", "64"),
             ("Pages:Stores:Messages:MaxMessageBytes", "2048"),
             ("Pages:Stores:Messages:MaxMessagesPerSubject", "3"),
-            ("Pages:Stores:Messages:MaxSubjectBytes", "8192")));
+            ("Pages:Stores:Messages:MaxSubjectBytes", "8192"),
+            ("Pages:Stores:Objects:MaxObjectBytes", "2048"),
+            ("Pages:Stores:Objects:MaxSubjectBytes", "8192")));
 
         Assert.Multiple(() => {
             Assert.That(stores.MaxKeyChars, Is.EqualTo(32));
@@ -65,6 +68,7 @@ public sealed class PageStoresOptionsTests {
             Assert.That(stores.Visitor.BrowserLifetimeDays, Is.EqualTo(10));
             Assert.That(stores.Visitor.MaxLiveSessions, Is.EqualTo(64));
             Assert.That(stores.Messages, Is.EqualTo(new PageMessageOptions(2_048, 3, 8_192)));
+            Assert.That(stores.Objects, Is.EqualTo(new PageObjectOptions(2_048, 8_192)));
         });
     }
 
@@ -103,6 +107,17 @@ public sealed class PageStoresOptionsTests {
 
         Assert.That(error.Message, Does.Contain(
             "Pages:Stores:Messages:MaxSubjectBytes is 2048, which is smaller than MaxMessageBytes (4096)"));
+    }
+
+    [Test]
+    public void AnObjectTotalSmallerThanOneObjectStopsTheSite() {
+        ConfigurationException error = Assert.Throws<ConfigurationException>(() =>
+            PageStoresOptions.FromConfiguration(ShippedConfiguration.Read(
+                ("Pages:Stores:Objects:MaxObjectBytes", "4096"),
+                ("Pages:Stores:Objects:MaxSubjectBytes", "2048"))))!;
+
+        Assert.That(error.Message, Does.Contain(
+            "Pages:Stores:Objects:MaxSubjectBytes is 2048, which is smaller than MaxObjectBytes (4096)"));
     }
 
     [Test]

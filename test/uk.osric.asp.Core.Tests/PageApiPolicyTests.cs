@@ -9,6 +9,10 @@ using uk.osric.asp.Core.Compilation;
 public sealed class PageApiPolicyTests {
 
     [TestCase("uk.osric.asp.Sdk", "IContext", "Write", true)]
+    [TestCase("uk.osric.asp.Sdk", "PageObjectStream", "ReadAsync", true)]
+    [TestCase("uk.osric.asp.Sdk", "PageObjectStream", "Read", false)]
+    [TestCase("uk.osric.asp.Sdk", "PageObjectStream", "Seek", false)]
+    [TestCase("uk.osric.asp.Sdk", "PageObjectStream", "Write", false)]
     [TestCase("System", "String", "Concat", true)]
     [TestCase("System.Text", "StringBuilder", "Append", true)]
     [TestCase("System.Collections.Generic", "List", "Add", true)]
@@ -23,6 +27,7 @@ public sealed class PageApiPolicyTests {
     [TestCase("System.Text.Json.Nodes", "JsonNode", "Parse", true)]
     [TestCase("System.Text.Json.Nodes", "JsonObject", "", true)]
     [TestCase("System.IO", "File", "ReadAllText", false)]
+    [TestCase("System.IO", "Stream", "", false)]
     [TestCase("System", "Environment", "Exit", false)]
     [TestCase("System", "Environment", "NewLine", false)]
     [TestCase("System", "TimeZoneInfo", "FindSystemTimeZoneById", false)]

@@ -72,6 +72,17 @@ internal sealed class StorageDbContext(DbContextOptions<StorageDbContext> option
             message.HasIndex(row => row.ExpiresAt);
         });
 
+        modelBuilder.Entity<StoreObjectEntry>(stored => {
+            stored.ToTable("StoreObjects");
+            stored.HasKey(row => new { row.Subject, row.Sha });
+            stored.Property(row => row.Subject).UseCollation("BINARY");
+            stored.Property(row => row.Sha).UseCollation("BINARY");
+            stored.Property(row => row.ContentType).UseCollation("BINARY");
+            // The route finds an object by its digest; the sweep reads ExpiresAt as a range.
+            stored.HasIndex(row => row.Sha);
+            stored.HasIndex(row => row.ExpiresAt);
+        });
+
         modelBuilder.Entity<DeclaredTableEntry>(table => {
             table.ToTable("DeclaredTables");
             table.HasKey(row => row.Id);
