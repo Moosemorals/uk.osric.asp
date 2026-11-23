@@ -37,7 +37,23 @@ public sealed class PageBudgetTests {
         Assert.Multiple(() => {
             Assert.That(options.BurstFor(2), Is.EqualTo(10), "two per second in a five-second deadline is today's ten");
             Assert.That(options.BurstFor(104_858), Is.EqualTo(524_290), "the shipped read rate keeps its whole burst");
-            Assert.That(options.BurstFor(0.01), Is.Zero, "a rate too slow to fill one unit in a deadline has no burst");
+            Assert.That(options.BurstFor(0.01), Is.EqualTo(1),
+                "a rate too slow to fill one unit in a deadline still starts with one, so a render can always fetch once");
+        });
+    }
+
+    [Test]
+    public void ABurstIsNeverBelowOneWhateverTheDeadline() {
+        // A fractional deadline is a supported setting, and the shipped rates are modest, so the
+        // product of the two is routinely below one unit. A burst of zero would refuse every fetch
+        // forever rather than bound one.
+        RenderOptions tight = RenderOptions.FromConfiguration(
+            ShippedConfiguration.Read(("Pages:Render:TimeoutSeconds", "0.25")));
+
+        Assert.Multiple(() => {
+            Assert.That(tight.BurstFor(2), Is.EqualTo(1), "a quarter second at two per second rounds up to one");
+            Assert.That(tight.BurstFor(0.01), Is.EqualTo(1), "so does a rate far below one per deadline");
+            Assert.That(tight.BurstFor(1_024), Is.EqualTo(256), "a rate that fills the deadline is still floored");
         });
     }
 

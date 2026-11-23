@@ -201,8 +201,8 @@ control socket and the one call.
   `Pages__Fetch__TimeoutSeconds` defaults to 4, deliberately below the 5-second render budget;
   `Pages__Fetch__FetchesPerSecond` (2), `MaxResponseBytes` and `MaxRedirects` bound the rest, and
   `Pages__Read__SourceCharsPerSecond` (104858) bounds template reads the same way. Each rate's burst
-  is that rate times `Pages__Render__TimeoutSeconds`, and a job has its own pair under
-  `Pages__Jobs__FetchesPerSecond` and `Pages__Jobs__SourceCharsPerSecond`. The container's egress
+  is that rate times `Pages__Render__TimeoutSeconds`, never below one request, and a job has its own
+  pair under `Pages__Jobs__FetchesPerSecond` and `Pages__Jobs__SourceCharsPerSecond`. The container's egress
   and internal network are not otherwise restricted, and the assistant's `fetch` tool uses the same
   path, so a stored page or an approved tool call can reach anything the container can. That is the
   single-owner trust boundary, not a sandbox (`sec-page-runs-in-process`). Every request carries

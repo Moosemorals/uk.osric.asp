@@ -2107,9 +2107,10 @@ which is how the value is tuned.
 `Pages:Read:SourceCharsPerSecond` bound outbound requests and template reads. The burst an allowance
 starts with is what its rate spends in `Pages:Render:TimeoutSeconds`, derived once by
 `RenderOptions.BurstFor` rather than configured, so no second key can disagree and nothing a deployment
-could spend before is refused now. A rate whose burst is under one unit stops the site at startup,
-naming both keys and the smallest rate that works, because a burst of zero would refuse every caller
-forever rather than tighten a guard. `Allowance` in `Core.Pages` is the bucket itself: a capacity, a
+could spend before is refused now. The derived burst is never below one unit, because a fractional
+deadline and a modest rate are each a valid setting and together they routinely spend less than a unit
+in one deadline: a burst of zero would refuse every caller forever rather than bound one, so the
+derivation floors at the least that can always be spent once. `Allowance` in `Core.Pages` is the bucket itself: a capacity, a
 rate and the instant the caller passes, refilled at the rate and capped at the capacity, banking no
 idle hour, taking nothing larger than the burst in one whole take, and refusing without cost.
 `FetchBudget` and `ReadBudget` hold one under a lock, one per chain (`pages-one-request-one-chain`),

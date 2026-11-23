@@ -587,7 +587,8 @@ exceptions:</p>
 <p>Both are bounded by a rate rather than a count. <code>Pages:Fetch:FetchesPerSecond</code> (2 as
 shipped) is what a render may spend, and the burst it starts with is that rate times
 <code>Pages:Render:TimeoutSeconds</code> — ten as shipped, the count the site shipped before this
-became a rate, now refilled while the render still runs. A request the policy would refuse costs nothing; one that
+became a rate, now refilled while the render still runs. However short the deadline, the burst is at
+least one, so a render can always make one request. A request the policy would refuse costs nothing; one that
 is attempted costs one, whatever comes back, and a stream costs one when it is opened. A render refused
 a fetch answers <code>TooManyRequests</code>. <code>pages-allowances-are-a-rate</code> is why it is a
 rate rather than a count.</p>

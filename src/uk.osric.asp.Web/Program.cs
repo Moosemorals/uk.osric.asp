@@ -130,10 +130,6 @@ internal class Program {
         pageSettings.FailIf(pageSettings.Has("Session"), "Session",
             "is no longer read. Pages:Stores:Visitor carries the session's limits and idle bounds, so remove the key and restart");
 
-        // A rate and the render's deadline are read from different sections, so a burst that is too
-        // small to spend is checked here, in the same report as everything else.
-        PageAllowanceRules.RequireOneWholeUnit(pageSettings, "Fetch:FetchesPerSecond", fetch.FetchesPerSecond, render);
-        PageAllowanceRules.RequireOneWholeUnit(pageSettings, "Jobs:FetchesPerSecond", jobOptions.FetchesPerSecond, render);
         settings.Complete();
         ReservedPaths reserved = new(ReservedPaths.Default);
 

@@ -725,7 +725,7 @@ waits for it against one deadline that covers both queueing and running:
 - `Pages:Fetch:FetchesPerSecond` and `Pages:Read:SourceCharsPerSecond` bound outbound requests and
   template reads as rates with a burst. The burst is what the rate spends in
   `Pages:Render:TimeoutSeconds`, so a render starts with today's count available at once and refills
-  while it still runs; a rate whose burst is under one unit stops the site at startup. A job has its
+  while it still runs, and the burst is never below one unit however short the deadline. A job has its
   own pair under `Pages:Jobs`, because a worker that lives nine hours must not be given a page's
   lifetime allowance, and its duration is the only ceiling. A read is whole, so the read burst is
   also the largest single template that can ever be read. A listing, a search and a body write do not
