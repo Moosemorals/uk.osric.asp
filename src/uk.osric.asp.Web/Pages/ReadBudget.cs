@@ -5,7 +5,7 @@ namespace uk.osric.asp.Web.Pages;
 
 /// <summary>The template allowance one request's whole layout chain shares.</summary>
 /// <remarks>
-/// The cap names the render rather than the layer, so a layout must not double the allowance simply
+/// The limit names the render rather than the layer, so a layout must not double the allowance simply
 /// because there are two layers reading under it. A read that would go over is refused rather than
 /// clamped, because half a template is a misleading answer.
 /// </remarks>

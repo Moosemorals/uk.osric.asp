@@ -13,7 +13,7 @@ using uk.osric.asp.Web.Pages;
 /// <remarks>
 /// <para>
 /// The split is the whole design: compilation writes nothing, so a compile failure, a compiler fault,
-/// a cap or a host crash leaves storage untouched; then the whole batch is written in one
+/// a limit or a host crash leaves storage untouched; then the whole batch is written in one
 /// transaction. A page that does not compile is a stored revision with diagnostics, not a reason to
 /// stop.
 /// </para>

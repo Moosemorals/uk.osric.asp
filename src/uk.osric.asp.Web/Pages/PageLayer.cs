@@ -10,7 +10,7 @@ namespace uk.osric.asp.Web.Pages;
 /// <param name="Path">
 /// The chain down to and including this layer, which is what an embed or a wrap is checked against.
 /// </param>
-/// <param name="Depth">How many embeds sit above this layer, which is the depth cap's measure.</param>
+/// <param name="Depth">How many embeds sit above this layer, which is the depth limit's measure.</param>
 internal sealed record PageLayer(
     SimpleContext Context,
     PageLayoutState Layout,

@@ -43,7 +43,7 @@ internal sealed class ModelWindowSource {
 
         ModelWindowSource source = new();
         // Set directly rather than through Record, because Record re-derives the budget and would
-        // refuse the small one a test uses to make a cap bite.
+        // refuse the small one a test uses to make a limit bite.
         Volatile.Write(ref source._budget, budget);
         Volatile.Write(ref source._read, ModelWindowRead.Ok(budget.ContextWindow, budget.MaximumOutputTokens));
         return source;

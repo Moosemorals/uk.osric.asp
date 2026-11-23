@@ -23,7 +23,7 @@ internal sealed class SqlitePageSessionStore(
     TimeProvider clock) : IPageSessionStore {
 
     // One mint pays for a batch of deletes rather than one row, so a burst of new sessions does not
-    // cost an eviction per insert. The cap is small enough that a hundredth of it is a handful.
+    // cost an eviction per insert. The limit is small enough that a hundredth of it is a handful.
     private int EvictionBatchSize => Math.Clamp(options.Visitor.MaxLiveSessions / 100 + 1, 1, 64);
 
     // The signed-in row lives as long as the sign-in it belongs to, which is the ticket's lifetime.

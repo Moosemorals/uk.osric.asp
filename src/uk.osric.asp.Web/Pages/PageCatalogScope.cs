@@ -23,7 +23,7 @@ using uk.osric.asp.Web.Shell;
 /// </para>
 /// <para>
 /// The only refusals are about the call itself. An argument that cannot name anything is an
-/// <see cref="ArgumentException"/>, because that is a page bug; a limit past the cap is an
+/// <see cref="ArgumentException"/>, because that is a page bug; a limit past the limit is an
 /// <see cref="ArgumentOutOfRangeException"/> that names the setting, rather than a silently trimmed
 /// answer; and an abandoned render is an <see cref="InvalidOperationException"/>. A store with more
 /// rows than the slice asked for is not a refusal: the answer says so.

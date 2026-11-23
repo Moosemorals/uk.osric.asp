@@ -100,11 +100,11 @@ public sealed class OutboundResponseTests {
     }
 
     [Test]
-    public async Task ACutBodyReportsTheCapItHit() {
+    public async Task ACutBodyReportsTheLimitItHit() {
         StubHttpMessageHandler handler = new(_ => Respond(HttpStatusCode.OK, new string('x', 1000)));
-        PageFetchOptions capped = TestOptions.Fetch with { MaxResponseBytes = 16 };
+        PageFetchOptions limited = TestOptions.Fetch with { MaxResponseBytes = 16 };
 
-        OutboundResponse view = await FetchResponseAsync("https://example.com/x", handler, capped);
+        OutboundResponse view = await FetchResponseAsync("https://example.com/x", handler, limited);
 
         Assert.Multiple(() => {
             Assert.That(view.Truncated, Is.True);

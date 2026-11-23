@@ -99,8 +99,8 @@ internal sealed class PageBody {
                 return;
             }
 
-            // The cap exists to bound what is held in memory before the response can be sent. Once the
-            // page has committed, its body is on the wire and a total cap would defeat streaming.
+            // The limit exists to bound what is held in memory before the response can be sent. Once the
+            // page has committed, its body is on the wire and a total limit would defeat streaming.
             if (!_commit.Committed && !_bodyBudget.TryCharge(text.Length)) {
                 throw new InvalidOperationException(
                     $"{_path.Key} wrote more than {_bodyBudget.MaxChars} characters; the render was stopped.");

@@ -82,12 +82,12 @@ internal interface IStoreValues {
         int limit,
         CancellationToken cancellationToken = default);
 
-    /// <summary>Writes one value under its subject's caps, in one statement.</summary>
+    /// <summary>Writes one value under its subject's limits, in one statement.</summary>
     /// <param name="write">The row to write.</param>
-    /// <param name="caps">The caps the subject obeys.</param>
+    /// <param name="limits">The limits the subject obeys.</param>
     /// <param name="cancellationToken">Cancels the write.</param>
-    /// <exception cref="ArgumentException">A cap was hit, or the page is no longer live.</exception>
-    Task WriteAsync(StoreValueWrite write, StoreSubjectCaps caps, CancellationToken cancellationToken = default);
+    /// <exception cref="ArgumentException">A limit was hit, or the page is no longer live.</exception>
+    Task WriteAsync(StoreValueWrite write, SubjectLimits limits, CancellationToken cancellationToken = default);
 
     /// <summary>Removes the entry a reader would see for this page and key.</summary>
     /// <param name="subjects">The reader's subjects, most ephemeral first.</param>
@@ -113,9 +113,9 @@ internal interface IStoreValues {
     /// <param name="page">The page the value belongs to.</param>
     /// <param name="key">The key.</param>
     /// <param name="value">The value as JSON.</param>
-    /// <param name="caps">The Page subject's caps.</param>
+    /// <param name="limits">The Page subject's limits.</param>
     /// <param name="cancellationToken">Cancels the write.</param>
-    /// <exception cref="ArgumentException">A cap was hit, or the page is no longer live.</exception>
+    /// <exception cref="ArgumentException">A limit was hit, or the page is no longer live.</exception>
     Task WritePageValueAsync(
-        PagePath page, string key, string value, StoreSubjectCaps caps, CancellationToken cancellationToken = default);
+        PagePath page, string key, string value, SubjectLimits limits, CancellationToken cancellationToken = default);
 }

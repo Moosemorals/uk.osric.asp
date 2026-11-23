@@ -157,9 +157,9 @@ public sealed class AssistantMetricsTests {
         Assert.That(measurements, Is.EquivalentTo([(110.00, "currency=CNY"), (5.50, "currency=USD")]));
     }
 
-    /// <summary>`metrics-one-panel-per-instrument`: a sample that reached its cap is the one the panel was opened for.</summary>
+    /// <summary>`metrics-one-panel-per-instrument`: a sample that reached its limit is the one the panel was opened for.</summary>
     [Test]
-    public void EveryScaleReachesPastTheCapTheSiteShips() {
+    public void EveryScaleReachesPastTheLimitTheSiteShips() {
         IConfiguration shipped = ShippedConfiguration.Read();
 
         (string Key, double[] Buckets)[] scales = [
@@ -170,16 +170,16 @@ public sealed class AssistantMetricsTests {
         ];
 
         foreach ((string key, double[] buckets) in scales) {
-            double cap = shipped.GetValue<double>(key);
+            double limit = shipped.GetValue<double>(key);
 
             Assert.That(buckets, Is.Ordered, key);
-            Assert.That(buckets[^1], Is.GreaterThan(cap), $"{key} is {cap}, so a sample recorded at it would be +Inf");
+            Assert.That(buckets[^1], Is.GreaterThan(limit), $"{key} is {limit}, so a sample recorded at it would be +Inf");
         }
     }
 
     [Test]
     public void TheRunDurationScaleCoversAnHourOfWork() {
-        // A run's length has no cap: its timeout bounds the provider going quiet, not the run (`assistant-deadlines-bound-silence`).
+        // A run's length has no limit: its timeout bounds the provider going quiet, not the run (`assistant-deadlines-bound-silence`).
         Assert.That(AssistantMetrics.RunDurationBuckets, Is.Ordered);
         Assert.That(AssistantMetrics.RunDurationBuckets[^1], Is.GreaterThanOrEqualTo(3600));
     }

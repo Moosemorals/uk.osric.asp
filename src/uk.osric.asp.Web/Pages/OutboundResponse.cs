@@ -20,9 +20,9 @@ using uk.osric.asp.Sdk;
 /// </remarks>
 /// <param name="Status">The final response's status, or <c>0</c> when no response arrived.</param>
 /// <param name="Headers">Every response header, from the response and its content.</param>
-/// <param name="Body">The body's bytes, up to the configured response cap.</param>
+/// <param name="Body">The body's bytes, up to the configured response limit.</param>
 /// <param name="Failure">Why the fetch failed, or <see cref="HttpFetchFailure.None"/>.</param>
-/// <param name="Truncated">Whether the body hit the host's response cap.</param>
+/// <param name="Truncated">Whether the body hit the host's response limit.</param>
 /// <param name="Redirects">Every hop that was followed, in order, oldest first.</param>
 internal sealed record OutboundResponse(
     int Status,

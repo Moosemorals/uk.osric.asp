@@ -33,7 +33,7 @@ public sealed class MemoryContentTests {
     }
 
     [Test]
-    public void TheCapIsCountedInCharactersRatherThanBytes() {
+    public void TheLimitIsCountedInCharactersRatherThanBytes() {
         MemoryContentResult result = MemoryContent.Normalise(new string('é', 11), 10);
 
         Assert.That(result.IsSuccess, Is.False);
@@ -41,7 +41,7 @@ public sealed class MemoryContentTests {
     }
 
     [Test]
-    public void ContentAtExactlyTheCapIsAccepted() {
+    public void ContentAtExactlyTheLimitIsAccepted() {
         Assert.That(MemoryContent.Normalise(new string('é', 10), 10).IsSuccess, Is.True);
     }
 

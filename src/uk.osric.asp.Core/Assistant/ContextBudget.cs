@@ -9,7 +9,7 @@ using System.Globalization;
 /// <remarks>
 /// The provider reports the window and the largest reply the model accepts; the operator chooses only
 /// the floor under a reply, so the prompt's share is the window less that floor. Every other content
-/// cap is a fraction of the prompt budget rather than a number standing beside it, so no single
+/// limit is a fraction of the prompt budget rather than a number standing beside it, so no single
 /// payload can fill the budget the planner is protecting (<c>assistant-one-budget-decides-what-fits</c>).
 /// The fractions are invariants here rather than configuration: a value that could raise one to the
 /// whole budget would switch the guard off.
@@ -86,7 +86,7 @@ public sealed record ContextBudget {
 
     /// <summary>The <c>max_tokens</c> a request estimated at <paramref name="estimatedPrompt"/> is sent with.</summary>
     /// <param name="estimatedPrompt">The prompt's estimated size, including the estimate's margin.</param>
-    /// <returns>What the window leaves, capped at the published maximum and floored at the configured minimum.</returns>
+    /// <returns>What the window leaves, limited to the published maximum and floored at the configured minimum.</returns>
     /// <remarks>
     /// The estimate carries the margin, so a low estimate shortens the reply's allowance by the same
     /// amount: the prompt and the reply together stay inside the window rather than needing a haircut.

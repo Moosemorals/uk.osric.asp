@@ -364,7 +364,7 @@ its files are owned by mapped subordinate IDs, so offline access needs `podman u
 ## Metrics and the status page
 
 Prometheus scrapes `app:8080/metrics` and `node-exporter:9100/metrics` every 15 s over the shared
-network and keeps 30 days or 4 GB, whichever comes first; the container is capped at 512 MB of RAM so
+network and keeps 30 days or 4 GB, whichever comes first; the container is limited to 512 MB of RAM so
 runaway cardinality fails a scrape instead of the host. `/admin/status` is owner-only and queries
 Prometheus by name, so neither service is reachable from the internet.
 

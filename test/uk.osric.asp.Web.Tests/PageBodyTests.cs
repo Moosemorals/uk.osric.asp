@@ -83,7 +83,7 @@ public sealed class PageBodyTests {
     }
 
     [Test]
-    public async Task TheBodyCapStopsAtTheFirstFlush() {
+    public async Task TheBodyLimitStopsAtTheFirstFlush() {
         PageBody body = CreateBody(out _, maxBodyChars: 10);
 
         body.Write("0123456789");
@@ -96,7 +96,7 @@ public sealed class PageBodyTests {
     }
 
     [Test]
-    public void TheBodyCapStillRefusesAnOversizedBufferBeforeTheFlush() {
+    public void TheBodyLimitStillRefusesAnOversizedBufferBeforeTheFlush() {
         PageBody body = CreateBody(out _, maxBodyChars: 10);
 
         Assert.That(() => body.Write("01234567890"), Throws.InvalidOperationException.With.Message.Contains("10"));

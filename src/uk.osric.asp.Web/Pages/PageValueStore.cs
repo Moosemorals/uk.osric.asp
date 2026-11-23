@@ -29,7 +29,7 @@ internal sealed class PageValueStore : RenderBoundCapability, IValueStore {
     private readonly IStoreValues _store;
     private readonly IPageSessionStore? _sessions;
     private readonly PageReaderSubject? _reader;
-    private readonly StoreSubjectCaps _pageCaps;
+    private readonly SubjectLimits _pageLimits;
     private readonly int _maxKeyChars;
     private readonly bool _writable;
     private readonly PageCommitState? _commit;
@@ -40,25 +40,25 @@ internal sealed class PageValueStore : RenderBoundCapability, IValueStore {
     /// <summary>Creates a Page subject's handle.</summary>
     /// <param name="bound">The layer's own key.</param>
     /// <param name="store">Where values live.</param>
-    /// <param name="caps">The Page subject's caps.</param>
+    /// <param name="limits">The Page subject's limits.</param>
     /// <param name="maxKeyChars">The longest key.</param>
     /// <param name="writable">Whether this render may write.</param>
     /// <param name="validate">Checks a <c>For</c> key on first use, or <see langword="null"/>.</param>
     public PageValueStore(
         PagePath bound,
         IStoreValues store,
-        StoreSubjectCaps caps,
+        SubjectLimits limits,
         int maxKeyChars,
         bool writable,
         Func<CancellationToken, Task>? validate = null) {
         ArgumentNullException.ThrowIfNull(bound);
         ArgumentNullException.ThrowIfNull(store);
-        ArgumentNullException.ThrowIfNull(caps);
+        ArgumentNullException.ThrowIfNull(limits);
         ArgumentOutOfRangeException.ThrowIfLessThan(maxKeyChars, 1);
 
         _bound = bound;
         _store = store;
-        _pageCaps = caps;
+        _pageLimits = limits;
         _maxKeyChars = maxKeyChars;
         _writable = writable;
         _validate = validate;
@@ -94,7 +94,7 @@ internal sealed class PageValueStore : RenderBoundCapability, IValueStore {
         _store = store;
         _sessions = sessions;
         _reader = reader;
-        _pageCaps = new StoreSubjectCaps(0, 0, 0);
+        _pageLimits = new SubjectLimits(0, 0, 0);
         _maxKeyChars = maxKeyChars;
         _writable = writable;
         _commit = commit;
@@ -160,11 +160,11 @@ internal sealed class PageValueStore : RenderBoundCapability, IValueStore {
             throw new ArgumentException($"{_bound.Key} holds only {_only} values in this store.", nameof(lifetime));
         }
 
-        StoreSubjectCaps caps = CapsFor(kind);
+        SubjectLimits limits = LimitsFor(kind);
         string json = JsonSerializer.Serialize(value, JsonSerialization.Options);
-        if (Encoding.UTF8.GetByteCount(json) > caps.MaxValueBytes) {
+        if (Encoding.UTF8.GetByteCount(json) > limits.MaxValueBytes) {
             throw new ArgumentException(
-                $"The value for {key} is larger than the {caps.MaxValueBytes} byte limit.", nameof(value));
+                $"The value for {key} is larger than the {limits.MaxValueBytes} byte limit.", nameof(value));
         }
 
         if (_reader is not null && kind == StoreLifetimeKind.Browser && reader().BrowserId is null) {
@@ -184,7 +184,7 @@ internal sealed class PageValueStore : RenderBoundCapability, IValueStore {
         string? expiresAt = lifetime?.ExpiresAt is { } expiry ? StoreSubjectKeys.Stamp(expiry) : null;
         await _store.WriteAsync(
             new StoreValueWrite(subject, _bound.Key, key, (int)kind, expiresAt, json, RequireLivePage: _reader is null),
-            caps,
+            limits,
             Cancellation());
     }
 
@@ -239,8 +239,8 @@ internal sealed class PageValueStore : RenderBoundCapability, IValueStore {
             return [];
         }
 
-        int cap = _reader is null ? _pageCaps.MaxKeys : _reader.CapsFor(_only ?? StoreLifetimeKind.Session).MaxKeys;
-        int limit = Math.Clamp(filter?.Limit ?? cap, 1, cap);
+        int available = _reader is null ? _pageLimits.MaxKeys : _reader.LimitsFor(_only ?? StoreLifetimeKind.Session).MaxKeys;
+        int limit = Math.Clamp(filter?.Limit ?? available, 1, available);
 
         IReadOnlyList<StoreValueRow> rows = await _store.ListAsync(
             Subjects(), pageKey, lifetime, limit, Cancellation());
@@ -271,8 +271,8 @@ internal sealed class PageValueStore : RenderBoundCapability, IValueStore {
         return kind;
     }
 
-    private StoreSubjectCaps CapsFor(StoreLifetimeKind kind) =>
-        _reader is null ? _pageCaps : _reader.CapsFor(kind);
+    private SubjectLimits LimitsFor(StoreLifetimeKind kind) =>
+        _reader is null ? _pageLimits : _reader.LimitsFor(kind);
 
     private string SubjectFor(StoreLifetimeKind kind) {
         if (_reader is null) {

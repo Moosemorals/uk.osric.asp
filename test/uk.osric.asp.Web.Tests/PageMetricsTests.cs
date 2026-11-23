@@ -207,13 +207,13 @@ public sealed class PageMetricsTests {
 
     [Test]
     public void TheDurationScaleReachesPastTheShippedCompileDeadline() {
-        double cap = ShippedConfiguration.Read().GetValue<double>("Pages:Compile:TimeoutSeconds");
+        double limit = ShippedConfiguration.Read().GetValue<double>("Pages:Compile:TimeoutSeconds");
 
         Assert.That(PageMetrics.SecondsBuckets, Is.Ordered);
         Assert.That(
             PageMetrics.SecondsBuckets[^1],
-            Is.GreaterThan(cap),
-            $"the compile deadline is {cap} s, so a compile recorded at it must land in a real bucket (`metrics-one-panel-per-instrument`)");
+            Is.GreaterThan(limit),
+            $"the compile deadline is {limit} s, so a compile recorded at it must land in a real bucket (`metrics-one-panel-per-instrument`)");
     }
 
     [Test]

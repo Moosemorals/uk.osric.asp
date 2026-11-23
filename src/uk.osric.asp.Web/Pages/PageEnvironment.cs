@@ -18,11 +18,11 @@ using uk.osric.asp.Web.Work;
 /// <param name="Reserved">The keys the site's own routes answer for.</param>
 /// <param name="Editor">The one key offered the editor capability.</param>
 /// <param name="Layout">The page every HTML page with code is wrapped in unless it says otherwise.</param>
-/// <param name="Render">The render budget and body cap.</param>
+/// <param name="Render">The render budget and body limit.</param>
 /// <param name="ContentTypes">The media type and script policy each page key's extension names.</param>
-/// <param name="Stores">The page stores' caps and identity bounds.</param>
-/// <param name="Fetch">The outbound fetch caps.</param>
-/// <param name="Read">The caps on a page's read of the page store.</param>
+/// <param name="Stores">The page stores' limits and identity bounds.</param>
+/// <param name="Fetch">The outbound fetch limits.</param>
+/// <param name="Read">The limits on a page's read of the page store.</param>
 /// <param name="Search">The allowance, limits and snippet width a page's search runs with.</param>
 /// <param name="StoreValues">Where a page's values are read and written.</param>
 /// <param name="Messages">Where a page's messages are queued, taken and peeked.</param>

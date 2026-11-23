@@ -393,7 +393,7 @@ public sealed class PageStreamingTests {
     }
 
     [Test]
-    public async Task TheBodyCapStopsAtTheFirstFlushAsync() {
+    public async Task TheBodyLimitStopsAtTheFirstFlushAsync() {
         Store("/stream", """
             <% ctx.Response.Write("0123456789"); await ctx.Response.FlushAsync();
                ctx.Response.Write("0123456789"); await ctx.Response.FlushAsync(); %>

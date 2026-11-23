@@ -8,7 +8,7 @@ namespace uk.osric.asp.Sdk;
 /// <see cref="Applied"/> and <see cref="Staged"/> answer whether the write is durable yet, which is the
 /// whole difference an open transaction makes. <see cref="Busy"/> and <see cref="Full"/> are values
 /// rather than exceptions because they depend on data the page did not choose: another writer held the
-/// store, or the subject was at its cap. Everything the page got wrong throws instead.
+/// store, or the subject was at its limit. Everything the page got wrong throws instead.
 /// </remarks>
 public enum PageRecordOutcome {
 
@@ -21,6 +21,6 @@ public enum PageRecordOutcome {
     /// <summary>Another writer held the store, so nothing was written.</summary>
     Busy,
 
-    /// <summary>The subject is at its row or byte cap, so nothing was written.</summary>
+    /// <summary>The subject is at its row or byte limit, so nothing was written.</summary>
     Full,
 }

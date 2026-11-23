@@ -714,7 +714,7 @@ public sealed class PageToolExecutorTests {
 
     [Test]
     public async Task SearchPagesStopsAtTheSearchMatchLimit() {
-        // The shipped cap is the configuration range's own maximum, so a stop is a real limit rather
+        // The shipped limit is the configuration range's own maximum, so a stop is a real limit rather
         // than a number the assistant picked; `cannot-search-the-store` replaces it with a cursor.
         FakePageStore storage = new();
         storage["/many"] = new PageTemplate(PageHarness.Key("/many"), string.Join('\n', Enumerable.Repeat("hit", 1_001)));
@@ -1015,7 +1015,7 @@ public sealed class PageToolExecutorTests {
 
         Assert.Multiple(() => {
             Assert.That(result.IsSuccess, Is.True, result.Content);
-            Assert.That(Output(result), Does.Contain("100 lines shown"), "a capped answer says it was capped");
+            Assert.That(Output(result), Does.Contain("100 lines shown"), "a truncated answer says it was truncated");
             Assert.That(Data(result).GetProperty("truncated").GetBoolean(), Is.True);
         });
     }
@@ -1039,7 +1039,7 @@ public sealed class PageToolExecutorTests {
 
         Assert.Multiple(() => {
             Assert.That(result.IsSuccess, Is.True, result.Content);
-            Assert.That(Output(result), Does.Contain("500 entries shown"), "a capped listing says it was capped");
+            Assert.That(Output(result), Does.Contain("500 entries shown"), "a truncated listing says it was truncated");
             Assert.That(Data(result).GetProperty("truncated").GetBoolean(), Is.True);
         });
     }
@@ -1866,7 +1866,7 @@ public sealed class PageToolExecutorTests {
     }
 
     [Test]
-    public async Task CheckCutsTheDiagnosticListAtTheConfiguredCapAsync() {
+    public async Task CheckCutsTheDiagnosticListAtTheConfiguredLimitAsync() {
         FakePageStore storage = new();
         using PageHarness pages = new(storage);
         using ServiceProvider services = Services(pages);

@@ -49,7 +49,7 @@ single place to put "something that happened".
 1. Decide first whether this needs the host at all. The candidates are a reserved inbox the page
    session grows (`SendAsync(pagePath, key, value)`, which writes outside the sender's path and so
    breaks the ownership rule that currently makes isolation structural), a one-shot area carried by
-   the redirect URL (a query parameter or a fragment, which needs no store, no sweep and no cap, and
+   the redirect URL (a query parameter or a fragment, which needs no store, no sweep and no limit, and
    which nobody else can read), or nothing at all until a real case appears.
 2. If it is the store, the write rule has to grow a second case, and the question is what stops it
    from becoming "any page can write anywhere" with extra steps. A send that lands in the receiver's
@@ -58,7 +58,7 @@ single place to put "something that happened".
 3. One-shot semantics belong in the same decision: a message that is read but not deleted shows
    twice, and a message deleted without being read is lost. The editor's `MessageKey` consumes on
    read; a send should say which it is.
-4. Bound whatever is added: a message is a key in a store whose caps are per visitor, so a send that
+4. Bound whatever is added: a message is a key in a store whose limits are per visitor, so a send that
    bypasses the sender's path must not become a way around the key count.
 5. Tests: a receiver reads what a sender left without knowing the sender's path; a page cannot send
    into a path that does not exist; the message is consumed once; a page that ignores it loses it to

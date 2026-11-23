@@ -168,7 +168,7 @@ public sealed partial class ArchiveEndpointTests : IntegrationTest {
     private static partial Regex IncludeInput();
 }
 
-/// <summary>The upload cap is a per-deployment setting, so it needs a host of its own.</summary>
+/// <summary>The upload limit is a per-deployment setting, so it needs a host of its own.</summary>
 [TestFixture]
 public sealed class ArchiveUploadLimitTests : IntegrationTest {
 
@@ -177,7 +177,7 @@ public sealed class ArchiveUploadLimitTests : IntegrationTest {
     }
 
     [Test]
-    public async Task AnUploadOverTheConfiguredCapAnswers413() {
+    public async Task AnUploadOverTheConfiguredLimitAnswers413() {
         using HttpClient client = await CreateSignedInClientAsync();
         string token = await GetAntiforgeryTokenAsync(client, "/admin/import");
 

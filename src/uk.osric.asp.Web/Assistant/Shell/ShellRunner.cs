@@ -98,12 +98,12 @@ internal static class ShellRunner {
         string answer = output.Text;
         bool truncated = output.Truncated;
 
-        int cap = (int)Math.Min(budget.ToolResultChars, int.MaxValue);
-        if (answer.Length > cap) {
-            // The note is inside the cap rather than beside it, so the answer a tool hands back is
+        int limit = (int)Math.Min(budget.ToolResultChars, int.MaxValue);
+        if (answer.Length > limit) {
+            // The note is inside the limit rather than beside it, so the answer a tool hands back is
             // never larger than the share of the budget it was given.
-            string note = $"\n[the answer was truncated at {cap} characters; ask for less]";
-            answer = answer[..Math.Max(0, cap - note.Length)] + note;
+            string note = $"\n[the answer was truncated at {limit} characters; ask for less]";
+            answer = answer[..Math.Max(0, limit - note.Length)] + note;
             truncated = true;
         }
 

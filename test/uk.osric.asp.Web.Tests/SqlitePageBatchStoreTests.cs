@@ -92,7 +92,7 @@ public sealed class SqlitePageBatchStoreTests {
     }
 
     [Test]
-    public async Task AMergedStateOverTheCapWritesNothing() {
+    public async Task AMergedStateOverTheLimitWritesNothing() {
         await DatabaseTemplate.SavePageAsync(_options, "/one", "old one");
         await DatabaseTemplate.SavePageAsync(_options, "/two", "old two");
         await new SqliteStoreValues(DatabaseTemplate.Factory(_options), TestOptions.Stores, TimeProvider.System)

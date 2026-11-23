@@ -537,7 +537,7 @@ public sealed class PageEndpointTests {
     }
 
     [Test]
-    public async Task APageThatWritesPastTheBodyCapFailsAsync() {
+    public async Task APageThatWritesPastTheBodyLimitFailsAsync() {
         DefaultHttpContext context = CreateContext("chatty.cs");
         FakePageStore storage = new();
         storage["/chatty.cs"] = new PageTemplate(PagePath.Normalize("/chatty.cs"), "0123456789");
@@ -548,7 +548,7 @@ public sealed class PageEndpointTests {
     }
 
     [Test]
-    public async Task AChunkedFormPastTheCapIsRejectedAsync() {
+    public async Task AChunkedFormPastTheLimitIsRejectedAsync() {
         DefaultHttpContext context = ChunkedForm("field=" + new string('a', 2 * 1024 * 1024));
         FakePageStore storage = new();
         storage["/hello.cs"] = new PageTemplate(PagePath.Normalize("/hello.cs"), "Hello.");
@@ -571,7 +571,7 @@ public sealed class PageEndpointTests {
     }
 
     [Test]
-    public async Task AChunkedFormUnderTheCapIsServedAsync() {
+    public async Task AChunkedFormUnderTheLimitIsServedAsync() {
         DefaultHttpContext context = ChunkedForm("field=hello");
         FakePageStore storage = new();
         storage["/hello.cs"] = new PageTemplate(

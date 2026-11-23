@@ -104,7 +104,7 @@ backticks beside the slice that took it:
 - **pages-a-search-returns-matches** (038)
 - `pages-a-diagnostic-names-its-source` (041) — recorded: the span and the key are one rule, a
   diagnostic points at the thing in the file it is in
-- `pages-a-listing-resumes-from-a-key` (039) — recorded: a slice is a keyset, and the cap is the
+- `pages-a-listing-resumes-from-a-key` (039) — recorded: a slice is a keyset, and the limit is the
   largest slice rather than a refusal
 - `pages-a-page-names-its-libraries` (040) — recorded: a row carries its closure's keys
 - **pages-a-key-moves-with-its-history** (042)
@@ -141,7 +141,7 @@ smallest changes come first because they are what every later slice is written a
    library, an unknown position is still `null`.
 1. **039 — the cursor.** Landed, and the record is `pages-a-listing-resumes-from-a-key`. Small,
    independent, and the shape 038 and the tree both need. Proved: a cursor walks the store in slices
-   with no key twice and none missed, a cursor past the last key is an empty answer, and the row cap
+   with no key twice and none missed, a cursor past the last key is an empty answer, and the row limit
    became a limit rather than a refusal.
 2. **040 — the closure.** Landed, and the record is `pages-a-page-names-its-libraries`. Small, and it
    is what makes a tree's marks true. Proved: a page that names a library reports it, the page that

@@ -24,7 +24,7 @@ download; import takes that file back as a multipart upload, stages it, shows a 
 then applies it all or nothing.
 
 Everything about that is outside the page contract. A page reads `ctx.Request.Form`, `Query`,
-`Headers` and `Cookies` — text values with the body capped and buffered as a form — and it writes
+`Headers` and `Cookies` — text values with the body limited and buffered as a form — and it writes
 text into a buffered response with a character budget. Neither end is a byte stream. This job is what
 would move both routes, and it is worth recording that the interesting shape is **not** a generic
 upload and download.
@@ -39,7 +39,7 @@ upload and download.
    `Task<ArchivePlan> StageAsync(string fileName, byte[] archive)` and
    `Task<PageSaveResult[]> ApplyAsync(ArchivePlan plan)`, refusing an anonymous render exactly as
    `IPageWrites` does (`pages-a-page-may-save-itself`).
-2. **The caps follow the capability.** `Pages:Archive:MaxUploadBytes` bounds `StageAsync`, and the
+2. **The limits follow the capability.** `Pages:Archive:MaxUploadBytes` bounds `StageAsync`, and the
    export is bounded by the store; a page never sees the whole page store's bytes in one string, which
    is why the export would have to be a page-level capability rather than `IPageCatalog` plus a loop.
 3. **The review step is the hard part.** Import stages an archive, shows what it would change and

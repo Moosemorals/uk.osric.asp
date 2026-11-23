@@ -27,7 +27,7 @@ public static class MemoryContent {
 
     /// <summary>Trims, collapses whitespace and checks the length.</summary>
     /// <param name="content">The model-supplied text.</param>
-    /// <param name="maximumChars">The configured length cap, in characters.</param>
+    /// <param name="maximumChars">The configured length limit, in characters.</param>
     /// <returns>The normalised text, or the refusal.</returns>
     public static MemoryContentResult Normalise(string? content, int maximumChars) {
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(maximumChars);

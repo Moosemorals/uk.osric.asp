@@ -77,7 +77,7 @@ public sealed class PageFetchRenderTests {
     }
 
     [Test]
-    public async Task AStreamRequestCountsAgainstTheRenderFetchCapAsync() {
+    public async Task AStreamRequestCountsAgainstTheRenderFetchLimitAsync() {
         FakePageFetcher fetcher = new();
         PageFetchOptions options = TestOptions.Fetch with { MaxRequestsPerRender = 1 };
         using PageHarness pages = new(new FakePageStore(), fetch: fetcher, fetchOptions: options);
@@ -117,7 +117,7 @@ public sealed class PageFetchRenderTests {
     }
 
     [Test]
-    public async Task ARenderMakesNoMoreRequestsThanItsCapAsync() {
+    public async Task ARenderMakesNoMoreRequestsThanItsLimitAsync() {
         FakePageFetcher fetcher = new(_ => new HttpFetchResponse(
             200,
             new Dictionary<string, string>(),

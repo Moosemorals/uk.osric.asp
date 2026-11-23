@@ -107,7 +107,7 @@ public sealed class AssistantMemoryFlowTests : IntegrationTest {
     }
 
     [Test]
-    public async Task AWriteOverTheCapIsARefusalTheRunSurvivesAsync() {
+    public async Task AWriteOverTheLimitIsARefusalTheRunSurvivesAsync() {
         const string ownerName = "memo-full";
         _provider.Reset();
         await SeedAdditionalUserAsync(ownerName, Password);
@@ -158,7 +158,7 @@ public sealed class AssistantMemoryFlowTests : IntegrationTest {
             return held[0].Id;
         });
 
-    // A store at the cap is what the tool refuses past, and writing the rows directly is the one way
+    // A store at the limit is what the tool refuses past, and writing the rows directly is the one way
     // to reach it without the test spending two hundred runs.
     private Task FillMemoryAsync(string owner, int count) =>
         WithServicesAsync(async provider => {

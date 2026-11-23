@@ -47,7 +47,7 @@ public interface IPageJobs {
     /// <param name="jobId">The id a start or a listing answered with.</param>
     /// <param name="after">The last sequence the caller has already seen; <c>0</c> reads from the start.</param>
     /// <param name="waitSeconds">
-    /// How long to wait for an event that has not arrived yet, capped by <c>Pages:Jobs:MaxWaitSeconds</c>
+    /// How long to wait for an event that has not arrived yet, limited by <c>Pages:Jobs:MaxWaitSeconds</c>
     /// and by the render's own budget. Omitted or <c>null</c> does not wait.
     /// </param>
     /// <returns>

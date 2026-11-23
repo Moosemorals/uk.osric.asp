@@ -32,7 +32,7 @@ using uk.osric.asp.Web.Users;
 /// <param name="chatCompletionClient">Stands in for the configured provider.</param>
 /// <param name="accountBalanceClient">Stands in for the provider's balance endpoint.</param>
 /// <param name="pageFetcher">Stands in for the page fetcher, so no fixture needs a socket.</param>
-/// <param name="archiveUploadBytes">Overrides the import upload cap, for the too-large fixture.</param>
+/// <param name="archiveUploadBytes">Overrides the import upload limit, for the too-large fixture.</param>
 /// <param name="modelWindow">Overrides the window the model list reports, so a fixture can make a conversation too big to send.</param>
 /// <param name="maxOutputTokens">Overrides the output limit the model list reports.</param>
 /// <param name="pageLayout">

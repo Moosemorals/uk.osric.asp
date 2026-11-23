@@ -290,7 +290,7 @@ before the first flush: their cookies can no longer be sent afterwards.</p>
 <p>A failure after the commit cannot become an error page. An exception is logged and the response is
 truncated. A <code>HEAD</code> request commits but sends no body, and a streamed response has no
 <code>Content-Length</code>.</p>
-<p><code>Pages:Render:MaxBodyChars</code> still caps what is buffered before the first flush. After the
+<p><code>Pages:Render:MaxBodyChars</code> still limits what is buffered before the first flush. After the
 commit the body is not charged, because it is already on its way to the visitor.</p>
 <p>The commit is also where the render's own budget ends and the stream's two clocks start. A stream
 is truncated when nothing has been flushed for <code>Pages:Stream:SilenceSeconds</code> (60 seconds by
@@ -570,7 +570,7 @@ last-write-wins:</p>
    int visits = (stored.Found ? stored.Value : 0) + 1;
    await ctx.Stores.Page.Values.SetAsync("visits", visits); %&gt;
 &lt;p&gt;Visited &lt;%= visits.ToString() %&gt; times.&lt;/p&gt;</code></pre>
-<p><a href="#storage">Storage</a> has the whole model: the two subjects, the lifetimes, the caps and
+<p><a href="#storage">Storage</a> has the whole model: the two subjects, the lifetimes, the limits and
 <a href="/admin/reference/sdk#m-IPageStores.For-string"><code>For</code></a>.</p>
 <p><a href="/admin/reference/sdk#t-IHttpFetch"><code>IHttpFetch</code></a> makes one bounded HTTP request from the host, not the browser, to any
 <code>http</code> or <code>https</code> host the URL names. Failures are values rather than
@@ -583,7 +583,7 @@ exceptions:</p>
 &lt;p&gt;Unavailable (&lt;%= response.Failure.ToString() %&gt;).&lt;/p&gt;
 &lt;% } %&gt;</code></pre>
 <p><code>StreamAsync</code> follows the same URL, header, redirect and credential rules and counts
-against the same per-render request cap. It returns an <code>HttpFetchStream</code> with the response
+against the same per-render request limit. It returns an <code>HttpFetchStream</code> with the response
 status and headers, a <code>Failure</code> value, and a <code>ReadLineAsync()</code> method that
 returns decoded text lines or <code>null</code>. Close it with <code>CloseAsync()</code>; the host
 also closes it when the render ends or is abandoned. Response headers use
@@ -622,7 +622,7 @@ key and hash. It never meets an image, a symbol or a write; saving is
 asks for at most <code>limit</code> rows past the key <code>after</code>, which is exclusive: pass the
 last key you were given and the next call resumes where the last one stopped, so a page saved between
 two calls can neither be skipped nor repeated. A blank prefix is the whole store. An absent limit is
-the host's cap, and asking for more than the cap is refused with the setting's name rather than
+the host's limit, and asking for more than the limit is refused with the setting's name rather than
 trimmed; folder and route rows count towards it. <code>recursive</code> is true unless you ask
 otherwise, and answers every key under the prefix; false answers the prefix itself and its own
 children, so a tree that descends one folder per request asks for one level at a time. The answer's
@@ -669,7 +669,7 @@ at, <code>Clipped</code> says the line goes on beyond it, and
 several matches is one row, carrying the first match's column and a window around it. A caller that wants
 the whole line reads the page with <code>ReadAsync</code>.</p>
 <p>A search is one slice, and it is bounded twice. <code>Limit</code> is how many matching lines you want,
-or null for the host's default; asking for more than the cap is refused with the setting's name rather
+or null for the host's default; asking for more than the limit is refused with the setting's name rather
 than trimmed. The host also stops a scan after a short time, because a count bounds the answer while the
 work is done whether anything matches. Either stop sets <code>Truncated</code>, and <code>Cursor</code>
 names the first position the answer did not include: pass it back as <code>After</code> and ask again,
@@ -725,10 +725,10 @@ does:</p>
 a template whose own guard hides its output, and including the history of a deleted page until it is
 scrubbed. The seeded <a href="<%= ctx.EditorPath %>"><%= ctx.EditorPath %></a> is a guarded listing, source view and
 history: the same capability with that one line at the top of its source.</p>
-<p>The read is bounded. One listing returns at most the configured row cap (500 as shipped) and
+<p>The read is bounded. One listing returns at most the configured row limit (500 as shipped) and
 refuses rather than truncating, and one render may pull in at most the configured source budget
 (512 KiB as shipped) across the page and its layouts, which is also a refusal rather than half a
-page. A listing charges nothing, because its rows are metadata and the body cap bounds what a page
+page. A listing charges nothing, because its rows are metadata and the body limit bounds what a page
 can write out of them. Both limits are set under <code>Pages:Read</code>, and a missing or unusable
 value stops the site at startup rather than being quietly replaced.</p>
 
@@ -966,7 +966,7 @@ entries are re-keyed into the account in one transaction, so a one-shot survives
 device. A read searches the session, then the browser, then the account, so the more ephemeral value
 shadows the longer-lived one. A page never sees the session id, the account name or the browser id.</p>
 <p>Keys are ordinal and case-sensitive, 1 to 200 characters, with no control characters. A value is
-JSON; the caps are per subject instance, and a write past one throws when it is awaited. The Page
+JSON; the limits are per subject instance, and a write past one throws when it is awaited. The Page
 subject may hold 256 keys and 256 KiB with 64 KiB for one value. The Visitor subject gets 8 keys and
 16 KiB anonymous, 32 keys and 64 KiB signed in, 8 keys and 16 KiB for a browser, with 4 KiB or
 16 KiB for one value. The first write that needs a session or a browser identity mints it and the
@@ -1011,7 +1011,7 @@ nothing; a revision that does not compile applies nothing either.</p>
 <a href="/admin/reference/sdk#t-PageRow"><code>PageRow</code></a> values read by column name, and
 <code>ExecuteAsync</code> answers a <code>PageRecordResult</code>: <code>Applied</code> is durable,
 <code>Staged</code> is inside your transaction, <code>Busy</code> means another writer held the store
-and <code>Full</code> means you are at the cap. Neither wrote anything when it says the last two.</p>
+and <code>Full</code> means you are at the limit. Neither wrote anything when it says the last two.</p>
 <pre class="source" tabindex="0"><code>&lt;% var notes = await ctx.Stores.Visitor.Records.QueryAsync(
        """SELECT "Title", "Written" FROM "notes" ORDER BY "Written" DESC LIMIT 20""");
    foreach (PageRow row in notes) { %&gt;
@@ -1032,7 +1032,7 @@ discards the lot. A write that is refused inside one writes nothing, and the row
 to keep or discard — that is the difference between this and the page store's all-or-nothing
 transaction. One handle holds one transaction at a time.</p>
 <p><code>SearchAsync(table, term)</code> finds your rows by the declared search column, best match
-first, and never another subject's. A result over its row or character cap throws naming the setting,
+first, and never another subject's. A result over its row or character limit throws naming the setting,
 so bound it with <code>LIMIT</code>; a statement that runs too long is interrupted and throws.</p>
 <p>Deleting a page drops the tables it declared; moving one re-keys them and leaves the rows where they
 are; signing out removes the session's rows; removing an account removes its rows. A
@@ -1061,7 +1061,7 @@ with the message and one with <code>PageMessageRefusal.Empty</code>. It is FIFO:
 that address is the one answered. A post is refused with a value rather than an exception when the
 destination is not a page: <code>UnknownPage</code>, <code>OwnedBySite</code> (a reserved key),
 <code>NotASink</code> (a library or a content-only page) or <code>NotAddressable</code>; a queue at its
-cap answers <code>Full</code>.</p>
+limit answers <code>Full</code>.</p>
 <p><strong>A peek is a preview, not a reservation.</strong> <code>PeekAsync</code> answers the message a
 take would answer right now and removes nothing. It is a read, so a <code>HEAD</code> and a layout may
 use it, where a post and a take are writes and refused. Use it to decide whether to act, do the work
@@ -1080,7 +1080,7 @@ message for the retry.</p>
    ctx.Response.Write("&lt;p&gt;Imported.&lt;/p&gt;"); %&gt;</code></pre>
 <p>Two renders can peek the same message and both act on it, so the work has to be idempotent or
 serialised by your own code. A page that must act exactly once takes first and acts on what the take
-answered; a page that must retry peeks first. There is no count, no wait and no recall: the cap is eight
+answered; a page that must retry peeks first. There is no count, no wait and no recall: the limit is eight
 messages per subject, so a page that needs to know how many are waiting takes in a loop, or peeks once
 and says that something is waiting.</p>
 <p>A message is <code>StoreLifetime.Person</code> by default, or <code>Session</code>,

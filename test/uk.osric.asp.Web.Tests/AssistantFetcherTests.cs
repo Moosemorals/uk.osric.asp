@@ -109,7 +109,7 @@ public sealed class AssistantFetcherTests {
     }
 
     [Test]
-    public async Task TheResponseCapIsAppliedAsync() {
+    public async Task TheResponseLimitIsAppliedAsync() {
         HttpFetchResponse response = await FetchAsync(
             "https://example.com/",
             new StubHttpMessageHandler(Respond(HttpStatusCode.OK, new string('x', 4096))),

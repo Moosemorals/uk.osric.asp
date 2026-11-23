@@ -11,7 +11,7 @@ using System.Globalization;
 /// The conversation page draws seven figures in two columns and repeats each one over its meter.
 /// A raw figure such as <c>16384</c> would not fit, so anything from a thousand is scaled and
 /// shortened: <c>1.2k</c>, <c>16k</c>, <c>500k</c>, <c>1M</c>. The brief scale below ten keeps one
-/// decimal and everything above it rounds to a whole unit, which is what caps the digits at three.
+/// decimal and everything above it rounds to a whole unit, which is what limits the digits at three.
 /// </remarks>
 public static class BudgetAmount {
 

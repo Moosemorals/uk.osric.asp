@@ -14,7 +14,7 @@ namespace uk.osric.asp.Sdk;
 /// folder or a route row is a key like any other.
 /// </param>
 /// <param name="Limit">
-/// How many rows to answer, or <see langword="null"/> for the host's cap. A limit above the cap is
+/// How many rows to answer, or <see langword="null"/> for the host's limit. A limit above the limit is
 /// refused rather than trimmed, and folder and route rows count towards it.
 /// </param>
 /// <param name="Version">

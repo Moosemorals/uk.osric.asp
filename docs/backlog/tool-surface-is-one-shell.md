@@ -49,7 +49,7 @@ scratch directory, and history as paths rather than three more tools.
    by its hash and writing one is not a path operation. `/o` is reserved by the site's route table
    because the site answers the route, so the mount needs no reservation of its own, and the bytes are
    read through the subject handles [`storage-is-not-one-model`](storage-is-not-one-model.md) adds.
-7. **Memory stays a tool.** Kinds, versions, pinning, caps and FTS5 recall are too much to shoehorn
+7. **Memory stays a tool.** Kinds, versions, pinning, limits and FTS5 recall are too much to shoehorn
    into files; one action-dispatched tool replaces four.
 8. **A write is planned before it is approved.** The kernel resolves every operand and classifies
    every effect, so one approval covers the line and the changed-pages card still knows what changed.

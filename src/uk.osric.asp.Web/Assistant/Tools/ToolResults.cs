@@ -12,9 +12,9 @@ using uk.osric.asp.Core.Text;
 /// <param name="budget">The content budget one tool result may spend.</param>
 internal sealed class ToolResults(ContextBudget budget) {
 
-    // The cap is what a tool's answer may cost; the envelope around it — the flag, the note, the
+    // The limit is what a tool's answer may cost; the envelope around it — the flag, the note, the
     // summary and JSON escaping — is not an answer and is allowed this much more. A tool that cut its
-    // own answer at the cap therefore keeps its shape, and only a tool that ignored the cap is cut here.
+    // own answer at the limit therefore keeps its shape, and only a tool that ignored the limit is cut here.
     private const int EnvelopeChars = 4_096;
 
     /// <summary>A result carrying data.</summary>
@@ -33,11 +33,11 @@ internal sealed class ToolResults(ContextBudget budget) {
     /// <param name="error">The refusal.</param>
     /// <param name="summary">One line for the transcript.</param>
     /// <returns>The envelope a refusal carries.</returns>
-    /// <remarks>A refusal is a sentence this host wrote, so there is nothing here for a cap to cut.</remarks>
+    /// <remarks>A refusal is a sentence this host wrote, so there is nothing here for a limit to cut.</remarks>
     public static ToolExecutionResult Refusal(string error, string summary) =>
         new(false, JsonSerializer.Serialize(new { ok = false, data = (object?)null, error }, JsonSerialization.Options), summary);
 
-    /// <summary>A result, truncated at its cap so the head is kept and the cut is named.</summary>
+    /// <summary>A result, truncated at its limit so the head is kept and the cut is named.</summary>
     /// <param name="envelope">The envelope to serialize.</param>
     /// <param name="summary">One line for the transcript.</param>
     /// <param name="success">Whether the call did what it was asked.</param>
@@ -49,24 +49,24 @@ internal sealed class ToolResults(ContextBudget budget) {
     /// </remarks>
     private ToolExecutionResult Bounded(object envelope, string summary, bool success = true) {
         string json = JsonSerializer.Serialize(envelope, JsonSerialization.Options);
-        int cap = (int)Math.Min(budget.ToolResultChars + EnvelopeChars, int.MaxValue);
-        if (json.Length <= cap) {
+        int limit = (int)Math.Min(budget.ToolResultChars + EnvelopeChars, int.MaxValue);
+        if (json.Length <= limit) {
             return new ToolExecutionResult(success, json, summary);
         }
 
         // The head is what the model can still read; the note is what tells it the rest exists. The
-        // envelope around the head costs a fixed handful of characters, so the cut is the cap less
+        // envelope around the head costs a fixed handful of characters, so the cut is the limit less
         // that, narrowed once if the note's own digits made the envelope longer than expected.
-        string note = $"The tool result was truncated at {cap.ToString(CultureInfo.InvariantCulture)} characters.";
+        string note = $"The tool result was truncated at {limit.ToString(CultureInfo.InvariantCulture)} characters.";
         string head = json;
         string truncated = string.Empty;
         for (int attempt = 0; attempt < 4; attempt++) {
             truncated = JsonSerializer.Serialize(
                 new { ok = success, data = head, truncated = true, note }, JsonSerialization.Options);
-            if (truncated.Length <= cap) {
+            if (truncated.Length <= limit) {
                 break;
             }
-            head = json[..Math.Max(0, head.Length - (truncated.Length - cap) - 8)];
+            head = json[..Math.Max(0, head.Length - (truncated.Length - limit) - 8)];
         }
 
         return new ToolExecutionResult(success, truncated, summary);

@@ -252,7 +252,7 @@ internal sealed class PageMetrics : IDisposable {
         _layoutFallbacks = _meter.CreateCounter<long>(
             "page.layout.fallback", null, "Pages served without the default layout because it could not be served.");
         _recursiveCompositions = _meter.CreateCounter<long>(
-            "page.composition.recursive", null, "Pages composed inside themselves with a different request, which the caps bound.");
+            "page.composition.recursive", null, "Pages composed inside themselves with a different request, which the limits bound.");
         _imageSize = _meter.CreateHistogram<long>(
             "page.image.size", "By", "Size of an emitted page assembly.");
         _fetchDuration = _meter.CreateHistogram<double>(
@@ -336,7 +336,7 @@ internal sealed class PageMetrics : IDisposable {
     /// <param name="path">The page that was composed again.</param>
     /// <remarks>
     /// A recursive component is ordinary — a comment tree, a directory listing — so it is counted
-    /// rather than warned about: the count says which page does it, and the depth cap is the bound.
+    /// rather than warned about: the count says which page does it, and the depth limit is the bound.
     /// </remarks>
     public void RecordRecursiveComposition(PagePath path) {
         TagList tags = new() { { "page.path", path.Key } };

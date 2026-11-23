@@ -36,7 +36,7 @@ The design that fits this site is deliberately the least fashionable one in the 
   FTS5 terms, the owner's memories are ranked by BM25, and pinned and already-used ones are added.
   A pure rule in `Core` selects what fits in `Assistant:MaxMemoryCharsPerRun` (4,000 characters)
   and `Assistant:MaxMemoriesPerRun` (12), and `RunProcessor` appends the block to the system prompt.
-  Both of those keys are gone: the count cap was dropped and the character cap is now a thirty-second
+  Both of those keys are gone: the count limit was dropped and the character limit is now a thirty-second
   of the context budget (`assistant-one-budget-decides-what-fits`). The measurements below stand.
 - **The owner can see and delete everything.** A `/assistant/memory` page lists, edits, pins and
   forgets; `forget_memory` deletes the memory and its history in one transaction, and removing an
@@ -180,7 +180,7 @@ about training rather than user stores, so the safe reading is the ordinary GDPR
 > **Decisions this drives:** memory is written only by an explicit tool call, which the transcript
 > and the memory page both show; it is owner-scoped in SQL, never by the model; it is inserted into
 > the prompt inside a labelled block that says it is data and not instructions; the content is
-> capped and obvious secrets are refused; and `forget` deletes rather than tombstones.
+> limited and obvious secrets are refused; and `forget` deletes rather than tombstones.
 
 ### What this means for us
 
@@ -282,15 +282,15 @@ Why each column earns its place:
 - **`LastRecalledAt` / `LastRecalledConversationId` / `RecallCount`** are the usage signals: the
   stickiness that keeps a follow-up turn on the same memories, the "used 4 times" the owner sees,
   and the evidence for pruning later.
-- **`Content`** is capped at `Assistant:MaxMemoryChars` (1,000). A memory longer than a few
+- **`Content`** is limited to `Assistant:MaxMemoryChars` (1,000). A memory longer than a few
   sentences is a page or a conversation, not a memory; the tool refuses rather than truncates, as
-  every other cap here does.
+  every other limit here does.
 
 ### Writes: four tools
 
 | Tool | Approval | Arguments | What it does |
 | --- | --- | --- | --- |
-| `remember` | yes | `kind`, `content` | Inserts a memory; returns its id. A normalised duplicate returns the existing row instead. Refuses past the per-owner cap. |
+| `remember` | yes | `kind`, `content` | Inserts a memory; returns its id. A normalised duplicate returns the existing row instead. Refuses past the per-owner limit. |
 | `update_memory` | yes | `id`, `expectedVersion`, `content` | Replaces the content, bumps `Version`, appends the previous version to `AssistantMemoryEdits`. A stale version is a failure carrying the current content. |
 | `forget_memory` | yes | `id` | Deletes the head, its edits and its index row in one transaction. |
 | `search_memories` | no | `query`, `limit` | Read-only BM25 search over the owner's memories; the escape hatch when recall did not surface something. |
@@ -442,12 +442,12 @@ copies are the operator's to clean.
 
 ### Testing
 
-- `Core` unit tests for `MemoryQuery.Terms` (quoting, stopwords, cap, unicode) and
+- `Core` unit tests for `MemoryQuery.Terms` (quoting, stopwords, limit, unicode) and
   `MemoryRecall.Select` (pinned first, stickiness, dedupe, budget, overflow) — no database.
 - `Web.Tests` against `DatabaseTemplate`: owner isolation on every query; duplicate `remember`;
   a stale `update_memory` refused with the current content; `forget` removing head, history and
   index row; a delete through the cascade; the trigger keeping the index consistent after an update;
-  the owner cap refusing rather than truncating.
+  the owner limit refusing rather than truncating.
 - An integration test that runs a real conversation against a stubbed provider and asserts that a
   `remember` call in turn one is present in the system prompt of turn two, and absent from another
   owner's.
@@ -487,7 +487,7 @@ including the foreign-key cascade from a memory to its history.
 Two caveats a reader should weigh. The corpus is synthetic, so the bytes per memory are an
 estimate and a real memory written in the owner's words will be shorter or longer; and the query
 figures are dominated by how many rows match, which is why the two common terms and the no-match
-case are both shown. At 200 memories — the cap — the file is a few hundred kilobytes and every
+case are both shown. At 200 memories — the limit — the file is a few hundred kilobytes and every
 query has fewer candidates to rank. The 20,000-row run in the same probe (a much more repetitive
 corpus, ~9,900 candidates per query) still answered in 7–12 ms, which is the headroom that says "no
 vector index".
@@ -539,7 +539,7 @@ line each:
    pure rule; no embeddings, no vector store, once per run.
 4. **`assistant-memory-is-the-owners`** — a memory has an id and a version; an update keeps the history; a forget deletes the
    memory and its history in one transaction.
-5. **`assistant-memory-is-the-owners`** — memory content is data inside a labelled, escaped block: capped, never logged, and
+5. **`assistant-memory-is-the-owners`** — memory content is data inside a labelled, escaped block: limited, never logged, and
    refused when it looks like a secret.
 
 ## What this deliberately does not build

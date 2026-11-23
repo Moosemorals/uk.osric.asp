@@ -3,7 +3,7 @@
 
 namespace uk.osric.asp.Web.Pages;
 
-/// <summary>Drops page sessions that expired, and trims the table when it is over its cap.</summary>
+/// <summary>Drops page sessions that expired, and trims the table when it is over its limit.</summary>
 /// <remarks>
 /// A timer rather than a sweep on a request: a visitor should not pay for housekeeping, and a site
 /// whose visitors stop arriving still needs its rows to go. A sweep that fails is logged and retried

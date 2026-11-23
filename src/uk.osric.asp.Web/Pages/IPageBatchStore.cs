@@ -28,7 +28,7 @@ internal interface IPageBatchStore {
     /// <param name="pages">The pages to store, in key order.</param>
     /// <param name="cancellationToken">Cancels the write.</param>
     /// <returns>
-    /// <see cref="PageBatchResult.Committed"/>, or the pages whose merged state would overflow a cap.
+    /// <see cref="PageBatchResult.Committed"/>, or the pages whose merged state would overflow a limit.
     /// A refusal writes nothing.
     /// </returns>
     Task<PageBatchResult> SaveBatchAsync(IReadOnlyList<PageBatchSave> pages, CancellationToken cancellationToken = default);

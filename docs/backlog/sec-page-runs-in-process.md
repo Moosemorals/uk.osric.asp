@@ -25,7 +25,7 @@ fact that a page is still arbitrary C# running in the site's process, with the s
 
 - No way to reclaim a thread. The execution budget bounds the response, but `while (true) { }` pins a
   thread until the supervisor restarts the process, and that restart is a whole-site outage.
-- No memory limit of its own. The container cap protects the host, not the site: one page can still
+- No memory limit of its own. The container limit protects the host, not the site: one page can still
   allocate until the container is killed and take every other request with it.
 - `Environment.Exit` and `Environment.FailFast` stop the site's process, and the restart is the
   remedy.
@@ -119,7 +119,7 @@ than the isolation work and not part of it. Until there is a second author, the 
 
 The execution budget and the container limits are done by the
 [execution budget](../plans/archive/page-execution-budget.md): a render has a deadline, a slot count, a
-body cap and a compile budget, and the container carries `--memory`, `--pids-limit` and `--cpus`. What a
+body limit and a compile budget, and the container carries `--memory`, `--pids-limit` and `--cpus`. What a
 budget cannot do is reclaim a thread, so the safety net is the supervisor: `/health` reports abandoned
 renders, podman probes it, and `HealthOnFailure=restart` turns a wedged process into a ~35 s restart
 instead of a permanent outage.

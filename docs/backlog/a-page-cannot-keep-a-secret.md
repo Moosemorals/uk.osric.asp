@@ -18,7 +18,7 @@ SPDX-License-Identifier: MIT
 
 > **Absorbed 2026-11-22** — [one storage model](../plans/storage-model.md) delivers this item as its
 > secrets slice: a fifth shape, `Secrets`, on the `Page` subject. It is recorded here rather than as a
-> plan of its own because it is the same table, the same caps section and the same delete, move and
+> plan of its own because it is the same table, the same limits section and the same delete, move and
 > scrub paths as the shapes already landing there.
 
 ## Idea
@@ -89,12 +89,12 @@ amends `pages-fetch-credentials` with a sentence pointing at it.
 2. **`StoreSecrets`.** One table, the Page subject key, the page key, the name, the value and the
    write time; the primary key is the subject, page and name, as `StoreValues`' is. No lifetime
    column — a secret is the page's or it is not there — and no expiry.
-3. **The caps.** Its own row in `Pages:Stores` beside the value caps: the longest name, the longest
+3. **The limits.** Its own row in `Pages:Stores` beside the value limits: the longest name, the longest
    value and the count, refused in the statement that writes.
 4. **The paths.** Delete, scrub, move and `users remove` take it with the page, exactly as they take a
    value; the archive's writer skips it and its reader refuses an archive that carries one.
 5. **The manual and the record.** `/help` gains the shape beside Values, with the rules above in the
-   author's words; [storage](../storage.md#values) carries the table and the caps; the merge records
+   author's words; [storage](../storage.md#values) carries the table and the limits; the merge records
    **pages-a-secret-is-not-a-value** and amends `pages-fetch-credentials`,
    `pages-the-subject-is-the-binding`, `pages-an-archive-is-a-database` and `pages-one-stores-section`.
 

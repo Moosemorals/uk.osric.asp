@@ -135,7 +135,7 @@ rather than a law:
   can be repaired when a page no longer compiles.
 - **Identity.** The editor is a URL, so it needs a sign-in, an antiforgery token and an account made
   from the command line. A page is handed a `PageUser` and can never mint one.
-- **The budget.** Two renders at once, a deadline, a body cap, a fetch cap and a compile slot: the
+- **The budget.** Two renders at once, a deadline, a body limit, a fetch limit and a compile slot: the
   price of running code someone else may have written.
 - **More than one page.** A store, a key rule, content types and assets — and then a page that lists
   the pages, and one that edits them, which is `/pages` itself.

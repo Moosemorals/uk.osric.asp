@@ -403,7 +403,7 @@ public sealed class PageFetcherTests {
     }
 
     [Test]
-    public async Task ALongResponseIsTruncatedAtTheCapAsync() {
+    public async Task ALongResponseIsTruncatedAtTheLimitAsync() {
         HttpFetchResponse response = await FetchAsync(
             Request("https://api.example.com/"),
             Respond(HttpStatusCode.OK, new string('x', 4096)),

@@ -272,7 +272,7 @@ internal sealed class DeclaredTableApplier(PageRecordOptions records) {
             statements.AddRange(DeclaredTableSql.CreateSearch(stored.RealName, table));
         }
 
-        // Every save rewrites the caps, so a changed one takes effect rather than only bounding the
+        // Every save rewrites the limits, so a changed one takes effect rather than only bounding the
         // tables made after it.
         statements.AddRange(DeclaredTableSql.CreateCaps(stored.RealName, table, records));
         await ExecuteAsync(database, statements, cancellationToken);

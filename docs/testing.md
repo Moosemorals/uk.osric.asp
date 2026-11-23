@@ -69,7 +69,7 @@ and what depends on it is asserted by the suites that use it (`SimpleContextTest
   identity, concurrent saves, tombstones, scrub and SQLite cleanup. `PageStorageMetricsTests` checks
   logical payload accounting, cached observable gauges, failed-sample retention and bounded sampling.
   `PageCatalogScopeTests` pins the page-store read — its four reads, the four marks, subtree
-  prefixes, the row and source caps, abandonment and the deadline — and `SqlitePageReadStoreTests`
+  prefixes, the row and source limits, abandonment and the deadline — and `SqlitePageReadStoreTests`
   proves the SQL behind it, including an escaped wildcard and that a read writes nothing.
   `PageWritesScopeTests` pins the one write capability the editor and a page share: every row of its
   refusal table, a save at another key, the conditional save that stores and the one that answers
@@ -94,12 +94,12 @@ and what depends on it is asserted by the suites that use it (`SimpleContextTest
   raw query, an authenticated `POST` without a valid antiforgery pair is refused before the page
   runs, and an authenticated response is `no-store` with no validator. `PageStreamingTests` drives
   the commit point: the first flush applies the response, a wrapped page cannot flush, a streamed
-  page is served alone, the tail is sent at completion, the body cap stops at the commit, `HEAD`
+  page is served alone, the tail is sent at completion, the body limit stops at the commit, `HEAD`
   writes nothing and a committed exception or deadline truncates rather than answering an error page
   or a `504`. `PageCompositionTests` drives an embed and a capture — the frame without the body, the
   capture without the write, the captured response staying with its page, a page's own wrappers
   running inside an embed, the request as the input with its path pinned, a redirect refused, the
-  cycle, a recursive component counted, the fan-out and depth caps, the bounded body and the one
+  cycle, a recursive component counted, the fan-out and depth limits, the bounded body and the one
   write — and `PageCaptureTests` and `PageRequestQueryTests` pin the two values and the request's
   copy-and-change helpers. `PageJobTests` drives the whole job path with real workers — one writes the starting
   page's storage, one receives a message the page sent, one waits past the silence clock but not past
@@ -112,7 +112,7 @@ and what depends on it is asserted by the suites that use it (`SimpleContextTest
   that rebuilds it when that library moves, and that neither a page nor a library may name one; the
   endpoint, the listing, the catalog's marks and the image state each say "worker" in their own
   fixture. `PageFetcherTests` covers the outbound text stream's chunk and UTF-8 line decoding,
-  failure values, silence and ceiling timeouts, byte cap and redirect credential handling;
+  failure values, silence and ceiling timeouts, byte limit and redirect credential handling;
   `PageFetchRenderTests` pins the shared per-render fetch count, and `PageStreamingTests` proves a
   page can relay an outbound line to the client before waiting for its next line.
   `RenderLifetimeTests` proves the lifetime those cases lean on: the commit moves the
@@ -152,7 +152,7 @@ and what depends on it is asserted by the suites that use it (`SimpleContextTest
   Memory is covered at the same boundaries:
   `Core.Tests` pins the query terms, the selection rule and the block, content normalisation and the
   secret rules; `Web.Tests` runs `SqliteMemoryStore` against a migrated file for owner scope, the
-  duplicate and cap rules, the version check, a forget that takes the history and the index with it,
+  duplicate and limit rules, the version check, a forget that takes the history and the index with it,
   the provenance sweep and the account sweep, applies `AddAssistantMemory` up, down and up again, and
   drives the four tools; `Web.IntegrationTests` proves a memory crossing from one conversation to the
   next through the real host, another owner's request without it, a denial that stores nothing and a
@@ -164,7 +164,7 @@ and what depends on it is asserted by the suites that use it (`SimpleContextTest
   `AssistantMemoryBrowserTests` walks the round trip: see, correct, pin, forget. No suite contacts a
   real model provider.
   The assistant's question tool is covered at the same boundaries: `OwnerQuestionsTests` pins the
-  caps, the refusals, the blank answer and the wire round trip; `AskUserToolTests` the tool's result
+  limits, the refusals, the blank answer and the wire round trip; `AskUserToolTests` the tool's result
   and its refusals; `RunProcessorTests` the wait, the timeout exemption and the owner's wait taken
   off the tool's time; `ConversationStoreTests` the owner scope, the second answer and a restart
   failing the record closed; `AssistantTranscriptTests` the pending and answered cards; and
@@ -179,7 +179,7 @@ and what depends on it is asserted by the suites that use it (`SimpleContextTest
   the author manual and the model learn the same rule.
 - **Diff** is split the same way: `Core.Tests` pins `LineDiff` — prefix and suffix trimming, context
   and hunk ranges, CRLF and a final newline, the `0,0` header for an empty side and the coarse
-  fallback past the work caps — and `UnifiedDiff`'s exact text. `Runtime.Tests` proves
+  fallback past the work limits — and `UnifiedDiff`'s exact text. `Runtime.Tests` proves
   `DiffRenderer` escapes every source line, writes the scoped table and its markers, says when a
   pair is unchanged or coarse, writes no inline style, and offers the same comparison as unified
   text. `Web.Tests` renders a real page through `IDiffRenderer`, drives the editor page's history
@@ -223,7 +223,7 @@ and what depends on it is asserted by the suites that use it (`SimpleContextTest
   reflow, contrast, and how a chart is read aloud — is a written hand pass (`shell-accessibility-is-asserted`), with its
   findings recorded beside the plan.
 - **The execution budget** is tested in `Web.Tests` (`PageRendererTests` for the render deadline, the
-  render queue, the abandoned context and the body cap; `PageImageBuilderTests` for the compile queue
+  render queue, the abandoned context and the body limit; `PageImageBuilderTests` for the compile queue
   and the compile deadline; `RenderLifetimeTests` for the stream's own clocks and slots;
   `AbandonedRenderHealthCheckTests` for the health signal) and once end to end in `Web.IntegrationTests/RenderBudgetTests`, which runs the
   host on a one-second budget and asserts `504`. A slow page there burns CPU against a wall clock

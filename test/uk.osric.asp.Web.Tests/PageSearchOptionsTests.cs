@@ -64,7 +64,7 @@ public sealed class PageSearchOptionsTests {
     }
 
     [Test]
-    public void ADefaultAboveTheMatchCapStopsTheSite() {
+    public void ADefaultAboveTheMatchLimitStopsTheSite() {
         ConfigurationException error = Assert.Throws<ConfigurationException>(() =>
             PageSearchOptions.FromConfiguration(ShippedConfiguration.Read(
                 ("Pages:Search:DefaultMatches", "20"), ("Pages:Search:MaxMatches", "10"))))!;
@@ -82,7 +82,7 @@ public sealed class PageSearchOptionsTests {
     }
 
     [Test]
-    public void ADefaultContextAboveTheCapStopsTheSite() {
+    public void ADefaultContextAboveTheLimitStopsTheSite() {
         ConfigurationException error = Assert.Throws<ConfigurationException>(() =>
             PageSearchOptions.FromConfiguration(ShippedConfiguration.Read(
                 ("Pages:Search:DefaultContextChars", "512"), ("Pages:Search:MaxContextChars", "128"))))!;
@@ -91,7 +91,7 @@ public sealed class PageSearchOptionsTests {
     }
 
     [Test]
-    public void AContextCapAboveItsCeilingStopsTheSite() {
+    public void AContextLimitAboveItsCeilingStopsTheSite() {
         ConfigurationException error = Assert.Throws<ConfigurationException>(() =>
             PageSearchOptions.FromConfiguration(
                 ShippedConfiguration.Read(("Pages:Search:MaxContextChars", "20000"))))!;

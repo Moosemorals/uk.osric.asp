@@ -47,7 +47,7 @@ public static class PageListingFold {
     /// A fact, a fact's key or the prefix is <see langword="null"/>.
     /// </exception>
     /// <exception cref="ArgumentOutOfRangeException">
-    /// <paramref name="limit"/> is less than one. The host's cap is the caller's to enforce, because
+    /// <paramref name="limit"/> is less than one. The host's limit is the caller's to enforce, because
     /// it is configuration and this is a pure rule.
     /// </exception>
     public static PageListingKeys Of(

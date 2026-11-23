@@ -10,7 +10,7 @@ using uk.osric.asp.Web.Configuration;
 /// Every value comes from <c>Pages:Search</c>. The duration is the owner's bound measured in time: a
 /// count bounds the answer, but the scan's work is done whether anything matches. The two limits and
 /// the two contexts have the shape the listing's limits have — a default a request may leave out and a
-/// cap it is refused above.
+/// limit it is refused above.
 /// </remarks>
 internal sealed record PageSearchOptions {
 
@@ -21,13 +21,13 @@ internal sealed record PageSearchOptions {
     /// </remarks>
     public const int MaximumDurationMs = 60_000;
 
-    /// <summary>The largest match or context cap the site will run with.</summary>
+    /// <summary>The largest match or context limit the site will run with.</summary>
     public const int MaximumMatches = 10_000;
 
     /// <summary>The narrowest snippet the site will run with.</summary>
     public const int MinimumContextChars = 64;
 
-    /// <summary>The widest context cap the site will run with.</summary>
+    /// <summary>The widest context limit the site will run with.</summary>
     public const int MaximumContextChars = 16_384;
 
     /// <summary>How long one search may run, across the fingerprint, the reads and the matching.</summary>

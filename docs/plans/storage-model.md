@@ -7,7 +7,7 @@ SPDX-License-Identifier: MIT
 
 | | |
 | --- | --- |
-| Status | Agreed 2026-11-21 — the owner said yes — and revised against trunk 2026-11-22, after the page search, the reference corpus, the slow test half and the documentation index landed, and again the same day to add the secrets slice at the owner's request, and on 2026-11-23 to make `IPageSubject` and `IVisitorSubject` independent of each other. Slices 0 to 3 are merged and nothing of slices 4 and 5 is built |
+| Status | Agreed 2026-11-21 — the owner said yes — and revised against trunk 2026-11-22, after the page search, the reference corpus, the slow test half and the documentation index landed, and again the same day to add the secrets slice at the owner's request, and on 2026-11-23 to make `IPageSubject` and `IVisitorSubject` independent of each other and to call a configured maximum a limit. Slices 0 to 3 are merged and nothing of slices 4 and 5 is built |
 | Size | Large as a programme, small as a step: a spike, six slices and the release that closes the window, each its own branch and its own stop. The values slice is the floor; the record slice is the risk; the secrets slice is the one that cannot wait for the window to close |
 | First customer | The two plans this supersedes: the assistant's transcript (a Record for the signed-in visitor) and the redirect flash (a `NextRead` value). Editor mode is the first `Browser` value, and `/help`'s counter is the first Page value. A signing key ([`a-page-cannot-keep-a-secret`](../backlog/a-page-cannot-keep-a-secret.md)) is the first secret |
 | Spike | Slice 0: [the record sandbox](../spikes/store-sandbox.md), written before anything was built. Six of the sandbox section's details were corrected by what it measured |
@@ -28,7 +28,7 @@ This plan does four things the item left to it:
 - **It designs the record sandbox** the owner's first answer calls the cost centre: one unpooled
   connection per subject handle, a `TEMP VIEW` per declared table filtered by the subject, joins and
   aggregates over those views, SQLite's own authorizer as the allow-list, its limits, the statement
-  and transaction clocks, and the result caps.
+  and transaction clocks, and the result limits.
 - **It slices the work** so each shape ships alone: the values and identity floor first, then records,
   then messages, then objects, then secrets, then the ends. Every slice is one branch and one stop.
 - **It settles what the item left open in the implementation**: the archive keeps its two tables and
@@ -47,7 +47,7 @@ The model is not a sixth store beside the patchwork. It is the patchwork replace
 A page reaches a patchwork of stores, and each answers "whose data is this, and how long does it
 live?" differently:
 
-| Store | Whose | Lifetime | Cap unit |
+| Store | Whose | Lifetime | Limit unit |
 | --- | --- | --- | --- |
 | `IPageStorage` (`PageState`) | the page, shared by every visitor | the page's | per page |
 | `IPageSession` (`PageSessions`, `PageSessionValues`) | one browser | 30 minutes idle, 8 hours signed in, cleared on sign-out | per visitor |
@@ -65,7 +65,7 @@ anonymous visitor's data should survive sign-in.
 The rest of the current shape is known and load-bearing: a capability is either registered or absent
 (`pages-capabilities-are-one-seam`); every value crosses as JSON with a `PageValue<T>` that tells
 absent from stored-null; a write on `HEAD`, an abandoned render or a passed deadline is a page bug and
-throws; and the store's caps are enforced in the same statement as the write, so a concurrent writer
+throws; and the store's limits are enforced in the same statement as the write, so a concurrent writer
 either fits or is refused (`pages-page-storage`, `pages-the-session`).
 
 The page store has moved on since this plan was written, without changing the model: `IPageCatalog`
@@ -136,7 +136,7 @@ a passed deadline, on every subject and every shape. Content, layout and embedde
 `ctx.Stores`; the role decides the **response** a layer owns, not what it can reach. The response half
 of `pages-one-render-three-roles` and `pages-layouts-are-markup` stays; the capability half goes.
 
-Caps are per subject instance, not per store: one person's values, records, messages and objects draw
+Limits are per subject instance, not per store: one person's values, records, messages and objects draw
 on one person's budget, and `Pages:Stores` chooses the numbers together.
 
 ## The contract
@@ -282,7 +282,7 @@ before the refusal are worth keeping or are half a form. The refusal is the valu
 and the page is the one that acts on it.
 
 `PageRecordResult` carries the `Outcome` alone — `Applied`, `Staged`, `Busy` (another writer held the
-store, so nothing was written) or `Full` (the subject is at its row or byte cap) — because a view's
+store, so nothing was written) or `Full` (the subject is at its row or byte limit) — because a view's
 trigger is what changes the row and SQLite counts nothing it changed. The last two are values because
 they depend on data the page did not choose; `Busy` is the same value `PageWriteOutcome.Busy` is.
 
@@ -290,7 +290,7 @@ Everything the page itself got wrong throws, which is the site's rule for storag
 (`pages-outbound-fetch`): an action the authorizer denies, an undeclared table a statement names, a
 write to a row the reader does not own, a `HEAD`, an abandoned render, a disposed handle. A statement
 over `MaxResultRows` or `MaxResultChars`, and one past `StatementMaxSeconds`, throws too, because the
-page wrote the statement and can bound it with `LIMIT`; the message names the setting and the cap, as
+page wrote the statement and can bound it with `LIMIT`; the message names the setting and the limit, as
 an oversized value does today.
 
 Values are not part of it. The record transaction holds one connection to one subject; a value write
@@ -359,7 +359,7 @@ lifetime is `Page`) and `Search`. `StoreSubject` is the declaration's two values
 and not in the attribute. The columns are the properties, and the supported types are `string`,
 `string?`, `long`, `double`, `bool` and `DateTimeOffset` (TEXT, round-trip format). Anything else is
 `PAGE011`. The lifetime enum accepts `NextRead` because it is one enum, but a table may not use it:
-`PAGE012`. A table or column count over its cap, a live column whose type disagrees with the
+`PAGE012`. A table or column count over its limit, a live column whose type disagrees with the
 declaration, and a name another source already holds are `PAGE012` at the declaration too.
 
 The compiler extracts the declaration from the syntax trees it already holds, so it is part of the
@@ -412,7 +412,7 @@ holds and the item does not change it.
   - `SQLITE_READ`, `SQLITE_INSERT`, `SQLITE_UPDATE` and `SQLITE_DELETE` on the handle's own view names,
     and on a real table only when the innermost trigger or view the callback names is one of those views
     or one of their generated triggers — which is how the `INSTEAD OF` triggers write, and why the
-    allowance has to name both. The generated set is every trigger, the cap trigger included: the
+    allowance has to name both. The generated set is every trigger, the limit trigger included: the
     spike traced its `READ` of the real table as `READ Declared_notes Owner db=main inner=notes_cap`,
     which a list of only the three write triggers would refuse;
   - `SQLITE_READ` when the callback names **no database**. That is not a table: a common table
@@ -448,7 +448,7 @@ holds and the item does not change it.
   `SqliteCommand` runs whatever follows a `;` — `SELECT 1; INSERT INTO "notes" …` ran the insert — and
   that the authorizer allowed every callback it made, because a second legitimate statement is not an
   authority question. So the rule is shape, not authority: `QueryAsync` answers one result set and
-  `ExecuteAsync` one outcome, the caps and the clock attach to one statement, and two
+  `ExecuteAsync` one outcome, the limits and the clock attach to one statement, and two
   statements buy no atomicity because a page's `BEGIN` is refused and they are two autocommit
   transactions. It is detected by SQLite's own parser: prepare the text with `sqlite3_prepare_v2`, take
   the tail, prepare the tail, and refuse when a second statement resolves. `SQLitePCLRaw` exposes that
@@ -469,17 +469,17 @@ holds and the item does not change it.
   non-innocuous function **in `main` only** — a temp view over the same function is not covered by it,
   which is what the authorizer's function list is for. An FTS5 external-content table and its triggers
   work with it off, so the declared table's index needs no exemption.
-- **The result caps refuse rather than truncate.** `MaxResultRows` and `MaxResultChars` are read into a
-  result and a row past the cap throws, naming the setting and the cap, as
+- **The result limits refuse rather than truncate.** `MaxResultRows` and `MaxResultChars` are read into a
+  result and a row past the limit throws, naming the setting and the limit, as
   `Pages:Read:MaxSourceCharsPerRender` refuses rather than truncating; `StatementMaxSeconds` interrupts
   the statement and throws the same way, and `TransactionMaxSeconds` closes a transaction that is
   merely slow. The interrupt is the store's own: `CommandTimeout`, `DefaultTimeout` and a
   `CancellationToken` all leave a running statement alone in `Microsoft.Data.Sqlite` 11.0.0, so the
   clock arms a timer that calls `sqlite3_interrupt` — the sampler's existing pattern — and a statement
   clock built on `CommandTimeout` would not exist.
-- **The caps are enforced inside the statement that writes**, the way `SqlitePageStateStore` does
+- **The limits are enforced inside the statement that writes**, the way `SqlitePageStateStore` does
   today: the trigger checks the subject's row and byte totals before it inserts and answers
-  `RAISE(ABORT, …)` naming the cap. A concurrent writer therefore either fits or is refused, and the
+  `RAISE(ABORT, …)` naming the limit. A concurrent writer therefore either fits or is refused, and the
   refusal is `Full` on the result rather than an exception.
 - **A write the store cannot take answers `Busy`**, as `PageWriteOutcome.Busy` does, after
   `Pages:Stores:BusyTimeoutSeconds` rather than being retried on the page's behalf.
@@ -528,7 +528,7 @@ is still there afterwards, and the caller already knows which one it called.
   expiry (`Until`); adoption re-keys a `Person` message, the rotation deletes a `Session` one, and a
   browser message follows the `b` cookie. A peek does not extend it. Expired rows are swept with the
   values.
-- Caps: one body, the messages one subject holds and the bytes they total, all per subject.
+- Limits: one body, the messages one subject holds and the bytes they total, all per subject.
 - Deleting a page deletes the messages addressed to it in the tombstone's transaction; a topic is not a
   page and is untouched.
 
@@ -560,7 +560,7 @@ public interface IObjectStore {
 - The content type is a fixed allow-list in code, not configuration: `image/png`, `image/jpeg`,
   `image/gif`, `image/webp`, `text/plain; charset=utf-8` and `application/octet-stream`. SVG is
   refused: it is markup and a script vector, and the site already has a page kind for markup.
-- Caps: one object and the bytes one subject holds, per subject.
+- Limits: one object and the bytes one subject holds, per subject.
 
 ### Secrets
 
@@ -582,8 +582,8 @@ public interface ISecretStore {
   name or a value; `/admin/export` writes no secret and the import reader refuses an archive that
   carries one; the assistant's tools read the page store, which is source, and never this.
 - **Opaque text.** The signature is `string`, not JSON, so the one-set serializer is not involved and a
-  page cannot be handed a structured secret by accident. The bytes cap is per value and per subject,
-  and it is its own row in `Pages:Stores` rather than the value caps reused.
+  page cannot be handed a structured secret by accident. The bytes limit is per value and per subject,
+  and it is its own row in `Pages:Stores` rather than the value limits reused.
 - **No lifetime.** A secret is the page's or it is not there: no `Person`, no `Session`, no `NextRead`
   and no expiry. `NamesAsync` answers names so a page can offer rotation without the store handing out
   a preview.
@@ -706,7 +706,7 @@ external-content FTS5 index with its three triggers created and dropped with the
 The declaration has no index, no unique constraint and no foreign key of its own. The primary key is
 the row id, uniqueness is a statement the page writes (`INSERT … SELECT … WHERE NOT EXISTS`), and a
 child row is deleted by the page's transaction rather than by a cascade — which is enough at the row
-cap, and is the reason the cap is a policy value.
+limit, and is the reason the limit is a policy value.
 
 ### What the migration copies
 
@@ -825,7 +825,7 @@ section's problems are reported together.
 }
 ```
 
-The caps are the shipped proposal, not a budget: the byte figure for records is where a mistake meets a
+The limits are the shipped proposal, not a budget: the byte figure for records is where a mistake meets a
 refusal, and the slice that enforces a value is the slice that chooses it. Every value is required, and
 a range is a safety net wide enough that only a mistake meets it.
 
@@ -880,7 +880,7 @@ page it wraps, the author's choice, and the response half of `pages-one-render-t
   layout, and an owner who wants a site-wide flash adds four lines to `/_layout`. The flash capability
   is unchanged; only the default cost is.
 - **Objects live in SQLite as BLOBs, not on the filesystem.** One database means one backup, one
-  restore and one volume, which is the site's existing storage rule; the per-subject byte cap is the
+  restore and one volume, which is the site's existing storage rule; the per-subject byte limit is the
   bound, and a filesystem store would need a second consistency story for delete, scrub and archive.
 - **The `/o/{sha}` route is the site's code and a reserved key.** A page cannot stream bytes, the cache
   policy is a response rule, and the route has to answer when the page pipeline is broken — the three
@@ -907,14 +907,14 @@ record does not have yet:
 - **pages-adoption-re-keys-at-sign-in** — the anonymous session's `Person` and `NextRead` entries
   re-key into the account in one transaction; `Session` entries go, `Browser` entries stay, and a
   one-shot survives unread
-- **pages-one-stores-section** — one `Pages:Stores` record with a row per subject, the caps chosen
+- **pages-one-stores-section** — one `Pages:Stores` record with a row per subject, the limits chosen
   together, and the two retired sections refused at startup
 - **pages-a-record-is-declared-sql** — the declaration is part of the revision, extracted on save, and
   the declaration is the table: a save adds what is new and drops what the source no longer names, and
   a save is never refused for correctness
 - **pages-a-record-is-sandboxed** — one statement over `TEMP VIEW`s, an owner filter the page cannot
   name, joins and aggregates, `sqlite3_set_authorizer` as the allow-list, SQLite's limits, the result
-  caps, the statement and transaction clocks, and `SearchAsync` as the one call that reaches the FTS5
+  limits, the statement and transaction clocks, and `SearchAsync` as the one call that reaches the FTS5
   index
 - **pages-a-library-owns-its-schema** — a library declares its tables and its data under its own key; a
   page calls the library's methods and never queries another source's table, and `For(libraryKey)` is
@@ -955,7 +955,7 @@ slices 1, 2 and 3 are merged.
 0. **The sandbox spike** (`S`, docs only) — **written**. A scratch console over the real SQLite
    build: an unpooled connection, a `TEMP VIEW` per table with a literal subject and an `INSTEAD OF`
    trigger, `sqlite3_set_authorizer` through `SQLitePCL.raw` with the view-and-trigger allowance, a two-view join
-   and an aggregate through it, a `RAISE(ABORT)` at a cap, the result caps, `SQLITE_LIMIT_ATTACHED = 0`,
+   and an aggregate through it, a `RAISE(ABORT)` at a limit, the result limits, `SQLITE_LIMIT_ATTACHED = 0`,
    `trusted_schema = OFF`, `SQLITE_DBCONFIG_DEFENSIVE`, a statement interrupt, and the refusals a
    `PRAGMA`, a `CREATE`, a `sqlite_master` read, a `load_extension` and a `pragma_table_info` call each
    get. The findings go in `docs/spikes/store-sandbox.md`, the spike is added to the index in
@@ -982,13 +982,13 @@ slices 1, 2 and 3 are merged.
    and another visitor does not; a `Person` value survives sign-in and is on the account; an anonymous
    `NextRead` survives adoption unread and is gone after one take; a `Browser` value survives sign-in
    and sign-out and another browser does not see it; a cross-page read works; a write to another page's
-   key is impossible; a `HEAD` refuses every write; the caps refuse at the boundary; the migration
+   key is impossible; a `HEAD` refuses every write; the limits refuse at the boundary; the migration
    copies both old tables and its `Down` restores them; an exported archive has no `NextRead` or
    `Until` value; `Pages:Storage` stops the host at startup.
 2. **Records and the sandbox** (`M`) — **merged**. `PageTableAttribute`, `PageSchema` and extraction, `PAGE011` and
    `PAGE012`, `DeclaredTables`, the DDL lifecycle in the save's transaction, `IRecordStore`,
    `IPageRecordTransaction` as the frame, `PageRecordResult`, `PageRow`, `PageParameters`, `SearchAsync`
-   and the FTS5 index, the `TEMP VIEW` and triggers, the authorizer, the limits, the result caps and
+   and the FTS5 index, the `TEMP VIEW` and triggers, the authorizer, the limits, the result limits and
    the clocks; the library and worker declarations; `/help`.
    *Proves:* a save creates exactly the declared tables and catalogue rows; an added column alters and
    changes nothing else; a column or table the source no longer names is dropped with every row in it;
@@ -999,14 +999,14 @@ slices 1, 2 and 3 are merged.
    `pragma_*` function by action, with the action and the name in the message; a statement with two
    statements in it is refused; a statement naming a column the declaration does not have is
    refused with the statement and SQLite's reason in it; a write naming `Id` on a Visitor table is
-   refused; a result over its cap throws naming the setting; a write with no
+   refused; a result over its limit throws naming the setting; a write with no
    transaction open answers `Applied` and is durable, one inside a transaction answers `Staged` and is
    gone after a rollback or a dispose; a refused write inside a transaction leaves the earlier rows to
    the page's choice; a second `BeginTransaction` throws; a search answers my subject's rows and never
    another's; a library's table is reached only through `For(libraryKey)`; a worker's own table is
    shared by its runs.
 3. **Messages** (`M`) — **merged**. `IMessageStore`, `PageTopic`, `PageMessageRead`, `StoreMessages`, the address
-   check, the atomic take, the peek, the caps, the lifetimes and the sweep; the flash example and the
+   check, the atomic take, the peek, the limits, the lifetimes and the sweep; the flash example and the
    peek-that-protects-a-retry in `/help`; `/privacy`.
    *Proves:* a page posts to another page and the other takes it; a second take is `Empty`; two
    concurrent takes answer one with a message and one `Empty`; FIFO; a peek answers the message a take
@@ -1017,14 +1017,14 @@ slices 1, 2 and 3 are merged.
    at sign-in; a `Session` one dies at rotation; a topic is a separate queue; a page delete takes its
    messages.
 4. **Objects** (`M`). `IObjectStore`, `StoreObjects`, `/o/{sha}` and its reserved key, the content-type
-   allow-list, `ETag`, `Range`, the cache policy, ownership and the caps; `/help`, `/privacy`,
+   allow-list, `ETag`, `Range`, the cache policy, ownership and the limits; `/help`, `/privacy`,
    `docs/shell.md`.
    *Proves:* bytes round-trip; the same bytes under one subject are one row; another subject cannot
    open them; a page-subject object is public and immutable, a visitor-subject one is private; `Range`
    answers `206`; `HEAD` answers headers and no body; a missing or foreign sha is `404`; a refused
-   content type never stores; the caps refuse at the boundary.
+   content type never stores; the limits refuse at the boundary.
 5. **Secrets** (`M`). `ISecretStore` and `StoreSecrets`, the shape on `Page` and its absence from
-   `Visitor`, the caps' own row in `Pages:Stores`, delete, scrub, move and `users remove`, the archive's
+   `Visitor`, the limits' own row in `Pages:Stores`, delete, scrub, move and `users remove`, the archive's
    refusal, `/help`, and `docs/storage.md`'s table. It lands before the window closes, because a page
    that has been given a key to keep needs somewhere to keep it.
    *Proves:* a page writes a secret and reads it back; another page cannot read it, and no
@@ -1032,7 +1032,7 @@ slices 1, 2 and 3 are merged.
    job can read its starting page's; `NamesAsync` answers names and never a value; a source read, a
    revision read, a listing, a search and an export carry neither name nor value; an import that
    carries one is refused; a move re-keys it and a scrub removes it; a `HEAD` refuses every write; the
-   caps refuse at the boundary with the setting's name.
+   limits refuse at the boundary with the setting's name.
 6. **The ends** (`S`). `users remove` extended to every declared table; the archive's import and export
    tests for what it refuses to carry; the sampler and `/status`; `/privacy`'s last paragraph;
    `/help`'s index; `docs/storage.md`, `docs/pages.md`, `docs/architecture.md`, `docs/glossary.md`,
@@ -1056,7 +1056,7 @@ separate worktrees. Slice 6 waits for them.
 | `src/uk.osric.asp.Sdk/` | `IPageStores`, `IPageSubject`, `IVisitorSubject`, `IValueStore`, `IRecordStore`, `IPageRecordTransaction`, `IMessageStore`, `IObjectStore`, `ISecretStore`, `StoreLifetime`, `StoreLifetimeKind`, `StoreFilter`, `StoreEntry`, `StoreSubject`, `PageTableAttribute`, `PageRow`, `PageRecordResult`, `PageRecordOutcome`, `PageParameters`, `PageObject`, `PageObjectRef`, `PageTopic`, `PageMessage`, `PageMessageRead`, `PageMessagePostResult`, `PageMessageRefusal`, `PageValue`'s two new properties, `IContext.Stores`, the obsolete marks on the two old interfaces; `PublicAPI.Unshipped.txt` |
 | `src/uk.osric.asp.Core/` | `PageSchema` and its validation, the single-statement rule, the content-type allow-list, the SHA-256 rule |
 | `src/uk.osric.asp.Runtime/` | Declaration extraction on the compile, `CompileResult.Schema`, `PAGE011` and `PAGE012` |
-| `src/uk.osric.asp.Web/Pages/` | `PageStoresScope` (new, in the shape `PageCatalogScope` already has), `PageStoresOptions`, `StoreSubjectCaps`, `IStoreValues`, `IStoreMessages`, `SqliteStoreValues`, `SqliteStoreMessages`, `StoreSubjectKeys`, the internal store seams, `PageChain.CreateLayer`, `PageStorageOptions`'s retirement, `PageStorageScope` and `PageSessionScope` as adapters, `PageSessionResolver`, `PageReaderSubjectResolver` (the reader's subject), `PageSessionRequest`, `PageSessionOptions`'s retirement, the sweep; `PageCatalogScope`, `IPageReadStore` and `PageWritesScope` untouched |
+| `src/uk.osric.asp.Web/Pages/` | `PageStoresScope` (new, in the shape `PageCatalogScope` already has), `PageStoresOptions`, `SubjectLimits`, `IStoreValues`, `IStoreMessages`, `SqliteStoreValues`, `SqliteStoreMessages`, `StoreSubjectKeys`, the internal store seams, `PageChain.CreateLayer`, `PageStorageOptions`'s retirement, `PageStorageScope` and `PageSessionScope` as adapters, `PageSessionResolver`, `PageReaderSubjectResolver` (the reader's subject), `PageSessionRequest`, `PageSessionOptions`'s retirement, the sweep; `PageCatalogScope`, `IPageReadStore` and `PageWritesScope` untouched |
 | `src/uk.osric.asp.Web/Storage/` | `StoreObjects`, `StoreSecrets`, `DeclaredTables`, the migration pair, the DDL and view generation, `PageStorageSampler`'s payload |
 | `src/uk.osric.asp.Web/Authentication/` | The `b` cookie, its ticket in `PageSessionCookie`, `PageSessionCookie.RotateAsync`'s adoption transaction, `LoginEndpoint` |
 | `src/uk.osric.asp.Web/Http/` | `ShellCookies`' `b` constant and its `IsOwned` rule, which is what keeps the cookie out of `PageRequestSnapshot` |
@@ -1076,14 +1076,14 @@ separate worktrees. Slice 6 waits for them.
   them.
 - **`Runtime.Tests`** for the declaration extraction and its diagnostics, beside the shape check: a
   page declaration, a library declaration, a worker declaration, an unsupported type, a `NextRead`
-  table, a column over its cap.
+  table, a column over its limit.
 - **`Web.Tests`** against a throwaway database: the value lifecycle (page, visitor, cross-page, write
-  binding, every lifetime, the take, the listing filter, the caps, the sweep), adoption, the `b`
+  binding, every lifetime, the take, the listing filter, the limits, the sweep), adoption, the `b`
   cookie, the DDL lifecycle, the sandbox refusals, the join and aggregate, the record transaction (an
   autocommitted write is durable when it answers, a staged one is not until the commit, a rollback and
   a dispose discard it, a read sees the staged write, a refused write leaves the staged rows, a second
   `BeginTransaction` throws), the search answering only the reader's rows, the message lifecycle
-  (post, take, peek, the peek-then-take race, the `HEAD` rule, the caps), the
+  (post, take, peek, the peek-then-take race, the `HEAD` rule, the limits), the
   object lifecycle, the migration up/down/up,
   and the configuration's shipped, override and refusal cases. The migration tests live in the `Slow`
   category and run under `make test-web-slow`, with the other fixtures that apply a real migration
@@ -1104,7 +1104,7 @@ separate worktrees. Slice 6 waits for them.
   shapes, the lifetimes, `For`, the declaration, the SQL, its refusals and its `@` parameters, the
   message take and peek,
   the object
-  route and its content types, the caps, the job's three scopes and the `Browser` preference
+  route and its content types, the limits, the job's three scopes and the `Browser` preference
   (`product-manual-is-a-page`). Three of those are the ones a page with its own users gets wrong, so
   they are worked examples and not asides: **the row's owner is in the `WHERE`**, because the store
   bounds a namespace and not a row; **uniqueness is `INSERT … SELECT … WHERE NOT EXISTS`**, because a
@@ -1153,7 +1153,7 @@ separate worktrees. Slice 6 waits for them.
 - **A page delete destroys every visitor's rows in its tables.** The delete page says what it takes
   beside what it keeps, and `/privacy` says the same thing to a reader who never opens the editor.
 - **Adoption is a write on the sign-in path.** Re-keying a full anonymous session is bounded by its
-  caps but still one transaction with a per-table statement. A sign-in that cannot take the writer
+  limits but still one transaction with a per-table statement. A sign-in that cannot take the writer
   answers after `BusyTimeoutSeconds`; the visitor is signed in and the session row is the fallback.
 - **The `b` cookie is a new identifier.** It is not linked to the account and never leaves the site, but
   it is a device id a visitor can clear and a shared device can share. `/privacy` names it, its
@@ -1166,8 +1166,8 @@ separate worktrees. Slice 6 waits for them.
   must act once takes first and acts on what the take answered — the peek is for deciding *whether* to
   act, and `/help` says so. The job-result pattern it enables (peek, work, then take) is safe only
   because the work is idempotent or the page's own code serialises it.
-- **Objects grow the database.** A per-subject byte cap bounds the growth but not the backup size; the
-  sampler's figure is the operator's warning, and the cap is where a mistake meets a refusal.
+- **Objects grow the database.** A per-subject byte limit bounds the growth but not the backup size; the
+  sampler's figure is the operator's warning, and the limit is where a mistake meets a refusal.
 - **A layout that writes runs once per page it wraps.** That is the owner's rule; the one-action rule
   and the response exclusions still bound it, and `/help` says so.
 - **The retired keys stop the host at startup.** An operator must remove `Pages:Storage` and
@@ -1178,7 +1178,7 @@ separate worktrees. Slice 6 waits for them.
   change another's row, and nothing in the store will notice.
 - **A declaration has no index, unique constraint or foreign key.** Uniqueness is
   `INSERT … SELECT … WHERE NOT EXISTS` and a parent's children are deleted by the page's transaction,
-  which is correct at the row cap and a surprise for an author who expects a database to do it.
+  which is correct at the row limit and a surprise for an author who expects a database to do it.
 - **The archive loses a Page one-shot or an expiry.** The owner's answer 6; `/help` says a value that
   must travel is a Page value with the page's own lifetime.
 - **A contract change recompiles every stored image.** The page contract moves, so every image
@@ -1239,7 +1239,7 @@ separate worktrees. Slice 6 waits for them.
   wish it serves is real: a page could show "three waiting" rather than "something is waiting". What
   it costs is a number that is wrong by the time it is rendered — the same staleness `Peek` has — and
   a call every page would be tempted to make on every render, which is the per-request work the
-  activity clock was rejected for. The cap is eight messages per subject, so a page that must know
+  activity clock was rejected for. The limit is eight messages per subject, so a page that must know
   takes in a loop bounded by the render's deadline and has the messages as well as the number, and one
   that must show a badge without consuming peeks once and says "a message is waiting". `HasMessages` is
   the same question as `Count > 0` and would be a second way to ask it. If a caller ever needs the
@@ -1294,11 +1294,11 @@ what the model says would happen, and where it pinches.
    nobody else can *reach* your namespace, not that nobody else can change your row.
 2. **No declared index, unique constraint or foreign key.** Uniqueness is the `WHERE NOT EXISTS`
    above; a topic's comments are deleted by the page's transaction, child first. That is enough at the
-   row cap and it is why the cap exists — but a page author must be told, or the forum's registration
+   row limit and it is why the limit exists — but a page author must be told, or the forum's registration
    will be a check followed by an insert.
-3. **A shared table's cap is the whole forum's.** Ten thousand rows across topics and comments is a
+3. **A shared table's limit is the whole forum's.** Ten thousand rows across topics and comments is a
    small forum; the shard is another page — `/forum/2026-11` with the same declaration and its own
-   namespace — and the cap being a policy value is what lets an operator raise it.
+   namespace — and the limit being a policy value is what lets an operator raise it.
 4. **A password KDF is not in the page API.** `System.Security.Cryptography` admits the SHA-2 hashes,
    the matching HMACs, `RandomNumberGenerator` and `CryptographicOperations`, and denies
    `Rfc2898DeriveBytes`, so a page that hashes passwords writes its own salted iteration. That is the
@@ -1308,7 +1308,7 @@ what the model says would happen, and where it pinches.
    forum's users and posts would not leave with an archive. This is the first caller that would want
    them, and it is the reason "the Page subject grows a shape" is a phrase rather than a promise.
 6. **No rate limit for a page's own auth.** The site's login has one; a page's form login has the
-   render budget, the caps and nothing else, so a page that must throttle keeps a `Browser` value with
+   render budget, the limits and nothing else, so a page that must throttle keeps a `Browser` value with
    a timestamp and says so in `/help`.
 
 The exercise changes one thing in the plan and it is not the forum: `Search` was declared with no way
@@ -1334,7 +1334,7 @@ to query it, so `IRecordStore.SearchAsync` is now the one call that reaches the 
 - **A shared table in an archive.** Page values travel and Page records do not; the first caller that
   needs a shared table to leave the site is what makes the archive grow a shape.
 - **Rate limiting for page code.** The site's own login has a limiter; a page's form login has the
-  render budget and its caps, and a page that must throttle keeps its own clock in a value.
+  render budget and its limits, and a page that must throttle keeps its own clock in a value.
 - **Migrating another site's records or objects.** The archive carries Page values and nothing else.
 - **The site's own flash and its identity.** `PageSessions` and the site's rotation stay; the site's own
   routes are not offered `IPageStores`.
@@ -1344,7 +1344,7 @@ to query it, so `IRecordStore.SearchAsync` is now the one call that reaches the 
 
 [account-store](account-store.md) and [page-inbox](page-inbox.md) were written before the model and are
 superseded in shape. Their answers that survive — the declaration is part of the revision, the owner
-filter is structural, the take is one atomic statement, the caps are inside the statement that writes,
+filter is structural, the take is one atomic statement, the limits are inside the statement that writes,
 a save is never refused for correctness — are folded into the slices above. Their answers that do not —
 a per-account namespace with no Page subject, a fixed 30-day inbox clock, a `flash` topic, an
 eight-hour signed-in session — are replaced.

@@ -35,7 +35,7 @@ own queue capacity and its own fetch rate, ended by silence or the job's ceiling
 
 The hard part is the bound the signed-in rule was standing in for. An anonymous request becomes a work
 source, so something else has to stop a public page from being an amplifier: its own queue, its own
-rate, the request body's cap, and `Pages:Jobs`' clocks and message limits all still apply, and the
+rate, the request body's limit, and `Pages:Jobs`' clocks and message limits all still apply, and the
 plan decides whether a job's starting page must be the key that received the request. None of those
 needs a new configured number if the existing ones carry the second owner.
 
@@ -53,7 +53,7 @@ needs a new configured number if the existing ones carry the second owner.
    [`the-site-is-one-type`](the-site-is-one-type.md), so a fan-out is sized rather than hoped for.
 4. **The body is the message.** `StartAsync` already takes a first message; the body
    [`a-page-sees-its-request`](a-page-sees-its-request.md) makes visible is what the inbox page passes,
-   bounded by `Pages:Jobs:MaxMessageBytes` and refused over the cap rather than cut.
+   bounded by `Pages:Jobs:MaxMessageBytes` and refused over the limit rather than cut.
 5. **Nothing else changes.** The journal, the silence clock, the ceiling, cancellation and a restart
    losing every job are the worker's existing rules (`pages-a-job-is-not-durable`), and a page-owned
    job is no more durable.

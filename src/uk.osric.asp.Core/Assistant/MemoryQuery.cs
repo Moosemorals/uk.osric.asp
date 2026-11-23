@@ -32,7 +32,7 @@ public static class MemoryQuery {
 
     /// <summary>The quoted prefix terms a message is searched with.</summary>
     /// <param name="message">The newest user message.</param>
-    /// <param name="maximum">The most terms to keep, matching the configured query-term cap.</param>
+    /// <param name="maximum">The most terms to keep, matching the configured query-term limit.</param>
     /// <returns>A space-separated FTS5 expression, or the empty string when the message has no
     /// usable term.</returns>
     public static string Terms(string message, int maximum) {

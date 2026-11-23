@@ -125,9 +125,9 @@ internal class Program {
         pageSettings.FailIf(pageSettings.Has("ReservedPaths"), "ReservedPaths",
             "is no longer read. The shell's own route table is the reserved list, so remove the key and restart");
         pageSettings.FailIf(pageSettings.Has("Storage"), "Storage",
-            "is no longer read. Pages:Stores carries the page's value caps, so remove the key and restart");
+            "is no longer read. Pages:Stores carries the page's value limits, so remove the key and restart");
         pageSettings.FailIf(pageSettings.Has("Session"), "Session",
-            "is no longer read. Pages:Stores:Visitor carries the session's caps and idle bounds, so remove the key and restart");
+            "is no longer read. Pages:Stores:Visitor carries the session's limits and idle bounds, so remove the key and restart");
         settings.Complete();
         ReservedPaths reserved = new(ReservedPaths.Default);
 
@@ -145,7 +145,7 @@ internal class Program {
             optionsLifetime: ServiceLifetime.Singleton);
         builder.Services.AddDbContextFactory<StorageDbContext>(options => options.UseSqlite(connection.ToString()));
 
-        // The upload limits and the framework's form parser come from the same cap, so an oversized
+        // The upload limits and the framework's form parser come from the same limit, so an oversized
         // body is refused rather than buffered, and a normal one never spills to a temporary file.
         builder.Services.Configure<FormOptions>(options => {
             options.MemoryBufferThreshold = archive.MaxUploadBytes + (64 * 1024);

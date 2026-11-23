@@ -24,7 +24,7 @@ internal sealed class PageMessageStore : RenderBoundCapability, IMessageStore {
     private readonly PageReaderSubject _reader;
     private readonly IPageReadStore _readStore;
     private readonly ReservedPaths _reserved;
-    private readonly PageMessageOptions _caps;
+    private readonly PageMessageOptions _limits;
     private readonly bool _writable;
     private readonly PageCommitState? _commit;
     private readonly Action? _activity;
@@ -36,7 +36,7 @@ internal sealed class PageMessageStore : RenderBoundCapability, IMessageStore {
     /// <param name="reader">The reader's subjects.</param>
     /// <param name="readStore">Where a destination's kind is judged.</param>
     /// <param name="reserved">The keys the site's own routes answer for.</param>
-    /// <param name="caps">The message shape's caps.</param>
+    /// <param name="limits">The message shape's limits.</param>
     /// <param name="writable">Whether this render may write.</param>
     /// <param name="commit">Whether the response was flushed, or <see langword="null"/>.</param>
     /// <param name="activity">What a successful post or take re-arms, or <see langword="null"/>.</param>
@@ -47,7 +47,7 @@ internal sealed class PageMessageStore : RenderBoundCapability, IMessageStore {
         PageReaderSubject reader,
         IPageReadStore readStore,
         ReservedPaths reserved,
-        PageMessageOptions caps,
+        PageMessageOptions limits,
         bool writable,
         PageCommitState? commit,
         Action? activity) {
@@ -57,7 +57,7 @@ internal sealed class PageMessageStore : RenderBoundCapability, IMessageStore {
         ArgumentNullException.ThrowIfNull(reader);
         ArgumentNullException.ThrowIfNull(readStore);
         ArgumentNullException.ThrowIfNull(reserved);
-        ArgumentNullException.ThrowIfNull(caps);
+        ArgumentNullException.ThrowIfNull(limits);
 
         _bound = bound;
         _store = store;
@@ -65,7 +65,7 @@ internal sealed class PageMessageStore : RenderBoundCapability, IMessageStore {
         _reader = reader;
         _readStore = readStore;
         _reserved = reserved;
-        _caps = caps;
+        _limits = limits;
         _writable = writable;
         _commit = commit;
         _activity = activity;
@@ -143,7 +143,7 @@ internal sealed class PageMessageStore : RenderBoundCapability, IMessageStore {
         string? expiresAt = lifetime?.ExpiresAt is { } expiry ? StoreSubjectKeys.Stamp(expiry) : null;
         bool posted = await _store.PostAsync(
             new StoreMessageWrite(subject, toPageKey, topic, _bound.Key, body, (int)kind, expiresAt),
-            _caps,
+            _limits,
             cancellationToken);
 
         if (posted) {
@@ -215,9 +215,9 @@ internal sealed class PageMessageStore : RenderBoundCapability, IMessageStore {
         ArgumentNullException.ThrowIfNull(body);
 
         int bytes = Encoding.UTF8.GetByteCount(body);
-        if (bytes > _caps.MaxMessageBytes) {
+        if (bytes > _limits.MaxMessageBytes) {
             throw new ArgumentException(
-                $"The message is {bytes} bytes and {_caps.MaxMessageBytes} is the limit.", nameof(body));
+                $"The message is {bytes} bytes and {_limits.MaxMessageBytes} is the limit.", nameof(body));
         }
     }
 

@@ -19,7 +19,7 @@ using System.Text;
 /// </para>
 /// <para>
 /// Truncation counts text elements rather than UTF-16 code units so a surrogate pair, a combined
-/// accent or an emoji is never cut in half; the code-unit cap keeps one pathological cluster — a
+/// accent or an emoji is never cut in half; the code-unit limit keeps one pathological cluster — a
 /// base character followed by thousands of combining marks — from defeating the limit. Dropping an
 /// unpaired surrogate keeps the result valid Unicode, which is what
 /// <see cref="LowercaseText.Normalize"/> and <see cref="string.Normalize()"/> require.

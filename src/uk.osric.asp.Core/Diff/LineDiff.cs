@@ -186,8 +186,8 @@ public static class LineDiff {
     }
 
     // Myers' greedy algorithm, bounded at MaxEditDistance. A null answer means the middle needed
-    // more edits than the cap allows. The frontier is cloned once per distance for the backtrack;
-    // with the cap that is a few megabytes at worst, not the square of the document size.
+    // more edits than the limit allows. The frontier is cloned once per distance for the backtrack;
+    // with the limit that is a few megabytes at worst, not the square of the document size.
     private static List<Operation>? Align(string[] before, string[] after) {
         int limit = Math.Min(before.Length + after.Length, MaxEditDistance);
         int offset = limit;

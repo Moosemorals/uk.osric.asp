@@ -17,7 +17,7 @@ using uk.osric.asp.Core.Assistant;
 /// <para>
 /// Sixteen heatmaps on one page have to fit in a budget, so a row is drawn as runs: neighbouring cells
 /// of the same shade become one <c>rect</c> with one hover title, and an answer with more columns than
-/// the cap allows is folded into blocks before anything is drawn. Each row is an anchor, so hovering or
+/// the limit allows is folded into blocks before anything is drawn. Each row is an anchor, so hovering or
 /// clicking a row dims the others and clicking pins it, the same way a line chart's series behave.
 /// </para>
 /// </remarks>
@@ -121,19 +121,19 @@ public static class Heatmap {
         return svg.ToString();
     }
 
-    /// <summary>Folds an answer into at most <paramref name="cap"/> columns, summing each block.</summary>
+    /// <summary>Folds an answer into at most <paramref name="limit"/> columns, summing each block.</summary>
     /// <param name="rows">The differenced rows.</param>
-    /// <param name="cap">The most columns to draw.</param>
+    /// <param name="limit">The most columns to draw.</param>
     /// <remarks>A folded column keeps the instant its block starts at, so it is drawn where the block was.</remarks>
-    internal static IReadOnlyList<HeatmapRow> Fold(IReadOnlyList<HeatmapRow> rows, int cap) {
+    internal static IReadOnlyList<HeatmapRow> Fold(IReadOnlyList<HeatmapRow> rows, int limit) {
         ArgumentNullException.ThrowIfNull(rows);
 
         int columns = rows.Count == 0 ? 0 : rows.Max(row => row.Points.Count);
-        if (columns <= cap || cap <= 0) {
+        if (columns <= limit || limit <= 0) {
             return rows;
         }
 
-        int block = (int)Math.Ceiling((double)columns / cap);
+        int block = (int)Math.Ceiling((double)columns / limit);
         List<HeatmapRow> folded = [];
 
         foreach (HeatmapRow row in rows) {

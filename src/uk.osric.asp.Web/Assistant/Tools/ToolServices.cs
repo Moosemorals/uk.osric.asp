@@ -43,7 +43,7 @@ internal sealed class ToolServices(
     /// <summary>The assistant's configured limits.</summary>
     public AssistantOptions Options { get; } = options;
 
-    /// <summary>The model's window and the reply's floor, which every content cap is a fraction of.</summary>
+    /// <summary>The model's window and the reply's floor, which every content limit is a fraction of.</summary>
     public ContextBudget Budget { get; } = budget;
 
     /// <summary>Where the run's counters go.</summary>

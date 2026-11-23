@@ -9,7 +9,7 @@ using uk.osric.asp.Web.Shell;
 
 /// <summary>The system prompt and worked examples that teach the model to write a page.</summary>
 internal static class PageAuthorPrompt {
-    public const string Version = "page-author-v61";
+    public const string Version = "page-author-v62";
 
     public static IReadOnlyList<(string Name, string Source)> Examples { get; } = [
         ("query-driven", """
@@ -309,7 +309,7 @@ internal static class PageAuthorPrompt {
         another page left for it. Values are JSON, so a record with public
         properties or a scalar round-trips and a value that cannot be
         serialised throws. Keys are 1-200 characters, ordinal, with no control
-        characters. Reads and writes are awaited, and a write past a cap throws
+        characters. Reads and writes are awaited, and a write past a limit throws
         when it is awaited. `PageValue<T>` has `Found` (false when the key is
         absent), `Value` (null when the stored value is JSON null), `Lifetime`
         and `Page`. A counter is `PageValue<int> stored =
@@ -354,7 +354,7 @@ internal static class PageAuthorPrompt {
         commit discards it, and a refused write leaves the rows before it for
         you to keep or discard. `SearchAsync(table, term)` answers your rows by
         the declared search column, best match first. Bound a query with
-        `LIMIT`: a result past the caps throws naming the setting.
+        `LIMIT`: a result past the limits throws naming the setting.
 
         ## Page lifetimes
         A lifetime is a property of the entry, not of the store, and a read
@@ -372,7 +372,7 @@ internal static class PageAuthorPrompt {
         `TryTakeAsync` of that key, atomically, which is how a page leaves a
         message for the page a redirect lands on. `StoreLifetime.Until(expiry)`
         composes any of them with a clock. A Page subject cannot carry Person,
-        Session or Browser; a Visitor subject cannot carry Page. The caps are
+        Session or Browser; a Visitor subject cannot carry Page. The limits are
         per subject: 256 keys and 256 KiB on a page, 8 keys and 16 KiB for an
         anonymous visitor or a browser, 32 keys and 64 KiB signed in. Signing
         in adopts the anonymous session's Person and NextRead entries into the
@@ -422,8 +422,8 @@ internal static class PageAuthorPrompt {
         passes the last key and asks again while `Truncated` is true walks a
         store of any size without skipping or repeating a row; a cursor past the
         last key answers empty with `Truncated` false, which is not an error.
-        `limit` is how many rows you want, or null for the host's cap; asking for
-        more than the cap is refused with the setting's name, not trimmed, and
+        `limit` is how many rows you want, or null for the host's limit; asking for
+        more than the limit is refused with the setting's name, not trimmed, and
         folders and routes count towards it. `recursive` is true unless you ask
         otherwise: true lists every key under the prefix, false the prefix and its
         own children, which is what a tree that descends one folder at a time
@@ -480,7 +480,7 @@ internal static class PageAuthorPrompt {
         guard to every page. A page that calls `ReadAsync` or
         `ReadRevisionAsync` publishes the source it reads, and one that calls
         `SearchAsync` publishes the matching lines, to whoever can reach that
-        page. A listing is bounded by the site's configured row cap and one
+        page. A listing is bounded by the site's configured row limit and one
         render may read a bounded amount of template across the page and its
         layouts; both are refusals, not truncations, and the refusal names the
         limit. The seeded `/pages` is a guarded listing, a source view and a

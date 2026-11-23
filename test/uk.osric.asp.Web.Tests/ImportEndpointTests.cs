@@ -198,7 +198,7 @@ public sealed partial class ImportEndpointTests {
     }
 
     [Test]
-    public async Task AMergedStateOverTheCapRefusesTheWholeBatch() {
+    public async Task AMergedStateOverTheLimitRefusesTheWholeBatch() {
         using ImportHarness harness = new();
         harness.Batches.Refuse = [Key("/two")];
         ImportStage stage = harness.Stage(("/one", "One", []), ("/two", "Two", []));
@@ -213,7 +213,7 @@ public sealed partial class ImportEndpointTests {
     }
 
     [Test]
-    public async Task AnImportOverTheCompiledCapWritesNothing() {
+    public async Task AnImportOverTheCompiledLimitWritesNothing() {
         using ImportHarness harness = new(options: TestOptions.Archive with { MaxCompiledBytes = 1 });
         ImportStage stage = harness.Stage(("/about", "About <% ctx.Response.Write(\"hello\"); %>", []));
 

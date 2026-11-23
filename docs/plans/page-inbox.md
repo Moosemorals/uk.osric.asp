@@ -94,9 +94,9 @@ page's session keys.
 3. A message survives a restart, is delivered to the account or session that posted it, and to no
    other account, session or user. A signed-in message is visible on every device of the account and
    lives 30 days from the last inbox activity; an anonymous one ends with its session.
-4. A full inbox, an empty inbox, a message over its cap, a reserved key, an unknown key, a library, a
+4. A full inbox, an empty inbox, a message over its limit, a reserved key, an unknown key, a library, a
    content-only page, a `HEAD` and a discarded anonymous session are all values, not exceptions.
-5. The caps and the signed-in window are configuration, the account and session sweeps cascade, and
+5. The limits and the signed-in window are configuration, the account and session sweeps cascade, and
    a page's tombstone takes its inbox with it so a page re-created at the same key inherits nothing.
 6. The manual, the privacy page, the storage doc and the decisions say what it does, in the same
    change.
@@ -246,7 +246,7 @@ Two small tables, added by one EF Core migration.
 | `SentAt` | `TEXT NOT NULL` | Fixed-width UTC ISO-8601, as the session store writes its timestamps |
 
 Two `CHECK`s say what a row is: exactly one of `Owner` and `SessionId` is set; and exactly one of
-`PagePath` and `Topic` is set. Four indexes serve the two addresses and the caps —
+`PagePath` and `Topic` is set. Four indexes serve the two addresses and the limits —
 `(Owner, PagePath, Id)`, `(Owner, Topic, Id)`, `(SessionId, PagePath, Id)` and
 `(SessionId, Topic, Id)`. The lifetime is the two cascades: a removed `PageInboxOwners` row takes
 the account's messages, and a removed `PageSessions` row takes the anonymous ones. They rely on the
@@ -375,7 +375,7 @@ public readonly record struct PageInboxTakeResult(PageInboxRefusal Refusal, Page
 ```
 
 The page-target refusals — `NotAddressable`, `OwnedBySite`, `UnknownPage`, `NotASink` and the
-anonymous-to-worker `Anonymous` — never come from a topic call; the identity, cap and read-only
+anonymous-to-worker `Anonymous` — never come from a topic call; the identity, limit and read-only
 refusals apply to both. There is no login refusal: a signed-in render, a view token and a job all
 act for an account, and an account inbox outlives any one sign-in. One enum, as `PageJobRefusal` is one enum, because a page branches on the
 value and the log line names the rule. `TakeAsync` has no "do I have messages" sibling: the take *is* the test, so there is
@@ -425,7 +425,7 @@ The inbox is **durable**; the journal and the job channel are not. That is not a
 does not re-run anything. A message taken by a run that then crashes is gone; the inbox never
 re-delivers it. The decision is edited to say so.
 
-### 7. Caps and the lifetime
+### 7. Limits and the lifetime
 
 `Pages:Inbox` holds every bound:
 
@@ -449,7 +449,7 @@ new timer is added. The anonymous lifetime is the page session's own
 `Pages:Session:Anonymous:IdleMinutes` (30) and its five-minute sweep; there is no separate anonymous
 retention key, because the session already has one.
 
-The caps are per account or per session, not per page or topic, so one page's messages can use the
+The limits are per account or per session, not per page or topic, so one page's messages can use the
 room another would have had — the same rule as the session, and the manual says so. A new account
 starts with an empty inbox and its own byte total.
 
@@ -565,7 +565,7 @@ idle is now the `Authentication:TicketLifetimeDays` value. The inbox has its own
 30-minute idle is its lifetime.
 
 No topic-name key is added: the 1–64 lowercase letter, digit and hyphen rule is an invariant in
-`PageTopic`, because a topic is a label rather than a deployment policy. The caps above apply to a
+`PageTopic`, because a topic is a label rather than a deployment policy. The limits above apply to a
 topic exactly as they apply to a page inbox.
 
 `Program.Main` reads it with every other section and reports all problems in one list, as it does for
@@ -587,9 +587,9 @@ the owner at every step (`product-steps-wait-for-the-owner`).
    the migration, and the migration test (up, down, up).
 3. **The store.** `IPageInboxStore` and `SqlitePageInboxStore`: the owner upsert and the insert in
    one transaction, the two atomic takes and the clock update, the page and topic addresses, the
-   `RemoveExpiredAsync` sweep and the refusal read. Tests for the caps, the order, the concurrent
+   `RemoveExpiredAsync` sweep and the refusal read. Tests for the limits, the order, the concurrent
    take, the account filter, the topic address, the activity slide and the cascades.
-4. **The configuration.** `PageInboxOptions`, `PageInboxCaps`, `appsettings.json`, `Program.Main`,
+4. **The configuration.** `PageInboxOptions`, `PageInboxLimits`, `appsettings.json`, `Program.Main`,
    and the three configuration tests.
 5. **The page caller.** `PageInboxScope`, the recipient check against `IPageReadStore` and
    `ReservedPaths` for a page address, the topic path with no check, the account from the render's
@@ -643,7 +643,7 @@ The behaviours this change introduces, each as one test:
 - Deleting a page removes its inbox; a page saved again at the key takes `Empty`.
 - A restart over the same database still delivers a signed-in message to the same account and an
   anonymous one to the same session; a different account or session does not see either.
-- The migration applies up, down and up; the store refuses at each cap; an expired owner row, a
+- The migration applies up, down and up; the store refuses at each limit; an expired owner row, a
   removed `Users` row and a removed `PageSessions` row each delete the messages they own.
 - The signed-in page session's idle is the authentication ticket's lifetime; changing that one value
   moves the sweep threshold; the removed `SignedIn.IdleMinutes` key is refused at startup; the
@@ -658,7 +658,7 @@ browser suite.
 - **`/help`** gains "Leaving a message for another page" beside "Per-visitor state" and "Starting a
   job": the four calls, `PageTopic`, the statuses, the account rule (a message belongs to the account,
   every device shares it, it lives 30 days from the last inbox activity, and signing out does not
-  delete it; an anonymous one ends with the session), the caps, the take-once rule, the
+  delete it; an anonymous one ends with the session), the limits, the take-once rule, the
   queue-not-broadcast rule, the worker difference, the `flash` topic, and a complete `POST` → `303` →
   layout take example. It says to encode the body if it is echoed: the host treats it as text, not
   HTML.
@@ -690,7 +690,7 @@ browser suite.
   opening the inbox loses an unread message; a per-request touch would keep it at one write per
   request. The plan prices the one `UPDATE` per successful post or take instead.
 - **A signed-in page session now holds a half-written form and any page scratch values for up to 30
-  days.** The key and byte caps still bound it, sign-out deletes it, and a row is honoured only while
+  days.** The key and byte limits still bound it, sign-out deletes it, and a row is honoured only while
   signed in as its account; the trade is a longer-lived row for a visitor who rarely returns. The
   alternative is two lifetimes that drift, which is the state the owner asked to end.
 - **A worker's inbox is shared by its concurrent runs.** Two jobs of one worker for one account take
@@ -727,7 +727,7 @@ browser suite.
 
 - **Reserved keys in `PageSessionValues`.** It would reuse the table and the cookie, but the
   receiver's `KeysAsync` and `AllKeysAsync` would show keys it never wrote, the sender would write
-  outside its own path, and the session's key count and byte caps would mix two kinds of data. The
+  outside its own path, and the session's key count and byte limits would mix two kinds of data. The
   third point is the one that cannot be fixed by a prefix.
 - **A site-wide inbox per page.** One inbox shared by every visitor: the first visitor to land takes
   another visitor's message. Page code cannot guard against that, because the correlation is gone.

@@ -200,7 +200,7 @@ The section is the collector's whole configuration:
 | Key | Shipped | Range | Why |
 | --- | --- | --- | --- |
 | `Token` | *(absent — supplied in the host's env file)* | at least 32 characters | Required: the collector exists to accept pushes. A missing value stops it at startup, as the assistant's key stops the site |
-| `MaxBodyBytes` | 65536 | 1024–1048576 | The body cap, checked on `ContentLength` and enforced by Kestrel's request size |
+| `MaxBodyBytes` | 65536 | 1024–1048576 | The body limit, checked on `ContentLength` and enforced by Kestrel's request size |
 | `MaxSeconds` | 86400 | 1–604800 | A duration longer than a day is a mistake; a week is the widest a wedged target could honestly take |
 
 `openssl rand -base64 32` is the documented way to make one. The host's
@@ -211,7 +211,7 @@ The section is the collector's whole configuration:
 The collector carries a small copy of the configuration reader's shape (collect every problem, one
 report, no fallback) because `Web` is not a reference it may take; referencing the site for one
 helper would put the site's assembly and packages in the collector's image. The copy is tested with
-the same three cases as every options record: the shipped caps, an override and a refusal naming the
+the same three cases as every options record: the shipped limits, an override and a refusal naming the
 key, the range and the recommendation.
 
 ### D3 — **metrics-a-build-target-is-a-fixed-name**
@@ -327,7 +327,7 @@ monitors a .NET process rather than accepting a blob.
 
 1. The token is checked first, before any body is read. A missing or wrong header is `401`.
 2. The content type must be `application/json`; anything else is `415`.
-3. `ContentLength` above `MaxBodyBytes` is `413`; Kestrel's request size is set to the same cap so a
+3. `ContentLength` above `MaxBodyBytes` is `413`; Kestrel's request size is set to the same limit so a
    chunked body cannot bypass it.
 4. `BuildDurationJson.Parse` either returns the record or a refusal. A refusal is `400` with the
    sentence as plain text.
@@ -348,7 +348,7 @@ deploy's wait have an answer that does not depend on the site's storage or page 
 | Project | `src/uk.osric.asp.Collector`, a `Microsoft.NET.Sdk.Web` app; `ContainerRepository=uk.osric.asp.collector`, the same non-root user and base image |
 | Test project | `test/uk.osric.asp.Collector.Tests`, NUnit and `WebApplicationFactory<Program>` |
 | Image | `make image` builds the site and the collector; `make image-check` proves both reproducible; `make deploy` tags and pushes both commit tags |
-| Quadlet | `deploy/uk.osric.asp.collector.container`: rootless, `Network=uk.osric.asp.network`, `NetworkAlias=collector`, `PublishPort=127.0.0.1:8081:8080`, `EnvironmentFile` for the token, a `wget` health check and a small memory/pids cap |
+| Quadlet | `deploy/uk.osric.asp.collector.container`: rootless, `Network=uk.osric.asp.network`, `NetworkAlias=collector`, `PublishPort=127.0.0.1:8081:8080`, `EnvironmentFile` for the token, a `wget` health check and a small memory/pids limit |
 | Caddy | A `collector.moosemorals.com` block: `respond @metrics 404`, then `reverse_proxy 127.0.0.1:8081` |
 | Prometheus | The `build` job above |
 | Deploy | Seed `collector.env` once, install both quadlets, restart the collector first and wait for its health, then restart the app and Prometheus; push both images and pull both commit tags |
@@ -372,7 +372,7 @@ annotations before relying on that. It is still not worth it here:
 
 - **Startup is not the bottleneck.** The unit restarts rarely, and `RestartSec=5` plus the health
   period dwarfs the few hundred milliseconds AOT saves.
-- **Memory is not the bottleneck.** The collector is capped at 128 MB on an 8 GB host and uses far
+- **Memory is not the bottleneck.** The collector is limited to 128 MB on an 8 GB host and uses far
   less; AOT's saving is tens of megabytes nobody is short of.
 - **The image would probably get bigger.** The framework-dependent layer sits on the ASP.NET base the
   site already pulls. A native binary is 10–30 MB of its own layer, and a `runtime-deps` base is
@@ -409,7 +409,7 @@ command's exit status. The record line is the wire object plus the two facts the
 When the command succeeded, `BUILD_METRICS_URL` is set and a token is found — `BUILD_METRICS_TOKEN`,
 or `deploy/build-metrics.token` — it posts the record to `POST /build`. The token is put in a private
 curl config file (`mktemp`, mode 0600, removed afterwards) rather than on the command line, so it
-never appears in `ps`. The request is capped (`--connect-timeout 2 --max-time 5`) and never changes
+never appears in `ps`. The request is limited (`--connect-timeout 2 --max-time 5`) and never changes
 the command's status.
 
 A push that is skipped (no URL or token) or that fails writes one line to
@@ -476,8 +476,8 @@ already says the order is the point).
 | `src/uk.osric.asp.Collector/Program.cs` | New: the minimal API, options, routes, health, and `AddMeter`/`AddPrometheusExporter`/`MapPrometheusScrapingEndpoint` (D6) |
 | `src/uk.osric.asp.Collector/BuildMetrics.cs` | New: the meter, the `build.duration` gauge, the last-value store and `Record` (D6) |
 | `src/uk.osric.asp.Collector/BuildMetricsEndpoint.cs` | New: the token, the bounded body, the parse and the `204` |
-| `src/uk.osric.asp.Collector/CollectorOptions.cs` | New: the token and the two caps, with its own small reader (D2) |
-| `src/uk.osric.asp.Collector/appsettings.json` | The two caps; no token |
+| `src/uk.osric.asp.Collector/CollectorOptions.cs` | New: the token and the two limits, with its own small reader (D2) |
+| `src/uk.osric.asp.Collector/appsettings.json` | The two limits; no token |
 | `src/uk.osric.asp.Collector/uk.osric.asp.Collector.csproj` | The web SDK, the container metadata, the two OpenTelemetry packages (already pinned), the `Core` reference and `InternalsVisibleTo` |
 | `uk.osric.asp.slnx` | The two new projects |
 | `test/uk.osric.asp.Collector.Tests/…` | New: options, endpoint, metrics and the Makefile/target drift |
@@ -499,9 +499,9 @@ already says the order is the point).
 Written first, one behaviour each:
 
 - **`BuildDurationJsonTests`** — a good record reads; an unknown target, a missing target, a negative,
-  zero, non-finite or over-cap duration, a non-object and malformed JSON are each refused with a
+  zero, non-finite or over-limit duration, a non-object and malformed JSON are each refused with a
   sentence; unknown fields are ignored.
-- **`CollectorOptionsTests`** — the shipped caps; an override; a refusal naming the key, range and
+- **`CollectorOptionsTests`** — the shipped limits; an override; a refusal naming the key, range and
   recommendation; the token missing is refused; a blank and a 31-character token are refused; 32
   characters are accepted.
 - **`CollectorMetricsTests`** — the meter registers `build.duration`; `Record` emits one measurement
@@ -509,7 +509,7 @@ Written first, one behaviour each:
   its value; the live `/metrics` body carries `build_duration_seconds` with the target label, which
   is the exporter's family and the panel's contract.
 - **`CollectorEndpointTests`** — a good record is `204` and the live `/metrics` body carries it; the
-  token missing and wrong are `401`; an unknown target, malformed JSON and an over-cap duration are
+  token missing and wrong are `401`; an unknown target, malformed JSON and an over-limit duration are
   `400`; a non-JSON content type is `415`; an oversized body is `413`; `/health` is `200`.
 - **`BuildTargetsTests`** — the Makefile's `$(BUILD_METRICS) <name> --` lines and `BuildTargets.Names`
   are the same set.
@@ -579,7 +579,7 @@ deploy` brings both units up with the collector first.
 ## Documentation and decisions
 
 - `docs/collector.md` — the new service: why it is not the site, the three routes, the token (required
-  there, optional in the build), the two caps, the store's lifetime, the meter and exporter, the image
+  there, optional in the build), the two limits, the store's lifetime, the meter and exporter, the image
   and quadlet, and the build wrapper's push and end warning.
 - `docs/metrics.md` — the Build panel and its external family, the third scrape target, the two
   internal `/metrics` paths, the exporter's family name, the relay lifetime and the last-good-run
@@ -610,7 +610,7 @@ deploy` brings both units up with the collector first.
 | The collector is down when a build runs | The wrapper spools the record and prints one warning at the end; `make build-metrics-push` re-sends. The failure is a line lost from a chart, never a failed build |
 | The build has no token | Every duration is spooled and one warning is printed at the end; nothing fails. `make build-metrics-push` re-sends once the token is set |
 | The collector is down when Prometheus scrapes | The series goes stale; the previous samples stay in Prometheus. The next scrape after a restart resumes |
-| A leaked token pollutes the chart | A 256-bit token, fixed-time comparison, a closed target list, a body cap and a duration cap. The only thing a holder can do is set a duration on a chart the owner could already see; rotation is a restart |
+| A leaked token pollutes the chart | A 256-bit token, fixed-time comparison, a closed target list, a body limit and a duration limit. The only thing a holder can do is set a duration on a chart the owner could already see; rotation is a restart |
 | The exporter's family changes on a package upgrade | The collector's live `/metrics` test fails; the panel is never silently empty. If the change is wanted, the panel's query moves with it |
 | The collector's DNS or certificate is not ready | The build's push warns once at the end and spools; the app and its own metrics are unaffected. The deploy's Caddyfile is installed as one file, so the block is inert until the name resolves |
 | The release now builds and pushes two images | The collector layer is small; `image-check` adds two tiny builds. The site image is unchanged |

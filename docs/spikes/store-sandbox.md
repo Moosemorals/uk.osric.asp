@@ -30,13 +30,13 @@ then attacked it. Thirty-two probes passed and none showed a leak. The load-bear
   bracketed and backticked — and `pragma_table_info` was refused as a `READ` of a virtual table the
   handle does not own.
 - A write through the view stamped the literal owner; a write naming `Id` was refused by the trigger;
-  and a row cap written as `RAISE(ABORT, …)` inside the statement refused the write, named the setting
+  and a row limit written as `RAISE(ABORT, …)` inside the statement refused the write, named the setting
   in the message, and left the row count untouched.
 - `sqlite3_interrupt` ended a runaway statement in about 200 ms, and `SQLITE_LIMIT_ATTACHED = 0`,
   defensive mode and `trusted_schema = OFF` each refused what they were set to refuse.
 
 The six corrections are in [what this changes in the plan](#what-this-changes-in-the-plan): the CTE
-rule, the function name's parameter, the cap trigger in the allowance, the reach of `trusted_schema`,
+rule, the function name's parameter, the limit trigger in the allowance, the reach of `trusted_schema`,
 the fact that `CommandTimeout` is not a statement clock, and how the one-statement rule is detected.
 
 ## What was measured
@@ -80,7 +80,7 @@ END;
 ```
 
 A Page-subject table was the same generation without an `Owner` column and without a predicate. The
-row cap was a `BEFORE INSERT` trigger on the real table, refusing when the subject held two rows.
+row limit was a `BEFORE INSERT` trigger on the real table, refusing when the subject held two rows.
 
 ### What the callback reports
 
@@ -101,7 +101,7 @@ FUNCTION - count db=- inner=-
 So the real table is named **with the view that reached it** in `inner_most_trigger_or_view`; a view
 read is named with `db=temp` and no inner name; and a function's name is in **`p1`**, the second
 parameter, while `p0` is null. A write through the view reported the view, the generated trigger, and
-the cap trigger:
+the limit trigger:
 
 ```text
 INSERT notes - db=temp inner=-
@@ -112,7 +112,7 @@ READ Declared_notes Owner db=main inner=notes_cap
 FUNCTION - count db=- inner=notes_cap
 ```
 
-The cap trigger is a generated trigger too, and its read of the real table is only allowed if the
+The limit trigger is a generated trigger too, and its read of the real table is only allowed if the
 allowance names every generated trigger rather than the three write triggers.
 
 ### The refusals
@@ -151,7 +151,7 @@ closed function list only decides among functions SQLite knows.
   confirmed it.
 - `INSERT INTO "notes" ("Id", "Title") VALUES (99, 'collide')` answered
   `SQLite Error 19: a Visitor table does not accept Id`, and wrote nothing.
-- The cap trigger answered `SQLite Error 19: MaxRowsPerSubject reached: 2`; the subject's row count was
+- The limit trigger answered `SQLite Error 19: MaxRowsPerSubject reached: 2`; the subject's row count was
   still two afterwards. The refusal is inside the statement and carries the setting's name, which is
   what `Full` is built on.
 - `UPDATE` and `DELETE` through the view reached the owner's rows only; the other subject's row was
@@ -236,7 +236,7 @@ The plan's [record sandbox](../plans/storage-model.md#the-record-sandbox) sectio
    rule every `WITH RECURSIVE` statement is refused, and the owner's answer put `WITH` in scope.
 2. **The function name is the callback's second argument**, and an unresolvable function is refused by
    SQLite before the allow-list is consulted.
-3. **The allowance names every generated trigger**, the cap trigger included, not only the three write
+3. **The allowance names every generated trigger**, the limit trigger included, not only the three write
    triggers.
 4. **`trusted_schema = OFF` guards `main`, not the temp views**, and FTS5 works with it off.
 5. **The statement and transaction clocks arm `sqlite3_interrupt`**; `CommandTimeout` does not bound a
@@ -252,7 +252,7 @@ The plan's [record sandbox](../plans/storage-model.md#the-record-sandbox) sectio
   second statement is invisible to both. Only SQLite's parse sees all three.
 - **`CommandTimeout` as the statement clock.**
 - **A pooled connection for the record store.**
-- **Trusting a cap in page code.** `RAISE(ABORT)` inside the statement refuses and leaves the rows
+- **Trusting a limit in page code.** `RAISE(ABORT)` inside the statement refuses and leaves the rows
   before it, which is the atomicity the plan asks for.
 - **`trusted_schema` as the fence over the views.** The authorizer's function list is.
 

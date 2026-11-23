@@ -383,7 +383,7 @@ public sealed class PageRendererTests {
     }
 
     [Test]
-    public async Task APageThatWritesPastTheBodyCapFailsAsync() {
+    public async Task APageThatWritesPastTheBodyLimitFailsAsync() {
         FakePageStore storage = new();
         storage["/chatty"] = new PageTemplate(PageHarness.Key("/chatty"), "0123456789");
         using PageHarness pages = new(storage, options: TestOptions.Render with { MaxBodyChars = 5 });

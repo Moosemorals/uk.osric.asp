@@ -101,7 +101,7 @@ Why one namespace per account:
    forget. The three candidate mechanisms and their costs are the first open question.
 
 4. **The sandbox.** One statement per call, parameters rather than literals, a command timeout and a
-   cap on returned rows and bytes, from configuration. `trusted_schema = OFF`, no `ATTACH`, no `PRAGMA`,
+   limit on returned rows and bytes, from configuration. `trusted_schema = OFF`, no `ATTACH`, no `PRAGMA`,
    no DDL, no `VACUUM`; an authorizer refuses what the allow-list misses. The page API already denies
    `Microsoft.Data.Sqlite` (`pages-the-api-policy`), so a page cannot open a database of its own.
    [SQLite's security notes](https://www.sqlite.org/security.html) are where the assumptions start: the
@@ -109,7 +109,7 @@ Why one namespace per account:
    escape its declared tables and the four verbs.
 
 5. **The quotas.** Tables per page, columns per table, rows and bytes per (account, page), and the
-   result cap. A new `Pages:UserStore` section, every value required and a missing or out-of-range one
+   result limit. A new `Pages:UserStore` section, every value required and a missing or out-of-range one
    stopping the site at startup (`code-policy-values-are-configuration`). Each write enforces its quota in the same statement, the way
    `SqlitePageStateStore.UpsertAsync` does.
 

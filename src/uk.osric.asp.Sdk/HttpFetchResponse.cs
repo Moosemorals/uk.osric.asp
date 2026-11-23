@@ -15,7 +15,7 @@ namespace uk.osric.asp.Sdk;
 /// <param name="Headers">The response headers the host returns: a small allow-list plus any <c>X-</c> name.</param>
 /// <param name="Body">The response body decoded as text, possibly truncated.</param>
 /// <param name="Failure">Why the fetch failed, or <see cref="HttpFetchFailure.None"/>.</param>
-/// <param name="Truncated">Whether the body hit the host's response cap.</param>
+/// <param name="Truncated">Whether the body hit the host's response limit.</param>
 public sealed record HttpFetchResponse(
     int Status,
     IReadOnlyDictionary<string, string> Headers,

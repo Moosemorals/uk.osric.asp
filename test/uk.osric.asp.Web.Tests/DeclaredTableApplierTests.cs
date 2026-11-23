@@ -46,7 +46,7 @@ public sealed class DeclaredTableApplierTests {
     public void DeleteDatabase() => DatabaseTemplate.DeleteFiles(_databasePath);
 
     [Test]
-    public async Task ASaveCreatesTheTableTheCatalogueRowTheOwnerIndexAndTheCapTriggersAsync() {
+    public async Task ASaveCreatesTheTableTheCatalogueRowTheOwnerIndexAndTheLimitTriggersAsync() {
         await ApplyAsync(Notes("Title", "Body"));
 
         DeclaredTable table = (await ListAsync()).Single();
@@ -127,7 +127,7 @@ public sealed class DeclaredTableApplierTests {
     }
 
     [Test]
-    public async Task ADeclarationOutsideItsCapsIsRefusedBeforeAnyDdlRunsAsync() {
+    public async Task ADeclarationOutsideItsLimitIsRefusedBeforeAnyDdlRunsAsync() {
         PageTable[] tooMany = [.. Enumerable.Range(0, Records.MaxTablesPerSource + 1)
             .Select(index => new PageTable($"t{index}", StoreTableSubject.Page, StoreTableLifetime.Page,
                 [new PageColumn("A", PageColumnType.Text)]))];
@@ -166,7 +166,7 @@ public sealed class DeclaredTableApplierTests {
     }
 
     [Test]
-    public async Task TheRowCapRefusesTheWriteInsideTheStatementAsync() {
+    public async Task TheRowLimitRefusesTheWriteInsideTheStatementAsync() {
         DeclaredTableApplier applier = new(Records with { MaxRowsPerSubject = 1 });
 
         await ApplyAsync(Notes("Title"), applier);

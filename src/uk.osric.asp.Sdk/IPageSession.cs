@@ -21,11 +21,11 @@ namespace uk.osric.asp.Sdk;
 /// Values are JSON. Keys are ordinal and case-sensitive, 1 to the configured maximum characters,
 /// with no control characters. A write validates before it returns, and a read fails when its task
 /// is awaited: a key that is too long, a value that cannot be serialised as JSON, a value over its
-/// cap, a session over its key count or byte total, a write on a <c>HEAD</c> request, or a write to
+/// limit, a session over its key count or byte total, a write on a <c>HEAD</c> request, or a write to
 /// a session the shell has already discarded. A layout is offered the read and not the write.
 /// </para>
 /// <para>
-/// The cap is per visitor, not per page: one page's keys can use the room another would have had.
+/// The limit is per visitor, not per page: one page's keys can use the room another would have had.
 /// The idle lifetime is thirty minutes anonymously and eight hours when signed in.
 /// </para>
 /// </remarks>
@@ -60,7 +60,7 @@ public interface IPageSession {
     /// characters.</param>
     /// <param name="value">The value; a null is stored as JSON <c>null</c>.</param>
     /// <returns>A task that completes when the write is committed.</returns>
-    /// <exception cref="System.ArgumentException">The key or the value breaks a cap.</exception>
+    /// <exception cref="System.ArgumentException">The key or the value exceeds a limit.</exception>
     /// <exception cref="System.InvalidOperationException">A layout or a <c>HEAD</c> render tried to write.</exception>
     public Task SetAsync<T>(string key, T value);
 
@@ -78,7 +78,7 @@ public interface IPageSession {
     /// <returns>The page and key pairs, ordered by page and then key.</returns>
     /// <remarks>
     /// A bare key cannot be read, so the pair is what is returned. This is bounded by the
-    /// visitor's own cap and cannot reach another visitor.
+    /// visitor's own limit and cannot reach another visitor.
     /// </remarks>
     public Task<IReadOnlyList<PageSessionKey>> AllKeysAsync();
 }

@@ -109,19 +109,19 @@ public sealed class PageListingFoldTests {
 
     [Test]
     public void TruncatedSaysWhetherAKeyStandsAfterTheLast() {
-        PageListingKeys capped = Fold([Fact("/a"), Fact("/b"), Fact("/c")], prefix: "/", limit: 2);
+        PageListingKeys limited = Fold([Fact("/a"), Fact("/b"), Fact("/c")], prefix: "/", limit: 2);
         PageListingKeys whole = Fold([Fact("/a"), Fact("/b")], prefix: "/", limit: 2);
 
         Assert.Multiple(() => {
-            Assert.That(capped.Keys, Has.Count.EqualTo(2));
-            Assert.That(capped.Truncated, Is.True);
+            Assert.That(limited.Keys, Has.Count.EqualTo(2));
+            Assert.That(limited.Truncated, Is.True);
             Assert.That(whole.Truncated, Is.False);
         });
     }
 
     [Test]
     public void AWalkAnswersEveryKeyOnceAndAFolderFirst() {
-        // /a sorts before /a!, and /a/b stands past the cap, so a slice of one must answer the folder
+        // /a sorts before /a!, and /a/b stands past the limit, so a slice of one must answer the folder
         // from the row it did not reach — and then never answer it again.
         PageListingKey[] facts = [Fact("/a!"), Fact("/a/b")];
 

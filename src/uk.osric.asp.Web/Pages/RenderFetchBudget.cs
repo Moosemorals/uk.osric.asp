@@ -5,7 +5,7 @@ namespace uk.osric.asp.Web.Pages;
 
 /// <summary>The requests one render may still make, shared by every layer.</summary>
 /// <remarks>
-/// The cap names the render rather than the layer, so a layout must not double the allowance simply
+/// The limit names the render rather than the layer, so a layout must not double the allowance simply
 /// because there are two layers rendering under it.
 /// </remarks>
 internal sealed class RenderFetchBudget {

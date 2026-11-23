@@ -419,7 +419,7 @@ internal sealed class RunProcessor(
                             summary = $"Using {call.DisplayName}",
                         });
 
-                        // The row counts the calls the run has attempted, which is what the cap spends,
+                        // The row counts the calls the run has attempted, which is what the limit spends,
                         // and it moves as the card appears rather than when the step is recorded. The cost
                         // of the call is known before it runs, so it is published in the same snapshot.
                         budgets = budgets with { ToolCalls = toolCallCount + 1 };

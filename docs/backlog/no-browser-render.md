@@ -35,7 +35,7 @@ being imagined:
 - **The site has no image content type.** `Pages:ContentTypes:Extensions` carries `.html`, `.js`,
   `.mjs`, `.css`, `.json`, `.svg` and `.txt`; a PNG has nowhere to be served from. SVG works because it
   is text, which is why `/rocket.svg` is a page.
-- **There is nowhere to keep one.** A page storage value is capped at 64 KiB and a page's whole state
+- **There is nowhere to keep one.** A page storage value is limited to 64 KiB and a page's whole state
   at 256 KiB; a screenshot of a real page is larger than both.
 
 So the capability worth arguing about is **render and report** — text facts from a real engine.
@@ -70,7 +70,7 @@ browser work).
    the cheapest possible outcome and should be tried before anything below.
 1. **A report, not a picture.** `RenderAsync(key)` answers text: the final status, every console error
    and warning, every failed request and its reason, the selector set the caller asked about (present,
-   count, first text), the rendered HTML up to a cap, and optionally the accessibility violations.
+   count, first text), the rendered HTML up to a limit, and optionally the accessibility violations.
 2. **A key, not a URL.** The host mints the URL from the site's own origin. This is the single decision
    that keeps the capability honest: a browser given a URL is an unrestricted egress path with a
    JavaScript engine, a `file://` scheme and a timeout worth abusing; a browser given a key renders the
@@ -78,7 +78,7 @@ browser work).
 3. **A job, not a render.** A navigation is seconds; `Pages:Render:TimeoutSeconds` is 5 and
    `Pages:Render:Slots` is 2. The page starts a job, the worker drives the browser and publishes
    events, and the page long-polls for them — the shape `/job-toy` already demonstrates. It needs a
-   concurrency cap of its own, because `Pages:Jobs:MaxConcurrent` is 2 and the assistant's own runs
+   concurrency limit of its own, because `Pages:Jobs:MaxConcurrent` is 2 and the assistant's own runs
    share it.
 4. **A sidecar, not the app image.** The app publishes `linux-musl-arm64`; Playwright's browser builds
    are glibc, and Playwright does not support musl. The deploy story is "the image contains the publish

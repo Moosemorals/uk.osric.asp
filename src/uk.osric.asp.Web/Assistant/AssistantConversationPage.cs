@@ -70,7 +70,7 @@ internal static class AssistantConversationPage {
             ? null
             : await conversations.GetPendingInterruptAsync(id, owner!, context.RequestAborted);
         // A turn's question card is rendered from the resolved records, because the tool result may be
-        // cut at its cap and an answer cut in half is worse than no card.
+        // cut at its limit and an answer cut in half is worse than no card.
         IReadOnlyList<OwnerInterrupt> answered = await conversations.GetAnsweredQuestionsAsync(id, owner!, context.RequestAborted);
         AntiforgeryTokenSet tokens = antiforgery.GetAndStoreTokens(context);
         AccountBalance? balance = (await balanceTask).Balance;

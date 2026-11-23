@@ -67,7 +67,7 @@ The plan builds on facts that are already true, not on a blank sheet.
 **Host.** Hetzner CAX21: four Arm64 vCPUs, 8 GB RAM, 80 GB SSD, Debian 13 (trixie). Podman 5.4.2
 supports pod quadlets. Caddy is rootful on the host network because it binds 80/443; the app and
 Prometheus are rootless. `ufw` allows 22, 80 and 443 only. There is a 4 GiB swap file, the app is
-capped at 2 GB with swap disabled, and Prometheus keeps up to 4 GB. The disk is shared with the
+limited to 2 GB with swap disabled, and Prometheus keeps up to 4 GB. The disk is shared with the
 container store, the rollback image, `storage.db` and those Prometheus metrics.
 
 **Domain.** DNS is served by `ns1`/`ns2.mythic-beasts.com`. `moosemorals.com` has:
@@ -142,7 +142,7 @@ reasons are concrete:
 The cost is real: Postfix, Dovecot and Rspamd parse hostile input and would run without a user
 namespace, so a container escape is host root. That is the same bargain Caddy already makes, and it
 is mitigated by a read-only root filesystem, `NoNewPrivileges`, a minimal capability set, a
-`--pids-limit`, a memory cap, seccomp defaults, and no shared volume with the website. If that
+`--pids-limit`, a memory limit, seccomp defaults, and no shared volume with the website. If that
 bargain is unacceptable later, the rootless variant is a day's work: a secrets volume, the sysctl,
 and either lego with DNS-01 at Mythic Beasts or a root timer that copies Caddy's certificate into a
 deploy-owned volume. It is not part of the MVP.

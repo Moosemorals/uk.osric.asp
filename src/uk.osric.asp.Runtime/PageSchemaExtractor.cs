@@ -22,7 +22,7 @@ using PageDiagnosticSeverity = uk.osric.asp.Core.Compilation.PageDiagnosticSever
 /// </para>
 /// <para>
 /// The extractor answers the questions only symbols can settle — what type a property has, and whether
-/// a declaration is something the store can hold at all. The caps a declaration obeys are
+/// a declaration is something the store can hold at all. The limits a declaration obeys are
 /// configuration, so they are checked where the schema is applied, by <see cref="PageSchema.Validate"/>.
 /// </para>
 /// </remarks>

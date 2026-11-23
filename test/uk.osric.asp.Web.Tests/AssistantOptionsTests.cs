@@ -41,12 +41,12 @@ public sealed class AssistantOptionsTests {
     }
 
     [Test]
-    public void TheCheckDiagnosticCapShipsAtOneHundred() {
+    public void TheCheckDiagnosticLimitShipsAtOneHundred() {
         Assert.That(TestOptions.Assistant.MaxCheckDiagnostics, Is.EqualTo(100));
     }
 
     [Test]
-    public void TheCheckDiagnosticCapMayBeOverridden() {
+    public void TheCheckDiagnosticLimitMayBeOverridden() {
         AssistantOptions options = AssistantOptions.FromConfiguration(
             ShippedConfiguration.Read(("Assistant:RequireApiKey", "false"), ("Assistant:MaxCheckDiagnostics", "25")));
 
@@ -54,7 +54,7 @@ public sealed class AssistantOptionsTests {
     }
 
     [Test]
-    public void ACheckDiagnosticCapOutOfRangeStopsTheSite() {
+    public void ACheckDiagnosticLimitOutOfRangeStopsTheSite() {
         ConfigurationException error = Assert.Throws<ConfigurationException>(() => AssistantOptions.FromConfiguration(
             ShippedConfiguration.Read(("Assistant:RequireApiKey", "false"), ("Assistant:MaxCheckDiagnostics", "0"))))!;
 
@@ -132,8 +132,8 @@ public sealed class AssistantOptionsTests {
     }
 
     [Test]
-    public void AnArgumentCapBelowThePageCapIsRejected() {
-        // A page's content travels inside a tool call's arguments, so a cap below the page cap is the
+    public void AnArgumentLimitBelowThePageLimitIsRejected() {
+        // A page's content travels inside a tool call's arguments, so a limit below the page limit is the
         // half-page bug: the store would accept a page that no tool could write.
         AssistantOptions options = TestOptions.Assistant with {
             ApiKey = "configured",
@@ -148,7 +148,7 @@ public sealed class AssistantOptionsTests {
     }
 
     [Test]
-    public void AnArgumentCapJustOverThePageCapIsAccepted() {
+    public void AnArgumentLimitJustOverThePageLimitIsAccepted() {
         AssistantOptions options = TestOptions.Assistant with {
             ApiKey = "configured",
             MaxPageChars = 262_144,

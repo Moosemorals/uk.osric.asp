@@ -20,7 +20,7 @@ using uk.osric.asp.Web.Pages;
 /// <para>
 /// The fragments here still own the document's policy — the language, the charset, the sheet order,
 /// the icon, the skip link, the landmark and the close — so a view cannot forget one. They own no
-/// <em>response</em> policy: status, content type, security headers, caching and the body cap stay in
+/// <em>response</em> policy: status, content type, security headers, caching and the body limit stay in
 /// <see cref="BeginAsync"/>.
 /// </para>
 /// <para>

@@ -19,27 +19,27 @@ using uk.osric.asp.Web.Storage;
 /// </remarks>
 internal static class StoreValueSql {
 
-    /// <summary>Writes one value under its subject's caps, in one statement.</summary>
+    /// <summary>Writes one value under its subject's limits, in one statement.</summary>
     /// <param name="database">The context whose transaction the write belongs to.</param>
     /// <param name="write">The row to write.</param>
     /// <param name="updatedAt">The fixed-width timestamp to store.</param>
-    /// <param name="caps">The caps the subject obeys.</param>
+    /// <param name="limits">The limits the subject obeys.</param>
     /// <param name="cancellationToken">Cancels the statement.</param>
-    /// <returns>How many rows were written: 1 on success, 0 when a cap or a missing live page refused it.</returns>
+    /// <returns>How many rows were written: 1 on success, 0 when a limit or a missing live page refused it.</returns>
     /// <remarks>
     /// One statement carries every rule: a Page write needs a live head, the subject must stay within
-    /// its key count, and the total must stay within its byte cap. A concurrent writer therefore either
-    /// fits or is refused; it cannot slip over the cap through a read-then-write race in the host.
+    /// its key count, and the total must stay within its byte limit. A concurrent writer therefore either
+    /// fits or is refused; it cannot slip over the limit through a read-then-write race in the host.
     /// </remarks>
     public static Task<int> UpsertAsync(
         StorageDbContext database,
         StoreValueWrite write,
         string updatedAt,
-        StoreSubjectCaps caps,
+        SubjectLimits limits,
         CancellationToken cancellationToken) {
         ArgumentNullException.ThrowIfNull(database);
         ArgumentNullException.ThrowIfNull(write);
-        ArgumentNullException.ThrowIfNull(caps);
+        ArgumentNullException.ThrowIfNull(limits);
 
         long added = Encoding.UTF8.GetByteCount(write.Key) + Encoding.UTF8.GetByteCount(write.Value);
 
@@ -51,11 +51,11 @@ internal static class StoreValueSql {
               AND (EXISTS (
                     SELECT 1 FROM "StoreValues"
                     WHERE "Subject" = {write.Subject} AND "PageKey" = {write.PageKey} AND "Key" = {write.Key})
-                OR (SELECT COUNT(*) FROM "StoreValues" WHERE "Subject" = {write.Subject}) < {caps.MaxKeys})
+                OR (SELECT COUNT(*) FROM "StoreValues" WHERE "Subject" = {write.Subject}) < {limits.MaxKeys})
               AND (SELECT COALESCE(SUM(length(CAST("Key" AS BLOB)) + length(CAST("Value" AS BLOB))), 0)
                     FROM "StoreValues"
                     WHERE "Subject" = {write.Subject}
-                      AND NOT ("PageKey" = {write.PageKey} AND "Key" = {write.Key})) + {added} <= {caps.MaxTotalBytes}
+                      AND NOT ("PageKey" = {write.PageKey} AND "Key" = {write.Key})) + {added} <= {limits.MaxTotalBytes}
             ON CONFLICT ("Subject", "PageKey", "Key") DO UPDATE SET
                 "Lifetime" = excluded."Lifetime",
                 "ExpiresAt" = excluded."ExpiresAt",
@@ -64,7 +64,7 @@ internal static class StoreValueSql {
             WHERE (SELECT COALESCE(SUM(length(CAST("Key" AS BLOB)) + length(CAST("Value" AS BLOB))), 0)
                     FROM "StoreValues"
                     WHERE "Subject" = {write.Subject}
-                      AND NOT ("PageKey" = {write.PageKey} AND "Key" = {write.Key})) + {added} <= {caps.MaxTotalBytes};
+                      AND NOT ("PageKey" = {write.PageKey} AND "Key" = {write.Key})) + {added} <= {limits.MaxTotalBytes};
             """, cancellationToken);
     }
 

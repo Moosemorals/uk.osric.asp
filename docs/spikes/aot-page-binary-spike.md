@@ -96,7 +96,7 @@ the shared-state window with it.
 | Network inside that sandbox | `ip addr` shows `lo` only; `nc` to `1.1.1.1:53` has no route |
 | `--proc /proc` inside bwrap | fails: `Can't mount proc: Operation not permitted` |
 | `--unshare-net` without `--unshare-user` | fails: `Creating new namespace failed` |
-| bwrap under `--cap-drop=all` (what the quadlet does) | fails: `setting up uid map: Operation not permitted` |
+| bwrap under `--limit-drop=all` (what the quadlet does) | fails: `setting up uid map: Operation not permitted` |
 | … re-adding `SETUID`, `SETGID`, `CHOWN`, with and without `no-new-privileges` | still fails |
 
 The tidy per-render sandbox — a 2.96 MB static binary in a namespace with no network and almost no
@@ -261,7 +261,7 @@ printf 'FROM mcr.microsoft.com/dotnet/sdk:10.0-alpine\nRUN apk add --no-cache cl
 # Sandbox, with and without the quadlet's hardening:
 podman run --rm -v "$PWD/out-aot":/s:ro -i alpine sh -c \
   'apk add --no-cache bubblewrap; bwrap --unshare-all --ro-bind /s /box --dev /dev /box/PageSpike < /s/req.json'
-podman run --rm --cap-drop=all ...            # fails: setting up uid map
+podman run --rm --limit-drop=all ...            # fails: setting up uid map
 
 # Site latency during a build, on the host:
 for i in $(seq 60); do curl -s -o /dev/null -w "%{time_total}\n" http://127.0.0.1:8080/; done

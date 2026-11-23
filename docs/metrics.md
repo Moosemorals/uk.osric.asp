@@ -28,7 +28,7 @@ the other half of the same question and live in [logging](logging.md).
 | `page.search.duration` | histogram | s | `caller` (`page`; `shell` when its rewrite uses the scan) — one search, from the prefix's fingerprint to the last line tested |
 | `page.search.requests` | counter | — | `caller`, `outcome` (`completed`, `cut-off`) — `cut-off` is the time allowance; `completed` is every scan that ended on its own terms, including one the caller's limit stopped |
 | `page.layout.fallback` | counter | — | `page.path` — pages served without the default layout because it could not be served |
-| `page.composition.recursive` | counter | — | `page.path` — pages composed inside themselves with a different request, which the depth cap bounds |
+| `page.composition.recursive` | counter | — | `page.path` — pages composed inside themselves with a different request, which the depth limit bounds |
 | `page.asset.requests` | counter | — | `outcome` (`served`, `not-modified`, `unknown`, `non-asset`) — no path label; the access log names the URL |
 | `page.storage.payload.size` | observable gauge | By | — logical UTF-8 bytes for every revision text column plus image/symbol blobs, and the `StoreValues` subject, page key, key, value, timestamp and expiry bytes; excludes indexes and SQLite overhead |
 | `page.storage.database.size` | observable gauge | By | — whole database `page_count * page_size`, including indexes and freelist pages; excludes the separate WAL |
@@ -54,7 +54,7 @@ the other half of the same question and live in [logging](logging.md).
 | `assistant.context.estimate.error` | histogram | {token} | `direction` (`over`, `under`) — how far one step's estimate was from the count the provider reported |
 | `assistant.context.shaped` | counter | {step} | `kind` (`masked`, `trimmed`) — how often the planner had to change a request to make it fit |
 | `assistant.budget.exhausted` | counter | {run} | `cause` (`context`, `provider`, `output`) — which budget stopped the run |
-| `assistant.tool.truncated` | counter | {result} | `tool` (a registered name, or `(unknown)`) — how often a result cap actually bites |
+| `assistant.tool.truncated` | counter | {result} | `tool` (a registered name, or `(unknown)`) — how often a result limit actually bites |
 
 A miss is tagged `page.path="(not-found)"`. The requested path is unauthenticated and unbounded, so
 tagging it verbatim would let a scan mint one time series per URL; the real path is in the access log.
@@ -133,11 +133,11 @@ while the duration is a heatmap.
 The estimate error's buckets carry the margin as a boundary — `0, 64, 256, 1024, 4096, 16384, 27525,
 65536, 262144` — because 27,525 tokens is three percent of the 917,504-token prompt budget. Whatever
 lands above `le="27525"` is a step that spent more than the estimate allows, which is the same trick
-the step and tool-call buckets use to draw their cap rather than hide it under `+Inf`. The figure is
+the step and tool-call buckets use to draw their limit rather than hide it under `+Inf`. The figure is
 also one log line per step, and the panel is read beside it: a chart wants an explanation, not only a
 shape. `assistant.context.shaped` is what the prefix cache pays for, so a rise in it and a fall in
 `assistant.tokens{kind="cached"}` over `kind="prompt"` are the same event; `assistant.tool.truncated`
-is the other side, a cap the model could not read past. Nothing is tagged by conversation, run or
+is the other side, a limit the model could not read past. Nothing is tagged by conversation, run or
 message id — the same cardinality trap `assistant.tool.duration` avoids by recording `(unknown)`
 rather than a model-supplied name.
 
@@ -207,7 +207,7 @@ reads the live `/metrics` body, so a renamed instrument or a changed unit fails 
 emptying a panel.
 
 **A heatmap draws runs, not cells.** Neighbouring samples of the same shade merge into one `rect` with
-one hover title, and an answer with more samples than the cap allows is folded into at most sixty
+one hover title, and an answer with more samples than the limit allows is folded into at most sixty
 columns before it is drawn. Seventeen heatmaps of a busy thirty-day window then fit in the page's
 markup budget, which `StatusPageSizeTests` pins for the whole catalogue — every panel answered with
 eight series of five hundred samples — so a panel is a deliberate edit to that ceiling.
@@ -279,15 +279,15 @@ writes; nothing it reports comes from the app.
   either endpoint runs, so the exclusion is the signal the runtime provides rather than a PromQL
   filter every panel would have to repeat. The active-request gauge still counts them while they
   run, because that gauge measures the server, not the site.
-- **The buckets are ours, and they reach past the cap.** Each scale's top boundary is larger than the
-  cap its series measures, so a sample recorded at its deadline is a real bucket rather than `+Inf`
+- **The buckets are ours, and they reach past the limit.** Each scale's top boundary is larger than the
+  limit its series measures, so a sample recorded at its deadline is a real bucket rather than `+Inf`
   (`metrics-one-panel-per-instrument`) — the sample a panel is opened for. The page durations share one scale to 10 s, past the
   five-second compile deadline a save keeps too; a stream's committed lifetime has its own scale, from
   a second to the day a `Pages:Stream:MaxSeconds` ceiling may reach; a tool call has one to 20 s, past
   `Assistant:ToolTimeoutSeconds`; the two provider waits one to 240 s, past
   `Assistant:RequestTimeoutSeconds`; and the run's step and tool-call counts one each to 192,
   past `Assistant:MaxSteps` (160) and `Assistant:MaxToolCalls` (128). A run's own length has no
-  cap — its timeout bounds silence, not duration (`assistant-deadlines-bound-silence`) — so that scale is sized for the work,
+  limit — its timeout bounds silence, not duration (`assistant-deadlines-bound-silence`) — so that scale is sized for the work,
   up to an hour.
   `page.image.size` has its own byte scale. The SDK's default starts at 0–5 s for a seconds
   instrument, which would make every render one column and every percentile meaningless.

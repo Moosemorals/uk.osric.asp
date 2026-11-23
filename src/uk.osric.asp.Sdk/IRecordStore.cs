@@ -19,7 +19,7 @@ namespace uk.osric.asp.Sdk;
 /// <para>
 /// Everything the page itself got wrong throws: a statement the authorizer denies, a table the
 /// declaration does not have, a write to a row the reader does not own, a second statement, a result
-/// past its cap, a <c>HEAD</c>, an abandoned render or a disposed handle. The fence is one statement
+/// past its limit, a <c>HEAD</c>, an abandoned render or a disposed handle. The fence is one statement
 /// deep rather than a claim of safety.
 /// </para>
 /// </remarks>
@@ -30,7 +30,7 @@ public interface IRecordStore {
     /// <param name="parameters">The statement's parameters, or <see langword="null"/> for none.</param>
     /// <returns>
     /// The rows, in the order the statement produced them, up to <c>MaxResultRows</c>; a row past the
-    /// cap throws naming the setting.
+    /// limit throws naming the setting.
     /// </returns>
     /// <exception cref="ArgumentException">The text is not exactly one statement, or a parameter is unused.</exception>
     /// <exception cref="InvalidOperationException">The statement was refused, or this render may not read.</exception>
@@ -48,7 +48,7 @@ public interface IRecordStore {
     /// <param name="table">The table's declared name.</param>
     /// <param name="term">The FTS5 match expression.</param>
     /// <param name="limit">The most rows to answer, or <see langword="null"/> for <c>MaxResultRows</c>.</param>
-    /// <returns>The subject's rows, best match first, bounded by the result cap.</returns>
+    /// <returns>The subject's rows, best match first, bounded by the result limit.</returns>
     /// <remarks>
     /// A call rather than SQL because a view cannot carry <c>MATCH</c> and the index holds every
     /// subject's rows: an index a page could query directly would leak the existence of another

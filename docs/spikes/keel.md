@@ -128,7 +128,7 @@ offers: every page is compiled before anything is written, then the writes land 
 - `PageRequest` has no file part, and `MaxFormBytes` is a **constant** of 1 MiB in `PageEndpoint`
   against `Pages:Archive:MaxUploadBytes` at 16 MiB.
 - `IPageResponse` writes strings, so a SQLite database cannot be served as bytes, and base64 hits the
-  render body cap.
+  render body limit.
 - Opening an archive means SQLite, and no page may name `Microsoft.*` ([`pages-the-api-policy`](../decisions.md)).
 
 One capability — accept these bytes, answer those bytes, open this archive read-only — and the view
@@ -190,7 +190,7 @@ The blockers, with what each limit protects and whether it is the right shape:
 
 Four ways to answer a limit, in order of how much they widen the blast radius:
 
-1. **Raise the number.** Right for the body cap, wrong for egress: it makes every stored page — and
+1. **Raise the number.** Right for the body limit, wrong for egress: it makes every stored page — and
    every page the assistant writes — as heavy as the heaviest tool.
 2. **A budget the page declares and the owner grants.** A page's state already holds a seed hash and
    its own keys; a declared allowance ("this page may make sixty requests") is a general mechanism,

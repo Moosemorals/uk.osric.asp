@@ -82,7 +82,7 @@ internal static class StatusCatalogue {
             "Pages served without the default layout because it could not be served, per second, by page.",
             "fallbacks/s", topk: "page_path"),
         Line(Page("page.composition.recursive"), "Recursive composition",
-            "Pages composed inside themselves with a different request, per second, by page; the depth cap bounds them.",
+            "Pages composed inside themselves with a different request, per second, by page; the depth limit bounds them.",
             "compositions/s", topk: "page_path"),
         Line(Page("page.storage.payload.size"), "Stored payload",
             "Logical bytes held in page revisions and compiled images, excluding indexes and SQLite overhead.",
@@ -138,7 +138,7 @@ internal static class StatusCatalogue {
             "Runs stopped on a budget, per second, split by which one: our context estimate, the provider's window or the reply's allowance.",
             "runs/s", topk: "cause"),
         Line(Assistant("assistant.tool.truncated"), "Truncated tool results",
-            "Tool results truncated at their cap, per second, by tool; a result here is one the model could not read whole.",
+            "Tool results truncated at their limit, per second, by tool; a result here is one the model could not read whole.",
             "results/s", topk: "tool"),
 
         // Host: meters this repository does not register. Five are the framework's own; five are

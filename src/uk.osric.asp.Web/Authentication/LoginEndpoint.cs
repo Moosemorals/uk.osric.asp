@@ -92,7 +92,7 @@ internal static class LoginEndpoint {
                 // A session belonging to an account is only honoured for that account, so signing in
                 // starts a fresh one rather than promoting whatever this browser held.
                 if (!await PageSessionCookie.RotateAsync(context, sessions, sessionCookie, user.UserName, context.RequestAborted)) {
-                    logger.LogWarning("Could not mint a page session for {UserName}; the site is at its session cap", user.UserName);
+                    logger.LogWarning("Could not mint a page session for {UserName}; the site is at its session limit", user.UserName);
                 }
                 await SignInAsync(context, user, rememberMe, authentication);
                 SecurityHeaders.NoStore(context);

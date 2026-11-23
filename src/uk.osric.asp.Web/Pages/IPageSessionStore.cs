@@ -17,12 +17,12 @@ internal interface IPageSessionStore {
     /// <returns>The row, or <see langword="null"/> when the id names no live session.</returns>
     Task<PageSessionEntry?> FindAsync(string sessionId, CancellationToken cancellationToken = default);
 
-    /// <summary>Mints a session row, evicting at the live-session cap when it has to.</summary>
+    /// <summary>Mints a session row, evicting at the live-session limit when it has to.</summary>
     /// <param name="sessionId">The id to mint.</param>
     /// <param name="account">The normalised account name, or <see langword="null"/>.</param>
     /// <param name="cancellationToken">Cancels the write.</param>
     /// <returns>
-    /// Whether the row exists afterwards. A mint is refused only when the table is at its cap and
+    /// Whether the row exists afterwards. A mint is refused only when the table is at its limit and
     /// nothing at all can be evicted.
     /// </returns>
     Task<bool> EnsureAsync(string sessionId, string? account, CancellationToken cancellationToken = default);
@@ -56,7 +56,7 @@ internal interface IPageSessionStore {
     /// <returns>Whether a row was deleted.</returns>
     Task<bool> DeleteAsync(string sessionId, CancellationToken cancellationToken = default);
 
-    /// <summary>Removes expired sessions, and trims the table to its live-session cap when it is over.</summary>
+    /// <summary>Removes expired sessions, and trims the table to its live-session limit when it is over.</summary>
     /// <param name="cancellationToken">Cancels the sweep.</param>
     /// <returns>What the sweep removed, by kind.</returns>
     Task<PageSessionSweep> RemoveExpiredAsync(CancellationToken cancellationToken = default);
@@ -64,6 +64,6 @@ internal interface IPageSessionStore {
 
 /// <summary>What one session sweep removed, by kind.</summary>
 /// <param name="Expired">Sessions past their idle window.</param>
-/// <param name="AnonymousEvicted">Anonymous sessions removed to get back under the live-session cap.</param>
-/// <param name="SignedInEvicted">Signed-in sessions removed to get back under the live-session cap.</param>
+/// <param name="AnonymousEvicted">Anonymous sessions removed to get back under the live-session limit.</param>
+/// <param name="SignedInEvicted">Signed-in sessions removed to get back under the live-session limit.</param>
 internal sealed record PageSessionSweep(int Expired, int AnonymousEvicted, int SignedInEvicted);

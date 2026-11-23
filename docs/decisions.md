@@ -288,7 +288,7 @@ providers merge key by key. Every section's problems are collected into one repo
 made, so an operator fixes a list rather than one section per restart: a `ConfigurationException`
 names the key, the accepted range and the recommended value, and `Program.Main` writes it to standard
 error and exits non-zero. A range is a safety net, not a straitjacket. An invariant stays in code — a
-cryptographic or wire-format constant, a schema constraint, an algorithm work cap, or the floor and
+cryptographic or wire-format constant, a schema constraint, an algorithm work limit, or the floor and
 ceiling that keep a configured value from switching a guard off — and a security policy may be
 configured only in the direction that keeps or tightens the shipped guarantee. A number the product
 fixes as its own rule is not a policy value at all, however much it looks like a limit: a password's
@@ -726,9 +726,9 @@ The response body is buffered by default: status, content type and headers are a
 opts into streaming at its first `IContext.FlushAsync`, whose first flush is the commit point; a page
 that never flushes keeps the buffered all-or-nothing behaviour, the error page and the `504`. The
 request's own body over 1 MiB is refused with `413` before it is read, and the buffered response is
-capped by `Pages:Render:MaxBodyChars` so a loop fails quickly instead of growing the process. The cap
+limited by `Pages:Render:MaxBodyChars` so a loop fails quickly instead of growing the process. The limit
 stops at the first flush: it still bounds what a page buffers before committing, and after the commit
-the body is on the wire, bounded by the deadline and the container rather than by the cap.
+the body is on the wire, bounded by the deadline and the container rather than by the limit.
 
 *Recorded in [pages](pages.md#page-contract), [streaming](pages.md#streaming).*
 
@@ -852,13 +852,13 @@ nothing is offered to the page, and the rotated cookie names a subject the old o
 
 ### pages-one-stores-section
 
-Every cap over stored data is one record, `Pages:Stores`: the longest key, the command and busy
-timeouts, and one row of caps per subject instance — a value's bytes, the key count and the byte total —
+Every limit on stored data is one record, `Pages:Stores`: the longest key, the command and busy
+timeouts, and one set of limits per subject instance — a value's bytes, the key count and the byte total —
 for the page, an anonymous visitor, a browser and a signed-in visitor, with the anonymous idle window,
-the browser's lifetime and the live-session cap beside them. The caps are chosen together because they
+the browser's lifetime and the live-session limit beside them. The limits are chosen together because they
 draw on one budget per subject, so they are read and refused together. The two sections this replaces,
 `Pages:Storage` and `Pages:Session`, are refused at startup rather than ignored: an operator who kept one
-believes it still bounds something, and it does not. The message shape's body, count and total caps are
+believes it still bounds something, and it does not. The message shape's body, count and total limits are
 rows of the same record, for the same reason: they draw on the subject's budget. The subject prefixes,
 the lifetime numbers and a topic's canonical form stay in code, because they are the stored form of
 every row and configuration could only orphan them.
@@ -878,7 +878,7 @@ with a select, so it answers what a take would and reserves nothing.
 A peek is a read: a `HEAD` and a layout may use it, where a post and a take are writes and are refused.
 The address is checked before the write, and what depends on the page store is a value rather than an
 exception — `NotAddressable`, `OwnedBySite`, `UnknownPage`, `NotASink` and a full queue's `Full` — while a
-body over its cap and a lifetime a Visitor cannot carry are page bugs. A lifetime is `Person` by default,
+body over its limit and a lifetime a Visitor cannot carry are page bugs. A lifetime is `Person` by default,
 or `Session`, `Browser` or any of those with an expiry; there is no `NextRead` message, because a
 one-shot is a value, and no `Page` one. Adoption re-keys a `Person` message, the rotation deletes a
 `Session` one, and a `Browser` one follows the cookie. There is no count, wait, recall or activity clock:
@@ -918,10 +918,10 @@ SQLite asks for itself after a trigger writes. Everything else is denied by omis
 parser rather than a scanner.
 
 The rest is what bounds one statement: exactly one statement per call, detected by preparing the text and
-asking whether what follows is a statement; the result row and character caps, which throw naming the
+asking whether what follows is a statement; the result row and character limits, which throw naming the
 setting; and a statement clock built on `sqlite3_interrupt`, because Microsoft.Data.Sqlite's own timeout
 is a busy timeout and leaves a running statement alone. Misuse throws — a refused statement, an
-undeclared table, a write naming `Id`, a `HEAD` — and a write that meets a cap, or cannot take the
+undeclared table, a write naming `Id`, a `HEAD` — and a write that meets a limit, or cannot take the
 writer, answers `Full` or `Busy` instead. The fence is one statement deep: `pages-there-is-no-sandbox`
 still holds.
 
@@ -964,8 +964,8 @@ it along with `ValueTask` and its disposal is easy to forget, and `Stream` or `b
 would put `System.IO` back in a page's reach. The stream has clocks of its own, separate from the
 request's: `Pages:Fetch:TimeoutSeconds` bounds the request and its headers, then the body is bounded by
 `Pages:Fetch:StreamSilenceSeconds` between lines, `Pages:Fetch:StreamMaxSeconds` in total and
-`Pages:Fetch:MaxStreamBytes`, and a body that hits the byte cap ends `Truncated` rather than failed. A
-body that ends exactly at the cap is not truncated: the reader asks the source once more before saying
+`Pages:Fetch:MaxStreamBytes`, and a body that hits the byte limit ends `Truncated` rather than failed. A
+body that ends exactly at the limit is not truncated: the reader asks the source once more before saying
 so.
 
 *Recorded in [pages](pages.md#relaying-an-upstream-stream), [PageFetchOptions](../src/uk.osric.asp.Web/Pages/PageFetchOptions.cs).*
@@ -1212,7 +1212,7 @@ One document shell, and it is the shell's. `ShellDocument` owns the document's p
 charset, viewport, title, base sheets and their order, the icon, the skip link, the banner, the `main`
 landmark and the close — because that is what makes one writer worth having and stops a seeded layout
 and a shell view disagreeing. It owns no *response* policy: status, content type, security headers,
-caching and the body cap stay with the endpoint. A view cannot forget the landmark, and the head and
+caching and the body limit stay with the endpoint. A view cannot forget the landmark, and the head and
 the sheet order are written once instead of in eight places; `PageLayout` keeps only fragments — the
 gutter, the diagnostics block, a nav.
 
@@ -1260,7 +1260,7 @@ would invite a page to trust the renderer with a visitor's text.
 
 The diff is the site's own line-based implementation: `LineDiff.Compare` trims the common prefix and
 suffix, runs Myers' algorithm with three lines of context and a bounded edit distance, normalises line
-endings, and past its work cap shows the middle as one removed block and one added block rather than
+endings, and past its work limit shows the middle as one removed block and one added block rather than
 failing or calling a process; `UnifiedDiff` writes the same result as text. There is no package and no
 external executable.
 
@@ -1397,8 +1397,8 @@ A listing is one slice, asked for by a prefix, a cursor, a token and a limit, an
 rows, whether more stand after them and whether the list moved. The cursor is the last key the caller
 was given rather than a count, because a page saved between two calls would make an offset skip or
 repeat a row and a key cannot; it is normalised as a page key, so a trailing slash resumes in the same
-place. The configured cap is the
-largest limit a caller may ask for, not a wall — a listing that refuses past its cap makes the 501st
+place. The configured limit is the
+largest limit a caller may ask for, not a wall — a listing that refuses past its limit makes the 501st
 page an outage of the tree where a slice makes it the next request — and a limit above it is refused
 with the setting's name rather than trimmed. A cursor past the last key is an empty answer, not an
 error.
@@ -1767,7 +1767,7 @@ and misuse throws as page storage throws (`pages-the-subject-is-the-binding`).
 The values and the messages a session holds live under its subject, and its end deletes both in the
 same transaction, so nothing outlives the visit that wrote it. `Pages:Stores` bounds the store per
 subject instance rather than per page, with different limits anonymous and signed in
-(`pages-one-stores-section`). A total live-session cap evicts the most idle **anonymous** session first and a signed-in one
+(`pages-one-stores-section`). A total live-session limit evicts the most idle **anonymous** session first and a signed-in one
 only when no anonymous row is left, because the owner's session is the one nobody can mint again, and a
 mint is refused only when nothing can be evicted. Expired rows are deleted before the count, eviction is
 one bounded batch, and a five-minute sweep logs one line per sweep that removed anything.
@@ -1893,7 +1893,7 @@ name without a liveness check, because none of them writes.
 
 A viewer waits, it does not sleep: `ReadEventsAsync(jobId, after, waitSeconds)` returns when there are
 events, when the job ends or when the wait elapses, whichever is first, with `Events`, `Next`, `Reset`,
-`State` and `Failure`, capped by `Pages:Jobs:MaxWaitSeconds` and by the render's own budget; a page
+`State` and `Failure`, limited by `Pages:Jobs:MaxWaitSeconds` and by the render's own budget; a page
 streams the batches as server-sent events and writes a comment when one is empty. Allowing `Task.Delay`
 was rejected — a general fairness hole the page policy denies — as was a poll per reload, a whole
 document per event.
@@ -2016,7 +2016,7 @@ may catch it and render its own explanation.
 A streamed render reports its own end. `page.render.duration` is recorded at the commit, where the
 visitor stopped waiting, and `page.stream.duration` covers the lifetime after it, tagged with the page
 path and an `outcome` — `completed`, `silence`, `ceiling`, `client-left` or `error`. The render
-histogram's scale is sized for the render cap, so a ten-minute stream in it would make the panel
+histogram's scale is sized for the render limit, so a ten-minute stream in it would make the panel
 meaningless. A page that relays a slow upstream flushes its own response first: the render deadline
 covers everything before the first flush, a fetch included, so the commit is what moves the visitor onto
 the stream while the upstream body stays bounded by the fetch's own values, and the manual teaches the
@@ -2554,7 +2554,7 @@ the whole step and lands before any of those calls has run, so it would read pas
 was still working and a step that stopped early would reload to a count it never reached. The figure is
 published as each `tool.started` is handled, so the row ticks with the card rather than at the step's
 edge, and `RecordToolCallAsync` stores each attempt so the reload agrees. A denied or refused call counts
-once, as the cap counts it. A reload taken while a call is in flight lags by that one call, the same way
+once, as the limit counts it. A reload taken while a call is in flight lags by that one call, the same way
 Steps lags by the step in flight.
 
 *Recorded in [RunProcessor](../src/uk.osric.asp.Web/Assistant/RunProcessor.cs), [the assistant](assistant.md#ai-page-assistant), [assistant live figures](plans/archive/assistant-live-figures.md).*
@@ -2672,7 +2672,7 @@ transaction; there is no tombstone, because a memory is personal data and keepin
 forgetting exists to stop. Removing an account removes its memories.
 
 Memory content is data, not instruction: it enters the system prompt inside a labelled `<memory>` block
-that says so, escaped so a memory cannot close its own element, normalised and capped on the way in, and
+that says so, escaped so a memory cannot close its own element, normalised and limited on the way in, and
 never written to a log line or a metric tag. A write that looks like a secret — a private-key block, a
 `password=` or `token=` assignment, a provider key — is refused by rule as well as by the prompt, because
 a memory persists an injection into every later conversation.
@@ -2712,7 +2712,7 @@ holding the content, the kind and the pin so one version check covers all three.
 re-renders the row with the submitted text and an error line above it, because the textarea is the only
 copy of what the owner typed; the answer is a `400` or a `409` carrying the page, not a bare error page.
 The store is still the authority on the content: the page validates the form's shape, while
-normalisation, the cap and the secret rule stay in the memory's own types.
+normalisation, the limit and the secret rule stay in the memory's own types.
 
 Forgetting from the page is the same delete `forget_memory` makes — head, history and index row in one
 transaction, no tombstone — and it asks on a page of its own first, which also says what the delete cannot
@@ -2832,7 +2832,7 @@ a folder that cannot be listed is one nobody can find. Options mean what their l
 a command does not take is refused rather than ignored. A search's query is a basic regular expression —
 `^` and `$` anchor, `.`, `*` and `[...]` are metacharacters, `\|` is alternation, everything else is
 literal — and matching is linear time, so a pattern cannot spend a run's budget. A result that reached the
-match or listing cap, and a search whose match lies below the level it read, say so rather than leaving an
+match or listing limit, and a search whose match lies below the level it read, say so rather than leaving an
 answer that looks complete.
 
 `find` is the POSIX command rather than a long listing under another name, with its own pattern type and
@@ -2877,7 +2877,7 @@ token, because it is not in `Pages:Fetch:Credentials` and has no configuration k
 
 A view answers what the server produced: the status, **every** response header including `Set-Cookie`
 and the security policy, the body's own bytes read as UTF-8 (base64 when the body is not UTF-8, never
-replacement characters), the redirects it followed, and the byte length of what came back when a cap cut
+replacement characters), the redirects it followed, and the byte length of what came back when a limit cut
 it. A redirect chain is what makes a guard visible: `302 → /login?returnUrl=…` then 200 cannot be
 mistaken for a page that renders a sign-in form. `fetch` keeps its own flattening — nine allow-listed
 headers, and text decoded by the charset the response declares — because that is what a *page* wants, so
@@ -2934,12 +2934,12 @@ renderer and a fixture regenerated on every vocabulary bump, and still cannot se
 
 ### assistant-one-budget-decides-what-fits
 
-There is one content budget, derived from the model's window, and every other content cap is a fraction
+There is one content budget, derived from the model's window, and every other content limit is a fraction
 of it or gone: one tool result and one owner's message are an eighth of the prompt's share, a run's
 memory block a thirty-second. The fractions are invariants in `ContextBudget` rather than configuration,
 because a value that could raise one to the whole budget would switch the guard off. The one exception
 is a tool call's arguments, which must carry a page and so is `MaxPageChars` plus room for the envelope.
-A cap that cannot be derived this way must either come from the model or have a note and a way to ask
+A limit that cannot be derived this way must either come from the model or have a note and a way to ask
 again; a free-standing character count never decides what the model may read. `MaxContextTokens`,
 `ModelContextTokens`, `MaxOutputTokens`, `MaxToolResultChars`, `MaxMessageChars`,
 `MaxMemoryCharsPerRun` and `MaxMemoriesPerRun` are gone.
@@ -2948,7 +2948,7 @@ again; a free-standing character count never decides what the model may read. `M
 
 ### assistant-tool-results-are-cut-not-refused
 
-At a cap, a tool result is truncated, marked `truncated: true` and named in the note, and the head is
+At a limit, a tool result is truncated, marked `truncated: true` and named in the note, and the head is
 kept. It is never replaced by a refusal, because a refusal loses the information and the fact that there
 was information, and the model usually calls the tool again. Refusals stay for what they are for: an
 invalid argument, a stale revision hash, a path outside the writable prefix, a missing page.
@@ -2961,7 +2961,7 @@ The model's limits come from the provider's model list, not from configuration: 
 each model's `context_window` and `max_output_tokens`, and `ModelWindowSampler` reads it once at startup
 and again when a request is rejected for length. The prompt's share is the window less
 `Assistant:MinOutputTokens`, the reply's floor; `max_tokens` is what the estimate leaves of the window,
-capped at the published maximum and floored at that minimum, so prompt and reply always add up to the
+limited to the published maximum and floored at that minimum, so prompt and reply always add up to the
 window. A provider that does not answer leaves the assistant without a budget and a run refuses with
 `model_window_unknown`; a provider that answers without the configured model stops the deploy, because
 that answer is authoritative. Neither `Assistant:MaxContextTokens` nor `Assistant:ModelContextTokens`
@@ -2992,7 +2992,7 @@ apply and the owner's wait is taken off `assistant.tool.duration`. A question le
 (`selected: []`, `text: ""`), the owner leaving the decision to the model, with no second flag to
 interpret. The card is one form holding every question, so the owner can read the whole set before
 answering any of it, and a finished turn reads the question and the answer from the resolved records
-rather than the tool result, which may be cut at its cap. The questions are bounded by
+rather than the tool result, which may be cut at its limit. The questions are bounded by
 `Assistant:MaxQuestionsPerCall`, `MaxQuestionOptions` and `MaxQuestionChars`, and the answer by the
 owner message's share of the budget. A tool argument may describe itself in the schema, emitted only
 when set, and this tool's arguments do.
@@ -3111,9 +3111,9 @@ parallel entry point: `ci-install` and `pull-install` already work this way.
 
 ### deploy-caps-and-swap
 
-The container is capped — memory with an equal swap cap, a process limit and a CPU share — and probed
+The container is limited — memory with an equal swap limit, a process limit and a CPU share — and probed
 regularly with three failures allowed, so a runaway page takes the container and not the host, and a
-wedged process becomes a ~35 s outage. The caps scale with the host, leaving a whole vCPU for Caddy and
+wedged process becomes a ~35 s outage. The limits scale with the host, leaving a whole vCPU for Caddy and
 the probe. The app's cgroup cannot touch the host's swap file: the swap is headroom for Caddy, Prometheus,
 podman and the kernel, and keeping it away from the app is what keeps a runaway page a short outage rather
 than a thrash that outlasts the probe.
@@ -3196,10 +3196,10 @@ names a family that is neither an instrument nor a known runtime one.
 
 A bucket scale follows the work it measures: the assistant's instruments are minutes and dozens rather
 than page milliseconds, so each carries its own scale beside the meter that records it. A histogram's
-scale reaches past the cap its series measures, because a sample that hit its deadline is the one the
-panel was opened for and a top boundary at or below the cap files it under `+Inf`; the caps were brought
+scale reaches past the limit its series measures, because a sample that hit its deadline is the one the
+panel was opened for and a top boundary at or below the limit files it under `+Inf`; the limits were brought
 down to what the work reaches rather than letting an inflated one stretch the scale, and a test reads the
-shipped configuration to hold each cap to its scale. A series with no cap at all is outside that rule.
+shipped configuration to hold each limit to its scale. A series with no limit at all is outside that rule.
 
 *Recorded in [metrics](metrics.md#the-panels), [PageMetrics](../src/uk.osric.asp.Web/Pages/PageMetrics.cs), [AssistantMetrics](../src/uk.osric.asp.Web/Assistant/AssistantMetrics.cs).*
 
