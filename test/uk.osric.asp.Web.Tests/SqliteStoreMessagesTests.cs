@@ -102,7 +102,7 @@ public sealed class SqliteStoreMessagesTests {
     public async Task AnExpiredMessageIsNotTakenAsync() {
         IStoreMessages store = Messages();
         _ = await store.PostAsync(
-            Write("session:one", "/sender", "old", to: "/receiver", expiresAt: StoreSubjects.Stamp(_clock.GetUtcNow().AddSeconds(-1))),
+            Write("session:one", "/sender", "old", to: "/receiver", expiresAt: StoreSubjectKeys.Stamp(_clock.GetUtcNow().AddSeconds(-1))),
             MessagesOptions());
 
         Assert.That(await store.TakeAsync(Subjects("session:one"), "/receiver", null), Is.Null);
@@ -143,7 +143,7 @@ public sealed class SqliteStoreMessagesTests {
     public async Task TheSweepRemovesExpiredMessagesAndAQuietBrowserAsync() {
         IStoreMessages store = Messages();
         _ = await store.PostAsync(
-            Write("session:one", "/sender", "old", to: "/receiver", expiresAt: StoreSubjects.Stamp(_clock.GetUtcNow().AddSeconds(-1))),
+            Write("session:one", "/sender", "old", to: "/receiver", expiresAt: StoreSubjectKeys.Stamp(_clock.GetUtcNow().AddSeconds(-1))),
             MessagesOptions());
         _ = await PostAsync(store, "/sender", "quiet", subject: "browser:quiet", to: "/receiver");
         _ = await PostAsync(store, "/sender", "live", subject: "browser:live", to: "/receiver");

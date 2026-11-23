@@ -104,8 +104,8 @@ internal static class StoreMessageSql {
 
         return database.Database.ExecuteSqlAsync($"""
             UPDATE "StoreMessages"
-            SET "Subject" = {StoreSubjects.ForAccount(account)}
-            WHERE "Subject" = {StoreSubjects.ForSession(sessionId)}
+            SET "Subject" = {StoreSubjectKeys.ForAccount(account)}
+            WHERE "Subject" = {StoreSubjectKeys.ForSession(sessionId)}
               AND "Lifetime" = {(int)StoreLifetimeKind.Person};
             """, cancellationToken);
     }

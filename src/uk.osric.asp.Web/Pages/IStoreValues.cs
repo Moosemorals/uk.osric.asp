@@ -87,7 +87,7 @@ internal interface IStoreValues {
     /// <param name="caps">The caps the subject obeys.</param>
     /// <param name="cancellationToken">Cancels the write.</param>
     /// <exception cref="ArgumentException">A cap was hit, or the page is no longer live.</exception>
-    Task WriteAsync(StoreValueWrite write, PageStoreCaps caps, CancellationToken cancellationToken = default);
+    Task WriteAsync(StoreValueWrite write, StoreSubjectCaps caps, CancellationToken cancellationToken = default);
 
     /// <summary>Removes the entry a reader would see for this page and key.</summary>
     /// <param name="subjects">The reader's subjects, most ephemeral first.</param>
@@ -117,5 +117,5 @@ internal interface IStoreValues {
     /// <param name="cancellationToken">Cancels the write.</param>
     /// <exception cref="ArgumentException">A cap was hit, or the page is no longer live.</exception>
     Task WritePageValueAsync(
-        PagePath page, string key, string value, PageStoreCaps caps, CancellationToken cancellationToken = default);
+        PagePath page, string key, string value, StoreSubjectCaps caps, CancellationToken cancellationToken = default);
 }

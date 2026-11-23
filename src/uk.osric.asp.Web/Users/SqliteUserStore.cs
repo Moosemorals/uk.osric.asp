@@ -87,7 +87,7 @@ internal sealed class SqliteUserStore(
             .Select(row => row.SessionId)
             .ToArrayAsync(cancellationToken);
 
-        _ = await StoreValueSql.DeleteSubjectAsync(database, StoreSubjects.ForAccount(normalized), cancellationToken);
+        _ = await StoreValueSql.DeleteSubjectAsync(database, StoreSubjectKeys.ForAccount(normalized), cancellationToken);
         _ = await StoreValueSql.DeleteSessionsAsync(database, sessions, cancellationToken);
         _ = await database.Set<PageSessionEntry>()
             .Where(row => row.Account == normalized)

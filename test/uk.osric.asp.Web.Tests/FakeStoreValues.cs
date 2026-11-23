@@ -44,7 +44,7 @@ internal sealed class FakeStoreValues(PageStoresOptions? options = null, TestClo
 
     /// <summary>Reads a Page value, as the old page-state fake did.</summary>
     public async Task<string?> GetValueAsync(PagePath path, string key, CancellationToken cancellationToken = default) =>
-        (await FindAsync([StoreSubjects.ForPage(path)], path.Key, key, cancellationToken: cancellationToken))?.Value;
+        (await FindAsync([StoreSubjectKeys.ForPage(path)], path.Key, key, cancellationToken: cancellationToken))?.Value;
 
     public async Task<StoreValueRow?> FindAsync(
         IReadOnlyList<string> subjects,
@@ -124,7 +124,7 @@ internal sealed class FakeStoreValues(PageStoresOptions? options = null, TestClo
         return answer;
     }
 
-    public async Task WriteAsync(StoreValueWrite write, PageStoreCaps caps, CancellationToken cancellationToken = default) {
+    public async Task WriteAsync(StoreValueWrite write, StoreSubjectCaps caps, CancellationToken cancellationToken = default) {
         LastCancellationToken = cancellationToken;
         await Task.Yield();
 
@@ -151,7 +151,7 @@ internal sealed class FakeStoreValues(PageStoresOptions? options = null, TestClo
             current.Lifetime = write.Lifetime;
             current.ExpiresAt = write.ExpiresAt;
             current.Value = write.Value;
-            current.UpdatedAt = StoreSubjects.Stamp(_clock.GetUtcNow());
+            current.UpdatedAt = StoreSubjectKeys.Stamp(_clock.GetUtcNow());
         } else {
             _rows.Add(new Row {
                 Subject = write.Subject,
@@ -160,7 +160,7 @@ internal sealed class FakeStoreValues(PageStoresOptions? options = null, TestClo
                 Lifetime = write.Lifetime,
                 ExpiresAt = write.ExpiresAt,
                 Value = write.Value,
-                UpdatedAt = StoreSubjects.Stamp(_clock.GetUtcNow()),
+                UpdatedAt = StoreSubjectKeys.Stamp(_clock.GetUtcNow()),
             });
         }
 
@@ -192,9 +192,9 @@ internal sealed class FakeStoreValues(PageStoresOptions? options = null, TestClo
         DateTimeOffset now = _clock.GetUtcNow();
         int expired = _rows.RemoveAll(row => !row.IsLive(now));
 
-        string threshold = StoreSubjects.Stamp(now - browserLifetime);
+        string threshold = StoreSubjectKeys.Stamp(now - browserLifetime);
         string[] stale = [.. _rows
-            .Where(row => StoreSubjects.IsBrowser(row.Subject))
+            .Where(row => StoreSubjectKeys.IsBrowser(row.Subject))
             .GroupBy(row => row.Subject, StringComparer.Ordinal)
             .Select(group => new {
                 Subject = group.Key,
@@ -213,7 +213,7 @@ internal sealed class FakeStoreValues(PageStoresOptions? options = null, TestClo
         LastCancellationToken = cancellationToken;
         await Task.Yield();
 
-        string subject = StoreSubjects.ForPage(page);
+        string subject = StoreSubjectKeys.ForPage(page);
         return [.. _rows
             .Where(row => row.Subject == subject
                 && row.Lifetime == (int)StoreLifetimeKind.Page
@@ -226,11 +226,11 @@ internal sealed class FakeStoreValues(PageStoresOptions? options = null, TestClo
         PagePath page,
         string key,
         string value,
-        PageStoreCaps caps,
+        StoreSubjectCaps caps,
         CancellationToken cancellationToken = default) =>
         WriteAsync(
             new StoreValueWrite(
-                StoreSubjects.ForPage(page),
+                StoreSubjectKeys.ForPage(page),
                 page.Key,
                 key,
                 (int)StoreLifetimeKind.Page,
@@ -244,12 +244,12 @@ internal sealed class FakeStoreValues(PageStoresOptions? options = null, TestClo
     public void Seed(string pagePath, string key, string value) {
         LivePages.Add(pagePath);
         _rows.Add(new Row {
-            Subject = StoreSubjects.PagePrefix + pagePath,
+            Subject = StoreSubjectKeys.PagePrefix + pagePath,
             PageKey = pagePath,
             Key = key,
             Lifetime = (int)StoreLifetimeKind.Page,
             Value = value,
-            UpdatedAt = StoreSubjects.Stamp(_clock.GetUtcNow()),
+            UpdatedAt = StoreSubjectKeys.Stamp(_clock.GetUtcNow()),
         });
     }
 
@@ -261,13 +261,13 @@ internal sealed class FakeStoreValues(PageStoresOptions? options = null, TestClo
             Key = key,
             Lifetime = (int)kind,
             Value = value,
-            UpdatedAt = StoreSubjects.Stamp(_clock.GetUtcNow()),
+            UpdatedAt = StoreSubjectKeys.Stamp(_clock.GetUtcNow()),
         });
 
     /// <summary>Re-keys an anonymous session's person and one-shot entries into an account.</summary>
     public void Adopt(string sessionId, string account) {
-        string from = StoreSubjects.ForSession(sessionId);
-        string to = StoreSubjects.ForAccount(account);
+        string from = StoreSubjectKeys.ForSession(sessionId);
+        string to = StoreSubjectKeys.ForAccount(account);
 
         foreach (Row row in _rows.Where(row => row.Subject == from
             && row.Lifetime is (int)StoreLifetimeKind.Person or (int)StoreLifetimeKind.NextRead)) {
@@ -313,7 +313,7 @@ internal sealed class FakeStoreValues(PageStoresOptions? options = null, TestClo
         public required string UpdatedAt { get; set; }
 
         public bool IsLive(DateTimeOffset now) =>
-            ExpiresAt is null || string.CompareOrdinal(ExpiresAt, StoreSubjects.Stamp(now)) > 0;
+            ExpiresAt is null || string.CompareOrdinal(ExpiresAt, StoreSubjectKeys.Stamp(now)) > 0;
 
         public StoreValueRow ToValue() =>
             new(Subject, PageKey, Key, Lifetime, ExpiresAt, Value, UpdatedAt);

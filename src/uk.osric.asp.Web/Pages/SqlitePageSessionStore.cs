@@ -94,7 +94,7 @@ internal sealed class SqlitePageSessionStore(
             // the rotation ends, so it goes with the old row.
             _ = await StoreValueSql.AdoptAsync(database, previousSessionId, account, cancellationToken);
             _ = await StoreValueSql.DeleteSubjectAsync(
-                database, StoreSubjects.ForSession(previousSessionId), cancellationToken);
+                database, StoreSubjectKeys.ForSession(previousSessionId), cancellationToken);
             _ = await database.Set<PageSessionEntry>()
                 .Where(row => row.SessionId == previousSessionId)
                 .ExecuteDeleteAsync(cancellationToken);

@@ -29,7 +29,7 @@ internal sealed class PageValueStore : RenderBoundCapability, IValueStore {
     private readonly IStoreValues _store;
     private readonly IPageSessionStore? _sessions;
     private readonly PageReaderSubject? _reader;
-    private readonly PageStoreCaps _pageCaps;
+    private readonly StoreSubjectCaps _pageCaps;
     private readonly int _maxKeyChars;
     private readonly bool _writable;
     private readonly PageCommitState? _commit;
@@ -47,7 +47,7 @@ internal sealed class PageValueStore : RenderBoundCapability, IValueStore {
     public PageValueStore(
         PagePath bound,
         IStoreValues store,
-        PageStoreCaps caps,
+        StoreSubjectCaps caps,
         int maxKeyChars,
         bool writable,
         Func<CancellationToken, Task>? validate = null) {
@@ -94,7 +94,7 @@ internal sealed class PageValueStore : RenderBoundCapability, IValueStore {
         _store = store;
         _sessions = sessions;
         _reader = reader;
-        _pageCaps = new PageStoreCaps(0, 0, 0);
+        _pageCaps = new StoreSubjectCaps(0, 0, 0);
         _maxKeyChars = maxKeyChars;
         _writable = writable;
         _commit = commit;
@@ -160,7 +160,7 @@ internal sealed class PageValueStore : RenderBoundCapability, IValueStore {
             throw new ArgumentException($"{_bound.Key} holds only {_only} values in this store.", nameof(lifetime));
         }
 
-        PageStoreCaps caps = CapsFor(kind);
+        StoreSubjectCaps caps = CapsFor(kind);
         string json = JsonSerializer.Serialize(value, JsonSerialization.Options);
         if (Encoding.UTF8.GetByteCount(json) > caps.MaxValueBytes) {
             throw new ArgumentException(
@@ -181,7 +181,7 @@ internal sealed class PageValueStore : RenderBoundCapability, IValueStore {
             await EnsureAsync(Cancellation());
         }
 
-        string? expiresAt = lifetime?.ExpiresAt is { } expiry ? StoreSubjects.Stamp(expiry) : null;
+        string? expiresAt = lifetime?.ExpiresAt is { } expiry ? StoreSubjectKeys.Stamp(expiry) : null;
         await _store.WriteAsync(
             new StoreValueWrite(subject, _bound.Key, key, (int)kind, expiresAt, json, RequireLivePage: _reader is null),
             caps,
@@ -218,7 +218,7 @@ internal sealed class PageValueStore : RenderBoundCapability, IValueStore {
         }
 
         IReadOnlyList<string> subjects = _reader is null
-            ? [StoreSubjects.PagePrefix + pageKey]
+            ? [StoreSubjectKeys.PagePrefix + pageKey]
             : _reader.ReadSubjects;
         StoreValueRow? row = await _store.FindAsync(subjects, pageKey, key, lifetime, Cancellation());
         return row is null ? new PageValue<T>(false, default) : To<T>(row);
@@ -271,19 +271,19 @@ internal sealed class PageValueStore : RenderBoundCapability, IValueStore {
         return kind;
     }
 
-    private PageStoreCaps CapsFor(StoreLifetimeKind kind) =>
+    private StoreSubjectCaps CapsFor(StoreLifetimeKind kind) =>
         _reader is null ? _pageCaps : _reader.CapsFor(kind);
 
     private string SubjectFor(StoreLifetimeKind kind) {
         if (_reader is null) {
-            return StoreSubjects.ForPage(_bound);
+            return StoreSubjectKeys.ForPage(_bound);
         }
 
         return _reader.SubjectFor(kind);
     }
 
     private IReadOnlyList<string> Subjects() =>
-        _reader is null ? [StoreSubjects.ForPage(_bound)] : _reader.ReadSubjects;
+        _reader is null ? [StoreSubjectKeys.ForPage(_bound)] : _reader.ReadSubjects;
 
     private PageReaderSubject reader() => _reader ?? throw new InvalidOperationException("A Page subject has no reader.");
 

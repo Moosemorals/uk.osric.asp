@@ -585,7 +585,7 @@ internal sealed class SqliteRecordStore : RenderBoundCapability, IRecordStore, I
             command.Parameters.AddWithValue("$" + parameter.Key, parameter.Value switch {
                 null => DBNull.Value,
                 bool flag => flag ? 1L : 0L,
-                DateTimeOffset moment => StoreSubjects.Stamp(moment),
+                DateTimeOffset moment => StoreSubjectKeys.Stamp(moment),
                 var value => value,
             });
         }

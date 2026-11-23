@@ -98,7 +98,7 @@ public sealed class PageAuthenticationTests : IntegrationTest {
 
         string? ran = await WithServicesAsync(async services =>
             (await services.GetRequiredService<IStoreValues>().FindAsync(
-                [StoreSubjects.PagePrefix + "/private-refused"], "/private-refused", "ran"))?.Value);
+                [StoreSubjectKeys.PagePrefix + "/private-refused"], "/private-refused", "ran"))?.Value);
         Assert.That(ran, Is.Null, "a refused request must not execute the page");
     }
 

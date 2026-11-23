@@ -83,16 +83,16 @@ internal sealed class PageReaderSubject {
     public IReadOnlyList<string> ReadSubjects {
         get {
             if (IsJob) {
-                return [StoreSubjects.ForAccount(_jobAccount!)];
+                return [StoreSubjectKeys.ForAccount(_jobAccount!)];
             }
 
-            List<string> subjects = [StoreSubjects.ForSession(SessionId)];
+            List<string> subjects = [StoreSubjectKeys.ForSession(SessionId)];
             if (_browserId is not null) {
-                subjects.Add(StoreSubjects.ForBrowser(_browserId));
+                subjects.Add(StoreSubjectKeys.ForBrowser(_browserId));
             }
 
             if (Account is not null) {
-                subjects.Add(StoreSubjects.ForAccount(Account));
+                subjects.Add(StoreSubjectKeys.ForAccount(Account));
             }
 
             return subjects;
@@ -102,7 +102,7 @@ internal sealed class PageReaderSubject {
     /// <summary>The caps a subject kind obeys for this reader.</summary>
     /// <param name="kind">The resolved lifetime kind.</param>
     /// <exception cref="ArgumentOutOfRangeException">A Page lifetime was asked of a Visitor subject.</exception>
-    public PageStoreCaps CapsFor(StoreLifetimeKind kind) {
+    public StoreSubjectCaps CapsFor(StoreLifetimeKind kind) {
         if (IsJob) {
             return kind is StoreLifetimeKind.Person or StoreLifetimeKind.NextRead
                 ? _visitor.SignedIn
@@ -123,12 +123,12 @@ internal sealed class PageReaderSubject {
     public string SubjectFor(StoreLifetimeKind kind) => kind switch {
         StoreLifetimeKind.Session => IsJob
             ? throw new ArgumentException("A job has no session, so it cannot carry a Session lifetime.", nameof(kind))
-            : StoreSubjects.ForSession(SessionId),
+            : StoreSubjectKeys.ForSession(SessionId),
         StoreLifetimeKind.Browser => IsJob
             ? throw new ArgumentException("A job has no browser, so it cannot carry a Browser lifetime.", nameof(kind))
-            : StoreSubjects.ForBrowser(EnsureBrowser()),
+            : StoreSubjectKeys.ForBrowser(EnsureBrowser()),
         StoreLifetimeKind.Person or StoreLifetimeKind.NextRead =>
-            Account is not null ? StoreSubjects.ForAccount(Account) : StoreSubjects.ForSession(SessionId),
+            Account is not null ? StoreSubjectKeys.ForAccount(Account) : StoreSubjectKeys.ForSession(SessionId),
         _ => throw new ArgumentOutOfRangeException(nameof(kind), kind, "A Visitor subject has no Page lifetime."),
     };
 
@@ -144,7 +144,7 @@ internal sealed class PageReaderSubject {
     public Task TouchSessionAsync(IPageSessionStore store, CancellationToken cancellationToken = default) =>
         IsJob ? Task.CompletedTask : _session!.TouchAsync(store, cancellationToken);
 
-    private PageStoreCaps SessionCaps => IsSignedIn ? _visitor.SignedIn : _visitor.Anonymous;
+    private StoreSubjectCaps SessionCaps => IsSignedIn ? _visitor.SignedIn : _visitor.Anonymous;
 
     private string EnsureBrowser() {
         if (_browserId is null) {

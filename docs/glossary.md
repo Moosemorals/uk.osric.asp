@@ -629,7 +629,7 @@ are a range, and a page reaches one as `ctx.Stores.Page`, `ctx.Stores.Visitor` o
 namespace and not a row.
 
 **Owner:** pages — `IPageStores`, `IPageSubject`, `IVisitorSubject`, `PageReaderSubject` and
-`StoreSubjects`.
+`StoreSubjectKeys`.
 
 ## System prompt
 The fixed instructions at the head of every request: `PageAuthorPrompt`, versioned so a change to it

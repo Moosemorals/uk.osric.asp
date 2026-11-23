@@ -79,7 +79,7 @@ internal sealed class FakePageSessionStore(FakeStoreValues? values = null, Visit
 
         if (previousSessionId is not null) {
             values?.Adopt(previousSessionId, account);
-            values?.DeleteSubject(StoreSubjects.ForSession(previousSessionId));
+            values?.DeleteSubject(StoreSubjectKeys.ForSession(previousSessionId));
             _ = _sessions.Remove(previousSessionId);
         }
 
@@ -106,7 +106,7 @@ internal sealed class FakePageSessionStore(FakeStoreValues? values = null, Visit
     public async Task<bool> DeleteAsync(string sessionId, CancellationToken cancellationToken = default) {
         await Task.Yield();
 
-        values?.DeleteSubject(StoreSubjects.ForSession(sessionId));
+        values?.DeleteSubject(StoreSubjectKeys.ForSession(sessionId));
         return _sessions.Remove(sessionId);
     }
 
@@ -153,7 +153,7 @@ internal sealed class FakePageSessionStore(FakeStoreValues? values = null, Visit
             .Select(pair => pair.Key)];
 
         foreach (string id in expired) {
-            values?.DeleteSubject(StoreSubjects.ForSession(id));
+            values?.DeleteSubject(StoreSubjectKeys.ForSession(id));
             _ = _sessions.Remove(id);
         }
 
@@ -172,7 +172,7 @@ internal sealed class FakePageSessionStore(FakeStoreValues? values = null, Visit
             .First();
 
         _ = _sessions.Remove(victim.Key);
-        values?.DeleteSubject(StoreSubjects.ForSession(victim.Key));
+        values?.DeleteSubject(StoreSubjectKeys.ForSession(victim.Key));
 
         return victim.Value.Account is null ? (1, 0) : (0, 1);
     }

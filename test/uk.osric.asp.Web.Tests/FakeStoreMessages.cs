@@ -45,7 +45,7 @@ internal sealed class FakeStoreMessages(TestClock? clock = null) : IStoreMessage
             write.Body,
             write.Lifetime,
             write.ExpiresAt,
-            StoreSubjects.Stamp(_clock.GetUtcNow())));
+            StoreSubjectKeys.Stamp(_clock.GetUtcNow())));
         WriteCount++;
 
         return Task.FromResult(true);
@@ -81,9 +81,9 @@ internal sealed class FakeStoreMessages(TestClock? clock = null) : IStoreMessage
         DateTimeOffset now = _clock.GetUtcNow();
         int expired = _rows.RemoveAll(row => !IsLive(row, now));
 
-        string threshold = StoreSubjects.Stamp(now - browserLifetime);
+        string threshold = StoreSubjectKeys.Stamp(now - browserLifetime);
         string[] stale = [.. _rows
-            .Where(row => StoreSubjects.IsBrowser(row.Subject))
+            .Where(row => StoreSubjectKeys.IsBrowser(row.Subject))
             .GroupBy(row => row.Subject, StringComparer.Ordinal)
             .Select(group => new {
                 Subject = group.Key,
@@ -108,7 +108,7 @@ internal sealed class FakeStoreMessages(TestClock? clock = null) : IStoreMessage
             body,
             (int)uk.osric.asp.Sdk.StoreLifetimeKind.Person,
             expiresAt,
-            StoreSubjects.Stamp(_clock.GetUtcNow())));
+            StoreSubjectKeys.Stamp(_clock.GetUtcNow())));
 
     private StoreMessageRow? Find(IReadOnlyList<string> subjects, string? toPageKey, string? topic) {
         DateTimeOffset now = _clock.GetUtcNow();
@@ -122,5 +122,5 @@ internal sealed class FakeStoreMessages(TestClock? clock = null) : IStoreMessage
     }
 
     private static bool IsLive(StoreMessageRow row, DateTimeOffset now) =>
-        row.ExpiresAt is null || string.CompareOrdinal(row.ExpiresAt, StoreSubjects.Stamp(now)) > 0;
+        row.ExpiresAt is null || string.CompareOrdinal(row.ExpiresAt, StoreSubjectKeys.Stamp(now)) > 0;
 }

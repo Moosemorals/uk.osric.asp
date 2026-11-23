@@ -43,7 +43,7 @@ internal sealed class SqliteStoreValues(
             return null;
         }
 
-        string now = StoreSubjects.Stamp(clock.GetUtcNow());
+        string now = StoreSubjectKeys.Stamp(clock.GetUtcNow());
         await using StorageDbContext database = Open();
 
         List<StoreValueEntry> rows = await database.Set<StoreValueEntry>().AsNoTracking()
@@ -97,7 +97,7 @@ internal sealed class SqliteStoreValues(
             Add(command, "$key", key);
             Add(command, "$lifetime", (int)StoreLifetimeKind.NextRead);
             Add(command, "$pageKey", pageKey);
-            Add(command, "$now", StoreSubjects.Stamp(clock.GetUtcNow()));
+            Add(command, "$now", StoreSubjectKeys.Stamp(clock.GetUtcNow()));
 
             StoreValueRow? taken = await ReadOneAsync(command, cancellationToken);
             if (taken is not null) {
@@ -124,7 +124,7 @@ internal sealed class SqliteStoreValues(
             return [];
         }
 
-        string now = StoreSubjects.Stamp(clock.GetUtcNow());
+        string now = StoreSubjectKeys.Stamp(clock.GetUtcNow());
         await using StorageDbContext database = Open();
 
         List<StoreValueEntry> rows = await database.Set<StoreValueEntry>().AsNoTracking()
@@ -152,12 +152,12 @@ internal sealed class SqliteStoreValues(
     /// <inheritdoc/>
     public async Task WriteAsync(
         StoreValueWrite write,
-        PageStoreCaps caps,
+        StoreSubjectCaps caps,
         CancellationToken cancellationToken = default) {
         ArgumentNullException.ThrowIfNull(write);
         ArgumentNullException.ThrowIfNull(caps);
 
-        string updatedAt = StoreSubjects.Stamp(clock.GetUtcNow());
+        string updatedAt = StoreSubjectKeys.Stamp(clock.GetUtcNow());
         await using StorageDbContext database = Open();
 
         int written = await StoreValueSql.UpsertAsync(database, write, updatedAt, caps, cancellationToken);
@@ -214,8 +214,8 @@ internal sealed class SqliteStoreValues(
 
     /// <inheritdoc/>
     public async Task<int> RemoveExpiredAsync(TimeSpan browserLifetime, CancellationToken cancellationToken = default) {
-        string now = StoreSubjects.Stamp(clock.GetUtcNow());
-        string browserThreshold = StoreSubjects.Stamp(clock.GetUtcNow() - browserLifetime);
+        string now = StoreSubjectKeys.Stamp(clock.GetUtcNow());
+        string browserThreshold = StoreSubjectKeys.Stamp(clock.GetUtcNow() - browserLifetime);
         await using StorageDbContext database = Open();
 
         int expired = await database.Database.ExecuteSqlAsync($"""
@@ -247,7 +247,7 @@ internal sealed class SqliteStoreValues(
 
         await using StorageDbContext database = Open();
         List<StoreValueEntry> rows = await database.Set<StoreValueEntry>().AsNoTracking()
-            .Where(row => row.Subject == StoreSubjects.ForPage(page)
+            .Where(row => row.Subject == StoreSubjectKeys.ForPage(page)
                 && row.Lifetime == (int)StoreLifetimeKind.Page
                 && row.ExpiresAt == null)
             .OrderBy(row => row.Key)
@@ -261,13 +261,13 @@ internal sealed class SqliteStoreValues(
         PagePath page,
         string key,
         string value,
-        PageStoreCaps caps,
+        StoreSubjectCaps caps,
         CancellationToken cancellationToken = default) {
         ArgumentNullException.ThrowIfNull(page);
 
         return WriteAsync(
             new StoreValueWrite(
-                StoreSubjects.ForPage(page),
+                StoreSubjectKeys.ForPage(page),
                 page.Key,
                 key,
                 (int)StoreLifetimeKind.Page,
@@ -284,7 +284,7 @@ internal sealed class SqliteStoreValues(
     private static async Task<ArgumentException> RefusalAsync(
         StorageDbContext database,
         StoreValueWrite write,
-        PageStoreCaps caps,
+        StoreSubjectCaps caps,
         CancellationToken cancellationToken) {
         if (write.RequireLivePage
             && !await database.Set<PageHead>().AnyAsync(

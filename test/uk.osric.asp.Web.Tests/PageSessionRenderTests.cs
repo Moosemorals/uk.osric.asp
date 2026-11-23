@@ -54,7 +54,7 @@ public sealed class PageSessionRenderTests {
         await first.StoreCompiledAsync("/page", page);
         await second.StoreCompiledAsync("/page", page);
         values.SeedVisitor(
-            StoreSubjects.ForSession(first.Session.Id), "/page", "name", "\"visitor\"", StoreLifetimeKind.Session);
+            StoreSubjectKeys.ForSession(first.Session.Id), "/page", "name", "\"visitor\"", StoreLifetimeKind.Session);
 
         (_, string firstOutput) = await first.RenderAsync("/page");
         (_, string secondOutput) = await second.RenderAsync("/page");
@@ -67,7 +67,7 @@ public sealed class PageSessionRenderTests {
     public async Task APageReadsAnotherPagesValueByPathAsync() {
         using PageHarness pages = new(new FakePageStore());
         pages.State.SeedVisitor(
-            StoreSubjects.ForSession(pages.Session.Id), "/other", "draft", "\"left for you\"", StoreLifetimeKind.Session);
+            StoreSubjectKeys.ForSession(pages.Session.Id), "/other", "draft", "\"left for you\"", StoreLifetimeKind.Session);
         await pages.StoreCompiledAsync("/page", """
             <% IPageSession session = ctx.Capabilities.GetRequired<IPageSession>();
                PageValue<string> left = await session.TryGetValueAsync<string>("/other", "draft"); %>

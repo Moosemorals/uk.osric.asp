@@ -198,7 +198,7 @@ public sealed class SqlitePageSessionStoreTests {
 
         _ = await store.EnsureAsync("second", account: null);
 
-        Assert.That(await values.FindAsync([StoreSubjects.ForSession("first")], "/page", "key"), Is.Null);
+        Assert.That(await values.FindAsync([StoreSubjectKeys.ForSession("first")], "/page", "key"), Is.Null);
     }
 
     [Test]
@@ -206,16 +206,16 @@ public sealed class SqlitePageSessionStoreTests {
         IStoreValues values = Values();
         IPageSessionStore store = Store();
         _ = await store.EnsureAsync("old", account: null);
-        await Write(values, StoreSubjects.ForSession("old"), "person", StoreLifetimeKind.Person);
-        await Write(values, StoreSubjects.ForSession("old"), "notice", StoreLifetimeKind.NextRead);
-        await Write(values, StoreSubjects.ForSession("old"), "draft", StoreLifetimeKind.Session);
+        await Write(values, StoreSubjectKeys.ForSession("old"), "person", StoreLifetimeKind.Person);
+        await Write(values, StoreSubjectKeys.ForSession("old"), "notice", StoreLifetimeKind.NextRead);
+        await Write(values, StoreSubjectKeys.ForSession("old"), "draft", StoreLifetimeKind.Session);
 
         Assert.That(await store.AdoptAsync("old", "owner", "new"), Is.True);
 
         await Assert.MultipleAsync(async () => {
-            Assert.That(await values.FindAsync([StoreSubjects.ForAccount("owner")], "/page", "person"), Is.Not.Null);
-            Assert.That(await values.FindAsync([StoreSubjects.ForAccount("owner")], "/page", "notice"), Is.Not.Null);
-            Assert.That(await values.FindAsync([StoreSubjects.ForSession("old")], "/page", "draft"), Is.Null);
+            Assert.That(await values.FindAsync([StoreSubjectKeys.ForAccount("owner")], "/page", "person"), Is.Not.Null);
+            Assert.That(await values.FindAsync([StoreSubjectKeys.ForAccount("owner")], "/page", "notice"), Is.Not.Null);
+            Assert.That(await values.FindAsync([StoreSubjectKeys.ForSession("old")], "/page", "draft"), Is.Null);
             Assert.That(await store.FindAsync("old"), Is.Null);
             Assert.That(await store.FindAsync("new"), Is.Not.Null);
         });
@@ -246,7 +246,7 @@ public sealed class SqlitePageSessionStoreTests {
 
     private Task WriteSessionValue(IStoreValues values, string sessionId, string key, string json) =>
         values.WriteAsync(
-            new StoreValueWrite(StoreSubjects.ForSession(sessionId), "/page", key, (int)StoreLifetimeKind.Session, ExpiresAt: null, json, RequireLivePage: false),
+            new StoreValueWrite(StoreSubjectKeys.ForSession(sessionId), "/page", key, (int)StoreLifetimeKind.Session, ExpiresAt: null, json, RequireLivePage: false),
             TestOptions.Stores.Visitor.Anonymous);
 
     private IPageSessionStore Store(TimeProvider? clock = null, VisitorOptions? options = null) =>

@@ -13,7 +13,7 @@ using uk.osric.asp.Core.Pages;
 /// and a sweep naming the same row. The prefixes cannot collide: a page key starts with <c>/</c> and a
 /// session or browser id is base64url.
 /// </remarks>
-internal static class StoreSubjects {
+internal static class StoreSubjectKeys {
 
     public const string PagePrefix = "page:";
 
