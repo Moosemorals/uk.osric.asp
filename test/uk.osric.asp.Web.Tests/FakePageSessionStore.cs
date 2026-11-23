@@ -11,13 +11,13 @@ using uk.osric.asp.Web.Pages;
 /// the store promises without needing a database. The SQL is proven separately, against the real store.
 /// The values live in <see cref="FakeStoreValues"/>, which is where a session's subject is removed from.
 /// </remarks>
-internal sealed class FakePageSessionStore(FakeStoreValues? values = null, PageVisitorStores? options = null) : IPageSessionStore {
+internal sealed class FakePageSessionStore(FakeStoreValues? values = null, VisitorOptions? options = null) : IPageSessionStore {
 
     private readonly Dictionary<string, Row> _sessions = [];
-    private readonly PageVisitorStores _options = options ?? TestOptions.Stores.Visitor;
+    private readonly VisitorOptions _options = options ?? TestOptions.Stores.Visitor;
 
     /// <summary>The caps and lifetimes this store enforces.</summary>
-    public PageVisitorStores Options => _options;
+    public VisitorOptions Options => _options;
 
     /// <summary>Every session the store holds.</summary>
     public IReadOnlyCollection<string> Ids => _sessions.Keys;

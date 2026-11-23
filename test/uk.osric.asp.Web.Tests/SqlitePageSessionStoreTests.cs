@@ -249,7 +249,7 @@ public sealed class SqlitePageSessionStoreTests {
             new StoreValueWrite(StoreSubjects.ForSession(sessionId), "/page", key, (int)StoreLifetimeKind.Session, ExpiresAt: null, json, RequireLivePage: false),
             TestOptions.Stores.Visitor.Anonymous);
 
-    private IPageSessionStore Store(TimeProvider? clock = null, PageVisitorStores? options = null) =>
+    private IPageSessionStore Store(TimeProvider? clock = null, VisitorOptions? options = null) =>
         new SqlitePageSessionStore(
             DatabaseTemplate.Factory(_options),
             TestOptions.Stores with { Visitor = options ?? TestOptions.Stores.Visitor },

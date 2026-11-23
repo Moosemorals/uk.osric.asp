@@ -783,10 +783,11 @@ uk.osric.asp.Sdk.IContext.Stores.get -> uk.osric.asp.Sdk.IPageStores!
 uk.osric.asp.Sdk.IPageStores
 uk.osric.asp.Sdk.IPageStores.For(string! key) -> uk.osric.asp.Sdk.IPageSubject!
 uk.osric.asp.Sdk.IPageStores.Page.get -> uk.osric.asp.Sdk.IPageSubject!
-uk.osric.asp.Sdk.IPageStores.Visitor.get -> uk.osric.asp.Sdk.IPageVisitorSubject!
+uk.osric.asp.Sdk.IPageStores.Visitor.get -> uk.osric.asp.Sdk.IVisitorSubject!
 uk.osric.asp.Sdk.IPageSubject
 uk.osric.asp.Sdk.IPageSubject.Values.get -> uk.osric.asp.Sdk.IValueStore!
-uk.osric.asp.Sdk.IPageVisitorSubject
+uk.osric.asp.Sdk.IVisitorSubject
+uk.osric.asp.Sdk.IVisitorSubject.Values.get -> uk.osric.asp.Sdk.IValueStore!
 uk.osric.asp.Sdk.IValueStore
 uk.osric.asp.Sdk.IValueStore.AllKeysAsync(uk.osric.asp.Sdk.StoreFilter? filter = null) -> System.Threading.Tasks.Task<System.Collections.Generic.IReadOnlyList<uk.osric.asp.Sdk.StoreEntry>!>!
 uk.osric.asp.Sdk.IValueStore.DeleteAsync(string! key) -> System.Threading.Tasks.Task<bool>!
@@ -889,6 +890,7 @@ uk.osric.asp.Sdk.StoreSubject
 uk.osric.asp.Sdk.StoreSubject.Page = 0 -> uk.osric.asp.Sdk.StoreSubject
 uk.osric.asp.Sdk.StoreSubject.Visitor = 1 -> uk.osric.asp.Sdk.StoreSubject
 uk.osric.asp.Sdk.IPageSubject.Records.get -> uk.osric.asp.Sdk.IRecordStore!
+uk.osric.asp.Sdk.IVisitorSubject.Records.get -> uk.osric.asp.Sdk.IRecordStore!
 uk.osric.asp.Sdk.IMessageStore
 uk.osric.asp.Sdk.IMessageStore.PeekAsync() -> System.Threading.Tasks.Task<uk.osric.asp.Sdk.PageMessageRead>!
 uk.osric.asp.Sdk.IMessageStore.PeekAsync(uk.osric.asp.Sdk.PageTopic! topic) -> System.Threading.Tasks.Task<uk.osric.asp.Sdk.PageMessageRead>!
@@ -896,7 +898,7 @@ uk.osric.asp.Sdk.IMessageStore.PostAsync(string! toPageKey, string! body, uk.osr
 uk.osric.asp.Sdk.IMessageStore.PostAsync(uk.osric.asp.Sdk.PageTopic! topic, string! body, uk.osric.asp.Sdk.StoreLifetime? lifetime = null) -> System.Threading.Tasks.Task<uk.osric.asp.Sdk.PageMessagePostResult>!
 uk.osric.asp.Sdk.IMessageStore.TakeAsync() -> System.Threading.Tasks.Task<uk.osric.asp.Sdk.PageMessageRead>!
 uk.osric.asp.Sdk.IMessageStore.TakeAsync(uk.osric.asp.Sdk.PageTopic! topic) -> System.Threading.Tasks.Task<uk.osric.asp.Sdk.PageMessageRead>!
-uk.osric.asp.Sdk.IPageVisitorSubject.Messages.get -> uk.osric.asp.Sdk.IMessageStore!
+uk.osric.asp.Sdk.IVisitorSubject.Messages.get -> uk.osric.asp.Sdk.IMessageStore!
 uk.osric.asp.Sdk.PageMessage
 uk.osric.asp.Sdk.PageMessage.<Clone>$() -> uk.osric.asp.Sdk.PageMessage!
 uk.osric.asp.Sdk.PageMessage.Body.get -> string!

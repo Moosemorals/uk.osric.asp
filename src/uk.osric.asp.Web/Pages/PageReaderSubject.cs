@@ -16,7 +16,7 @@ using uk.osric.asp.Web.Authentication;
 internal sealed class PageReaderSubject {
 
     private readonly PageSessionRequest? _session;
-    private readonly PageVisitorStores _visitor;
+    private readonly VisitorOptions _visitor;
     private readonly string? _jobAccount;
     private string? _browserId;
 
@@ -24,7 +24,7 @@ internal sealed class PageReaderSubject {
     /// <param name="session">The request's session, resolved by the endpoint.</param>
     /// <param name="visitor">The visitor store's bounds.</param>
     /// <param name="browserId">The browser id the visitor presented, or <see langword="null"/>.</param>
-    public PageReaderSubject(PageSessionRequest session, PageVisitorStores visitor, string? browserId) {
+    public PageReaderSubject(PageSessionRequest session, VisitorOptions visitor, string? browserId) {
         ArgumentNullException.ThrowIfNull(session);
         ArgumentNullException.ThrowIfNull(visitor);
 
@@ -35,7 +35,7 @@ internal sealed class PageReaderSubject {
     }
 
     // A job has no cookie and no browser, so its reader is the starter's account and nothing else.
-    private PageReaderSubject(string account, PageVisitorStores visitor) {
+    private PageReaderSubject(string account, VisitorOptions visitor) {
         _session = null;
         _visitor = visitor;
         _jobAccount = account;
@@ -45,7 +45,7 @@ internal sealed class PageReaderSubject {
     /// <summary>A job's reader: the starter's account, with no session and no browser.</summary>
     /// <param name="visitor">The visitor store's bounds.</param>
     /// <param name="account">The normalised account the job runs for.</param>
-    public static PageReaderSubject ForJob(PageVisitorStores visitor, string account) {
+    public static PageReaderSubject ForJob(VisitorOptions visitor, string account) {
         ArgumentNullException.ThrowIfNull(visitor);
         ArgumentException.ThrowIfNullOrWhiteSpace(account);
 
@@ -170,7 +170,7 @@ internal static class PageReaderSubjectResolver {
     public static PageReaderSubject Resolve(
         HttpContext context,
         PageSessionRequest session,
-        PageVisitorStores visitor,
+        VisitorOptions visitor,
         PageBrowserCookieOptions options) {
         ArgumentNullException.ThrowIfNull(context);
         ArgumentNullException.ThrowIfNull(session);

@@ -20,7 +20,7 @@ internal sealed record PageBrowserCookieOptions(string Name, CookieSecurePolicy 
     /// <summary>Builds the options for an environment and the configured browser lifetime.</summary>
     /// <param name="environment">The host environment.</param>
     /// <param name="visitor">The visitor store's bounds.</param>
-    public static PageBrowserCookieOptions For(IWebHostEnvironment environment, PageVisitorStores visitor) {
+    public static PageBrowserCookieOptions For(IWebHostEnvironment environment, VisitorOptions visitor) {
         ArgumentNullException.ThrowIfNull(environment);
         ArgumentNullException.ThrowIfNull(visitor);
 

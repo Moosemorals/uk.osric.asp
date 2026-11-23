@@ -28,7 +28,7 @@ internal sealed record PageStoresOptions {
     public required PageStoreCaps Page { get; init; }
 
     /// <summary>The Visitor subject's caps and identity bounds.</summary>
-    public required PageVisitorStores Visitor { get; init; }
+    public required VisitorOptions Visitor { get; init; }
 
     /// <summary>The record shape's caps.</summary>
     public required PageRecordOptions Records { get; init; }
@@ -61,7 +61,7 @@ internal sealed record PageStoresOptions {
             CommandTimeoutSeconds = reader.Number("CommandTimeoutSeconds", recommended: 5, minimum: 1, maximum: 120),
             BusyTimeoutSeconds = reader.Number("BusyTimeoutSeconds", recommended: 5, minimum: 1, maximum: 120),
             Page = PageStoreCaps.Read(reader.For("Page"), PageStoreCaps.Page),
-            Visitor = PageVisitorStores.Read(reader.For("Visitor")),
+            Visitor = VisitorOptions.Read(reader.For("Visitor")),
             Records = PageRecordOptions.Read(reader.For("Records")),
             Messages = PageMessageOptions.Read(reader.For("Messages")),
         };
@@ -116,7 +116,7 @@ internal sealed record PageStoreCaps(int MaxValueBytes, int MaxKeys, int MaxTota
 /// <param name="AnonymousIdle">How long an anonymous session survives without a visit.</param>
 /// <param name="BrowserLifetimeDays">How long a browser's rows survive after their last write.</param>
 /// <param name="MaxLiveSessions">The most live sessions the site keeps.</param>
-internal sealed record PageVisitorStores(
+internal sealed record VisitorOptions(
     PageStoreCaps Anonymous,
     PageStoreCaps Browser,
     PageStoreCaps SignedIn,
@@ -125,7 +125,7 @@ internal sealed record PageVisitorStores(
     int MaxLiveSessions) {
 
     /// <summary>The shipped visitor bounds.</summary>
-    public static PageVisitorStores Shipped { get; } = new(
+    public static VisitorOptions Shipped { get; } = new(
         PageStoreCaps.Anonymous,
         PageStoreCaps.Browser,
         PageStoreCaps.SignedIn,
@@ -136,10 +136,10 @@ internal sealed record PageVisitorStores(
     /// <summary>Reads <c>Pages:Stores:Visitor</c>.</summary>
     /// <param name="reader">A reader opened on <c>Pages:Stores:Visitor</c>, which the caller completes.</param>
     /// <exception cref="ConfigurationException">A value is missing or unusable.</exception>
-    internal static PageVisitorStores Read(ConfigurationReader reader) {
+    internal static VisitorOptions Read(ConfigurationReader reader) {
         ArgumentNullException.ThrowIfNull(reader);
 
-        return new PageVisitorStores(
+        return new VisitorOptions(
             PageStoreCaps.Read(reader.For("Anonymous"), PageStoreCaps.Anonymous),
             PageStoreCaps.Read(reader.For("Browser"), PageStoreCaps.Browser),
             PageStoreCaps.Read(reader.For("SignedIn"), PageStoreCaps.SignedIn),

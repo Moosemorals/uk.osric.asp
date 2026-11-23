@@ -564,7 +564,7 @@ hash, or <code>null</code> when the build did not come from a checkout:</p>
 <p><a href="/admin/reference/sdk#t-IPageStores"><code>ctx.Stores</code></a> is the page's data. It is not a capability: every layer of a render is
 offered it, and a write is refused during a <code>HEAD</code> rather than the store being absent.
 <a href="/admin/reference/sdk#t-IPageSubject"><code>Stores.Page</code></a> is this page, shared by every visitor;
-<a href="/admin/reference/sdk#t-IPageVisitorSubject"><code>Stores.Visitor</code></a> is the person reading. A value is JSON and a write is
+<a href="/admin/reference/sdk#t-IVisitorSubject"><code>Stores.Visitor</code></a> is the person reading. A value is JSON and a write is
 last-write-wins:</p>
 <pre class="source" tabindex="0"><code>&lt;% PageValue&lt;int&gt; stored = await ctx.Stores.Page.Values.TryGetValueAsync&lt;int&gt;("visits");
    int visits = (stored.Found ? stored.Value : 0) + 1;
@@ -923,7 +923,7 @@ editor's history page compares two revisions for you.</p>
 
 <h2 id="storage">Storage</h2>
 <p>Two subjects, and each offers the shapes it has. <a href="/admin/reference/sdk#t-IPageSubject"><code>Stores.Page</code></a> is this page's data, shared by
-every visitor; <a href="/admin/reference/sdk#t-IPageVisitorSubject"><code>Stores.Visitor</code></a> is the person reading. A write always uses
+every visitor; <a href="/admin/reference/sdk#t-IVisitorSubject"><code>Stores.Visitor</code></a> is the person reading. A write always uses
 the layer's own key, so a page cannot write another page's data; a read is open across pages, so a
 page can show what another page left for it. Neither handle has an argument that names someone
 else's data.</p>
@@ -1041,7 +1041,7 @@ are; signing out removes the session's rows; removing an account removes its row
 <h2 id="messages">Messages between pages</h2>
 <p>A message is durable, addressed, and taken once. It is how one page leaves something for a page the
 visitor has not reached yet, which a value cannot do without the receiver knowing the sender's key.
-<a href="/admin/reference/sdk#t-IPageVisitorSubject"><code>Stores.Visitor.Messages</code></a> is the
+<a href="/admin/reference/sdk#t-IVisitorSubject"><code>Stores.Visitor.Messages</code></a> is the
 visitor's queue; a page has none, because its data is shared by everyone.</p>
 <p>A post names a page key or a named topic, and a take reads the bound page's queue — the key of the
 layer that runs, so a layout takes from the layout's key. A topic is
