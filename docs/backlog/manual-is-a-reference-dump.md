@@ -38,6 +38,17 @@ The owner asked for a review and a rewrite on 2026-11-22. The shape it needs is 
 teaches: the thing an author wants to do first, in the order they meet it, and the reference second,
 with the index derived from the headings or checked against them rather than typed twice.
 
+On 2026-11-23 the owner proposed going further and leaning on doc comments instead: drop the manual
+and let `/admin/reference` carry everything, since documentation closest to the code is the one most
+likely to be current. Much of what the manual restates is already in the reference: every signature,
+and the summary beside it. What the reference cannot carry is the sequenced, cross-type narrative —
+which store to use, what to hook together, in what order — because it has no type to hang off and its
+text changes only with a release, while the manual is a page the owner edits. C# has no namespace doc
+comments either (`///` on a namespace or an assembly attribute is CS1587, and a warning is an error
+here), so namespace prose would need a marker-class convention the corpus tool special-cases, for a
+page that describes one namespace of thirty-two. The leaning is that no prose moves into doc comments:
+the manual keeps the narrative and the task order, and the reference keeps the signatures.
+
 ## Sketch
 
 1. **The order is the author's, not the API's.** A first pass over what a page is, then the tasks an
@@ -68,8 +79,10 @@ with the index derived from the headings or checked against them rather than typ
 
 ## Open questions
 
-Wait for the plan: whether the index is generated in the template or checked by a test, and whether the
-rewrite keeps one page or splits the reference into a second seeded page.
+Wait for the plan: whether the index is generated in the template or checked by a test, whether the
+rewrite keeps one page or splits the reference into a second seeded page, and how far a capability's
+detail moves into `remarks` on the type an author uses rather than staying in the manual beside the
+task.
 
 **Origin:** the owner's instruction of 2026-11-22 to schedule a review and rewrite of `/help`, after
 the capability work in this programme would otherwise change it one section at a time.
