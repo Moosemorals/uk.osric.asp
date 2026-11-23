@@ -137,8 +137,9 @@ public sealed record SiteBounds(
   of a file leaves it out rather than inventing an empty one; the copyright route keeps naming what is
   missing from the library's own nullable members.
 - `Commits` is never `null`: a build with no changelist answers an empty list, and so does a changelist
-  with no lines. The distinction between "missing" and "empty" is gone by the owner's choice, and the
-  `/admin/changes` message is the same for both.
+  with no lines. The distinction between "missing" and "empty" is gone from the page contract by the
+  owner's choice; the route keeps it through `ChangeListRead` (below), because the route is where a
+  reader is owed the reason.
 - A `SiteCommit.Hash` is a full 40-character ASCII hex hash, or `null` for a line that is not a commit.
   `make changelist` writes `git log --no-decorate --format='%H %s'`, so every line a real build carries
   has a hash; a `null` means a hand-edited or malformed changelist, and the route shows that line
@@ -149,11 +150,15 @@ public sealed record SiteBounds(
   has a policy refusal, `ModelWindowRead` has a model that did not answer. A page rendering the
   changelist has nothing to decide: the list is the fact, and an empty one is what a build without a
   changelist has. The reason a file is missing or unreadable is an operator's diagnostic, so it stays
-  at the `ChangeList` seam and in the log, and `ISiteInfo` stays a fact sheet. If the route ever needs
-  to say "could not be read" rather than "carries none", `ChangeList` can answer a named result to the
-  route — a `ChangeListRead` with its entries and a problem — without widening the page contract. The
-  named result is the better shape there anyway; `AccountBalanceRead` and `ModelWindowRead` are the
-  examples the site already has.
+  at the `ChangeList` seam, and `ISiteInfo` stays a fact sheet.
+- **`ChangeListRead` is the seam's shape.** The route does need the reason, so `ChangeList` answers an
+  internal named result rather than a tuple:
+  `ChangeListRead(IReadOnlyList<SiteCommit> Commits, ChangeListReason Reason)`, where `Reason` is
+  `Ok`, `Missing` or `Unreadable`. `SiteFacts` takes `Commits` and the page sees a plain list; the
+  route uses `Reason` to say "this build carries no changelist" (`Missing`), "the changelist could
+  not be read" (`Unreadable`, with the exception logged) or "0 commits, newest first" (`Ok` with no
+  lines). This is the `ModelWindowRead`/`AccountBalanceRead` shape, not a raw tuple, and it is the
+  only reason a page never sees.
 - `SiteAllowance` is a rate and its burst: `Capacity` is the most one burst may spend, `Available` is
   what is left now, `PerSecond` is the configured rate, and `Key` names the configuration key that sets
   it. It is used for fetches (units) and for template characters, because both enforcers already answer
@@ -194,7 +199,7 @@ snapshot cannot be confused:
 - **`SiteFacts`** is a `Web` singleton: the origin, the editor key, `DeployCommit`, the identity
   constants, and three readers — one each for the documents, the changelist and the corpus. A reader is
   a `Func<T>` rather than a nullable source, so the host wires `LicenceLibrary.Documents`,
-  `ChangeList.Commits` and `ReferenceLibrary.Corpora`, and a test wires an empty value without a
+  `ChangeList.Read.Commits` and `ReferenceLibrary.Corpora`, and a test wires an empty value without a
   special case. `SiteFacts` holds one `Lazy<T>` per reader, so the warm-up and every caller share one
   read, and a caller for the documents does not wait for the corpus. The three routes keep reading
   those same sources, so a fact still has one home.
@@ -207,8 +212,9 @@ snapshot cannot be confused:
   still blocks on the source it asks for until that one read finishes; because each source is a
   process-wide lazy, the caller and the warm-up share one read rather than racing. The loaders answer
   a value rather than throwing for a missing or unreadable file — an absent or unreadable document is
-  left out with a warning, a malformed corpus is left out with a warning — so an early `Lazy<T>` cannot
-  cache a file failure and the warm-up cannot take the host down.
+  left out with a warning, an unreadable changelist is empty with a warning, a malformed corpus is left
+  out with a warning — so an early `Lazy<T>` cannot cache a file failure and the warm-up cannot take
+  the host down.
 - **`SiteIdentity`** is one internal static class in `Web` holding `Name`, `Contact` and
   `RepositoryUrl`. `OutboundUserAgent`, `ChangesEndpoint`, `ReferenceEndpoint`, `CopyrightEndpoint` and
   `SiteFacts` all read it, so the identity has one home and its existing callers keep their behaviour.
@@ -253,8 +259,8 @@ A page whose only fault is an obsolete door compiles and renders: an obsolete wa
 | `src/uk.osric.asp.Web/Pages/RenderOptions.cs` | The three key constants |
 | `src/uk.osric.asp.Web/Pages/PageJobOptions.cs` | `MaxDurationKey` |
 | `src/uk.osric.asp.Web/Admin/LicenceLibrary.cs` | Read the files as `SiteDocument`s, in the fixed order; keep the nullable members the copyright route names; take a logger and leave an unreadable file out with a warning rather than caching a failure |
-| `src/uk.osric.asp.Web/Admin/ChangeList.cs` | New: the file `Admin:Changelist` names, read lazily once and parsed by the pure function; take a logger; `Commits` is an empty list for a missing, unreadable or empty file |
-| `src/uk.osric.asp.Web/Admin/ChangesEndpoint.cs` | Read `ChangeList`; `RepositoryUrl` and the nested `Commit` go; use `SiteCommit`; one message for zero commits |
+| `src/uk.osric.asp.Web/Admin/ChangeList.cs` | New: the file `Admin:Changelist` names, read lazily once and parsed by the pure function; `Read` answers `ChangeListRead` — the commits and `Ok`, `Missing` or `Unreadable`; take a logger; an unreadable file is empty with a warning |
+| `src/uk.osric.asp.Web/Admin/ChangesEndpoint.cs` | Read `ChangeListRead`; `RepositoryUrl` and the nested `Commit` go; use `SiteCommit`; name a missing, unreadable or empty changelist |
 | `src/uk.osric.asp.Web/Admin/CopyrightEndpoint.cs` | Use the `SiteDocument`s and `SiteIdentity.RepositoryUrl` |
 | `src/uk.osric.asp.Web/Documentation/ReferenceLibrary.cs` | Read the moved model; add `Corpora`, the list `ISiteInfo.Reference` answers; its existing per-file catch gains the unreadable case |
 | `src/uk.osric.asp.Web/Documentation/ReferenceEndpoint.cs` | No route change; use `SiteIdentity.RepositoryUrl` and the moved model |
@@ -294,9 +300,11 @@ New tests, each of which fails before the change:
   expected kinds, names and formats, in the fixed order; a missing file is absent and the others still
   answer. `CopyrightEndpointTests` keeps proving the route renders the same files.
 - **The changelist is one read and two callers.** A full hash and subject become `SiteCommit(hash,
-  subject)`; a line that is not a commit becomes `SiteCommit(null, line)`; a missing file and an empty
-  file both answer an empty list and the route says the same thing for each; `/admin/changes` renders
-  the same list `ISiteInfo.Commits` answers.
+  subject)`; a line that is not a commit becomes `SiteCommit(null, line)`; a present file answers
+  `ChangeListReason.Ok` (empty when it has no lines), a missing file answers `Missing` with an empty
+  list, and an unreadable file answers `Unreadable` with an empty list and one warning.
+  `/admin/changes` says the three different things, and `ISiteInfo.Commits` answers the same list for
+  all three.
 - **The corpus is the process's corpus.** `ISiteInfo.Reference` carries the same `ReferenceCorpus`
   values as `ReferenceLibrary.Assemblies`, including the contract's `sdk` corpus, and a stored page can
   render a type's `Display` and `Summary.Text` from it without the shell. The generator's existing
@@ -331,7 +339,9 @@ Existing tests that move with the code:
   `IBuildInfo`; the about page still links the commit the build records.
 - `ChangesEndpointTests` constructs a `ChangeList` and keeps every parsing case; `CopyrightEndpointTests`
   keeps every rendering case. Both libraries gain a logger argument, which the tests pass as a
-  `NullLogger` except where the unreadable-file warning is the behaviour under test.
+  `NullLogger` except where the unreadable-file warning is the behaviour under test. A `ChangeListTests`
+  case makes an unreadable file by pointing the setting at a directory, which is the one way to get
+  the same failure on every platform the suite runs on.
 - `ShippedConfigurationTests` does not change: no new configuration key is read. `Site:Origin` and
   `Pages:Editor:Key` keep their existing readers.
 
@@ -411,7 +421,7 @@ None. On 2026-11-22 the owner chose one type rather than a capability per fact, 
 step, the identity constants exposed but not yet configured, and the `EditorPath` door retired with
 every seed and the manual updated. On 2026-11-23 they settled the three shapes that follow from that:
 the build's commit is named `DeployCommit` so it cannot be mistaken for the changelist's newest entry;
-the changelist is an empty list rather than `null`, losing the missing-versus-empty distinction; and
-the documents, changelist and corpus are warmed on the thread pool at startup, with an early caller
-waiting on the same read. The choices left here are the exact members, and the plan states them so they
+the changelist is an empty list rather than `null` in the page contract, with the missing, unreadable
+and empty cases kept for the route as `ChangeListRead`; and the documents, changelist and corpus are
+warmed on the thread pool at startup, with an early caller waiting on the same read. The choices left here are the exact members, and the plan states them so they
 are reviewed rather than asked again.

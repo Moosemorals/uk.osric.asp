@@ -57,7 +57,9 @@ One capability, `ISiteInfo`, registered with every layer and with a job, carryin
   notices, a licence text or `REUSE.toml`, and `Format` says text or Markdown. No heading and no
   markup — the page decides how to present it.
 - **The changelist.** `Commits`, the parsed hashes and subjects, empty when the build carries no file
-  or an empty one. The parse is a pure function, and the page links a hash with `RepositoryUrl`.
+  or an empty one. The parse is a pure function, and the page links a hash with `RepositoryUrl`. The
+  host's `ChangeList` answers a `ChangeListRead` with the list and whether the file was present,
+  missing or unreadable, so the route can say which without putting the reason on the page.
 - **The corpus.** `Reference`, the documentation the build carries, as the model
   `ReferenceLibrary` already reads. The records move from `Web/Documentation` to `Sdk`, the
   generator references `Sdk` instead of linking two files out of `Web`, and a page can render a
@@ -123,8 +125,9 @@ them).
 None. On 2026-11-22 the owner chose one type rather than a capability per fact, the corpus in the same
 step, the identity constants exposed but not yet configured, and the `EditorPath` door retired with
 every seed and the manual updated. On 2026-11-23 they named the build's commit `DeployCommit` so it
-cannot be confused with the changelist, preferred an empty list to a nullable one, and asked for the
-documents, changelist and corpus to be warmed on a background thread at startup.
+cannot be confused with the changelist, preferred an empty list to a nullable one with the reason kept
+at the host seam as `ChangeListRead`, and asked for the documents, changelist and corpus to be warmed
+on a background thread at startup.
 
 **Origin:** the owner's ask 5 of 2026-11-22, and their correction that the site's facts belong in one
 type, with the copyright page, the changelist and the reference as the cases that made the gap
