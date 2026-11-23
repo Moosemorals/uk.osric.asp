@@ -53,7 +53,7 @@ table and the items to it.
 | | *The cheapest step and independent of the rest: four entries admit RSA, so an inbound request can be verified before anything else lands. Ed25519 waits for the framework.* | | | | |
 | [`a-page-sees-its-request`](backlog/a-page-sees-its-request.md) | A page cannot see its request body, its raw target or a repeated header | determined-mountain-goat 💪🐐 | high | open | — |
 | | *The body's bytes, the raw target and a repeated header are the three facts a signature is rebuilt from; the header names are already visible.* | | | | |
-| [`fetch-is-a-rate`](backlog/fetch-is-a-rate.md) | A fetch allowance is a total, and a job gets one for its whole life | determined-mountain-goat 💪🐐 | high | open | — |
+| [`fetch-is-a-rate`](backlog/fetch-is-a-rate.md) | A fetch allowance is a total, and a job gets one for its whole life | determined-mountain-goat 💪🐐 | high | [planned](plans/fetch-is-a-rate.md) | — |
 | | *A render keeps today's count when it runs its deadline and a job gets its own rate; the bucket's figures are what the next row publishes.* | | | | |
 | [`the-site-is-one-type`](backlog/the-site-is-one-type.md) | The site's own facts are a capability each, and two of them are not reachable at all | protective-dragon 🔥🐉 | high | blocked | `fetch-is-a-rate` |
 | | *One home for the site's own facts — origin, editor, build, the image's documents and corpus, and the live bounds — so the surface stops growing a door per fact.* | | | | |
