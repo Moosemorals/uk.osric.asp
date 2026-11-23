@@ -144,6 +144,16 @@ public sealed record SiteBounds(
   has a hash; a `null` means a hand-edited or malformed changelist, and the route shows that line
   unlinked rather than dropping it. A strictly non-null type would either lose the line or need a second
   list for non-commit text, which is a worse trade for a malformed file.
+- **Why `Commits` is not a value-and-reason result.** The site's value-and-reason shapes answer a
+  question the caller decides on: `SiteOptions.TryResolve` has a path that did not resolve, a fetch
+  has a policy refusal, `ModelWindowRead` has a model that did not answer. A page rendering the
+  changelist has nothing to decide: the list is the fact, and an empty one is what a build without a
+  changelist has. The reason a file is missing or unreadable is an operator's diagnostic, so it stays
+  at the `ChangeList` seam and in the log, and `ISiteInfo` stays a fact sheet. If the route ever needs
+  to say "could not be read" rather than "carries none", `ChangeList` can answer a named result to the
+  route — a `ChangeListRead` with its entries and a problem — without widening the page contract. The
+  named result is the better shape there anyway; `AccountBalanceRead` and `ModelWindowRead` are the
+  examples the site already has.
 - `SiteAllowance` is a rate and its burst: `Capacity` is the most one burst may spend, `Available` is
   what is left now, `PerSecond` is the configured rate, and `Key` names the configuration key that sets
   it. It is used for fetches (units) and for template characters, because both enforcers already answer
