@@ -514,7 +514,7 @@ internal sealed class PageEndpoint() {
 
     // The header check above cannot see a chunked body, so read it here instead: bounded, then
     // handed back as a seekable stream for the form to parse. The snapshot buffers the body anyway;
-    // this just makes that buffer the cap's size rather than the server's.
+    // this just makes that buffer the limit's size rather than the server's.
     private static async Task<bool> TryBufferFormAsync(HttpContext context) {
         if (!context.Request.HasFormContentType) {
             return true;

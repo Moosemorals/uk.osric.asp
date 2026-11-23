@@ -127,7 +127,7 @@ public sealed class SqlitePageSessionStoreTests {
     }
 
     [Test]
-    public async Task TheCapEvictsTheMostIdleAnonymousSessionFirstAsync() {
+    public async Task TheLimitEvictsTheMostIdleAnonymousSessionFirstAsync() {
         TestClock clock = new();
         IPageSessionStore store = Store(clock, TestOptions.Stores.Visitor with { MaxLiveSessions = 2 });
         _ = await store.EnsureAsync("older-stranger", account: null);
@@ -162,7 +162,7 @@ public sealed class SqlitePageSessionStoreTests {
     [Test]
     public async Task AMintIsRefusedOnlyWhenNothingCanBeEvictedAsync() {
         TestClock clock = new();
-        // A cap of zero is what the configuration clamps away from; it is the one state in which the
+        // A limit of zero is what the configuration clamps away from; it is the one state in which the
         // table has room for nothing and holds nothing, so the guard is what answers.
         IPageSessionStore store = Store(clock, TestOptions.Stores.Visitor with { MaxLiveSessions = 0 });
 
@@ -171,14 +171,14 @@ public sealed class SqlitePageSessionStoreTests {
     }
 
     [Test]
-    public async Task TheSweepTrimsAnOverfullTableToItsCapAsync() {
+    public async Task TheSweepTrimsAnOverfullTableToItsLimitAsync() {
         TestClock clock = new();
         IPageSessionStore store = Store(clock, TestOptions.Stores.Visitor with { MaxLiveSessions = 2 });
         _ = await store.EnsureAsync("first", account: null);
         clock.Now = DateTimeOffset.UnixEpoch.AddMinutes(1);
         _ = await store.EnsureAsync("second", account: null);
 
-        // Shrinking the cap is what a configuration change looks like to a table that is already full.
+        // Shrinking the limit is what a configuration change looks like to a table that is already full.
         IPageSessionStore smaller = Store(clock, TestOptions.Stores.Visitor with { MaxLiveSessions = 1 });
         PageSessionSweep sweep = await smaller.RemoveExpiredAsync();
 

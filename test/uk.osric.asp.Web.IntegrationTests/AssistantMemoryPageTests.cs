@@ -135,7 +135,7 @@ public sealed class AssistantMemoryPageTests : IntegrationTest {
     }
 
     [Test]
-    public async Task ThePageShowsTheCountAtTheCapAsync() {
+    public async Task ThePageShowsTheCountAtTheLimitAsync() {
         const string ownerName = "page-full";
         _provider.Reset();
         await SeedAdditionalUserAsync(ownerName, Password);
@@ -146,7 +146,7 @@ public sealed class AssistantMemoryPageTests : IntegrationTest {
         string page = await client.GetStringAsync("/assistant/memory");
 
         Assert.Multiple(() => {
-            Assert.That(page, Does.Contain("200 of 200 memories, which is the cap"));
+            Assert.That(page, Does.Contain("200 of 200 memories, which is the limit"));
             Assert.That(page, Does.Contain("cannot remember anything new"));
         });
     }
@@ -179,7 +179,7 @@ public sealed class AssistantMemoryPageTests : IntegrationTest {
             return held[0].Id;
         });
 
-    // The cap is 200 rows, and writing them directly is the one way to reach it without the test
+    // The limit is 200 rows, and writing them directly is the one way to reach it without the test
     // spending two hundred runs.
     private Task<int> FillMemoryAsync(string owner, int count) =>
         WithServicesAsync(async provider => {

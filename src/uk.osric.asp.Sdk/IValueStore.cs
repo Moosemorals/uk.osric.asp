@@ -12,9 +12,9 @@ namespace uk.osric.asp.Sdk;
 /// </para>
 /// <para>
 /// A write validates before it returns and a read fails when its task is awaited: a key that breaks
-/// the length rule, a value that cannot be serialised, a value or a subject over its cap, a lifetime
+/// the length rule, a value that cannot be serialised, a value or a subject over its limit, a lifetime
 /// this subject cannot carry, or a write during a <c>HEAD</c>, an abandoned render or a passed
-/// deadline. A cap is checked in the same statement as the write, so a concurrent writer either fits
+/// deadline. A limit is checked in the same statement as the write, so a concurrent writer either fits
 /// or is refused.
 /// </para>
 /// </remarks>
@@ -61,7 +61,7 @@ public interface IValueStore {
     /// carry is a page bug and throws.
     /// </param>
     /// <returns>A task that completes when the write is committed.</returns>
-    /// <exception cref="System.ArgumentException">The key, the value or the lifetime breaks a rule or a cap.</exception>
+    /// <exception cref="System.ArgumentException">The key, the value or the lifetime breaks a rule or exceeds a limit.</exception>
     /// <exception cref="System.InvalidOperationException">The render cannot write: a <c>HEAD</c>, an abandoned render or a passed deadline.</exception>
     public Task SetAsync<T>(string key, T value, StoreLifetime? lifetime = null);
 

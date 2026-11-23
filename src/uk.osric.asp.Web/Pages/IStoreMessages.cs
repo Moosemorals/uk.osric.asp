@@ -52,12 +52,12 @@ internal sealed record StoreMessageWrite(
 /// </remarks>
 internal interface IStoreMessages {
 
-    /// <summary>Queues one message, under its subject's caps, in one statement.</summary>
+    /// <summary>Queues one message, under its subject's limits, in one statement.</summary>
     /// <param name="write">The row to write.</param>
-    /// <param name="caps">The caps the subject obeys.</param>
+    /// <param name="limits">The limits the subject obeys.</param>
     /// <param name="cancellationToken">Cancels the write.</param>
-    /// <returns>Whether the row was written: <see langword="false"/> means a cap refused it.</returns>
-    Task<bool> PostAsync(StoreMessageWrite write, PageMessageOptions caps, CancellationToken cancellationToken = default);
+    /// <returns>Whether the row was written: <see langword="false"/> means a limit refused it.</returns>
+    Task<bool> PostAsync(StoreMessageWrite write, PageMessageOptions limits, CancellationToken cancellationToken = default);
 
     /// <summary>Takes the oldest message the reader would see for one address, removing it.</summary>
     /// <param name="subjects">The reader's subjects, most ephemeral first.</param>

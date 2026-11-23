@@ -150,7 +150,7 @@ public sealed class PageStorageScopeTests {
     }
 
     [Test]
-    public async Task AKeyLongerThanTheCapIsRefusedAsync() {
+    public async Task AKeyLongerThanTheLimitIsRefusedAsync() {
         FakeStoreValues store = Live();
         PageStoresOptions options = TestOptions.Stores with { MaxKeyChars = 4 };
         IValueStore values = new PageValueStore(Key("/page"), store, options.Page, options.MaxKeyChars, writable: true);
@@ -167,7 +167,7 @@ public sealed class PageStorageScopeTests {
     }
 
     [Test]
-    public async Task AValueLargerThanTheCapIsRefusedAsync() {
+    public async Task AValueLargerThanTheLimitIsRefusedAsync() {
         FakeStoreValues store = Live();
         PageStoresOptions options = TestOptions.Stores with {
             Page = TestOptions.Stores.Page with { MaxValueBytes = 16, MaxTotalBytes = 16 },
@@ -178,7 +178,7 @@ public sealed class PageStorageScopeTests {
     }
 
     [Test]
-    public async Task AWriteThatBreaksThePageByteCapIsRefusedAsync() {
+    public async Task AWriteThatBreaksThePageByteLimitIsRefusedAsync() {
         FakeStoreValues store = Live();
         PageStoresOptions options = TestOptions.Stores with {
             Page = TestOptions.Stores.Page with { MaxValueBytes = 1024, MaxTotalBytes = 64 },
@@ -189,7 +189,7 @@ public sealed class PageStorageScopeTests {
     }
 
     [Test]
-    public async Task AWritePastTheKeyCountCapIsRefusedAsync() {
+    public async Task AWritePastTheKeyCountLimitIsRefusedAsync() {
         FakeStoreValues store = Live();
         PageStoresOptions options = TestOptions.Stores with {
             Page = TestOptions.Stores.Page with { MaxKeys = 2 },

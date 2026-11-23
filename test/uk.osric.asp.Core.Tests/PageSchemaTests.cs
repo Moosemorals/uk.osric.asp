@@ -21,14 +21,14 @@ public sealed class PageSchemaTests {
     }
 
     [Test]
-    public void ADeclarationInsideItsCapsIsApplied() {
+    public void ADeclarationInsideItsLimitIsApplied() {
         PageSchema schema = Schema(Table("notes", "Title", "Body"));
 
         Assert.That(schema.Validate(Limits), Is.Empty);
     }
 
     [Test]
-    public void MoreTablesThanTheCapIsATableProblem() {
+    public void MoreTablesThanTheLimitIsATableProblem() {
         PageSchema schema = Schema(Table("one", "A"), Table("two", "A"), Table("three", "A"));
 
         Assert.That(Messages(schema), Has.Exactly(1).Contains("at most 2 tables"));
@@ -63,7 +63,7 @@ public sealed class PageSchemaTests {
     }
 
     [Test]
-    public void MoreColumnsThanTheCapIsATableProblem() {
+    public void MoreColumnsThanTheLimitIsATableProblem() {
         PageSchema schema = Schema(Table("notes", "A", "B", "C", "D"));
 
         Assert.That(Messages(schema), Has.Some.Contains("at most 3 columns"));

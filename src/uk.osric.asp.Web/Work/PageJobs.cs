@@ -176,7 +176,7 @@ internal sealed class PageJobs(
         }
 
         long start = Stopwatch.GetTimestamp();
-        TimeSpan cap = wait > TimeSpan.Zero
+        TimeSpan limit = wait > TimeSpan.Zero
             ? wait < options.MaxWait ? wait : options.MaxWait
             : TimeSpan.Zero;
 
@@ -189,7 +189,7 @@ internal sealed class PageJobs(
                 return new PageJobEvents(snapshot.Events, snapshot.Next, snapshot.Reset, info.State, info.Failure);
             }
 
-            TimeSpan remaining = cap - Stopwatch.GetElapsedTime(start);
+            TimeSpan remaining = limit - Stopwatch.GetElapsedTime(start);
             if (remaining <= TimeSpan.Zero) {
                 return new PageJobEvents(snapshot.Events, snapshot.Next, snapshot.Reset, info.State, info.Failure);
             }

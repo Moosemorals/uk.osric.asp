@@ -12,7 +12,7 @@ using uk.osric.asp.Web.Storage;
 
 /// <summary>The SQLite-backed memory store: two tables, one FTS5 index, every statement owner-scoped.</summary>
 /// <remarks>
-/// The writes that have to be atomic are atomic in SQLite rather than in this class: the cap and the
+/// The writes that have to be atomic are atomic in SQLite rather than in this class: the limit and the
 /// insert share a transaction, and so do the version check, the history row and the new head. Recall
 /// spends its money on the FTS5 query and filters the owner beside it, so an index search never sees
 /// another account's text.
@@ -142,7 +142,7 @@ internal sealed class SqliteMemoryStore(
         await using IDbContextTransaction transaction = await database.Database.BeginTransactionAsync(cancellationToken);
 
         // The owner's rows are read once, for both rules: a duplicate is the same note said twice, and
-        // the count is the cap. The transaction is what stops two runs both passing the check.
+        // the count is the limit. The transaction is what stops two runs both passing the check.
         MemoryEntry[] held = await database.Set<MemoryEntry>()
             .Where(memory => memory.Owner == owner)
             .ToArrayAsync(cancellationToken);
@@ -153,7 +153,7 @@ internal sealed class SqliteMemoryStore(
         if (held.Length >= options.MaxMemoriesPerOwner) {
             await transaction.RollbackAsync(cancellationToken);
             return MemoryWriteResult.Refused(
-                $"The owner already holds {held.Length.ToString(CultureInfo.InvariantCulture)} memories, which is the cap (Assistant:MaxMemoriesPerOwner). Forget one with forget_memory, or update one that is out of date.");
+                $"The owner already holds {held.Length.ToString(CultureInfo.InvariantCulture)} memories, which is the limit (Assistant:MaxMemoriesPerOwner). Forget one with forget_memory, or update one that is out of date.");
         }
 
         MemoryEntry entry = new() {

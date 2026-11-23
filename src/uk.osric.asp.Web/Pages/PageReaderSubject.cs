@@ -99,10 +99,10 @@ internal sealed class PageReaderSubject {
         }
     }
 
-    /// <summary>The caps a subject kind obeys for this reader.</summary>
+    /// <summary>The limits a subject kind obeys for this reader.</summary>
     /// <param name="kind">The resolved lifetime kind.</param>
     /// <exception cref="ArgumentOutOfRangeException">A Page lifetime was asked of a Visitor subject.</exception>
-    public StoreSubjectCaps CapsFor(StoreLifetimeKind kind) {
+    public SubjectLimits LimitsFor(StoreLifetimeKind kind) {
         if (IsJob) {
             return kind is StoreLifetimeKind.Person or StoreLifetimeKind.NextRead
                 ? _visitor.SignedIn
@@ -111,7 +111,7 @@ internal sealed class PageReaderSubject {
 
         return kind switch {
             StoreLifetimeKind.Browser => _visitor.Browser,
-            StoreLifetimeKind.Session or StoreLifetimeKind.Person or StoreLifetimeKind.NextRead => SessionCaps,
+            StoreLifetimeKind.Session or StoreLifetimeKind.Person or StoreLifetimeKind.NextRead => SessionLimits,
             _ => throw new ArgumentOutOfRangeException(nameof(kind), kind, "A Visitor subject has no Page lifetime."),
         };
     }
@@ -144,7 +144,7 @@ internal sealed class PageReaderSubject {
     public Task TouchSessionAsync(IPageSessionStore store, CancellationToken cancellationToken = default) =>
         IsJob ? Task.CompletedTask : _session!.TouchAsync(store, cancellationToken);
 
-    private StoreSubjectCaps SessionCaps => IsSignedIn ? _visitor.SignedIn : _visitor.Anonymous;
+    private SubjectLimits SessionLimits => IsSignedIn ? _visitor.SignedIn : _visitor.Anonymous;
 
     private string EnsureBrowser() {
         if (_browserId is null) {

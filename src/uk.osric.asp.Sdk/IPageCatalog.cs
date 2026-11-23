@@ -28,7 +28,7 @@ namespace uk.osric.asp.Sdk;
 /// <see cref="ShellLinks"/> is a value rather than a read, and refuses the same way.
 /// </para>
 /// <para>
-/// The read is bounded. One listing returns at most the host's row cap and refuses rather than
+/// The read is bounded. One listing returns at most the host's row limit and refuses rather than
 /// truncating, and every template the render pulls in shares one source allowance across the page
 /// and its layouts, which is also a refusal rather than a truncated answer.
 /// </para>
@@ -86,7 +86,7 @@ public interface IPageCatalog {
     /// The prefix or the cursor cannot name a key, for example one containing <c>?</c> or <c>#</c>.
     /// </exception>
     /// <exception cref="ArgumentOutOfRangeException">
-    /// The limit is smaller than one row or larger than the host's listing cap; the message names the
+    /// The limit is smaller than one row or larger than the host's listing limit; the message names the
     /// setting to raise.
     /// </exception>
     /// <exception cref="InvalidOperationException">The render was abandoned.</exception>
@@ -136,8 +136,8 @@ public interface IPageCatalog {
     /// example one containing <c>?</c> or <c>#</c>.
     /// </exception>
     /// <exception cref="ArgumentOutOfRangeException">
-    /// The limit is smaller than one line or larger than the host's cap, or the context is smaller than
-    /// one character or larger than the host's cap; the message names the setting to raise.
+    /// The limit is smaller than one line or larger than the host's limit, or the context is smaller than
+    /// one character or larger than the host's limit; the message names the setting to raise.
     /// </exception>
     /// <exception cref="InvalidOperationException">The render was abandoned.</exception>
     public Task<PageSearch> SearchAsync(PageSearchRequest request);

@@ -79,7 +79,7 @@ public sealed class AssistantMemoryStoreTests {
     }
 
     [Test]
-    public async Task TheCapRefusesAtExactlyTheConfiguredNumberOfMemoriesAsync() {
+    public async Task TheLimitRefusesAtExactlyTheConfiguredNumberOfMemoriesAsync() {
         await using StorageDbContext database = new(_options);
         IMemoryStore memories = Store(database, maximumMemoriesPerOwner: 2);
         await memories.RememberAsync("owner", MemoryKind.Fact, "First fact.", Source);
@@ -272,7 +272,7 @@ public sealed class AssistantMemoryStoreTests {
     }
 
     [Test]
-    public async Task AMemoryLongerThanTheCapIsRefusedRatherThanTruncatedAsync() {
+    public async Task AMemoryLongerThanTheLimitIsRefusedRatherThanTruncatedAsync() {
         await using StorageDbContext database = new(_options);
         IMemoryStore memories = Store(database, maximumMemoryChars: 20);
 
@@ -383,7 +383,7 @@ public sealed class AssistantMemoryStoreTests {
     }
 
     [Test]
-    public async Task AnEditIsRefusedForASecretOrForContentOverTheCapAsync() {
+    public async Task AnEditIsRefusedForASecretOrForContentOverTheLimitAsync() {
         await using StorageDbContext database = new(_options);
         IMemoryStore memories = Store(database, maximumMemoryChars: 20);
         MemoryCandidate original = (await memories.RememberAsync("owner", MemoryKind.Fact, "Short note.", Source)).Memory!;

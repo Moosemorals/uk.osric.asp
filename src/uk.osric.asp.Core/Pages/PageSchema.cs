@@ -107,7 +107,7 @@ public sealed record PageSchema {
     /// <summary>
     /// The problems that make a declaration one the host cannot apply.
     /// </summary>
-    /// <param name="limits">The caps a declaration obeys.</param>
+    /// <param name="limits">The limits a declaration obeys.</param>
     /// <returns>One problem per table or column, each naming what to change.</returns>
     /// <exception cref="ArgumentNullException">No limits were given.</exception>
     /// <remarks>
@@ -198,7 +198,7 @@ public sealed record PageSchema {
     }
 }
 
-/// <summary>The caps a declaration obeys.</summary>
+/// <summary>The limits a declaration obeys.</summary>
 /// <param name="MaxTablesPerSource">The most tables one source may declare.</param>
 /// <param name="MaxColumnsPerTable">The most columns one table may declare.</param>
 /// <param name="MaxNameChars">The longest table or column name.</param>

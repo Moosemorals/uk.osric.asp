@@ -35,7 +35,7 @@ Two smaller things are wrong in the same counter:
 The owner's rule replaces the total with a rate, and the rate is chosen so nothing gets worse: a
 render keeps the count it has today when it runs its whole deadline, and a fast page keeps today's
 burst. That is a token bucket whose capacity is `rate × Pages:Render:TimeoutSeconds`. A job gets its
-own rate, and its duration is the only ceiling — the literal reading of "a rate instead of a cap".
+own rate, and its duration is the only ceiling — the literal reading of "a rate instead of a limit".
 
 ## Sketch
 
@@ -54,7 +54,7 @@ own rate, and its duration is the only ceiling — the literal reading of "a rat
    [`the-site-is-one-type`](the-site-is-one-type.md), so a fan-out can size itself instead of
    guessing.
 5. **The refusal keeps its word.** `TooManyRequests` stays the value, and the message names the rate
-   and the key that sets it, as the cap's message names the cap today.
+   and the key that sets it, as the limit's message names the limit today.
 6. **The manual and the record.** `/help` and [pages](../pages.md#page-contract) carry the rate and
    the job's own value; the merge records the name the plan intends.
 
@@ -65,7 +65,7 @@ own rate, and its duration is the only ceiling — the literal reading of "a rat
   host and leaves the door to that item.
 - **The headers.** What a page may send is
   [`outbound-headers-are-an-allow-list`](outbound-headers-are-an-allow-list.md).
-- **The job's other clocks and caps.** `Pages:Jobs` already bounds a job's silence, duration,
+- **The job's other clocks and limits.** `Pages:Jobs` already bounds a job's silence, duration,
   messages and journal; this adds one rate beside them.
 
 ## Open questions
@@ -74,4 +74,4 @@ None. The owner settled the shape on 2026-11-22: a token bucket with today's cap
 from the render's deadline, and a per-job rate with the job's duration as its only ceiling.
 
 **Origin:** the owner's ask 6 of 2026-11-22, after measuring a render refused its sixth request and
-asking what a worker gets, and their answer that the allowance should be a rate rather than a cap.
+asking what a worker gets, and their answer that the allowance should be a rate rather than a limit.

@@ -30,7 +30,7 @@ internal sealed record AssistantOptions {
 
     /// <summary>
     /// The floor under a reply, in tokens. The window the provider reports is shared between the
-    /// prompt and the reply, so what the prompt leaves is the reply's allowance, capped at the
+    /// prompt and the reply, so what the prompt leaves is the reply's allowance, limited to the
     /// provider's own maximum and never below this.
     /// </summary>
     public required int MinOutputTokens { get; init; }

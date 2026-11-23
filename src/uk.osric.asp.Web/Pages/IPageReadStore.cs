@@ -76,7 +76,7 @@ internal interface IPageReadStore {
     /// <summary>Lists the live library pages, ordered by key.</summary>
     /// <remarks>
     /// This is the compiler's read, not a page's: a library is an input to every page that names it,
-    /// so a row cap here would stop those pages compiling rather than shorten a listing.
+    /// so a row limit here would stop those pages compiling rather than shorten a listing.
     /// </remarks>
     /// <param name="cancellationToken">Cancels the read.</param>
     /// <returns>Every live library head, in ordinal key order.</returns>

@@ -22,7 +22,7 @@ namespace uk.osric.asp.Sdk;
 /// <para>
 /// Rendering is pure: it has no I/O, needs no <c>await</c>, and is bounded by the render's body
 /// allowance when the result is written. The diff itself is bounded by the host's line and edit
-/// caps; past them the middle is shown as replacement blocks rather than the work being left
+/// limits; past them the middle is shown as replacement blocks rather than the work being left
 /// unbounded.
 /// </para>
 /// </remarks>

@@ -69,7 +69,7 @@ public interface IWorkerContext {
 
     /// <summary>Waits for the next message sent to this job.</summary>
     /// <param name="waitSeconds">
-    /// How long to wait, capped by <c>Pages:Jobs:MaxWaitSeconds</c>. Omitted or <see langword="null"/>
+    /// How long to wait, limited by <c>Pages:Jobs:MaxWaitSeconds</c>. Omitted or <see langword="null"/>
     /// waits until a message arrives or the job ends.
     /// </param>
     /// <returns>

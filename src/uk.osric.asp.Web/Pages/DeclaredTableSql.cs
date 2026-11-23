@@ -120,15 +120,15 @@ internal static class DeclaredTableSql {
         ];
     }
 
-    /// <summary>The statements that replace one table's cap triggers.</summary>
+    /// <summary>The statements that replace one table's limit triggers.</summary>
     /// <param name="realName">The table's real name.</param>
-    /// <param name="table">The declaration, whose columns and subject decide what the cap counts.</param>
-    /// <param name="records">The caps.</param>
-    /// <returns>The two triggers, written fresh so a changed cap takes effect on the next save.</returns>
+    /// <param name="table">The declaration, whose columns and subject decide what the limit counts.</param>
+    /// <param name="records">The limits.</param>
+    /// <returns>The two triggers, written fresh so a changed limit takes effect on the next save.</returns>
     /// <remarks>
-    /// The caps are enforced inside the statement that writes, so a concurrent writer either fits or is
-    /// refused and cannot slip over a cap through a read-then-write race in the host. The numbers are
-    /// baked into the trigger, which is why every save replaces them: the alternative is a cap that
+    /// The limits are enforced inside the statement that writes, so a concurrent writer either fits or is
+    /// refused and cannot slip over a limit through a read-then-write race in the host. The numbers are
+    /// baked into the trigger, which is why every save replaces them: the alternative is a limit that
     /// only applies to tables made after an operator changed it.
     /// </remarks>
     public static IReadOnlyList<string> CreateCaps(string realName, PageTable table, PageRecordOptions records) {
@@ -166,11 +166,11 @@ internal static class DeclaredTableSql {
         ];
     }
 
-    /// <summary>The statements that remove one table's cap triggers.</summary>
+    /// <summary>The statements that remove one table's limit triggers.</summary>
     /// <param name="realName">The table's real name.</param>
     /// <returns>The drops.</returns>
     /// <remarks>
-    /// A cap trigger names every column, so it has to go before a column is altered and come back
+    /// A limit trigger names every column, so it has to go before a column is altered and come back
     /// afterwards: SQLite re-parses a trigger when the table it is on changes.
     /// </remarks>
     public static IReadOnlyList<string> DropCaps(string realName) => [

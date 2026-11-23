@@ -13,7 +13,7 @@ namespace uk.osric.asp.Sdk;
 /// <para>
 /// A misuse is a page bug rather than a normal outcome, so it throws: a write validates before it
 /// returns, and a read fails when its task is awaited. A key that is too long, a value that cannot be
-/// serialised as JSON, a value over its cap, a page over its total cap, a write on a <c>HEAD</c>
+/// serialised as JSON, a value over its limit, a page over its total limit, a write on a <c>HEAD</c>
 /// request, or a write to a page that was deleted while the render was running. The failure is
 /// detected before the row is written.
 /// </para>
@@ -39,7 +39,7 @@ public interface IPageStorage {
     /// control characters.</param>
     /// <param name="value">The value; a null is stored as JSON <c>null</c>.</param>
     /// <returns>A task that completes when the write is committed.</returns>
-    /// <exception cref="ArgumentException">The key or the value breaks a cap.</exception>
+    /// <exception cref="ArgumentException">The key or the value exceeds a limit.</exception>
     public Task SetAsync<T>(string key, T value);
 
     /// <summary>Removes a key.</summary>

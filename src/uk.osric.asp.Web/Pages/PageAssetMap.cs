@@ -32,7 +32,7 @@ internal static class PageAssetMap {
     /// <summary>Reads the map once for a request.</summary>
     /// <param name="context">The request whose items cache the map.</param>
     /// <param name="store">Where the heads are read.</param>
-    /// <param name="limit">The row cap, from <c>Pages:Read</c>.</param>
+    /// <param name="limit">The row limit, from <c>Pages:Read</c>.</param>
     /// <param name="cancellationToken">Cancels the read.</param>
     public static async Task<IReadOnlyDictionary<string, string>> ForRequestAsync(
         HttpContext context,

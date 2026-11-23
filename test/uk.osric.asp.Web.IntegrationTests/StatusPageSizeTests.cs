@@ -17,7 +17,7 @@ public sealed class StatusPageSizeTests : IntegrationTest {
     // fail2ban panels the Host group gained moved this from 2.8 MB, the four context-budget
     // instruments moved it again, and the search's duration and outcome panels took it to about
     // 4.11 MB: the number is a ceiling to raise deliberately with the catalogue, not a target to
-    // approach, and it stays under the 4 MiB body cap the render refuses past.
+    // approach, and it stays under the 4 MiB body limit the render refuses past.
     private const int PageBudgetBytes = 4_150_000;
 
     internal override AspApplication CreateApplication() => new(metricsSource: new WideMetricsSource());

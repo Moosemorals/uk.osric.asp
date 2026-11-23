@@ -186,29 +186,29 @@ public sealed class SqliteStoreValuesTests {
     }
 
     [Test]
-    public async Task TheKeyCountCapRefusesTheWriteAndLeavesNoRowAsync() {
+    public async Task TheKeyCountLimitRefusesTheWriteAndLeavesNoRowAsync() {
         await DatabaseTemplate.SavePageAsync(_options, "/page.cs");
-        StoreSubjectCaps caps = TestOptions.Stores.Page with { MaxKeys = 2 };
+        SubjectLimits limits = TestOptions.Stores.Page with { MaxKeys = 2 };
         IStoreValues store = Values();
 
-        await SetAsync(store, "/page.cs", "one", "1", caps: caps);
-        await SetAsync(store, "/page.cs", "two", "2", caps: caps);
+        await SetAsync(store, "/page.cs", "one", "1", limits: limits);
+        await SetAsync(store, "/page.cs", "two", "2", limits: limits);
         ArgumentException? refused = await Assert.ThrowsAsync<ArgumentException>(
-            () => SetAsync(store, "/page.cs", "three", "3", caps: caps));
+            () => SetAsync(store, "/page.cs", "three", "3", limits: limits));
 
         Assert.That(refused?.Message, Does.Contain("2 keys"));
         Assert.That(await store.ListAsync(Subjects("/page.cs"), "/page.cs", null, 10), Has.Count.EqualTo(2));
     }
 
     [Test]
-    public async Task TheSubjectByteCapRefusesTheWriteAndLeavesTheOldValueAsync() {
+    public async Task TheSubjectByteLimitRefusesTheWriteAndLeavesTheOldValueAsync() {
         await DatabaseTemplate.SavePageAsync(_options, "/page.cs");
-        StoreSubjectCaps caps = TestOptions.Stores.Page with { MaxValueBytes = 4096, MaxTotalBytes = 64 };
+        SubjectLimits limits = TestOptions.Stores.Page with { MaxValueBytes = 4096, MaxTotalBytes = 64 };
         IStoreValues store = Values();
 
-        await SetAsync(store, "/page.cs", "small", "1", caps: caps);
+        await SetAsync(store, "/page.cs", "small", "1", limits: limits);
         await Assert.ThrowsAsync<ArgumentException>(
-            () => SetAsync(store, "/page.cs", "big", new string('x', 200), caps: caps));
+            () => SetAsync(store, "/page.cs", "big", new string('x', 200), limits: limits));
 
         Assert.That((await store.FindAsync(Subjects("/page.cs"), "/page.cs", "small"))?.Value, Is.EqualTo("1"));
         Assert.That(await store.FindAsync(Subjects("/page.cs"), "/page.cs", "big"), Is.Null);
@@ -217,11 +217,11 @@ public sealed class SqliteStoreValuesTests {
     [Test]
     public async Task AnUpdateIsAllowedWhenThePageIsAlreadyFullAsync() {
         await DatabaseTemplate.SavePageAsync(_options, "/page.cs");
-        StoreSubjectCaps caps = TestOptions.Stores.Page with { MaxValueBytes = 4096, MaxTotalBytes = 64 };
+        SubjectLimits limits = TestOptions.Stores.Page with { MaxValueBytes = 4096, MaxTotalBytes = 64 };
         IStoreValues store = Values();
-        await SetAsync(store, "/page.cs", "key", new string('x', 40), caps: caps);
+        await SetAsync(store, "/page.cs", "key", new string('x', 40), limits: limits);
 
-        await SetAsync(store, "/page.cs", "key", new string('y', 40), caps: caps);
+        await SetAsync(store, "/page.cs", "key", new string('y', 40), limits: limits);
 
         Assert.That((await store.FindAsync(Subjects("/page.cs"), "/page.cs", "key"))?.Value, Is.EqualTo(new string('y', 40)));
     }
@@ -354,7 +354,7 @@ public sealed class SqliteStoreValuesTests {
         string key,
         string json,
         StoreLifetimeKind kind = StoreLifetimeKind.Page,
-        StoreSubjectCaps? caps = null) =>
+        SubjectLimits? limits = null) =>
         store.WriteAsync(
             new StoreValueWrite(
                 StoreSubjectKeys.PagePrefix + page,
@@ -364,7 +364,7 @@ public sealed class SqliteStoreValuesTests {
                 ExpiresAt: null,
                 json,
                 RequireLivePage: kind == StoreLifetimeKind.Page),
-            caps ?? TestOptions.Stores.Page);
+            limits ?? TestOptions.Stores.Page);
 
     private IStoreValues Values() => new SqliteStoreValues(
         DatabaseTemplate.Factory(_options), TestOptions.Stores, TimeProvider.System);

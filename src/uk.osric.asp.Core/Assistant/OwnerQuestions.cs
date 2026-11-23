@@ -54,7 +54,7 @@ public sealed record OwnerAnswersResult(OwnerAnswerSet? Answers, string? Error) 
 /// <summary>The question and answer shapes, their bounds and their stored form.</summary>
 /// <remarks>
 /// The tool validates the questions, the route builds the answers and the page renders both, so the
-/// shapes live here once: a cap or a refusal cannot drift between what the model asked, what the
+/// shapes live here once: a limit or a refusal cannot drift between what the model asked, what the
 /// owner gave and what the page shows. A question the owner leaves blank is an answer like any
 /// other — <c>selected: []</c> and <c>text: ""</c> — because the run waited and the card was shown.
 /// </remarks>
@@ -107,12 +107,12 @@ public static class OwnerQuestions {
         })]);
     }
 
-    /// <summary>Checks a question set against the configured caps.</summary>
+    /// <summary>Checks a question set against the configured limits.</summary>
     /// <param name="questions">The questions the model sent.</param>
     /// <param name="maximumQuestions">The most questions one call may ask.</param>
     /// <param name="maximumOptions">The most options one question may offer.</param>
     /// <param name="maximumChars">The longest question, header, label or option description.</param>
-    /// <returns>A refusal naming the cap and the accepted shape, or null when the set is valid.</returns>
+    /// <returns>A refusal naming the limit and the accepted shape, or null when the set is valid.</returns>
     public static string? Validate(
         OwnerQuestionSet questions,
         int maximumQuestions,

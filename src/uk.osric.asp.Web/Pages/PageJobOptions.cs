@@ -59,7 +59,7 @@ internal sealed record PageJobOptions {
     /// <summary>The retention as a time span.</summary>
     public TimeSpan Retention => TimeSpan.FromMinutes(RetentionMinutes);
 
-    /// <summary>The wait cap as a time span.</summary>
+    /// <summary>The wait limit as a time span.</summary>
     public TimeSpan MaxWait => TimeSpan.FromSeconds(MaxWaitSeconds);
 
     /// <summary>Reads <c>Pages:Jobs</c>.</summary>

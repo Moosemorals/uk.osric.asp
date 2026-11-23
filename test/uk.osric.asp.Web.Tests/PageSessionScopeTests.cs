@@ -132,15 +132,15 @@ public sealed class PageSessionScopeTests {
     }
 
     [Test]
-    public async Task AValueOverTheCapIsRefusedBeforeARowIsWrittenAsync() {
-        Visitor visitor = Open(options: Caps(anonymous: (16, 8, 1024)));
+    public async Task AValueOverTheLimitIsRefusedBeforeARowIsWrittenAsync() {
+        Visitor visitor = Open(options: Limits(anonymous: (16, 8, 1024)));
 
         await Assert.ThrowsAsync<ArgumentException>(() => visitor.Store.SetAsync("big", new string('x', 64)));
         Assert.That(visitor.Values.Count(StoreSubjectKeys.ForSession(visitor.Session.Id)), Is.Zero);
     }
 
     [Test]
-    public async Task AKeyLongerThanTheCapIsRefusedAsync() {
+    public async Task AKeyLongerThanTheLimitIsRefusedAsync() {
         PageStoresOptions options = TestOptions.Stores with { MaxKeyChars = 4 };
         Visitor visitor = Open(options: options);
 
@@ -157,7 +157,7 @@ public sealed class PageSessionScopeTests {
 
     [Test]
     public async Task AWritePastTheKeyCountIsRefusedAsync() {
-        Visitor visitor = Open(options: Caps(anonymous: (1024, 2, 4096)));
+        Visitor visitor = Open(options: Limits(anonymous: (1024, 2, 4096)));
 
         await visitor.Store.SetAsync("one", 1);
         await visitor.Store.SetAsync("two", 2);
@@ -167,7 +167,7 @@ public sealed class PageSessionScopeTests {
 
     [Test]
     public async Task AWritePastTheByteTotalIsRefusedAsync() {
-        Visitor visitor = Open(options: Caps(anonymous: (1024, 8, 64)));
+        Visitor visitor = Open(options: Limits(anonymous: (1024, 8, 64)));
         await visitor.Store.SetAsync("small", "1");
 
         await Assert.ThrowsAsync<ArgumentException>(() => visitor.Store.SetAsync("big", new string('x', 100)));
@@ -175,8 +175,8 @@ public sealed class PageSessionScopeTests {
     }
 
     [Test]
-    public async Task ASignedInVisitorUsesTheSignedInCapsAsync() {
-        Visitor visitor = Open(account: "owner", options: Caps(
+    public async Task ASignedInVisitorUsesTheSignedInLimitAsync() {
+        Visitor visitor = Open(account: "owner", options: Limits(
             anonymous: (16, 8, 1024), signedIn: (4096, 32, 16384)));
 
         await visitor.Store.SetAsync("big", new string('x', 1024));
@@ -386,18 +386,18 @@ public sealed class PageSessionScopeTests {
     private static List<PageSessionKey> Pairs(IReadOnlyList<StoreEntry> entries) =>
         [.. entries.Select(entry => new PageSessionKey(entry.Page, entry.Key))];
 
-    private static PageStoresOptions Caps(
+    private static PageStoresOptions Limits(
         (int Value, int Keys, int Total) anonymous,
         (int Value, int Keys, int Total)? signedIn = null) {
-        StoreSubjectCaps anonymousCaps = new(anonymous.Value, anonymous.Keys, anonymous.Total);
+        SubjectLimits anonymousLimits = new(anonymous.Value, anonymous.Keys, anonymous.Total);
         (int Value, int Keys, int Total) signed = signedIn ?? (4096, 32, 16384);
-        StoreSubjectCaps signedInCaps = new(signed.Value, signed.Keys, signed.Total);
+        SubjectLimits signedInLimits = new(signed.Value, signed.Keys, signed.Total);
 
         return TestOptions.Stores with {
             Visitor = TestOptions.Stores.Visitor with {
-                Anonymous = anonymousCaps,
-                Browser = anonymousCaps with { MaxValueBytes = signedInCaps.MaxValueBytes, MaxTotalBytes = signedInCaps.MaxTotalBytes },
-                SignedIn = signedInCaps,
+                Anonymous = anonymousLimits,
+                Browser = anonymousLimits with { MaxValueBytes = signedInLimits.MaxValueBytes, MaxTotalBytes = signedInLimits.MaxTotalBytes },
+                SignedIn = signedInLimits,
             },
         };
     }

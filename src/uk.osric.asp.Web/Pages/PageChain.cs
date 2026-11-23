@@ -317,7 +317,7 @@ internal sealed class PageChain {
     /// <param name="request">The request it runs against.</param>
     /// <param name="path">The chain that asked for it, which the recursion check reads.</param>
     /// <param name="depth">How many embeds already sit above the layer that asked.</param>
-    /// <exception cref="InvalidOperationException">The page repeats in the chain, or a cap was reached.</exception>
+    /// <exception cref="InvalidOperationException">The page repeats in the chain, or a limit was reached.</exception>
     /// <exception cref="UserFacingException">The page, or a page wrapping it, cannot be served.</exception>
     /// <exception cref="OperationCanceledException">The render's deadline fired while it ran.</exception>
     public async Task<PageCapture> ComposeAsync(
@@ -439,7 +439,7 @@ internal sealed class PageChain {
         new PageFrame(layer.Layout.Title, layer.Layout.Head, layer.Layout.Stylesheets, allowsScripts));
 
     // The same page with the same request in an ancestor is a cycle. The same page with a different
-    // request is a recursive component: allowed, capped and counted, so the one page doing it is
+    // request is a recursive component: allowed, limited and counted, so the one page doing it is
     // visible without making the ordinary case noisy.
     private void CheckAncestors(PagePath key, PageRenderIdentity identity, IReadOnlyList<PageRenderIdentity> chain) {
         bool recursive = false;
@@ -459,7 +459,7 @@ internal sealed class PageChain {
 
         if (recursive) {
             _environment.Metrics.RecordRecursiveComposition(key);
-            _logger.LogDebug("Page {Path} composes itself with a different request; the caps bound it", key.Key);
+            _logger.LogDebug("Page {Path} composes itself with a different request; the limits bound it", key.Key);
         }
     }
 

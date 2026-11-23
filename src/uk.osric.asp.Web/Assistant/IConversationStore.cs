@@ -49,7 +49,7 @@ internal interface IConversationStore {
     /// <param name="cancellationToken">The request's token.</param>
     /// <remarks>
     /// The transcript's answered card is rendered from these rows rather than the tool result, because
-    /// a long result is cut at the tool cap and an answer cut in half is worse than no card.
+    /// a long result is cut at the tool limit and an answer cut in half is worse than no card.
     /// </remarks>
     Task<IReadOnlyList<OwnerInterrupt>> GetAnsweredQuestionsAsync(
         long conversationId,
@@ -93,7 +93,7 @@ internal interface IConversationStore {
         int maxTokens,
         TokenUsage? usage,
         CancellationToken cancellationToken = default);
-    /// <summary>Counts one tool call against the run when it is attempted, which is what the cap spends.</summary>
+    /// <summary>Counts one tool call against the run when it is attempted, which is what the limit spends.</summary>
     Task<bool> RecordToolCallAsync(string runId, CancellationToken cancellationToken = default);
     Task<int> RecoverInterruptedRunsAsync(CancellationToken cancellationToken = default);
 }

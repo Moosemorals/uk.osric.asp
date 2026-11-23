@@ -11,7 +11,7 @@ using uk.osric.asp.Web.Assistant.Tools;
 public sealed class ToolResultsTests {
 
     [Test]
-    public void AResultUnderTheCapIsSentWhole() {
+    public void AResultUnderTheLimitIsSentWhole() {
         ToolResults results = new(TestOptions.BudgetOfResultChars(4_096));
 
         ToolExecutionResult result = results.Success(new { content = new string('x', 100) }, "Fetched");

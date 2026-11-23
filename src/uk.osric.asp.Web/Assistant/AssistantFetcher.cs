@@ -11,7 +11,7 @@ using uk.osric.asp.Web.Pages;
 /// <remarks>
 /// <para>
 /// A GET only: neither tool has a method or header argument. The URL rules, redirects, decoding and
-/// response cap are <see cref="OutboundFetcher"/>'s, so the assistant cannot reach a connection a page
+/// response limit are <see cref="OutboundFetcher"/>'s, so the assistant cannot reach a connection a page
 /// cannot (`pages-outbound-fetch`).
 /// </para>
 /// <para>

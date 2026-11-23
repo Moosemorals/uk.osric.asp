@@ -41,7 +41,7 @@ The body needs a bound, and the bound already exists: the form reader buffers to
 ## Sketch
 
 1. **`Body` as bytes.** `PageRequest.Body` is the request's bytes, empty when the method cannot carry a
-   body, buffered through the same read and the same 1 MiB cap the form uses, and handed to the page
+   body, buffered through the same read and the same 1 MiB limit the form uses, and handed to the page
    before the handler runs. A form post keeps its parsed `Form`; the bytes are beside it, not instead
    of it.
 2. **`RawTarget` as text.** The path and query as the client wrote them, from
@@ -51,7 +51,7 @@ The body needs a bound, and the bound already exists: the form reader buffers to
    sits beside `Query`, so a repeated header is not lost. `Headers` keeps its first-value rule.
 4. **The tests pin the rule.** A signed `POST` rebuilds its canonical string from the snapshot and
    hashes the body to the `Digest` it was sent; a repeated header keeps both values; a body over the
-   cap is the same `413` the form already answers.
+   limit is the same `413` the form already answers.
 5. **The manual and the record.** `/help`'s request section and
    [pages](../pages.md#page-contract) say what a page sees, and the merge records the name the plan
    intends.

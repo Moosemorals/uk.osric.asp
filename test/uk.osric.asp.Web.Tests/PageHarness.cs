@@ -165,7 +165,7 @@ internal sealed class PageHarness : IDisposable {
     /// <summary>Where every catalog read in this harness goes.</summary>
     public FakePageReadStore ReadStore { get; }
 
-    /// <summary>The caps every catalog read in this harness uses.</summary>
+    /// <summary>The limits every catalog read in this harness uses.</summary>
     public PageReadOptions ReadOptions { get; }
 
     /// <summary>The search values the site ships with.</summary>

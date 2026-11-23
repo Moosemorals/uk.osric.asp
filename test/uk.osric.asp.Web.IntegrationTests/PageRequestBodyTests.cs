@@ -44,7 +44,7 @@ public sealed class PageRequestBodyTests : IntegrationTest {
     }
 
     [Test]
-    public async Task AChunkedFormPastTheCapIsRejected() {
+    public async Task AChunkedFormPastTheLimitIsRejected() {
         await SavePageAsync("/big.cs", "<p>ok</p>");
         using HttpClient client = CreateClient();
         using HttpRequestMessage request = new(HttpMethod.Post, "https://localhost/big.cs") {
@@ -59,7 +59,7 @@ public sealed class PageRequestBodyTests : IntegrationTest {
     }
 
     [Test]
-    public async Task ASizedFormPastTheCapIsRejected() {
+    public async Task ASizedFormPastTheLimitIsRejected() {
         await SavePageAsync("/big.cs", "<p>ok</p>");
         using HttpClient client = CreateClient();
 

@@ -172,7 +172,7 @@ control socket and the one call.
   `model_window_unknown` until the model list can be read; if the provider answers without the
   configured model, the deploy stops and says so. `Assistant__MaxMessageChars`,
   `Assistant__MaxToolResultChars`, `Assistant__MaxMemoryCharsPerRun` and `Assistant__MaxMemoriesPerRun`
-  are gone too: those caps are now fractions of the one budget.
+  are gone too: those limits are now fractions of the one budget.
   The host sends the system prompt, conversation transcript, and any page source read by the assistant to
   that provider. Do not store content there that the provider must not receive. Prompts, page source,
   reasoning, credentials, and provider error bodies are not logged. The default provider is DeepSeek;
@@ -231,12 +231,12 @@ control socket and the one call.
 - **Page state:** a page reaches state through `ctx.Features.GetRequired<IPageStorage>()`; it is
   stored in `PageState` in the same database, so `storage.db` carries it and a backup includes
   it. Deleting a page clears its state; editing or restoring it
-  keeps it. The caps live under `Pages:Storage` (`Pages__Storage__MaxValueBytes`, and so on).
+  keeps it. The limits live under `Pages:Storage` (`Pages__Storage__MaxValueBytes`, and so on).
 - **Page session:** a page can keep per-visitor state through
   `ctx.Capabilities.GetRequired<IPageSession>()`, stored in `PageSessions` and `PageSessionValues` in the
   same database. A visitor is identified by the `s` cookie, which is minted on the page's first write
-  and cleared on sign-out; a row lives 30 minutes without a visit, or 8 hours signed in. The caps,
-  lifetimes and live-session cap live under `Pages:Session` (`Pages__Session__Anonymous__MaxKeys`,
+  and cleared on sign-out; a row lives 30 minutes without a visit, or 8 hours signed in. The limits,
+  lifetimes and live-session limit live under `Pages:Session` (`Pages__Session__Anonymous__MaxKeys`,
   `Pages__Session__MaxLiveSessions`, and so on), and the table is swept every five minutes. A
   session is a visitor's scratch space rather than content: an export archive never carries one.
 - **Reserved page keys are not configuration.** The keys the site's own routes answer for are the
@@ -251,7 +251,7 @@ control socket and the one call.
   degrades to unwrapped pages with a warning and a `page.layout.fallback` count rather than taking
   the site down.
 - **Import and export:** `/admin/export` and `/admin/import` move pages between sites as a `.sqlite`
-  archive of source and state. The caps live under `Pages:Archive` (`Pages__Archive__MaxUploadBytes`,
+  archive of source and state. The limits live under `Pages:Archive` (`Pages__Archive__MaxUploadBytes`,
   `MaxPages`, `MaxCompiledBytes`, `StageTtlMinutes`, `MaxStagedImports`); a reviewed archive is held
   in memory only and expires, so raising `MaxUploadBytes` is the answer for a site whose export is
   larger than 16 MiB.
@@ -295,7 +295,7 @@ answers when the app is down.
   `git-shell` and it has no sudo; the owner's unrestricted keys are copied, so the same SSH identity
   that reaches `deploy` can push, and that is all it can do. The backup host's restricted read key is
   not copied.
-- **The gate:** `make ci` is the same target as always. `uk.osric.asp-ci.slice` caps it at 2 vCPU and
+- **The gate:** `make ci` is the same target as always. `uk.osric.asp-ci.slice` limits it at 2 vCPU and
   4 GiB and deprioritizes it against the app. The run's output is a file, `/home/ci/logs/<commit>.log`
   (the newest ten are kept), and the journal of the unit the push names carries its last sixty lines:
   `sudo journalctl _SYSTEMD_USER_UNIT=uk.osric.asp-ci-<short>-<pid>`. The file rather than the journal

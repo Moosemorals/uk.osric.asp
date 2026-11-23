@@ -118,7 +118,7 @@ parameters and returns; `reference query="cookie"` searches names and summaries 
 name the type and answers the type that holds each match. It reads `uk.osric.asp.Sdk` only, because
 that is what a page may use, and refuses a type from another assembly by name. It is a read, needs no
 approval, and its matches are bounded by `Assistant:DefaultListLimit` and `MaxListLimit`; the whole
-result is still under the tool result cap. The prompt names both forms (`page-author-v28`), and the
+result is still under the tool result limit. The prompt names both forms (`page-author-v28`), and the
 human page at `/admin/reference` covers all four assemblies.
 
 There is no process, filesystem, git, package, or other outbound-network tool. The per-conversation
@@ -144,10 +144,10 @@ owner's own words; nothing is required, so a question left blank is carried as a
 again. The call belongs alone in its step because the run stops, it is not approval-gated, the tool
 timeout does not apply to it, and the owner's wait is taken off `assistant.tool.duration`, which stays
 tool time. The question and the answer are stored and sent to the provider like a message, so the tool
-description and the prompt forbid asking for a secret. The caps are `Assistant:MaxQuestionsPerCall`,
+description and the prompt forbid asking for a secret. The limits are `Assistant:MaxQuestionsPerCall`,
 `MaxQuestionOptions` and `MaxQuestionChars`, and a finished turn reads its questions and answers from
 the resolved interrupt records rather than the tool result, because a long result is cut at the tool
-cap. Its arguments are the schema's first per-parameter descriptions; the arguments whose names are
+limit. Its arguments are the schema's first per-parameter descriptions; the arguments whose names are
 ambiguous now describe themselves too, and a closed set is the schema's `enum` rather than a sentence.
 
 The tools also see the shell's own files, which are the site's routes (`assistant-reads-the-shell-files`).
@@ -167,8 +167,8 @@ and an unquoted `&` is refused, and a first word that is not a command is refuse
 rather than as the punctuation inside its quotes. The store is a tree, and the shell reads it as
 one (`assistant-the-shell-is-posix`): `ls` lists what is at a path and `ls -R`/`find` list everything below it, `grep`
 reads one level and `grep -r` descends, and `grep`'s query is a basic regular expression whose
-`\|` is alternation while every other punctuation character is literal. A capped listing, a
-capped match, or a match that lies below the level a search read, is said in the answer rather
+`\|` is alternation while every other punctuation character is literal. A limited listing, a
+limited match, or a match that lies below the level a search read, is said in the answer rather
 than left to be misread. `diff` compares a pair of keys and writes POSIX `diff`'s own output
 (`assistant-the-shell-is-posix`), because where the shell implements a command it implements the POSIX one (`assistant-the-shell-is-posix`).
 The commands are applets and the kernel is one pipeline (`assistant-the-shell-is-applets`): a command is one type
@@ -240,16 +240,16 @@ A `diff_page` result carries `editorUrl`, which opens the same rendered diff the
 shows, so a model can link the owner to the line changes it read (`pages-diff`).
 
 The feature bounds run duration, concurrency, queue depth, steps, tool calls, arguments, page size,
-results, context and event replay. The shipped caps are 160 steps and 128 tool calls per run, a
+results, context and event replay. The shipped limits are 160 steps and 128 tool calls per run, a
 262,144-character page, 270,336 characters of tool-call arguments, 100 diagnostics in one `check`
 answer, and a reply floor of 131,072 tokens. Everything the model reads is measured against one budget: the window the provider's model
 list reports for the configured model, less that floor (`assistant-the-budget-is-window-minus-reply`).
 `deepseek-flash` reports a 1,048,576-token window and a 393,216-token output maximum, so the prompt's
 share is 917,504 tokens, one tool result is an eighth of it, the owner's message another eighth and a
 run's memory block a thirty-second. Those fractions are invariants in `ContextBudget`, not
-configuration, so no setting can raise one to the whole budget. The argument cap is the one number
+configuration, so no setting can raise one to the whole budget. The argument limit is the one number
 that is not a fraction: it is `MaxPageChars` plus room for the envelope, because a page the store
-accepts must be writable through a tool. Every remaining cap is configuration — the shipped
+accepts must be writable through a tool. Every remaining limit is configuration — the shipped
 `appsettings.json` is the whole list — and every one of them is required, so a missing or
 out-of-range value stops the site at startup
 ([configuration](architecture.md#configuration)). Each provider request is bounded by silence rather
@@ -286,7 +286,7 @@ budget — and it takes the exceeded class past the margin. Completion is the la
 the allowance that step was given, not the model's ceiling. `BudgetAmount` keeps every figure to at
 most three digits and a unit letter (`16k`, `90k`), so ten rows fit two columns.
 
-Tool calls counts the calls the run has attempted, which is the figure the cap spends and the one a
+Tool calls counts the calls the run has attempted, which is the figure the limit spends and the one a
 pause is named after: the response's call count is not used, because it lands before any of the calls
 runs and would read past the limit while the run is still working. Each `tool.started` carries the
 next attempt, so the row ticks with the card, and `RecordToolCallAsync` stores the same count rather
@@ -312,7 +312,7 @@ request the previous step sent and adds only the bytes appended since, with a th
 that delta (`assistant-tokens-anchor-on-the-last-report`). Masking a payload and dropping a turn are
 changes to known parts of the body, so they move the anchor by their own size and nothing else, and a
 step that changes nothing is estimated as the last request plus its new messages. The reply's
-allowance follows the estimate: `max_tokens` is the window less the estimate, capped at the
+allowance follows the estimate: `max_tokens` is the window less the estimate, limited to the
 provider's published maximum and floored at `Assistant:MinOutputTokens`, so prompt and reply always
 add up to the window. Every step records the estimate and the allowance it sent with, and the
 difference between the estimate and the reported count is both the signed figure on the page and

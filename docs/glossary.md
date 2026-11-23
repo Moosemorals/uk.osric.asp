@@ -260,6 +260,21 @@ reused; every page response is `no-store`.
 
 **Owner:** pages — `StoreLifetime`, `StoreLifetimeKind` and `PageValue<T>.Lifetime`.
 
+## Limit
+A configured maximum on one thing: a value's bytes, the keys a subject may hold, a result's rows, a
+render's requests. It is a policy value read from configuration and enforced where the thing is
+written or answered, and the types carry it as `SubjectLimits`, `PageSchemaLimits` or an options
+record whose fields are `Max*`.
+
+**Not** a budget: a budget is an allowance something spends down during one render or run
+(`PageBudget`, `BodyBudget`, `ReadBudget`, `ContextBudget`). **Not** a capability, and never
+abbreviated to "cap", which is exactly the collision this entry exists to keep apart: a capability is
+a service the host offers one render, and a limit is a number a deployment sets.
+
+**Owner:** pages — `SubjectLimits`, `PageSchemaLimits` and the `Max*` keys under `Pages:Stores`,
+`Pages:Read` and `Pages:Fetch`; [configuration](architecture.md#configuration) says which numbers are
+policy and which are invariants.
+
 ## Markdown
 The source format a page may render to HTML, and the format an assistant reply is written in.
 
@@ -415,7 +430,7 @@ an answer — the owner leaving the decision to the model — rather than a refu
 its visitor anything and wait.
 
 **Owner:** assistant — `ask_user`, `OwnerQuestions`, `OwnerInterruptKind.Question`,
-`OwnerQuestionSet` and `OwnerAnswerSet`; the caps are `Assistant:MaxQuestionsPerCall`,
+`OwnerQuestionSet` and `OwnerAnswerSet`; the limits are `Assistant:MaxQuestionsPerCall`,
 `MaxQuestionOptions` and `MaxQuestionChars`.
 
 ## Request
@@ -527,7 +542,7 @@ is signed in to and the idle clock that ends it. A page reaches it only as
 `ctx.Stores.Visitor`, whose `Session` lifetime dies with it.
 
 **Not** a value store of its own. The values a visit holds are rows in `StoreValues` under the
-`session:` subject, in the same table and under the same caps as every other value. Nor is it the
+`session:` subject, in the same table and under the same limits as every other value. Nor is it the
 browser's `ISession`: it is not ASP.NET Core's session, has no in-process cache and survives a
 restart. Nor is it the browser — see **browser**.
 

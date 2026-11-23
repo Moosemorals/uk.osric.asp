@@ -15,7 +15,7 @@ using uk.osric.asp.Web.Storage;
 /// <para>
 /// The commit is short — inserts only, no compilation — so the SQLite write lock is held for
 /// milliseconds rather than minutes. Every merged state total is checked before any row is written;
-/// if one page would exceed a cap the whole batch is refused and nothing changes.
+/// if one page would exceed a limit the whole batch is refused and nothing changes.
 /// </para>
 /// <para>
 /// Revisions go first because the head's foreign key points at them, then heads, then state. A crash
@@ -75,13 +75,13 @@ internal class SqlitePageBatchStore(
         }
     }
 
-    /// <summary>Writes one state row, under every per-page cap.</summary>
+    /// <summary>Writes one state row, under every per-page limit.</summary>
     /// <param name="database">The context the batch transaction runs in.</param>
     /// <param name="path">The page whose state is written.</param>
     /// <param name="value">The value to write.</param>
     /// <param name="updatedAt">The row's timestamp.</param>
     /// <param name="cancellationToken">Cancels the write.</param>
-    /// <returns>1 when the row was written, 0 when a cap refused it.</returns>
+    /// <returns>1 when the row was written, 0 when a limit refused it.</returns>
     /// <remarks>
     /// Virtual so a fixture can fail one page's write and prove the whole batch rolls back; the
     /// production path is the same statement a page's own write uses.

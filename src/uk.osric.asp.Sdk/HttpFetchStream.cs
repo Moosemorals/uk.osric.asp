@@ -24,7 +24,7 @@ public abstract class HttpFetchStream {
     /// <summary>Why the request or stream ended, or <see cref="HttpFetchFailure.None"/>.</summary>
     public abstract HttpFetchFailure Failure { get; }
 
-    /// <summary>Whether a timeout, transport failure or configured byte cap ended the body early.</summary>
+    /// <summary>Whether a timeout, transport failure or configured byte limit ended the body early.</summary>
     public abstract bool Truncated { get; }
 
     /// <summary>Reads the next decoded line, or returns <see langword="null"/> when the stream has ended.</summary>

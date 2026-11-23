@@ -117,7 +117,7 @@ internal interface IMemoryStore {
         long conversationId,
         CancellationToken cancellationToken = default);
 
-    /// <summary>How many memories the owner holds, for the cap the page shows.</summary>
+    /// <summary>How many memories the owner holds, for the limit the page shows.</summary>
     /// <param name="owner">The account to count.</param>
     /// <param name="cancellationToken">Cancels the count.</param>
     Task<int> CountAsync(string owner, CancellationToken cancellationToken = default);

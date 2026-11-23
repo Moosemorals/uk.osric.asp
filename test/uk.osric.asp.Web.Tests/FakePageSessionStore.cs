@@ -16,7 +16,7 @@ internal sealed class FakePageSessionStore(FakeStoreValues? values = null, Visit
     private readonly Dictionary<string, Row> _sessions = [];
     private readonly VisitorOptions _options = options ?? TestOptions.Stores.Visitor;
 
-    /// <summary>The caps and lifetimes this store enforces.</summary>
+    /// <summary>The limits and lifetimes this store enforces.</summary>
     public VisitorOptions Options => _options;
 
     /// <summary>Every session the store holds.</summary>

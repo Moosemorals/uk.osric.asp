@@ -10,7 +10,7 @@ SPDX-License-Identifier: MIT
 | Question | Is there a standard shape for a tool that asks the owner a question and waits for the answer, and which parts of the state of the art make the tool easiest for DeepSeek to call correctly? |
 | Answered | 2026-11-18 |
 | Sources | Vendor documentation read on 2026-11-18: MCP specification (`2025-06-18`, `2025-11-25`, `2026-07-28`), Anthropic's Claude Agent SDK and tools reference, OpenAI's function-calling and Responses documentation, DeepSeek's tool-call guide and API reference, VS Code's `askQuestions` source, Cline's and Roo Code's tool schemas, LangGraph's interrupts, AutoGen's user proxy. No provider was called and no token was spent |
-| Verdict | There is no cross-vendor standard, but every large vendor independently converged on the same shape: **one tool, an array of 1–4 question objects, options of `{label, description}` that are optional, free text always allowed, and hard caps**. MCP's deliberately flat schema exists because it must run against unknown clients; Claude Code's nested schema exists because it owns the client. DeepSeek is a known provider and this site's `edit_page` already fills a nested array of objects, so the bounded nested shape is the one to copy. The two things the evidence says matter more than the schema are a description that says *when to use it and when not*, and a per-argument description — which this site's tool schema does not emit at all |
+| Verdict | There is no cross-vendor standard, but every large vendor independently converged on the same shape: **one tool, an array of 1–4 question objects, options of `{label, description}` that are optional, free text always allowed, and hard limits**. MCP's deliberately flat schema exists because it must run against unknown clients; Claude Code's nested schema exists because it owns the client. DeepSeek is a known provider and this site's `edit_page` already fills a nested array of objects, so the bounded nested shape is the one to copy. The two things the evidence says matter more than the schema are a description that says *when to use it and when not*, and a per-argument description — which this site's tool schema does not emit at all |
 | Recorded | `assistant-a-run-waits-on-one-owner-interrupt` and `assistant-a-question-is-a-tool-call`: [the owner interrupt plan](../plans/archive/assistant-owner-interrupt.md) and [the ask-owner plan](../plans/archive/assistant-ask-owner.md) |
 
 ## The answer
@@ -36,7 +36,7 @@ Three designs are in production, and they differ by who owns both ends of the wi
    holding a connection open.
 2. **A rich, vendor-owned built-in tool** — Claude Code's `AskUserQuestion` and VS Code's
    `vscode_askQuestions`. Both take `questions[]` of objects, each with a short header, the question,
-   options of `{label, description}` and a `multiSelect` flag, and both cap what the model may send:
+   options of `{label, description}` and a `multiSelect` flag, and both limit what the model may send:
    Claude Code is "1–4 questions with 2–4 options each", the header is at most 12 characters, and free
    text is the client's `Other` row rather than a schema field
    ([user input](https://code.claude.com/docs/en/agent-sdk/user-input#question-format),
@@ -83,7 +83,7 @@ DeepSeek speaks OpenAI's function-calling dialect and its current guide is
 | --- | --- |
 | `tools: [{type: "function", function: {name, description, parameters}}]`, `tool_choice` of `none`, `auto` or `required` (never set here: this site sends `auto`) | Nothing new is needed on the wire; a tool is a tool |
 | Names are `a-z`, `A-Z`, `0-9`, `_`, `-`, at most 128 characters, and unique | `ask_owner` is legal; the registry already guarantees uniqueness |
-| Optional strict mode (beta) requires **every** property of every object to be `required` and rejects `minLength`/`maxItems` | Do not opt in: this tool wants optional arguments, and its caps belong in refusals and in the description |
+| Optional strict mode (beta) requires **every** property of every object to be `required` and rejects `minLength`/`maxItems` | Do not opt in: this tool wants optional arguments, and its limits belong in refusals and in the description |
 | Strict and non-strict both reject an unknown property only when `additionalProperties: false` is sent — which this site always sends | The schema is already the strictest shape available without `strict` |
 | Tool results are `{"role": "tool", "tool_call_id": …, "content": …}` appended after the assistant message that asked | The answer is the call's result; no second message is needed |
 | Parallel tool calls are not documented either way, and the guide's example reads `tool_calls[0]` | Do not rely on them. A call that blocks should be alone in its step, and the description says so |
@@ -108,8 +108,8 @@ The vendor guidance on *shape* is unusually consistent:
 
 Two further findings matter here:
 
-- **Nothing caps question counts in the schema that this site can emit.** `maxItems` is a JSON-Schema
-  keyword the registry does not produce and DeepSeek's strict mode rejects anyway. The caps have to be
+- **Nothing limits question counts in the schema that this site can emit.** `maxItems` is a JSON-Schema
+  keyword the registry does not produce and DeepSeek's strict mode rejects anyway. The limits have to be
   refusals with the accepted range in the sentence, which is what every other tool here already does.
 - **This site emits no per-argument descriptions.** `ToolRegistry.ParametersJson` writes
   `{"type": "string"}` per property and nothing else, so the only prose the model gets is the tool's
@@ -154,7 +154,7 @@ its own that DeepSeek fills it:
 - **A schema field for the free-text answer.** VS Code and Claude Code both make free text a client
   affordance, always available; a `freeText: boolean` argument is one more thing for the model to get
   wrong for no gain.
-- **`strict: true`.** It would force every argument to be present and reject the caps, and this site
+- **`strict: true`.** It would force every argument to be present and reject the limits, and this site
   has never sent it.
 
 ## The recommendation

@@ -111,7 +111,7 @@ public sealed class PageMessageStoreTests {
     [Test]
     public async Task AFullQueueAnswersFullAsync() {
         FakeStoreMessages messages = new();
-        PageMessageStore sender = Store(SenderKey, messages: messages, caps: new PageMessageOptions(1024, 1, 1024));
+        PageMessageStore sender = Store(SenderKey, messages: messages, limits: new PageMessageOptions(1024, 1, 1024));
 
         Assert.That((await sender.PostAsync(ReceiverKey, "one")).Posted, Is.True);
         Assert.That((await sender.PostAsync(ReceiverKey, "two")).Refusal, Is.EqualTo(PageMessageRefusal.Full));
@@ -217,7 +217,7 @@ public sealed class PageMessageStoreTests {
         PageReaderSubject? reader = null,
         bool writable = true,
         FakeStoreMessages? messages = null,
-        PageMessageOptions? caps = null,
+        PageMessageOptions? limits = null,
         Action? activity = null) =>
         new(
             PagePath.Normalize(key),
@@ -226,7 +226,7 @@ public sealed class PageMessageStoreTests {
             reader ?? Reader(),
             _pages,
             new ReservedPaths(ReservedPaths.Default),
-            caps ?? TestOptions.Stores.Messages,
+            limits ?? TestOptions.Stores.Messages,
             writable,
             commit: null,
             activity);

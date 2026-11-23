@@ -174,7 +174,7 @@ public sealed class HeatmapTests {
     }
 
     [Test]
-    public void ABusyAnswerIsFoldedToTheColumnCap() {
+    public void ABusyAnswerIsFoldedToTheColumnLimit() {
         IReadOnlyList<HeatmapRow> rows = [Row("0.5", [.. Enumerable.Range(0, 300).Select(index => (double?)index)])];
 
         IReadOnlyList<HeatmapRow> folded = Heatmap.Fold(rows, Heatmap.MaxColumns);

@@ -127,7 +127,7 @@ rule and a footgun.
   tokenizer), and in code it would delete a character, breaking the column alignment `#line` and the
   generator's padding promise. The character is written `\u003e`.
 - **A `%`-count or a second opener, to quote a `%>` inside a block.** The rule is sound and unbounded
-  is cheaper than capped — but `<%%>` collides, the opener space multiplies by five kinds, and every
+  is cheaper than limited — but `<%%>` collides, the opener space multiplies by five kinds, and every
   added level makes `!%><%` harder to read. The spelling to take if demand arrives is to count the
   **angle** bracket instead: `<<% … %>>`, `<<<% … %>>>`. It collides with nothing (`<<%` contains
   `<%`, `%>>` contains `%>`, so both scans stay anchored), composes with the required close as

@@ -52,7 +52,7 @@ public sealed record BudgetSnapshot(
     /// <param name="estimateError">How far the last step's estimate was from the provider's count.</param>
     /// <returns>The figures, with the counters carried through unchanged.</returns>
     /// <remarks>
-    /// Masking changes the request, not the cap a stored call or result had to satisfy, so the longest
+    /// Masking changes the request, not the limit a stored call or result had to satisfy, so the longest
     /// argument and result rows read the stored transcript and keep showing the real stored values.
     /// </remarks>
     public static BudgetSnapshot Measure(

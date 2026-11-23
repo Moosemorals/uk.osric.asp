@@ -100,7 +100,7 @@ switch, host or credential list, or a name that decides routing or authority.
 - A genuinely optional value is declared and documented as optional. Absent is not the same as
   blank, and blank is accepted only where blank has a meaning.
 - An **invariant** stays in code: a cryptographic or wire-format constant, a schema constraint, an
-  algorithm work cap, or the floor and ceiling that keep a configured value from switching a guard
+  algorithm work limit, or the floor and ceiling that keep a configured value from switching a guard
   off. A security policy may be configured only in the direction that keeps or tightens the shipped
   guarantee; one that configuration could only weaken stays an invariant until a decision says
   otherwise, and a number the product fixes as its own rule — a password's bounds — is not a policy

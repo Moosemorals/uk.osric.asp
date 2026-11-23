@@ -200,7 +200,7 @@ prefer it to memory. In one line each:
   person reading). Values are JSON; keys are 1–200 characters, ordinal. A lifetime decides when an
   entry dies: `Page` with the page, `Person` with the account, `Session` with the session, `Browser`
   with the cookie, `NextRead` at the next `TryTakeAsync`, and `Until(expiry)` composes any of them
-  with a clock. Caps are per subject and a write past one throws. Never start a write and leave it
+  with a clock. Limits are per subject and a write past one throws. Never start a write and leave it
   unawaited.
 - `IPageCatalog` — the read: a listing with a cursor and a fingerprint, one source, one revision, a
   history, a search, and `SiteLinks()`. A prefix is a subtree, so `/blog` never matches `/blogroll`.

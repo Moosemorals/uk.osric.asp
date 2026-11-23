@@ -109,7 +109,7 @@ public sealed class PageArchiveReaderTests {
     }
 
     [Test]
-    public void AStateKeyOverTheCapIsRejected() {
+    public void AStateKeyOverTheLimitIsRejected() {
         byte[] bytes = TestArchive.Build(
             [("/about", "About")],
             [("/about", new string('k', 24), "1")]);
@@ -118,7 +118,7 @@ public sealed class PageArchiveReaderTests {
     }
 
     [Test]
-    public void AStateValueOverTheCapIsRejected() {
+    public void AStateValueOverTheLimitIsRejected() {
         byte[] bytes = TestArchive.Build(
             [("/about", "About")],
             [("/about", "visits", $"\"{new string('v', 64)}\"")]);

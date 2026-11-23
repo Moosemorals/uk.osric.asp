@@ -8,7 +8,7 @@ using System.Text;
 
 /// <summary>Chooses the memories one run is given, and writes the block they appear in.</summary>
 /// <remarks>
-/// Both halves are pure: the store supplies candidates and the run supplies the caps, so the rule
+/// Both halves are pure: the store supplies candidates and the run supplies the limits, so the rule
 /// that decides what the model sees can be read and tested without a database. The block is escaped
 /// on the way out, because a memory is text the model wrote earlier and must not be able to close its
 /// own element or forge another.

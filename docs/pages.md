@@ -57,7 +57,7 @@ pure renderers, and one that is a fact about the build:
   `ctx.Stores.Page.Values` read and written under the page's own lifetime, and `IPageSession` is
   `ctx.Stores.Visitor.Values` restricted to the session lifetime, so a page that has not been edited
   and one that has read and write the same rows instead of two stores that drift. Their identity, the
-  ownership rule and the caps are `pages-page-storage` and `pages-the-session`. They go at the end of
+  ownership rule and the limits are `pages-page-storage` and `pages-the-session`. They go at the end of
   the release, and a page that used them reports a compile error until it is edited.
 - `IHttpFetch` makes one outbound HTTP request from the host, not the browser, to any `http` or
   `https` host the URL names: there is no host allow-list (`pages-outbound-fetch`). Every request carries
@@ -246,9 +246,9 @@ the write names no path — while reading another page's value is one call
 (`pages-the-subject-is-the-binding`). Every value carries a lifetime: `Page`, `Person`, `Session`,
 `Browser` or `NextRead`, optionally with an expiry. A write without one takes the subject's own, a
 lifetime the subject cannot carry throws, and a `HEAD` render, an abandoned render and a passed
-deadline are refused every write (`pages-a-lifetime-belongs-to-the-entry`). The caps are per subject
+deadline are refused every write (`pages-a-lifetime-belongs-to-the-entry`). The limits are per subject
 instance and are enforced in the statement that writes (`pages-one-stores-section`).
-[Storage](storage.md#values) has the table, the subjects, the lifetimes and the caps; `/help` is the
+[Storage](storage.md#values) has the table, the subjects, the lifetimes and the limits; `/help` is the
 author's manual.
 
 `Messages` is the visitor's queue: a message is durable, addressed to a page key or a named topic, and
@@ -702,12 +702,12 @@ waits for it against one deadline that covers both queueing and running:
 - A compile is *not* cancelled by the render's deadline. Throwing the work away would leave the page
   unservable — every request would pay the same compile — so it finishes, stores its image, and the
   request answers `504` without starting the page. The next request is served from the store.
-- `Pages:Render:MaxBodyChars` caps the buffered body, so a page that writes in a loop fails quickly
-  instead of growing the process. The cap stops at the first flush: a streamed body is already on the
+- `Pages:Render:MaxBodyChars` limits the buffered body, so a page that writes in a loop fails quickly
+  instead of growing the process. The limit stops at the first flush: a streamed body is already on the
   wire and is not charged, so a post-commit loop is bounded by the stream's clocks and the container
   rather than by this setting. An embed renders into a view of what is left, and the caller is charged
   once when it writes the result, so the embedded text is neither counted twice nor able to skip the
-  cap.
+  limit.
 - `Pages:Render:MaxLayoutDepth` bounds the pages that wrap one page, and `Pages:Render:MaxEmbedDepth`
   bounds the embeds nested below the layer that is running, so a page composed out of data-driven
   recursion stops. They are chosen apart because a widget is not chrome.
@@ -717,7 +717,7 @@ waits for it against one deadline that covers both queueing and running:
   the render's deadline and starts two clocks: `SilenceSeconds` truncates a stream that flushes
   nothing for that long, and `MaxSeconds` truncates one that is still busy that far past its commit,
   so neither a page that stopped talking nor one that never stops can hold a slot forever. Every
-  flush restarts the silence clock. `Slots` caps how many streams may be committed at once; a render
+  flush restarts the silence clock. `Slots` limits how many streams may be committed at once; a render
   whose first flush finds none is answered `503` and never commits. Each truncation is logged with
   its reason and recorded as the stream's outcome on `page.stream.duration`.
 
@@ -740,7 +740,7 @@ The quadlet runs the same probe as podman's health check
 (`wget -q -O /dev/null -T 3 http://127.0.0.1:8080/health`, every 10 s, three failures) with
 `HealthOnFailure=restart`, so a wedged process is restarted within about 35 s. That turns the two
 worst outcomes into a short outage instead of a permanent one: a page that loops forever against a
-thread pool, and a page that calls `Environment.Exit`. The container is also capped
+thread pool, and a page that calls `Environment.Exit`. The container is also limited
 (`--memory=2g` with `--memory-swap=2g`, `--pids-limit=512`, `--cpus=3`), so a page that
 allocates without bound meets the OOM killer inside the container rather than paging or taking the
 host.

@@ -7,12 +7,12 @@ using uk.osric.asp.Web.Configuration;
 
 /// <summary>Bounds what one page's read of the store may cost.</summary>
 /// <remarks>
-/// Every value comes from <c>Pages:Read</c>. The row cap is the store's limit; the source cap is
+/// Every value comes from <c>Pages:Read</c>. The row limit is the store's limit; the source limit is
 /// shared by the whole layout chain, on the same terms as the body and fetch allowances (`pages-one-request-one-chain`).
 /// </remarks>
 internal sealed record PageReadOptions {
 
-    /// <summary>The largest row cap the site will run with.</summary>
+    /// <summary>The largest row limit the site will run with.</summary>
     public const int MaximumRowsPerList = 10_000;
 
     /// <summary>The smallest source allowance the site will run with.</summary>

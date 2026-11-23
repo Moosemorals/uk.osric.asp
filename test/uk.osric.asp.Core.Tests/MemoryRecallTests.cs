@@ -38,7 +38,7 @@ public sealed class MemoryRecallTests {
 
     [Test]
     public void RelevanceAloneOrdersTheSelection() {
-        // There is no count cap: the budget is what decides how much of its share the block may spend,
+        // There is no count limit: the budget is what decides how much of its share the block may spend,
         // and every candidate that fits is chosen.
         MemorySelection selection = MemoryRecall.Select(
             [], [], [Memory(1, "one"), Memory(2, "two"), Memory(3, "three")],
@@ -51,7 +51,7 @@ public sealed class MemoryRecallTests {
     }
 
     [Test]
-    public void TheCharacterCapStopsSelectionAndSaysSo() {
+    public void TheCharacterLimitStopsSelectionAndSaysSo() {
         MemoryCandidate first = Memory(1, new string('a', 100));
         MemoryCandidate second = Memory(2, new string('b', 100));
 

@@ -55,7 +55,7 @@ internal static class TestOptions {
     /// <summary>The job bounds the site ships with.</summary>
     public static PageJobOptions Jobs { get; } = PageJobOptions.FromConfiguration(Configuration);
 
-    /// <summary>The page stores' caps and identity bounds.</summary>
+    /// <summary>The page stores' limits and identity bounds.</summary>
     public static PageStoresOptions Stores { get; } = PageStoresOptions.FromConfiguration(Configuration);
 
     /// <summary>The outbound fetch limits.</summary>
@@ -106,14 +106,14 @@ internal static class TestOptions {
     /// <summary>The content budget the provider's own documented example supports.</summary>
     /// <remarks>
     /// One model's window, reported by the provider's model list: deepseek-flash, 1,048,576 tokens of
-    /// window and 393,216 of output. A test that is about a content cap asks for
-    /// <see cref="BudgetOfResultChars"/> instead, because the cap is a fraction of this and not a
+    /// window and 393,216 of output. A test that is about a content limit asks for
+    /// <see cref="BudgetOfResultChars"/> instead, because the limit is a fraction of this and not a
     /// setting of its own.
     /// </remarks>
     public static ContextBudget Budget { get; } = ContextBudget.Create(1_048_576, 393_216, 131_072);
 
     /// <summary>A budget whose one tool result is exactly <paramref name="characters"/> characters.</summary>
-    /// <param name="characters">The result cap the fixture is about.</param>
+    /// <param name="characters">The result limit the fixture is about.</param>
     /// <returns>The budget that produces it.</returns>
     public static ContextBudget BudgetOfResultChars(long characters) =>
         ContextBudget.ForPromptShare(characters * 5, maximumOutputTokens: 393_216);

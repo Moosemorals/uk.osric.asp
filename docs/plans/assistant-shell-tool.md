@@ -154,7 +154,7 @@ Six things are load-bearing:
   is what lets a view run unapproved.
 - **`mv`.** [The page move plan](archive/page-move.md) has landed it; this plan keeps the applet and
   removes the typed tool beside it, and does not change the move itself.
-- **Memory as files.** The owner's answer, and the record's: kinds, versions, pinning, caps and FTS5
+- **Memory as files.** The owner's answer, and the record's: kinds, versions, pinning, limits and FTS5
   recall are five things a directory does not carry.
 - **The terminal UI.** [`terminal-cannot-reach-the-shell`](../backlog/terminal-cannot-reach-the-shell.md)
   owns the transport, the page and `vi`.
@@ -424,7 +424,7 @@ One tool, `memory`, with an `action`:
 | `search` | `query`, `limit` | none |
 
 The owner is the signed-in conversation's, never an argument (`assistant-memory-is-the-owners`). The
-cap is `Assistant:MaxMemoriesPerOwner`; the refusal names it. Pinning stays the memory page's, and no
+limit is `Assistant:MaxMemoriesPerOwner`; the refusal names it. Pinning stays the memory page's, and no
 action has an argument for it (`assistant-memory-page`). Recall is unchanged: FTS5, once per run, on
 the first step, frozen for the rest of it (`assistant-memory-recall-is-fts5`).
 
@@ -464,7 +464,7 @@ The model reads `exitCode`, `stdout` and `stderr`; a refusal is a tool failure w
 in it. The transcript's changed-pages card reads `writes`, so
 `assistant-writes-are-revisions` survives a write that happened inside a pipeline. Old shell results
 are masked like any other tool result (`assistant-old-tool-results-are-masked`), and the result is cut
-at the tool cap rather than refused (`assistant-tool-results-are-cut-not-refused`).
+at the tool limit rather than refused (`assistant-tool-results-are-cut-not-refused`).
 
 ### D13 — Discovery and the prompt
 
@@ -670,7 +670,7 @@ otherwise.
   owner; the policy refuses the assistant's prefix; the card lists effects; one write in v1.
 - **The patch.** A matching hash saves once; a stale hash refuses with both; a missing hash points at
   `stat`; a no-op refuses; a rejected patch changes nothing.
-- **The memory tool.** Four actions; the owner from the conversation; the version check; the cap;
+- **The memory tool.** Four actions; the owner from the conversation; the version check; the limit;
   search is not gated.
 - **The prompt.** It names the shell, the four idioms and the version; it does not name a deleted
   tool.
@@ -691,7 +691,7 @@ otherwise.
 - **Step cost.** A fold that needs `help` on most tasks is a bad trade. The live suite counts steps,
   not only passes.
 - **Heredocs cost tokens.** A long page written whole is expensive; the prompt says to patch.
-- **Scratch pressure.** `/tmp` is RAM. The caps are required configuration and a full scratch fails
+- **Scratch pressure.** `/tmp` is RAM. The limits are required configuration and a full scratch fails
   like a full disk.
 - **The cached prefix moves.** Every phase that changes the definitions invalidates it; the plan
   lands the definition changes in as few steps as it can.

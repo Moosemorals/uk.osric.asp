@@ -14,7 +14,7 @@ using uk.osric.asp.Web.Storage;
 /// <summary>The EF Core and raw-SQL implementation of <see cref="IStoreValues"/>.</summary>
 /// <remarks>
 /// <para>
-/// A read is a handful of indexed rows resolved in memory: a subject holds at most its key cap, so the
+/// A read is a handful of indexed rows resolved in memory: a subject holds at most its key limit, so the
 /// obvious scan is the right one. The two statements that must be single — the take and the delete —
 /// are raw SQL with one <c>DELETE</c> each, so nothing can take a one-shot twice.
 /// </para>
@@ -152,18 +152,18 @@ internal sealed class SqliteStoreValues(
     /// <inheritdoc/>
     public async Task WriteAsync(
         StoreValueWrite write,
-        StoreSubjectCaps caps,
+        SubjectLimits limits,
         CancellationToken cancellationToken = default) {
         ArgumentNullException.ThrowIfNull(write);
-        ArgumentNullException.ThrowIfNull(caps);
+        ArgumentNullException.ThrowIfNull(limits);
 
         string updatedAt = StoreSubjectKeys.Stamp(clock.GetUtcNow());
         await using StorageDbContext database = Open();
 
-        int written = await StoreValueSql.UpsertAsync(database, write, updatedAt, caps, cancellationToken);
+        int written = await StoreValueSql.UpsertAsync(database, write, updatedAt, limits, cancellationToken);
 
         if (written == 0) {
-            throw await RefusalAsync(database, write, caps, cancellationToken);
+            throw await RefusalAsync(database, write, limits, cancellationToken);
         }
 
         refresh?.Request();
@@ -261,7 +261,7 @@ internal sealed class SqliteStoreValues(
         PagePath page,
         string key,
         string value,
-        StoreSubjectCaps caps,
+        SubjectLimits limits,
         CancellationToken cancellationToken = default) {
         ArgumentNullException.ThrowIfNull(page);
 
@@ -274,7 +274,7 @@ internal sealed class SqliteStoreValues(
                 ExpiresAt: null,
                 value,
                 RequireLivePage: true),
-            caps,
+            limits,
             cancellationToken);
     }
 
@@ -284,7 +284,7 @@ internal sealed class SqliteStoreValues(
     private static async Task<ArgumentException> RefusalAsync(
         StorageDbContext database,
         StoreValueWrite write,
-        StoreSubjectCaps caps,
+        SubjectLimits limits,
         CancellationToken cancellationToken) {
         if (write.RequireLivePage
             && !await database.Set<PageHead>().AnyAsync(
@@ -298,9 +298,9 @@ internal sealed class SqliteStoreValues(
             .Where(row => row.Subject == write.Subject)
             .SumAsync(row => (long)row.Key.Length + row.Value.Length, cancellationToken);
 
-        return keys >= caps.MaxKeys
-            ? new ArgumentException($"The subject already holds {keys} keys and may hold {caps.MaxKeys}.")
-            : new ArgumentException($"The subject would need {bytes} bytes of state and may use {caps.MaxTotalBytes}.");
+        return keys >= limits.MaxKeys
+            ? new ArgumentException($"The subject already holds {keys} keys and may hold {limits.MaxKeys}.")
+            : new ArgumentException($"The subject would need {bytes} bytes of state and may use {limits.MaxTotalBytes}.");
     }
 
     private static StoreValueRow Row(StoreValueEntry entry) => new(

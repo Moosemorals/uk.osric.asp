@@ -10,7 +10,7 @@ SPDX-License-Identifier: MIT
 | Status | Superseded in shape 2026-11-21 by [one storage model](storage-model.md), which is the plan to read; this one should not be approved. Nothing below is built |
 | Size | Large as a programme, small as a step: six slices, each its own branch and its own stop. Three are `S` and three are `M`, and the first is the one worth arguing about |
 | First customer | The assistant page's port ([`conversation-is-not-a-page`](../backlog/conversation-is-not-a-page.md) §3): a conversation's transcript is an ordered, filtered, paged list of one account's rows. Memory keeps `AssistantMemories` and stays the assistant's (`assistant-memory-belongs-to-the-assistant`); the memory view is that plan's, and this store's search is what will let it be a page |
-| Spike | A scratch console over the real SQLite build before slice 1: an unpooled connection, a `TEMP VIEW` over a table with `INSTEAD OF` triggers, the four verbs through it, a trigger `RAISE` at a cap, and `SQLITE_LIMIT_ATTACHED = 0` |
+| Spike | A scratch console over the real SQLite build before slice 1: an unpooled connection, a `TEMP VIEW` over a table with `INSTEAD OF` triggers, the four verbs through it, a trigger `RAISE` at a limit, and `SQLITE_LIMIT_ATTACHED = 0` |
 | Decisions | None recorded yet. They are named at each merge (`product-plan-before-building`); this plan states the seven names it intends |
 | Backlog | [`no-account-store`](../backlog/no-account-store.md) (this job), [`conversation-is-not-a-page`](../backlog/conversation-is-not-a-page.md) (the customer) |
 
@@ -39,7 +39,7 @@ states the four things that make it more than a capability:
 - **The sandbox is a keyword allow-list and the limits SQLite itself exposes**, not a claim of safety.
   `pages-there-is-no-sandbox` still holds: a page runs in-process with the site's identity, and this is
   fencing for one statement, not a boundary for page code.
-- **The caps are enforced inside the statement that writes**, the way `SqlitePageStateStore.UpsertAsync`
+- **The limits are enforced inside the statement that writes**, the way `SqlitePageStateStore.UpsertAsync`
   already does, so a concurrent writer either fits or is refused.
 
 The store's one entry point is the transaction handle the owner chose: `BeginTransaction()` returns an
@@ -61,7 +61,7 @@ record does not have yet:
   and no handle to the real table
 - **pages-a-write-is-a-transaction** — the capability offers a transaction, not a statement: commit
   ends one and begins the next, dispose rolls the uncommitted one back
-- **pages-a-store-is-bounded-per-account** — rows and bytes are capped per (account, page), and the cap
+- **pages-a-store-is-bounded-per-account** — rows and bytes are limited per (account, page), and the limit
   holds inside the statement that writes
 - **pages-a-save-stores-what-it-cannot-run** — a save is never refused for correctness: a declaration
   the host cannot apply is a diagnostic stored with the revision, and the page stops serving until it
@@ -146,7 +146,7 @@ made in a hurry.
 
 A declaration the host cannot apply is a **diagnostic on the stored revision**, at the position of the
 declared property, in the same diagnostics the compiler writes: an unsupported type (`PAGE007`), a
-declaration in a library (`PAGE008`), a table or column count over its cap, a live column whose type
+declaration in a library (`PAGE008`), a table or column count over its limit, a live column whose type
 disagrees with the declaration, or a name another page's declaration already holds. The revision is
 stored, nothing is applied, the page's state is "Compile failed", and the editor shows the line as it
 shows any other save. Fixing the declaration and saving again applies it.
@@ -245,7 +245,7 @@ the key, the accepted range and the recommended value.
 | `CommandTimeoutSeconds` | 5 | 1 | how long one statement may run |
 | `TransactionMaxSeconds` | 10 | 1 | how long one transaction may stay open |
 
-The byte cap is where a mistake meets a refusal, not a budget a page is rationed from: at 128 MiB it
+The byte limit is where a mistake meets a refusal, not a budget a page is rationed from: at 128 MiB it
 no longer bounds the database on its own, which is why the storage figure slice 5 adds is part of the
 same programme rather than a nicety.
 
@@ -273,17 +273,17 @@ phase so a regression is bisectable, and its branch goes when its last slice is 
 1. **The read** (`M`). The capability, the handle, the unpooled connection, the `TEMP VIEW` and the
    owner row, `QueryAsync`, `PageRow` and `PageParameters`, the keyword allow-list (`SELECT` for a
    query; `INSERT`, `UPDATE`, `DELETE` for a write) and the single-statement check, `SQLITE_LIMIT_ATTACHED
-   = 0`, `SQLITE_DBCONFIG_DEFENSIVE`, `trusted_schema = OFF`, the result caps, the timeouts and the
+   = 0`, `SQLITE_DBCONFIG_DEFENSIVE`, `trusted_schema = OFF`, the result limits, the timeouts and the
    anonymous refusal.
    *Proves:* a query returns only my account's rows; `ATTACH`, `PRAGMA`, `CREATE`, `VACUUM` and a
    second statement are refused before anything runs; the real table cannot be named; a layout reads
-   and an anonymous render is refused; a result over its row or character cap is cut and says so; the
+   and an anonymous render is refused; a result over its row or character limit is cut and says so; the
    deadline interrupts the statement.
 2. **The write** (`M`). `ExecuteAsync`, the three `INSTEAD OF` triggers, the owner written back, the
-   row and byte caps enforced in the trigger (`SELECT RAISE(ABORT, …) WHERE (SELECT COUNT(*) …) >=
-   cap`), `CommitAsync` beginning the next transaction, and dispose rolling back.
+   row and byte limits enforced in the trigger (`SELECT RAISE(ABORT, …) WHERE (SELECT COUNT(*) …) >=
+   limit`), `CommitAsync` beginning the next transaction, and dispose rolling back.
    *Proves:* an insert lands with my owner and no other; an update or delete touches only my rows; the
-   caps refuse at the boundary and the message names the cap; an uncommitted write is gone after
+   limits refuse at the boundary and the message names the limit; an uncommitted write is gone after
    dispose; a commit followed by a second write lands two; a `HEAD` and a layout may not write.
 3. **The search** (`S`). `SearchAsync`, the external-content index and its triggers created and
    dropped with the table.
@@ -311,7 +311,7 @@ phase so a regression is bisectable, and its branch goes when its last slice is 
 | `src/uk.osric.asp.Runtime/` | Declaration extraction in the compile, `CompileResult.Schema`, `PAGE007` and `PAGE008` |
 | `src/uk.osric.asp.Web/Pages/` | `PageAccountOptions`, the scope registered in `PageChain.CreateLayer` for every layer and in `PageJobRunner` for a job, the DDL in the saver's transaction, and the drop in `SqlitePageStore.DeletePageAsync` beside the state it already removes |
 | `src/uk.osric.asp.Web/Storage/` | The `PageAccountTables` catalogue and its migration, the view and trigger DDL, the sampler's payload |
-| `src/uk.osric.asp.Web/Pages/Seeds/` | `help` (the declaration, the two calls, the caps, the refusals and the lifetime), `privacy`, and the `pages` editor's "Delete {key}?" page, which says what a delete takes |
+| `src/uk.osric.asp.Web/Pages/Seeds/` | `help` (the declaration, the two calls, the limits, the refusals and the lifetime), `privacy`, and the `pages` editor's "Delete {key}?" page, which says what a delete takes |
 | `src/uk.osric.asp.Web/Assistant/PageAuthorPrompt.cs` | A "Per-account storage" section and `Version` to `page-author-v35` |
 | `src/uk.osric.asp.Web/appsettings.json` | The `Pages:Account` section |
 | `deploy/operations.md` | One line under storage: a save drops what the declaration left, a delete takes the page's live data with its tables, and a scrub takes the history |
@@ -322,7 +322,7 @@ phase so a regression is bisectable, and its branch goes when its last slice is 
   `DROP`, a second statement, `ATTACH` — values, no database.
 - **`Runtime.Tests`** for the extraction and its two diagnostics, beside the shape check.
 - **`Web.Tests`** for the DDL lifecycle and the handle against a throwaway database: create, add,
-  drop, store-and-report, drop at scrub, commit, roll back, cap, search. One behaviour per test, named
+  drop, store-and-report, drop at scrub, commit, roll back, limit, search. One behaviour per test, named
   for the behaviour.
 - **`Web.IntegrationTests`** for one page that declares a table, writes a row and reads it back, then
   asks for the same row as a second account — the only test that proves the owner filter across the
@@ -333,7 +333,7 @@ phase so a regression is bisectable, and its branch goes when its last slice is 
 ## Docs
 
 - **`/help` in the same change** for everything a page author gains — the declaration, the handle, the
-  caps, the refusals and the lifetime (`product-manual-is-a-page`).
+  limits, the refusals and the lifetime (`product-manual-is-a-page`).
 - **`PageAuthorPrompt` and its `Version`**, or the assistant keeps reaching for `IPageStorage` and a
   shared row.
 - **[pages](../pages.md)** counts a twelfth capability and gains its section, **[storage](../storage.md)**

@@ -30,23 +30,23 @@ internal sealed class SqliteStoreMessages(
     /// <inheritdoc/>
     public async Task<bool> PostAsync(
         StoreMessageWrite write,
-        PageMessageOptions caps,
+        PageMessageOptions limits,
         CancellationToken cancellationToken = default) {
         ArgumentNullException.ThrowIfNull(write);
-        ArgumentNullException.ThrowIfNull(caps);
+        ArgumentNullException.ThrowIfNull(limits);
 
         string sentAt = StoreSubjectKeys.Stamp(clock.GetUtcNow());
         await using StorageDbContext database = Open();
 
-        // Both caps are proved in the statement that writes, so a concurrent poster either fits or is
-        // refused rather than slipping over the cap through a read-then-write race in the host.
+        // Both limits are proved in the statement that writes, so a concurrent poster either fits or is
+        // refused rather than slipping over the limit through a read-then-write race in the host.
         int written = await database.Database.ExecuteSqlAsync($"""
             INSERT INTO "StoreMessages" ("Subject", "ToPageKey", "Topic", "FromPageKey", "Body", "Lifetime", "ExpiresAt", "SentAt")
             SELECT {write.Subject}, {write.ToPageKey}, {write.Topic}, {write.FromPageKey}, {write.Body}, {write.Lifetime}, {write.ExpiresAt}, {sentAt}
-            WHERE (SELECT COUNT(*) FROM "StoreMessages" WHERE "Subject" = {write.Subject}) < {caps.MaxMessagesPerSubject}
+            WHERE (SELECT COUNT(*) FROM "StoreMessages" WHERE "Subject" = {write.Subject}) < {limits.MaxMessagesPerSubject}
               AND (SELECT COALESCE(SUM(length(CAST("Body" AS BLOB))), 0)
                     FROM "StoreMessages"
-                    WHERE "Subject" = {write.Subject}) + length(CAST({write.Body} AS BLOB)) <= {caps.MaxSubjectBytes};
+                    WHERE "Subject" = {write.Subject}) + length(CAST({write.Body} AS BLOB)) <= {limits.MaxSubjectBytes};
             """, cancellationToken);
 
         if (written > 0) {

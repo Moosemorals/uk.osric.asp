@@ -316,7 +316,7 @@ public sealed class PageCompositionTests {
     }
 
     [Test]
-    public async Task TheFanOutCapStopsOneEmbedPastItsLimit() {
+    public async Task TheFanOutLimitStopsOneEmbedPastItsLimit() {
         Store("/card", """<p class="card">card</p>""");
         Store("/page", """
             <% for (int index = 0; index < 3; index++) {
@@ -331,7 +331,7 @@ public sealed class PageCompositionTests {
     }
 
     [Test]
-    public async Task TheDepthCapStopsANestedEmbed() {
+    public async Task TheDepthLimitStopsANestedEmbed() {
         Store("/one", """<% _ = await ctx.Capabilities.GetRequired<IPageComposition>().EmbedAsync("/two"); %>""");
         Store("/two", """<p>two</p>""");
         Store("/page", """<% _ = await ctx.Capabilities.GetRequired<IPageComposition>().EmbedAsync("/one"); %>""");

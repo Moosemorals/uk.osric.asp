@@ -105,7 +105,7 @@ internal static class PageSessionResolver {
     /// <returns>The resolved session, cached on the request so every caller sees one.</returns>
     /// <remarks>
     /// A row that belongs to an account is only honoured for that account: a stale cookie cannot
-    /// inherit the account's caps or read what an owner's page left behind. A mismatch deletes the
+    /// inherit the account's limits or read what an owner's page left behind. A mismatch deletes the
     /// row and starts a fresh session.
     /// </remarks>
     public static async Task<PageSessionRequest> ResolveAsync(

@@ -10,7 +10,7 @@ using uk.osric.asp.Web.Pages;
 
 /// <summary>An in-memory <see cref="IStoreValues"/> that applies the same rules as the real one.</summary>
 /// <remarks>
-/// The subject, lifetime, expiry and cap rules are enforced here too, so a value-store test proves the
+/// The subject, lifetime, expiry and limit rules are enforced here too, so a value-store test proves the
 /// behaviour the store promises without a database. The SQL is proven separately, against the real
 /// store.
 /// </remarks>
@@ -39,7 +39,7 @@ internal sealed class FakeStoreValues(PageStoresOptions? options = null, TestClo
     /// <summary>Every row, for a test that wants to prove what a subject holds.</summary>
     public IReadOnlyList<Row> Rows => _rows;
 
-    /// <summary>The caps this fake was built with.</summary>
+    /// <summary>The limits this fake was built with.</summary>
     public PageStoresOptions Options => _options;
 
     /// <summary>Reads a Page value, as the old page-state fake did.</summary>
@@ -124,7 +124,7 @@ internal sealed class FakeStoreValues(PageStoresOptions? options = null, TestClo
         return answer;
     }
 
-    public async Task WriteAsync(StoreValueWrite write, StoreSubjectCaps caps, CancellationToken cancellationToken = default) {
+    public async Task WriteAsync(StoreValueWrite write, SubjectLimits limits, CancellationToken cancellationToken = default) {
         LastCancellationToken = cancellationToken;
         await Task.Yield();
 
@@ -134,16 +134,16 @@ internal sealed class FakeStoreValues(PageStoresOptions? options = null, TestClo
 
         List<Row> held = [.. _rows.Where(row => row.Subject == write.Subject)];
         bool existing = held.Any(row => row.PageKey == write.PageKey && row.Key == write.Key);
-        if (!existing && held.Count >= caps.MaxKeys) {
-            throw new ArgumentException($"The subject already holds {held.Count} keys and may hold {caps.MaxKeys}.");
+        if (!existing && held.Count >= limits.MaxKeys) {
+            throw new ArgumentException($"The subject already holds {held.Count} keys and may hold {limits.MaxKeys}.");
         }
 
         long total = held
             .Where(row => !(row.PageKey == write.PageKey && row.Key == write.Key))
             .Sum(row => (long)Encoding.UTF8.GetByteCount(row.Key) + Encoding.UTF8.GetByteCount(row.Value));
         total += Encoding.UTF8.GetByteCount(write.Key) + Encoding.UTF8.GetByteCount(write.Value);
-        if (total > caps.MaxTotalBytes) {
-            throw new ArgumentException($"The subject would need {total} bytes of state and may use {caps.MaxTotalBytes}.");
+        if (total > limits.MaxTotalBytes) {
+            throw new ArgumentException($"The subject would need {total} bytes of state and may use {limits.MaxTotalBytes}.");
         }
 
         Row? current = held.FirstOrDefault(row => row.PageKey == write.PageKey && row.Key == write.Key);
@@ -226,7 +226,7 @@ internal sealed class FakeStoreValues(PageStoresOptions? options = null, TestClo
         PagePath page,
         string key,
         string value,
-        StoreSubjectCaps caps,
+        SubjectLimits limits,
         CancellationToken cancellationToken = default) =>
         WriteAsync(
             new StoreValueWrite(
@@ -237,10 +237,10 @@ internal sealed class FakeStoreValues(PageStoresOptions? options = null, TestClo
                 ExpiresAt: null,
                 value,
                 RequireLivePage: true),
-            caps,
+            limits,
             cancellationToken);
 
-    /// <summary>Puts a Page value in without the caps, as a database direct write would.</summary>
+    /// <summary>Puts a Page value in without the limits, as a database direct write would.</summary>
     public void Seed(string pagePath, string key, string value) {
         LivePages.Add(pagePath);
         _rows.Add(new Row {
@@ -253,7 +253,7 @@ internal sealed class FakeStoreValues(PageStoresOptions? options = null, TestClo
         });
     }
 
-    /// <summary>Puts a Visitor value in without the caps.</summary>
+    /// <summary>Puts a Visitor value in without the limits.</summary>
     public void SeedVisitor(string subject, string pagePath, string key, string value, StoreLifetimeKind kind) =>
         _rows.Add(new Row {
             Subject = subject,

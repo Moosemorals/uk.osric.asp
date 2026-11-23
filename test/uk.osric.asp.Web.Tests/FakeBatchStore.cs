@@ -12,7 +12,7 @@ internal sealed class FakeBatchStore : IPageBatchStore {
     /// <summary>The batches that committed, in call order.</summary>
     public List<PageBatchSave> Saved { get; } = [];
 
-    /// <summary>Pages to refuse, so a fixture can prove a cap refusal writes nothing.</summary>
+    /// <summary>Pages to refuse, so a fixture can prove a limit refusal writes nothing.</summary>
     public IReadOnlyList<PagePath> Refuse { get; set; } = [];
 
     /// <summary>An exception to throw instead of writing.</summary>

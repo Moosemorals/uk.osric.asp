@@ -106,7 +106,7 @@ internal sealed class ImportEndpoint {
         try {
             form = await context.Request.ReadFormAsync(context.RequestAborted);
         } catch (BadHttpRequestException exception) when (exception.StatusCode == StatusCodes.Status413PayloadTooLarge) {
-            // The size cap did its job: the sender is told, and the reader is the only one who would
+            // The size limit did its job: the sender is told, and the reader is the only one who would
             // want the parser's own words.
             logger.LogDebug(exception, "An uploaded archive was larger than {MaxUploadBytes} bytes and was refused", options.MaxUploadBytes);
             await WriteTooLargeAsync(context, options);

@@ -169,7 +169,7 @@ write buffer 2
   (`pages-one-base-sheet`).
 - **Depth and cycles.** `Pages:Render:MaxLayoutDepth` (four shipped, accepted 1–16) bounds the
   number of wrappers, and the ancestor stack refuses a page that reaches itself again with the same
-  request; the same page with a different request is a recursive component, allowed and capped by
+  request; the same page with a different request is a recursive component, allowed and limited by
   `Pages:Render:MaxEmbedDepth`.
 - **Failure is not symmetric.** A *default* wrapper that is missing or does not compile serves the
   page unwrapped, logs a warning and counts `page.layout.fallback`; a wrapper the page *named* that
@@ -419,7 +419,7 @@ shell owns the identity:
   five minutes, and the mint path deletes expired rows before it evicts anything live, so a burst of
   new visitors cannot push a live session out because stale ones are holding the room.
 - **Capped.** `Pages:Stores` bounds the keys and bytes each subject instance may hold
-  (see [storage](storage.md#page-sessions-and-the-browser), `pages-one-stores-section`). A live session cap evicts the most idle
+  (see [storage](storage.md#page-sessions-and-the-browser), `pages-one-stores-section`). A live session limit evicts the most idle
   **anonymous** session first and only touches a signed-in one when no anonymous session is left, so
   a flood sheds strangers rather than the person using the site.
 

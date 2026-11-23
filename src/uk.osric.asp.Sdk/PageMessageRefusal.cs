@@ -6,7 +6,7 @@ namespace uk.osric.asp.Sdk;
 /// <summary>Why a message was not queued, or why a take or peek answered nothing.</summary>
 /// <remarks>
 /// A refused destination and a full queue depend on the page store rather than on the page's code, so
-/// they are values a page branches on. A body over its cap and a lifetime the subject cannot carry
+/// they are values a page branches on. A body over its limit and a lifetime the subject cannot carry
 /// are page bugs and throw instead.
 /// </remarks>
 public enum PageMessageRefusal {
@@ -29,6 +29,6 @@ public enum PageMessageRefusal {
     /// <summary>The key holds a library or a content-only page, which can never take a message.</summary>
     NotASink,
 
-    /// <summary>The reader is at their message count or byte cap, so nothing was queued.</summary>
+    /// <summary>The reader is at their message count or byte limit, so nothing was queued.</summary>
     Full,
 }

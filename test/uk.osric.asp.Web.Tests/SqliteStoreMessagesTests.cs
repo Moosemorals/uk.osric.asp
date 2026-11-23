@@ -109,22 +109,22 @@ public sealed class SqliteStoreMessagesTests {
     }
 
     [Test]
-    public async Task TheCountCapRefusesAPostAsync() {
+    public async Task TheCountLimitRefusesAPostAsync() {
         IStoreMessages store = Messages();
-        PageMessageOptions caps = MessagesOptions() with { MaxMessagesPerSubject = 1 };
-        Assert.That(await store.PostAsync(Write("session:one", "/sender", "one", to: "/receiver"), caps), Is.True);
+        PageMessageOptions limits = MessagesOptions() with { MaxMessagesPerSubject = 1 };
+        Assert.That(await store.PostAsync(Write("session:one", "/sender", "one", to: "/receiver"), limits), Is.True);
 
-        Assert.That(await store.PostAsync(Write("session:one", "/sender", "two", to: "/receiver"), caps), Is.False);
+        Assert.That(await store.PostAsync(Write("session:one", "/sender", "two", to: "/receiver"), limits), Is.False);
         Assert.That((await store.TakeAsync(Subjects("session:one"), "/receiver", null))?.Body, Is.EqualTo("one"));
     }
 
     [Test]
-    public async Task TheByteCapRefusesAPostAsync() {
+    public async Task TheByteLimitRefusesAPostAsync() {
         IStoreMessages store = Messages();
-        PageMessageOptions caps = MessagesOptions() with { MaxSubjectBytes = 8 };
+        PageMessageOptions limits = MessagesOptions() with { MaxSubjectBytes = 8 };
 
-        Assert.That(await store.PostAsync(Write("session:one", "/sender", "12345678", to: "/receiver"), caps), Is.True);
-        Assert.That(await store.PostAsync(Write("session:one", "/sender", "9", to: "/receiver"), caps), Is.False);
+        Assert.That(await store.PostAsync(Write("session:one", "/sender", "12345678", to: "/receiver"), limits), Is.True);
+        Assert.That(await store.PostAsync(Write("session:one", "/sender", "9", to: "/receiver"), limits), Is.False);
     }
 
     [Test]

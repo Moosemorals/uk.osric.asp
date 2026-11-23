@@ -457,7 +457,7 @@ internal sealed class OutboundFetcher(
         return headers;
     }
 
-    // Content-Length is not trusted to be small, so the cap is applied to what arrives.
+    // Content-Length is not trusted to be small, so the limit is applied to what arrives.
     private async Task<byte[]> ReadBodyAsync(HttpResponseMessage response, CancellationToken cancellationToken) {
         await using Stream stream = await response.Content.ReadAsStreamAsync(cancellationToken);
         using MemoryStream buffer = new();

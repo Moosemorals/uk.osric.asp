@@ -48,7 +48,7 @@ internal sealed class AssistantMetrics : IDisposable {
 
     /// <summary>Buckets for <c>assistant.run.duration</c>, in seconds.</summary>
     /// <remarks>
-    /// A run's length has no cap: <c>Assistant:RunTimeoutSeconds</c> bounds the provider going quiet,
+    /// A run's length has no limit: <c>Assistant:RunTimeoutSeconds</c> bounds the provider going quiet,
     /// not the run (`assistant-deadlines-bound-silence`), so this scale is sized for the work — minutes, up to an hour. The page
     /// scale stops at ten seconds, which is why every run used to land in `+Inf`.
     /// </remarks>
@@ -67,7 +67,7 @@ internal sealed class AssistantMetrics : IDisposable {
     /// <summary>Buckets for <c>assistant.tool.duration</c>, in seconds.</summary>
     /// <remarks>
     /// A tool call is usually a few milliseconds of our own work, and bounded by
-    /// <c>Assistant:ToolTimeoutSeconds</c> when it is not; the top boundary is past that cap
+    /// <c>Assistant:ToolTimeoutSeconds</c> when it is not; the top boundary is past that limit
     /// (`metrics-one-panel-per-instrument`).
     /// </remarks>
     public static readonly double[] ToolDurationBuckets =
@@ -77,7 +77,7 @@ internal sealed class AssistantMetrics : IDisposable {
     /// <remarks>
     /// The margin is one of the boundaries — 27,525 tokens is three percent of the 917,504-token
     /// prompt budget — so whatever lands above it is the step that spent more than the estimate
-    /// allows. The same trick the step and tool-call buckets use: draw the cap rather than hide the
+    /// allows. The same trick the step and tool-call buckets use: draw the limit rather than hide the
     /// overrun under <c>+Inf</c> (`metrics-one-panel-per-instrument`).
     /// </remarks>
     public static readonly double[] EstimateErrorBuckets = [0, 64, 256, 1024, 4096, 16384, 27525, 65536, 262144];
@@ -211,7 +211,7 @@ internal sealed class AssistantMetrics : IDisposable {
     /// or <see cref="ExhaustedOutput"/>.</param>
     public void RecordBudgetExhausted(string cause) => _exhausted.Add(1, new TagList { { "cause", cause } });
 
-    /// <summary>Records that one tool result was truncated at its cap.</summary>
+    /// <summary>Records that one tool result was truncated at its limit.</summary>
     /// <param name="tool">The registered tool's name, or <see cref="UnknownTool"/>.</param>
     public void RecordToolTruncated(string? tool) =>
         _truncated.Add(1, new TagList { { "tool", tool ?? UnknownTool } });

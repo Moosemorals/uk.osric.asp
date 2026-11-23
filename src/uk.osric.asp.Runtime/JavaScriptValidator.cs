@@ -15,7 +15,7 @@ using uk.osric.asp.Core.Compilation;
 public static class JavaScriptValidator {
 
     // A botched edit usually leaves a brace or a bracket open; the parser's own error is then often
-    // hundreds of lines away, at the next token it cannot use. The cap keeps a pathological page from
+    // hundreds of lines away, at the next token it cannot use. The limit keeps a pathological page from
     // filling the tool result with hints, and the earliest hints are the ones nearest the edit.
     private const int HintLimit = 20;
 

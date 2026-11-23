@@ -19,7 +19,7 @@ namespace uk.osric.asp.Sdk;
 /// </para>
 /// <para>
 /// Everything the page got wrong throws: a topic that cannot name a queue, a lifetime a Visitor
-/// subject cannot carry, a body over its cap, and a write during a <c>HEAD</c>, an abandoned render
+/// subject cannot carry, a body over its limit, and a write during a <c>HEAD</c>, an abandoned render
 /// or a passed deadline. A destination that cannot receive a message is a value, because it depends
 /// on the page store rather than on the page's code.
 /// </para>
@@ -28,24 +28,24 @@ public interface IMessageStore {
 
     /// <summary>Posts a message to another page's queue.</summary>
     /// <param name="toPageKey">The destination page's key. It is normalised before use.</param>
-    /// <param name="body">The message; ordinal text, at most the configured body cap in bytes.</param>
+    /// <param name="body">The message; ordinal text, at most the configured body limit in bytes.</param>
     /// <param name="lifetime">
     /// The message's lifetime, or <see langword="null"/> for <see cref="StoreLifetime.Person"/>. A
     /// <c>Page</c> or <c>NextRead</c> lifetime is a page bug and throws; an expiry composes with the
     /// default.
     /// </param>
     /// <returns>Whether it was queued, or why the destination cannot receive it.</returns>
-    /// <exception cref="System.ArgumentException">The body or the lifetime breaks a rule or a cap.</exception>
+    /// <exception cref="System.ArgumentException">The body or the lifetime breaks a rule or exceeds a limit.</exception>
     /// <exception cref="System.InvalidOperationException">The render cannot write: a <c>HEAD</c>, an abandoned render or a passed deadline.</exception>
 #pragma warning disable RS0026 // Two addresses, one optional lifetime each: the first parameter's type makes the call unambiguous.
     public Task<PageMessagePostResult> PostAsync(string toPageKey, string body, StoreLifetime? lifetime = null);
 
     /// <summary>Posts a message to a named topic, which needs no page behind it.</summary>
     /// <param name="topic">The queue's name, which the page constructed.</param>
-    /// <param name="body">The message; ordinal text, at most the configured body cap in bytes.</param>
+    /// <param name="body">The message; ordinal text, at most the configured body limit in bytes.</param>
     /// <param name="lifetime">The message's lifetime, or <see langword="null"/> for <see cref="StoreLifetime.Person"/>.</param>
     /// <returns>When queued, <see cref="PageMessageRefusal.None"/>; the queue holds no address to refuse.</returns>
-    /// <exception cref="System.ArgumentException">The body or the lifetime breaks a rule or a cap.</exception>
+    /// <exception cref="System.ArgumentException">The body or the lifetime breaks a rule or exceeds a limit.</exception>
     /// <exception cref="System.InvalidOperationException">The render cannot write: a <c>HEAD</c>, an abandoned render or a passed deadline.</exception>
     public Task<PageMessagePostResult> PostAsync(PageTopic topic, string body, StoreLifetime? lifetime = null);
 #pragma warning restore RS0026

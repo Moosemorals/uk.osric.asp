@@ -8,7 +8,7 @@ using uk.osric.asp.Web.Pages;
 
 /// <summary>An in-memory <see cref="IStoreMessages"/> that applies the same rules as the real one.</summary>
 /// <remarks>
-/// The subject filter, the address, the FIFO order, the expiry and the caps are enforced here too, so
+/// The subject filter, the address, the FIFO order, the expiry and the limits are enforced here too, so
 /// a render test proves the behaviour the store promises without a database. The SQL is proven
 /// separately, against the real store.
 /// </remarks>
@@ -25,14 +25,14 @@ internal sealed class FakeStoreMessages(TestClock? clock = null) : IStoreMessage
 
     public Task<bool> PostAsync(
         StoreMessageWrite write,
-        PageMessageOptions caps,
+        PageMessageOptions limits,
         CancellationToken cancellationToken = default) {
         _ = cancellationToken;
         int held = _rows.Count(row => row.Subject == write.Subject);
         int bytes = _rows.Where(row => row.Subject == write.Subject).Sum(row => Encoding.UTF8.GetByteCount(row.Body));
         int added = Encoding.UTF8.GetByteCount(write.Body);
 
-        if (held >= caps.MaxMessagesPerSubject || bytes + added > caps.MaxSubjectBytes) {
+        if (held >= limits.MaxMessagesPerSubject || bytes + added > limits.MaxSubjectBytes) {
             return Task.FromResult(false);
         }
 
@@ -97,7 +97,7 @@ internal sealed class FakeStoreMessages(TestClock? clock = null) : IStoreMessage
         return Task.FromResult(expired + browsers);
     }
 
-    /// <summary>Puts a message in without the caps, as a database direct write would.</summary>
+    /// <summary>Puts a message in without the limits, as a database direct write would.</summary>
     public void Seed(string subject, string from, string body, string? toPageKey = null, string? topic = null, string? expiresAt = null) =>
         _rows.Add(new StoreMessageRow(
             ++_nextId,

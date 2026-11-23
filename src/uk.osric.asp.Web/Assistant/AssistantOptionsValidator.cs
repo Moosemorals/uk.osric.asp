@@ -27,7 +27,7 @@ internal sealed class AssistantOptionsValidator : IValidateOptions<AssistantOpti
         if (!options.ChatCompletionsPath.StartsWith('/')) {
             failures.Add("Assistant:ChatCompletionsPath must be an absolute path.");
         }
-        // A page's content travels inside a tool call's arguments, so a cap below the page cap would let
+        // A page's content travels inside a tool call's arguments, so a limit below the page limit would let
         // the configuration accept a page no tool could write.
         if (options.MaxToolArgumentChars <= options.MaxPageChars) {
             failures.Add(

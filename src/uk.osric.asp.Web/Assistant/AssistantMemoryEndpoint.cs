@@ -33,7 +33,7 @@ internal static class AssistantMemoryEndpoint {
     /// <param name="context">The response being written.</param>
     /// <param name="memories">The store the memories are read from.</param>
     /// <param name="antiforgery">Mints the token every row's form carries.</param>
-    /// <param name="options">The owner's cap, for the count.</param>
+    /// <param name="options">The owner's limit, for the count.</param>
     public static async Task ListAsync(
         HttpContext context,
         IMemoryStore memories,
@@ -60,7 +60,7 @@ internal static class AssistantMemoryEndpoint {
     /// <param name="id">The memory being saved.</param>
     /// <param name="memories">The store the memory is read from and written to.</param>
     /// <param name="antiforgery">Mints the token the re-rendered forms carry.</param>
-    /// <param name="options">The owner's cap, for the count and the row's cap.</param>
+    /// <param name="options">The owner's limit, for the count and the row's limit.</param>
     public static async Task SaveAsync(
         HttpContext context,
         long id,
@@ -297,7 +297,7 @@ internal static class AssistantMemoryEndpoint {
     private static string Count(int count, int maximum) {
         string of = $"{count.ToString(CultureInfo.InvariantCulture)} of {maximum.ToString(CultureInfo.InvariantCulture)} memories";
         return count >= maximum
-            ? $"<p class=\"assistant-memory-count\">{of}, which is the cap: the assistant cannot remember anything new until one is forgotten.</p>"
+            ? $"<p class=\"assistant-memory-count\">{of}, which is the limit: the assistant cannot remember anything new until one is forgotten.</p>"
             : $"<p class=\"assistant-memory-count\">{of}.</p>";
     }
 
@@ -323,7 +323,7 @@ internal static class AssistantMemoryEndpoint {
     private static string Date(DateTimeOffset when) =>
         when.UtcDateTime.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
 
-    // The form's shape only: the store is still the authority on the content, its cap and its secrets.
+    // The form's shape only: the store is still the authority on the content, its limit and its secrets.
     private static bool TryReadSubmission(
         HttpContext context,
         out MemoryKind kind,

@@ -73,7 +73,7 @@ public sealed class AssistantMemoryPageTests {
             Assert.That(body, Does.Contain("<h2>Facts</h2>"));
             Assert.That(body, Does.Contain("<h2>References</h2>"));
             Assert.That(body, Does.Not.Contain("<h2>Feedback</h2>"), "a kind with nothing in it is left out");
-            Assert.That(body, Does.Contain("3 of 3 memories, which is the cap"));
+            Assert.That(body, Does.Contain("3 of 3 memories, which is the limit"));
             Assert.That(body, Does.Contain("<span class=\"current\" aria-current=\"true\">Memory</span>"),
                 "the assistant navigation marks the page it is on");
         });

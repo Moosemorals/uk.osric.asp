@@ -154,7 +154,7 @@ public sealed class SqliteRecordStoreTests {
     }
 
     [Test]
-    public async Task TheRowCapAnswersFullRatherThanThrowingAsync() {
+    public async Task TheRowLimitAnswersFullRatherThanThrowingAsync() {
         await using SqliteRecordStore store = Store("session:one");
         for (int index = 0; index < Records.MaxRowsPerSubject; index++) {
             _ = await store.ExecuteAsync(
@@ -170,7 +170,7 @@ public sealed class SqliteRecordStoreTests {
     }
 
     [Test]
-    public async Task AResultPastItsRowCapThrowsNamingTheSettingAsync() {
+    public async Task AResultPastItsRowLimitThrowsNamingTheSettingAsync() {
         await using SqliteRecordStore store = Store("session:one");
         _ = await store.ExecuteAsync("""INSERT INTO "notes" ("Title", "Body") VALUES ('one', 'a'), ('two', 'b'), ('three', 'c')""");
 

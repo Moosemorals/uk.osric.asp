@@ -86,8 +86,8 @@ browser message follows the `b` cookie. A topic is `PageTopic.Named`, and its na
 page key is — lowercased with the invariant culture and composed to NFC — so two spellings are one
 queue; a topic has no page behind it and is untouched by a page's delete.
 
-The caps are per subject and are proved in the statement that writes: the number of messages and the
-total body bytes, beside the one-body cap. Deleting a page deletes the messages addressed to it in the
+The limits are per subject and are proved in the statement that writes: the number of messages and the
+total body bytes, beside the one-body limit. Deleting a page deletes the messages addressed to it in the
 tombstone's transaction, whoever posted them; moving it re-addresses them; signing out, the session
 sweep and `users remove` delete the subject's messages with its values and its declared rows; the
 five-minute sweep deletes expired messages and a `browser:` subject nothing has written for the
@@ -105,9 +105,9 @@ applies nothing. A move re-keys the catalogue and leaves `RealName` alone, so th
 
 A real table is `Id INTEGER PRIMARY KEY AUTOINCREMENT`, one column per declared property, an
 `Owner TEXT NOT NULL` column for a visitor's table, and, when the declaration names a search column, an
-external-content FTS5 index with the three triggers that keep it. Two cap triggers per table refuse a
-write that would pass the subject's row or byte cap, inside the statement that writes, and every save
-rewrites them so a changed cap takes effect. A type, subject or lifetime that changed since the table
+external-content FTS5 index with the three triggers that keep it. Two limit triggers per table refuse a
+write that would pass the subject's row or byte limit, inside the statement that writes, and every save
+rewrites them so a changed limit takes effect. A type, subject or lifetime that changed since the table
 was made is a refusal rather than an alteration: nothing here reinterprets a row.
 
 `DeclaredTableApplier` is the seam; `SqliteRecordStore` is the fence. It opens one unpooled connection
@@ -129,15 +129,15 @@ statement. Two indexes back the sweep and the eviction order: one on `(Account, 
 on `UpdatedAt`. The values that used to sit beside it are rows in `StoreValues` now, so a session's
 delete removes them in the same transaction rather than through a cascade.
 
-The caps live in `Pages:Stores`: the longest key, the command and busy timeouts, and then one set of
-caps per subject instance — a value's bytes, the key count and the byte total — for a page, an
+The limits live in `Pages:Stores`: the longest key, the command and busy timeouts, and then one set of
+limits per subject instance — a value's bytes, the key count and the byte total — for a page, an
 anonymous visitor, a browser and a signed-in visitor, with the anonymous idle window, the browser's
-lifetime in days and the live-session cap beside them. Every value is required: a missing or
+lifetime in days and the live-session limit beside them. Every value is required: a missing or
 out-of-range one stops the site at startup with a message naming the key, its range and the shipped
 value ([configuration](architecture.md#configuration), `pages-one-stores-section`). Each write is one
-statement that refuses at the cap: a Page write also needs a live head, the key count must stay inside its cap and the byte
-total inside its cap, all proved in the statement that writes, so a concurrent writer either fits or
-is refused. The caps are per subject instance, not per page, so one page's keys can use the room
+statement that refuses at the limit: a Page write also needs a live head, the key count must stay inside its limit and the byte
+total inside its limit, all proved in the statement that writes, so a concurrent writer either fits or
+is refused. The limits are per subject instance, not per page, so one page's keys can use the room
 another would have had.
 
 A visitor's expiry is the sliding window on their `PageSessions` row; a value's or a message's expiry
@@ -246,7 +246,7 @@ SQLite's `length()` and `substr`, which count characters where a `string.Length`
 UTF-16 units. Because a folder is derived from the head rows, its token moves exactly when the token of
 the heads under it does, and the routes sit outside it because the route table is the build's.
 `Pages:Read:MaxRowsPerList`
-(500 shipped) is enforced in the statement and refuses one row past the cap,
+(500 shipped) is enforced in the statement and refuses one row past the limit,
 `Pages:Read:MaxSourceCharsPerRender` (512 KiB shipped) is one `ReadBudget` shared by every layer of
 the chain and refuses rather than truncating, and both the deadline and abandonment stop a read. The
 read is as public as the page that calls it: the host adds no gate, a page that wants privacy writes
@@ -339,14 +339,14 @@ source stays in history.
 
 Validation treats the file as hostile and is all or nothing: the schema must be exactly the two
 tables and their columns, every path must already be canonical, addressable and unreserved, every
-value must be text that decodes as strict UTF-8, every state key and value must pass the storage caps
+value must be text that decodes as strict UTF-8, every state key and value must pass the storage limits
 the store enforces, and one bad row rejects the whole archive before anything is staged. Problems are
 collected up to ten so the error page can list several at once, but each is independently fatal.
 
 An approved archive is compiled one page at a time with nothing written, then committed in one SQLite
 transaction: revisions, then heads, then state. A page that does not compile — or a compiler fault —
 is stored with its diagnostics or with no image, exactly as a save would store it, and the rest of the
-batch still commits. A batch whose merged state would exceed a page's caps is refused before any row
+batch still commits. A batch whose merged state would exceed a page's limits is refused before any row
 is written, and a failed write or a crash rolls the whole transaction back, so readers see the old
 pages until the commit and the whole new set afterwards. There is no undo: the batch either commits
 or does not, and the way back is another import.

@@ -683,10 +683,10 @@ internal static class PageToolData {
         }
 
         string source = string.Join('\n', numbered);
-        int cap = (int)Math.Min(budget.ToolResultChars, int.MaxValue);
-        bool truncated = source.Length > cap;
+        int limit = (int)Math.Min(budget.ToolResultChars, int.MaxValue);
+        bool truncated = source.Length > limit;
         if (truncated) {
-            source = Window(source, Math.Max(1, cap));
+            source = Window(source, Math.Max(1, limit));
         }
 
         return new ProjectedSource(source, start, end, lines.Length, truncated);

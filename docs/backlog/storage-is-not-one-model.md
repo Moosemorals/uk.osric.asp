@@ -35,11 +35,11 @@ key/value, shared by every visitor), `IPageSession` (one browser's key/value), t
 and written through `IPageCatalog`/`IPageWrites`, and a job's journal and channel. Two more are
 planned as separate capabilities — the per-account SQL store (`no-account-store`) and the inbox
 (`message-does-not-survive-a-redirect`) — and each would arrive with its own table, its own options
-section, its own cap unit and its own lifetime clock.
+section, its own limit unit and its own lifetime clock.
 
 So the same question is answered five times and differently: **whose data is this, and how long does
 it live?** The subject key is a page path, a session id, an account name or "account or session".
-The cap unit is per page, per visitor, per inbox and per (account, page). The lifetime is the page's,
+The limit unit is per page, per visitor, per inbox and per (account, page). The lifetime is the page's,
 30 minutes, eight hours, thirty days from activity, or the job's. Nothing is wrong in isolation; the
 set is incoherent, and the gaps fall between the parts:
 
@@ -53,7 +53,7 @@ set is incoherent, and the gaps fall between the parts:
   says which is intended.
 
 The owner's decision of 2026-11-21 is to replace the model rather than add a sixth store. The rule is:
-**the subject is the binding, the shape is the interface.** Lifetime and caps belong to the subject;
+**the subject is the binding, the shape is the interface.** Lifetime and limits belong to the subject;
 authority and TTL belong to the verb.
 
 ## The model
@@ -122,7 +122,7 @@ The rest of the shape:
   render and a passed deadline, on every subject and every layer. Content, layout and embedded all
   get `ctx.Stores`; the page-source write keeps its own signed-in, one-action rules and stays out of
   the data stores, because source is content.
-- **Caps are per subject instance**, not per store: a person's values and messages draw on one
+- **Limits are per subject instance**, not per store: a person's values and messages draw on one
   person's budget, and the numbers are chosen together.
 - **Objects have both doors.** A site route `/o/{sha}` serves bytes with `ETag`, `Range` and a cache
   policy that follows the subject; a page may also open the bytes and transform them — an image
@@ -169,7 +169,7 @@ bounds.
 
 1. **SQL includes joins and aggregates.** The record store is not four verbs over one table. Joins and
    aggregates are in scope, over the tables the page or library declares for its subject, bounded by
-   the result-row and result-character caps and the statement timeout. `ATTACH`, `PRAGMA` and DDL stay
+   the result-row and result-character limits and the statement timeout. `ATTACH`, `PRAGMA` and DDL stay
    out; the plan designs the allow-list and the owner filter that a join sees.
 2. **Libraries own state.** `For(libraryKey)` is approved, with the pattern in the model: the library
    declares the schema, pages call its methods, and its methods reach the data.

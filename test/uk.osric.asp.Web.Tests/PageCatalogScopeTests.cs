@@ -409,7 +409,7 @@ public sealed class PageCatalogScopeTests {
     }
 
     [Test]
-    public async Task ALimitPastTheCapIsRefusedAsync() {
+    public async Task ALimitPastTheLimitIsRefusedAsync() {
         FakePageReadStore store = new();
         store.Save("/one", "1");
         PageCatalogScope scope = Scope(store, options: TestOptions.Read with { MaxRowsPerList = 2 });
@@ -795,7 +795,7 @@ public sealed class PageCatalogScopeTests {
     }
 
     [Test]
-    public async Task ASearchRefusesALimitPastTheCapAsync() {
+    public async Task ASearchRefusesALimitPastTheLimitAsync() {
         PageCatalogScope scope = Scope(new FakePageReadStore());
 
         ArgumentOutOfRangeException error = (await Assert.ThrowsAsync<ArgumentOutOfRangeException>(() =>
@@ -805,7 +805,7 @@ public sealed class PageCatalogScopeTests {
     }
 
     [Test]
-    public async Task ASearchRefusesAContextPastTheCapAsync() {
+    public async Task ASearchRefusesAContextPastTheLimitAsync() {
         PageCatalogScope scope = Scope(new FakePageReadStore());
 
         ArgumentOutOfRangeException error = (await Assert.ThrowsAsync<ArgumentOutOfRangeException>(() =>

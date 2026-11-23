@@ -64,7 +64,7 @@ internal sealed class SqlitePageReadStore(IDbContextFactory<StorageDbContext> co
         ArgumentOutOfRangeException.ThrowIfLessThan(limit, 1);
 
         return InReadSnapshotAsync(async (database, token) => {
-            // The shape and the limit are fixed in the statement, because the row cap needs the order
+            // The shape and the limit are fixed in the statement, because the row limit needs the order
             // to be decided before the limit is applied. The cursor is a key rather than a count, so
             // a save between two calls cannot make the next one skip a row or repeat one.
             IQueryable<PageHead> heads = HeadsUnder(database, prefix, recursive);

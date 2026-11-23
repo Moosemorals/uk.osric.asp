@@ -68,7 +68,7 @@ internal sealed class SqliteRecordStore : RenderBoundCapability, IRecordStore, I
     /// </param>
     /// <param name="kind">Whose tables this handle reaches.</param>
     /// <param name="catalog">Where the catalogue and the database are read.</param>
-    /// <param name="records">The caps and the clocks.</param>
+    /// <param name="records">The limits and the clocks.</param>
     /// <param name="writable">Whether this render may write.</param>
     /// <param name="validate">
     /// A check made once before the handle opens, or <see langword="null"/>: the proof a
@@ -132,7 +132,7 @@ internal sealed class SqliteRecordStore : RenderBoundCapability, IRecordStore, I
         }
 
         DeclaredTable stored = await StoredAsync(declared.Name, CancellationToken.None);
-        int cap = Math.Clamp(limit ?? _records.MaxResultRows, 1, _records.MaxResultRows);
+        int take = Math.Clamp(limit ?? _records.MaxResultRows, 1, _records.MaxResultRows);
         string? carried = _subjects.GetValueOrDefault(declared.Name);
         string owner = carried is null ? string.Empty : " AND t.\"Owner\" = $owner";
         string index = DeclaredTableSql.SearchName(stored.RealName);
@@ -144,7 +144,7 @@ internal sealed class SqliteRecordStore : RenderBoundCapability, IRecordStore, I
             JOIN "{stored.RealName}" AS t ON t."Id" = "{index}".rowid
             WHERE "{index}" MATCH $term{owner}
             ORDER BY rank
-            LIMIT {cap}
+            LIMIT {take}
             """, new PageParameters().Add("term", term).Add("owner", carried), host: true);
     }
 
@@ -280,7 +280,7 @@ internal sealed class SqliteRecordStore : RenderBoundCapability, IRecordStore, I
             }
 
             views.Add(declared.Name);
-            // Every trigger the table has, not only the three that write: the cap triggers read the
+            // Every trigger the table has, not only the three that write: the limit triggers read the
             // real table and the index triggers write it, and a list of the three would refuse both.
             inner.Add(declared.Name);
             inner.Add(declared.Name + "_insert");
