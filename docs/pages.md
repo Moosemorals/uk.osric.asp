@@ -70,7 +70,7 @@ pure renderers, and one that is a fact about the build:
   abandonment bound the request: a request the policy would refuse costs nothing and one that is
   attempted costs one, whatever its outcome, and a stream costs one at open. A job fetches at its
   own `Pages:Jobs:FetchesPerSecond` for as long as it runs
-  (`pages-outbound-fetch`, `pages-capabilities-are-one-seam`). A request may name an operator-configured credential with
+  (`pages-outbound-fetch`, `pages-capabilities-are-one-seam`, `pages-allowances-are-a-rate`). A request may name an operator-configured credential with
   `Credential`: the host supplies the header, only to that credential's host and only from the page
   the credential is bound to — or from a page under it, when the entry's `Page` ends in `/*`, so a
   page family and its worker can share one token. The page never reads the value, and an unknown
@@ -718,7 +718,8 @@ waits for it against one deadline that covers both queueing and running:
   own pair under `Pages:Jobs`, because a worker that lives nine hours must not be given a page's
   lifetime allowance, and its duration is the only ceiling. A read is whole, so the read burst is
   also the largest single template that can ever be read. A listing, a search and a body write do not
-  charge the read rate, and neither does a request the fetch policy refuses.
+  charge the read rate, and neither does a request the fetch policy refuses
+  (`pages-allowances-are-a-rate`).
 - `Pages:Render:MaxLayoutDepth` bounds the pages that wrap one page, and `Pages:Render:MaxEmbedDepth`
   bounds the embeds nested below the layer that is running, so a page composed out of data-driven
   recursion stops. They are chosen apart because a widget is not chrome.

@@ -9,7 +9,8 @@ using uk.osric.asp.Web.Configuration;
 /// <remarks>
 /// Every value comes from <c>Pages:Read</c>. The row limit is the store's limit; the source rate is
 /// shared by the whole layout chain, on the same terms as the body and fetch allowances
-/// (`pages-one-request-one-chain`), and a job gets a rate of its own from <c>Pages:Jobs</c>.
+/// (`pages-one-request-one-chain`), and a job gets a rate of its own from <c>Pages:Jobs</c>. A source
+/// read is a rate with a burst rather than a count (`pages-allowances-are-a-rate`).
 /// </remarks>
 internal sealed record PageReadOptions {
 

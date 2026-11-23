@@ -17,6 +17,9 @@ using uk.osric.asp.Web.Configuration;
 /// The timeout is below the default render budget on purpose, so a slow API becomes a value the page
 /// can render instead of a <c>504</c>.
 /// </para>
+/// <para>
+/// How many requests a render may make is a rate with a burst, not a count (`pages-allowances-are-a-rate`).
+/// </para>
 /// </remarks>
 internal sealed record PageFetchOptions {
 

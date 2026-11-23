@@ -7,12 +7,12 @@ SPDX-License-Identifier: MIT
 
 | | |
 | --- | --- |
-| Status | Agreed 2026-11-23 — the owner said yes; built on `plan/fetch-is-a-rate`, and the merge it waits on is theirs |
+| Status | Merged 2026-11-23, and this plan is frozen with the work: the rate, the two budgets, the four keys, the charge after validation, the manual and the entry are on `trunk`. A statement here that the code has since overtaken is expected rather than a defect |
 | Size | Medium-large — one pure Core type, two budgets rebuilt around it, four keys out and four in, one validation seam in the fetch edge, and the tests that pin the clock |
 | Area | Core (pages), Web (pages, work, configuration), docs, build (public API) |
 | Spike | None. Every rule is arithmetic on an instant the caller passes, and the existing fetch tests already drive the refusal path with a fake fetcher |
-| Backlog | [`fetch-is-a-rate`](../backlog/fetch-is-a-rate.md) is this job, extended on 2026-11-23 to the read allowance |
-| Decisions | One name intended, below; taken at the merge (`product-plan-before-building`) |
+| Backlog | [`fetch-is-a-rate`](../../backlog/closed.md) is this job, now closed, extended on 2026-11-23 to the read allowance |
+| Decisions | `pages-allowances-are-a-rate`, taken at the merge |
 
 ## The short version
 
@@ -324,7 +324,7 @@ Written first, each failing before the change (`code-fixtures-hold-no-deadline` 
 
 ## Open questions
 
-None. The owner settled the fetch shape on 2026-11-22 — a token bucket with today's capacity, a rate
-derived from the render's deadline, and a per-job rate with the job's duration as its only ceiling —
-and directed on 2026-11-23 that the read allowance be converted in the same plan. The shipped job
-rates and the ten-become-twenty trade are stated above for the owner's yes.
+None, and both were answered before the work: the owner settled the fetch shape on 2026-11-22 — a
+token bucket with today's capacity, a rate derived from the render's deadline, and a per-job rate with
+the job's duration as its only ceiling — and directed on 2026-11-23 that the read allowance be
+converted in the same plan, then said yes to the ten-become-twenty trade and to the merge.

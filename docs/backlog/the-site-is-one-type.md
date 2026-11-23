@@ -9,8 +9,8 @@ SPDX-License-Identifier: MIT
 | --- | --- |
 | Difficulty | protective-dragon |
 | Utility | high |
-| Status | blocked |
-| Blocked by | `fetch-is-a-rate` |
+| Status | open |
+| Blocked by | — |
 | Plan | — |
 | Area | Sdk, Web (pages, admin, documentation, work), tools, docs |
 | Location | `src/uk.osric.asp.Sdk/ISiteInfo.cs` (new), `src/uk.osric.asp.Sdk/ReferenceModel.cs` (moved), `src/uk.osric.asp.Web/SiteOptions.cs`, `Pages/EditorPaths.cs`, `Pages/BuildInfo.cs`, `Admin/LicenceLibrary.cs`, `Admin/ChangesEndpoint.cs`, `Documentation/ReferenceLibrary.cs`, `Pages/PageChain.cs`, `Work/PageJobRunner.cs`, `Pages/Seeds/help`, `docs/pages.md` |

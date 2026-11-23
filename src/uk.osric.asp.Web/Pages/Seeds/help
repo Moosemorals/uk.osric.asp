@@ -588,7 +588,8 @@ shipped) is what a render may spend, and the burst it starts with is that rate t
 <code>Pages:Render:TimeoutSeconds</code> — ten as shipped, the count the site shipped before this
 became a rate, now refilled while the render still runs. A request the policy would refuse costs nothing; one that
 is attempted costs one, whatever comes back, and a stream costs one when it is opened. A render refused
-a fetch answers <code>TooManyRequests</code>.</p>
+a fetch answers <code>TooManyRequests</code>. <code>pages-allowances-are-a-rate</code> is why it is a
+rate rather than a count.</p>
 <p><code>StreamAsync</code> follows the same URL, header, redirect and credential rules and spends the
 same allowance. It returns an <code>HttpFetchStream</code> with the response
 status and headers, a <code>Failure</code> value, and a <code>ReadLineAsync()</code> method that
