@@ -25,18 +25,20 @@ happens to look. There is no outbound mail, so systemd's failure notifications h
 
 ## Fix outline
 
-1. Pick an outbound mail provider (any SMTP relay that authenticates) and a sender address on the
-   site's own domain, e.g. `alerts@<domain>`.
-2. Publish the DNS so alerts are not dropped as spam:
-   - `SPF` (`TXT @ v=spf1 include:<provider> ~all`) authorising the provider;
-   - `DKIM` (the provider's selector key, published as a `TXT` record);
-   - `DMARC` (`TXT _dmarc v=DMARC1; p=quarantine; rua=mailto:...`) so failures are reported.
-3. Install a minimal relay MTA on the host (`msmtp` or `nullmailer`) with the provider credentials in
-   a root-only file; nothing in the app itself needs to send mail.
-4. Point systemd at it:
+The alert does not have to leave the host. [The email plan](../plans/email.md) delivers the host's own
+mail to a mailbox on the same host, and that is the relay this item wanted — so there is no provider
+to pick, no `SPF include:` and no credential.
+
+1. Depend on the email plan's local corridor: the loopback listener on `127.0.0.1:2525`, `msmtp` as
+   `/usr/sbin/sendmail`, and `root@` aliased to the owner's mailbox.
+2. Nothing in DNS: a message that never leaves the host is never checked against SPF, DKIM or DMARC.
+3. Point systemd at it:
    - `OnFailure=` (and `OnUnitInactiveSec=`) on the `uk.osric.asp` user unit and the `caddy` system
      unit;
    - a small timer that curls `/health` and alerts when it returns 503, tying the health check to a
      human.
-5. Keep credentials out of the repository: ship the MTA configuration through cloud-init and
-   `make deploy`, exactly as the quadlets are shipped today.
+4. Ship `msmtprc` and `mailname` through cloud-init and `make deploy`, exactly as the quadlets are
+   shipped today.
+5. Accept the blind spot deliberately: mail about a broken host travels through that host, so a dead
+   pod or a full disk is still silent. Add an out-of-band channel (a push from an external monitor)
+   if that matters more than the mail does.

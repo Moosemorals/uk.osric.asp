@@ -24,7 +24,7 @@ other; `make decisions` checks the names.
 | [account-store](account-store.md) | Superseded in shape 2026-11-21 by [storage-model](storage-model.md) | `no-account-store` |
 | [assistant-shell-tool](assistant-shell-tool.md) | Proposed 2026-11-19, waits for the owner; nothing built | [`tool-surface-is-one-shell`](../backlog/tool-surface-is-one-shell.md) |
 | [build-metrics](build-metrics.md) | Proposed 2026-11-15, waits for the owner; nothing built | [`whim-build-timings`](../backlog/WHIMS.md) |
-| [email](email.md) | Proposed 2026-11-06, not implemented | — (operations, not the site) |
+| [email](email.md) | Proposed 2026-11-06, revised 2026-11-23 — questions answered, rootless, identity in the site's database; waits for a yes | — (operations and the site's service endpoints) |
 | [email-configuration](email-configuration.md) | Configuration excerpts for [email](email.md); nothing deployed | — |
 | [ide-host](ide-host.md) | Proposed 2026-11-15; slices 0–6 merged, the search with its own archived plan; slice 7 waits on the owner | [`cannot-search-the-store`](../backlog/closed.md) |
 | [page-inbox](page-inbox.md) | Superseded in shape 2026-11-21 by [storage-model](storage-model.md) | `message-does-not-survive-a-redirect` |

@@ -81,6 +81,10 @@ table and the items to it.
 | | *The store keeps the last compile's answer and the catalog drops it, so a reloaded editor, a history view and a page explaining a broken library can say a revision failed but not what it said.* | | | | |
 | [`ops-no-outage-notification`](backlog/ops-no-outage-notification.md) | No outbound notifications when the site breaks | eager-beaver ⚙️🦫 | medium | open | — |
 | | *Useful, but one owner and a unit that restarts already notices most outages.* | | | | |
+| [`dns-manages-only-mail-records`](backlog/dns-manages-only-mail-records.md) | The host manages only the mail records, so the site's names are still hand-edited | eager-beaver ⚙️🦫 | medium | open | — |
+| | *The mail plan scopes the DNS key to the mail records on purpose; widening it to the apex is cheap now and more expensive with every record added by hand, so it is the next piece of the same reconcile.* | | | | |
+| [`caddy-is-still-rootful`](backlog/caddy-is-still-rootful.md) | Caddy is the only rootful unit, and the mail plan's sysctl would free it | caffeinated-squirrel ☕🐿️ | medium | open | — |
+| | *Caddy needs root only to bind 80 and 443, and the one host-wide sysctl the mail plan already ships for 25 lowers that floor; doing it before the mail lands also turns the mail plan's root certificate timer into a user one.* | | | | |
 | [`import-cannot-reset-a-site`](backlog/import-cannot-reset-a-site.md) | Import only adds and overwrites, so an archive cannot reset a site | caffeinated-squirrel ☕🐿️ | medium | open | — |
 | | *A destructive reset has to be designed carefully; the additive import is the safe default until it is.* | | | | |
 | [`view-cannot-submit-a-form`](backlog/view-cannot-submit-a-form.md) | A run can look at the site but cannot submit one of its forms | determined-mountain-goat 💪🐐 | medium | open | — |
