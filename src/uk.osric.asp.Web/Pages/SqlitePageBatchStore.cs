@@ -95,14 +95,14 @@ internal class SqlitePageBatchStore(
         StoreValueSql.UpsertAsync(
             database,
             new StoreValueWrite(
-                StoreSubjects.ForPage(path),
+                StoreSubjectKeys.ForPage(path),
                 path.Key,
                 value.Key,
                 (int)uk.osric.asp.Sdk.StoreLifetimeKind.Page,
                 ExpiresAt: null,
                 value.Value,
                 RequireLivePage: true),
-            StoreSubjects.Stamp(updatedAt),
+            StoreSubjectKeys.Stamp(updatedAt),
             options.Page,
             cancellationToken);
 
@@ -119,7 +119,7 @@ internal class SqlitePageBatchStore(
             string pagePath = page.Template.Path.Key;
             string[] incoming = [.. page.State.Select(value => value.Key)];
 
-            string subject = StoreSubjects.PagePrefix + pagePath;
+            string subject = StoreSubjectKeys.PagePrefix + pagePath;
             int otherKeys = await database.Set<StoreValueEntry>()
                 .CountAsync(row => row.Subject == subject && !incoming.Contains(row.Key), cancellationToken);
             long otherBytes = await database.Set<StoreValueEntry>()

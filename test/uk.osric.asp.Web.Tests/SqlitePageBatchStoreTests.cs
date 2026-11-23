@@ -116,7 +116,7 @@ public sealed class SqlitePageBatchStoreTests {
         Assert.That(await database.Set<PageRevision>().CountAsync(), Is.EqualTo(2));
 
         IStoreValues state = new SqliteStoreValues(DatabaseTemplate.Factory(_options), TestOptions.Stores, TimeProvider.System);
-        IReadOnlyList<StoreValueRow> kept = await state.ListAsync([StoreSubjects.PagePrefix + "/two"], "/two", null, 10);
+        IReadOnlyList<StoreValueRow> kept = await state.ListAsync([StoreSubjectKeys.PagePrefix + "/two"], "/two", null, 10);
         Assert.That(kept.Select(row => row.Key), Is.EqualTo(new List<string> { "kept" }));
     }
 

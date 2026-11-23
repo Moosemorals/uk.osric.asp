@@ -188,7 +188,7 @@ public sealed class SqliteStoreValuesTests {
     [Test]
     public async Task TheKeyCountCapRefusesTheWriteAndLeavesNoRowAsync() {
         await DatabaseTemplate.SavePageAsync(_options, "/page.cs");
-        PageStoreCaps caps = TestOptions.Stores.Page with { MaxKeys = 2 };
+        StoreSubjectCaps caps = TestOptions.Stores.Page with { MaxKeys = 2 };
         IStoreValues store = Values();
 
         await SetAsync(store, "/page.cs", "one", "1", caps: caps);
@@ -203,7 +203,7 @@ public sealed class SqliteStoreValuesTests {
     [Test]
     public async Task TheSubjectByteCapRefusesTheWriteAndLeavesTheOldValueAsync() {
         await DatabaseTemplate.SavePageAsync(_options, "/page.cs");
-        PageStoreCaps caps = TestOptions.Stores.Page with { MaxValueBytes = 4096, MaxTotalBytes = 64 };
+        StoreSubjectCaps caps = TestOptions.Stores.Page with { MaxValueBytes = 4096, MaxTotalBytes = 64 };
         IStoreValues store = Values();
 
         await SetAsync(store, "/page.cs", "small", "1", caps: caps);
@@ -217,7 +217,7 @@ public sealed class SqliteStoreValuesTests {
     [Test]
     public async Task AnUpdateIsAllowedWhenThePageIsAlreadyFullAsync() {
         await DatabaseTemplate.SavePageAsync(_options, "/page.cs");
-        PageStoreCaps caps = TestOptions.Stores.Page with { MaxValueBytes = 4096, MaxTotalBytes = 64 };
+        StoreSubjectCaps caps = TestOptions.Stores.Page with { MaxValueBytes = 4096, MaxTotalBytes = 64 };
         IStoreValues store = Values();
         await SetAsync(store, "/page.cs", "key", new string('x', 40), caps: caps);
 
@@ -281,11 +281,11 @@ public sealed class SqliteStoreValuesTests {
         IStoreValues store = Values();
         await store.WriteAsync(
             new StoreValueWrite(
-                StoreSubjects.ForPage(Key("/page.cs")),
+                StoreSubjectKeys.ForPage(Key("/page.cs")),
                 "/page.cs",
                 "notice",
                 (int)StoreLifetimeKind.Page,
-                StoreSubjects.Stamp(DateTimeOffset.UtcNow.AddSeconds(-1)),
+                StoreSubjectKeys.Stamp(DateTimeOffset.UtcNow.AddSeconds(-1)),
                 "\"old\"",
                 RequireLivePage: true),
             TestOptions.Stores.Page);
@@ -301,17 +301,17 @@ public sealed class SqliteStoreValuesTests {
         await SetAsync(store, "/page.cs", "live", "1");
         await store.WriteAsync(
             new StoreValueWrite(
-                StoreSubjects.ForPage(Key("/page.cs")),
+                StoreSubjectKeys.ForPage(Key("/page.cs")),
                 "/page.cs",
                 "expired",
                 (int)StoreLifetimeKind.Page,
-                StoreSubjects.Stamp(DateTimeOffset.UtcNow.AddSeconds(-1)),
+                StoreSubjectKeys.Stamp(DateTimeOffset.UtcNow.AddSeconds(-1)),
                 "\"old\"",
                 RequireLivePage: true),
             TestOptions.Stores.Page);
         await store.WriteAsync(
             new StoreValueWrite(
-                StoreSubjects.ForBrowser("stale"),
+                StoreSubjectKeys.ForBrowser("stale"),
                 "/page.cs",
                 "mode",
                 (int)StoreLifetimeKind.Browser,
@@ -334,11 +334,11 @@ public sealed class SqliteStoreValuesTests {
         await SetAsync(store, "/page.cs", "one-shot", "1", StoreLifetimeKind.NextRead);
         await store.WriteAsync(
             new StoreValueWrite(
-                StoreSubjects.ForPage(Key("/page.cs")),
+                StoreSubjectKeys.ForPage(Key("/page.cs")),
                 "/page.cs",
                 "timed",
                 (int)StoreLifetimeKind.Page,
-                StoreSubjects.Stamp(DateTimeOffset.UtcNow.AddMinutes(5)),
+                StoreSubjectKeys.Stamp(DateTimeOffset.UtcNow.AddMinutes(5)),
                 "1",
                 RequireLivePage: true),
             TestOptions.Stores.Page);
@@ -354,10 +354,10 @@ public sealed class SqliteStoreValuesTests {
         string key,
         string json,
         StoreLifetimeKind kind = StoreLifetimeKind.Page,
-        PageStoreCaps? caps = null) =>
+        StoreSubjectCaps? caps = null) =>
         store.WriteAsync(
             new StoreValueWrite(
-                StoreSubjects.PagePrefix + page,
+                StoreSubjectKeys.PagePrefix + page,
                 page,
                 key,
                 (int)kind,
@@ -377,7 +377,7 @@ public sealed class SqliteStoreValuesTests {
         return revision.Hash;
     }
 
-    private static IReadOnlyList<string> Subjects(string page) => [StoreSubjects.PagePrefix + page];
+    private static IReadOnlyList<string> Subjects(string page) => [StoreSubjectKeys.PagePrefix + page];
 
     private static PagePath Key(string path) => PagePath.Normalize(path);
 }

@@ -23,8 +23,8 @@ internal sealed class PageStoresScope : RenderBoundCapability, IPageStores, IAsy
     private readonly PageStoresOptions _options;
     private readonly IPageReadStore _readStore;
     private readonly bool _writable;
-    private readonly SubjectHandle _page;
-    private readonly VisitorHandle _visitor;
+    private readonly PageSubjectHandle _page;
+    private readonly VisitorSubjectHandle _visitor;
     private readonly List<SqliteRecordStore> _stores = [];
     private CancellationToken _deadline;
 
@@ -75,8 +75,8 @@ internal sealed class PageStoresScope : RenderBoundCapability, IPageStores, IAsy
         Messages = new PageMessageStore(
             key, messages, sessions, reader, readStore, reserved, options.Messages, writable, commit, activity);
 
-        _page = new SubjectHandle(PageValues, RecordsFor(key, SqliteRecordStore.SubjectKind.Page, reader, writable));
-        _visitor = new VisitorHandle(
+        _page = new PageSubjectHandle(PageValues, RecordsFor(key, SqliteRecordStore.SubjectKind.Page, reader, writable));
+        _visitor = new VisitorSubjectHandle(
             VisitorValues,
             Messages,
             RecordsFor(key, SqliteRecordStore.SubjectKind.Visitor, reader, writable));
@@ -95,7 +95,7 @@ internal sealed class PageStoresScope : RenderBoundCapability, IPageStores, IAsy
     public IPageSubject Page => _page;
 
     /// <inheritdoc/>
-    public IPageVisitorSubject Visitor => _visitor;
+    public IVisitorSubject Visitor => _visitor;
 
     /// <inheritdoc/>
     public IPageSubject For(string key) {
@@ -120,7 +120,7 @@ internal sealed class PageStoresScope : RenderBoundCapability, IPageStores, IAsy
             values.Abandon();
         }
 
-        return new SubjectHandle(
+        return new PageSubjectHandle(
             values,
             RecordsFor(other, SqliteRecordStore.SubjectKind.Page, null, _writable, ConfirmAsync));
     }
@@ -197,15 +197,15 @@ internal sealed class PageStoresScope : RenderBoundCapability, IPageStores, IAsy
         }
     }
 
-    private sealed class SubjectHandle(IValueStore values, IRecordStore? records) : IPageSubject {
+    private sealed class PageSubjectHandle(IValueStore values, IRecordStore? records) : IPageSubject {
         public IValueStore Values { get; } = values;
 
         public IRecordStore Records => records
             ?? throw new InvalidOperationException("This layer has no record store.");
     }
 
-    private sealed class VisitorHandle(IValueStore values, IMessageStore messages, IRecordStore? records)
-        : IPageVisitorSubject {
+    private sealed class VisitorSubjectHandle(IValueStore values, IMessageStore messages, IRecordStore? records)
+        : IVisitorSubject {
         public IValueStore Values { get; } = values;
 
         public IMessageStore Messages { get; } = messages;

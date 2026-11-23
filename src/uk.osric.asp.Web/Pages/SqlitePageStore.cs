@@ -71,7 +71,7 @@ internal sealed class SqlitePageStore(
             .ToArrayAsync(cancellationToken);
 
         string[] state = await database.Set<StoreValueEntry>().AsNoTracking()
-            .Where(row => row.Subject.StartsWith(StoreSubjects.PagePrefix))
+            .Where(row => row.Subject.StartsWith(StoreSubjectKeys.PagePrefix))
             .Select(row => row.PageKey)
             .Distinct()
             .ToArrayAsync(cancellationToken);

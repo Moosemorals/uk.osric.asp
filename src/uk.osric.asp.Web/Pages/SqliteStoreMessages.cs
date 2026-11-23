@@ -35,7 +35,7 @@ internal sealed class SqliteStoreMessages(
         ArgumentNullException.ThrowIfNull(write);
         ArgumentNullException.ThrowIfNull(caps);
 
-        string sentAt = StoreSubjects.Stamp(clock.GetUtcNow());
+        string sentAt = StoreSubjectKeys.Stamp(clock.GetUtcNow());
         await using StorageDbContext database = Open();
 
         // Both caps are proved in the statement that writes, so a concurrent poster either fits or is
@@ -74,8 +74,8 @@ internal sealed class SqliteStoreMessages(
 
     /// <inheritdoc/>
     public async Task<int> RemoveExpiredAsync(TimeSpan browserLifetime, CancellationToken cancellationToken = default) {
-        string now = StoreSubjects.Stamp(clock.GetUtcNow());
-        string browserThreshold = StoreSubjects.Stamp(clock.GetUtcNow() - browserLifetime);
+        string now = StoreSubjectKeys.Stamp(clock.GetUtcNow());
+        string browserThreshold = StoreSubjectKeys.Stamp(clock.GetUtcNow() - browserLifetime);
         await using StorageDbContext database = Open();
 
         int expired = await database.Database.ExecuteSqlAsync($"""
@@ -176,7 +176,7 @@ internal sealed class SqliteStoreMessages(
             }
 
             Bind(command, "$address", address);
-            Bind(command, "$now", StoreSubjects.Stamp(clock.GetUtcNow()));
+            Bind(command, "$now", StoreSubjectKeys.Stamp(clock.GetUtcNow()));
 
             await using DbDataReader reader = await command.ExecuteReaderAsync(cancellationToken);
             if (!await reader.ReadAsync(cancellationToken)) {

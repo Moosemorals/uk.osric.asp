@@ -29,14 +29,14 @@ public sealed class PageSessionScopeTests {
 
         await visitor.Store.SetAsync("draft", "hello");
 
-        Assert.That(visitor.Values.Raw(StoreSubjects.ForSession(visitor.Session.Id), "/page", "draft"), Is.Not.Null);
+        Assert.That(visitor.Values.Raw(StoreSubjectKeys.ForSession(visitor.Session.Id), "/page", "draft"), Is.Not.Null);
         Assert.That((await visitor.Store.TryGetValueAsync<string>("draft")).Value, Is.EqualTo("hello"));
     }
 
     [Test]
     public async Task APageReadsAnotherPagesKeyByPathAsync() {
         Visitor visitor = Open();
-        visitor.Values.SeedVisitor(StoreSubjects.ForSession(visitor.Session.Id), "/other", "draft", "\"left here\"", StoreLifetimeKind.Session);
+        visitor.Values.SeedVisitor(StoreSubjectKeys.ForSession(visitor.Session.Id), "/other", "draft", "\"left here\"", StoreLifetimeKind.Session);
 
         PageValue<string> found = await visitor.Store.TryGetValueAsync<string>("/other", "draft");
 
@@ -50,7 +50,7 @@ public sealed class PageSessionScopeTests {
     [TestCase("/other/../other")]
     public async Task APathIsNormalisedBeforeItNamesAnotherPageAsync(string pagePath) {
         Visitor visitor = Open();
-        visitor.Values.SeedVisitor(StoreSubjects.ForSession(visitor.Session.Id), "/other", "draft", "\"left here\"", StoreLifetimeKind.Session);
+        visitor.Values.SeedVisitor(StoreSubjectKeys.ForSession(visitor.Session.Id), "/other", "draft", "\"left here\"", StoreLifetimeKind.Session);
 
         Assert.That((await visitor.Store.TryGetValueAsync<string>(pagePath, "draft")).Value, Is.EqualTo("left here"));
     }
@@ -66,11 +66,11 @@ public sealed class PageSessionScopeTests {
     [Test]
     public async Task APageCannotWriteOrDeleteUnderAnotherPathAsync() {
         Visitor visitor = Open();
-        visitor.Values.SeedVisitor(StoreSubjects.ForSession(visitor.Session.Id), "/other", "draft", "\"left here\"", StoreLifetimeKind.Session);
+        visitor.Values.SeedVisitor(StoreSubjectKeys.ForSession(visitor.Session.Id), "/other", "draft", "\"left here\"", StoreLifetimeKind.Session);
         await visitor.Store.SetAsync("draft", "mine");
 
         Assert.That(await visitor.Store.DeleteAsync("draft"), Is.True);
-        Assert.That(visitor.Values.Raw(StoreSubjects.ForSession(visitor.Session.Id), "/other", "draft"), Is.Not.Null,
+        Assert.That(visitor.Values.Raw(StoreSubjectKeys.ForSession(visitor.Session.Id), "/other", "draft"), Is.Not.Null,
             "only the caller's own key went");
         Assert.That(await visitor.Store.KeysAsync(), Is.Empty);
     }
@@ -78,7 +78,7 @@ public sealed class PageSessionScopeTests {
     [Test]
     public async Task KeysAsyncListsOnlyTheCallersKeysAsync() {
         Visitor visitor = Open();
-        visitor.Values.SeedVisitor(StoreSubjects.ForSession(visitor.Session.Id), "/other", "theirs", "1", StoreLifetimeKind.Session);
+        visitor.Values.SeedVisitor(StoreSubjectKeys.ForSession(visitor.Session.Id), "/other", "theirs", "1", StoreLifetimeKind.Session);
         await visitor.Store.SetAsync("b", 1);
         await visitor.Store.SetAsync("a", 2);
 
@@ -88,7 +88,7 @@ public sealed class PageSessionScopeTests {
     [Test]
     public async Task AllKeysAsyncListsPairsFromEveryPageAsync() {
         Visitor visitor = Open();
-        visitor.Values.SeedVisitor(StoreSubjects.ForSession(visitor.Session.Id), "/other", "theirs", "1", StoreLifetimeKind.Session);
+        visitor.Values.SeedVisitor(StoreSubjectKeys.ForSession(visitor.Session.Id), "/other", "theirs", "1", StoreLifetimeKind.Session);
         await visitor.Store.SetAsync("mine", 1);
 
         Assert.That(Pairs(await visitor.Store.AllKeysAsync()), Is.EqualTo(new List<PageSessionKey> {
@@ -136,7 +136,7 @@ public sealed class PageSessionScopeTests {
         Visitor visitor = Open(options: Caps(anonymous: (16, 8, 1024)));
 
         await Assert.ThrowsAsync<ArgumentException>(() => visitor.Store.SetAsync("big", new string('x', 64)));
-        Assert.That(visitor.Values.Count(StoreSubjects.ForSession(visitor.Session.Id)), Is.Zero);
+        Assert.That(visitor.Values.Count(StoreSubjectKeys.ForSession(visitor.Session.Id)), Is.Zero);
     }
 
     [Test]
@@ -320,7 +320,7 @@ public sealed class PageSessionScopeTests {
     public async Task TheSessionAdapterSeesAndWritesOnlySessionValuesAsync() {
         Visitor visitor = Open();
         PageValueStore sessionOnly = visitor.Store.RestrictedTo(StoreLifetimeKind.Session);
-        visitor.Values.SeedVisitor(StoreSubjects.ForSession(visitor.Session.Id), "/page", "browser", "\"x\"", StoreLifetimeKind.Browser);
+        visitor.Values.SeedVisitor(StoreSubjectKeys.ForSession(visitor.Session.Id), "/page", "browser", "\"x\"", StoreLifetimeKind.Browser);
 
         Assert.That((await sessionOnly.TryGetValueAsync<string>("browser")).Found, Is.False);
         await sessionOnly.SetAsync("draft", "one");
@@ -376,7 +376,7 @@ public sealed class PageSessionScopeTests {
     [Test]
     public async Task AStoredValueOfTheWrongShapeThrowsRatherThanReportingAbsentAsync() {
         Visitor visitor = Open();
-        visitor.Values.SeedVisitor(StoreSubjects.ForSession(visitor.Session.Id), "/page", "entry", "\"text\"", StoreLifetimeKind.Session);
+        visitor.Values.SeedVisitor(StoreSubjectKeys.ForSession(visitor.Session.Id), "/page", "entry", "\"text\"", StoreLifetimeKind.Session);
 
         await Assert.ThrowsAsync<JsonException>(() => visitor.Store.TryGetValueAsync<Entry>("entry"));
     }
@@ -389,9 +389,9 @@ public sealed class PageSessionScopeTests {
     private static PageStoresOptions Caps(
         (int Value, int Keys, int Total) anonymous,
         (int Value, int Keys, int Total)? signedIn = null) {
-        PageStoreCaps anonymousCaps = new(anonymous.Value, anonymous.Keys, anonymous.Total);
+        StoreSubjectCaps anonymousCaps = new(anonymous.Value, anonymous.Keys, anonymous.Total);
         (int Value, int Keys, int Total) signed = signedIn ?? (4096, 32, 16384);
-        PageStoreCaps signedInCaps = new(signed.Value, signed.Keys, signed.Total);
+        StoreSubjectCaps signedInCaps = new(signed.Value, signed.Keys, signed.Total);
 
         return TestOptions.Stores with {
             Visitor = TestOptions.Stores.Visitor with {

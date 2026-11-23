@@ -5,8 +5,15 @@ namespace uk.osric.asp.Sdk;
 
 /// <summary>One subject's shapes, as a page reaches them.</summary>
 /// <remarks>
+/// <para>
 /// The subject is the binding: a handle is bound to one subject key, and a write uses it. A shape a
 /// subject does not have is absent from the type, not a runtime surprise.
+/// </para>
+/// <para>
+/// This type does not inherit from <see cref="IVisitorSubject"/>. A page's subject is not a kind of
+/// visitor's: the two declare the shapes they offer, and a shape both have is declared by both. A
+/// common base would claim substitutability, and would offer a page every shape a visitor gains.
+/// </para>
 /// </remarks>
 public interface IPageSubject {
 

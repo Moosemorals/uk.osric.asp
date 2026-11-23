@@ -35,7 +35,7 @@ internal static class StoreValueSql {
         StorageDbContext database,
         StoreValueWrite write,
         string updatedAt,
-        PageStoreCaps caps,
+        StoreSubjectCaps caps,
         CancellationToken cancellationToken) {
         ArgumentNullException.ThrowIfNull(database);
         ArgumentNullException.ThrowIfNull(write);
@@ -80,7 +80,7 @@ internal static class StoreValueSql {
         ArgumentNullException.ThrowIfNull(database);
         ArgumentNullException.ThrowIfNull(key);
 
-        int removed = await DeleteSubjectAsync(database, StoreSubjects.ForPage(key), cancellationToken);
+        int removed = await DeleteSubjectAsync(database, StoreSubjectKeys.ForPage(key), cancellationToken);
 
         // A message addressed to the page belongs to whoever posted it, so it is not the Page
         // subject's to delete: every subject's message to this page goes with the page.
@@ -104,8 +104,8 @@ internal static class StoreValueSql {
 
         int moved = await database.Database.ExecuteSqlAsync($"""
             UPDATE "StoreValues"
-            SET "Subject" = {StoreSubjects.ForPage(to)}, "PageKey" = {to.Key}
-            WHERE "Subject" = {StoreSubjects.ForPage(from)};
+            SET "Subject" = {StoreSubjectKeys.ForPage(to)}, "PageKey" = {to.Key}
+            WHERE "Subject" = {StoreSubjectKeys.ForPage(from)};
             """, cancellationToken);
 
         return moved + await StoreMessageSql.MovePageAsync(database, from, to, cancellationToken);
@@ -152,7 +152,7 @@ internal static class StoreValueSql {
             return 0;
         }
 
-        string[] subjects = [.. sessionIds.Select(StoreSubjects.ForSession)];
+        string[] subjects = [.. sessionIds.Select(StoreSubjectKeys.ForSession)];
 
         int removed = await database.Set<StoreValueEntry>()
             .Where(row => subjects.Contains(row.Subject))
@@ -189,8 +189,8 @@ internal static class StoreValueSql {
 
         int values = await database.Database.ExecuteSqlAsync($"""
             UPDATE "StoreValues"
-            SET "Subject" = {StoreSubjects.ForAccount(account)}
-            WHERE "Subject" = {StoreSubjects.ForSession(sessionId)}
+            SET "Subject" = {StoreSubjectKeys.ForAccount(account)}
+            WHERE "Subject" = {StoreSubjectKeys.ForSession(sessionId)}
               AND "Lifetime" IN ({(int)StoreLifetimeKind.Person}, {(int)StoreLifetimeKind.NextRead});
             """, cancellationToken);
 

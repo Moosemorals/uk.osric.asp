@@ -541,12 +541,12 @@ public sealed class SqlitePageStoreTests {
             CreationRuntimeId = "legacy:unknown",
         });
         database.Add(new StoreValueEntry {
-            Subject = StoreSubjects.PagePrefix + "/state-only",
+            Subject = StoreSubjectKeys.PagePrefix + "/state-only",
             PageKey = "/state-only",
             Key = "counter",
             Lifetime = 1,
             Value = "1",
-            UpdatedAt = StoreSubjects.Stamp(DateTimeOffset.UtcNow),
+            UpdatedAt = StoreSubjectKeys.Stamp(DateTimeOffset.UtcNow),
         });
         await database.SaveChangesAsync();
 
@@ -565,12 +565,12 @@ public sealed class SqlitePageStoreTests {
         await storage.SavePageAsync(new PageTemplate(path, "first"));
         await storage.SavePageAsync(new PageTemplate(path, "second"));
         database.Add(new StoreValueEntry {
-            Subject = StoreSubjects.PagePrefix + path.Key,
+            Subject = StoreSubjectKeys.PagePrefix + path.Key,
             PageKey = path.Key,
             Key = "counter",
             Lifetime = 1,
             Value = "1",
-            UpdatedAt = StoreSubjects.Stamp(DateTimeOffset.UtcNow),
+            UpdatedAt = StoreSubjectKeys.Stamp(DateTimeOffset.UtcNow),
         });
         await database.SaveChangesAsync();
 
@@ -758,12 +758,12 @@ public sealed class SqlitePageStoreTests {
         await storage.SavePageAsync(new PageTemplate(from, "the source"));
         string expected = (await storage.GetPageAsync(from))!.Hash;
         database.Set<StoreValueEntry>().Add(new StoreValueEntry {
-            Subject = StoreSubjects.PagePrefix + from.Key,
+            Subject = StoreSubjectKeys.PagePrefix + from.Key,
             PageKey = from.Key,
             Key = "colour",
             Lifetime = 1,
             Value = "\"red\"",
-            UpdatedAt = StoreSubjects.Stamp(DateTimeOffset.UtcNow),
+            UpdatedAt = StoreSubjectKeys.Stamp(DateTimeOffset.UtcNow),
         });
         await database.SaveChangesAsync();
 

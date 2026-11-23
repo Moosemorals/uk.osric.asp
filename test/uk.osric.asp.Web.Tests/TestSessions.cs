@@ -11,7 +11,7 @@ using uk.osric.asp.Web.Pages;
 internal static class TestSessions {
 
     /// <summary>The visitor store's bounds a test starts from.</summary>
-    public static PageVisitorStores Options => TestOptions.Stores.Visitor;
+    public static VisitorOptions Options => TestOptions.Stores.Visitor;
 
     /// <summary>The cookie name and policy a test starts from.</summary>
     public static PageSessionCookieOptions Cookie { get; } =

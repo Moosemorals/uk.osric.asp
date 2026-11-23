@@ -25,10 +25,10 @@ internal sealed record PageStoresOptions {
     public required int BusyTimeoutSeconds { get; init; }
 
     /// <summary>The Page subject's caps: shared by every visitor.</summary>
-    public required PageStoreCaps Page { get; init; }
+    public required StoreSubjectCaps Page { get; init; }
 
     /// <summary>The Visitor subject's caps and identity bounds.</summary>
-    public required PageVisitorStores Visitor { get; init; }
+    public required VisitorOptions Visitor { get; init; }
 
     /// <summary>The record shape's caps.</summary>
     public required PageRecordOptions Records { get; init; }
@@ -60,8 +60,8 @@ internal sealed record PageStoresOptions {
             MaxKeyChars = reader.Number("MaxKeyChars", recommended: 200, minimum: 16, maximum: 4_096),
             CommandTimeoutSeconds = reader.Number("CommandTimeoutSeconds", recommended: 5, minimum: 1, maximum: 120),
             BusyTimeoutSeconds = reader.Number("BusyTimeoutSeconds", recommended: 5, minimum: 1, maximum: 120),
-            Page = PageStoreCaps.Read(reader.For("Page"), PageStoreCaps.Page),
-            Visitor = PageVisitorStores.Read(reader.For("Visitor")),
+            Page = StoreSubjectCaps.Read(reader.For("Page"), StoreSubjectCaps.Page),
+            Visitor = VisitorOptions.Read(reader.For("Visitor")),
             Records = PageRecordOptions.Read(reader.For("Records")),
             Messages = PageMessageOptions.Read(reader.For("Messages")),
         };
@@ -73,25 +73,25 @@ internal sealed record PageStoresOptions {
 /// <param name="MaxValueBytes">The largest one JSON value may be, in bytes.</param>
 /// <param name="MaxKeys">The most keys the subject may hold.</param>
 /// <param name="MaxTotalBytes">The most bytes the subject's keys and values may total.</param>
-internal sealed record PageStoreCaps(int MaxValueBytes, int MaxKeys, int MaxTotalBytes) {
+internal sealed record StoreSubjectCaps(int MaxValueBytes, int MaxKeys, int MaxTotalBytes) {
 
     /// <summary>The Page subject's shipped caps.</summary>
-    public static PageStoreCaps Page { get; } = new(64 * 1024, 256, 256 * 1024);
+    public static StoreSubjectCaps Page { get; } = new(64 * 1024, 256, 256 * 1024);
 
     /// <summary>An anonymous visitor's shipped caps.</summary>
-    public static PageStoreCaps Anonymous { get; } = new(4 * 1024, 8, 16 * 1024);
+    public static StoreSubjectCaps Anonymous { get; } = new(4 * 1024, 8, 16 * 1024);
 
     /// <summary>A browser's shipped caps.</summary>
-    public static PageStoreCaps Browser { get; } = new(4 * 1024, 8, 16 * 1024);
+    public static StoreSubjectCaps Browser { get; } = new(4 * 1024, 8, 16 * 1024);
 
     /// <summary>A signed-in visitor's shipped caps.</summary>
-    public static PageStoreCaps SignedIn { get; } = new(16 * 1024, 32, 64 * 1024);
+    public static StoreSubjectCaps SignedIn { get; } = new(16 * 1024, 32, 64 * 1024);
 
     /// <summary>Reads one subject's caps.</summary>
     /// <param name="reader">The subject's configuration, opened on its own section.</param>
     /// <param name="recommended">The caps the shipped configuration carries, for the messages.</param>
     /// <exception cref="ConfigurationException">A value is missing or unusable.</exception>
-    internal static PageStoreCaps Read(ConfigurationReader reader, PageStoreCaps recommended) {
+    internal static StoreSubjectCaps Read(ConfigurationReader reader, StoreSubjectCaps recommended) {
         ArgumentNullException.ThrowIfNull(reader);
         ArgumentNullException.ThrowIfNull(recommended);
 
@@ -102,7 +102,7 @@ internal sealed record PageStoreCaps(int MaxValueBytes, int MaxKeys, int MaxTota
         reader.FailIf(maxTotalBytes < maxValueBytes, "MaxTotalBytes",
             $"is {maxTotalBytes}, which is smaller than MaxValueBytes ({maxValueBytes})");
 
-        return new PageStoreCaps(
+        return new StoreSubjectCaps(
             maxValueBytes,
             reader.Number("MaxKeys", recommended.MaxKeys, minimum: 1, maximum: 1_024),
             maxTotalBytes);
@@ -116,19 +116,19 @@ internal sealed record PageStoreCaps(int MaxValueBytes, int MaxKeys, int MaxTota
 /// <param name="AnonymousIdle">How long an anonymous session survives without a visit.</param>
 /// <param name="BrowserLifetimeDays">How long a browser's rows survive after their last write.</param>
 /// <param name="MaxLiveSessions">The most live sessions the site keeps.</param>
-internal sealed record PageVisitorStores(
-    PageStoreCaps Anonymous,
-    PageStoreCaps Browser,
-    PageStoreCaps SignedIn,
+internal sealed record VisitorOptions(
+    StoreSubjectCaps Anonymous,
+    StoreSubjectCaps Browser,
+    StoreSubjectCaps SignedIn,
     TimeSpan AnonymousIdle,
     int BrowserLifetimeDays,
     int MaxLiveSessions) {
 
     /// <summary>The shipped visitor bounds.</summary>
-    public static PageVisitorStores Shipped { get; } = new(
-        PageStoreCaps.Anonymous,
-        PageStoreCaps.Browser,
-        PageStoreCaps.SignedIn,
+    public static VisitorOptions Shipped { get; } = new(
+        StoreSubjectCaps.Anonymous,
+        StoreSubjectCaps.Browser,
+        StoreSubjectCaps.SignedIn,
         TimeSpan.FromMinutes(30),
         365,
         2_048);
@@ -136,13 +136,13 @@ internal sealed record PageVisitorStores(
     /// <summary>Reads <c>Pages:Stores:Visitor</c>.</summary>
     /// <param name="reader">A reader opened on <c>Pages:Stores:Visitor</c>, which the caller completes.</param>
     /// <exception cref="ConfigurationException">A value is missing or unusable.</exception>
-    internal static PageVisitorStores Read(ConfigurationReader reader) {
+    internal static VisitorOptions Read(ConfigurationReader reader) {
         ArgumentNullException.ThrowIfNull(reader);
 
-        return new PageVisitorStores(
-            PageStoreCaps.Read(reader.For("Anonymous"), PageStoreCaps.Anonymous),
-            PageStoreCaps.Read(reader.For("Browser"), PageStoreCaps.Browser),
-            PageStoreCaps.Read(reader.For("SignedIn"), PageStoreCaps.SignedIn),
+        return new VisitorOptions(
+            StoreSubjectCaps.Read(reader.For("Anonymous"), StoreSubjectCaps.Anonymous),
+            StoreSubjectCaps.Read(reader.For("Browser"), StoreSubjectCaps.Browser),
+            StoreSubjectCaps.Read(reader.For("SignedIn"), StoreSubjectCaps.SignedIn),
             reader.For("Anonymous").Minutes("IdleMinutes", recommended: 30, minimum: 1, maximum: 525_600),
             reader.For("Browser").Number("LifetimeDays", recommended: 365, minimum: 1, maximum: 3_650),
             reader.Number("MaxLiveSessions", recommended: 2_048, minimum: 1, maximum: 1_000_000));

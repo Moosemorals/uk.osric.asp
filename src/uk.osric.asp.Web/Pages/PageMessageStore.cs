@@ -140,7 +140,7 @@ internal sealed class PageMessageStore : RenderBoundCapability, IMessageStore {
             await _reader.EnsureSessionAsync(_sessions, cancellationToken);
         }
 
-        string? expiresAt = lifetime?.ExpiresAt is { } expiry ? StoreSubjects.Stamp(expiry) : null;
+        string? expiresAt = lifetime?.ExpiresAt is { } expiry ? StoreSubjectKeys.Stamp(expiry) : null;
         bool posted = await _store.PostAsync(
             new StoreMessageWrite(subject, toPageKey, topic, _bound.Key, body, (int)kind, expiresAt),
             _caps,

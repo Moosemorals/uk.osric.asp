@@ -230,7 +230,7 @@ environment variable or a deployment's own settings file.
   | Compile attempts, SQLite retries | `PageRenderer`, `SqliteErrors` | Internal recovery behaviour: a different number is a different algorithm, not an operator preference |
   | Cleanup and sample periods | the background services | A shorter sweep only makes an expired row linger for less time, and the one period that is policy is already `Assistant:BalanceSampleSeconds` |
   | The reserved keys | `Shell/ShellCatalogue` | `shell-reserved-keys-are-an-invariant`: a shorter list lets a stored page shadow a route such as `/login`, so configuration could only weaken it |
-  | The subject prefixes and the lifetime numbers | `StoreSubjects`, `StoreLifetimeKind` | They are the stored form of every value: a prefix and a number are written on the row, so a changed one orphans what every page has already kept |
+  | The subject prefixes and the lifetime numbers | `StoreSubjectKeys`, `StoreLifetimeKind` | They are the stored form of every value: a prefix and a number are written on the row, so a changed one orphans what every page has already kept |
   | The record allow-list, the SQLite limits and the one-statement rule | `SqliteRecordStore` | `pages-a-record-is-sandboxed`. A wider list lets a page reach a real table, another subject's rows or another page's schema; the limits and the rule are what keep one statement from outlasting the render |
   | A message's one address and a topic's canonical form | `StoreMessages`, `PageTopic` | `pages-a-message-is-taken-once`. A row is a page or a topic and never both, and a topic's name is lowercase NFC: a second spelling would be a second queue, and a row with two addresses has no take |
 

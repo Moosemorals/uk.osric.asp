@@ -7,7 +7,7 @@ SPDX-License-Identifier: MIT
 
 | | |
 | --- | --- |
-| Status | Agreed 2026-11-21 — the owner said yes — and revised against trunk 2026-11-22, after the page search, the reference corpus, the slow test half and the documentation index landed, and again the same day to add the secrets slice at the owner's request. Slice 0, the [sandbox spike](../spikes/store-sandbox.md), slice 1, values, lifetimes and identity, and slice 2, records and the sandbox, are merged; slice 3, messages, is built on its branch and waits for the owner, and nothing of slices 4 and 5 is built |
+| Status | Agreed 2026-11-21 — the owner said yes — and revised against trunk 2026-11-22, after the page search, the reference corpus, the slow test half and the documentation index landed, and again the same day to add the secrets slice at the owner's request, and on 2026-11-23 to make `IPageSubject` and `IVisitorSubject` independent of each other. Slices 0 to 3 are merged and nothing of slices 4 and 5 is built |
 | Size | Large as a programme, small as a step: a spike, six slices and the release that closes the window, each its own branch and its own stop. The values slice is the floor; the record slice is the risk; the secrets slice is the one that cannot wait for the window to close |
 | First customer | The two plans this supersedes: the assistant's transcript (a Record for the signed-in visitor) and the redirect flash (a `NextRead` value). Editor mode is the first `Browser` value, and `/help`'s counter is the first Page value. A signing key ([`a-page-cannot-keep-a-secret`](../backlog/a-page-cannot-keep-a-secret.md)) is the first secret |
 | Spike | Slice 0: [the record sandbox](../spikes/store-sandbox.md), written before anything was built. Six of the sandbox section's details were corrected by what it measured |
@@ -115,7 +115,9 @@ Two rules hold the model together:
 - **The shape is the interface.** `Values`, `Records`, `Messages`, `Objects` and `Secrets` are five
   interfaces, and a subject offers the shapes it has. `Visitor` has `Messages`; `Page` does not, and
   its absence is a type, not a runtime surprise. `Page` has `Secrets` and `Visitor` does not, for the
-  reason [below](#secrets).
+  reason [below](#secrets). The two subject types declare their own shapes and do not inherit from
+  each other, so the shapes a subject lacks are absent from its type rather than inherited from a
+  base that would have to claim one subject is a kind of the other.
 
 Reads are open across page keys; writes are bound to the caller's key. `/a` reads `/_lib/b`'s Page
 values with `Values.TryGetValueAsync("/_lib/b", key)`. That is **ownership, not protection**: page code
@@ -140,12 +142,13 @@ on one person's budget, and `Pages:Stores` chooses the numbers together.
 ## The contract
 
 The capability is one type with two subjects and one escape. The five shape interfaces are what a page
-binds against; the subject interfaces are what a store answers with.
+binds against; the subject interfaces are what a store answers with. The two subject types are
+independent: a shape both subjects have is declared by both, and neither inherits from the other.
 
 ```csharp
 public interface IPageStores {
     IPageSubject Page { get; }          // bound to ctx.Path
-    IPageVisitorSubject Visitor { get; } // bound to the reader
+    IVisitorSubject Visitor { get; }    // bound to the reader
     IPageSubject For(string key);       // a library or worker key, with the caller's reader
 }
 
@@ -156,14 +159,24 @@ public interface IPageSubject {
     ISecretStore Secrets { get; }
 }
 
-public interface IPageVisitorSubject : IPageSubject {
+public interface IVisitorSubject {
+    IValueStore Values { get; }
+    IRecordStore Records { get; }
+    IObjectStore Objects { get; }
     IMessageStore Messages { get; }
 }
 ```
 
+The contract first inherited one subject from the other, and that is wrong: a base would say a
+visitor's subject *is* a kind of page's, and would offer a visitor every shape a page gains —
+`Secrets` first — as a compile-time possibility. A shared shape costs a repeated declaration and
+buys a contract that cannot drift open; the shapes themselves are the same interfaces, so only the
+property declaration is repeated.
+
 A page never sees a subject key, a session id, an account name or a browser id; the host resolves them
 once per request, beside the session, and every layer of the chain shares the answer. `Page` is bound
 to the layer's own key, so an embedded page writes its key and a layout writes its key.
+`For(key)` answers the same page-shaped handle, because a library's or a worker's key is a page's own.
 
 ### Values
 
@@ -925,7 +938,9 @@ The merges also edit `pages-page-storage`, `pages-the-session`, `pages-layouts-a
 `pages-a-versioned-url-promises-immutable`. The secrets slice additionally amends
 `pages-fetch-credentials` — an operator's credential is still never shown to a page, and a page's own
 key is not that credential — and amends `pages-the-subject-is-the-binding` and
-`pages-an-archive-is-a-database` for the shape's two exceptions. `pages-writes-are-transactions` is the entry that already
+`pages-an-archive-is-a-database` for the shape's two exceptions and for the two subject types being
+declared independently rather than as a base and a specialisation.
+`pages-writes-are-transactions` is the entry that already
 says a transaction is a frame and the writes live on the capability, so the record store's shape is
 that rule extended rather than a second one. `pages-there-is-no-sandbox` is unchanged and is what the
 record sandbox says of itself.
@@ -934,8 +949,8 @@ record sandbox says of itself.
 
 Each slice is one branch, one step through the gate and one stop for the owner. The programme merges
 phase by phase, so a regression is bisectable and its branch goes when its last slice is in. The
-owner said yes to this plan on 2026-11-21. Slice 0 is [written](../spikes/store-sandbox.md), slice 1
-and slice 2 are merged, and slice 3 is built and waits for the owner.
+owner said yes to this plan on 2026-11-21. Slice 0 is [written](../spikes/store-sandbox.md), and
+slices 1, 2 and 3 are merged.
 
 0. **The sandbox spike** (`S`, docs only) — **written**. A scratch console over the real SQLite
    build: an unpooled connection, a `TEMP VIEW` per table with a literal subject and an `INSTEAD OF`
@@ -954,7 +969,7 @@ and slice 2 are merged, and slice 3 is built and waits for the owner.
    are refused; the interrupt ends a long statement; the real table cannot be named from the view's SQL,
    and naming `Id` in a write is refused.
 1. **Values, lifetimes and identity** (`L`) — **merged**. `IPageStores`, `IPageSubject`,
-   `IPageVisitorSubject`, `IValueStore`, `StoreLifetime`, `StoreFilter`, `StoreEntry`, `PageValue`'s
+   `IVisitorSubject`, `IValueStore`, `StoreLifetime`, `StoreFilter`, `StoreEntry`, `PageValue`'s
    lifetime and page; the
    `StoreValues` migration that copies `PageState` and `PageSessionValues`; the `PageStoresScope` and
    its internal seam; `PageChain` and `PageJobRunner`; the `b` cookie and `ShellCookies`; adoption at
@@ -990,7 +1005,7 @@ and slice 2 are merged, and slice 3 is built and waits for the owner.
    the page's choice; a second `BeginTransaction` throws; a search answers my subject's rows and never
    another's; a library's table is reached only through `For(libraryKey)`; a worker's own table is
    shared by its runs.
-3. **Messages** (`M`) — **built, waits for the owner**. `IMessageStore`, `PageTopic`, `PageMessageRead`, `StoreMessages`, the address
+3. **Messages** (`M`) — **merged**. `IMessageStore`, `PageTopic`, `PageMessageRead`, `StoreMessages`, the address
    check, the atomic take, the peek, the caps, the lifetimes and the sweep; the flash example and the
    peek-that-protects-a-retry in `/help`; `/privacy`.
    *Proves:* a page posts to another page and the other takes it; a second take is `Empty`; two
@@ -1038,11 +1053,11 @@ separate worktrees. Slice 6 waits for them.
 
 | File | Change |
 | --- | --- |
-| `src/uk.osric.asp.Sdk/` | `IPageStores`, `IPageSubject`, `IPageVisitorSubject`, `IValueStore`, `IRecordStore`, `IPageRecordTransaction`, `IMessageStore`, `IObjectStore`, `ISecretStore`, `StoreLifetime`, `StoreLifetimeKind`, `StoreFilter`, `StoreEntry`, `StoreSubject`, `PageTableAttribute`, `PageRow`, `PageRecordResult`, `PageRecordOutcome`, `PageParameters`, `PageObject`, `PageObjectRef`, `PageTopic`, `PageMessage`, `PageMessageRead`, `PageMessagePostResult`, `PageMessageRefusal`, `PageValue`'s two new properties, `IContext.Stores`, the obsolete marks on the two old interfaces; `PublicAPI.Unshipped.txt` |
+| `src/uk.osric.asp.Sdk/` | `IPageStores`, `IPageSubject`, `IVisitorSubject`, `IValueStore`, `IRecordStore`, `IPageRecordTransaction`, `IMessageStore`, `IObjectStore`, `ISecretStore`, `StoreLifetime`, `StoreLifetimeKind`, `StoreFilter`, `StoreEntry`, `StoreSubject`, `PageTableAttribute`, `PageRow`, `PageRecordResult`, `PageRecordOutcome`, `PageParameters`, `PageObject`, `PageObjectRef`, `PageTopic`, `PageMessage`, `PageMessageRead`, `PageMessagePostResult`, `PageMessageRefusal`, `PageValue`'s two new properties, `IContext.Stores`, the obsolete marks on the two old interfaces; `PublicAPI.Unshipped.txt` |
 | `src/uk.osric.asp.Core/` | `PageSchema` and its validation, the single-statement rule, the content-type allow-list, the SHA-256 rule |
 | `src/uk.osric.asp.Runtime/` | Declaration extraction on the compile, `CompileResult.Schema`, `PAGE011` and `PAGE012` |
-| `src/uk.osric.asp.Web/Pages/` | `PageStoresScope` (new, in the shape `PageCatalogScope` already has), `PageStoresOptions`, `PageStoreCaps`, the internal store seams, `PageChain.CreateLayer`, `PageStorageOptions`'s retirement, `PageStorageScope` and `PageSessionScope` as adapters, `PageSessionResolver` (the reader's subject), `PageSessionRequest`, `PageSessionOptions`'s retirement, the sweep; `PageCatalogScope`, `IPageReadStore` and `PageWritesScope` untouched |
-| `src/uk.osric.asp.Web/Storage/` | `StoreValues`, `StoreMessages`, `StoreObjects`, `StoreSecrets`, `DeclaredTables`, the migration pair, the DDL and view generation, `PageStorageSampler`'s payload |
+| `src/uk.osric.asp.Web/Pages/` | `PageStoresScope` (new, in the shape `PageCatalogScope` already has), `PageStoresOptions`, `StoreSubjectCaps`, `IStoreValues`, `IStoreMessages`, `SqliteStoreValues`, `SqliteStoreMessages`, `StoreSubjectKeys`, the internal store seams, `PageChain.CreateLayer`, `PageStorageOptions`'s retirement, `PageStorageScope` and `PageSessionScope` as adapters, `PageSessionResolver`, `PageReaderSubjectResolver` (the reader's subject), `PageSessionRequest`, `PageSessionOptions`'s retirement, the sweep; `PageCatalogScope`, `IPageReadStore` and `PageWritesScope` untouched |
+| `src/uk.osric.asp.Web/Storage/` | `StoreObjects`, `StoreSecrets`, `DeclaredTables`, the migration pair, the DDL and view generation, `PageStorageSampler`'s payload |
 | `src/uk.osric.asp.Web/Authentication/` | The `b` cookie, its ticket in `PageSessionCookie`, `PageSessionCookie.RotateAsync`'s adoption transaction, `LoginEndpoint` |
 | `src/uk.osric.asp.Web/Http/` | `ShellCookies`' `b` constant and its `IsOwned` rule, which is what keeps the cookie out of `PageRequestSnapshot` |
 | `src/uk.osric.asp.Web/Work/` | `PageJobRunner`'s three handles |

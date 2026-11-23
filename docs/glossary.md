@@ -628,8 +628,8 @@ are a range, and a page reaches one as `ctx.Stores.Page`, `ctx.Stores.Visitor` o
 **Not** an owner inside a row. A record's owner column is the page's own business; a subject bounds a
 namespace and not a row.
 
-**Owner:** pages — `IPageStores`, `IPageSubject`, `IPageVisitorSubject`, `PageReaderSubject` and
-`StoreSubjects`.
+**Owner:** pages — `IPageStores`, `IPageSubject`, `IVisitorSubject`, `PageReaderSubject` and
+`StoreSubjectKeys`.
 
 ## System prompt
 The fixed instructions at the head of every request: `PageAuthorPrompt`, versioned so a change to it

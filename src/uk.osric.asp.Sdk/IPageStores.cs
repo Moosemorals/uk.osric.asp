@@ -7,12 +7,14 @@ namespace uk.osric.asp.Sdk;
 /// <remarks>
 /// <para>
 /// Two subjects: <see cref="Page"/>, shared by every visitor and bound to the layer's own key, and
-/// <see cref="Visitor"/>, this person. A page never sees a subject key, a session id or an account
+/// <see cref="Visitor"/>, this person. The two are separate types, so a shape one subject does not
+/// have cannot be reached through it. A page never sees a subject key, a session id or an account
 /// name; the host resolves them once per request.
 /// </para>
 /// <para>
-/// <see cref="For(string)"/> is the one escape, for a library's or a worker's own namespace. A page
-/// reaches a library's data by calling the library's methods, never by naming its tables.
+/// <see cref="For(string)"/> is the one escape, for a library's or a worker's own namespace; it
+/// answers a Page-shaped handle, because that key is a page's own. A page reaches a library's data
+/// by calling the library's methods, never by naming its tables.
 /// </para>
 /// </remarks>
 public interface IPageStores {
@@ -21,7 +23,7 @@ public interface IPageStores {
     public IPageSubject Page { get; }
 
     /// <summary>The Visitor subject: the person reading, bound to this layer's page.</summary>
-    public IPageVisitorSubject Visitor { get; }
+    public IVisitorSubject Visitor { get; }
 
     /// <summary>A library's or a worker's own subject, with the caller's reader.</summary>
     /// <param name="key">The canonical key of a live library or worker.</param>
