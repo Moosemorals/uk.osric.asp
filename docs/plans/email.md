@@ -549,9 +549,12 @@ holds the key *and* the credential that publishes its own record, so revoking a 
 revoke the API key, delete the selector, mint a new one, read the reports.
 
 **The host publishes all of it** through [the Mythic Beasts DNS API
-v2](https://www.mythic-beasts.com/support/api/dnsv2): HTTP with the API key, records addressed as
+v2](https://www.mythic-beasts.com/support/api/dnsv2): records addressed as
 `/zones/{zone}/records/{host}/{type}`, `PUT` replacing an RRset and `POST` adding, and `verify=true`
-making the API compare its authoritative answers with what it holds. Keys are restrictable to zones,
+making the API compare its authoritative answers with what it holds. The key is not sent to the API
+itself: it is exchanged at `auth.mythic-beasts.com/login` for a bearer token that **belongs to the IP
+that asked for it and expires after 300 idle seconds**, so `dns-sync` logs in at the start of every run
+and holds the key rather than a token ([spike](../spikes/mail-stack-preflight.md)). Keys are restrictable to zones,
 records and types, and that is what makes the rest safe: **this key writes exactly the mail records** —
 the apex `MX` and `TXT`, `neith`'s `A`, `AAAA` and `TXT`, and the `_domainkey`, `_dmarc` and
 `_smtp._tls` records — so the worst a compromised mail host can do to DNS is lie about itself. The
@@ -743,8 +746,9 @@ and the numbers:
 
 **Still open in this phase:**
 
-- **The Mythic Beasts token does not exist yet.** It is created in the control panel; until then the
-  key's scope is untested and Phase 3 waits.
+- **The Mythic Beasts key does not authenticate.** A key file exists on the dev box but the auth
+  service answers `401 invalid_client` for it, so the scope test — write the apex `A`, expect `403` —
+  has not been run, and Phase 3 waits on a key that logs in.
 - **A reboot**, to see a `vmail` quadlet come up without a session — the last piece of the linger claim.
 - The certificate the root timer copies, which is Phase 2's script rather than a spike.
 

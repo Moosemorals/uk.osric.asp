@@ -150,7 +150,27 @@ Run as `deploy` over `ssh`, with `sudo`. Everything below is a measurement of th
 | Caddy's certificate | `/var/lib/containers/storage/volumes/caddy-data/_data/caddy/certificates/acme-v02.api.letsencrypt.org-directory/moosemorals.com/`, `root:root 0600`, **EC P-256**, SAN `moosemorals.com` only |
 | Copy [Decision 11](../plans/email.md) describes | `0644` certificate and `0640` key, `vmail:vmail`, readable by the daemons — done by hand and removed again |
 | A quadlet in `vmail`'s `~/.config/containers/systemd` | `generated`, `WantedBy=default.target`, active with no session open |
-| Mythic Beasts token | **absent** — `deploy/mythic-beasts.token` does not exist on the host or in the repository, so the key's scope is untested |
+| Mythic Beasts token | present on the dev box at `~/.tokens/mythic-beasts.token` as `<key id>:<secret>`, but **the auth service refuses it** — `401 invalid_client` — so the key's scope is still untested |
+
+**The API's authentication is a two step, and the plan assumed one.** The key is not used directly:
+it is exchanged at `https://auth.mythic-beasts.com/login` with `grant_type=client_credentials` for an
+`access_token`, which then goes in a `Bearer` header to `api.mythic-beasts.com`. Two properties of that
+token matter to `dns-sync`:
+
+- **it is bound to the IP that obtained it**, so a tool that logs in from one machine and writes from
+  another fails;
+- **it expires in 300 seconds**, extended by each use, so a long reconcile run must either keep using
+  it or log in again.
+
+`dns-sync` therefore logs in at the start of every run rather than holding a token, which is also why
+the credential on the host is the key and not a token.
+
+**The credential found does not authenticate.** Both documented paths reject it — the auth service
+answers `401 invalid_client` for `Basic <key id>:<secret>` and for the reversed pair, and the DNS API
+answers `401 Invalid username or password` for Basic directly. The file holds `<12 chars>:<17 chars>`;
+the bash history of an earlier attempt used a different key id, so a re-created key whose secret did not
+survive an edit is the likeliest explanation. Nothing was written to the zone, and the scope question
+stays open until a key that logs in exists.
 
 Three things the host taught that no local spike could:
 
@@ -208,8 +228,8 @@ otherwise the site, or anything that can answer for it, can start rejecting mail
 ## Recommendation
 
 Adopt the plan with the six corrections above, which [the plan](../plans/email.md) now carries, and
-with the sysctl and the `vmail` user installed on the host by `deploy/host/`. What is left of Phase 0:
-the Mythic Beasts token, which has to be created in the control panel before its scope can be tested,
-and a reboot to see a `vmail` quadlet come up on its own. The settings door's shape is settled; the
+with the sysctl and the `vmail` user installed on the host by `deploy/host/`. What is left of Phase 0: a
+Mythic Beasts key that authenticates, so that the scope test (writing the apex `A` and expecting `403`)
+can be run at all, and a reboot to see a `vmail` quadlet come up on its own. The settings door's shape is settled; the
 per-account Bayes fallback this spike was going to ask about is not needed, because the extractor reads
 a cached map.
