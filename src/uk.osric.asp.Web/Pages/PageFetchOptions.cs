@@ -23,6 +23,9 @@ internal sealed record PageFetchOptions {
     /// <summary>The longest credential name <c>Pages:Fetch:Credentials</c> accepts.</summary>
     public const int MaximumCredentialNameLength = 64;
 
+    /// <summary>The key that sets a render's rate, named in a refusal.</summary>
+    public const string RateKey = "Pages:Fetch:FetchesPerSecond";
+
     /// <summary>How long one fetch may take.</summary>
     /// <remarks>May be a fraction of a second, down to <see cref="PageBudget.MinimumTimeoutSeconds"/>.</remarks>
     public required double TimeoutSeconds { get; init; }
@@ -39,8 +42,13 @@ internal sealed record PageFetchOptions {
     /// <summary>The most bytes a streamed response may return.</summary>
     public required int MaxStreamBytes { get; init; }
 
-    /// <summary>The most requests one render may make.</summary>
-    public required int MaxRequestsPerRender { get; init; }
+    /// <summary>The rate one render may fetch at; the burst is what it spends in a whole render.</summary>
+    /// <remarks>
+    /// The burst is derived from this and <c>Pages:Render:TimeoutSeconds</c> rather than being a
+    /// second key that could disagree with it, so a rate cannot mean one thing to the guard and
+    /// another to the message.
+    /// </remarks>
+    public required double FetchesPerSecond { get; init; }
 
     /// <summary>The most redirects one fetch may follow; zero disables following.</summary>
     public required int MaxRedirects { get; init; }
@@ -85,11 +93,17 @@ internal sealed record PageFetchOptions {
                 minimum: PageBudget.MinimumTimeoutSeconds, maximum: 86_400),
             MaxStreamBytes = reader.Number("MaxStreamBytes", recommended: 4 * 1024 * 1024,
                 minimum: 1024, maximum: 64 * 1024 * 1024),
-            MaxRequestsPerRender = reader.Number("MaxRequestsPerRender", recommended: 10,
-                minimum: 1, maximum: 100),
+            FetchesPerSecond = reader.Decimal("FetchesPerSecond", recommended: 2,
+                minimum: 0.01, maximum: 100),
             MaxRedirects = reader.Number("MaxRedirects", recommended: 3, minimum: 0, maximum: 20),
             Credentials = ReadCredentials(reader.SectionOf("Credentials")),
         };
+
+        // A count from the release before this one is refused rather than ignored: an operator who
+        // kept it believes it still bounds something, and a rate is not a count.
+        reader.FailIf(reader.Has("MaxRequestsPerRender"), "MaxRequestsPerRender",
+            $"is no longer read. {RateKey} is the rate a render may fetch at, so remove the key and restart");
+
         return options;
     }
 

@@ -201,6 +201,41 @@ internal sealed class OutboundFetcher(
         }
     }
 
+    /// <summary>Judges one request without sending it, so a caller can charge for it only if it would be attempted.</summary>
+    /// <param name="request">The request to judge.</param>
+    /// <param name="credential">The credential the request would carry, or <see langword="null"/> for none.</param>
+    /// <param name="reason">Why the request would be refused, for the caller's own log line.</param>
+    /// <returns><see langword="true"/> when the transport would attempt the request.</returns>
+    /// <remarks>
+    /// These are the same rules <see cref="SendAndReadAsync"/> applies before it opens a socket, asked
+    /// separately so the answer costs nothing. It logs nothing, because a caller that charges for
+    /// the attempt owns the one line a refusal is worth.
+    /// </remarks>
+    public static bool TryValidate(HttpFetchRequest request, IOutboundCredential? credential, out string reason) {
+        ArgumentNullException.ThrowIfNull(request);
+
+        if (!TryCreateUri(request.Url, out Uri? current)) {
+            reason = "the URL is not an absolute http or https URL with no credentials and no fragment";
+
+            return false;
+        }
+
+        if (!TryValidateShape(request, out _)) {
+            reason = "the method, body or a header is not one the page contract allows";
+
+            return false;
+        }
+
+        if (credential is not null && !credential.AppliesTo(current)) {
+            reason = $"{credential.Name} is not the credential's host or is not secure";
+
+            return false;
+        }
+
+        reason = string.Empty;
+        return true;
+    }
+
     private bool TryPrepareRequest(
         HttpFetchRequest request,
         string caller,
@@ -208,7 +243,7 @@ internal sealed class OutboundFetcher(
         out Uri current,
         out string? mediaType) {
         mediaType = null;
-        if (!TryCreateUri(request.Url, out Uri? parsed) || !TryValidate(request, out mediaType)) {
+        if (!TryCreateUri(request.Url, out Uri? parsed) || !TryValidateShape(request, out mediaType)) {
             _ = Refuse(HttpFetchFailure.InvalidRequest, caller, request.Url, LogLevel.Warning);
             current = null!;
             return false;
@@ -352,7 +387,7 @@ internal sealed class OutboundFetcher(
             && string.IsNullOrEmpty(uri.Fragment);
     }
 
-    private static bool TryValidate(HttpFetchRequest request, out string? mediaType) {
+    private static bool TryValidateShape(HttpFetchRequest request, out string? mediaType) {
         mediaType = null;
 
         if (request.Method is not (HttpFetchMethod.Get or HttpFetchMethod.Post)) {

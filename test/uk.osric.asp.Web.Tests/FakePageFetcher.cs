@@ -22,11 +22,28 @@ internal sealed class FakePageFetcher(Func<HttpFetchRequest, HttpFetchResponse>?
 
     public Func<HttpFetchRequest, HttpFetchStream>? StreamAnswer { get; set; }
 
+    /// <summary>Whether the seam accepts a request; <see langword="null"/> accepts every one.</summary>
+    public Func<HttpFetchRequest, bool>? Valid { get; set; }
+
+    /// <summary>Every request the seam was asked about, in order.</summary>
+    public List<HttpFetchRequest> Validations { get; } = [];
+
     public string? LastPagePath { get; private set; }
 
     public CancellationToken LastAborted { get; private set; }
 
     public CancellationToken LastDeadline { get; private set; }
+
+    public bool TryValidate(HttpFetchRequest request, string pagePath, out string reason) {
+        Validations.Add(request);
+        if (Valid?.Invoke(request) ?? true) {
+            reason = string.Empty;
+            return true;
+        }
+
+        reason = "the test refused this request";
+        return false;
+    }
 
     public Task<HttpFetchResponse> FetchAsync(
         HttpFetchRequest request,

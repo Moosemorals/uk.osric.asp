@@ -171,8 +171,11 @@ internal sealed class PageJobRunner(
             isHead: false,
             token,
             environment.Fetcher,
-            environment.Fetch,
-            new RenderFetchBudget(environment.Fetch.MaxRequestsPerRender),
+            new FetchBudget(
+                environment.Render.BurstFor(environment.Jobs.FetchesPerSecond),
+                environment.Jobs.FetchesPerSecond,
+                environment.Clock,
+                PageJobOptions.FetchRateKey),
             environment.Metrics,
             loggerFactory.CreateLogger(SimpleContext.PageCategory));
         PageCatalogScope catalog = new(
@@ -182,7 +185,11 @@ internal sealed class PageJobRunner(
             environment.ReadStore,
             environment.Read,
             environment.Search,
-            new ReadBudget(environment.Read.MaxSourceCharsPerRender),
+            new ReadBudget(
+                environment.Render.BurstFor(environment.Jobs.SourceCharsPerSecond),
+                environment.Jobs.SourceCharsPerSecond,
+                environment.Clock,
+                PageJobOptions.ReadRateKey),
             environment.Reserved,
             environment.ContentTypes,
             environment.Seeds,

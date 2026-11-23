@@ -37,6 +37,8 @@ using uk.osric.asp.Web.Work;
 /// <param name="Scopes">
 /// Where a job's own scope comes from, so its writer has the scoped store a render's writer has.
 /// </param>
+/// <param name="Render">The render's limits, whose deadline is the burst window of a job's own allowances.</param>
+/// <param name="Clock">The clock a job's fetch and read allowances are measured against.</param>
 internal sealed record PageJobEnvironment(
     PageJobOptions Jobs,
     IWorkerStore Store,
@@ -57,4 +59,6 @@ internal sealed record PageJobEnvironment(
     IPageCompiler Compiler,
     PageMetrics Metrics,
     IServiceScopeFactory Scopes,
+    RenderOptions Render,
+    TimeProvider Clock,
     IRecordCatalog? Records = null);

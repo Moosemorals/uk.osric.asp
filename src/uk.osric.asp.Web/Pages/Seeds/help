@@ -399,8 +399,9 @@ renderer and no layout. It has three stores, and no more: <code>context.Stores.P
 starting page's data, which the page can read again; <code>context.Stores.Visitor</code> is the
 starter's, with only a <code>Person</code> lifetime because a job has no session and no browser; and
 <code>context.Stores.For(context.Worker)</code> is the worker's own namespace, shared by every run of
-that worker. Its fetch and catalog are the worker's own, so a credential bound to the worker stays the
-worker's. It asks for those through <code>context.Capabilities</code> exactly as a page does.</p>
+that worker. Its fetch and catalog are the worker's own — with their own rates,
+<code>Pages:Jobs:FetchesPerSecond</code> and <code>Pages:Jobs:SourceCharsPerSecond</code>, refilled for
+the whole life of the job — so a credential bound to the worker stays the worker's. It asks for those through <code>context.Capabilities</code> exactly as a page does.</p>
 <p><strong>A job writes with the credential that started it.</strong> The writer is the page store's
 usual <a href="/admin/reference/sdk#t-IPageWrites"><code>IPageWrites</code></a>, bound to the starting
 page, so a worker may save, move, delete and transact over any key the store allows. The authority is
@@ -582,8 +583,14 @@ exceptions:</p>
 &lt;% } else { %&gt;
 &lt;p&gt;Unavailable (&lt;%= response.Failure.ToString() %&gt;).&lt;/p&gt;
 &lt;% } %&gt;</code></pre>
-<p><code>StreamAsync</code> follows the same URL, header, redirect and credential rules and counts
-against the same per-render request limit. It returns an <code>HttpFetchStream</code> with the response
+<p>Both are bounded by a rate rather than a count. <code>Pages:Fetch:FetchesPerSecond</code> (2 as
+shipped) is what a render may spend, and the burst it starts with is that rate times
+<code>Pages:Render:TimeoutSeconds</code> — ten as shipped, the count the site shipped before this
+became a rate, now refilled while the render still runs. A request the policy would refuse costs nothing; one that
+is attempted costs one, whatever comes back, and a stream costs one when it is opened. A render refused
+a fetch answers <code>TooManyRequests</code>.</p>
+<p><code>StreamAsync</code> follows the same URL, header, redirect and credential rules and spends the
+same allowance. It returns an <code>HttpFetchStream</code> with the response
 status and headers, a <code>Failure</code> value, and a <code>ReadLineAsync()</code> method that
 returns decoded text lines or <code>null</code>. Close it with <code>CloseAsync()</code>; the host
 also closes it when the render ends or is abandoned. Response headers use
@@ -726,11 +733,13 @@ a template whose own guard hides its output, and including the history of a dele
 scrubbed. The seeded <a href="<%= ctx.EditorPath %>"><%= ctx.EditorPath %></a> is a guarded listing, source view and
 history: the same capability with that one line at the top of its source.</p>
 <p>The read is bounded. One listing returns at most the configured row limit (500 as shipped) and
-refuses rather than truncating, and one render may pull in at most the configured source budget
-(512 KiB as shipped) across the page and its layouts, which is also a refusal rather than half a
-page. A listing charges nothing, because its rows are metadata and the body limit bounds what a page
-can write out of them. Both limits are set under <code>Pages:Read</code>, and a missing or unusable
-value stops the site at startup rather than being quietly replaced.</p>
+refuses rather than truncating. Source reads are a rate: <code>Pages:Read:SourceCharsPerSecond</code>
+(104858 as shipped) refills a burst that is the rate times <code>Pages:Render:TimeoutSeconds</code>,
+which is 524290 characters as shipped, shared across the page and its layouts. A read is whole, so a
+template larger than that burst is refused at any rate, and a refusal leaves the allowance untouched
+rather than half a page. A listing charges nothing, because its rows are metadata and the body limit
+bounds what a page can write out of them. Both are set under <code>Pages:Read</code>, and a missing or
+unusable value stops the site at startup rather than being quietly replaced.</p>
 
 <h2 id="checking">Checking without saving</h2>
 <p><a href="/admin/reference/sdk#t-IPageCheck"><code>IPageCheck</code></a> answers &ldquo;would this compile&rdquo; for text you already

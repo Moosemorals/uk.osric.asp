@@ -113,6 +113,22 @@ public sealed class PageJobTests {
         %>
         """;
 
+    private const string Fetching = """
+        <%!
+        using System.Threading.Tasks;
+
+        namespace Site.Work {
+            public sealed class Fetching : IWorker {
+                public async Task RunAsync(IWorkerContext context) {
+                    IHttpFetch fetch = context.Capabilities.GetRequired<IHttpFetch>();
+                    context.Publish("first", (await fetch.GetAsync("https://api.example.com/first")).Failure.ToString());
+                    context.Publish("second", (await fetch.GetAsync("https://api.example.com/second")).Failure.ToString());
+                }
+            }
+        }
+        %>
+        """;
+
     private const string Faulty = """
         <%!
         using System.Threading.Tasks;
@@ -158,6 +174,33 @@ public sealed class PageJobTests {
             Assert.That(info.State, Is.EqualTo(PageJobState.Completed), info.Failure);
             Assert.That(written, Is.EqualTo("\"hello\""),
                 "the job writes the page's own state, not the worker's");
+        });
+    }
+
+    [Test]
+    public async Task AWorkerFetchesAtItsOwnRateAsync() {
+        FakePageFetcher fetcher = new(_ => new HttpFetchResponse(
+            200, new Dictionary<string, string>(), "ok", HttpFetchFailure.None, false));
+        using PageHarness pages = new(
+            new FakePageStore(),
+            fetch: fetcher,
+            options: TestOptions.Render,
+            jobOptions: TestOptions.Jobs with { FetchesPerSecond = 0.2 });
+        await StoreAsync(pages, Fetching);
+        LiveStartingPage(pages);
+        await pages.StartJobsAsync();
+
+        PageJobStart start = await StartAsync(pages, "/starter", WorkerPath, firstMessage: null);
+        PageJobInfo info = await WaitForEndAsync(pages, start.Id!);
+        PageJobEvents events = await pages.Jobs.ReadEventsAsync(
+            start.Id!, 0, TimeSpan.FromSeconds(5), Owner, CancellationToken.None);
+
+        Assert.Multiple(() => {
+            Assert.That(info.State, Is.EqualTo(PageJobState.Completed), info.Failure);
+            Assert.That(events.Events.Select(item => item.Data),
+                Is.EqualTo(["None", nameof(HttpFetchFailure.TooManyRequests)]),
+                "the worker's own rate, not the render's, is what bounds it");
+            Assert.That(fetcher.Requests, Has.Count.EqualTo(1));
         });
     }
 

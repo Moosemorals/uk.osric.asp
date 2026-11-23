@@ -53,6 +53,16 @@ internal sealed record RenderOptions {
     /// <summary>The budget as a time span.</summary>
     public TimeSpan Timeout => TimeSpan.FromSeconds(TimeoutSeconds);
 
+    /// <summary>The count a rate spends in a whole render.</summary>
+    /// <param name="perSecond">A configured rate: a fetch rate or a read rate.</param>
+    /// <returns>How many whole units the rate buys in one deadline.</returns>
+    /// <remarks>
+    /// It is the one derivation of a burst. An allowance starts full at that many units, so nothing a
+    /// deployment could spend before is refused now, and no second key can disagree with the rate
+    /// that sets it.
+    /// </remarks>
+    public int BurstFor(double perSecond) => (int)Math.Floor(perSecond * TimeoutSeconds);
+
     /// <summary>Reads <c>Pages:Render</c>.</summary>
     /// <param name="configuration">The application configuration.</param>
     /// <exception cref="ConfigurationException">A value is missing or unusable.</exception>

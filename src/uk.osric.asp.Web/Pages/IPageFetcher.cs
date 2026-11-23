@@ -28,6 +28,17 @@ internal interface IPageFetcher {
         CancellationToken aborted,
         CancellationToken deadline);
 
+    /// <summary>Judges one request before a caller spends an allowance on it.</summary>
+    /// <param name="request">The page's request.</param>
+    /// <param name="pagePath">The page's key, which the credential rules are bound to.</param>
+    /// <param name="reason">Why the request would be refused, for the caller's one log line.</param>
+    /// <returns><see langword="true"/> when the request is one the transport would attempt.</returns>
+    /// <remarks>
+    /// It is the same rules <see cref="FetchAsync"/> applies, asked before a unit is spent, so a
+    /// request the policy would refuse costs nothing. It logs nothing: the caller owns the line.
+    /// </remarks>
+    bool TryValidate(HttpFetchRequest request, string pagePath, out string reason);
+
     /// <summary>Opens one bounded outbound response stream.</summary>
     /// <param name="request">The page's request.</param>
     /// <param name="pagePath">The page's key, for the metric and log tags.</param>

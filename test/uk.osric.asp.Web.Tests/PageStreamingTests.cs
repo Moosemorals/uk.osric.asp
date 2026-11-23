@@ -449,7 +449,8 @@ public sealed class PageStreamingTests {
             new DiffRenderer(),
             new FakePageSessionStore(),
             TestSessions.Cookie,
-            TestSessions.BrowserCookie);
+            TestSessions.BrowserCookie,
+            TimeProvider.System);
 
         ILoggerFactory factory = logs is null ? NullLoggerFactory.Instance : logs;
 

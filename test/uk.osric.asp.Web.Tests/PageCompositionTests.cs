@@ -596,7 +596,8 @@ public sealed class PageCompositionTests {
             new DiffRenderer(),
             new FakePageSessionStore(),
             TestSessions.Cookie,
-            TestSessions.BrowserCookie);
+            TestSessions.BrowserCookie,
+            TimeProvider.System);
 
         PageEditor editor = new(_storage, saver);
         await PageEndpoint.HandleAsync(context, CreateRenderer(options), NullLoggerFactory.Instance, environment, editor);

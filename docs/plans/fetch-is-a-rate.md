@@ -7,7 +7,7 @@ SPDX-License-Identifier: MIT
 
 | | |
 | --- | --- |
-| Status | Proposed 2026-11-23 — waits for the owner; nothing below is built |
+| Status | Agreed 2026-11-23 — the owner said yes; built on `plan/fetch-is-a-rate`, and the merge it waits on is theirs |
 | Size | Medium-large — one pure Core type, two budgets rebuilt around it, four keys out and four in, one validation seam in the fetch edge, and the tests that pin the clock |
 | Area | Core (pages), Web (pages, work, configuration), docs, build (public API) |
 | Spike | None. Every rule is arithmetic on an instant the caller passes, and the existing fetch tests already drive the refusal path with a fake fetcher |
@@ -197,6 +197,7 @@ are public on the budget rather than formatted in the refusal.
 | `src/uk.osric.asp.Web/Pages/PageFetchOptions.cs` | `FetchesPerSecond` in, `MaxRequestsPerRender` out and refused |
 | `src/uk.osric.asp.Web/Pages/PageReadOptions.cs` | `SourceCharsPerSecond` in, `MaxSourceCharsPerRender` out and refused |
 | `src/uk.osric.asp.Web/Pages/RenderOptions.cs` | `BurstFor(double)`, the one derivation |
+| `src/uk.osric.asp.Web/Pages/PageAllowanceRules.cs` | New: the burst-below-one check, recorded in the one startup report |
 | `src/uk.osric.asp.Web/Pages/PageHttpFetch.cs` | Validate, then charge; the rate's message |
 | `src/uk.osric.asp.Web/Pages/IPageFetcher.cs`, `PageFetcher.cs` | `TryValidate`, one seam a page's charge can ask |
 | `src/uk.osric.asp.Web/Pages/OutboundFetcher.cs` | `TryValidate` extracted from `TryPrepareRequest` |
@@ -236,6 +237,8 @@ Written first, each failing before the change (`code-fixtures-hold-no-deadline` 
 - **A burst below one stops the site**, naming the rate, `Pages:Render:TimeoutSeconds` and the
   smallest rate that works.
 - **A rate outside its range stops the site**, below the floor and above the ceiling.
+- **A burst below one is caught across the two sections**, naming both keys and the smallest rate that
+  works (`PageAllowanceRulesTests`).
 - **`BurstFor` is the rate times the render's deadline**, floored — the one test of the derivation,
   on the shipped 5 seconds. A test that needs a capacity of one builds the budget directly rather
   than raising `TestOptions.FixtureRender`, which is 60 seconds for a different reason.

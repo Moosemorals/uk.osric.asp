@@ -24,8 +24,7 @@ internal sealed class PageHttpFetch(
     bool isHead,
     CancellationToken aborted,
     IPageFetcher fetcher,
-    PageFetchOptions options,
-    RenderFetchBudget budget,
+    FetchBudget budget,
     PageMetrics metrics,
     ILogger logger) : RenderBoundCapability, IHttpFetch, IRenderLifetimeAware {
 #pragma warning restore CA1068 // CancellationToken parameters must come last
@@ -47,8 +46,14 @@ internal sealed class PageHttpFetch(
             return Refuse(PageMetrics.FetchInvalid, "a POST during a HEAD request");
         }
 
+        // A request the policy would refuse costs nothing: it is judged before the allowance is
+        // asked, so a page experimenting with a header keeps the requests it meant to make.
+        if (!fetcher.TryValidate(request, path.Key, out string why)) {
+            return Refuse(PageMetrics.FetchInvalid, why);
+        }
+
         if (!budget.TryTake()) {
-            return Refuse(PageMetrics.FetchLimit, $"more than {options.MaxRequestsPerRender} requests");
+            return Refuse(PageMetrics.FetchLimit, budget.DescribeRefusal());
         }
 
         return await fetcher.FetchAsync(request, path.Key, aborted, Deadline);
@@ -66,8 +71,12 @@ internal sealed class PageHttpFetch(
             return RefuseStream(PageMetrics.FetchInvalid, "a POST during a HEAD request");
         }
 
+        if (!fetcher.TryValidate(request, path.Key, out string why)) {
+            return RefuseStream(PageMetrics.FetchInvalid, why);
+        }
+
         if (!budget.TryTake()) {
-            return RefuseStream(PageMetrics.FetchLimit, $"more than {options.MaxRequestsPerRender} requests");
+            return RefuseStream(PageMetrics.FetchLimit, budget.DescribeRefusal());
         }
 
         HttpFetchStream stream = await fetcher.StreamAsync(request, path.Key, aborted, Deadline);

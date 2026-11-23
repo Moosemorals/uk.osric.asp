@@ -199,7 +199,10 @@ control socket and the one call.
   the 300-second default run timeout is independent of the container's 35-second graceful stop.
 - **Outbound fetch:** any `http` or `https` host is reachable, with no allow-list (`pages-outbound-fetch`).
   `Pages__Fetch__TimeoutSeconds` defaults to 4, deliberately below the 5-second render budget;
-  `MaxResponseBytes`, `MaxRequestsPerRender` and `MaxRedirects` bound the rest. The container's egress
+  `Pages__Fetch__FetchesPerSecond` (2), `MaxResponseBytes` and `MaxRedirects` bound the rest, and
+  `Pages__Read__SourceCharsPerSecond` (104858) bounds template reads the same way. Each rate's burst
+  is that rate times `Pages__Render__TimeoutSeconds`, and a job has its own pair under
+  `Pages__Jobs__FetchesPerSecond` and `Pages__Jobs__SourceCharsPerSecond`. The container's egress
   and internal network are not otherwise restricted, and the assistant's `fetch` tool uses the same
   path, so a stored page or an approved tool call can reach anything the container can. That is the
   single-owner trust boundary, not a sandbox (`sec-page-runs-in-process`). Every request carries

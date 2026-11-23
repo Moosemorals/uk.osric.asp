@@ -333,8 +333,8 @@ internal sealed class PageCatalogScope(
     private void Charge(int chars, string what) {
         if (!budget.TryCharge(chars)) {
             throw new InvalidOperationException(
-                $"Reading {what} on {path.Key} would take this render past {budget.MaxChars} characters "
-                + "of page source. Raise Pages:Read:MaxSourceCharsPerRender, or read a smaller revision.");
+                $"Reading {what} on {path.Key} was refused: {budget.DescribeRefusal()}. "
+                + "Raise the rate, or read a smaller revision.");
         }
     }
 
