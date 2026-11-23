@@ -237,9 +237,8 @@ page's own keys:
 - `ctx.Stores.For(key)` is a live library's or worker's namespace, for the library to hand out and a page
   to reach only through that library's methods.
 
-Each subject carries the shapes it has — `Values` and `Records`, and `Messages` on the Visitor; the
-object shape arrives with its slice — and a shape a subject does not have is absent from the type
-rather than a runtime surprise. `Values` is a JSON key/value store: `TryGetValueAsync<T>(key)` reads the bound page's key,
+Each subject carries the shapes it has — `Values`, `Records` and `Objects`, with `Messages` only on the
+Visitor — and a shape a subject does not have is absent from the type rather than a runtime surprise. `Values` is a JSON key/value store: `TryGetValueAsync<T>(key)` reads the bound page's key,
 `TryGetValueAsync<T>(pageKey, key)` reads what another page left, `TryTakeAsync<T>(key)` consumes a
 one-shot, `SetAsync` and `DeleteAsync` write and remove, and `KeysAsync`/`AllKeysAsync` list without
 consuming. A read answers the lifetime the entry carries and the page that wrote it.
@@ -261,6 +260,18 @@ take would and reserves nothing. A post and a take are writes, a peek is a read,
 and a full queue are values rather than exceptions (`pages-a-message-is-taken-once`). A topic's name is
 canonicalised as a page key is — lowercase and NFC — so two spellings are one queue. A one-shot flash is
 still a `NextRead` value; a message is for a page the visitor has not reached yet.
+
+`Objects` is bytes rather than keys or rows. `PutAsync(content, contentType)` stores them under the
+bound subject, addressed by their SHA-256, and answers a `PageObjectRef` whose `Sha` is the `/o/{sha}`
+URL and whose lifetime is the subject's own unless one is given. `OpenAsync(sha)` answers a
+`PageObjectStream`: a `Stream` whose synchronous reads, seeks and writes throw, so a page reads with
+`ReadAsync` and the render's deadline can cancel one; dispose it with `await using`, because it holds a
+connection until it is. A page subject's object is public and immutable, and any page may open it by
+digest; a visitor subject's is the reader's alone. The route serves a page object as
+`public, max-age=31536000, immutable` and a visitor's as `private, no-store`, with `ETag`, `Range` and
+`HEAD`, and the content type is a fixed allow-list with no SVG
+(`pages-an-object-is-content-addressed`). The per-object and per-subject limits are rows of
+`Pages:Stores:Objects`; [storage](storage.md#objects) has the table and the route.
 
 `Records` is rows rather than keys: a source declares a table with `[PageTable]` on a class in a
 `<%! %>` block, and the properties are the columns. The declaration is part of the revision, so a save

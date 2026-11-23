@@ -31,14 +31,17 @@ public sealed class PageStorageMetricsTests {
                 ExpiresAt TEXT, Value TEXT, UpdatedAt TEXT);
             INSERT INTO StoreValues VALUES ('page:/p', '/p', 'k', 1, NULL, 'v', 'date');
             INSERT INTO StoreValues VALUES ('browser:b', '/p', 'e', 3, 'until', 'v', 'date');
+            CREATE TABLE StoreObjects (Subject TEXT, Sha TEXT, Length INTEGER, ContentType TEXT,
+                Lifetime INTEGER, ExpiresAt TEXT, Content BLOB, CreatedAt TEXT);
+            INSERT INTO StoreObjects VALUES ('page:/p', 'sha', 3, 'application/octet-stream', 1, NULL, zeroblob(3), 'date');
             """;
         await command.ExecuteNonQueryAsync();
 
         (long payload, long allocated) = await PageStorageSampler.ReadSizesAsync(connection, CancellationToken.None);
 
-        // 41 bytes of revisions plus 37 of store values: the subject, page key, key, value and timestamp
-        // of the first row, then the same for the second plus its five byte expiry.
-        Assert.That(payload, Is.EqualTo(78));
+        // 41 bytes of revisions, 37 of store values and 41 of store objects: the subject, digest,
+        // content type, content and timestamp of the one object row.
+        Assert.That(payload, Is.EqualTo(119));
         Assert.That(allocated, Is.GreaterThan(payload));
     }
 

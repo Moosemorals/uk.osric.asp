@@ -859,7 +859,8 @@ the browser's lifetime and the live-session limit beside them. The limits are ch
 draw on one budget per subject, so they are read and refused together. The two sections this replaces,
 `Pages:Storage` and `Pages:Session`, are refused at startup rather than ignored: an operator who kept one
 believes it still bounds something, and it does not. The message shape's body, count and total limits are
-rows of the same record, for the same reason: they draw on the subject's budget. The subject prefixes,
+rows of the same record, for the same reason: they draw on the subject's budget. The object shape's
+per-object and per-subject byte limits are rows of it too. The subject prefixes,
 the lifetime numbers and a topic's canonical form stay in code, because they are the stored form of
 every row and configuration could only orphan them.
 
@@ -886,6 +887,34 @@ a page that must not lose a message takes it and acts on what the take answered,
 retry peeks first and takes only after the work succeeded.
 
 *Recorded in [pages](pages.md#page-data), [storage](storage.md#messages), [IMessageStore](../src/uk.osric.asp.Sdk/IMessageStore.cs), [PageMessageStore](../src/uk.osric.asp.Web/Pages/PageMessageStore.cs).*
+
+### pages-an-object-is-content-addressed
+
+A subject's bytes are stored in `StoreObjects` and addressed by the lowercase hexadecimal SHA-256 of
+their content, so the same bytes put twice under one subject are one row and a put replaces the
+lifetime the previous row carried. `ctx.Stores.Page.Objects` writes `page:<key>`, and its bytes are
+public and immutable until the page goes; `ctx.Stores.Visitor.Objects` writes the reader's subject, and
+only the reader's subjects may open them. A page can read any page subject's object by digest; a
+visitor's is bounded to the session, browser or account that wrote it.
+
+A read is a `PageObjectStream`: a `Stream` whose usable members are declared on the contract type, with
+synchronous reads, seeks and writes refused so a render's deadline can cancel a read. The store opens the
+BLOB through SQLite's incremental blob API rather than materialising it, and the reader owns the
+connection until it is disposed; the layer closes one the page forgot. `PutAsync` still takes a
+`byte[]`, because a page can produce bytes only through the BCL types the API admits.
+
+`/o/{sha}` is the site's route, because a page cannot stream a response and a cache policy is a
+response rule. It serves a page subject's object `public, max-age=31536000, immutable` and a visitor's
+`private, no-store`, with a strong `ETag` that is the digest, `Accept-Ranges`, a single `Range` as
+`206`, `If-None-Match` as `304`, `HEAD` as headers alone and `nosniff`; a missing or foreign digest is
+`404`, so the route cannot probe another visitor's existence. The content type is a fixed allow-list in
+code — `image/png`, `image/jpeg`, `image/gif`, `image/webp`, `text/plain; charset=utf-8` and
+`application/octet-stream` — and SVG is refused because it is markup and a script vector. The
+per-object and per-subject limits are `Pages:Stores:Objects`; the allow-list, the digest spelling and
+the blob read are invariants. Deleting a page takes its page objects, moving it re-keys them, signing in
+adopts a `Person` object, and signing out or the sweep removes a `Session`, browser or expired one.
+
+*Recorded in [pages](pages.md#page-data), [storage](storage.md#objects), [IObjectStore](../src/uk.osric.asp.Sdk/IObjectStore.cs), [PageObjectStream](../src/uk.osric.asp.Sdk/PageObjectStream.cs), [ObjectEndpoint](../src/uk.osric.asp.Web/Shell/ObjectEndpoint.cs).*
 
 ### pages-a-record-is-declared-sql
 
@@ -1074,7 +1103,10 @@ the fact; only a bare site-relative path is touched, so a fallback link keeps wo
 missing. Deleting a page hides its public URL and keeps its versioned ones answering, because the hash
 still names a row; a scrub removes the rows and those URLs `404`. Neither recalls a copy a browser or a
 proxy already holds, so the manual and the operations notes say that rotating an exposed secret and
-cleaning external copies are separate work. Compression stays Caddy's job and the app writes no
+cleaning external copies are separate work. A page subject's object at `/o/{sha}` makes the same promise
+from the other side: the digest is its address and its ETag, the response is
+`public, max-age=31536000, immutable`, and a visitor subject's object is `private, no-store`
+(`pages-an-object-is-content-addressed`). Compression stays Caddy's job and the app writes no
 `Vary`.
 
 *Recorded in [immutable assets](plans/archive/immutable-page-assets.md#1-v-addresses-a-retained-revision-and-never-falls-back), [RevisionHash](../src/uk.osric.asp.Core/Pages/RevisionHash.cs).*

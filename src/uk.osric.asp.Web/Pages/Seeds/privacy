@@ -23,6 +23,12 @@ scripts the site uses are served from here.</p>
     one that follows the visit goes when the session does; and deleting the page it was addressed to
     deletes it. A message on a named topic with no page behind it stays until it is taken or it
     expires.</li>
+    <li><strong>An object.</strong> A page can keep bytes — an image, a short file — under its own key or
+    under yours. A page's object is public and stays until the page is deleted; one kept under your
+    session, browser or account is private, served only to you, and goes when the session ends, the
+    browser's key expires or the account is removed. A public object at <code>/o/{sha}</code> is cached
+    for a year because its address is a hash of its bytes; a private one is never cached. Either is at
+    most 8 MiB, and one visitor holds at most 64 MiB.</li>
     <li><strong>A browser preference.</strong> One page keeps a setting that belongs to this device
     rather than to you &mdash; the editor mode, so your textareas stay the way you chose them. It is a
     separate random key in a cookie, kept for up to a year and reset whenever you change it. It is

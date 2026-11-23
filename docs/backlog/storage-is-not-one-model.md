@@ -26,7 +26,8 @@ SPDX-License-Identifier: MIT
 > The old capabilities stay one release as obsolete adapters and then go.
 > The owner said yes on 2026-11-21. Slice 0 — the sandbox spike — is
 > [written](../spikes/store-sandbox.md); slice 1, values, lifetimes and identity, and slice 2,
-> records and the sandbox, are merged; slice 3, messages, is built and waits for the owner.
+> records and the sandbox, and slice 3, messages, are merged; slice 4, objects, is built and waits
+> for the owner.
 
 ## Idea
 

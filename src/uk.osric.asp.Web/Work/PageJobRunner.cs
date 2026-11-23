@@ -164,7 +164,8 @@ internal sealed class PageJobRunner(
             writable: true,
             commit: null,
             environment.Records,
-            job.Lifetime.ReArm);
+            objects: environment.Objects,
+            activity: job.Lifetime.ReArm);
         stores.AttachDeadline(token);
         PageHttpFetch fetch = new(
             job.Worker,

@@ -24,6 +24,7 @@ can improve it at <a href="<%= ctx.EditorPath %>?edit=<%= System.Uri.EscapeDataS
         <li><a href="#private">Private pages and forms</a></li>
         <li><a href="#storage">Storage</a></li>
         <li><a href="#messages">Messages between pages</a></li>
+        <li><a href="#objects">Objects</a></li>
         <li><a href="#assets">Assets and recovery</a></li>
         <li><a href="#keeping-current">Keeping this page current</a></li>
     </ul>
@@ -1102,6 +1103,49 @@ eight messages and 64 KiB of them. A topic name is lowercased and composed to NF
 <code>Job</code> and <code>job</code> are one queue. Deleting a page deletes the messages addressed to
 it, whoever sent them; moving it re-addresses them; a topic is not a page and is untouched. The seeded
 <a href="/privacy">/privacy</a> page says what a message is and how long it lives.</p>
+
+<h2 id="objects">Objects</h2>
+<p><code>Objects</code> keeps bytes rather than keys or rows. A page puts them with
+<a href="/admin/reference/sdk#m-IObjectStore.PutAsync-byte-string-StoreLifetime"><code>PutAsync(content, contentType)</code></a>,
+which answers a <a href="/admin/reference/sdk#t-PageObjectRef"><code>PageObjectRef</code></a> carrying the SHA-256 digest, the length and the
+canonical content type. <code>ctx.Stores.Page.Objects</code> writes the page's own object, shared by
+every visitor; <code>ctx.Stores.Visitor.Objects</code> writes the reader's and keeps it private.</p>
+<pre class="source" tabindex="0"><code>&lt;% byte[] bytes = System.Text.Encoding.UTF8.GetBytes("A note kept as a file.");
+   PageObjectRef file = await ctx.Stores.Page.Objects.PutAsync(bytes, "text/plain; charset=utf-8"); %&gt;
+&lt;p&gt;&lt;a href="/o/&lt;%= file.Sha %&gt;" download&gt;Download the note&lt;/a&gt;&lt;/p&gt;</code></pre>
+<p>The page subject's object is public and immutable until the page goes, and any page may open it by
+digest; a visitor subject's belongs to the reader's session, browser or account and another visitor gets
+<code>404</code>. <code>/o/{sha}</code> serves the bytes with a strong <code>ETag</code>, a single byte
+<code>Range</code> as <code>206</code>, <code>HEAD</code> and <code>Accept-Ranges</code>. A page object is
+sent <code>Cache-Control: public, max-age=31536000, immutable</code>; a visitor object is
+<code>private, no-store</code>. A missing or foreign digest is a <code>404</code> with an empty body.</p>
+<p>Read an object with
+<a href="/admin/reference/sdk#m-IObjectStore.OpenAsync-string"><code>OpenAsync(sha)</code></a>: it answers a
+<a href="/admin/reference/sdk#t-PageObjectStream"><code>PageObjectStream</code></a> or <code>null</code>.
+The stream is a <code>Stream</code> for the familiar shape, but only its asynchronous reads are usable —
+<code>Read</code>, <code>Seek</code> and <code>Write</code> throw — so read with
+<code>ReadAsync(buffer, offset, count, ctx.Aborted)</code> and dispose it with <code>await using</code>,
+because it holds a connection until it is. <code>Length</code>, <code>ContentType</code> and
+<code>Sha</code> answer without reading the bytes.</p>
+<pre class="source" tabindex="0"><code>&lt;% await using PageObjectStream stream = (await ctx.Stores.Page.Objects.OpenAsync(file.Sha))!;
+   byte[] buffer = new byte[4096];
+   int read;
+   while ((read = await stream.ReadAsync(buffer, 0, buffer.Length, ctx.Aborted)) &gt; 0) {
+       // hash, copy or inspect the chunk; this page writes the length instead
+   }
+   ctx.Response.Write($"&lt;p&gt;{stream.Length} bytes of {stream.ContentType}&lt;/p&gt;"); %&gt;</code></pre>
+<p>The content type is a fixed allow-list, not configuration: <code>image/png</code>,
+<code>image/jpeg</code>, <code>image/gif</code>, <code>image/webp</code>,
+<code>text/plain; charset=utf-8</code> and <code>application/octet-stream</code>. SVG is refused: it is
+markup and a script vector, and a page is the site's kind for markup. Case and whitespace are tolerated
+and the stored spelling is the canonical one. <code>PutAsync</code> still takes a <code>byte[]</code>,
+because a page can produce bytes only through the types the page API admits; the object limit is per
+object and per subject.</p>
+<p>One object may be 8 MiB and one subject may hold 64 MiB of them. Deleting a page takes its own
+objects, moving it re-keys them, signing in adopts a <code>Person</code> object into the account and
+signing out, the sweep and <code>users remove</code> take a session's or an expired one. A
+<code>HEAD</code> may open and may not put. The seeded <a href="/privacy">/privacy</a> page says what an
+object is and what happens to it.</p>
 
 <h2 id="private">Private pages and forms</h2>
 <p>Pages are public unless their own code checks <a href="/admin/reference/sdk#m-IContext.User"><code>ctx.User</code></a>. Put the guard at the top and

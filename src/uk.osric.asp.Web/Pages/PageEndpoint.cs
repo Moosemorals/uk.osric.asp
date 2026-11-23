@@ -4,7 +4,6 @@
 namespace uk.osric.asp.Web.Pages;
 
 using Microsoft.Extensions.Primitives;
-using System.Security.Claims;
 using System.Text;
 using uk.osric.asp.Core.Compilation;
 using uk.osric.asp.Core.Pages;
@@ -141,7 +140,7 @@ internal sealed class PageEndpoint() {
 
         // Identity comes only from the principal UseAuthentication validated, never from a header or
         // a cookie the page could read. It is mapped once, so the guard and the CSRF check agree.
-        PageUser? user = MapUser(context.User);
+        PageUser? user = PageUserMapping.From(context.User);
         // A job outlives the request, so its credential is captured now, while the request can prove it.
         PageJobAuthority? jobAuthority = environment.JobAuthorities?.For(context.User, context.Request);
         bool authenticated = context.User.Identity?.IsAuthenticated == true;
@@ -433,18 +432,6 @@ internal sealed class PageEndpoint() {
         context.Response.ContentLength = 0;
 
         return Task.CompletedTask;
-    }
-
-    // An authenticated identity without a name is anonymous as far as a page is concerned: a
-    // half-built principal must fail closed rather than hand the page a nameless user.
-    private static PageUser? MapUser(ClaimsPrincipal principal) {
-        if (principal.Identity?.IsAuthenticated != true) {
-            return null;
-        }
-
-        string? name = principal.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-
-        return string.IsNullOrEmpty(name) ? null : new PageUser(name);
     }
 
     // The page's body is buffered until here, so the response is written in one go: status and

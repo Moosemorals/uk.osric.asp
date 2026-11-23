@@ -5,8 +5,8 @@ SPDX-License-Identifier: MIT
 
 # Storage
 
-The SQLite database behind the site: pages and their revisions, the values and messages a page keeps, a
-visitor's session and browser, and the archive that moves pages between sites. [Pages](pages.md#compiled-pages) says what a stored image is and when it
+The SQLite database behind the site: pages and their revisions, the values, messages and objects a page
+keeps, a visitor's session and browser, and the archive that moves pages between sites. [Pages](pages.md#compiled-pages) says what a stored image is and when it
 is stale; [running it](../deploy/operations.md#storage-and-migrations) is the volume, the migrations
 and the backups.
 
@@ -92,6 +92,44 @@ tombstone's transaction, whoever posted them; moving it re-addresses them; signi
 sweep and `users remove` delete the subject's messages with its values and its declared rows; the
 five-minute sweep deletes expired messages and a `browser:` subject nothing has written for the
 browser's lifetime (`pages-a-message-is-taken-once`).
+
+### Objects
+
+`StoreObjects` holds bytes under a subject, addressed by the lowercase hexadecimal SHA-256 of their
+content. One row is the owner's subject, the digest, the length, the canonical content type, the
+lifetime and its expiry, the BLOB itself and when it was written; the primary key is
+`(Subject, Sha)`, so content addressing is the dedupe and a put replaces the lifetime the previous row
+carried. An index on `Sha` makes the public lookup a digest and nothing else.
+
+A page subject's object is public and immutable until the page goes. A visitor subject's belongs to the
+signed-in account, the session or the browser that wrote it, and only the reader's subjects may open
+it. `ctx.Stores.Page.Objects` and `ctx.Stores.Visitor.Objects` are the two handles; a lifetime the
+subject cannot carry throws, and there is no `NextRead` object because there is no read that consumes
+one.
+
+A read is a `PageObjectStream`, a `Stream` whose usable members are declared on the contract type: only
+asynchronous reads exist, so the render's deadline can cancel a slow one. The store opens the BLOB
+through SQLite's incremental blob API — `sqlite3_blob_open` and `sqlite3_blob_read` on the row's
+rowid — rather than loading it as one array, and the reader owns the connection until it is disposed.
+The layer closes a reader the page forgot. `Length` and `ContentType` are answered without reading the
+bytes. `PutAsync` takes a `byte[]`, because a page can produce bytes only through the BCL types the page
+API admits, and the content type is one of a fixed allow-list in code: `image/png`, `image/jpeg`,
+`image/gif`, `image/webp`, `text/plain; charset=utf-8` and `application/octet-stream`. SVG is refused
+because it is markup and a script vector.
+
+`/o/{sha}` serves the bytes. A page subject's object is
+`Cache-Control: public, max-age=31536000, immutable`; a visitor subject's is `private, no-store`. Both
+carry a strong `ETag` that is the digest, `Accept-Ranges: bytes`, a single byte range as `206` with its
+`Content-Range`, `If-None-Match` as `304`, and `HEAD` as the headers alone; a missing or foreign digest
+is `404`, so the route cannot probe another visitor's existence. The route is the site's own code and
+`/o` is reserved in the shell's route table, so no stored page can claim a path beneath it.
+
+The limits are `Pages:Stores:Objects`: `MaxObjectBytes` for one object and `MaxSubjectBytes` for one
+subject's total, both per subject instance. Deleting a page deletes its page objects in the tombstone's
+transaction, moving it re-keys them, signing in adopts a `Person` object into the account, and signing
+out, the session sweep and `users remove` remove a subject's objects with its values and its declared
+rows. The five-minute sweep also removes an expired object and a `browser:` object whose subject nothing
+has written for the browser's lifetime (`pages-an-object-is-content-addressed`).
 
 ### Declared tables
 

@@ -24,6 +24,9 @@ public interface IVisitorSubject {
     /// <summary>This person's declared tables.</summary>
     public IRecordStore Records { get; }
 
+    /// <summary>This person's stored bytes.</summary>
+    public IObjectStore Objects { get; }
+
     /// <summary>This person's messages: durable, addressed to a page or a topic, and taken once.</summary>
     public IMessageStore Messages { get; }
 }

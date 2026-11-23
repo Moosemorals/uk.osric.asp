@@ -22,4 +22,7 @@ public interface IPageSubject {
 
     /// <summary>The subject's declared tables.</summary>
     public IRecordStore Records { get; }
+
+    /// <summary>The subject's stored bytes.</summary>
+    public IObjectStore Objects { get; }
 }

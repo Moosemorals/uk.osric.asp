@@ -622,9 +622,22 @@ many steps, bounded by `Assistant:MaxSteps`.
 **Owner:** assistant — no row; `Run.StepCount`, the `step` field on every run event and the
 `assistant.run.steps` instrument; `Assistant:MaxSteps`.
 
+## Object
+Bytes a subject keeps, addressed by the lowercase hexadecimal SHA-256 of their content: the same bytes
+put twice under one subject are one row, and `/o/{sha}` serves them. A page reads them through a
+`PageObjectStream`, which is a `Stream` with only asynchronous reads, and the store opens the BLOB
+through SQLite's incremental blob API rather than loading it whole. A page subject's object is public
+and immutable; a visitor subject's is the reader's alone.
+
+**Not** a page asset. An asset is a stored page with no code and a versioned URL; an object is bytes a
+page put, with a content type from a fixed allow-list and a lifetime of its own.
+
+**Owner:** pages — `IObjectStore`, `PageObjectStream`, `PageObjectRef`, `StoreObjects` and
+`ObjectEndpoint` (`pages-an-object-is-content-addressed`).
+
 ## Store
-The one place a page keeps anything: `StoreValues` for the values a page reads and writes, and the
-tables each later shape adds. A page never names a table, a subject key or a row's owner; it asks
+The one place a page keeps anything: `StoreValues` for the values a page reads and writes,
+`StoreObjects` for its bytes, and the tables each later shape adds. A page never names a table, a subject key or a row's owner; it asks
 `ctx.Stores` for a subject and a shape, and the shell supplies the binding.
 
 **Not** the page store. Pages, revisions and heads are the shell's, written through `IPageWrites` and

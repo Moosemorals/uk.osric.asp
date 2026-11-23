@@ -19,13 +19,17 @@ internal sealed class PageStoresScope : RenderBoundCapability, IPageStores, IAsy
 
     private readonly PagePath _key;
     private readonly IRecordCatalog? _records;
+    private readonly IStoreObjects? _objects;
+    private readonly IPageSessionStore _sessions;
     private readonly IStoreValues _store;
     private readonly PageStoresOptions _options;
     private readonly IPageReadStore _readStore;
     private readonly bool _writable;
+    private readonly PageCommitState? _commit;
     private readonly PageSubjectHandle _page;
     private readonly VisitorSubjectHandle _visitor;
     private readonly List<SqliteRecordStore> _stores = [];
+    private readonly List<PageObjectStore> _objectStores = [];
     private CancellationToken _deadline;
 
     /// <summary>Creates the layer's handles.</summary>
@@ -41,6 +45,7 @@ internal sealed class PageStoresScope : RenderBoundCapability, IPageStores, IAsy
     /// <param name="commit">Whether the response was flushed, or <see langword="null"/>.</param>
     /// <param name="records">Where a record handle's catalogue and database are read, or <see langword="null"/>.</param>
     /// <param name="activity">What a posted or taken message re-arms, or <see langword="null"/>.</param>
+    /// <param name="objects">Where objects live, or <see langword="null"/> when this host has no store.</param>
     public PageStoresScope(
         PagePath key,
         PageReaderSubject reader,
@@ -53,7 +58,8 @@ internal sealed class PageStoresScope : RenderBoundCapability, IPageStores, IAsy
         bool writable,
         PageCommitState? commit,
         IRecordCatalog? records = null,
-        Action? activity = null) {
+        Action? activity = null,
+        IStoreObjects? objects = null) {
         ArgumentNullException.ThrowIfNull(key);
         ArgumentNullException.ThrowIfNull(reader);
         ArgumentNullException.ThrowIfNull(store);
@@ -65,19 +71,29 @@ internal sealed class PageStoresScope : RenderBoundCapability, IPageStores, IAsy
 
         _key = key;
         _records = records;
+        _objects = objects;
+        _sessions = sessions;
         _store = store;
         _options = options;
         _readStore = readStore;
         _writable = writable;
+        _commit = commit;
 
         PageValues = new PageValueStore(key, store, options.Page, options.MaxKeyChars, writable);
         VisitorValues = new PageValueStore(key, store, sessions, reader, options.MaxKeyChars, writable, commit);
         Messages = new PageMessageStore(
             key, messages, sessions, reader, readStore, reserved, options.Messages, writable, commit, activity);
 
-        _page = new PageSubjectHandle(PageValues, RecordsFor(key, SqliteRecordStore.SubjectKind.Page, reader, writable));
+        PageObjects = ObjectStoreFor(key, reader, writable);
+        VisitorObjects = ObjectStoreFor(key, reader, writable, visitor: true);
+
+        _page = new PageSubjectHandle(
+            PageValues,
+            PageObjects,
+            RecordsFor(key, SqliteRecordStore.SubjectKind.Page, reader, writable));
         _visitor = new VisitorSubjectHandle(
             VisitorValues,
+            VisitorObjects,
             Messages,
             RecordsFor(key, SqliteRecordStore.SubjectKind.Visitor, reader, writable));
     }
@@ -90,6 +106,12 @@ internal sealed class PageStoresScope : RenderBoundCapability, IPageStores, IAsy
 
     /// <summary>The Visitor subject's messages.</summary>
     internal PageMessageStore Messages { get; }
+
+    /// <summary>The Page subject's objects.</summary>
+    internal PageObjectStore? PageObjects { get; }
+
+    /// <summary>The Visitor subject's objects.</summary>
+    internal PageObjectStore? VisitorObjects { get; }
 
     /// <inheritdoc/>
     public IPageSubject Page => _page;
@@ -120,8 +142,11 @@ internal sealed class PageStoresScope : RenderBoundCapability, IPageStores, IAsy
             values.Abandon();
         }
 
+        PageObjectStore? objects = ObjectStoreFor(other, null, _writable, validate: ConfirmAsync);
+
         return new PageSubjectHandle(
             values,
+            objects,
             RecordsFor(other, SqliteRecordStore.SubjectKind.Page, null, _writable, ConfirmAsync));
     }
 
@@ -159,13 +184,18 @@ internal sealed class PageStoresScope : RenderBoundCapability, IPageStores, IAsy
         return store;
     }
 
-    /// <summary>Ends every record store this scope made: the render's cleanup, not the page's.</summary>
+    /// <summary>Ends every store this scope made: the render's cleanup, not the page's.</summary>
     public async ValueTask DisposeAsync() {
         foreach (SqliteRecordStore store in _stores) {
             await store.DisposeAsync();
         }
 
+        foreach (PageObjectStore store in _objectStores) {
+            await store.DisposeAsync();
+        }
+
         _stores.Clear();
+        _objectStores.Clear();
     }
 
     /// <inheritdoc/>
@@ -175,6 +205,8 @@ internal sealed class PageStoresScope : RenderBoundCapability, IPageStores, IAsy
         PageValues.AttachDeadline(deadline);
         VisitorValues.AttachDeadline(deadline);
         Messages.AttachDeadline(deadline);
+        PageObjects?.AttachDeadline(deadline);
+        VisitorObjects?.AttachDeadline(deadline);
     }
 
     /// <inheritdoc/>
@@ -183,7 +215,37 @@ internal sealed class PageStoresScope : RenderBoundCapability, IPageStores, IAsy
         PageValues.Abandon();
         VisitorValues.Abandon();
         Messages.Abandon();
+        PageObjects?.Abandon();
+        VisitorObjects?.Abandon();
     }
+
+    // An object store owns the readers it issues, so it is made per handle and disposed with the
+    // layer; For's proof of a live library or worker is the same delegate the values use.
+    private PageObjectStore? ObjectStoreFor(
+        PagePath source,
+        PageReaderSubject? reader,
+        bool writable,
+        bool visitor = false,
+        Func<CancellationToken, Task>? validate = null) {
+        if (_objects is null) {
+            return null;
+        }
+
+        PageObjectStore store = visitor
+            ? new PageObjectStore(source, _objects, _sessions, RequireReader(reader), _options.Objects, writable, _commit)
+            : new PageObjectStore(source, _objects, _options.Objects, writable, validate);
+
+        store.AttachDeadline(_deadline);
+        if (IsAbandoned) {
+            store.Abandon();
+        }
+
+        _objectStores.Add(store);
+        return store;
+    }
+
+    private static PageReaderSubject RequireReader(PageReaderSubject? reader) =>
+        reader ?? throw new InvalidOperationException("A Visitor subject needs a reader.");
 
     // The handle is bound before the head is read, because For is a synchronous call; the first use
     // of either shape proves the key is a live library or worker.
@@ -197,16 +259,25 @@ internal sealed class PageStoresScope : RenderBoundCapability, IPageStores, IAsy
         }
     }
 
-    private sealed class PageSubjectHandle(IValueStore values, IRecordStore? records) : IPageSubject {
+    private sealed class PageSubjectHandle(IValueStore values, IObjectStore? objects, IRecordStore? records) : IPageSubject {
         public IValueStore Values { get; } = values;
+
+        public IObjectStore Objects => objects
+            ?? throw new InvalidOperationException("This layer has no object store.");
 
         public IRecordStore Records => records
             ?? throw new InvalidOperationException("This layer has no record store.");
     }
 
-    private sealed class VisitorSubjectHandle(IValueStore values, IMessageStore messages, IRecordStore? records)
-        : IVisitorSubject {
+    private sealed class VisitorSubjectHandle(
+        IValueStore values,
+        IObjectStore? objects,
+        IMessageStore messages,
+        IRecordStore? records) : IVisitorSubject {
         public IValueStore Values { get; } = values;
+
+        public IObjectStore Objects => objects
+            ?? throw new InvalidOperationException("This layer has no object store.");
 
         public IMessageStore Messages { get; } = messages;
 
