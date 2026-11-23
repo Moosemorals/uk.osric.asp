@@ -7,12 +7,12 @@ SPDX-License-Identifier: MIT
 
 | | |
 | --- | --- |
-| Status | Agreed 2026-11-23 — the owner said yes and the work below is built; it waits for the merge, which writes the decisions |
+| Status | Merged 2026-11-23 — the owner said yes, the work is built, and the merge took **pages-the-site-is-one-type** |
 | Size | Large — one new contract type with six value records, the reference model moved into the contract, two doors made obsolete, five figures read from the objects that enforce them, the seeds, the assistant's prompt and three routes |
 | Area | Sdk, Web (pages, admin, documentation, work), tools, docs |
 | Spike | None. Every claim was read off trunk on 2026-11-23: `SiteOptions`, `BuildInfo`, `EditorPaths`, `LicenceLibrary`, `ChangesEndpoint`, `ReferenceLibrary`, `FetchBudget`, `ReadBudget`, `BodyBudget`, `RenderLifetime`, `JobLifetime`, `PageChain` and `PageJobRunner`; the linked corpus files in [tools/reference-corpus](../../tools/reference-corpus/reference-corpus.csproj) were read the same day |
-| Backlog | [`the-site-is-one-type`](../backlog/the-site-is-one-type.md) is this plan |
-| Decisions | Intends **pages-the-site-is-one-type**; retires **pages-build-info**; amends **shell-the-site-knows-its-own-origin**, **shell-the-reference** and **shell-the-licences-are-read-not-restated**. Taken at the merge (`product-plan-before-building`) |
+| Backlog | [`the-site-is-one-type`](../backlog/closed.md) is this plan |
+| Decisions | **pages-the-site-is-one-type**; **pages-build-info** retired into it; amends **shell-the-site-knows-its-own-origin**, **shell-the-reference** and **shell-the-licences-are-read-not-restated** |
 
 ## The short version
 

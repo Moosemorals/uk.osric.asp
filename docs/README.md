@@ -53,9 +53,7 @@ table and the items to it.
 | | *The cheapest step and independent of the rest: four entries admit RSA, so an inbound request can be verified before anything else lands. Ed25519 waits for the framework.* | | | | |
 | [`a-page-sees-its-request`](backlog/a-page-sees-its-request.md) | A page cannot see its request body, its raw target or a repeated header | determined-mountain-goat 💪🐐 | high | open | — |
 | | *The body's bytes, the raw target and a repeated header are the three facts a signature is rebuilt from; the header names are already visible.* | | | | |
-| [`the-site-is-one-type`](backlog/the-site-is-one-type.md) | The site's own facts are a capability each, and two of them are not reachable at all | protective-dragon 🔥🐉 | high | [planned](plans/site-info.md) | — |
-| | *One home for the site's own facts — origin, editor, build, the image's documents and corpus, and the live bounds — so the surface stops growing a door per fact.* | | | | |
-| [`a-page-can-own-a-job`](backlog/a-page-can-own-a-job.md) | A job needs a signed-in visitor, so an inbound request cannot start one | protective-dragon 🔥🐉 | high | blocked | `a-page-sees-its-request`, `the-site-is-one-type` |
+| [`a-page-can-own-a-job`](backlog/a-page-can-own-a-job.md) | A job needs a signed-in visitor, so an inbound request cannot start one | protective-dragon 🔥🐉 | high | blocked | `a-page-sees-its-request` |
 | | *Work a page can start on behalf of nobody: a page-owned job with `Page` data only, its own queue and its own rate, which is what an inbox needs and what no visitor-scoped start can do.* | | | | |
 | [`manual-is-a-reference-dump`](backlog/manual-is-a-reference-dump.md) | The author manual is a reference dump whose contents list has drifted | determined-mountain-goat 💪🐐 | high | open | — |
 | | *The author's source of truth, ordered by API rather than by what an author wants to do, with an index that has already drifted; it is rewritten once the contract work in front of it has landed.* | | | | |

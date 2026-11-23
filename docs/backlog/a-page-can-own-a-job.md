@@ -10,7 +10,7 @@ SPDX-License-Identifier: MIT
 | Difficulty | protective-dragon |
 | Utility | high |
 | Status | blocked |
-| Blocked by | `a-page-sees-its-request`, `the-site-is-one-type` |
+| Blocked by | `a-page-sees-its-request` |
 | Plan | — |
 | Area | Sdk, Web (work, pages), docs |
 | Location | `src/uk.osric.asp.Sdk/IPageJobs.cs`, `src/uk.osric.asp.Web/Pages/PageJobsScope.cs`, `src/uk.osric.asp.Web/Work/PageJobs.cs`, `PageJobRunner.cs`, `PageJob.cs`, `WorkerContext.cs`, `src/uk.osric.asp.Web/Pages/Seeds/help`, `docs/pages.md`, `docs/decisions.md` |
@@ -50,7 +50,7 @@ needs a new configured number if the existing ones carry the second owner.
    value beside `Pages:Jobs:QueueCapacity`.
 3. **The rate is the bound.** A page-owned job's fetch allowance comes from
    [`fetch-is-a-rate`](closed.md) and is published through
-   [`the-site-is-one-type`](the-site-is-one-type.md), so a fan-out is sized rather than hoped for.
+   [`the-site-is-one-type`](closed.md), so a fan-out is sized rather than hoped for.
 4. **The body is the message.** `StartAsync` already takes a first message; the body
    [`a-page-sees-its-request`](a-page-sees-its-request.md) makes visible is what the inbox page passes,
    bounded by `Pages:Jobs:MaxMessageBytes` and refused over the limit rather than cut.

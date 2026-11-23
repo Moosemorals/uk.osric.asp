@@ -1774,16 +1774,6 @@ one bounded batch, and a five-minute sweep logs one line per sweep that removed 
 
 *Recorded in [page session](plans/archive/page-session.md), [IPageSession](../src/uk.osric.asp.Sdk/IPageSession.cs), [storage](storage.md#page-sessions-and-the-browser).*
 
-### pages-build-info
-
-The commit a build was made from is a page capability, `IBuildInfo`, whose `Commit` is the full git hash
-or `null` when the build did not come from a checkout. A page cannot read the assembly or the environment,
-and the value is build data rather than a layout slot or a request field; the seeded `/about` page links
-it to the repository. `Web` records the hash as assembly metadata read from `git rev-parse HEAD` at
-build time.
-
-*Recorded in [pages](pages.md#page-contract), [IBuildInfo](../src/uk.osric.asp.Sdk/IBuildInfo.cs).*
-
 ### pages-page-first
 
 Anything a page can serve is a page. A route stays in the shell only because it bootstraps a broken site
@@ -2097,6 +2087,43 @@ search and a body write charge nothing.
 
 *Recorded in [pages](pages.md#page-execution-budget), [Allowance](../src/uk.osric.asp.Core/Pages/Allowance.cs), [FetchBudget](../src/uk.osric.asp.Web/Pages/FetchBudget.cs), [ReadBudget](../src/uk.osric.asp.Web/Pages/ReadBudget.cs), [PageFetchOptions](../src/uk.osric.asp.Web/Pages/PageFetchOptions.cs), [PageReadOptions](../src/uk.osric.asp.Web/Pages/PageReadOptions.cs), [fetch-is-a-rate](plans/archive/fetch-is-a-rate.md).*
 
+### pages-the-site-is-one-type
+
+**One capability is the site's own facts, and it is a closed set of typed members.** `ISiteInfo` is
+offered to every layer of a render and to every job, and it carries properties and no verbs: `Origin`,
+`EditorPath`, `DeployCommit`, `RepositoryUrl`, `Name` and `Contact`; `Documents`, the copyright and
+licence files the image carries as `SiteDocument(Kind, Name, Format, Text)`; `Commits`, the changelist
+newest first as `SiteCommit(Hash, Subject)`; `Reference`, the documentation corpus as the contract's own
+`ReferenceCorpus`; and `Bounds`, a snapshot of what the render or job has left. There is no
+`Setting(name)` and no way to probe a credential, a connection string or the provider key: the test for
+a member is whether a page may know the fact, not whether the host has it configured. A page joins a
+URL with `new Uri(origin, "/path")` and scans the list it was given, so the type has no `Resolve`,
+`Find` or `Search`; the `//` guard in `SiteOptions.TryResolve` stays for the assistant, which takes a
+URL from a model.
+
+**The build's commit is the build's own.** `DeployCommit` is assembly metadata read at build time, not
+`Commits[0]`: a missing, stale or hand-edited changelist must not change what the site says it is
+running. `Commits` is newest first and never `null` — a build with no changelist answers an empty list —
+and a `SiteCommit.Hash` is a full hash or `null` for a line a hand-edited file carries, which a page
+shows unlinked rather than dropping. The route keeps the reason a page does not (`ChangeListRead` with
+`Ok`, `Missing` or `Unreadable`), because the route is where a reader is owed it.
+
+**Each figure comes from the object that refuses.** `Bounds` is a snapshot, asked again on every read:
+`Fetches` and `Template` are rates with a burst (`Capacity`, `Available`, `PerSecond`, `Key`), `Body` and
+`Embeds` are counts (`Capacity`, `Remaining`, `Key`), and `Time` is the clock (`Total`, `Remaining`,
+`Key`), each key the one that sets it. `Body` is the layer's own allowance, not a total for the chain,
+and a job has neither a body nor embeds. Nothing is recomputed from configuration, so a figure cannot
+disagree with the refusal it foreshadows.
+
+**The files are read once, held, and warmed.** The documents, the changelist and the corpus are read
+once for the life of the process, and a hosted warm-up reads the three on the thread pool at startup, so
+the first page that asks normally finds them; a page that asks during the warm-up waits on the same read
+rather than starting a second, and asks for only the value it needs. The corpus model moved from
+`Web/Documentation` into `Sdk`, so `tools/reference-corpus` references `Sdk` instead of linking two of
+`Web`'s files, and a page can render a reference without the shell.
+
+*Recorded in [pages](pages.md#page-contract), [ISiteInfo](../src/uk.osric.asp.Sdk/ISiteInfo.cs), [SiteFacts](../src/uk.osric.asp.Web/Pages/SiteFacts.cs), [SiteBoundsSnapshot](../src/uk.osric.asp.Web/Pages/SiteBoundsSnapshot.cs), [site-info](plans/archive/site-info.md).*
+
 ## Shell
 
 ### shell-redirect-is-one-helper
@@ -2229,9 +2256,11 @@ image carries: `LICENSE`, `THIRD-PARTY-NOTICES.md`, every text in `LICENSES/` an
 of those texts on `/about` was a second home for a file that changes without the page noticing, and
 the notice the image ships for its packages is the one a reader is entitled to see. A missing file is
 named and the rest of the page still answers, so a build that did not come through the Makefile says
-what it lacks instead of failing.
+what it lacks instead of failing. The files are the page value `ISiteInfo.Documents` too — the same
+library, in a fixed order — so a page can render them without the shell
+(`pages-the-site-is-one-type`).
 
-*Recorded in [the seed trim](plans/archive/seed-trimming.md#d4---about-keeps-the-credits-admincopyright-keeps-the-licences), [the shell](shell.md#the-copyright-page), [CopyrightEndpoint](../src/uk.osric.asp.Web/Admin/CopyrightEndpoint.cs).*
+*Recorded in [the seed trim](plans/archive/seed-trimming.md#d4---about-keeps-the-credits-admincopyright-keeps-the-licences), [the shell](shell.md#the-copyright-page), [CopyrightEndpoint](../src/uk.osric.asp.Web/Admin/CopyrightEndpoint.cs), [LicenceLibrary](../src/uk.osric.asp.Web/Admin/LicenceLibrary.cs).*
 
 ### shell-one-table-of-routes
 
@@ -2376,9 +2405,11 @@ and read by the assistant through one `reference` tool over the page contract on
 once per process from the XML beside the assembly, normalised once, and rendered by one embedded
 stylesheet; anchors are stable slugs derived from the member id, and an `<inheritdoc/>` entry copies its
 source's text down when the source is one of ours. The audit gains a fourth reason for the build's own
-facts, and `/admin/changes` moves under it.
+facts, and `/admin/changes` moves under it. The model lives in `Sdk` and the corpus is the page value
+`ISiteInfo.Reference` too, so a page can render a reference without the shell, and the generator
+references `Sdk` rather than linking `Web`'s files (`pages-the-site-is-one-type`).
 
-*Recorded in [the shell](shell.md#the-reference), [xml reference](plans/archive/xml-reference.md).*
+*Recorded in [the shell](shell.md#the-reference), [xml reference](plans/archive/xml-reference.md), [ReferenceLibrary](../src/uk.osric.asp.Web/Documentation/ReferenceLibrary.cs).*
 
 ### shell-the-site-knows-its-own-origin
 
@@ -2389,8 +2420,10 @@ only to loopback. It is the assistant's view that needs it — a process that ca
 container's own loopback, which is what a development host uses. A deployment names the public origin
 instead, because a view of a page that mints an antiforgery token needs an HTTPS request, and a
 production host left on a plaintext origin logs one warning at startup rather than failing a run later.
+The origin is the page value `ISiteInfo.Origin` too, so a page knows where the site is reached
+(`pages-the-site-is-one-type`); the assistant's use and its `//` guard are unchanged.
 
-*Recorded in [the shell](shell.md#a-runs-view), [SiteOptions](../src/uk.osric.asp.Web/SiteOptions.cs).*
+*Recorded in [the shell](shell.md#a-runs-view), [SiteOptions](../src/uk.osric.asp.Web/SiteOptions.cs), [ISiteInfo](../src/uk.osric.asp.Sdk/ISiteInfo.cs).*
 
 ## Auth
 
@@ -3300,6 +3333,10 @@ someone who cannot see that it was once used.
 - `pages-the-editor-capability` — replaced by **pages-any-page-may-write-the-store**. It made the
   editor's registration the authority: one content key, `Pages:Editor:Key`, and the store's write offered
   to no other page. The owner removed that narrowing on 2026-11-15.
+- `pages-build-info` — folded into **pages-the-site-is-one-type**. It made the build's commit a
+  capability of its own, `IBuildInfo`, whose `Commit` is the full hash or `null`; the commit is one of the
+  site's facts now, as `ISiteInfo.DeployCommit`, and `IBuildInfo` survives one release as an obsolete
+  adapter that answers the same value.
 - `shell-admin-is-a-page` — replaced by **shell-admin-is-a-shell-route**. It kept `/admin` as a seeded
   fragment index so the owner could edit it; the index is the shell's now, because it draws the shell's
   own route table and must answer when the page store is broken. The owner retired it on 2026-11-16.

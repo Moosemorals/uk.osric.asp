@@ -61,7 +61,7 @@ the manual keeps the narrative and the task order, and the reference keeps the s
 3. **The reference is one place.** A section that only restates a signature links to
    `/admin/reference` and says what the signature cannot: why, when and what it costs.
 4. **The rewrite carries the current contract.** The `EditorPath` retirement
-   ([`the-site-is-one-type`](the-site-is-one-type.md)), the request fidelity
+   ([`the-site-is-one-type`](closed.md)), the request fidelity
    ([`a-page-sees-its-request`](a-page-sees-its-request.md)), the fetch rate
    ([`fetch-is-a-rate`](closed.md)) and the page-owned job
    ([`a-page-can-own-a-job`](a-page-can-own-a-job.md)) each update the manual in their own change; this

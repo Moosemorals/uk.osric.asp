@@ -43,6 +43,6 @@ Every archived plan, by its slug:
 | [page-writes](page-writes.md) | [prompt-token-budget](prompt-token-budget.md) | [revision-restore](revision-restore.md) |
 | [seed-auto-apply-at-startup](seed-auto-apply-at-startup.md) | [seed-page](seed-page.md) | [seed-provenance](seed-provenance.md) |
 | [seed-trimming](seed-trimming.md) | [semantic-html-and-accessibility](semantic-html-and-accessibility.md) | [shell-navigation](shell-navigation.md) |
-| [shell-route-catalogue](shell-route-catalogue.md) | [simple-context](simple-context.md) | [site-navigation](site-navigation.md) |
-| [status-page-rebuild](status-page-rebuild.md) | [template-runtime-errors](template-runtime-errors.md) | [template-value-output](template-value-output.md) |
-| [xml-reference](xml-reference.md) |
+| [shell-route-catalogue](shell-route-catalogue.md) | [simple-context](simple-context.md) | [site-info](site-info.md) |
+| [site-navigation](site-navigation.md) | [status-page-rebuild](status-page-rebuild.md) | [template-runtime-errors](template-runtime-errors.md) |
+| [template-value-output](template-value-output.md) | [xml-reference](xml-reference.md) |
