@@ -911,7 +911,10 @@ response rule. It serves a page subject's object `public, max-age=31536000, immu
 code — `image/png`, `image/jpeg`, `image/gif`, `image/webp`, `text/plain; charset=utf-8` and
 `application/octet-stream` — and SVG is refused because it is markup and a script vector. The
 per-object and per-subject limits are `Pages:Stores:Objects`; the allow-list, the digest spelling and
-the blob read are invariants. Deleting a page takes its page objects, moving it re-keys them, signing in
+the blob read are invariants. The access a public object does *not* get is deliberate and open: a Page
+object is readable by anyone who knows its digest, and the route throttles nobody, which
+[`object-access-is-only-its-hash`](backlog/object-access-is-only-its-hash.md) designs once
+rather than grows a knob at a time. Deleting a page takes its page objects, moving it re-keys them, signing in
 adopts a `Person` object, and signing out or the sweep removes a `Session`, browser or expired one.
 
 *Recorded in [pages](pages.md#page-data), [storage](storage.md#objects), [IObjectStore](../src/uk.osric.asp.Sdk/IObjectStore.cs), [PageObjectStream](../src/uk.osric.asp.Sdk/PageObjectStream.cs), [ObjectEndpoint](../src/uk.osric.asp.Web/Shell/ObjectEndpoint.cs).*

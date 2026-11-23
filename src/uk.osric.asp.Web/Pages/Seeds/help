@@ -1141,6 +1141,11 @@ markup and a script vector, and a page is the site's kind for markup. Case and w
 and the stored spelling is the canonical one. <code>PutAsync</code> still takes a <code>byte[]</code>,
 because a page can produce bytes only through the types the page API admits; the object limit is per
 object and per subject.</p>
+<p><strong>A page object is public.</strong> Anyone who knows its digest can fetch it, without signing
+in, and the URL is cached for a year, so a page that stores something a visitor sent it has published
+that thing. A visitor object is the reader's alone, and a missing or foreign digest is a
+<code>404</code> either way. Wider access control — an object only the owner may read, a URL that can be
+revoked — does not exist yet; it is a backlog item rather than a setting.</p>
 <p>One object may be 8 MiB and one subject may hold 64 MiB of them. Deleting a page takes its own
 objects, moving it re-keys them, signing in adopts a <code>Person</code> object into the account and
 signing out, the sweep and <code>users remove</code> take a session's or an expired one. A

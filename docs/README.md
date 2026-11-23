@@ -73,6 +73,8 @@ table and the items to it.
 | | *The browser suite drives a source build while the deploy ships an image built later; this makes the promoted image the one the browser drove, and the host gate already builds one twice without keeping it.* | | | | |
 | [`message-does-not-survive-a-redirect`](backlog/message-does-not-survive-a-redirect.md) | A page cannot leave a message for a page it sends a visitor to | protective-dragon 🔥🐉 | high | blocked | `storage-is-not-one-model` |
 | | *The messages slice of the storage model, which absorbs the item and its plan; it lands with [`storage-is-not-one-model`](backlog/storage-is-not-one-model.md) rather than beside it.* | | | | |
+| [`object-access-is-only-its-hash`](backlog/object-access-is-only-its-hash.md) | An object's only access control is that you have to know its hash | protective-dragon 🔥🐉 | high | blocked | `storage-is-not-one-model` |
+| | *A Page object is public to anyone with the digest and `/o` is unthrottled, so access control is designed once rather than grown a knob at a time; it waits for the shape to be on trunk.* | | | | |
 | [`secrets-are-readable-at-rest`](backlog/secrets-are-readable-at-rest.md) | A secret a page keeps is plaintext in the database and in every backup | determined-mountain-goat 💪🐐 | medium | blocked | `a-page-cannot-keep-a-secret` |
 | | *A second pass over the storage model's secrets shape: the shape lands with [`storage-is-not-one-model`](backlog/storage-is-not-one-model.md), and the cipher, key and rotation land here.* | | | | |
 | [`sec-page-runs-in-process`](backlog/sec-page-runs-in-process.md) | Page code has no process boundary | cornered-porcupine 📍🦔 | high | open | — |
