@@ -16,13 +16,9 @@ SPDX-License-Identifier: MIT
   </ItemGroup>
 
   <ItemGroup>
-    <!-- The assembly list and the model the site reads are shared by link, so the build emits
-         exactly the shape the site deserialises. -->
-    <Compile Include="../../src/uk.osric.asp.Web/Documentation/ReferenceAssemblyInfo.cs" Link="Corpus/ReferenceAssemblyInfo.cs" />
-    <Compile Include="../../src/uk.osric.asp.Web/Documentation/ReferenceModel.cs" Link="Corpus/ReferenceModel.cs" />
-  </ItemGroup>
-
-  <ItemGroup>
+    <!-- The model the site reads is the page contract's, so the build emits exactly the shape the
+         site deserialises and neither project keeps a second copy. -->
+    <ProjectReference Include="../../src/uk.osric.asp.Sdk/uk.osric.asp.Sdk.csproj" />
     <!-- The corpus is written with the same serializer settings the site reads it with. -->
     <ProjectReference Include="../../src/uk.osric.asp.Core/uk.osric.asp.Core.csproj" />
   </ItemGroup>

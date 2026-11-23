@@ -141,6 +141,28 @@ public sealed class PageJobTests {
         %>
         """;
 
+    private const string SiteFactsWorker = """
+        <%!
+        using System.Threading.Tasks;
+
+        namespace Site.Work {
+            public sealed class SiteFactsWorker : IWorker {
+                public Task RunAsync(IWorkerContext context) {
+                    ISiteInfo site = context.Capabilities.GetRequired<ISiteInfo>();
+                    context.Publish("facts", string.Join("|",
+                        site.EditorPath,
+                        site.Bounds.Fetches.Key,
+                        site.Bounds.Template.Key,
+                        site.Bounds.Time.Key,
+                        site.Bounds.Body is null ? "no-body" : "body",
+                        site.Bounds.Embeds is null ? "no-embeds" : "embeds"));
+                    return Task.CompletedTask;
+                }
+            }
+        }
+        %>
+        """;
+
     private const string RendererCheck = """
         <%!
         using System.Threading.Tasks;
@@ -420,6 +442,25 @@ public sealed class PageJobTests {
             Assert.That(info.State, Is.EqualTo(PageJobState.Completed));
             Assert.That(after.Events.Single().Data, Is.EqualTo("two"),
                 "a worker whose library moved is compiled again before it runs");
+        });
+    }
+
+    [Test]
+    public async Task AWorkerIsOfferedTheSiteFactsAsync() {
+        using PageHarness pages = new(new FakePageStore());
+        await StoreAsync(pages, SiteFactsWorker);
+        await pages.StartJobsAsync();
+
+        PageJobStart start = await StartAsync(pages, "/starter", WorkerPath, firstMessage: null);
+        PageJobInfo info = await WaitForEndAsync(pages, start.Id!);
+        PageJobEvents events = await pages.Jobs.ReadEventsAsync(
+            start.Id!, 0, TimeSpan.Zero, Owner, CancellationToken.None);
+
+        Assert.Multiple(() => {
+            Assert.That(info.State, Is.EqualTo(PageJobState.Completed), info.Failure);
+            Assert.That(events.Events.Single().Data, Is.EqualTo(
+                "/pages|Pages:Jobs:FetchesPerSecond|Pages:Jobs:SourceCharsPerSecond|Pages:Jobs:MaxDurationSeconds|no-body|no-embeds"),
+                "a job's bounds are its own rates and its ceiling, and it has no body or embeds");
         });
     }
 

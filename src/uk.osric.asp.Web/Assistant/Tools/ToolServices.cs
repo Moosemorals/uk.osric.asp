@@ -5,6 +5,7 @@ namespace uk.osric.asp.Web.Assistant.Tools;
 
 using Microsoft.Extensions.DependencyInjection;
 using uk.osric.asp.Core.Assistant;
+using uk.osric.asp.Sdk;
 using uk.osric.asp.Web.Authentication;
 using uk.osric.asp.Web.Documentation;
 using uk.osric.asp.Web.Editor;

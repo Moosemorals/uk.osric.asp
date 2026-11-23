@@ -20,7 +20,7 @@ public sealed class RenderLifetimeTests {
     [Test]
     public async Task ALiveStreamMovesTheSlotFromRenderToStreamAsync() {
         PageBudget budget = Budget(renderSlots: 1, streamSlots: 1, silence: 30, ceiling: 60);
-        RenderLifetime lifetime = new(budget, PagePath.Normalize("/stream"), _metrics, new CancellationTokenSource());
+        RenderLifetime lifetime = new(budget, PagePath.Normalize("/stream"), _metrics, new CancellationTokenSource(), TimeSpan.FromSeconds(60), System.Diagnostics.Stopwatch.GetTimestamp());
 
         try {
             Assert.That(budget.RenderSlots.CurrentCount, Is.EqualTo(0), "the render slot is held before the commit");
@@ -49,8 +49,8 @@ public sealed class RenderLifetimeTests {
     [Test]
     public async Task AFullStreamPoolRefusesTheStreamAsync() {
         PageBudget budget = Budget(renderSlots: 2, streamSlots: 1, silence: 30, ceiling: 60, renders: 2);
-        RenderLifetime holder = new(budget, PagePath.Normalize("/one"), _metrics, new CancellationTokenSource());
-        RenderLifetime refused = new(budget, PagePath.Normalize("/two"), _metrics, new CancellationTokenSource());
+        RenderLifetime holder = new(budget, PagePath.Normalize("/one"), _metrics, new CancellationTokenSource(), TimeSpan.FromSeconds(60), System.Diagnostics.Stopwatch.GetTimestamp());
+        RenderLifetime refused = new(budget, PagePath.Normalize("/two"), _metrics, new CancellationTokenSource(), TimeSpan.FromSeconds(60), System.Diagnostics.Stopwatch.GetTimestamp());
 
         try {
             await holder.BeginStreamAsync();
@@ -66,7 +66,7 @@ public sealed class RenderLifetimeTests {
     [Test]
     public async Task AStreamReArmsItsSilenceClockAsync() {
         PageBudget budget = Budget(renderSlots: 1, streamSlots: 1, silence: 1, ceiling: 30);
-        RenderLifetime lifetime = new(budget, PagePath.Normalize("/stream"), _metrics, new CancellationTokenSource());
+        RenderLifetime lifetime = new(budget, PagePath.Normalize("/stream"), _metrics, new CancellationTokenSource(), TimeSpan.FromSeconds(60), System.Diagnostics.Stopwatch.GetTimestamp());
 
         try {
             await lifetime.BeginStreamAsync();
@@ -89,7 +89,7 @@ public sealed class RenderLifetimeTests {
     [Test]
     public async Task AStreamThatGoesQuietEndsAsSilenceAsync() {
         PageBudget budget = Budget(renderSlots: 1, streamSlots: 1, silence: 0.1, ceiling: 30);
-        RenderLifetime lifetime = new(budget, PagePath.Normalize("/stream"), _metrics, new CancellationTokenSource());
+        RenderLifetime lifetime = new(budget, PagePath.Normalize("/stream"), _metrics, new CancellationTokenSource(), TimeSpan.FromSeconds(60), System.Diagnostics.Stopwatch.GetTimestamp());
 
         try {
             await lifetime.BeginStreamAsync();
@@ -109,7 +109,7 @@ public sealed class RenderLifetimeTests {
     [Test]
     public async Task AStreamAtItsCeilingEndsAsCeilingAsync() {
         PageBudget budget = Budget(renderSlots: 1, streamSlots: 1, silence: 30, ceiling: 0.1);
-        RenderLifetime lifetime = new(budget, PagePath.Normalize("/stream"), _metrics, new CancellationTokenSource());
+        RenderLifetime lifetime = new(budget, PagePath.Normalize("/stream"), _metrics, new CancellationTokenSource(), TimeSpan.FromSeconds(60), System.Diagnostics.Stopwatch.GetTimestamp());
 
         try {
             await lifetime.BeginStreamAsync();

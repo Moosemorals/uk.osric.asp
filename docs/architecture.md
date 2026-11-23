@@ -139,7 +139,7 @@ the fix moves, and it carries an extent covering the two of them.
 | The SQLite store behind a vertical's interface — `SqlitePageStore`, `SqliteUserStore`, `SqliteConversationStore` | `Web`, beside the interface it implements |
 | Local accounts, password hashing and the `users` command | `Web`, under `Users` |
 | Cookie authentication, the `Editor` policy, antiforgery and login throttling | `Web`, under `Authentication` |
-| The page contract: `IContext`, `PageRequest`, `PageResponse`, `PageUser`, `IHandler`, `UserFacingException`, `IPageCapabilities`, `IPageStorage`/`PageValue<T>`, `IHttpFetch`/`HttpFetchRequest`/`HttpFetchResponse`/`HttpFetchMethod`/`HttpFetchFailure`, `IWorker`/`IWorkerContext` | `Sdk`, as plain values a compiled page binds against |
+| The page contract: `IContext`, `PageRequest`, `PageResponse`, `PageUser`, `IHandler`, `UserFacingException`, `IPageCapabilities`, `ISiteInfo` and its fact records, `IPageStorage`/`PageValue<T>`, `IHttpFetch`/`HttpFetchRequest`/`HttpFetchResponse`/`HttpFetchMethod`/`HttpFetchFailure`, `IWorker`/`IWorkerContext` | `Sdk`, as plain values a compiled page binds against |
 | The page policy: `PageApiPolicy`, `ApiReference` | `Core.Compilation`, as a pure rule over strings |
 | Which media type a page's key names, and what an unmapped key falls back to | `Core.Pages`, as `PageContentTypes` beside `PagePath`; `Web` reads the section |
 | The Roslyn walk that applies the page policy | `Runtime` |
@@ -147,7 +147,7 @@ the fix moves, and it carries an extent covering the two of them.
 | The URL rule a restricted Markdown render applies | `Core.Markdown`, as `LinkPolicy` |
 | Markdown parsing and HTML generation | `Runtime`, as `MarkdownRenderer` and its renderers; the page capability is `Sdk/IMarkdownRenderer` |
 | The `/admin/status` charts, including the palette and the presentation attributes that make one legible on its own | `Core.Charting`, as `LineChart`, `Heatmap`, `StackedAreaChart` and `ChartChrome` |
-| Reading the XML documentation the image carries | `Web`, in `Documentation/`: the reader, the normaliser, the copy-down of `inheritdoc` and the routes; the stylesheet is embedded, and a page cannot read a file beside the assembly |
+| Reading the XML documentation the image carries | `Web`, in `Documentation/`: the reader, the normaliser, the copy-down of `inheritdoc` and the routes; the stylesheet is embedded, and a page cannot read a file beside the assembly. The model it reads is the contract's — `ReferenceCorpus` and its records live in `Sdk`, so the generator references `Sdk` and a page reads the corpus as `ISiteInfo.Reference` |
 | Text whose case a key ignores — the page key and an account name | `Core.Text`, as `LowercaseText` |
 
 When something in the shell needs a decision from a pure rule, pass the data in and return a value;

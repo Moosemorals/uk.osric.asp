@@ -8,7 +8,7 @@ using System.Text.Json;
 using System.Xml;
 using System.Xml.Linq;
 using uk.osric.asp.Core.Text;
-using uk.osric.asp.Web.Documentation;
+using uk.osric.asp.Sdk;
 
 /// <summary>Builds the reference corpus the site serves and the assistant reads.</summary>
 /// <remarks>

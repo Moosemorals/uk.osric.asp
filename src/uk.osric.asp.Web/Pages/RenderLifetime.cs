@@ -29,6 +29,8 @@ internal sealed class RenderLifetime : IAsyncDisposable {
     private readonly PagePath _path;
     private readonly CancellationTokenSource _deadline;
     private readonly StreamOptions _stream;
+    private readonly long _started;
+    private readonly TimeSpan _total;
     private readonly List<Func<Task>> _cleanup = [];
     private Action? _onCommit;
     private bool _armedForCeiling;
@@ -45,7 +47,15 @@ internal sealed class RenderLifetime : IAsyncDisposable {
     /// <param name="path">The page the request asked for, for the metric and the log.</param>
     /// <param name="metrics">Where the stream's own duration is recorded.</param>
     /// <param name="deadline">The linked source already armed with the render's budget.</param>
-    public RenderLifetime(PageBudget budget, PagePath path, PageMetrics metrics, CancellationTokenSource deadline) {
+    /// <param name="total">The render's whole budget.</param>
+    /// <param name="started">The timestamp the budget was armed at.</param>
+    public RenderLifetime(
+        PageBudget budget,
+        PagePath path,
+        PageMetrics metrics,
+        CancellationTokenSource deadline,
+        TimeSpan total,
+        long started) {
         ArgumentNullException.ThrowIfNull(budget);
         ArgumentNullException.ThrowIfNull(metrics);
         ArgumentNullException.ThrowIfNull(deadline);
@@ -55,11 +65,24 @@ internal sealed class RenderLifetime : IAsyncDisposable {
         _metrics = metrics;
         _deadline = deadline;
         _stream = budget.StreamOptions;
+        _total = total;
+        _started = started;
         _renderSlotHeld = true;
     }
 
     /// <summary>The deadline every layer and capability in this render waits against.</summary>
     public CancellationToken Token => _deadline.Token;
+
+    /// <summary>The render's whole budget, from the instant it was armed.</summary>
+    public TimeSpan Total => _total;
+
+    /// <summary>What is left of the render's budget, never below zero.</summary>
+    public TimeSpan Remaining {
+        get {
+            TimeSpan left = _total - Stopwatch.GetElapsedTime(_started);
+            return left > TimeSpan.Zero ? left : TimeSpan.Zero;
+        }
+    }
 
     /// <summary>Whether this render has committed and is holding a stream slot.</summary>
     public bool IsStreaming => _streaming;

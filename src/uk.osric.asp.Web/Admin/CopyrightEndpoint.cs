@@ -58,7 +58,7 @@ internal static class CopyrightEndpoint {
         } else {
             await context.Response.WriteAsync(
                 "<p>This build does not carry its <code>LICENSE</code>, so the site's own terms are in the "
-                + "<a href=\"https://github.com/Moosemorals/uk.osric.asp\">repository</a>.</p>",
+                + $"<a href=\"{SiteIdentity.RepositoryUrl}\">repository</a>.</p>",
                 cancellationToken);
         }
 

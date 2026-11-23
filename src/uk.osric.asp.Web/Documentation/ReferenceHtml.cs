@@ -5,6 +5,7 @@ namespace uk.osric.asp.Web.Documentation;
 
 using System.Net;
 using System.Text;
+using uk.osric.asp.Sdk;
 
 /// <summary>Writes the reference's fragment from the corpus the build emitted.</summary>
 /// <remarks>
@@ -210,13 +211,13 @@ internal static class ReferenceHtml {
         return builder.Append("</dl>").ToString();
     }
 
-    private static string Exceptions(IReadOnlyList<ReferenceException> exceptions) {
+    private static string Exceptions(IReadOnlyList<ReferenceExceptionDoc> exceptions) {
         if (exceptions.Count == 0) {
             return string.Empty;
         }
 
         StringBuilder builder = new("<p class=\"doc-label\">Exceptions</p><dl class=\"exceptions\">");
-        foreach (ReferenceException exception in exceptions) {
+        foreach (ReferenceExceptionDoc exception in exceptions) {
             _ = builder.Append("<dt>");
             if (exception.Href is null) {
                 _ = builder.Append("<code>").Append(Encode(exception.Name)).Append("</code>");

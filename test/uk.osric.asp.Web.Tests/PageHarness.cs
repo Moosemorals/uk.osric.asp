@@ -133,6 +133,7 @@ internal sealed class PageHarness : IDisposable {
                 _authorities.GetRequiredService<IServiceScopeFactory>(),
                 Options,
                 Clock,
+                TestOptions.Facts,
                 Catalog),
             NullLoggerFactory.Instance,
             NullLogger<PageJobRunner>.Instance);
@@ -469,6 +470,7 @@ internal sealed class PageHarness : IDisposable {
             TestSessions.Cookie,
             new PageBrowserCookieOptions(ShellCookies.Browser, CookieSecurePolicy.SameAsRequest, TimeSpan.FromDays(365)),
             Clock,
+            TestOptions.Facts,
             Jobs,
             Checks: null,
             Authorities,

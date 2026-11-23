@@ -85,9 +85,15 @@ internal sealed class SymbolCorpus {
     private static IEnumerable<MetadataReference> References(string directory, string assemblyPath) {
         HashSet<string> seen = [];
         string target = Path.GetFullPath(assemblyPath);
+        string targetName = Path.GetFileName(target);
         foreach (string path in CandidateFiles(directory)) {
             string name = Path.GetFileName(path);
-            if (string.Equals(Path.GetFullPath(path), target, StringComparison.Ordinal) || !seen.Add(name)) {
+
+            // A second copy of the target — the tool's own output carries one when it references the
+            // assembly — has the same identity, and Roslyn answers nothing for an ambiguous reference.
+            if (string.Equals(Path.GetFullPath(path), target, StringComparison.Ordinal)
+                || string.Equals(name, targetName, StringComparison.OrdinalIgnoreCase)
+                || !seen.Add(name)) {
                 continue;
             }
 

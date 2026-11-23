@@ -4,7 +4,7 @@
 namespace ReferenceCorpus;
 
 using System.Xml.Linq;
-using uk.osric.asp.Web.Documentation;
+using uk.osric.asp.Sdk;
 
 /// <summary>Turns every <c>cref</c> in the corpus into a link, or into a name and a Learn link.</summary>
 /// <remarks>

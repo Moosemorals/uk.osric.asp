@@ -13,6 +13,15 @@ using uk.osric.asp.Web.Configuration;
 /// </remarks>
 internal sealed record RenderOptions {
 
+    /// <summary>The key that sets a render's whole budget, named in a page's bounds.</summary>
+    public const string TimeoutSecondsKey = "Pages:Render:TimeoutSeconds";
+
+    /// <summary>The key that sets how much body one page may buffer, named in a page's bounds.</summary>
+    public const string MaxBodyCharsKey = "Pages:Render:MaxBodyChars";
+
+    /// <summary>The key that sets how many embeds one render may make, named in a page's bounds.</summary>
+    public const string MaxEmbedsKey = "Pages:Render:MaxEmbeds";
+
     /// <summary>The deepest chain a configuration may ask for.</summary>
     public const int MaximumLayoutDepth = 16;
 

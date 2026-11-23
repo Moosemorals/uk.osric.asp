@@ -30,14 +30,20 @@ public interface IContext {
     /// <summary>The canonical key of the page being rendered.</summary>
     public string Path { get; }
 
-    /// <summary>The canonical key of the site's editor page, so a page can link to it.</summary>
+    /// <summary>The canonical key of the site's editor page, so a page can link to it. Deprecated.</summary>
     /// <remarks>
+    /// <para>
     /// The editor's key is the host's policy — <c>Pages:Editor:Key</c> — so a page that hard-codes it
-    /// breaks when the owner moves the editor. The editor's own page is served at this key and takes
-    /// the page to edit as <c>?edit=</c>, which makes
-    /// <c>ctx.EditorPath + "?edit=" + System.Uri.EscapeDataString(ctx.Path)</c> the way to offer
-    /// "edit this page".
+    /// breaks when the owner moves the editor. It is one of the site's facts now, so
+    /// <c>ctx.Capabilities.GetRequired&lt;ISiteInfo&gt;().EditorPath</c> is what a page says.
+    /// </para>
+    /// <para>
+    /// The editor's own page is served at this key and takes the page to edit as <c>?edit=</c>, which
+    /// makes the key plus <c>"?edit="</c> and the page's escaped path the way to offer "edit this
+    /// page".
+    /// </para>
     /// </remarks>
+    [Obsolete(SiteInfoDeprecation.EditorPath, DiagnosticId = SiteInfoDeprecation.DiagnosticId)]
     public string EditorPath { get; }
 
     /// <summary>The signed-in local account, or <see langword="null"/> for an anonymous visitor.</summary>

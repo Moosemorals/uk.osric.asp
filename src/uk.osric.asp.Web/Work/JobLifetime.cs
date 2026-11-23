@@ -70,6 +70,17 @@ internal sealed class JobLifetime : IDisposable {
     /// <summary>The token a worker waits against.</summary>
     public CancellationToken Token => _deadline.Token;
 
+    /// <summary>The job's ceiling, from the instant it started.</summary>
+    public TimeSpan Total => _options.MaxDuration;
+
+    /// <summary>What is left of the ceiling, never below zero.</summary>
+    public TimeSpan Remaining {
+        get {
+            TimeSpan left = _options.MaxDuration - Stopwatch.GetElapsedTime(_started);
+            return left > TimeSpan.Zero ? left : TimeSpan.Zero;
+        }
+    }
+
     /// <summary>Restarts the silence clock, after a publish or a returned receive.</summary>
     public void ReArm() {
         bool fire;

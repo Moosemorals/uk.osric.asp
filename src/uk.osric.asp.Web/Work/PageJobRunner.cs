@@ -167,18 +167,24 @@ internal sealed class PageJobRunner(
             objects: environment.Objects,
             activity: job.Lifetime.ReArm);
         stores.AttachDeadline(token);
+        FetchBudget fetchBudget = new(
+            environment.Render.BurstFor(environment.Jobs.FetchesPerSecond),
+            environment.Jobs.FetchesPerSecond,
+            environment.Clock,
+            PageJobOptions.FetchRateKey);
         PageHttpFetch fetch = new(
             job.Worker,
             isHead: false,
             token,
             environment.Fetcher,
-            new FetchBudget(
-                environment.Render.BurstFor(environment.Jobs.FetchesPerSecond),
-                environment.Jobs.FetchesPerSecond,
-                environment.Clock,
-                PageJobOptions.FetchRateKey),
+            fetchBudget,
             environment.Metrics,
             loggerFactory.CreateLogger(SimpleContext.PageCategory));
+        ReadBudget readBudget = new(
+            environment.Render.BurstFor(environment.Jobs.SourceCharsPerSecond),
+            environment.Jobs.SourceCharsPerSecond,
+            environment.Clock,
+            PageJobOptions.ReadRateKey);
         PageCatalogScope catalog = new(
             job.Worker,
             // A worker has no request to return to and no visitor to show a menu: it has no links.
@@ -186,11 +192,7 @@ internal sealed class PageJobRunner(
             environment.ReadStore,
             environment.Read,
             environment.Search,
-            new ReadBudget(
-                environment.Render.BurstFor(environment.Jobs.SourceCharsPerSecond),
-                environment.Jobs.SourceCharsPerSecond,
-                environment.Clock,
-                PageJobOptions.ReadRateKey),
+            readBudget,
             environment.Reserved,
             environment.ContentTypes,
             environment.Seeds,
@@ -214,6 +216,13 @@ internal sealed class PageJobRunner(
 
 #pragma warning disable CS0618 // The obsolete adapter keeps a worker that has not been edited running.
         PageCapabilities capabilities = new PageCapabilities()
+            .Add<ISiteInfo>(new SiteInfo(
+                environment.SiteFacts,
+                () => SiteBoundsSnapshot.ForJob(
+                    fetchBudget,
+                    readBudget,
+                    job.Lifetime.Total,
+                    job.Lifetime.Remaining)))
             .Add<IPageStorage>(new PageStorageScope(stores.PageValues))
             .Add<IHttpFetch>(fetch)
             .Add<IPageCatalog>(catalog)

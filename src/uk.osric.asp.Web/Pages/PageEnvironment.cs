@@ -39,6 +39,7 @@ using uk.osric.asp.Web.Work;
 /// <param name="SessionCookie">The cookie that names the visitor's session.</param>
 /// <param name="BrowserCookie">The cookie that names the visitor's browser.</param>
 /// <param name="Clock">The clock a render's fetch and read allowances are measured against.</param>
+/// <param name="SiteFacts">The site's own facts, which every layer is offered as <c>ISiteInfo</c>.</param>
 /// <param name="Jobs">
 /// Where a page's jobs are started and read, or <see langword="null"/> when this host offers none. A
 /// host without one simply does not offer the capability, which is what a page is already prepared for.
@@ -83,6 +84,7 @@ internal sealed record PageEnvironment(
     PageSessionCookieOptions SessionCookie,
     PageBrowserCookieOptions BrowserCookie,
     TimeProvider Clock,
+    SiteFacts SiteFacts,
     PageJobs? Jobs = null,
     PageChecks? Checks = null,
     PageJobAuthorityFactory? JobAuthorities = null,

@@ -4,8 +4,9 @@
 <p><strong>uk.osric.asp</strong> is a small web server whose pages are C# and can edit themselves.
 Every page is a row in SQLite, compiled with Roslyn when it is saved, and the site ships with an
 editor, a Markdown renderer, a status dashboard and an optional AI assistant.</p>
-<% if (ctx.Capabilities.GetRequired<IBuildInfo>().Commit is { } commit) { %>
-<p>This site is running commit <a href="https://github.com/Moosemorals/uk.osric.asp/commit/<%= commit %>"><code><%= commit %></code></a>.</p>
+<% ISiteInfo site = ctx.Capabilities.GetRequired<ISiteInfo>();
+   if (site.DeployCommit is { } commit) { %>
+<p>This site is running commit <a href="<%= site.RepositoryUrl %>/commit/<%= commit %>"><code><%= commit %></code></a>.</p>
 <% } else { %>
 <p>This site is running a build that does not record its commit.</p>
 <% } %>

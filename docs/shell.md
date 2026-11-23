@@ -206,7 +206,9 @@ reserved, so the editor refuses to store a page there.
 `/admin/copyright` renders the licence and notice files the image carries — `LICENSE`,
 `THIRD-PARTY-NOTICES.md`, the `LICENSES` texts and `REUSE.toml`. They are packed beside the assembly
 for the same reason the changelist is: the container has no checkout. The route is public like the
-reference, and `/about` links to it rather than carrying a copy that has to be kept in step.
+reference, and `/about` links to it rather than carrying a copy that has to be kept in step. The files
+are the page value `ISiteInfo.Documents` too, so a page can render them without the shell; the route
+and the capability read one library.
 
 ## The shell's own files
 
@@ -251,7 +253,8 @@ The site owns it for the same reason it owns the changelist: the corpus is a bui
 carries, and a page cannot read a file beside the assembly ([the build's own
 facts](architecture.md#where-a-view-lives)). It is public even though the key is under `/admin` — the
 URL is a filing cabinet, not an authorisation — and it carries the admin menu because that is where a
-reader finds it. `ReferenceLibrary` reads the four files once, on first use; `ReferenceHtml` renders a
+reader finds it. `ReferenceLibrary` reads the four files once, on first use, and the model is the
+page value `ISiteInfo.Reference` too, so a stored page can render a reference without the shell; `ReferenceHtml` renders a
 namespace from that model in C#, and the fragment is held for the process. An assembly with one
 namespace serves it at `/admin/reference/{slug}`; one with several serves a namespace index there and
 each namespace at `/admin/reference/{slug}/{namespace}`. A type is a `<details>`, and `reference.js`
@@ -487,7 +490,8 @@ gives it a second authentication scheme, `View`, and a token that is not a sign-
   it gives the job the run as its credential, not the owner's name: the run's end forgets the token,
   and every write the job makes afterwards answers `Revoked`. Nothing stores the id, and the job's
   authority dies with the token it names.
-- **Only one origin.** `Site:Origin` is where the host reaches the site it serves;
+- **Only one origin.** `Site:Origin` is where the host reaches the site it serves, and it is the page
+  value `ISiteInfo.Origin` too;
   `ViewCredential` offers the token to that scheme, host and port and to nothing else, hop by hop, so
   a redirect off the origin drops it (`pages-outbound-fetch`). A page cannot name the token: it is not
   in `Pages:Fetch:Credentials` and has no configuration key.

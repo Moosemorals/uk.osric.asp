@@ -43,7 +43,7 @@ public sealed class ChangesEndpointTests : IntegrationTest {
             Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
             Assert.That(response.Content.Headers.ContentType?.MediaType, Is.EqualTo("text/html"));
             Assert.That(body, Does.Contain(
-                $"{ChangesEndpoint.RepositoryUrl}/commit/0123456789abcdef0123456789abcdef01234567"));
+                $"{SiteIdentity.RepositoryUrl}/commit/0123456789abcdef0123456789abcdef01234567"));
             Assert.That(body, Does.Contain("The first commit"));
         });
     }

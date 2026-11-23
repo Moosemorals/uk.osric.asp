@@ -5,7 +5,7 @@ namespace ReferenceCorpus;
 
 using Microsoft.CodeAnalysis;
 using System.Xml.Linq;
-using uk.osric.asp.Web.Documentation;
+using uk.osric.asp.Sdk;
 
 /// <summary>Spells a symbol as the declaration a reader wants, with its tokens classified.</summary>
 /// <remarks>

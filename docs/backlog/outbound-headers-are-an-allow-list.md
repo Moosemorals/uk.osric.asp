@@ -64,7 +64,7 @@ message across two authorities for no gain. Headers are the shape.
 ## Not in scope
 
 - **The allowance.** How many requests a render or a job may make, and how a page reads that, is
-  [`fetch-is-a-rate`](closed.md) and [`the-site-is-one-type`](the-site-is-one-type.md).
+  [`fetch-is-a-rate`](closed.md) and [`the-site-is-one-type`](closed.md).
 - **What a page reads back.** The response header subset a fetch answers is a presentation decision
   and is unchanged; a page verifying a signature reads the body.
 - **The primitives.** RSA and Ed25519 are [`the-page-api-signs`](the-page-api-signs.md); this item

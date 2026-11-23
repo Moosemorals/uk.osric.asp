@@ -267,9 +267,17 @@ internal static class PageAuthorPrompt {
         Optional capabilities are read from `ctx.Capabilities`: `Get<T>()` returns
         null when this render does not offer one, `GetRequired<T>()` throws,
         and `TryGet<T>(out T?)` reports whether it is there.
-        `ctx.Capabilities.GetRequired<IBuildInfo>()` names the running build:
-        `Commit` is the full git commit hash, or null when the build was not
-        made from a checkout.
+        `ctx.Capabilities.GetRequired<ISiteInfo>()` is the site's own facts, and every
+        render and job offers it. `DeployCommit` is the full git commit hash this build
+        was made from, or null when the build was not made from a checkout; it is not
+        the changelist's newest entry. `Origin` is the origin the site is reached at,
+        `EditorPath` is the editor's key, `RepositoryUrl`, `Name` and `Contact` are the
+        site's identity, `Documents` is the copyright and licence files the image
+        carries, `Commits` is the changelist newest first (`SiteCommit.Hash` and
+        `Subject`), and `Reference` is the documentation corpus. `Bounds` is a snapshot
+        of what this render has left — `Fetches` and `Template` are rates with a burst,
+        `Body` and `Embeds` are counts, `Time` is the clock — so read it again after a
+        fan-out. Quote a `Key` when you explain a limit rather than inventing a number.
         Pages run for GET, POST, and HEAD. The header allow-list is
         Content-Language and X-*; pages cannot set cookies, Location, content
         type through a header, framing headers, or caching headers, because
@@ -535,7 +543,9 @@ internal static class PageAuthorPrompt {
         carry `<%== ctx.Response.AntiforgeryField %>` in the form. The signed-in visitor
         is the authority, not the page: any page may save any key the shell
         does not route, and `Pages:Editor:Key` only says where the editor is
-        served (`ctx.EditorPath`). Reserved keys are refused. The editor's own
+        served (`ctx.Capabilities.GetRequired<ISiteInfo>().EditorPath`; the old
+        `ctx.EditorPath` still compiles for one release with a `PAGE013` warning).
+        Reserved keys are refused. The editor's own
         page is ordinary too, and `/admin/seeds` puts the seeded editor back
         if it is deleted or broken. The same page writes the seed rows the
         owner ticks — including a row the release did not move — and scrubs a

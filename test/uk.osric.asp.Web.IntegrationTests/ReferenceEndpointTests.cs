@@ -3,7 +3,9 @@
 
 namespace uk.osric.asp.Web.IntegrationTests;
 
+using ReferenceCorpus;
 using System.Net;
+using uk.osric.asp.Sdk;
 using uk.osric.asp.Web.Documentation;
 
 /// <summary>The reference through the composed host: public, and reading the build it serves.</summary>

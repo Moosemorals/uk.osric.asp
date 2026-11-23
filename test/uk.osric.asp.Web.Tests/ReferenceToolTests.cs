@@ -5,8 +5,10 @@ namespace uk.osric.asp.Web.Tests;
 
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
+using ReferenceCorpus;
 using System.Text.Json;
 using System.Xml.Linq;
+using uk.osric.asp.Sdk;
 using uk.osric.asp.Web.Assistant;
 using uk.osric.asp.Web.Assistant.Tools;
 using uk.osric.asp.Web.Documentation;

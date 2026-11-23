@@ -130,7 +130,10 @@ public sealed class PageAssetSeederTests {
         Assert.That(template, Does.Contain("IPageLayout").And.Contain("Title = \"Help\""));
         Assert.That(template, Does.Contain("<h1>Help</h1>"));
         Assert.That(template, Does.Contain("id=\"layout\"").And.Contain("id=\"syntax\"").And.Contain("id=\"context\""));
-        Assert.That(template, Does.Contain("href=\"<%= ctx.EditorPath %>?edit="), "the editor link follows the configured key");
+        Assert.That(template, Does.Contain("href=\"<%= site.EditorPath %>?edit="),
+            "the editor link follows the configured key, read through ISiteInfo");
+        Assert.That(template, Does.Contain("GetRequired<ISiteInfo>()").And.Contain("id=\"site-facts\""),
+            "the manual documents the site's own facts");
     }
 
     [Test]
@@ -142,8 +145,8 @@ public sealed class PageAssetSeederTests {
         Assert.That(template, Does.Contain("Title = \"About\""));
         Assert.That(template, Does.Contain("<h1>About</h1>"));
         Assert.That(template, Does.Contain("Osric Wilkinson").And.Contain("DeepSeek"));
-        Assert.That(template, Does.Contain("IBuildInfo"));
-        Assert.That(template, Does.Contain("https://github.com/Moosemorals/uk.osric.asp/commit/"));
+        Assert.That(template, Does.Contain("GetRequired<ISiteInfo>()").And.Contain("DeployCommit"));
+        Assert.That(template, Does.Contain("site.RepositoryUrl").And.Contain("/commit/"));
         Assert.That(template, Does.Contain("href=\"/admin/copyright\""),
             "the licence texts are the shell's, read from the files the build carries");
         Assert.That(template, Does.Not.Contain("RedirectToLogin"), "the about page is public");

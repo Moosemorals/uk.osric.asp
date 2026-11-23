@@ -5,6 +5,7 @@ namespace uk.osric.asp.Web.Tests;
 
 using uk.osric.asp.Core.Pages;
 using uk.osric.asp.Web.Pages;
+using uk.osric.asp.Web.Shell;
 
 [TestFixture]
 public sealed class ReservedPathsTests {
@@ -52,6 +53,20 @@ public sealed class ReservedPathsTests {
     [TestCase("/pages")]
     public void TheRetiredEditorKeyIsAnOrdinaryPageKey(string path) {
         Assert.That(Defaults.IsReserved(PagePath.Normalize(path)), Is.False);
+    }
+
+    // An ActivityPub node has to point a peer at this key, and nothing claims it: it is an ordinary
+    // page key the site may serve, so the proof is a test rather than a route.
+    [Test]
+    public void AWebfingerKeyIsAnOrdinaryPageKey() {
+        PagePath key = PagePath.Normalize("/.well-known/webfinger");
+
+        Assert.Multiple(() => {
+            Assert.That(key.IsAddressable, Is.True);
+            Assert.That(Defaults.IsReserved(key), Is.False);
+            Assert.That(ShellCatalogue.Routes.Select(route => route.Key), Has.No.Member(key.Key),
+                "no shell route claims it");
+        });
     }
 
     [Test]

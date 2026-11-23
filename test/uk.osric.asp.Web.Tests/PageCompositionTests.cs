@@ -554,6 +554,28 @@ public sealed class PageCompositionTests {
         Assert.That(rendered.Body.Trim(), Is.EqualTo("<p>alone</p>"));
     }
 
+    [Test]
+    public async Task EveryLayerIsOfferedTheSiteFactsAsync() {
+        Store(DefaultLayout, """
+            <% var layout = ctx.Capabilities.GetRequired<IPageLayout>();
+               var site = ctx.Capabilities.GetRequired<ISiteInfo>(); %><html><body data-editor="<%= site.EditorPath %>"><%== layout.Content?.Body ?? "" %></body></html>
+            """);
+        Store("/widget", """<span class="widget"><%= ctx.Capabilities.GetRequired<ISiteInfo>().EditorPath %></span>""");
+        Store("/page", """
+            <% var site = ctx.Capabilities.GetRequired<ISiteInfo>(); %><p class="content"><%= site.EditorPath %>|<%= site.Name %></p>
+            <% await ctx.Capabilities.GetRequired<IPageComposition>().EmbedAsync("/widget");
+               ctx.Capabilities.GetRequired<IPageComposition>().Wrap(); %>
+            """);
+
+        Rendered rendered = await RenderAsync("/page");
+
+        Assert.Multiple(() => {
+            Assert.That(rendered.Body, Does.Contain("<p class=\"content\">/pages|moosemorals.com</p>"), "the content layer");
+            Assert.That(rendered.Body, Does.Contain("<span class=\"widget\">/pages</span>"), "an embed");
+            Assert.That(rendered.Body, Does.Contain("data-editor=\"/pages\""), "the layout");
+        });
+    }
+
     private void Store(string path, string template) {
         _storage[path] = new PageTemplate(PagePath.Normalize(path), template);
         _state.LivePages.Add(PagePath.Normalize(path).Key);
@@ -599,7 +621,8 @@ public sealed class PageCompositionTests {
             new FakePageSessionStore(),
             TestSessions.Cookie,
             TestSessions.BrowserCookie,
-            TimeProvider.System);
+            TimeProvider.System,
+            TestOptions.Facts);
 
         PageEditor editor = new(_storage, saver);
         await PageEndpoint.HandleAsync(context, CreateRenderer(options), NullLoggerFactory.Instance, environment, editor);

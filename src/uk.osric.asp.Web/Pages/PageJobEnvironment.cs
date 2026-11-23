@@ -40,6 +40,7 @@ using uk.osric.asp.Web.Work;
 /// </param>
 /// <param name="Render">The render's limits, whose deadline is the burst window of a job's own allowances.</param>
 /// <param name="Clock">The clock a job's fetch and read allowances are measured against.</param>
+/// <param name="SiteFacts">The site's own facts, which every job is offered as <c>ISiteInfo</c>.</param>
 internal sealed record PageJobEnvironment(
     PageJobOptions Jobs,
     IWorkerStore Store,
@@ -63,4 +64,5 @@ internal sealed record PageJobEnvironment(
     IServiceScopeFactory Scopes,
     RenderOptions Render,
     TimeProvider Clock,
+    SiteFacts SiteFacts,
     IRecordCatalog? Records = null);

@@ -836,7 +836,8 @@ public sealed class PageLayoutChainTests {
             new FakePageSessionStore(),
             TestSessions.Cookie,
             TestSessions.BrowserCookie,
-            TimeProvider.System);
+            TimeProvider.System,
+            TestOptions.Facts);
 
         PageEditor? editor = withWrites ? new PageEditor(_storage, saver) : null;
         await PageEndpoint.HandleAsync(context, CreateRenderer(options), NullLoggerFactory.Instance, environment, editor);

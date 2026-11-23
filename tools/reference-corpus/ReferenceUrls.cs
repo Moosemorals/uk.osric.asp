@@ -3,7 +3,7 @@
 
 namespace ReferenceCorpus;
 
-using uk.osric.asp.Web.Documentation;
+using uk.osric.asp.Sdk;
 
 /// <summary>The site path an entry is linked by.</summary>
 /// <remarks>

@@ -4,7 +4,7 @@
 namespace ReferenceCorpus;
 
 using System.Xml.Linq;
-using uk.osric.asp.Web.Documentation;
+using uk.osric.asp.Sdk;
 
 /// <summary>Turns the annotated normalised tree into the corpus a page and the assistant read.</summary>
 internal static class ReferenceModelBuilder {
@@ -128,8 +128,8 @@ internal static class ReferenceModelBuilder {
             (string?)parameter.Attribute("name") ?? string.Empty,
             Doc(parameter)))];
 
-    private static IReadOnlyList<ReferenceException> Exceptions(XElement member) =>
-        [.. member.Elements("exception").Select(exception => new ReferenceException(
+    private static IReadOnlyList<ReferenceExceptionDoc> Exceptions(XElement member) =>
+        [.. member.Elements("exception").Select(exception => new ReferenceExceptionDoc(
             (string?)exception.Attribute("text") ?? (string?)exception.Attribute("cref") ?? string.Empty,
             (string?)exception.Attribute("href"),
             Doc(exception)))];
