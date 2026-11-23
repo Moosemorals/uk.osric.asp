@@ -5,16 +5,17 @@ SPDX-License-Identifier: MIT
 
 # Spike: the mail stack's five assumptions
 
-Measured on 2026-11-23 on the dev box (Debian 13 trixie, podman 5.4.2, pasta from `passt`), not on the
-CAX21, and before [the email plan](../plans/email.md) is built. Components: rspamd 4.3.1 and Dovecot
-2.4.5, both from their published container images.
+Measured on 2026-11-23 on the dev box (Debian 13 trixie, podman 5.4.2, pasta from `passt`) and on the
+host itself (`moosemorals.com`, Hetzner CAX21, Debian 13.8, kernel 6.12, podman 5.4.2), before [the
+email plan](../plans/email.md) is built. Components: rspamd 4.3.1 and Dovecot 2.4.5, both from their
+published container images.
 
 [Phase 0](../plans/email.md) of the plan exists to turn five claims into measurements, because each one
 either gates a decision or would change a decision that is expensive to change later. Two of the five
 came back different from what the plan assumed, and one came back the same but for a different reason
 than the plan gave.
 
-**Verdict: the plan is buildable, with five corrections.** The host-loopback path works but not at
+**Verdict: the plan is buildable, with six corrections.** The host-loopback path works but not at
 `127.0.0.1`; the published port reports the host's own address rather than the pod's gateway; per-account
 Bayes works and needs `add_map` rather than the named lookup the plan implied; Dovecot 2.4's static
 userdb takes `userdb_fields`, and `+detail` is an LMTP feature that authentication does not implement.
@@ -28,6 +29,7 @@ userdb takes `userdb_fields`, and `+detail` is an LMTP feature that authenticati
 | P3 | A published port presents a pinned pod address in `mynetworks` | **fail** — the container sees the host's own address (`192.168.0.122` here), not the pod gateway |
 | P4 | Bayes can keep one corpus per account from a map lookup | **pass** — with `rspamd_config:add_map`; the name-keyed `get_maps()['NAME']` silently yields nil |
 | P5 | Dovecot 2.4 resolves `user+detail` to `user` on both sides | **half** — LMTP splits the detail, authentication does not; and the static userdb's fields are spelled differently |
+| P6 | Rspamd's `external_map` can key settings on the SMTP recipient | **pass** — `id('rcpt');rcpts('smtp'):addr` sends `{"rcpt":["shopping@moosemorals.com"]}`, and the response is applied; but the response can also **reject**, which the plan forbids |
 
 ## P1 — reaching the site's loopback from the pod
 
@@ -132,6 +134,64 @@ identity: `doveadm auth test 'osric+shop' …` fails without consulting the pass
 Untested further because the design does not need it — a human logs in as their account's address, and
 the plan says so.
 
+## On the host: what Phase 0 could not fake
+
+Run as `deploy` over `ssh`, with `sudo`. Everything below is a measurement of the CAX21, not the dev box.
+
+| Item | Value |
+| --- | --- |
+| Addresses | `91.98.155.87/32` and `2a01:4f8:c016:b770::1/64` on `eth0` |
+| Disk | 75 G, 16 G used, 57 G available — 5 GB a mailbox is nothing |
+| `ip_unprivileged_port_start` | was 1024; now 25, from `/etc/sysctl.d/25-unprivileged-ports.conf` |
+| `vmail` | uid 988, `/home/vmail` `0700`, `/usr/sbin/nologin`, subuid/subgid `296608:65536`, `Linger=yes` |
+| Published 25 as `vmail` | **works**, once the sysctl is in place |
+| Peer a remote client presents | `81.141.12.20` (v4) and `2a00:23c7:…` (v6) — **preserved** |
+| Peer a connection from the host to its own public address presents | `169.254.1.2`, i.e. pasta's `--map-guest-addr`; a hairpin, not a case that matters |
+| Caddy's certificate | `/var/lib/containers/storage/volumes/caddy-data/_data/caddy/certificates/acme-v02.api.letsencrypt.org-directory/moosemorals.com/`, `root:root 0600`, **EC P-256**, SAN `moosemorals.com` only |
+| Copy [Decision 11](../plans/email.md) describes | `0644` certificate and `0640` key, `vmail:vmail`, readable by the daemons — done by hand and removed again |
+| A quadlet in `vmail`'s `~/.config/containers/systemd` | `generated`, `WantedBy=default.target`, active with no session open |
+| Mythic Beasts token | **absent** — `deploy/mythic-beasts.token` does not exist on the host or in the repository, so the key's scope is untested |
+
+Three things the host taught that no local spike could:
+
+- **`sudo -iu vmail` does not work**, and the plan's make targets say it does. `This account is
+  currently not available` is `nologin` refusing `-i`. The working invocation names the runtime
+  directory, because a user with no session still has one courtesy of linger:
+  `sudo -u vmail -- env HOME=/home/vmail XDG_RUNTIME_DIR=/run/user/988 …`, and the process starts in
+  the caller's directory, so `cd` first or podman fails with `cannot chdir to /home/deploy`.
+- **A v4 `PublishPort=25:25` serves IPv6 as well**, but only to a listener that accepts it: the socket
+  is dual-stack, and the first v6 attempt returned nothing because the test listener bound `0.0.0.0`.
+  Postfix binds `inet_protocols = all`, so inbound mail over v6 works with no change.
+- **The certificate is EC, not RSA.** Both daemons accept it, and nothing in the plan assumed RSA, but
+  a `ssl_dh` or cipher list copied from an RSA tutorial would be wrong.
+
+Not done, and why: no reboot, so "starts at boot" is proven as far as a generated unit plus `Linger=yes`
+allows, not by pulling the power. The ufw rules opened for the peer test (`25`, `587`) were removed
+again, and the test containers, the quadlet, the certificate copy and the images are gone: the host now
+carries the sysctl and the user and nothing else.
+
+## P6 — the settings door
+
+The plan lets the site answer Rspamd's per-recipient settings, and left one question for a spike: can a
+selector name the SMTP recipient? The answer is yes, but not in the spelling the plan used.
+
+- **`rcpt` is not a selector.** `selector = "id('rcpt');rcpt;…"` fails at startup with `selector rcpt is
+  unknown`, and the whole `external_map` is dropped — leaving a site that looks wired up and is never
+  asked.
+- **`to('smtp')` returns a table**, which the pair-building post-processor turns into nonsense
+  (`{"table: 0x7f…":[…]}`).
+- **`id('rcpt');rcpts('smtp'):addr` is the shape that works**, and the request body is
+  `{"rcpt":["shopping@moosemorals.com"]}` — a JSON array even for one recipient, because a message can
+  have several.
+- **The response is applied.** `{"symbols":{"SPIKE_SETTINGS_SYMBOL":5.0}}` adds the symbol, and
+  `{"actions":{"reject":0.05,"greylist":1000.0}}` turns `Action: no action` into `Action: reject`. An
+  answer of `500` is logged and ignored, so the site being down costs settings, not mail.
+
+**That last one is a hole in an invariant the plan treats as absolute.** "Rspamd may never reject" is
+enforced by `reject = 1000` in the config, and a settings response can lower it. The endpoint must
+therefore never emit an `actions` block, and `mail-check` must assert the shape of what it answers —
+otherwise the site, or anything that can answer for it, can start rejecting mail.
+
 ## What this rules out
 
 - **`127.0.0.1:8080` as the mail side's view of the site.** It is the pod's own loopback.
@@ -140,13 +200,16 @@ the plan says so.
 - **`userdb static { uid = … }`, `auth_username_format = %Ln` and `recipient_delimiter` as an auth
   setting** — all three are 2.3 or simply wrong for 2.4.
 - **Plus addresses as a login identity.** They are for senders.
+- **`sudo -iu vmail` in a make target**, and any mail command that runs from the caller's directory.
+- **`rcpt` as a selector name**, and `to('smtp')` as the way to name a recipient.
+- **An `actions` block in the settings endpoint's answer.** It is the one thing that can make Rspamd
+  reject.
 
 ## Recommendation
 
-Adopt the plan with the five corrections above, which
-[the plan](../plans/email.md) now carries. Three items still need the CAX21 and are not spikeable here:
-the `vmail` user with a subuid range and `enable-linger`, the `ip_unprivileged_port_start` sysctl, and
-the Mythic Beasts key refusing to write the apex `A`. Two remain open by design and are asked before
-Phase 1: Rspamd's `external_map` selector for per-recipient settings, and whether one Rspamd per person
-is needed as the fallback if the `per_user` extractor cannot read a cached map at scoring time — which
-this spike shows it can.
+Adopt the plan with the six corrections above, which [the plan](../plans/email.md) now carries, and
+with the sysctl and the `vmail` user installed on the host by `deploy/host/`. What is left of Phase 0:
+the Mythic Beasts token, which has to be created in the control panel before its scope can be tested,
+and a reboot to see a `vmail` quadlet come up on its own. The settings door's shape is settled; the
+per-account Bayes fallback this spike was going to ask about is not needed, because the extractor reads
+a cached map.

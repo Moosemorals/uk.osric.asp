@@ -122,7 +122,7 @@ Caddy's store.
 Three things were said to need root; none does:
 
 - **Low ports.** Inside a user namespace the container is root and binds 25, 587 and 993; only the
-  host-side publish is privileged, and `rootlessport` manages it once
+  host-side publish is privileged, and **pasta** makes it once
   `net.ipv4.ip_unprivileged_port_start` is lowered to 25. That is one `sysctl.d` file, and its cost is
   plain: any local user could then bind a privileged port. One human and one service account bound
   it; a second tenant is the moment to revisit.
@@ -416,11 +416,14 @@ Two questions, two units:
 | How much spam this reader tolerates | **the account** | a property of the human, not the hat |
 | Which folder a message lands in | **the address** | the point of handing out an address |
 
-**Tuning is per account, and the addresses behind it are computed.** Rspamd matches `rcpt` against the
-SMTP recipient, so the settings for a mailbox match its address, its aliases and its plus pattern
-(`/^osric\+.*@moosemorals\.com$/`, since plus addresses are never aliases): the endpoint answers
-directly, or — if Phase 0 finds the selector cannot name a recipient — one block per account is
-rendered from an export route added for that purpose alone. A static domain default is the floor:
+**Tuning is per account, and the addresses behind it are computed.** Rspamd matches the recipient
+against the settings, so the settings for a mailbox match its address, its aliases and its plus pattern
+(`/^osric\+.*@moosemorals\.com$/`, since plus addresses are never aliases). The endpoint answers
+directly — Phase 0 proved the selector names the SMTP recipient
+([spike](../spikes/mail-stack-preflight.md)) — and sends `{"rcpt":["…"]}`, an array even for one
+recipient. **The answer may never contain `actions`**: a settings response can lower `reject`, which is
+the one invariant the plan treats as absolute, so the endpoint emits scores, symbols and thresholds
+only, and `mail-check` asserts the shape of what it returns. A static domain default is the floor:
 
 ```hcl
 "default" {
@@ -611,6 +614,8 @@ without `storage.db` is a mailbox nothing can log in to.
   `doveadm service status`, `rspamadm control ping`.
 - **A queue alert matters more than a CPU alert**: `postqueue -p` non-empty for an hour, or more than 50
   messages, means delivery is failing.
+- **The settings answer is checked, not trusted.** `mail-check` asserts it carries no `actions` block,
+  because a response that did could make Rspamd reject a message the plan says can never be rejected.
 - **The auth route's p99 is a mail number**, because every login waits on it. Watch it; cache in the Lua
   script rather than adding a credential store.
 - `auth_failure_delay = 2 secs` slows credential stuffing; if the journal shows a sustained attack, add
@@ -621,7 +626,7 @@ without `storage.db` is a mailbox nothing can log in to.
 ```
 deploy/mail/
   Containerfile              # four targets: postfix, dovecot, rspamd, mail-maps
-  mail.pod                   # 25/587/993 via rootlessport, 2525 on loopback
+  mail.pod                   # 25/587/993 published through pasta, 2525 on loopback
   postfix.container
   dovecot.container
   rspamd.container
@@ -653,14 +658,18 @@ deploy/dns/
 deploy/host/
   msmtprc                    # 0600 root:root
   mailname                   # neith.moosemorals.com
-  vmail-user.sh              # useradd, subuid range, enable-linger — idempotent
+  vmail-user.sh              # useradd, subuid range, enable-linger — idempotent, installed
+  25-unprivileged-ports.conf # the floor of 25 — installed
   25-unprivileged-ports.conf # net.ipv4.ip_unprivileged_port_start=25
 ```
 
 `vmail` is created by that script: home, `/usr/sbin/nologin`, `/etc/subuid` and `/etc/subgid` ranges
 (rootless podman needs one even when nobody logs in), `loginctl enable-linger vmail`. `make mail-deploy`
-drives the units as `sudo -iu vmail -- systemctl --user …` and `mail-check` reads `vmail`'s journal;
-the cost of two users is that every mail command names one.
+drives the units through `vmail`'s own user manager, because the account has no shell to log in with —
+`sudo -u vmail -- env HOME=/home/vmail XDG_RUNTIME_DIR=/run/user/<uid> systemctl --user …`, from a
+directory `vmail` can read — and `mail-check` reads `vmail`'s journal; the cost of two users is that
+every mail command names one, and the cost of no shell is that every command spells out the runtime
+directory.
 
 Images come from `debian:13-slim` pinned by digest, exact package versions, `--timestamp` from the
 commit. Debian's `postfix` needs a debconf preseed so the build does not prompt; the runtime config
@@ -716,14 +725,28 @@ and the numbers:
 - Dovecot 2.4 wants `userdb_fields` for the static userdb's values, `%{user | lower}` for the username
   format, and a Lua passdb can name the account; `+detail` is split by LMTP and never by auth.
 
-**Still needs the CAX21**, and is the rest of this phase:
+**Measured on the host, and left in place:**
 
-- `vmail` with no shell and a subuid range, `enable-linger`, a pod publishing 25 once
-  `net.ipv4.ip_unprivileged_port_start` is 25, a certificate the root timer copied into `vmail`'s home,
-  and units that start at boot.
-- The Mythic Beasts key asked to write the apex `A`, expecting `403`.
-- Rspamd's `external_map` selector: can it name the SMTP recipient? The answer decides endpoint or
-  export, so it is asked before either is written.
+- `vmail` exists — uid 988, no shell, `/home/vmail` `0700`, subuid range `296608`, `Linger=yes` — and
+  `deploy/host/vmail-user.sh` installs it idempotently.
+- `net.ipv4.ip_unprivileged_port_start` is 25 from `deploy/host/25-unprivileged-ports.conf`, and a pod
+  published 25 as `vmail` from a container that was then removed.
+- A remote client's address survives the publication (`81.141.12.20` v4, `2a00:23c7:…` v6), and a v4
+  `PublishPort` serves IPv6 to any listener that accepts it — Postfix does.
+- Caddy's leaf copies into `vmail`'s home and is readable by the daemons there; it is **EC P-256**, and
+  currently SANs `moosemorals.com` alone.
+- A quadlet in `vmail`'s config is generated and active with no session, so linger carries it.
+- **`sudo -iu vmail` does not work** — `nologin` refuses `-i` — so every mail command names
+  `XDG_RUNTIME_DIR=/run/user/988` and a directory instead.
+- Rspamd's settings selector is `id('rcpt');rcpts('smtp'):addr`, and its answer may never carry
+  `actions`.
+
+**Still open in this phase:**
+
+- **The Mythic Beasts token does not exist yet.** It is created in the control panel; until then the
+  key's scope is untested and Phase 3 waits.
+- **A reboot**, to see a `vmail` quadlet come up without a session — the last piece of the linger claim.
+- The certificate the root timer copies, which is Phase 2's script rather than a spike.
 
 ### Phase 1 — the website answers (`determined-mountain-goat`)
 
@@ -828,8 +851,8 @@ and the numbers:
 | `POST /internal/mail/auth`, right password | `200`, and Dovecot logs in |
 | The same with a revoked password, or none | `401`, identical for an unknown address and a wrong password |
 | `POST /internal/mail/auth` while the database is down | `5xx`, so Dovecot tempfails rather than saying no |
-| `ss -ltnp` | 25/587/993 via `rootlessport`; 2525 and 11334 on `127.0.0.1` |
-| `sudo -iu vmail -- systemctl --user status mail-pod` | running as `vmail`; no rootful mail unit; nothing owned by the website's user |
+| `ss -ltnp` | 25/587/993 held by `pasta`; 2525 and 11334 on `127.0.0.1` |
+| `sudo -u vmail -- env HOME=/home/vmail XDG_RUNTIME_DIR=/run/user/988 systemctl --user status mail-pod` | running as `vmail`; no rootful mail unit; nothing owned by the website's user |
 | `swaks --server neith.moosemorals.com --port 25` | 250, in the Maildir |
 | Same, unknown recipient | 550 at RCPT, nothing queued |
 | `swaks --port 587` with SASL + STARTTLS | accepted; DKIM signature present |
@@ -879,8 +902,9 @@ and the numbers:
 - **The local corridor cannot alert about itself**, and `msmtp` does not queue, so a notification during
   a pod outage is gone.
 - **The port sysctl is host-wide**; one human and one service account bound it, a second tenant ends it.
-- **`rootlessport` is a layer that can break.** 25/587/993 are bound by it, not the container, and the
-  source address it presents can move; `ss -ltnp` and an outside `swaks` are the checks.
+- **The port publisher is a layer that can break.** 25/587/993 are bound by pasta, not the container;
+  it preserves the client's address, which Phase 0 measured, and `ss -ltnp` plus an outside `swaks`
+  are the checks that it is still doing so.
 - **The pinned Rspamd decides the settings door.** Merging a config rule with a per-message HTTP header
   is 4.0.1+ behaviour; before that the first source to answer won.
 - **The per-account key is derived, not given.** Rspamd hands the extractor the address as sent, and the
@@ -936,7 +960,8 @@ Done means these are true on the deployed host. The first group is the revision'
 9. `dig MX`, both SPF records naming the live addresses, both `_domainkey`, `_dmarc` and `dig -x` all
    return the intended values; the PTR matches `myhostname`; `mail-tester.com` reports all three pass.
 10. A mailbox plus `storage.db` restore into scratch and open over IMAP, counts matching.
-11. `sudo -iu vmail -- systemctl --user status mail-pod` is healthy; `ufw` allows 25, 587, 993 and
+11. `sudo -u vmail -- env HOME=/home/vmail XDG_RUNTIME_DIR=/run/user/988 systemctl --user status mail-pod`
+    is healthy; `ufw` allows 25, 587, 993 and
     nothing else new; 2525 listens only on `127.0.0.1`.
 12. Nothing listens on 110, 143, 465 or 995.
 13. The website still deploys and answers `/health`; its units, network and volumes are untouched, and

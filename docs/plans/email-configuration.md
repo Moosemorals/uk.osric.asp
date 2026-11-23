@@ -91,7 +91,7 @@ loginctl enable-linger vmail
 
 ```ini
 # deploy/host/25-unprivileged-ports.conf — installed as /etc/sysctl.d/25-unprivileged-ports.conf
-# rootlessport binds 25, 587 and 993 as vmail, which needs to be allowed to.
+# pasta binds 25, 587 and 993 in the host's namespace as vmail, which needs the sysctl to allow it.
 net.ipv4.ip_unprivileged_port_start=25
 ```
 
@@ -417,7 +417,10 @@ BAYES_HAM  { score = -4.0; description = "Bayesian ham"; }
   external_map = {
     map = { external = true; backend = "http://169.254.42.42:8080/internal/mail/settings";
             method = "body"; encode = "json"; timeout = 2.0; };
-    selector = "id('rcpt');rcpt;id('account');rcpt:user";
+    # The recipient reaches the site as {"rcpt":["shopping@moosemorals.com"]} — an array even for one.
+    # `rcpt` is not a selector name and `to('smtp')` yields a table; this pair is the shape that works
+    # (spike: mail-stack-preflight).
+    selector = "id('rcpt');rcpts('smtp'):addr";
   }
 }
 
@@ -445,9 +448,17 @@ authenticated {
 }
 ```
 
-If the spike asks for the fallback, it renders one block per account with `rcpt` = the mailbox, its
-aliases and its plus pattern (`"/^osric\\+.*@moosemorals\\.com$/"`), because plus addresses are never
-aliases.
+The answer from `/internal/mail/settings` may carry `symbols`, score thresholds and the account's
+`want_spam`, and **never `actions`**: a settings response can lower `reject`, and `reject = 1000` is the
+invariant that keeps the filter advisory. `mail-check` asserts the shape.
+
+Several recipients in one message is the corner the plan names: Rspamd applies one settings block per
+message, so the first recipient in the array decides, and a message addressed to two accounts sits in
+whichever one wins. It is rare, it costs a score rather than a message, and the static floor still
+applies.
+
+If the fallback is ever wanted, it renders one block per account with `rcpt` = the mailbox, its aliases
+and its plus pattern (`"/^osric\\+.*@moosemorals\\.com$/"`), because plus addresses are never aliases.
 
 ## The website's routes
 
