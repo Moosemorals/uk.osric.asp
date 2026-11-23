@@ -183,13 +183,13 @@ internal sealed class PageChain {
             commit,
             _environment.Records);
         _session.RegisterCleanup(() => stores.DisposeAsync().AsTask());
-#pragma warning disable CS0618 // The obsolete adapters keep the old spelling for one release.
+#pragma warning disable CS0618, PAGE013 // The obsolete adapters keep the old spelling for one release.
         PageStorageScope storage = new(stores.PageValues);
         PageSessionScope session = new(stores.VisitorValues.RestrictedTo(
             StoreLifetimeKind.Session,
             slides: !_isHead,
             writable: !_isHead && role != PageLayerRole.Layout));
-#pragma warning restore CS0618
+#pragma warning restore CS0618, PAGE013
         PageHttpFetch fetch = new(
             key,
             _isHead,
@@ -218,7 +218,7 @@ internal sealed class PageChain {
         SimpleResponse? response = null;
         PageCompositionScope compositor = new(this, composition, request, path, depth, key, () => response!);
 
-#pragma warning disable CS0618 // The obsolete adapters keep the old spelling for one release.
+#pragma warning disable CS0618, PAGE013 // The obsolete adapters keep the old spelling for one release.
         PageCapabilities capabilities = new PageCapabilities()
             .Add<IBuildInfo>(BuildInfo.Current)
             .Add<IPageStorage>(storage)
@@ -229,7 +229,20 @@ internal sealed class PageChain {
             .Add<IMarkdownRenderer>(_environment.Markdown)
             .Add<IDiffRenderer>(_environment.Diff)
             .Add<IPageComposition>(compositor);
-#pragma warning restore CS0618
+#pragma warning restore CS0618, PAGE013
+
+        // The site's own facts are offered to every layer, a layout and an embed included, and the
+        // bounds are snapshotted each time a page reads them: the chain's own counters move.
+        capabilities.Add<ISiteInfo>(new SiteInfo(
+            _environment.SiteFacts,
+            () => SiteBoundsSnapshot.ForRender(
+                _fetchBudget,
+                _readBudget,
+                budget,
+                _environment.Render.MaxEmbeds,
+                Volatile.Read(ref _embeds),
+                _session.Total,
+                _session.Remaining)));
 
         // A check spends a compile, which is a shared resource, so only a render with a signed-in
         // visitor is offered it. It writes nothing, so it is not a layout's one-action exception.

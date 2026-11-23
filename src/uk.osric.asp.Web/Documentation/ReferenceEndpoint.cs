@@ -49,7 +49,7 @@ internal static class ReferenceEndpoint {
         if (BuildInfo.Current.Commit is { } commit) {
             string shortCommit = commit[..Math.Min(7, commit.Length)];
             await context.Response.WriteAsync(
-                $"<p class=\"reference-build\">Built from <a href=\"{ChangesEndpoint.RepositoryUrl}/commit/{WebUtility.HtmlEncode(commit)}\"><code>{WebUtility.HtmlEncode(shortCommit)}</code></a>.</p>",
+                $"<p class=\"reference-build\">Built from <a href=\"{SiteIdentity.RepositoryUrl}/commit/{WebUtility.HtmlEncode(commit)}\"><code>{WebUtility.HtmlEncode(shortCommit)}</code></a>.</p>",
                 cancellationToken);
         }
 

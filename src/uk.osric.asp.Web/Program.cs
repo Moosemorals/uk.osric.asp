@@ -258,6 +258,7 @@ internal class Program {
               services.GetRequiredService<PageSessionCookieOptions>(),
               services.GetRequiredService<PageBrowserCookieOptions>(),
               services.GetRequiredService<TimeProvider>(),
+              services.GetRequiredService<SiteFacts>(),
               services.GetRequiredService<PageJobs>(),
               services.GetRequiredService<PageChecks>(),
               services.GetRequiredService<PageJobAuthorityFactory>(),
@@ -285,7 +286,13 @@ internal class Program {
         builder.Services.AddSingleton<ImportStageStore>();
         builder.Services.AddSingleton<MarkdownRenderer>();
         // Reads the licence and notice files the image carries, once, when the page first asks.
-        builder.Services.AddSingleton(new LicenceLibrary(AppContext.BaseDirectory));
+        builder.Services.AddSingleton(services => new LicenceLibrary(
+            AppContext.BaseDirectory,
+            services.GetRequiredService<ILogger<LicenceLibrary>>()));
+        // Reads the changelist the image carries, once, when the page first asks.
+        builder.Services.AddSingleton(services => new ChangeList(
+            services.GetRequiredService<AdminOptions>(),
+            services.GetRequiredService<ILogger<ChangeList>>()));
         builder.Services.AddSingleton<OutboundFetcher>();
         builder.Services.AddSingleton<PageBudget>();
         builder.Services.AddSingleton<PageImageBuilder>();
@@ -316,6 +323,7 @@ internal class Program {
             services.GetRequiredService<IServiceScopeFactory>(),
             render,
             services.GetRequiredService<TimeProvider>(),
+            services.GetRequiredService<SiteFacts>(),
             services.GetRequiredService<IRecordCatalog>()));
         builder.Services.AddSingleton<PageLibraries>();
         builder.Services.AddSingleton<PageMetrics>();
@@ -330,6 +338,15 @@ internal class Program {
         builder.Services.AddSingleton(services => new ReferenceLibrary(
             AppContext.BaseDirectory,
             services.GetRequiredService<ILogger<ReferenceLibrary>>()));
+        // The site's own facts, and the warm-up that reads them before the first page asks.
+        builder.Services.AddSingleton(services => new SiteFacts(
+            services.GetRequiredService<SiteOptions>(),
+            services.GetRequiredService<PageEditorOptions>(),
+            BuildInfo.Current.Commit,
+            () => services.GetRequiredService<LicenceLibrary>().Documents,
+            () => services.GetRequiredService<ChangeList>().Read.Commits,
+            () => services.GetRequiredService<ReferenceLibrary>().Corpora));
+        builder.Services.AddHostedService<SiteFactsWarmUp>();
         builder.Services.AddSingleton<RunQueue>();
         builder.Services.AddSingleton<RunRegistry>();
         builder.Services.AddSingleton<OwnerInterruptCoordinator>();

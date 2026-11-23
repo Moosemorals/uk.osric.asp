@@ -962,3 +962,364 @@ override uk.osric.asp.Sdk.PageTopic.ToString() -> string!
 static uk.osric.asp.Sdk.PageTopic.Named(string! name) -> uk.osric.asp.Sdk.PageTopic!
 static uk.osric.asp.Sdk.PageTopic.operator !=(uk.osric.asp.Sdk.PageTopic? left, uk.osric.asp.Sdk.PageTopic? right) -> bool
 static uk.osric.asp.Sdk.PageTopic.operator ==(uk.osric.asp.Sdk.PageTopic? left, uk.osric.asp.Sdk.PageTopic? right) -> bool
+override uk.osric.asp.Sdk.ReferenceAssemblyInfo.Equals(object? obj) -> bool
+override uk.osric.asp.Sdk.ReferenceAssemblyInfo.GetHashCode() -> int
+override uk.osric.asp.Sdk.ReferenceAssemblyInfo.ToString() -> string!
+override uk.osric.asp.Sdk.ReferenceCorpus.Equals(object? obj) -> bool
+override uk.osric.asp.Sdk.ReferenceCorpus.GetHashCode() -> int
+override uk.osric.asp.Sdk.ReferenceCorpus.ToString() -> string!
+override uk.osric.asp.Sdk.ReferenceDeclaration.Equals(object? obj) -> bool
+override uk.osric.asp.Sdk.ReferenceDeclaration.GetHashCode() -> int
+override uk.osric.asp.Sdk.ReferenceDeclaration.ToString() -> string!
+override uk.osric.asp.Sdk.ReferenceDoc.Equals(object? obj) -> bool
+override uk.osric.asp.Sdk.ReferenceDoc.GetHashCode() -> int
+override uk.osric.asp.Sdk.ReferenceDoc.ToString() -> string!
+override uk.osric.asp.Sdk.ReferenceExceptionDoc.Equals(object? obj) -> bool
+override uk.osric.asp.Sdk.ReferenceExceptionDoc.GetHashCode() -> int
+override uk.osric.asp.Sdk.ReferenceExceptionDoc.ToString() -> string!
+override uk.osric.asp.Sdk.ReferenceInherited.Equals(object? obj) -> bool
+override uk.osric.asp.Sdk.ReferenceInherited.GetHashCode() -> int
+override uk.osric.asp.Sdk.ReferenceInherited.ToString() -> string!
+override uk.osric.asp.Sdk.ReferenceMember.Equals(object? obj) -> bool
+override uk.osric.asp.Sdk.ReferenceMember.GetHashCode() -> int
+override uk.osric.asp.Sdk.ReferenceMember.ToString() -> string!
+override uk.osric.asp.Sdk.ReferenceNamespace.Equals(object? obj) -> bool
+override uk.osric.asp.Sdk.ReferenceNamespace.GetHashCode() -> int
+override uk.osric.asp.Sdk.ReferenceNamespace.ToString() -> string!
+override uk.osric.asp.Sdk.ReferenceNode.Equals(object? obj) -> bool
+override uk.osric.asp.Sdk.ReferenceNode.GetHashCode() -> int
+override uk.osric.asp.Sdk.ReferenceNode.ToString() -> string!
+override uk.osric.asp.Sdk.ReferenceParameter.Equals(object? obj) -> bool
+override uk.osric.asp.Sdk.ReferenceParameter.GetHashCode() -> int
+override uk.osric.asp.Sdk.ReferenceParameter.ToString() -> string!
+override uk.osric.asp.Sdk.ReferenceToken.Equals(object? obj) -> bool
+override uk.osric.asp.Sdk.ReferenceToken.GetHashCode() -> int
+override uk.osric.asp.Sdk.ReferenceToken.ToString() -> string!
+override uk.osric.asp.Sdk.ReferenceType.Equals(object? obj) -> bool
+override uk.osric.asp.Sdk.ReferenceType.GetHashCode() -> int
+override uk.osric.asp.Sdk.ReferenceType.ToString() -> string!
+override uk.osric.asp.Sdk.SiteAllowance.Equals(object? obj) -> bool
+override uk.osric.asp.Sdk.SiteAllowance.GetHashCode() -> int
+override uk.osric.asp.Sdk.SiteAllowance.ToString() -> string!
+override uk.osric.asp.Sdk.SiteBounds.Equals(object? obj) -> bool
+override uk.osric.asp.Sdk.SiteBounds.GetHashCode() -> int
+override uk.osric.asp.Sdk.SiteBounds.ToString() -> string!
+override uk.osric.asp.Sdk.SiteCommit.Equals(object? obj) -> bool
+override uk.osric.asp.Sdk.SiteCommit.GetHashCode() -> int
+override uk.osric.asp.Sdk.SiteCommit.ToString() -> string!
+override uk.osric.asp.Sdk.SiteCounter.Equals(object? obj) -> bool
+override uk.osric.asp.Sdk.SiteCounter.GetHashCode() -> int
+override uk.osric.asp.Sdk.SiteCounter.ToString() -> string!
+override uk.osric.asp.Sdk.SiteDocument.Equals(object? obj) -> bool
+override uk.osric.asp.Sdk.SiteDocument.GetHashCode() -> int
+override uk.osric.asp.Sdk.SiteDocument.ToString() -> string!
+override uk.osric.asp.Sdk.SiteTime.Equals(object? obj) -> bool
+override uk.osric.asp.Sdk.SiteTime.GetHashCode() -> int
+override uk.osric.asp.Sdk.SiteTime.ToString() -> string!
+static uk.osric.asp.Sdk.ReferenceAssemblyInfo.All.get -> System.Collections.Generic.IReadOnlyList<uk.osric.asp.Sdk.ReferenceAssemblyInfo!>!
+static uk.osric.asp.Sdk.ReferenceAssemblyInfo.operator !=(uk.osric.asp.Sdk.ReferenceAssemblyInfo? left, uk.osric.asp.Sdk.ReferenceAssemblyInfo? right) -> bool
+static uk.osric.asp.Sdk.ReferenceAssemblyInfo.operator ==(uk.osric.asp.Sdk.ReferenceAssemblyInfo? left, uk.osric.asp.Sdk.ReferenceAssemblyInfo? right) -> bool
+static uk.osric.asp.Sdk.ReferenceCorpus.operator !=(uk.osric.asp.Sdk.ReferenceCorpus? left, uk.osric.asp.Sdk.ReferenceCorpus? right) -> bool
+static uk.osric.asp.Sdk.ReferenceCorpus.operator ==(uk.osric.asp.Sdk.ReferenceCorpus? left, uk.osric.asp.Sdk.ReferenceCorpus? right) -> bool
+static uk.osric.asp.Sdk.ReferenceDeclaration.operator !=(uk.osric.asp.Sdk.ReferenceDeclaration? left, uk.osric.asp.Sdk.ReferenceDeclaration? right) -> bool
+static uk.osric.asp.Sdk.ReferenceDeclaration.operator ==(uk.osric.asp.Sdk.ReferenceDeclaration? left, uk.osric.asp.Sdk.ReferenceDeclaration? right) -> bool
+static uk.osric.asp.Sdk.ReferenceDoc.Empty.get -> uk.osric.asp.Sdk.ReferenceDoc!
+static uk.osric.asp.Sdk.ReferenceDoc.operator !=(uk.osric.asp.Sdk.ReferenceDoc? left, uk.osric.asp.Sdk.ReferenceDoc? right) -> bool
+static uk.osric.asp.Sdk.ReferenceDoc.operator ==(uk.osric.asp.Sdk.ReferenceDoc? left, uk.osric.asp.Sdk.ReferenceDoc? right) -> bool
+static uk.osric.asp.Sdk.ReferenceExceptionDoc.operator !=(uk.osric.asp.Sdk.ReferenceExceptionDoc? left, uk.osric.asp.Sdk.ReferenceExceptionDoc? right) -> bool
+static uk.osric.asp.Sdk.ReferenceExceptionDoc.operator ==(uk.osric.asp.Sdk.ReferenceExceptionDoc? left, uk.osric.asp.Sdk.ReferenceExceptionDoc? right) -> bool
+static uk.osric.asp.Sdk.ReferenceInherited.operator !=(uk.osric.asp.Sdk.ReferenceInherited? left, uk.osric.asp.Sdk.ReferenceInherited? right) -> bool
+static uk.osric.asp.Sdk.ReferenceInherited.operator ==(uk.osric.asp.Sdk.ReferenceInherited? left, uk.osric.asp.Sdk.ReferenceInherited? right) -> bool
+static uk.osric.asp.Sdk.ReferenceMember.operator !=(uk.osric.asp.Sdk.ReferenceMember? left, uk.osric.asp.Sdk.ReferenceMember? right) -> bool
+static uk.osric.asp.Sdk.ReferenceMember.operator ==(uk.osric.asp.Sdk.ReferenceMember? left, uk.osric.asp.Sdk.ReferenceMember? right) -> bool
+static uk.osric.asp.Sdk.ReferenceNamespace.operator !=(uk.osric.asp.Sdk.ReferenceNamespace? left, uk.osric.asp.Sdk.ReferenceNamespace? right) -> bool
+static uk.osric.asp.Sdk.ReferenceNamespace.operator ==(uk.osric.asp.Sdk.ReferenceNamespace? left, uk.osric.asp.Sdk.ReferenceNamespace? right) -> bool
+static uk.osric.asp.Sdk.ReferenceNode.operator !=(uk.osric.asp.Sdk.ReferenceNode? left, uk.osric.asp.Sdk.ReferenceNode? right) -> bool
+static uk.osric.asp.Sdk.ReferenceNode.operator ==(uk.osric.asp.Sdk.ReferenceNode? left, uk.osric.asp.Sdk.ReferenceNode? right) -> bool
+static uk.osric.asp.Sdk.ReferenceParameter.operator !=(uk.osric.asp.Sdk.ReferenceParameter? left, uk.osric.asp.Sdk.ReferenceParameter? right) -> bool
+static uk.osric.asp.Sdk.ReferenceParameter.operator ==(uk.osric.asp.Sdk.ReferenceParameter? left, uk.osric.asp.Sdk.ReferenceParameter? right) -> bool
+static uk.osric.asp.Sdk.ReferenceToken.operator !=(uk.osric.asp.Sdk.ReferenceToken? left, uk.osric.asp.Sdk.ReferenceToken? right) -> bool
+static uk.osric.asp.Sdk.ReferenceToken.operator ==(uk.osric.asp.Sdk.ReferenceToken? left, uk.osric.asp.Sdk.ReferenceToken? right) -> bool
+static uk.osric.asp.Sdk.ReferenceType.operator !=(uk.osric.asp.Sdk.ReferenceType? left, uk.osric.asp.Sdk.ReferenceType? right) -> bool
+static uk.osric.asp.Sdk.ReferenceType.operator ==(uk.osric.asp.Sdk.ReferenceType? left, uk.osric.asp.Sdk.ReferenceType? right) -> bool
+static uk.osric.asp.Sdk.SiteAllowance.operator !=(uk.osric.asp.Sdk.SiteAllowance? left, uk.osric.asp.Sdk.SiteAllowance? right) -> bool
+static uk.osric.asp.Sdk.SiteAllowance.operator ==(uk.osric.asp.Sdk.SiteAllowance? left, uk.osric.asp.Sdk.SiteAllowance? right) -> bool
+static uk.osric.asp.Sdk.SiteBounds.operator !=(uk.osric.asp.Sdk.SiteBounds? left, uk.osric.asp.Sdk.SiteBounds? right) -> bool
+static uk.osric.asp.Sdk.SiteBounds.operator ==(uk.osric.asp.Sdk.SiteBounds? left, uk.osric.asp.Sdk.SiteBounds? right) -> bool
+static uk.osric.asp.Sdk.SiteCommit.operator !=(uk.osric.asp.Sdk.SiteCommit? left, uk.osric.asp.Sdk.SiteCommit? right) -> bool
+static uk.osric.asp.Sdk.SiteCommit.operator ==(uk.osric.asp.Sdk.SiteCommit? left, uk.osric.asp.Sdk.SiteCommit? right) -> bool
+static uk.osric.asp.Sdk.SiteCounter.operator !=(uk.osric.asp.Sdk.SiteCounter? left, uk.osric.asp.Sdk.SiteCounter? right) -> bool
+static uk.osric.asp.Sdk.SiteCounter.operator ==(uk.osric.asp.Sdk.SiteCounter? left, uk.osric.asp.Sdk.SiteCounter? right) -> bool
+static uk.osric.asp.Sdk.SiteDocument.operator !=(uk.osric.asp.Sdk.SiteDocument? left, uk.osric.asp.Sdk.SiteDocument? right) -> bool
+static uk.osric.asp.Sdk.SiteDocument.operator ==(uk.osric.asp.Sdk.SiteDocument? left, uk.osric.asp.Sdk.SiteDocument? right) -> bool
+static uk.osric.asp.Sdk.SiteTime.operator !=(uk.osric.asp.Sdk.SiteTime? left, uk.osric.asp.Sdk.SiteTime? right) -> bool
+static uk.osric.asp.Sdk.SiteTime.operator ==(uk.osric.asp.Sdk.SiteTime? left, uk.osric.asp.Sdk.SiteTime? right) -> bool
+uk.osric.asp.Sdk.ISiteInfo
+uk.osric.asp.Sdk.ISiteInfo.Bounds.get -> uk.osric.asp.Sdk.SiteBounds!
+uk.osric.asp.Sdk.ISiteInfo.Commits.get -> System.Collections.Generic.IReadOnlyList<uk.osric.asp.Sdk.SiteCommit!>!
+uk.osric.asp.Sdk.ISiteInfo.Contact.get -> string!
+uk.osric.asp.Sdk.ISiteInfo.DeployCommit.get -> string?
+uk.osric.asp.Sdk.ISiteInfo.Documents.get -> System.Collections.Generic.IReadOnlyList<uk.osric.asp.Sdk.SiteDocument!>!
+uk.osric.asp.Sdk.ISiteInfo.EditorPath.get -> string!
+uk.osric.asp.Sdk.ISiteInfo.Name.get -> string!
+uk.osric.asp.Sdk.ISiteInfo.Origin.get -> System.Uri!
+uk.osric.asp.Sdk.ISiteInfo.Reference.get -> System.Collections.Generic.IReadOnlyList<uk.osric.asp.Sdk.ReferenceCorpus!>!
+uk.osric.asp.Sdk.ISiteInfo.RepositoryUrl.get -> string!
+uk.osric.asp.Sdk.ReferenceAssemblyInfo
+uk.osric.asp.Sdk.ReferenceAssemblyInfo.AssemblyName.get -> string!
+uk.osric.asp.Sdk.ReferenceAssemblyInfo.AssemblyName.init -> void
+uk.osric.asp.Sdk.ReferenceAssemblyInfo.<Clone>$() -> uk.osric.asp.Sdk.ReferenceAssemblyInfo!
+uk.osric.asp.Sdk.ReferenceAssemblyInfo.Deconstruct(out string! Slug, out string! AssemblyName, out string! Title, out string! Description) -> void
+uk.osric.asp.Sdk.ReferenceAssemblyInfo.Description.get -> string!
+uk.osric.asp.Sdk.ReferenceAssemblyInfo.Description.init -> void
+uk.osric.asp.Sdk.ReferenceAssemblyInfo.Equals(uk.osric.asp.Sdk.ReferenceAssemblyInfo? other) -> bool
+uk.osric.asp.Sdk.ReferenceAssemblyInfo.ReferenceAssemblyInfo(string! Slug, string! AssemblyName, string! Title, string! Description) -> void
+uk.osric.asp.Sdk.ReferenceAssemblyInfo.Slug.get -> string!
+uk.osric.asp.Sdk.ReferenceAssemblyInfo.Slug.init -> void
+uk.osric.asp.Sdk.ReferenceAssemblyInfo.Title.get -> string!
+uk.osric.asp.Sdk.ReferenceAssemblyInfo.Title.init -> void
+uk.osric.asp.Sdk.ReferenceCorpus
+uk.osric.asp.Sdk.ReferenceCorpus.Assembly.get -> string!
+uk.osric.asp.Sdk.ReferenceCorpus.Assembly.init -> void
+uk.osric.asp.Sdk.ReferenceCorpus.<Clone>$() -> uk.osric.asp.Sdk.ReferenceCorpus!
+uk.osric.asp.Sdk.ReferenceCorpus.Deconstruct(out string! Slug, out string! Assembly, out string! Title, out string! Description, out int TypeCount, out int EntryCount, out System.Collections.Generic.IReadOnlyList<uk.osric.asp.Sdk.ReferenceNamespace!>! Namespaces) -> void
+uk.osric.asp.Sdk.ReferenceCorpus.Description.get -> string!
+uk.osric.asp.Sdk.ReferenceCorpus.Description.init -> void
+uk.osric.asp.Sdk.ReferenceCorpus.EntryCount.get -> int
+uk.osric.asp.Sdk.ReferenceCorpus.EntryCount.init -> void
+uk.osric.asp.Sdk.ReferenceCorpus.Equals(uk.osric.asp.Sdk.ReferenceCorpus? other) -> bool
+uk.osric.asp.Sdk.ReferenceCorpus.Namespaces.get -> System.Collections.Generic.IReadOnlyList<uk.osric.asp.Sdk.ReferenceNamespace!>!
+uk.osric.asp.Sdk.ReferenceCorpus.Namespaces.init -> void
+uk.osric.asp.Sdk.ReferenceCorpus.ReferenceCorpus(string! Slug, string! Assembly, string! Title, string! Description, int TypeCount, int EntryCount, System.Collections.Generic.IReadOnlyList<uk.osric.asp.Sdk.ReferenceNamespace!>! Namespaces) -> void
+uk.osric.asp.Sdk.ReferenceCorpus.Slug.get -> string!
+uk.osric.asp.Sdk.ReferenceCorpus.Slug.init -> void
+uk.osric.asp.Sdk.ReferenceCorpus.Title.get -> string!
+uk.osric.asp.Sdk.ReferenceCorpus.Title.init -> void
+uk.osric.asp.Sdk.ReferenceCorpus.TypeCount.get -> int
+uk.osric.asp.Sdk.ReferenceCorpus.TypeCount.init -> void
+uk.osric.asp.Sdk.ReferenceDeclaration
+uk.osric.asp.Sdk.ReferenceDeclaration.<Clone>$() -> uk.osric.asp.Sdk.ReferenceDeclaration!
+uk.osric.asp.Sdk.ReferenceDeclaration.Deconstruct(out string! Text, out System.Collections.Generic.IReadOnlyList<uk.osric.asp.Sdk.ReferenceToken!>! Tokens) -> void
+uk.osric.asp.Sdk.ReferenceDeclaration.Equals(uk.osric.asp.Sdk.ReferenceDeclaration? other) -> bool
+uk.osric.asp.Sdk.ReferenceDeclaration.ReferenceDeclaration(string! Text, System.Collections.Generic.IReadOnlyList<uk.osric.asp.Sdk.ReferenceToken!>! Tokens) -> void
+uk.osric.asp.Sdk.ReferenceDeclaration.Text.get -> string!
+uk.osric.asp.Sdk.ReferenceDeclaration.Text.init -> void
+uk.osric.asp.Sdk.ReferenceDeclaration.Tokens.get -> System.Collections.Generic.IReadOnlyList<uk.osric.asp.Sdk.ReferenceToken!>!
+uk.osric.asp.Sdk.ReferenceDeclaration.Tokens.init -> void
+uk.osric.asp.Sdk.ReferenceDoc
+uk.osric.asp.Sdk.ReferenceDoc.<Clone>$() -> uk.osric.asp.Sdk.ReferenceDoc!
+uk.osric.asp.Sdk.ReferenceDoc.Deconstruct(out string! Text, out System.Collections.Generic.IReadOnlyList<uk.osric.asp.Sdk.ReferenceNode!>! Nodes) -> void
+uk.osric.asp.Sdk.ReferenceDoc.Equals(uk.osric.asp.Sdk.ReferenceDoc? other) -> bool
+uk.osric.asp.Sdk.ReferenceDoc.Nodes.get -> System.Collections.Generic.IReadOnlyList<uk.osric.asp.Sdk.ReferenceNode!>!
+uk.osric.asp.Sdk.ReferenceDoc.Nodes.init -> void
+uk.osric.asp.Sdk.ReferenceDoc.ReferenceDoc(string! Text, System.Collections.Generic.IReadOnlyList<uk.osric.asp.Sdk.ReferenceNode!>! Nodes) -> void
+uk.osric.asp.Sdk.ReferenceDoc.Text.get -> string!
+uk.osric.asp.Sdk.ReferenceDoc.Text.init -> void
+uk.osric.asp.Sdk.ReferenceExceptionDoc
+uk.osric.asp.Sdk.ReferenceExceptionDoc.<Clone>$() -> uk.osric.asp.Sdk.ReferenceExceptionDoc!
+uk.osric.asp.Sdk.ReferenceExceptionDoc.Deconstruct(out string! Name, out string? Href, out uk.osric.asp.Sdk.ReferenceDoc! Doc) -> void
+uk.osric.asp.Sdk.ReferenceExceptionDoc.Doc.get -> uk.osric.asp.Sdk.ReferenceDoc!
+uk.osric.asp.Sdk.ReferenceExceptionDoc.Doc.init -> void
+uk.osric.asp.Sdk.ReferenceExceptionDoc.Equals(uk.osric.asp.Sdk.ReferenceExceptionDoc? other) -> bool
+uk.osric.asp.Sdk.ReferenceExceptionDoc.Href.get -> string?
+uk.osric.asp.Sdk.ReferenceExceptionDoc.Href.init -> void
+uk.osric.asp.Sdk.ReferenceExceptionDoc.Name.get -> string!
+uk.osric.asp.Sdk.ReferenceExceptionDoc.Name.init -> void
+uk.osric.asp.Sdk.ReferenceExceptionDoc.ReferenceExceptionDoc(string! Name, string? Href, uk.osric.asp.Sdk.ReferenceDoc! Doc) -> void
+uk.osric.asp.Sdk.ReferenceInherited
+uk.osric.asp.Sdk.ReferenceInherited.<Clone>$() -> uk.osric.asp.Sdk.ReferenceInherited!
+uk.osric.asp.Sdk.ReferenceInherited.Deconstruct(out string? From, out string? Display, out string? Href, out bool Unknown) -> void
+uk.osric.asp.Sdk.ReferenceInherited.Display.get -> string?
+uk.osric.asp.Sdk.ReferenceInherited.Display.init -> void
+uk.osric.asp.Sdk.ReferenceInherited.Equals(uk.osric.asp.Sdk.ReferenceInherited? other) -> bool
+uk.osric.asp.Sdk.ReferenceInherited.From.get -> string?
+uk.osric.asp.Sdk.ReferenceInherited.From.init -> void
+uk.osric.asp.Sdk.ReferenceInherited.Href.get -> string?
+uk.osric.asp.Sdk.ReferenceInherited.Href.init -> void
+uk.osric.asp.Sdk.ReferenceInherited.ReferenceInherited(string? From, string? Display, string? Href, bool Unknown) -> void
+uk.osric.asp.Sdk.ReferenceInherited.Unknown.get -> bool
+uk.osric.asp.Sdk.ReferenceInherited.Unknown.init -> void
+uk.osric.asp.Sdk.ReferenceMember
+uk.osric.asp.Sdk.ReferenceMember.Anchor.get -> string!
+uk.osric.asp.Sdk.ReferenceMember.Anchor.init -> void
+uk.osric.asp.Sdk.ReferenceMember.<Clone>$() -> uk.osric.asp.Sdk.ReferenceMember!
+uk.osric.asp.Sdk.ReferenceMember.Declaration.get -> uk.osric.asp.Sdk.ReferenceDeclaration!
+uk.osric.asp.Sdk.ReferenceMember.Declaration.init -> void
+uk.osric.asp.Sdk.ReferenceMember.Deconstruct(out string! Id, out string! Anchor, out string! Kind, out string! Display, out uk.osric.asp.Sdk.ReferenceDeclaration! Declaration, out uk.osric.asp.Sdk.ReferenceDoc! Summary, out uk.osric.asp.Sdk.ReferenceDoc! Remarks, out System.Collections.Generic.IReadOnlyList<uk.osric.asp.Sdk.ReferenceParameter!>! TypeParameters, out System.Collections.Generic.IReadOnlyList<uk.osric.asp.Sdk.ReferenceParameter!>! Parameters, out uk.osric.asp.Sdk.ReferenceDoc! Returns, out uk.osric.asp.Sdk.ReferenceDoc! Value, out System.Collections.Generic.IReadOnlyList<uk.osric.asp.Sdk.ReferenceExceptionDoc!>! Exceptions, out uk.osric.asp.Sdk.ReferenceInherited? Inherited) -> void
+uk.osric.asp.Sdk.ReferenceMember.Display.get -> string!
+uk.osric.asp.Sdk.ReferenceMember.Display.init -> void
+uk.osric.asp.Sdk.ReferenceMember.Equals(uk.osric.asp.Sdk.ReferenceMember? other) -> bool
+uk.osric.asp.Sdk.ReferenceMember.Exceptions.get -> System.Collections.Generic.IReadOnlyList<uk.osric.asp.Sdk.ReferenceExceptionDoc!>!
+uk.osric.asp.Sdk.ReferenceMember.Exceptions.init -> void
+uk.osric.asp.Sdk.ReferenceMember.Id.get -> string!
+uk.osric.asp.Sdk.ReferenceMember.Id.init -> void
+uk.osric.asp.Sdk.ReferenceMember.Inherited.get -> uk.osric.asp.Sdk.ReferenceInherited?
+uk.osric.asp.Sdk.ReferenceMember.Inherited.init -> void
+uk.osric.asp.Sdk.ReferenceMember.Kind.get -> string!
+uk.osric.asp.Sdk.ReferenceMember.Kind.init -> void
+uk.osric.asp.Sdk.ReferenceMember.Parameters.get -> System.Collections.Generic.IReadOnlyList<uk.osric.asp.Sdk.ReferenceParameter!>!
+uk.osric.asp.Sdk.ReferenceMember.Parameters.init -> void
+uk.osric.asp.Sdk.ReferenceMember.ReferenceMember(string! Id, string! Anchor, string! Kind, string! Display, uk.osric.asp.Sdk.ReferenceDeclaration! Declaration, uk.osric.asp.Sdk.ReferenceDoc! Summary, uk.osric.asp.Sdk.ReferenceDoc! Remarks, System.Collections.Generic.IReadOnlyList<uk.osric.asp.Sdk.ReferenceParameter!>! TypeParameters, System.Collections.Generic.IReadOnlyList<uk.osric.asp.Sdk.ReferenceParameter!>! Parameters, uk.osric.asp.Sdk.ReferenceDoc! Returns, uk.osric.asp.Sdk.ReferenceDoc! Value, System.Collections.Generic.IReadOnlyList<uk.osric.asp.Sdk.ReferenceExceptionDoc!>! Exceptions, uk.osric.asp.Sdk.ReferenceInherited? Inherited) -> void
+uk.osric.asp.Sdk.ReferenceMember.Remarks.get -> uk.osric.asp.Sdk.ReferenceDoc!
+uk.osric.asp.Sdk.ReferenceMember.Remarks.init -> void
+uk.osric.asp.Sdk.ReferenceMember.Returns.get -> uk.osric.asp.Sdk.ReferenceDoc!
+uk.osric.asp.Sdk.ReferenceMember.Returns.init -> void
+uk.osric.asp.Sdk.ReferenceMember.Summary.get -> uk.osric.asp.Sdk.ReferenceDoc!
+uk.osric.asp.Sdk.ReferenceMember.Summary.init -> void
+uk.osric.asp.Sdk.ReferenceMember.TypeParameters.get -> System.Collections.Generic.IReadOnlyList<uk.osric.asp.Sdk.ReferenceParameter!>!
+uk.osric.asp.Sdk.ReferenceMember.TypeParameters.init -> void
+uk.osric.asp.Sdk.ReferenceMember.Value.get -> uk.osric.asp.Sdk.ReferenceDoc!
+uk.osric.asp.Sdk.ReferenceMember.Value.init -> void
+uk.osric.asp.Sdk.ReferenceNamespace
+uk.osric.asp.Sdk.ReferenceNamespace.<Clone>$() -> uk.osric.asp.Sdk.ReferenceNamespace!
+uk.osric.asp.Sdk.ReferenceNamespace.Deconstruct(out string! Name, out int TypeCount, out System.Collections.Generic.IReadOnlyList<uk.osric.asp.Sdk.ReferenceType!>! Types) -> void
+uk.osric.asp.Sdk.ReferenceNamespace.Equals(uk.osric.asp.Sdk.ReferenceNamespace? other) -> bool
+uk.osric.asp.Sdk.ReferenceNamespace.Name.get -> string!
+uk.osric.asp.Sdk.ReferenceNamespace.Name.init -> void
+uk.osric.asp.Sdk.ReferenceNamespace.ReferenceNamespace(string! Name, int TypeCount, System.Collections.Generic.IReadOnlyList<uk.osric.asp.Sdk.ReferenceType!>! Types) -> void
+uk.osric.asp.Sdk.ReferenceNamespace.TypeCount.get -> int
+uk.osric.asp.Sdk.ReferenceNamespace.TypeCount.init -> void
+uk.osric.asp.Sdk.ReferenceNamespace.Types.get -> System.Collections.Generic.IReadOnlyList<uk.osric.asp.Sdk.ReferenceType!>!
+uk.osric.asp.Sdk.ReferenceNamespace.Types.init -> void
+uk.osric.asp.Sdk.ReferenceNode
+uk.osric.asp.Sdk.ReferenceNode.Children.get -> System.Collections.Generic.IReadOnlyList<uk.osric.asp.Sdk.ReferenceNode!>?
+uk.osric.asp.Sdk.ReferenceNode.Children.init -> void
+uk.osric.asp.Sdk.ReferenceNode.<Clone>$() -> uk.osric.asp.Sdk.ReferenceNode!
+uk.osric.asp.Sdk.ReferenceNode.Deconstruct(out string! Kind, out string? Text, out string? Href, out bool Ordered, out System.Collections.Generic.IReadOnlyList<uk.osric.asp.Sdk.ReferenceNode!>? Children) -> void
+uk.osric.asp.Sdk.ReferenceNode.Equals(uk.osric.asp.Sdk.ReferenceNode? other) -> bool
+uk.osric.asp.Sdk.ReferenceNode.Href.get -> string?
+uk.osric.asp.Sdk.ReferenceNode.Href.init -> void
+uk.osric.asp.Sdk.ReferenceNode.Kind.get -> string!
+uk.osric.asp.Sdk.ReferenceNode.Kind.init -> void
+uk.osric.asp.Sdk.ReferenceNode.Ordered.get -> bool
+uk.osric.asp.Sdk.ReferenceNode.Ordered.init -> void
+uk.osric.asp.Sdk.ReferenceNode.ReferenceNode(string! Kind, string? Text = null, string? Href = null, bool Ordered = false, System.Collections.Generic.IReadOnlyList<uk.osric.asp.Sdk.ReferenceNode!>? Children = null) -> void
+uk.osric.asp.Sdk.ReferenceNode.Text.get -> string?
+uk.osric.asp.Sdk.ReferenceNode.Text.init -> void
+uk.osric.asp.Sdk.ReferenceParameter
+uk.osric.asp.Sdk.ReferenceParameter.<Clone>$() -> uk.osric.asp.Sdk.ReferenceParameter!
+uk.osric.asp.Sdk.ReferenceParameter.Deconstruct(out string! Name, out uk.osric.asp.Sdk.ReferenceDoc! Doc) -> void
+uk.osric.asp.Sdk.ReferenceParameter.Doc.get -> uk.osric.asp.Sdk.ReferenceDoc!
+uk.osric.asp.Sdk.ReferenceParameter.Doc.init -> void
+uk.osric.asp.Sdk.ReferenceParameter.Equals(uk.osric.asp.Sdk.ReferenceParameter? other) -> bool
+uk.osric.asp.Sdk.ReferenceParameter.Name.get -> string!
+uk.osric.asp.Sdk.ReferenceParameter.Name.init -> void
+uk.osric.asp.Sdk.ReferenceParameter.ReferenceParameter(string! Name, uk.osric.asp.Sdk.ReferenceDoc! Doc) -> void
+uk.osric.asp.Sdk.ReferenceToken
+uk.osric.asp.Sdk.ReferenceToken.<Clone>$() -> uk.osric.asp.Sdk.ReferenceToken!
+uk.osric.asp.Sdk.ReferenceToken.Deconstruct(out string! Kind, out string! Text, out string? Href) -> void
+uk.osric.asp.Sdk.ReferenceToken.Equals(uk.osric.asp.Sdk.ReferenceToken? other) -> bool
+uk.osric.asp.Sdk.ReferenceToken.Href.get -> string?
+uk.osric.asp.Sdk.ReferenceToken.Href.init -> void
+uk.osric.asp.Sdk.ReferenceToken.Kind.get -> string!
+uk.osric.asp.Sdk.ReferenceToken.Kind.init -> void
+uk.osric.asp.Sdk.ReferenceToken.ReferenceToken(string! Kind, string! Text, string? Href = null) -> void
+uk.osric.asp.Sdk.ReferenceToken.Text.get -> string!
+uk.osric.asp.Sdk.ReferenceToken.Text.init -> void
+uk.osric.asp.Sdk.ReferenceType
+uk.osric.asp.Sdk.ReferenceType.Anchor.get -> string!
+uk.osric.asp.Sdk.ReferenceType.Anchor.init -> void
+uk.osric.asp.Sdk.ReferenceType.<Clone>$() -> uk.osric.asp.Sdk.ReferenceType!
+uk.osric.asp.Sdk.ReferenceType.Declaration.get -> uk.osric.asp.Sdk.ReferenceDeclaration!
+uk.osric.asp.Sdk.ReferenceType.Declaration.init -> void
+uk.osric.asp.Sdk.ReferenceType.Deconstruct(out string! Id, out string! Anchor, out string! Name, out string! Display, out string! Kind, out uk.osric.asp.Sdk.ReferenceDeclaration! Declaration, out uk.osric.asp.Sdk.ReferenceDoc! Summary, out uk.osric.asp.Sdk.ReferenceDoc! Remarks, out System.Collections.Generic.IReadOnlyList<uk.osric.asp.Sdk.ReferenceParameter!>! TypeParameters, out uk.osric.asp.Sdk.ReferenceInherited? Inherited, out System.Collections.Generic.IReadOnlyList<uk.osric.asp.Sdk.ReferenceMember!>! Members) -> void
+uk.osric.asp.Sdk.ReferenceType.Display.get -> string!
+uk.osric.asp.Sdk.ReferenceType.Display.init -> void
+uk.osric.asp.Sdk.ReferenceType.Equals(uk.osric.asp.Sdk.ReferenceType? other) -> bool
+uk.osric.asp.Sdk.ReferenceType.Id.get -> string!
+uk.osric.asp.Sdk.ReferenceType.Id.init -> void
+uk.osric.asp.Sdk.ReferenceType.Inherited.get -> uk.osric.asp.Sdk.ReferenceInherited?
+uk.osric.asp.Sdk.ReferenceType.Inherited.init -> void
+uk.osric.asp.Sdk.ReferenceType.Kind.get -> string!
+uk.osric.asp.Sdk.ReferenceType.Kind.init -> void
+uk.osric.asp.Sdk.ReferenceType.Members.get -> System.Collections.Generic.IReadOnlyList<uk.osric.asp.Sdk.ReferenceMember!>!
+uk.osric.asp.Sdk.ReferenceType.Members.init -> void
+uk.osric.asp.Sdk.ReferenceType.Name.get -> string!
+uk.osric.asp.Sdk.ReferenceType.Name.init -> void
+uk.osric.asp.Sdk.ReferenceType.ReferenceType(string! Id, string! Anchor, string! Name, string! Display, string! Kind, uk.osric.asp.Sdk.ReferenceDeclaration! Declaration, uk.osric.asp.Sdk.ReferenceDoc! Summary, uk.osric.asp.Sdk.ReferenceDoc! Remarks, System.Collections.Generic.IReadOnlyList<uk.osric.asp.Sdk.ReferenceParameter!>! TypeParameters, uk.osric.asp.Sdk.ReferenceInherited? Inherited, System.Collections.Generic.IReadOnlyList<uk.osric.asp.Sdk.ReferenceMember!>! Members) -> void
+uk.osric.asp.Sdk.ReferenceType.Remarks.get -> uk.osric.asp.Sdk.ReferenceDoc!
+uk.osric.asp.Sdk.ReferenceType.Remarks.init -> void
+uk.osric.asp.Sdk.ReferenceType.Summary.get -> uk.osric.asp.Sdk.ReferenceDoc!
+uk.osric.asp.Sdk.ReferenceType.Summary.init -> void
+uk.osric.asp.Sdk.ReferenceType.TypeParameters.get -> System.Collections.Generic.IReadOnlyList<uk.osric.asp.Sdk.ReferenceParameter!>!
+uk.osric.asp.Sdk.ReferenceType.TypeParameters.init -> void
+uk.osric.asp.Sdk.SiteAllowance
+uk.osric.asp.Sdk.SiteAllowance.Available.get -> int
+uk.osric.asp.Sdk.SiteAllowance.Available.init -> void
+uk.osric.asp.Sdk.SiteAllowance.Capacity.get -> int
+uk.osric.asp.Sdk.SiteAllowance.Capacity.init -> void
+uk.osric.asp.Sdk.SiteAllowance.<Clone>$() -> uk.osric.asp.Sdk.SiteAllowance!
+uk.osric.asp.Sdk.SiteAllowance.Deconstruct(out int Capacity, out int Available, out double PerSecond, out string! Key) -> void
+uk.osric.asp.Sdk.SiteAllowance.Equals(uk.osric.asp.Sdk.SiteAllowance? other) -> bool
+uk.osric.asp.Sdk.SiteAllowance.Key.get -> string!
+uk.osric.asp.Sdk.SiteAllowance.Key.init -> void
+uk.osric.asp.Sdk.SiteAllowance.PerSecond.get -> double
+uk.osric.asp.Sdk.SiteAllowance.PerSecond.init -> void
+uk.osric.asp.Sdk.SiteAllowance.SiteAllowance(int Capacity, int Available, double PerSecond, string! Key) -> void
+uk.osric.asp.Sdk.SiteBounds
+uk.osric.asp.Sdk.SiteBounds.Body.get -> uk.osric.asp.Sdk.SiteCounter?
+uk.osric.asp.Sdk.SiteBounds.Body.init -> void
+uk.osric.asp.Sdk.SiteBounds.<Clone>$() -> uk.osric.asp.Sdk.SiteBounds!
+uk.osric.asp.Sdk.SiteBounds.Deconstruct(out uk.osric.asp.Sdk.SiteAllowance! Fetches, out uk.osric.asp.Sdk.SiteAllowance! Template, out uk.osric.asp.Sdk.SiteCounter? Body, out uk.osric.asp.Sdk.SiteCounter? Embeds, out uk.osric.asp.Sdk.SiteTime! Time) -> void
+uk.osric.asp.Sdk.SiteBounds.Embeds.get -> uk.osric.asp.Sdk.SiteCounter?
+uk.osric.asp.Sdk.SiteBounds.Embeds.init -> void
+uk.osric.asp.Sdk.SiteBounds.Equals(uk.osric.asp.Sdk.SiteBounds? other) -> bool
+uk.osric.asp.Sdk.SiteBounds.Fetches.get -> uk.osric.asp.Sdk.SiteAllowance!
+uk.osric.asp.Sdk.SiteBounds.Fetches.init -> void
+uk.osric.asp.Sdk.SiteBounds.SiteBounds(uk.osric.asp.Sdk.SiteAllowance! Fetches, uk.osric.asp.Sdk.SiteAllowance! Template, uk.osric.asp.Sdk.SiteCounter? Body, uk.osric.asp.Sdk.SiteCounter? Embeds, uk.osric.asp.Sdk.SiteTime! Time) -> void
+uk.osric.asp.Sdk.SiteBounds.Template.get -> uk.osric.asp.Sdk.SiteAllowance!
+uk.osric.asp.Sdk.SiteBounds.Template.init -> void
+uk.osric.asp.Sdk.SiteBounds.Time.get -> uk.osric.asp.Sdk.SiteTime!
+uk.osric.asp.Sdk.SiteBounds.Time.init -> void
+uk.osric.asp.Sdk.SiteCommit
+uk.osric.asp.Sdk.SiteCommit.<Clone>$() -> uk.osric.asp.Sdk.SiteCommit!
+uk.osric.asp.Sdk.SiteCommit.Deconstruct(out string? Hash, out string! Subject) -> void
+uk.osric.asp.Sdk.SiteCommit.Equals(uk.osric.asp.Sdk.SiteCommit? other) -> bool
+uk.osric.asp.Sdk.SiteCommit.Hash.get -> string?
+uk.osric.asp.Sdk.SiteCommit.Hash.init -> void
+uk.osric.asp.Sdk.SiteCommit.SiteCommit(string? Hash, string! Subject) -> void
+uk.osric.asp.Sdk.SiteCommit.Subject.get -> string!
+uk.osric.asp.Sdk.SiteCommit.Subject.init -> void
+uk.osric.asp.Sdk.SiteCounter
+uk.osric.asp.Sdk.SiteCounter.Capacity.get -> int
+uk.osric.asp.Sdk.SiteCounter.Capacity.init -> void
+uk.osric.asp.Sdk.SiteCounter.<Clone>$() -> uk.osric.asp.Sdk.SiteCounter!
+uk.osric.asp.Sdk.SiteCounter.Deconstruct(out int Capacity, out int Remaining, out string! Key) -> void
+uk.osric.asp.Sdk.SiteCounter.Equals(uk.osric.asp.Sdk.SiteCounter? other) -> bool
+uk.osric.asp.Sdk.SiteCounter.Key.get -> string!
+uk.osric.asp.Sdk.SiteCounter.Key.init -> void
+uk.osric.asp.Sdk.SiteCounter.Remaining.get -> int
+uk.osric.asp.Sdk.SiteCounter.Remaining.init -> void
+uk.osric.asp.Sdk.SiteCounter.SiteCounter(int Capacity, int Remaining, string! Key) -> void
+uk.osric.asp.Sdk.SiteDocument
+uk.osric.asp.Sdk.SiteDocument.<Clone>$() -> uk.osric.asp.Sdk.SiteDocument!
+uk.osric.asp.Sdk.SiteDocument.Deconstruct(out uk.osric.asp.Sdk.SiteDocumentKind Kind, out string! Name, out uk.osric.asp.Sdk.SiteDocumentFormat Format, out string! Text) -> void
+uk.osric.asp.Sdk.SiteDocument.Equals(uk.osric.asp.Sdk.SiteDocument? other) -> bool
+uk.osric.asp.Sdk.SiteDocumentFormat
+uk.osric.asp.Sdk.SiteDocument.Format.get -> uk.osric.asp.Sdk.SiteDocumentFormat
+uk.osric.asp.Sdk.SiteDocument.Format.init -> void
+uk.osric.asp.Sdk.SiteDocumentFormat.Markdown = 1 -> uk.osric.asp.Sdk.SiteDocumentFormat
+uk.osric.asp.Sdk.SiteDocumentFormat.Text = 0 -> uk.osric.asp.Sdk.SiteDocumentFormat
+uk.osric.asp.Sdk.SiteDocumentKind
+uk.osric.asp.Sdk.SiteDocument.Kind.get -> uk.osric.asp.Sdk.SiteDocumentKind
+uk.osric.asp.Sdk.SiteDocument.Kind.init -> void
+uk.osric.asp.Sdk.SiteDocumentKind.LicenceText = 2 -> uk.osric.asp.Sdk.SiteDocumentKind
+uk.osric.asp.Sdk.SiteDocumentKind.ReuseAnnotation = 3 -> uk.osric.asp.Sdk.SiteDocumentKind
+uk.osric.asp.Sdk.SiteDocumentKind.SiteLicence = 0 -> uk.osric.asp.Sdk.SiteDocumentKind
+uk.osric.asp.Sdk.SiteDocumentKind.ThirdPartyNotices = 1 -> uk.osric.asp.Sdk.SiteDocumentKind
+uk.osric.asp.Sdk.SiteDocument.Name.get -> string!
+uk.osric.asp.Sdk.SiteDocument.Name.init -> void
+uk.osric.asp.Sdk.SiteDocument.SiteDocument(uk.osric.asp.Sdk.SiteDocumentKind Kind, string! Name, uk.osric.asp.Sdk.SiteDocumentFormat Format, string! Text) -> void
+uk.osric.asp.Sdk.SiteDocument.Text.get -> string!
+uk.osric.asp.Sdk.SiteDocument.Text.init -> void
+uk.osric.asp.Sdk.SiteTime
+uk.osric.asp.Sdk.SiteTime.<Clone>$() -> uk.osric.asp.Sdk.SiteTime!
+uk.osric.asp.Sdk.SiteTime.Deconstruct(out System.TimeSpan Total, out System.TimeSpan Remaining, out string! Key) -> void
+uk.osric.asp.Sdk.SiteTime.Equals(uk.osric.asp.Sdk.SiteTime? other) -> bool
+uk.osric.asp.Sdk.SiteTime.Key.get -> string!
+uk.osric.asp.Sdk.SiteTime.Key.init -> void
+uk.osric.asp.Sdk.SiteTime.Remaining.get -> System.TimeSpan
+uk.osric.asp.Sdk.SiteTime.Remaining.init -> void
+uk.osric.asp.Sdk.SiteTime.SiteTime(System.TimeSpan Total, System.TimeSpan Remaining, string! Key) -> void
+uk.osric.asp.Sdk.SiteTime.Total.get -> System.TimeSpan
+uk.osric.asp.Sdk.SiteTime.Total.init -> void

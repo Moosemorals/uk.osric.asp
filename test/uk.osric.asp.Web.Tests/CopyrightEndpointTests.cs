@@ -4,6 +4,7 @@
 namespace uk.osric.asp.Web.Tests;
 
 using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.Logging.Abstractions;
 using uk.osric.asp.Runtime;
 using uk.osric.asp.Web.Admin;
 
@@ -68,7 +69,7 @@ public sealed class CopyrightEndpointTests {
         DefaultHttpContext context = TestHttp.CreateContext(null, "GET", "/admin/copyright");
 
         await CopyrightEndpoint.HandleAsync(
-            context, new LicenceLibrary(_folder), new MarkdownRenderer(), CancellationToken.None);
+            context, new LicenceLibrary(_folder, NullLogger<LicenceLibrary>.Instance), new MarkdownRenderer(), CancellationToken.None);
 
         Assert.That(context.Response.StatusCode, Is.EqualTo(StatusCodes.Status200OK));
     }
@@ -77,7 +78,7 @@ public sealed class CopyrightEndpointTests {
         DefaultHttpContext context = TestHttp.CreateContext(null, "GET", "/admin/copyright");
 
         await CopyrightEndpoint.HandleAsync(
-            context, new LicenceLibrary(_folder), new MarkdownRenderer(), CancellationToken.None);
+            context, new LicenceLibrary(_folder, NullLogger<LicenceLibrary>.Instance), new MarkdownRenderer(), CancellationToken.None);
 
         return await TestHttp.ReadBodyAsync(context);
     }

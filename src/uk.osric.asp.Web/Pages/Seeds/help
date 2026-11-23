@@ -1,8 +1,9 @@
 <% ctx.Capabilities.GetRequired<IPageLayout>().Title = "Help";
-   ctx.Capabilities.GetRequired<IPageComposition>().Wrap(); %>
+   ctx.Capabilities.GetRequired<IPageComposition>().Wrap();
+   ISiteInfo site = ctx.Capabilities.GetRequired<ISiteInfo>(); %>
 <h1>Help</h1>
 <p>This is the author manual. It is itself a stored page, so logged in users
-can improve it at <a href="<%= ctx.EditorPath %>?edit=<%= System.Uri.EscapeDataString(ctx.Path) %>"><%= ctx.EditorPath %>?edit=<%= ctx.Path %></a>.</p>
+can improve it at <a href="<%= site.EditorPath %>?edit=<%= System.Uri.EscapeDataString(ctx.Path) %>"><%= site.EditorPath %>?edit=<%= ctx.Path %></a>.</p>
 
 <nav aria-label="Help contents">
     <h2>Contents</h2>
@@ -16,6 +17,7 @@ can improve it at <a href="<%= ctx.EditorPath %>?edit=<%= System.Uri.EscapeDataS
         <li><a href="#syntax">Template syntax</a></li>
         <li><a href="#api">What a page may use</a></li>
         <li><a href="#context">Context and capabilities</a></li>
+        <li><a href="#site-facts">The site's own facts</a></li>
         <li><a href="#catalog">Reading the page store</a></li>
         <li><a href="#checking">Checking without saving</a></li>
         <li><a href="#writing">Saving the page you are</a></li>
@@ -30,9 +32,9 @@ can improve it at <a href="<%= ctx.EditorPath %>?edit=<%= System.Uri.EscapeDataS
 </nav>
 
 <h2 id="editor">The editor</h2>
-<p>The editor is <a href="<%= ctx.EditorPath %>"><%= ctx.EditorPath %></a>. The page list has a form to create or open a page by
+<p>The editor is <a href="<%= site.EditorPath %>"><%= site.EditorPath %></a>. The page list has a form to create or open a page by
 its path, and every live and deleted page has its own editor at
-<code><%= ctx.EditorPath %>?edit=&lt;path&gt;</code>. History, the diff and the four confirmations are the same
+<code><%= site.EditorPath %>?edit=&lt;path&gt;</code>. History, the diff and the four confirmations are the same
 page, so a bookmark is a query value rather than a route:
 <code>?page=&lt;path&gt;</code> shows the source and history, <code>?edit=&lt;path&gt;&amp;cmd=move</code>
 confirms a move, <code>?edit=&lt;path&gt;&amp;cmd=delete</code> confirms a delete,
@@ -536,10 +538,12 @@ response, and nothing else:</p>
     <li><a href="/admin/reference/sdk#m-IContext.Path"><code>ctx.Path</code></a> is the page's canonical key; <a href="/admin/reference/sdk#m-IContext.User"><code>ctx.User</code></a> is the signed-in
     <a href="/admin/reference/sdk#t-PageUser"><code>PageUser</code></a> or <code>null</code>; <a href="/admin/reference/sdk#m-IContext.Aborted"><code>ctx.Aborted</code></a> is cancelled when the
     visitor abandons the request.</li>
-    <li><a href="/admin/reference/sdk#m-IContext.EditorPath"><code>ctx.EditorPath</code></a> is the editor page's key, which the owner can move
-    (<code>Pages:Editor:Key</code>). Link to the editor with <code>ctx.EditorPath</code> rather than
-    naming it, and <code>ctx.EditorPath + "?edit=" + System.Uri.EscapeDataString(ctx.Path)</code> is
-    the URL that opens <em>this</em> page in it.</li>
+    <li><a href="/admin/reference/sdk#m-ISiteInfo.EditorPath"><code>site.EditorPath</code></a> &mdash; where
+    <code>site</code> is <code>ctx.Capabilities.GetRequired&lt;ISiteInfo&gt;()</code> &mdash; is the editor
+    page's key, which the owner can move (<code>Pages:Editor:Key</code>). Link to the editor with it
+    rather than naming it, and <code>site.EditorPath + "?edit=" + System.Uri.EscapeDataString(ctx.Path)</code>
+    is the URL that opens <em>this</em> page in it. <code>ctx.EditorPath</code> said the same and still
+    compiles for one release, with a <code>PAGE013</code> warning.</li>
     <li><a href="/admin/reference/sdk#m-IContext.Log-string"><code>ctx.Log</code></a>, <a href="/admin/reference/sdk#m-IContext.LogWarning-string"><code>ctx.LogWarning</code></a> and <a href="/admin/reference/sdk#m-IContext.LogError-string"><code>ctx.LogError</code></a> write to the
     page log, tagged with this page's key.</li>
     <li><a href="/admin/reference/sdk#m-IContext.SetStatus-int"><code>ctx.Response.SetStatus</code></a>, <a href="/admin/reference/sdk#m-IContext.SetContentType-string"><code>ctx.Response.SetContentType</code></a>, <a href="/admin/reference/sdk#m-IContext.SetHeader-string-string"><code>ctx.Response.SetHeader</code></a>,
@@ -557,11 +561,53 @@ response, and nothing else:</p>
 interface. The host decides what is offered.</p>
 <p>A capability is not a feature the product has, nor an extension someone else adds: it is what this
 one render offers this page, and the next render may offer something else.</p>
-<p><a href="/admin/reference/sdk#t-IBuildInfo"><code>IBuildInfo</code></a> says which build is answering. <a href="/admin/reference/sdk#m-IBuildInfo.Commit"><code>Commit</code></a> is the full git commit
-hash, or <code>null</code> when the build did not come from a checkout:</p>
-<pre class="source" tabindex="0"><code>&lt;% if (ctx.Capabilities.GetRequired&lt;IBuildInfo&gt;().Commit is { } commit) { %&gt;
-&lt;a href="https://github.com/Moosemorals/uk.osric.asp/commit/&lt;%= commit %&gt;"&gt;&lt;%= commit %&gt;&lt;/a&gt;
+<p><a href="/admin/reference/sdk#t-ISiteInfo"><code>ISiteInfo</code></a> is the site's own facts, and
+every render offers it. <a href="/admin/reference/sdk#m-ISiteInfo.DeployCommit"><code>DeployCommit</code></a>
+is the full git commit this build was made from, or <code>null</code> when the build did not come from a
+checkout. It is not the changelist's newest entry. <code>IBuildInfo.Commit</code> said the same and still
+compiles for one release, with a <code>PAGE013</code> warning.</p>
+<pre class="source" tabindex="0"><code>&lt;% ISiteInfo site = ctx.Capabilities.GetRequired&lt;ISiteInfo&gt;();
+   if (site.DeployCommit is { } commit) { %&gt;
+&lt;a href="&lt;%= site.RepositoryUrl %&gt;/commit/&lt;%= commit %&gt;"&gt;&lt;%= commit %&gt;&lt;/a&gt;
 &lt;% } %&gt;</code></pre>
+<h3 id="site-facts">The site's own facts</h3>
+<p>The rest of <code>ISiteInfo</code> is the site talking about itself. It is a fact sheet, not a
+settings reader: there is no way to look up a key, a credential or a connection string.</p>
+<ul>
+    <li><a href="/admin/reference/sdk#m-ISiteInfo.Origin"><code>site.Origin</code></a> is the origin the
+    site is reached at (<code>Site:Origin</code>). Join a path with
+    <code>new System.Uri(site.Origin, "/path")</code>.</li>
+    <li><a href="/admin/reference/sdk#m-ISiteInfo.Name"><code>site.Name</code></a>,
+    <a href="/admin/reference/sdk#m-ISiteInfo.Contact"><code>site.Contact</code></a> and
+    <a href="/admin/reference/sdk#m-ISiteInfo.RepositoryUrl"><code>site.RepositoryUrl</code></a> are the
+    site's identity: its hostname, the owner's address, and where the source lives.</li>
+    <li><a href="/admin/reference/sdk#m-ISiteInfo.Documents"><code>site.Documents</code></a> is the
+    copyright and licence files the image carries &mdash; the site's licence, the third-party notices,
+    the <code>LICENSES</code> texts and <code>REUSE.toml</code> &mdash; in that order. Each
+    <a href="/admin/reference/sdk#t-SiteDocument"><code>SiteDocument</code></a> says its
+    <code>Kind</code>, its <code>Name</code>, whether its <code>Format</code> is text or Markdown, and
+    its <code>Text</code>; how to present it is yours.</li>
+    <li><a href="/admin/reference/sdk#m-ISiteInfo.Commits"><code>site.Commits</code></a> is the
+    changelist, newest first, each a
+    <a href="/admin/reference/sdk#t-SiteCommit"><code>SiteCommit</code></a> with a full <code>Hash</code>
+    (or <code>null</code> for a line that is not a commit) and a <code>Subject</code>. It is empty when
+    the build carries no changelist.</li>
+    <li><a href="/admin/reference/sdk#m-ISiteInfo.Reference"><code>site.Reference</code></a> is the
+    documentation corpus this build carries, one
+    <a href="/admin/reference/sdk#t-ReferenceCorpus"><code>ReferenceCorpus</code></a> per product
+    assembly, so a page can render a reference without the shell's routes.</li>
+    <li><a href="/admin/reference/sdk#m-ISiteInfo.Bounds"><code>site.Bounds</code></a> is what
+    <em>this</em> render has left: <code>Fetches</code> and <code>Template</code> are rates with a
+    burst (<code>Capacity</code>, <code>Available</code>, <code>PerSecond</code>, <code>Key</code>),
+    <code>Body</code> and <code>Embeds</code> are bounded counts (<code>Capacity</code>,
+    <code>Remaining</code>, <code>Key</code>), and <code>Time</code> is the render's clock
+    (<code>Total</code>, <code>Remaining</code>, <code>Key</code>). It is a snapshot: read it again
+    after a fan-out and it has moved. Every figure comes from the object that would refuse the next
+    attempt, so it cannot disagree with the refusal. A job is offered the same facts, with
+    <code>Body</code> and <code>Embeds</code> <code>null</code>.</li>
+</ul>
+<p>The documents, the changelist and the corpus are read once and held, and the host reads them at
+startup, so the first page that asks normally finds them ready.</p>
 <p><a href="/admin/reference/sdk#t-IPageStores"><code>ctx.Stores</code></a> is the page's data. It is not a capability: every layer of a render is
 offered it, and a write is refused during a <code>HEAD</code> rather than the store being absent.
 <a href="/admin/reference/sdk#t-IPageSubject"><code>Stores.Page</code></a> is this page, shared by every visitor;
@@ -731,7 +777,7 @@ does:</p>
 <p>The trade is worth stating plainly: a page that calls <code>ReadAsync</code> or
 <code>ReadRevisionAsync</code> publishes the source it reads to whoever can reach that page, including
 a template whose own guard hides its output, and including the history of a deleted page until it is
-scrubbed. The seeded <a href="<%= ctx.EditorPath %>"><%= ctx.EditorPath %></a> is a guarded listing, source view and
+scrubbed. The seeded <a href="<%= site.EditorPath %>"><%= site.EditorPath %></a> is a guarded listing, source view and
 history: the same capability with that one line at the top of its source.</p>
 <p>The read is bounded. One listing returns at most the configured row limit (500 as shipped) and
 refuses rather than truncating. Source reads are a rate: <code>Pages:Read:SourceCharsPerSecond</code>
@@ -814,7 +860,7 @@ not answer; the editor is the first customer of the capability and the owner of 
 is the same capability with the credential that started the job, which is why it can be refused with
 <em>Revoked</em> where a page never is.
 <code>Pages:Editor:Key</code> says only where the editor is served, which is the key
-<code>ctx.EditorPath</code> gives you — link to it to offer "edit this page". Reserved keys are refused,
+<code>site.EditorPath</code> gives you — link to it to offer "edit this page". Reserved keys are refused,
 so a shell file is never written. The editor's own page is ordinary too: any page may save it or delete
 it, and <a href="/admin/seeds">/admin/seeds</a> puts the seeded editor back if it is deleted or
 broken.</p>
@@ -897,7 +943,7 @@ revision as a new one, <code>MoveAsync</code> moves a page with its history and 
 <code>InstallSeedAsync</code> stores the source a release ships,
 <code>AdoptSeedAsync</code> records a page as already holding it, and <code>SeedSourceAsync</code>
 reads a seed so a confirmation can show the diff. The seeded
-<a href="<%= ctx.EditorPath %>"><%= ctx.EditorPath %></a> is the worked example of those.</p>
+<a href="<%= site.EditorPath %>"><%= site.EditorPath %></a> is the worked example of those.</p>
 
 <h2 id="markdown">Markdown</h2>
 <p><a href="/admin/reference/sdk#t-IMarkdownRenderer"><code>IMarkdownRenderer</code></a> renders Markdown to HTML. Write its result raw:</p>
@@ -1196,7 +1242,7 @@ asset held a secret, rotate the secret and clean the external copies separately.
 
 <h2 id="keeping-current">Keeping this page current</h2>
 <p>This page is the seeded page <code>/help</code>. Its source is
-<code>src/uk.osric.asp.Web/Pages/Seeds/help</code>; use <a href="<%= ctx.EditorPath %>?edit=<%= System.Uri.EscapeDataString(ctx.Path) %>"><%= ctx.EditorPath %>?edit=<%= ctx.Path %></a> to change
+<code>src/uk.osric.asp.Web/Pages/Seeds/help</code>; use <a href="<%= site.EditorPath %>?edit=<%= System.Uri.EscapeDataString(ctx.Path) %>"><%= site.EditorPath %>?edit=<%= ctx.Path %></a> to change
 it.</p>
 <p>A change that adds or alters what a page author can do should update this page in the same change:
 a new <a href="/admin/reference/sdk#t-IContext"><code>IContext</code></a> member, capability, layout slot, editor action, content type or response

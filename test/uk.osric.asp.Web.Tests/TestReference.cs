@@ -4,6 +4,7 @@
 namespace uk.osric.asp.Web.Tests;
 
 using Microsoft.Extensions.Logging.Abstractions;
+using uk.osric.asp.Sdk;
 using uk.osric.asp.Web.Documentation;
 
 /// <summary>The real documentation corpus, read once for every fixture that asserts against it.</summary>

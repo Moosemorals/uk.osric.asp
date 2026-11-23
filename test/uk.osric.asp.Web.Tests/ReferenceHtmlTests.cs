@@ -4,6 +4,8 @@
 namespace uk.osric.asp.Web.Tests;
 
 using Microsoft.Extensions.Logging.Abstractions;
+using ReferenceCorpus;
+using uk.osric.asp.Sdk;
 using uk.osric.asp.Web.Documentation;
 
 /// <summary>The C# renderer's rewrite of the corpus the build emits.</summary>
@@ -99,7 +101,7 @@ public sealed class ReferenceHtmlTests {
                 "/admin/reference/test#m-Base.Value",
                 Unknown: false),
             exceptions: [
-                new ReferenceException(
+                new ReferenceExceptionDoc(
                     "InvalidOperationException",
                     "https://learn.microsoft.com/en-us/dotnet/api/system.invalidoperationexception",
                     new ReferenceDoc("When the value is wrong.", [new ReferenceNode("text", Text: "When the value is wrong.")])),
@@ -151,7 +153,7 @@ public sealed class ReferenceHtmlTests {
     private static ReferenceMember Member(
         ReferenceDoc summary,
         ReferenceInherited? inherited = null,
-        IReadOnlyList<ReferenceException>? exceptions = null) =>
+        IReadOnlyList<ReferenceExceptionDoc>? exceptions = null) =>
         new(
             "P:Test.Type.Value",
             "m-Type.Value",

@@ -7,7 +7,7 @@ SPDX-License-Identifier: MIT
 
 | | |
 | --- | --- |
-| Status | Proposed 2026-11-23 — the owner settled the shape on 2026-11-22 in [`the-site-is-one-type`](../backlog/the-site-is-one-type.md#open-questions); nothing below is built, and it waits for a yes |
+| Status | Agreed 2026-11-23 — the owner said yes and the work below is built; it waits for the merge, which writes the decisions |
 | Size | Large — one new contract type with six value records, the reference model moved into the contract, two doors made obsolete, five figures read from the objects that enforce them, the seeds, the assistant's prompt and three routes |
 | Area | Sdk, Web (pages, admin, documentation, work), tools, docs |
 | Spike | None. Every claim was read off trunk on 2026-11-23: `SiteOptions`, `BuildInfo`, `EditorPaths`, `LicenceLibrary`, `ChangesEndpoint`, `ReferenceLibrary`, `FetchBudget`, `ReadBudget`, `BodyBudget`, `RenderLifetime`, `JobLifetime`, `PageChain` and `PageJobRunner`; the linked corpus files in [tools/reference-corpus](../../tools/reference-corpus/reference-corpus.csproj) were read the same day |
@@ -242,7 +242,7 @@ A page whose only fault is an obsolete door compiles and renders: an obsolete wa
 | `src/uk.osric.asp.Sdk/SiteDocument.cs` | New: `SiteDocument`, `SiteDocumentKind`, `SiteDocumentFormat` |
 | `src/uk.osric.asp.Sdk/SiteCommit.cs` | New: the parsed changelist line |
 | `src/uk.osric.asp.Sdk/SiteBounds.cs` | New: `SiteBounds`, `SiteAllowance`, `SiteCounter`, `SiteTime` |
-| `src/uk.osric.asp.Sdk/ReferenceModel.cs` | Moved from `Web/Documentation`; namespace becomes `uk.osric.asp.Sdk`; every record becomes public |
+| `src/uk.osric.asp.Sdk/ReferenceModel.cs` | Moved from `Web/Documentation`; namespace becomes `uk.osric.asp.Sdk`; every record becomes public. `ReferenceException` becomes `ReferenceExceptionDoc`, because CA1711 refuses a public type whose name ends in `Exception`; the JSON shape is the property names and does not change |
 | `src/uk.osric.asp.Sdk/ReferenceAssemblyInfo.cs` | Moved from `Web/Documentation` and public, so the generator can use it without a link |
 | `src/uk.osric.asp.Sdk/IBuildInfo.cs` | Obsolete, pointing at `ISiteInfo.DeployCommit` |
 | `src/uk.osric.asp.Sdk/IContext.cs` | `EditorPath` obsolete, pointing at the capability |
@@ -274,6 +274,7 @@ A page whose only fault is an obsolete door compiles and renders: an obsolete wa
 | `src/uk.osric.asp.Web/Assistant/PageAuthorPrompt.cs` | Name `ISiteInfo` instead of `IBuildInfo` and `ctx.EditorPath`; add the facts and the bounds rule |
 | `tools/reference-corpus/reference-corpus.csproj` | A `ProjectReference` to `Sdk` replaces the two linked `Compile` items |
 | `tools/reference-corpus/**/*.cs` | `using uk.osric.asp.Web.Documentation` becomes `using uk.osric.asp.Sdk`; the three `Corpus` files that borrowed `Web`'s namespace move to the tool's own |
+| `tools/reference-corpus/SymbolCorpus.cs` | A second copy of the target assembly — the tool's own output carries one because it references `Sdk` — gave Roslyn two references of one identity, and the target read no symbols at all. A candidate whose file name is the target's is skipped, which also fixes `core`, which had read no symbols since the tool referenced it |
 | `docs/pages.md`, `docs/shell.md`, `docs/architecture.md` | Below |
 | `docs/plans/README.md`, `docs/README.md`, `docs/backlog/the-site-is-one-type.md` | This plan, the item's plan and the order row |
 | `docs/decisions.md` | Written by the merge, not here |

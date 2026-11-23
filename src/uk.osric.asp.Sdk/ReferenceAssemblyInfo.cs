@@ -1,14 +1,14 @@
 // SPDX-FileCopyrightText: Copyright 2026 Osric Wilkinson <osric@fluffypeople.com>
 // SPDX-License-Identifier: MIT
 
-namespace uk.osric.asp.Web.Documentation;
+namespace uk.osric.asp.Sdk;
 
 /// <summary>One product assembly whose documentation this build carries.</summary>
 /// <param name="Slug">The URL segment that names it under <c>/admin/reference</c>.</param>
 /// <param name="AssemblyName">The assembly, which is also the XML file's name and its root namespace.</param>
 /// <param name="Title">The heading a reader sees.</param>
 /// <param name="Description">One line: what the assembly is for.</param>
-internal sealed record ReferenceAssemblyInfo(string Slug, string AssemblyName, string Title, string Description) {
+public sealed record ReferenceAssemblyInfo(string Slug, string AssemblyName, string Title, string Description) {
 
     /// <summary>The four assemblies, in reading order: the contract first, then the host's layers.</summary>
     public static IReadOnlyList<ReferenceAssemblyInfo> All { get; } = [

@@ -412,12 +412,14 @@ public sealed class PageAuthorPromptTests {
     }
 
     [Test]
-    public void ThePromptNamesTheBuildCapability() {
+    public void ThePromptNamesTheSiteFactsCapability() {
         string prompt = PageAuthorPrompt.Build();
 
         Assert.Multiple(() => {
-            Assert.That(prompt, Does.Contain("ctx.Capabilities.GetRequired<IBuildInfo>()"));
+            Assert.That(prompt, Does.Contain("ctx.Capabilities.GetRequired<ISiteInfo>()"));
+            Assert.That(prompt, Does.Contain("DeployCommit"));
             Assert.That(prompt, Does.Contain("full git commit hash"));
+            Assert.That(prompt, Does.Contain("Bounds"));
         });
     }
 

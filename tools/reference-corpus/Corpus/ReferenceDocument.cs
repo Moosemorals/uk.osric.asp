@@ -1,9 +1,10 @@
 // SPDX-FileCopyrightText: Copyright 2026 Osric Wilkinson <osric@fluffypeople.com>
 // SPDX-License-Identifier: MIT
 
-namespace uk.osric.asp.Web.Documentation;
+namespace ReferenceCorpus;
 
 using System.Xml.Linq;
+using uk.osric.asp.Sdk;
 
 /// <summary>One type or member as the corpus addresses it.</summary>
 /// <param name="Id">The raw documentation id.</param>

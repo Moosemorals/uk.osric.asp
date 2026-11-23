@@ -135,7 +135,10 @@ internal sealed class PageRenderer(
         metrics.RecordWait(Stopwatch.GetElapsedTime(queueStart));
 
 #pragma warning disable CA2000 // RenderSession owns and asynchronously disposes the lifetime.
-        return new RenderSession(this, new RenderLifetime(budget, path, metrics, deadline), cancellationToken);
+        return new RenderSession(
+            this,
+            new RenderLifetime(budget, path, metrics, deadline, budget.RenderOptions.Timeout, start),
+            cancellationToken);
 #pragma warning restore CA2000
     }
 
@@ -507,6 +510,12 @@ internal sealed class PageRenderer(
 
         /// <summary>Whether this request has committed its response and is holding a stream slot.</summary>
         internal bool IsStreaming => _lifetime?.IsStreaming ?? false;
+
+        /// <summary>The render's whole budget, or zero when the session never took a slot.</summary>
+        internal TimeSpan Total => _lifetime?.Total ?? TimeSpan.Zero;
+
+        /// <summary>What is left of the render's budget, or zero when it never took a slot.</summary>
+        internal TimeSpan Remaining => _lifetime?.Remaining ?? TimeSpan.Zero;
 
         /// <summary>How the stream ended, for the endpoint's log line.</summary>
         internal string? StreamOutcome => _lifetime?.Outcome;

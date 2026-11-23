@@ -169,7 +169,7 @@ internal static class ShellViews {
         DefaultHttpContext context = AuthenticatedContext("/admin/copyright");
         await CopyrightEndpoint.HandleAsync(
             context,
-            new LicenceLibrary(AppContext.BaseDirectory),
+            new LicenceLibrary(AppContext.BaseDirectory, NullLogger<LicenceLibrary>.Instance),
             new MarkdownRenderer(),
             CancellationToken.None);
         return await TestHttp.ReadBodyAsync(context);
@@ -254,7 +254,8 @@ internal static class ShellViews {
                 new FakePageSessionStore(),
                 TestSessions.Cookie,
                 TestSessions.BrowserCookie,
-                TimeProvider.System),
+                TimeProvider.System,
+                TestOptions.Facts),
             harness.Editor);
 
         return await TestHttp.ReadBodyAsync(context);
@@ -362,7 +363,8 @@ internal static class ShellViews {
                 new FakePageSessionStore(),
                 TestSessions.Cookie,
                 TestSessions.BrowserCookie,
-                TimeProvider.System));
+                TimeProvider.System,
+                TestOptions.Facts));
 
         return await TestHttp.ReadBodyAsync(context);
     }
@@ -443,7 +445,9 @@ internal static class ShellViews {
 
         try {
             DefaultHttpContext context = AuthenticatedContext("/admin/changes");
-            await ChangesEndpoint.HandleAsync(context, new AdminOptions { Changelist = file });
+            await ChangesEndpoint.HandleAsync(
+                context,
+                new ChangeList(new AdminOptions { Changelist = file }, NullLogger<ChangeList>.Instance));
 
             return await TestHttp.ReadBodyAsync(context);
         } finally {

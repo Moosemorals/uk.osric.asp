@@ -26,6 +26,9 @@ internal sealed record PageJobOptions {
     /// <summary>The key that sets a job's read rate, named in a refusal.</summary>
     public const string ReadRateKey = "Pages:Jobs:SourceCharsPerSecond";
 
+    /// <summary>The key that sets a job's ceiling, named in a page's bounds.</summary>
+    public const string MaxDurationKey = "Pages:Jobs:MaxDurationSeconds";
+
     /// <summary>Jobs waiting for a runner.</summary>
     public required int QueueCapacity { get; init; }
 

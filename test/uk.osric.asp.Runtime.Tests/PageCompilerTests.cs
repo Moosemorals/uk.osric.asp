@@ -200,10 +200,24 @@ public sealed class PageCompilerTests {
 
     [Test]
     public void APageThatSaysCapabilitiesCompilesWithoutWarnings() {
-        CompileResult result = Compile("<% ctx.Capabilities.Get<IBuildInfo>(); %>");
+        CompileResult result = Compile("<% ctx.Capabilities.Get<ISiteInfo>(); %>");
 
         Assert.That(result.IsSuccess, Is.True, string.Join(Environment.NewLine, result.Diagnostics));
         Assert.That(result.Diagnostics, Is.Empty, string.Join(Environment.NewLine, result.Diagnostics));
+    }
+
+    // The two doors ISiteInfo replaces are obsolete rather than gone: a page that still says one
+    // compiles while the window is open, and warns with what replaces it.
+    [TestCase("<% ctx.Capabilities.Get<IBuildInfo>(); %>", "ISiteInfo.DeployCommit")]
+    [TestCase("<% string key = ctx.EditorPath; %>", "GetRequired<ISiteInfo>().EditorPath")]
+    public void APageThatSaysAnOldSiteDoorWarnsAndStillCompiles(string template, string replacement) {
+        CompileResult result = Compile(template);
+
+        Assert.That(result.IsSuccess, Is.True, string.Join(Environment.NewLine, result.Diagnostics));
+        Assert.That(result.Diagnostics, Has.Exactly(1).Matches<PageDiagnostic>(
+            diagnostic => diagnostic is not null
+                && diagnostic.Severity == PageDiagnosticSeverity.Warning
+                && diagnostic.Message.Contains(replacement, StringComparison.Ordinal)));
     }
 
     // The two old stores are obsolete rather than gone: a page that still says them compiles while the

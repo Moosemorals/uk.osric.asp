@@ -21,10 +21,10 @@ internal enum OutboundOrigin {
 internal static class OutboundUserAgent {
 
     /// <summary>The site's hostname, which identifies the caller.</summary>
-    public const string Host = "moosemorals.com";
+    public const string Host = SiteIdentity.Name;
 
     /// <summary>The owner's address, which a remote service can use to make contact.</summary>
-    public const string Contact = "fetchmoose@fluffypeople.com";
+    public const string Contact = SiteIdentity.Contact;
 
     /// <summary>The value sent for one origin.</summary>
     /// <param name="origin">Whether page code or the assistant asked.</param>

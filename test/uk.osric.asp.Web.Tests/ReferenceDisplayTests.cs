@@ -3,6 +3,8 @@
 
 namespace uk.osric.asp.Web.Tests;
 
+using ReferenceCorpus;
+using uk.osric.asp.Sdk;
 using uk.osric.asp.Web.Documentation;
 
 /// <summary>The string rules over Roslyn's member ids.</summary>

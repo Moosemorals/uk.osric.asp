@@ -4,6 +4,7 @@
 namespace uk.osric.asp.Web.Assistant.Tools;
 
 using uk.osric.asp.Core.Assistant;
+using uk.osric.asp.Sdk;
 using uk.osric.asp.Web.Documentation;
 
 /// <summary>Reads the page contract's own documentation: one type, or a search of the corpus.</summary>

@@ -4,7 +4,9 @@
 namespace uk.osric.asp.Web.Tests;
 
 using Microsoft.Extensions.Logging.Abstractions;
+using ReferenceCorpus;
 using System.Xml.Linq;
+using uk.osric.asp.Sdk;
 using uk.osric.asp.Web.Documentation;
 
 /// <summary>The normalised document and the corpus built from it.</summary>

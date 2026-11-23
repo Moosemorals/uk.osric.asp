@@ -6,6 +6,7 @@ namespace uk.osric.asp.Web.Documentation;
 using System.Collections.Concurrent;
 using System.Text.Json;
 using uk.osric.asp.Core.Text;
+using uk.osric.asp.Sdk;
 
 /// <summary>One assembly's documentation as the site serves it.</summary>
 /// <remarks>A class rather than a record: the rendered fragments are mutable state, not part of the value.</remarks>
@@ -99,6 +100,9 @@ internal sealed class ReferenceLibrary {
 
     /// <summary>The assemblies this build carries, in reading order.</summary>
     public IReadOnlyList<ReferenceAssembly> Assemblies => _corpus.Value.Assemblies;
+
+    /// <summary>The corpora this build carries, in reading order, as a page reads them.</summary>
+    public IReadOnlyList<ReferenceCorpus> Corpora => [.. Assemblies.Select(assembly => assembly.Corpus)];
 
     /// <summary>One assembly by its URL segment, or null when this build does not carry it.</summary>
     /// <param name="slug">The segment under <c>/admin/reference</c>.</param>
@@ -265,7 +269,8 @@ internal sealed class ReferenceLibrary {
                 }
 
                 assemblies.Add(new ReferenceAssembly(info, corpus));
-            } catch (Exception exception) when (exception is IOException or JsonException or InvalidDataException) {
+            } catch (Exception exception) when (exception is IOException or UnauthorizedAccessException
+                or JsonException or InvalidDataException) {
                 _logger.LogWarning(
                     exception,
                     "Could not read the documentation for {Assembly}; the reference will leave it out",

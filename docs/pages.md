@@ -16,15 +16,16 @@ A page is a runtime, not a renderer: it reads the request and shapes the respons
 touches is a plain record in `Sdk`. `Request` carries the method, path, query, form, headers and the
 visitor's own cookies; the shell's three cookies (`a`, `f`, `s`) are filtered out, because they are
 the shell's identity and one visitor's state rather than anything a page owns. `IContext` is what a
-page reads and asks for — `Request`, `Path`, `EditorPath`, `User`, `Aborted`,
+page reads and asks for — `Request`, `Path`, `User`, `Aborted`,
 `Log`/`LogWarning`/`LogError`, `AssetUrl`, `Capabilities` and `Response`. Everything a page writes
 goes through `ctx.Response`, an `IPageResponse`: `Write`/`WriteRaw`, `FlushAsync`, `SetStatus`,
 `SetContentType`, `SetHeader`, `AllowScripts`, `Redirect`, `RedirectToLogin` and `AntiforgeryField`
 (`pages-the-response-is-one-object`). It is contract rather than a capability, because every page has
 one, and a helper can take an `IPageResponse` parameter when all it needs is the output. The old
 spelling — `ctx.Write` and the rest — still compiles for one release and reports a `PAGE009` warning.
-`EditorPath` is the editor page's key, which `Pages:Editor:Key` decides, so a page that links to the
-editor uses it rather than naming the key.
+`IContext.EditorPath` was the editor page's key and is obsolete for one release: it is one of the
+site's facts now, so a page says `ctx.Capabilities.GetRequired<ISiteInfo>().EditorPath` and an
+unedited page that still says `ctx.EditorPath` reports a `PAGE013` warning.
 
 The request is a value rather than a live ASP.NET object. `Query`, `Form` and `Headers` hold one
 value per name — a repeated name keeps its first value — and `QueryValues` and `FormValues` hold
@@ -45,13 +46,26 @@ registered or absent, never `null` (`pages-capabilities-are-one-seam`). The type
 the old `Features` spelling was removed once its release was over, so a page that still says
 `ctx.Features` no longer compiles (`pages-capabilities-are-one-seam`).
 
-Twelve capabilities are registered today — seven that do I/O or work and are bounded by the render,
+Thirteen capabilities are registered today — seven that do I/O or work and are bounded by the render,
 one that is the page's slots in its document, one that renders other pages into this one, two that are
-pure renderers, and one that is a fact about the build:
+pure renderers, one that is the site's own facts, and one obsolete adapter of the release before this
+one:
 
-- `IBuildInfo` says which build is answering: `Commit` is the full git commit hash, or `null` when
-  the build did not come from a checkout. It is a capability because the page API denies both the
-  assembly and the environment, and the seeded `/about` page links the commit.
+- `ISiteInfo` is the site's own facts, and every layer and every job is offered it. It is a closed set
+  of typed properties and never a key lookup: `Origin`, `EditorPath`, `DeployCommit` (the commit this
+  build was made from, or `null`; never the changelist's newest entry), `RepositoryUrl`, `Name` and
+  `Contact`; `Documents`, the copyright and licence files the image carries as
+  `SiteDocument(Kind, Name, Format, Text)`; `Commits`, the changelist newest first as
+  `SiteCommit(Hash, Subject)`, empty when there is none; `Reference`, the documentation corpus as
+  `ReferenceCorpus` values; and `Bounds`, a snapshot of what this render or job has left. The
+  documents, the changelist and the corpus are read once, held for the process and warmed at startup
+  on the thread pool, so the first page that asks normally finds them. `Bounds` is asked again on
+  every read, because it moves: `Fetches` and `Template` are rates with a burst (`Capacity`,
+  `Available`, `PerSecond`, `Key`), `Body` and `Embeds` are counts (`Capacity`, `Remaining`, `Key`),
+  and `Time` is the clock (`Total`, `Remaining`, `Key`); each figure comes from the object that would
+  refuse the next attempt, so it cannot disagree with a refusal, and a job has no `Body` or `Embeds`.
+- `IBuildInfo` is the obsolete adapter for the release before this one: its `Commit` is
+  `ISiteInfo.DeployCommit`, and a page that still says it reports `PAGE013` and keeps running.
 - `IPageStorage` and `IPageSession` are the two value stores of the release before this one, and
   both are obsolete adapters over [the page's data](#page-data): `IPageStorage` is
   `ctx.Stores.Page.Values` read and written under the page's own lifetime, and `IPageSession` is

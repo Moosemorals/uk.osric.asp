@@ -79,6 +79,20 @@ internal static class TestOptions {
     /// <summary>The editor's key.</summary>
     public static PageEditorOptions Editor { get; } = PageEditorOptions.FromConfiguration(Configuration);
 
+    /// <summary>The site's facts, with no files, changelist or corpus behind them.</summary>
+    /// <remarks>
+    /// A fixture that is not about a document, a commit or the corpus pays nothing for them. The
+    /// fixtures that are about one build their own <see cref="SiteFacts"/> over the source they are
+    /// testing.
+    /// </remarks>
+    public static SiteFacts Facts { get; } = new(
+        Site,
+        Editor,
+        BuildInfo.Current.Commit,
+        () => [],
+        () => [],
+        () => []);
+
     /// <summary>The layout every code page is wrapped in.</summary>
     public static PageLayoutOptions Layout { get; } = PageLayoutOptions.FromConfiguration(Configuration);
 

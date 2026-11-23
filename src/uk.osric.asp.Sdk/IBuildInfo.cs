@@ -3,12 +3,20 @@
 
 namespace uk.osric.asp.Sdk;
 
-/// <summary>The build that is answering the request.</summary>
+/// <summary>The build that is answering the request. Deprecated: use <see cref="ISiteInfo"/>.</summary>
 /// <remarks>
-/// This is a capability because a page may not read the assembly or the environment: the page API
-/// denies both. A build made outside a checkout records no commit, so <see cref="Commit"/> is
-/// <see langword="null"/> rather than a placeholder a page might mistake for a hash.
+/// <para>
+/// This was a capability of its own because a page may not read the assembly or the environment; it
+/// is one of the site's facts now, so <see cref="ISiteInfo.DeployCommit"/> answers the same value and
+/// every render offers <see cref="ISiteInfo"/>. The interface and its one member are kept for one
+/// release so an unedited page still compiles and runs.
+/// </para>
+/// <para>
+/// A build made outside a checkout records no commit, so the value is <see langword="null"/> rather
+/// than a placeholder a page might mistake for a hash.
+/// </para>
 /// </remarks>
+[Obsolete(SiteInfoDeprecation.BuildInfo, DiagnosticId = SiteInfoDeprecation.DiagnosticId)]
 public interface IBuildInfo {
 
     /// <summary>The full git commit hash, or <see langword="null"/> when the build has none.</summary>

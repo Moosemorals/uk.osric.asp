@@ -4,6 +4,7 @@
 namespace uk.osric.asp.Web.Tests;
 
 using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.Logging.Abstractions;
 using uk.osric.asp.Web.Admin;
 
 [TestFixture]
@@ -28,8 +29,8 @@ public sealed class ChangesEndpointTests {
         string body = await RenderAsync($"{first} First commit\n{second} Second commit\n");
 
         Assert.Multiple(() => {
-            Assert.That(body, Does.Contain($"href=\"{ChangesEndpoint.RepositoryUrl}/commit/{first}\""));
-            Assert.That(body, Does.Contain($"href=\"{ChangesEndpoint.RepositoryUrl}/commit/{second}\""));
+            Assert.That(body, Does.Contain($"href=\"{SiteIdentity.RepositoryUrl}/commit/{first}\""));
+            Assert.That(body, Does.Contain($"href=\"{SiteIdentity.RepositoryUrl}/commit/{second}\""));
             Assert.That(body, Does.Contain("<code>0123456</code> First commit"), "the link text is the short hash");
             Assert.That(body.IndexOf("First commit", StringComparison.Ordinal),
                 Is.LessThan(body.IndexOf("Second commit", StringComparison.Ordinal)), "newest first, as git prints it");
@@ -61,7 +62,8 @@ public sealed class ChangesEndpointTests {
     public async Task ABuildWithoutAChangelistSaysSoAsync() {
         DefaultHttpContext context = TestHttp.CreateContext(null, "GET", "/admin/changes");
 
-        await ChangesEndpoint.HandleAsync(context, Options(MissingPath()));
+        await ChangesEndpoint.HandleAsync(
+            context, new ChangeList(Options(MissingPath()), NullLogger<ChangeList>.Instance));
 
         string body = await TestHttp.ReadBodyAsync(context);
         Assert.That(body, Does.Contain("This build carries no changelist"));
@@ -69,7 +71,7 @@ public sealed class ChangesEndpointTests {
 
     [Test]
     public void ARelativeSettingIsResolvedBesideTheAssembly() {
-        string path = ChangesEndpoint.PathOf(Options("changes.txt"));
+        string path = ChangeList.PathOf(Options("changes.txt"));
 
         Assert.That(path, Is.EqualTo(Path.Combine(AppContext.BaseDirectory, "changes.txt")));
     }
@@ -80,7 +82,8 @@ public sealed class ChangesEndpointTests {
         _files.Add(file);
 
         DefaultHttpContext context = TestHttp.CreateContext(null, "GET", "/admin/changes");
-        await ChangesEndpoint.HandleAsync(context, Options(file));
+        await ChangesEndpoint.HandleAsync(
+            context, new ChangeList(Options(file), NullLogger<ChangeList>.Instance));
 
         return await TestHttp.ReadBodyAsync(context);
     }

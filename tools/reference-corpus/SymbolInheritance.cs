@@ -5,7 +5,7 @@ namespace ReferenceCorpus;
 
 using Microsoft.CodeAnalysis;
 using System.Xml.Linq;
-using uk.osric.asp.Web.Documentation;
+using uk.osric.asp.Sdk;
 
 /// <summary>Copies an <c>inheritdoc</c> entry's text down from the symbol it inherits.</summary>
 /// <remarks>

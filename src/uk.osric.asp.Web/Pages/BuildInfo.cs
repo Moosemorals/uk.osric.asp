@@ -7,7 +7,9 @@ using System.Reflection;
 using uk.osric.asp.Sdk;
 
 /// <summary>The commit this build was made from.</summary>
+#pragma warning disable PAGE013 // The adapter keeps an unedited page's IBuildInfo working for one release.
 internal sealed class BuildInfo : IBuildInfo {
+#pragma warning restore PAGE013
 
     private const string MetadataKey = "GitCommit";
 
