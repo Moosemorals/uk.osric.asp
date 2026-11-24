@@ -45,16 +45,9 @@ public sealed class MetricNamesTests : IntegrationTest {
         foreach (Panel panel in StatusCatalogue.Panels.Where(panel => panel.SourceInstruments.Count > 0)) {
             foreach (string source in panel.SourceInstruments) {
                 MetricInstrument instrument = instruments.Single(candidate => candidate.Name == source);
-                // A composed panel reads whichever family a kind exports: a histogram's observations
-                // sum, a counter's total, and a gauge's level, which has neither.
-                string expected = instrument.Kind switch {
-                    InstrumentKind.Histogram => instrument.Sum(),
-                    InstrumentKind.Counter => instrument.Total(),
-                    _ => instrument.Family(),
-                };
 
-                Assert.That(body, Does.Contain(expected),
-                    $"{panel.Id} composes {source}, whose family the exporter does not write");
+                Assert.That(body, Does.Contain(instrument.Sum()),
+                    $"{panel.Id} composes {source}, whose observations sum the exporter does not write");
             }
         }
     }

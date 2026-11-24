@@ -271,6 +271,17 @@ public sealed class PageStorageMetricsTests {
             },
         };
         listener.SetMeasurementEventCallback<long>((instrument, value, tags, state) => {
+            if (instrument.Name == "page.storage.shape.size") {
+                // One instrument carries a shape label, so a test reads the shape it asked for.
+                foreach (KeyValuePair<string, object?> tag in tags) {
+                    if (tag.Key == "shape") {
+                        values[instrument.Name + ":" + tag.Value] = value;
+                    }
+                }
+
+                return;
+            }
+
             Assert.That(tags.Length, Is.Zero);
             values[instrument.Name] = value;
         });

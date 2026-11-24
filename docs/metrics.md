@@ -31,11 +31,7 @@ the other half of the same question and live in [logging](logging.md).
 | `page.composition.recursive` | counter | — | `page.path` — pages composed inside themselves with a different request, which the depth limit bounds |
 | `page.asset.requests` | counter | — | `outcome` (`served`, `not-modified`, `unknown`, `non-asset`) — no path label; the access log names the URL |
 | `page.storage.payload.size` | observable gauge | By | — logical bytes every shape holds: revisions, values, messages, objects and secrets; excludes indexes and SQLite overhead |
-| `page.storage.revisions.size` | observable gauge | By | — logical bytes of `PageRevisions`: every text column plus image and symbol blobs |
-| `page.storage.values.size` | observable gauge | By | — logical bytes of `StoreValues`: subject, page key, key, value, timestamp and expiry |
-| `page.storage.messages.size` | observable gauge | By | — logical bytes of `StoreMessages`: subject, address, body, sent time and expiry |
-| `page.storage.objects.size` | observable gauge | By | — logical bytes of `StoreObjects`: subject, digest, content type, blob, write time and expiry |
-| `page.storage.secrets.size` | observable gauge | By | — logical bytes of `StoreSecrets`: subject, page key, name, text and write time |
+| `page.storage.shape.size` | observable gauge | By | label `shape` — the same figure split into `revisions` (`PageRevisions`), `values` (`StoreValues`), `messages` (`StoreMessages`), `objects` (`StoreObjects`) and `secrets` (`StoreSecrets`) |
 | `page.storage.declared_tables` | observable gauge | 1 | — how many tables the page store's sources declare, as `DeclaredTables` counts them |
 | `page.storage.database.size` | observable gauge | By | — whole database `page_count * page_size`, including indexes and freelist pages; excludes the separate WAL |
 | `page.storage.volume.capacity` | observable gauge | By | — total capacity of the filesystem volume containing the database |
@@ -95,8 +91,8 @@ automatic pruning is performed.
 
 The dashboard is built from the instruments rather than written beside them: one panel per
 instrument, and the instrument's type decides the chart (`metrics-one-panel-per-instrument`). A
-question that spans instruments may add one composed panel that names its sources and owns none: the
-render chain, and the five storage shapes whose figures stack to the payload.
+question that spans instruments may add one composed panel that names its sources and owns none, as
+the render chain does.
 
 | Instrument | Chart | Why |
 | --- | --- | --- |
@@ -107,8 +103,8 @@ render chain, and the five storage shapes whose figures stack to the payload.
 
 `StatusCatalogue` holds the list: twenty-four Pages panels (eleven heatmaps for the duration and size
 histograms, stacked areas for the render chain, cache lookups, staleness, asset requests and searches,
-line charts for abandoned renders, layout fallbacks, recursive composition, the stored payload, the five
-shapes' figures composed into one drawing, the declared tables, and the database and volume gauges),
+line charts for abandoned renders, layout fallbacks, recursive composition, the stored payload, the
+stored bytes by shape, the declared tables, and the database and volume gauges),
 fifteen Assistant panels
 (nine heatmaps, the token counter, the shaped-request, exhausted-budget and truncated-result counters
 as line charts, memory writes as a stacked area and the account balance as a line chart split by

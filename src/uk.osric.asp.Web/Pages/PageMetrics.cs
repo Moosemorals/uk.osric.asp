@@ -45,11 +45,7 @@ internal sealed class PageMetrics : IDisposable {
         new("page.layout.fallback", InstrumentKind.Counter, "1"),
         new("page.composition.recursive", InstrumentKind.Counter, "1"),
         new("page.storage.payload.size", InstrumentKind.Gauge, "By"),
-        new("page.storage.revisions.size", InstrumentKind.Gauge, "By"),
-        new("page.storage.values.size", InstrumentKind.Gauge, "By"),
-        new("page.storage.messages.size", InstrumentKind.Gauge, "By"),
-        new("page.storage.objects.size", InstrumentKind.Gauge, "By"),
-        new("page.storage.secrets.size", InstrumentKind.Gauge, "By"),
+        new("page.storage.shape.size", InstrumentKind.Gauge, "By"),
         new("page.storage.declared_tables", InstrumentKind.Gauge, "1"),
         new("page.storage.database.size", InstrumentKind.Gauge, "By"),
         new("page.storage.volume.capacity", InstrumentKind.Gauge, "By"),
@@ -273,21 +269,8 @@ internal sealed class PageMetrics : IDisposable {
         _meter.CreateObservableGauge("page.storage.payload.size",
             () => ObserveStorage(value => value.Sample.Payload), "By",
             "Logical bytes every shape holds — revisions, values, messages, objects and secrets; excludes indexes and SQLite overhead.");
-        _meter.CreateObservableGauge("page.storage.revisions.size",
-            () => ObserveStorage(value => value.Sample.Revisions), "By",
-            "Logical PageRevisions TEXT bytes and image/symbol blob bytes.");
-        _meter.CreateObservableGauge("page.storage.values.size",
-            () => ObserveStorage(value => value.Sample.Values), "By",
-            "Logical StoreValues subject, page, key, JSON value and stamp bytes.");
-        _meter.CreateObservableGauge("page.storage.messages.size",
-            () => ObserveStorage(value => value.Sample.Messages), "By",
-            "Logical StoreMessages subject, address, body and stamp bytes.");
-        _meter.CreateObservableGauge("page.storage.objects.size",
-            () => ObserveStorage(value => value.Sample.Objects), "By",
-            "Logical StoreObjects subject, digest, content type, blob and stamp bytes.");
-        _meter.CreateObservableGauge("page.storage.secrets.size",
-            () => ObserveStorage(value => value.Sample.Secrets), "By",
-            "Logical StoreSecrets subject, page, name, text and stamp bytes.");
+        _meter.CreateObservableGauge("page.storage.shape.size", ObserveShapes, "By",
+            "Logical bytes each shape holds: revisions, values, messages, objects and secrets; excludes indexes and SQLite overhead.");
         _meter.CreateObservableGauge("page.storage.declared_tables",
             () => ObserveStorage(value => value.Sample.DeclaredTables), "1",
             "How many tables the page store's sources declare, as the catalogue counts them.");
@@ -305,6 +288,24 @@ internal sealed class PageMetrics : IDisposable {
     /// <param name="capacity">The volume's capacity, or <see langword="null"/> when it cannot be read.</param>
     public void RecordStorage(StorageSample sample, long database, long? capacity) {
         Volatile.Write(ref _storage, new StorageSizes(sample, database, capacity));
+    }
+
+    // One instrument with a shape label rather than five instruments: the figures are the same
+    // question about five things, and a label is how every other figure in the catalogue splits.
+    private IEnumerable<Measurement<long>> ObserveShapes() {
+        StorageSizes? snapshot = Volatile.Read(ref _storage);
+        if (snapshot is null) {
+            yield break;
+        }
+
+        yield return Measure(snapshot.Sample.Revisions, "revisions");
+        yield return Measure(snapshot.Sample.Values, "values");
+        yield return Measure(snapshot.Sample.Messages, "messages");
+        yield return Measure(snapshot.Sample.Objects, "objects");
+        yield return Measure(snapshot.Sample.Secrets, "secrets");
+
+        static Measurement<long> Measure(long bytes, string shape) =>
+            new(bytes, new KeyValuePair<string, object?>("shape", shape));
     }
 
     private IEnumerable<Measurement<long>> ObserveStorage(Func<StorageSizes, long?> select) {
