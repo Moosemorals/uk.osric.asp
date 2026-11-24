@@ -9,6 +9,7 @@ using uk.osric.asp.Core.Assistant;
 using uk.osric.asp.Sdk;
 using uk.osric.asp.Web.Authentication;
 using uk.osric.asp.Web.Pages;
+using SiteText = uk.osric.asp.Core.Text.Utf8;
 
 /// <summary>GETs a path on this site as the run's owner, and returns the response as the server sent it.</summary>
 /// <remarks>
@@ -85,7 +86,7 @@ internal sealed class ViewTool : AssistantTool {
                 return services.Results.Failure("The view did not produce a response.", "View failed");
         }
 
-        int budget = (int)Math.Min(services.Budget.ToolResultChars, int.MaxValue);
+        int budget = (int)Math.Min(services.Budget.ToolResultBytes, int.MaxValue);
         bool truncated = response.Truncated;
         string? content = null;
         string? base64 = null;
@@ -94,13 +95,13 @@ internal sealed class ViewTool : AssistantTool {
         // text: base64 keeps it exact where a decode would replace every bad byte with a question mark.
         if (Utf8.IsValid(response.Body)) {
             content = Encoding.UTF8.GetString(response.Body);
-            if (content.Length > budget) {
-                content = Cut(content, budget);
+            if (SiteText.SizeInBytes(content) > budget) {
+                content = SiteText.Clip(content, budget);
                 truncated = true;
             }
         } else {
             base64 = Convert.ToBase64String(response.Body);
-            if (base64.Length > budget) {
+            if (SiteText.SizeInBytes(base64) > budget) {
                 base64 = base64[..(budget / 4 * 4)];
                 truncated = true;
             }
@@ -123,6 +124,4 @@ internal sealed class ViewTool : AssistantTool {
     }
 
     // A cut that splits a surrogate pair would serialise as a lone half, so the pair is left whole.
-    private static string Cut(string text, int budget) =>
-        char.IsHighSurrogate(text[budget - 1]) ? text[..(budget - 1)] : text[..budget];
 }

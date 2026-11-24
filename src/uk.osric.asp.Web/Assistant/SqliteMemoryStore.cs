@@ -343,7 +343,7 @@ internal sealed class SqliteMemoryStore(
             .ExecuteDeleteAsync(cancellationToken);
     }
 
-    private MemoryContentResult Normalise(string content) => MemoryContent.Normalise(content, options.MaxMemoryChars);
+    private MemoryContentResult Normalise(string content) => MemoryContent.Normalise(content, options.MaxMemoryBytes);
 
     private static string Missing(long id) => $"No memory with id {id.ToString(CultureInfo.InvariantCulture)}.";
 

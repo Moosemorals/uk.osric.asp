@@ -27,7 +27,7 @@ namespace uk.osric.asp.Sdk;
 /// the host's limit is refused rather than trimmed, and the message names the setting to raise.
 /// </param>
 /// <param name="Context">
-/// How wide a snippet of each matching line to answer, in characters, or <see langword="null"/> for
+/// How wide a snippet of each matching line to answer, in UTF-8 bytes, or <see langword="null"/> for
 /// the host's default. The snippet is centred on the match and never shorter than the match, so a long
 /// match widens it; it never runs past either end of the line. A context above the host's limit is
 /// refused rather than trimmed.

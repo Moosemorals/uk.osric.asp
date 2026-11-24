@@ -3,6 +3,8 @@
 
 namespace uk.osric.asp.Core.Pages;
 
+using uk.osric.asp.Core.Text;
+
 /// <summary>A window of one source line, cut around a match and never shorter than the match.</summary>
 /// <param name="Text">The snippet itself.</param>
 /// <param name="Start">The 0-based offset in the line where <paramref name="Text"/> starts.</param>
@@ -20,7 +22,7 @@ public readonly record struct LineSnippet(string Text, int Start, bool Clipped) 
     /// <param name="length">The match's length.</param>
     /// <param name="context">The width the caller asked for, which the match may overrule.</param>
     /// <returns>
-    /// The window, centred on the match: it is <c>context</c> characters wide, or the match when that
+    /// The window, grown around the match: it is <c>context</c> bytes wide, or the match when that
     /// is longer, or the line when that is shorter, and it never leaves the line.
     /// </returns>
     /// <exception cref="ArgumentNullException"><paramref name="line"/> is <see langword="null"/>.</exception>
@@ -35,18 +37,45 @@ public readonly record struct LineSnippet(string Text, int Start, bool Clipped) 
 
         if (index + length > line.Length) {
             throw new ArgumentOutOfRangeException(
-                nameof(length), length, $"A match at {index} of that length does not fit a line of {line.Length} characters.");
+                nameof(length), length, $"A match at {index} of that length does not fit a line of {line.Length} code units.");
         }
 
-        // The window contains the match, so the match's own length is the floor; the line itself is the
-        // ceiling, because a short line has nothing more to show. The match sits in the middle, and a
-        // window that would start before or after the line is pushed inside it.
-        int width = Math.Min(Math.Max(context, length), line.Length);
-        int start = Math.Clamp(index - ((width - length) / 2), 0, line.Length - width);
+        // The window contains the match, so the match's own bytes are the floor and the caller's
+        // context is the budget. The line itself is the ceiling, because a short line has nothing more
+        // to show. Right grows before left, which puts the odd byte on the side the match came from, as
+        // a character-wide window did before the unit changed.
+        int budget = Math.Max(context, Utf8.SizeInBytes(line.Substring(index, length)));
+        int start = index;
+        int end = index + length;
+        int used = Utf8.SizeInBytes(line.Substring(index, length));
 
-        return new LineSnippet(
-            line.Substring(start, width),
-            start,
-            Clipped: start > 0 || start + width < line.Length);
+        while (true) {
+            bool grew = false;
+            if (end < line.Length) {
+                int units = Utf8.NextCodePointUnits(line, end);
+                int bytes = Utf8.SizeInBytes(line.Substring(end, units));
+                if (used + bytes <= budget) {
+                    end += units;
+                    used += bytes;
+                    grew = true;
+                }
+            }
+
+            if (start > 0) {
+                int units = Utf8.PreviousCodePointUnits(line, start);
+                int bytes = Utf8.SizeInBytes(line.Substring(start - units, units));
+                if (used + bytes <= budget) {
+                    start -= units;
+                    used += bytes;
+                    grew = true;
+                }
+            }
+
+            if (!grew) {
+                break;
+            }
+        }
+
+        return new LineSnippet(line[start..end], start, Clipped: start > 0 || end < line.Length);
     }
 }

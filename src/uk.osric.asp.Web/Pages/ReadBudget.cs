@@ -57,15 +57,15 @@ internal sealed class ReadBudget {
     }
 
     /// <summary>Charges one template against the budget.</summary>
-    /// <param name="chars">The template's length.</param>
+    /// <param name="bytes">The template's length in UTF-8 bytes.</param>
     /// <returns>Whether the read fits; nothing is charged when it does not.</returns>
-    public bool TryCharge(int chars) {
-        if (chars < 0) {
+    public bool TryCharge(int bytes) {
+        if (bytes < 0) {
             return false;
         }
 
         lock (_gate) {
-            if (_allowance.TryTake(chars, _clock.GetUtcNow(), out Allowance next)) {
+            if (_allowance.TryTake(bytes, _clock.GetUtcNow(), out Allowance next)) {
                 _allowance = next;
                 return true;
             }

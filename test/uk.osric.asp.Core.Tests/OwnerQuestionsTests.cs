@@ -42,13 +42,13 @@ public sealed class OwnerQuestionsTests {
     }
 
     [Test]
-    public void AQuestionOverTheCharacterLimitIsRefusedRatherThanCut() {
+    public void AQuestionOverTheByteLimitIsRefusedRatherThanCut() {
         OwnerQuestionSet set = Set(Question(new string('q', MaxChars + 1)));
 
         string? error = OwnerQuestions.Validate(set, MaxQuestions, MaxOptions, MaxChars);
 
         Assert.Multiple(() => {
-            Assert.That(error, Does.Contain($"{MaxChars + 1} characters"));
+            Assert.That(error, Does.Contain($"{MaxChars + 1} bytes"));
             Assert.That(error, Does.Contain($"limit is {MaxChars}"));
         });
     }

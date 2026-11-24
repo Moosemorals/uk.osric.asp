@@ -8,7 +8,7 @@ using uk.osric.asp.Core.Pages;
 [TestFixture]
 public sealed class PageSchemaTests {
 
-    private static readonly PageSchemaLimits Limits = new(MaxTablesPerSource: 2, MaxColumnsPerTable: 3, MaxNameChars: 64);
+    private static readonly PageSchemaLimits Limits = new(MaxTablesPerSource: 2, MaxColumnsPerTable: 3, MaxNameBytes: 64);
 
     private static readonly string?[] Tables = [null, "my notes", "fine"];
 

@@ -19,7 +19,7 @@ using uk.osric.asp.Web.Pages;
 public sealed class ReferenceToolTests {
 
     private static readonly AssistantOptions Options = TestOptions.Assistant with {
-        MaxToolArgumentChars = 8_192,
+        MaxToolArgumentBytes = 8_192,
 
         DefaultListLimit = 50,
         MaxListLimit = 500,

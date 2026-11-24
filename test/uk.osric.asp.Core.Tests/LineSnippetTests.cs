@@ -23,6 +23,19 @@ public sealed class LineSnippetTests {
     }
 
     [Test]
+    public void AWindowIsCountedInUtf8BytesAndNeverSplitsACharacter() {
+        // Five three-byte characters: a ten-byte window holds the match and two more, and nothing is
+        // ever cut in half.
+        LineSnippet snippet = LineSnippet.Of("水水水水水", index: 0, length: 1, context: 10);
+
+        Assert.Multiple(() => {
+            Assert.That(snippet.Text, Is.EqualTo("水水水"));
+            Assert.That(snippet.Text, Does.Not.Contain("\uFFFD"));
+            Assert.That(snippet.Clipped, Is.True);
+        });
+    }
+
+    [Test]
     public void AWindowAtTheStartOfTheLineIsPushedInsideIt() {
         LineSnippet snippet = LineSnippet.Of("0123456789abcdef", index: 1, length: 3, context: 10);
 

@@ -22,7 +22,7 @@ namespace uk.osric.asp.Sdk;
 public interface IPageStorage {
     /// <summary>Reads a value and reports whether the key exists.</summary>
     /// <typeparam name="T">The type to deserialise the stored JSON as.</typeparam>
-    /// <param name="key">The key; ordinal, 1 to <c>Pages:Storage:MaxKeyChars</c> characters, no
+    /// <param name="key">The key; ordinal, 1 to <c>Pages:Stores:MaxKeyBytes</c> UTF-8 bytes, no
     /// control characters.</param>
     /// <returns>
     /// Whether the key was found, and the value when it was. A missing key is not found with the
@@ -35,7 +35,7 @@ public interface IPageStorage {
 
     /// <summary>Stores a value, replacing any value already under the key.</summary>
     /// <typeparam name="T">The type to serialise.</typeparam>
-    /// <param name="key">The key; ordinal, 1 to <c>Pages:Storage:MaxKeyChars</c> characters, no
+    /// <param name="key">The key; ordinal, 1 to <c>Pages:Stores:MaxKeyBytes</c> UTF-8 bytes, no
     /// control characters.</param>
     /// <param name="value">The value; a null is stored as JSON <c>null</c>.</param>
     /// <returns>A task that completes when the write is committed.</returns>

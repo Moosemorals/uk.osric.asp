@@ -209,6 +209,11 @@ environment variable or a deployment's own settings file.
   configuration providers merge key by key.
 - **The recommendation is guidance.** A factory passes a recommended value only so the message can
   say what normally works; it is never used as a fallback.
+- **The unit of a size.** A limit that bounds text is a UTF-8 byte count, and the setting, constant
+  or field that holds it says `Bytes` (`code-a-size-is-bytes`). `Core.Text.Utf8` counts and cuts, so
+  no site spells the unit itself and no cut splits a character (`code-a-clip-ends-on-a-boundary`);
+  `string.Length` is an index into a string and never a limit. A `...Chars` key from the release
+  before is refused at startup with its replacement named.
 - **A range is a safety net, not a straitjacket.** It is wide enough that only a mistake meets it:
   its job is to stop a zero or a typo switching a guard off, not to ration a legitimate deployment.
 - **What stays in code.** An invariant — a cryptographic or wire-format constant, a schema

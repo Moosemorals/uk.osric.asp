@@ -111,17 +111,17 @@ public static class OwnerQuestions {
     /// <param name="questions">The questions the model sent.</param>
     /// <param name="maximumQuestions">The most questions one call may ask.</param>
     /// <param name="maximumOptions">The most options one question may offer.</param>
-    /// <param name="maximumChars">The longest question, header, label or option description.</param>
+    /// <param name="maximumBytes">The longest question, header, label or option description, in UTF-8 bytes.</param>
     /// <returns>A refusal naming the limit and the accepted shape, or null when the set is valid.</returns>
     public static string? Validate(
         OwnerQuestionSet questions,
         int maximumQuestions,
         int maximumOptions,
-        int maximumChars) {
+        int maximumBytes) {
         ArgumentNullException.ThrowIfNull(questions);
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(maximumQuestions);
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(maximumOptions);
-        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(maximumChars);
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(maximumBytes);
 
         if (questions.Questions is null || questions.Questions.Count == 0) {
             return "Ask at least one question.";
@@ -136,15 +136,15 @@ public static class OwnerQuestions {
             if (string.IsNullOrWhiteSpace(question.Question)) {
                 return $"Question {number} needs text.";
             }
-            if (question.Question.Length > maximumChars) {
-                return LongRefusal($"Question {number}", question.Question.Length, maximumChars);
+            if (Utf8.SizeInBytes(question.Question) > maximumBytes) {
+                return LongRefusal($"Question {number}", Utf8.SizeInBytes(question.Question), maximumBytes);
             }
             if (question.Header is { } header) {
                 if (string.IsNullOrWhiteSpace(header)) {
                     return $"Question {number}'s header needs text.";
                 }
-                if (header.Length > maximumChars) {
-                    return LongRefusal($"Question {number}'s header", header.Length, maximumChars);
+                if (Utf8.SizeInBytes(header) > maximumBytes) {
+                    return LongRefusal($"Question {number}'s header", Utf8.SizeInBytes(header), maximumBytes);
                 }
             }
             IReadOnlyList<OwnerQuestionOption> options = question.Options ?? [];
@@ -160,14 +160,14 @@ public static class OwnerQuestions {
                 if (string.IsNullOrWhiteSpace(option.Label)) {
                     return $"Question {number} has an option with no label.";
                 }
-                if (option.Label.Length > maximumChars) {
-                    return LongRefusal($"Question {number}'s option label", option.Label.Length, maximumChars);
+                if (Utf8.SizeInBytes(option.Label) > maximumBytes) {
+                    return LongRefusal($"Question {number}'s option label", Utf8.SizeInBytes(option.Label), maximumBytes);
                 }
                 if (!labels.Add(option.Label)) {
                     return $"Question {number} offers the label \"{option.Label}\" twice.";
                 }
-                if (option.Description is { Length: > 0 } description && description.Length > maximumChars) {
-                    return LongRefusal($"Question {number}'s option description", description.Length, maximumChars);
+                if (option.Description is { Length: > 0 } description && Utf8.SizeInBytes(description) > maximumBytes) {
+                    return LongRefusal($"Question {number}'s option description", Utf8.SizeInBytes(description), maximumBytes);
                 }
             }
         }
@@ -178,7 +178,7 @@ public static class OwnerQuestions {
     /// <summary>Builds the answer set the owner submitted, in the order the questions were asked.</summary>
     /// <param name="questions">The questions the owner answered.</param>
     /// <param name="inputs">One input per question, in the same order.</param>
-    /// <param name="maximumChars">
+    /// <param name="maximumBytes">
     /// The most characters the chosen labels and typed text may add up to, which is the owner
     /// message's share of the context budget.
     /// </param>
@@ -186,10 +186,10 @@ public static class OwnerQuestions {
     public static OwnerAnswersResult Answer(
         OwnerQuestionSet questions,
         IReadOnlyList<OwnerAnswerInput> inputs,
-        long maximumChars) {
+        long maximumBytes) {
         ArgumentNullException.ThrowIfNull(questions);
         ArgumentNullException.ThrowIfNull(inputs);
-        ArgumentOutOfRangeException.ThrowIfNegative(maximumChars);
+        ArgumentOutOfRangeException.ThrowIfNegative(maximumBytes);
 
         if (questions.Questions is null || inputs.Count != questions.Questions.Count) {
             return new OwnerAnswersResult(null, "Every question needs one answer.");
@@ -221,16 +221,16 @@ public static class OwnerQuestions {
             answers.Add(new OwnerAnswer(question.Question, question.Header, selected, text));
         }
 
-        if (characters > maximumChars) {
+        if (characters > maximumBytes) {
             return new OwnerAnswersResult(null,
-                $"The answer is {Count(characters)} characters; the limit is {Count(maximumChars)}.");
+                $"The answer is {Count(characters)} characters; the limit is {Count(maximumBytes)}.");
         }
 
         return new OwnerAnswersResult(new OwnerAnswerSet(answers), null);
     }
 
-    private static string LongRefusal(string what, int length, int maximumChars) =>
-        $"{what} is {Count(length)} characters; the limit is {Count(maximumChars)}.";
+    private static string LongRefusal(string what, int bytes, int maximumBytes) =>
+        $"{what} is {Count(bytes)} bytes; the limit is {Count(maximumBytes)}.";
 
     private static string Count(long value) => value.ToString(CultureInfo.InvariantCulture);
 

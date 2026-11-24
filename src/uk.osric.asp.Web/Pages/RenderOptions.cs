@@ -17,7 +17,7 @@ internal sealed record RenderOptions {
     public const string TimeoutSecondsKey = "Pages:Render:TimeoutSeconds";
 
     /// <summary>The key that sets how much body one page may buffer, named in a page's bounds.</summary>
-    public const string MaxBodyCharsKey = "Pages:Render:MaxBodyChars";
+    public const string MaxBodyBytesKey = "Pages:Render:MaxBodyBytes";
 
     /// <summary>The key that sets how many embeds one render may make, named in a page's bounds.</summary>
     public const string MaxEmbedsKey = "Pages:Render:MaxEmbeds";
@@ -38,7 +38,7 @@ internal sealed record RenderOptions {
     /// How much body a page may buffer before it is refused. It stops at the first flush: a streaming
     /// page's body is on the wire and is not charged after its response has been committed.
     /// </summary>
-    public required int MaxBodyChars { get; init; }
+    public required int MaxBodyBytes { get; init; }
 
     /// <summary>Abandoned renders alive at once before the health check reports unhealthy.</summary>
     public required int AbandonedLimit { get; init; }
@@ -101,13 +101,17 @@ internal sealed record RenderOptions {
             TimeoutSeconds = reader.Decimal("TimeoutSeconds", recommended: 5,
                 minimum: PageBudget.MinimumTimeoutSeconds, maximum: 60),
             Slots = reader.Number("Slots", recommended: 2, minimum: 1, maximum: 64),
-            MaxBodyChars = reader.Number("MaxBodyChars", recommended: 4 * 1024 * 1024,
+            MaxBodyBytes = reader.Number("MaxBodyBytes", recommended: 4 * 1024 * 1024,
                 minimum: 1024, maximum: 64 * 1024 * 1024),
             AbandonedLimit = reader.Number("AbandonedLimit", recommended: 2, minimum: 1, maximum: 64),
             MaxLayoutDepth = reader.Number("MaxLayoutDepth", recommended: 4, minimum: 1, maximum: MaximumLayoutDepth),
             MaxEmbedDepth = reader.Number("MaxEmbedDepth", recommended: 4, minimum: 1, maximum: MaximumEmbedDepth),
             MaxEmbeds = reader.Number("MaxEmbeds", recommended: 32, minimum: 1, maximum: 256),
         };
+
+        reader.FailIf(reader.Has("MaxBodyChars"), "MaxBodyChars",
+            $"is no longer read. {MaxBodyBytesKey} is the buffered body's size in UTF-8 bytes, so rename the key and restart");
+
         return options;
     }
 }

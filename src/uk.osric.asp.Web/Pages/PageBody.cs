@@ -5,6 +5,7 @@ namespace uk.osric.asp.Web.Pages;
 
 using System.Text;
 using uk.osric.asp.Core.Pages;
+using uk.osric.asp.Core.Text;
 using uk.osric.asp.Sdk;
 
 /// <summary>The body one layer writes, and its way onto the wire.</summary>
@@ -101,9 +102,9 @@ internal sealed class PageBody {
 
             // The limit exists to bound what is held in memory before the response can be sent. Once the
             // page has committed, its body is on the wire and a total limit would defeat streaming.
-            if (!_commit.Committed && !_bodyBudget.TryCharge(text.Length)) {
+            if (!_commit.Committed && !_bodyBudget.TryCharge(Utf8.SizeInBytes(text))) {
                 throw new InvalidOperationException(
-                    $"{_path.Key} wrote more than {_bodyBudget.MaxChars} characters; the render was stopped.");
+                    $"{_path.Key} wrote more than {_bodyBudget.MaxBytes} bytes; the render was stopped.");
             }
 
             _writer.Write(text);

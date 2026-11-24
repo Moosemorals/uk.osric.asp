@@ -459,7 +459,7 @@ public sealed class PageJobTests {
         Assert.Multiple(() => {
             Assert.That(info.State, Is.EqualTo(PageJobState.Completed), info.Failure);
             Assert.That(events.Events.Single().Data, Is.EqualTo(
-                "/pages|Pages:Jobs:FetchesPerSecond|Pages:Jobs:SourceCharsPerSecond|Pages:Jobs:MaxDurationSeconds|no-body|no-embeds"),
+                "/pages|Pages:Jobs:FetchesPerSecond|Pages:Jobs:SourceBytesPerSecond|Pages:Jobs:MaxDurationSeconds|no-body|no-embeds"),
                 "a job's bounds are its own rates and its ceiling, and it has no body or embeds");
         });
     }

@@ -141,7 +141,7 @@ public sealed class PageSessionScopeTests {
 
     [Test]
     public async Task AKeyLongerThanTheLimitIsRefusedAsync() {
-        PageStoresOptions options = TestOptions.Stores with { MaxKeyChars = 4 };
+        PageStoresOptions options = TestOptions.Stores with { MaxKeyBytes = 4 };
         Visitor visitor = Open(options: options);
 
         await Assert.ThrowsAsync<ArgumentException>(() => visitor.Store.SetAsync("12345", 1));
@@ -333,7 +333,7 @@ public sealed class PageSessionScopeTests {
         FakeStoreValues values = new();
         FakePageSessionStore sessions = new(values);
         PageReaderSubject reader = PageReaderSubject.ForJob(TestOptions.Stores.Visitor, "owner");
-        PageValueStore store = new(Key("/page"), values, sessions, reader, TestOptions.Stores.MaxKeyChars, writable: true, commit: null);
+        PageValueStore store = new(Key("/page"), values, sessions, reader, TestOptions.Stores.MaxKeyBytes, writable: true, commit: null);
 
         await store.SetAsync("state", 1);
         Assert.That((await store.TryGetValueAsync<int>("state")).Value, Is.EqualTo(1));
@@ -421,7 +421,7 @@ public sealed class PageSessionScopeTests {
             : new PageSessionRequest(sessionId, account, presented: true, exists: true);
         PageReaderSubject reader = new(session, stores.Visitor, browserId);
         PageValueStore store = new(
-            Key("/page"), values, sessions, reader, stores.MaxKeyChars, writable, commit);
+            Key("/page"), values, sessions, reader, stores.MaxKeyBytes, writable, commit);
 
         return new Visitor(store, values, sessions, session, reader);
     }

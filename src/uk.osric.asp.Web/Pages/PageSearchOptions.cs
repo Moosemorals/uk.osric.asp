@@ -25,10 +25,10 @@ internal sealed record PageSearchOptions {
     public const int MaximumMatches = 10_000;
 
     /// <summary>The narrowest snippet the site will run with.</summary>
-    public const int MinimumContextChars = 64;
+    public const int MinimumContextBytes = 64;
 
     /// <summary>The widest context limit the site will run with.</summary>
-    public const int MaximumContextChars = 16_384;
+    public const int MaximumContextBytes = 16_384;
 
     /// <summary>How long one search may run, across the fingerprint, the reads and the matching.</summary>
     public required int MaxDurationMs { get; init; }
@@ -40,10 +40,10 @@ internal sealed record PageSearchOptions {
     public required int MaxMatches { get; init; }
 
     /// <summary>How wide a snippet is when the caller names no context.</summary>
-    public required int DefaultContextChars { get; init; }
+    public required int DefaultContextBytes { get; init; }
 
     /// <summary>The widest snippet a caller may ask for.</summary>
-    public required int MaxContextChars { get; init; }
+    public required int MaxContextBytes { get; init; }
 
     /// <summary>The allowance as a time span.</summary>
     public TimeSpan Duration => TimeSpan.FromMilliseconds(MaxDurationMs);
@@ -67,23 +67,29 @@ internal sealed record PageSearchOptions {
 
         int maxMatches = reader.Number("MaxMatches", recommended: 1_000, minimum: 1, maximum: MaximumMatches);
         int defaultMatches = reader.Number("DefaultMatches", recommended: 100, minimum: 1, maximum: MaximumMatches);
-        int maxContextChars = reader.Number("MaxContextChars", recommended: 1_024,
-            minimum: MinimumContextChars, maximum: MaximumContextChars);
-        int defaultContextChars = reader.Number("DefaultContextChars", recommended: 64,
-            minimum: MinimumContextChars, maximum: MaximumContextChars);
+        int maxContextBytes = reader.Number("MaxContextBytes", recommended: 1_024,
+            minimum: MinimumContextBytes, maximum: MaximumContextBytes);
+        int defaultContextBytes = reader.Number("DefaultContextBytes", recommended: 64,
+            minimum: MinimumContextBytes, maximum: MaximumContextBytes);
 
         reader.FailIf(defaultMatches > maxMatches, "DefaultMatches",
             $"is {defaultMatches}, which is larger than MaxMatches ({maxMatches})");
-        reader.FailIf(defaultContextChars > maxContextChars, "DefaultContextChars",
-            $"is {defaultContextChars}, which is larger than MaxContextChars ({maxContextChars})");
+        reader.FailIf(defaultContextBytes > maxContextBytes, "DefaultContextBytes",
+            $"is {defaultContextBytes}, which is larger than MaxContextBytes ({maxContextBytes})");
 
         PageSearchOptions options = new() {
             MaxDurationMs = reader.Number("MaxDurationMs", recommended: 60, minimum: 1, maximum: MaximumDurationMs),
             DefaultMatches = defaultMatches,
             MaxMatches = maxMatches,
-            DefaultContextChars = defaultContextChars,
-            MaxContextChars = maxContextChars,
+            DefaultContextBytes = defaultContextBytes,
+            MaxContextBytes = maxContextBytes,
         };
+
+        reader.FailIf(reader.Has("DefaultContextChars"), "DefaultContextChars",
+            "is no longer read. DefaultContextBytes is a snippet's width in UTF-8 bytes, so rename the key and restart");
+        reader.FailIf(reader.Has("MaxContextChars"), "MaxContextChars",
+            "is no longer read. MaxContextBytes is a snippet's widest size in UTF-8 bytes, so rename the key and restart");
+
         return options;
     }
 }

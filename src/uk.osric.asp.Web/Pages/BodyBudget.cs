@@ -14,29 +14,29 @@ internal sealed class BodyBudget {
     private int _written;
 
     /// <summary>Creates the budget.</summary>
-    /// <param name="maxChars">How much body the request may buffer before it is refused.</param>
-    public BodyBudget(int maxChars) {
-        ArgumentOutOfRangeException.ThrowIfLessThan(maxChars, 1);
+    /// <param name="maxBytes">How much body the request may buffer before it is refused.</param>
+    public BodyBudget(int maxBytes) {
+        ArgumentOutOfRangeException.ThrowIfLessThan(maxBytes, 1);
 
-        MaxChars = maxChars;
+        MaxBytes = maxBytes;
     }
 
     /// <summary>How much body one request may buffer.</summary>
-    public int MaxChars { get; }
+    public int MaxBytes { get; }
 
     /// <summary>How much body this budget has left to give.</summary>
     /// <remarks>An embedded layer renders into a budget of this size, so its whole body fits.</remarks>
-    public int Remaining => MaxChars - Volatile.Read(ref _written);
+    public int Remaining => MaxBytes - Volatile.Read(ref _written);
 
     /// <summary>Charges one write against the budget.</summary>
-    /// <param name="chars">The length of the text about to be written.</param>
+    /// <param name="bytes">The UTF-8 length of the text about to be written.</param>
     /// <returns>Whether the write fits; nothing is charged when it does not.</returns>
-    public bool TryCharge(int chars) {
-        if (_written + chars > MaxChars) {
+    public bool TryCharge(int bytes) {
+        if (_written + bytes > MaxBytes) {
             return false;
         }
 
-        _written += chars;
+        _written += bytes;
         return true;
     }
 }

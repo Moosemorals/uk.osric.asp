@@ -33,16 +33,16 @@ public sealed class MemoryContentTests {
     }
 
     [Test]
-    public void TheLimitIsCountedInCharactersRatherThanBytes() {
-        MemoryContentResult result = MemoryContent.Normalise(new string('é', 11), 10);
+    public void TheLimitIsCountedInUtf8BytesRatherThanCodeUnits() {
+        MemoryContentResult result = MemoryContent.Normalise(new string('é', 6), 10);
 
         Assert.That(result.IsSuccess, Is.False);
-        Assert.That(result.Error, Does.Contain("10"));
+        Assert.That(result.Error, Does.Contain("10 bytes"));
     }
 
     [Test]
-    public void ContentAtExactlyTheLimitIsAccepted() {
-        Assert.That(MemoryContent.Normalise(new string('é', 10), 10).IsSuccess, Is.True);
+    public void ContentAtExactlyTheByteLimitIsAccepted() {
+        Assert.That(MemoryContent.Normalise(new string('é', 5), 10).IsSuccess, Is.True);
     }
 
     [Test]

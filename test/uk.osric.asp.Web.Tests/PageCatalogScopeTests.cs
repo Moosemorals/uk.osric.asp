@@ -27,6 +27,32 @@ public sealed class PageCatalogScopeTests {
     }
 
     [Test]
+    public async Task AListingRowCarriesTheStoredSizeInBytesAsync() {
+        FakePageReadStore store = new();
+        store.Save("/sized", "水水水");
+
+        IReadOnlyList<PageEntry> entries = await ListAsync(Scope(store), "/");
+
+        Assert.Multiple(() => {
+            Assert.That(entries.Single(item => item.Key == "/sized").SourceBytes, Is.EqualTo(9),
+                "bytes, not code units");
+            Assert.That(entries.Single(item => item.Key == "/login").SourceBytes, Is.Null,
+                "a route has no stored source");
+        });
+    }
+
+    [Test]
+    public async Task AHistoryRowCarriesTheStoredSizeInBytesAsync() {
+        FakePageReadStore store = new();
+        store.Save("/sized", "水水水");
+        PageCatalogScope scope = Scope(store);
+
+        IReadOnlyList<PageRevisionInfo> revisions = await scope.RevisionsAsync("/sized");
+
+        Assert.That(revisions.Single().SourceBytes, Is.EqualTo(9));
+    }
+
+    [Test]
     public async Task ASignedInVisitorReadsTheSameThingAsync() {
         (RenderResult anonymous, string anonymousOutput) = await RenderListingAsync(user: null);
         (RenderResult signedIn, string signedInOutput) = await RenderListingAsync(new PageUser("owner"));
@@ -711,7 +737,7 @@ public sealed class PageCatalogScopeTests {
 
         PageSearchMatch match = result.Matches.Single();
         Assert.Multiple(() => {
-            Assert.That(match.Text, Has.Length.EqualTo(TestOptions.Search.DefaultContextChars));
+            Assert.That(match.Text, Has.Length.EqualTo(TestOptions.Search.DefaultContextBytes));
             Assert.That(match.Column - match.TextColumn, Is.LessThan(match.Text.Length));
         });
     }
@@ -809,9 +835,9 @@ public sealed class PageCatalogScopeTests {
         PageCatalogScope scope = Scope(new FakePageReadStore());
 
         ArgumentOutOfRangeException error = (await Assert.ThrowsAsync<ArgumentOutOfRangeException>(() =>
-            scope.SearchAsync(new PageSearchRequest("needle", Context: TestOptions.Search.MaxContextChars + 1))))!;
+            scope.SearchAsync(new PageSearchRequest("needle", Context: TestOptions.Search.MaxContextBytes + 1))))!;
 
-        Assert.That(error.Message, Does.Contain("Pages:Search:MaxContextChars"));
+        Assert.That(error.Message, Does.Contain("Pages:Search:MaxContextBytes"));
     }
 
     [Test]
@@ -870,7 +896,7 @@ public sealed class PageCatalogScopeTests {
             // The scan's allowance is wall-clock, so a frozen clock keeps a snippet assertion from
             // failing when a parallel run starves the thread pool past the shipped allowance.
             new PageSourceScan(search ?? TestOptions.Search, clock ?? new TestClock(), new PageMetrics()),
-            budget ?? new ReadBudget(read.SourceCharsPerSecond, read.SourceCharsPerSecond, TimeProvider.System, PageReadOptions.RateKey),
+            budget ?? new ReadBudget(read.SourceBytesPerSecond, read.SourceBytesPerSecond, TimeProvider.System, PageReadOptions.RateKey),
             new ReservedPaths(routes ?? ReservedPaths.Default),
             TestContentTypes.Shipped,
             TestOptions.Seeds,

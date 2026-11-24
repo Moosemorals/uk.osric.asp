@@ -152,8 +152,8 @@ public sealed class PageStorageScopeTests {
     [Test]
     public async Task AKeyLongerThanTheLimitIsRefusedAsync() {
         FakeStoreValues store = Live();
-        PageStoresOptions options = TestOptions.Stores with { MaxKeyChars = 4 };
-        IValueStore values = new PageValueStore(Key("/page"), store, options.Page, options.MaxKeyChars, writable: true);
+        PageStoresOptions options = TestOptions.Stores with { MaxKeyBytes = 4 };
+        IValueStore values = new PageValueStore(Key("/page"), store, options.Page, options.MaxKeyBytes, writable: true);
 
         await Assert.ThrowsAsync<ArgumentException>(() => values.SetAsync("12345", 1));
     }
@@ -172,7 +172,7 @@ public sealed class PageStorageScopeTests {
         PageStoresOptions options = TestOptions.Stores with {
             Page = TestOptions.Stores.Page with { MaxValueBytes = 16, MaxTotalBytes = 16 },
         };
-        IValueStore values = new PageValueStore(Key("/page"), store, options.Page, options.MaxKeyChars, writable: true);
+        IValueStore values = new PageValueStore(Key("/page"), store, options.Page, options.MaxKeyBytes, writable: true);
 
         await Assert.ThrowsAsync<ArgumentException>(() => values.SetAsync("big", new string('x', 64)));
     }
@@ -183,7 +183,7 @@ public sealed class PageStorageScopeTests {
         PageStoresOptions options = TestOptions.Stores with {
             Page = TestOptions.Stores.Page with { MaxValueBytes = 1024, MaxTotalBytes = 64 },
         };
-        IValueStore values = new PageValueStore(Key("/page"), store, options.Page, options.MaxKeyChars, writable: true);
+        IValueStore values = new PageValueStore(Key("/page"), store, options.Page, options.MaxKeyBytes, writable: true);
 
         await Assert.ThrowsAsync<ArgumentException>(() => values.SetAsync("first", new string('x', 100)));
     }
@@ -194,7 +194,7 @@ public sealed class PageStorageScopeTests {
         PageStoresOptions options = TestOptions.Stores with {
             Page = TestOptions.Stores.Page with { MaxKeys = 2 },
         };
-        IValueStore values = new PageValueStore(Key("/page"), store, options.Page, options.MaxKeyChars, writable: true);
+        IValueStore values = new PageValueStore(Key("/page"), store, options.Page, options.MaxKeyBytes, writable: true);
 
         await Assert.ThrowsAsync<ArgumentException>(async () => {
             await values.SetAsync("one", 1);
@@ -233,7 +233,7 @@ public sealed class PageStorageScopeTests {
     public async Task AHeadRenderMayReadButNotWriteAsync() {
         FakeStoreValues store = Live();
         store.Seed("/page", "visits", "1");
-        PageValueStore values = new(Key("/page"), store, TestOptions.Stores.Page, TestOptions.Stores.MaxKeyChars, writable: false);
+        PageValueStore values = new(Key("/page"), store, TestOptions.Stores.Page, TestOptions.Stores.MaxKeyBytes, writable: false);
 
         Assert.That((await values.TryGetValueAsync<int>("visits")).Value, Is.EqualTo(1));
         Assert.That(await values.KeysAsync(), Is.Not.Empty);
@@ -244,7 +244,7 @@ public sealed class PageStorageScopeTests {
 
     [Test]
     public async Task AnAbandonedRenderCannotUseStorageAsync() {
-        PageValueStore values = new(Key("/page"), Live(), TestOptions.Stores.Page, TestOptions.Stores.MaxKeyChars, writable: true);
+        PageValueStore values = new(Key("/page"), Live(), TestOptions.Stores.Page, TestOptions.Stores.MaxKeyBytes, writable: true);
 
         values.Abandon();
 
@@ -256,7 +256,7 @@ public sealed class PageStorageScopeTests {
     [Test]
     public async Task TheRenderDeadlineIsPassedToTheStoreAsync() {
         FakeStoreValues store = Live();
-        PageValueStore values = new(Key("/page"), store, TestOptions.Stores.Page, TestOptions.Stores.MaxKeyChars, writable: true);
+        PageValueStore values = new(Key("/page"), store, TestOptions.Stores.Page, TestOptions.Stores.MaxKeyBytes, writable: true);
         using CancellationTokenSource deadline = new();
         values.AttachDeadline(deadline.Token);
 
@@ -267,7 +267,7 @@ public sealed class PageStorageScopeTests {
 
     [Test]
     public async Task AnAlreadyCancelledDeadlineRefusesTheCallAsync() {
-        PageValueStore values = new(Key("/page"), Live(), TestOptions.Stores.Page, TestOptions.Stores.MaxKeyChars, writable: true);
+        PageValueStore values = new(Key("/page"), Live(), TestOptions.Stores.Page, TestOptions.Stores.MaxKeyBytes, writable: true);
         using CancellationTokenSource deadline = new();
         await deadline.CancelAsync();
         values.AttachDeadline(deadline.Token);
@@ -293,7 +293,7 @@ public sealed class PageStorageScopeTests {
     private static IValueStore Scope() => Page(Live(), "/page");
 
     private static IValueStore Page(FakeStoreValues store, string path) =>
-        new PageValueStore(Key(path), store, TestOptions.Stores.Page, TestOptions.Stores.MaxKeyChars, writable: true);
+        new PageValueStore(Key(path), store, TestOptions.Stores.Page, TestOptions.Stores.MaxKeyBytes, writable: true);
 
     private static FakeStoreValues Live() {
         FakeStoreValues store = new();

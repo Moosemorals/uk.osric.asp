@@ -159,9 +159,9 @@ public sealed class ToolSpecsTests {
         IReadOnlyList<ToolArgumentSchema> check = ToolRegistry.Default.Find("check")!.Spec.Arguments;
 
         ToolArgumentsResult refused = ToolArguments.Parse(
-            """{"language":"css","content":"body { color: red; }"}""", check, maximumChars: 4_096);
+            """{"language":"css","content":"body { color: red; }"}""", check, maximumBytes: 4_096);
         ToolArgumentsResult accepted = ToolArguments.Parse(
-            """{"language":"javascript","content":"export const answer = 42;"}""", check, maximumChars: 4_096);
+            """{"language":"javascript","content":"export const answer = 42;"}""", check, maximumBytes: 4_096);
 
         Assert.Multiple(() => {
             Assert.That(refused.Error, Does.Contain("must be one of template, javascript"));

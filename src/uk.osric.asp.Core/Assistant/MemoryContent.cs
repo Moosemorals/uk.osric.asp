@@ -3,6 +3,8 @@
 
 namespace uk.osric.asp.Core.Assistant;
 
+using uk.osric.asp.Core.Text;
+
 /// <summary>The text of a memory, normalised, or the reason it cannot be stored.</summary>
 /// <param name="Content">The normalised text, or the empty string when the content was refused.</param>
 /// <param name="Error">A sentence the model can act on, or null when the content is usable.</param>
@@ -27,10 +29,10 @@ public static class MemoryContent {
 
     /// <summary>Trims, collapses whitespace and checks the length.</summary>
     /// <param name="content">The model-supplied text.</param>
-    /// <param name="maximumChars">The configured length limit, in characters.</param>
+    /// <param name="maximumBytes">The configured length limit, in UTF-8 bytes.</param>
     /// <returns>The normalised text, or the refusal.</returns>
-    public static MemoryContentResult Normalise(string? content, int maximumChars) {
-        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(maximumChars);
+    public static MemoryContentResult Normalise(string? content, int maximumBytes) {
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(maximumBytes);
 
         if (content is null) {
             return MemoryContentResult.Refused("A memory needs some content.");
@@ -45,8 +47,8 @@ public static class MemoryContent {
             return MemoryContentResult.Refused("A memory needs some content.");
         }
 
-        return normalised.Length > maximumChars
-            ? MemoryContentResult.Refused($"A memory is at most {maximumChars.ToString(System.Globalization.CultureInfo.InvariantCulture)} characters. Store the short version, or write a page.")
+        return Utf8.SizeInBytes(normalised) > maximumBytes
+            ? MemoryContentResult.Refused($"A memory is at most {maximumBytes.ToString(System.Globalization.CultureInfo.InvariantCulture)} bytes. Store the short version, or write a page.")
             : new MemoryContentResult(normalised, null);
     }
 

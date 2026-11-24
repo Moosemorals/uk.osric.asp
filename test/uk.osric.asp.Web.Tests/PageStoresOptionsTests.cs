@@ -9,12 +9,23 @@ using uk.osric.asp.Web.Pages;
 [TestFixture]
 public sealed class PageStoresOptionsTests {
 
+    [TestCase("Pages:Stores:MaxKeyChars")]
+    [TestCase("Pages:Stores:Records:MaxNameChars")]
+    [TestCase("Pages:Stores:Records:MaxResultChars")]
+    [TestCase("Pages:Stores:Secrets:MaxNameChars")]
+    public void ACountFromTheReleaseBeforeIsRefused(string retired) {
+        ConfigurationException error = Assert.Throws<ConfigurationException>(() => PageStoresOptions.FromConfiguration(
+            ShippedConfiguration.Read((retired, "10"))))!;
+
+        Assert.That(error.Message, Does.Contain($"{retired} is no longer read").And.Contain("Bytes"));
+    }
+
     [Test]
     public void TheShippedValuesAreTheDocumentedOnes() {
         PageStoresOptions stores = TestOptions.Stores;
 
         Assert.Multiple(() => {
-            Assert.That(stores.MaxKeyChars, Is.EqualTo(200));
+            Assert.That(stores.MaxKeyBytes, Is.EqualTo(200));
             Assert.That(stores.CommandTimeout, Is.EqualTo(TimeSpan.FromSeconds(5)));
             Assert.That(stores.BusyTimeoutSeconds, Is.EqualTo(5));
             Assert.That(stores.Page, Is.EqualTo(new SubjectLimits(65_536, 256, 262_144)));
@@ -33,7 +44,7 @@ public sealed class PageStoresOptionsTests {
     [Test]
     public void ConfiguredValuesAreRead() {
         PageStoresOptions stores = PageStoresOptions.FromConfiguration(ShippedConfiguration.Read(
-            ("Pages:Stores:MaxKeyChars", "32"),
+            ("Pages:Stores:MaxKeyBytes", "32"),
             ("Pages:Stores:CommandTimeoutSeconds", "9"),
             ("Pages:Stores:BusyTimeoutSeconds", "7"),
             ("Pages:Stores:Page:MaxValueBytes", "2048"),
@@ -56,13 +67,13 @@ public sealed class PageStoresOptionsTests {
             ("Pages:Stores:Messages:MaxSubjectBytes", "8192"),
             ("Pages:Stores:Objects:MaxObjectBytes", "2048"),
             ("Pages:Stores:Objects:MaxSubjectBytes", "8192"),
-            ("Pages:Stores:Secrets:MaxNameChars", "40"),
+            ("Pages:Stores:Secrets:MaxNameBytes", "40"),
             ("Pages:Stores:Secrets:MaxSecretBytes", "512"),
             ("Pages:Stores:Secrets:MaxSecrets", "4"),
             ("Pages:Stores:Secrets:MaxSubjectBytes", "4096")));
 
         Assert.Multiple(() => {
-            Assert.That(stores.MaxKeyChars, Is.EqualTo(32));
+            Assert.That(stores.MaxKeyBytes, Is.EqualTo(32));
             Assert.That(stores.CommandTimeout, Is.EqualTo(TimeSpan.FromSeconds(9)));
             Assert.That(stores.BusyTimeoutSeconds, Is.EqualTo(7));
             Assert.That(stores.Page, Is.EqualTo(new SubjectLimits(2_048, 4, 8_192)));
@@ -83,7 +94,7 @@ public sealed class PageStoresOptionsTests {
         ConfigurationException error = Assert.Throws<ConfigurationException>(() =>
             PageStoresOptions.FromConfiguration(ShippedConfiguration.WithoutSection("Pages:Stores")))!;
 
-        Assert.That(error.Message, Does.Contain("Pages:Stores:MaxKeyChars is not set."));
+        Assert.That(error.Message, Does.Contain("Pages:Stores:MaxKeyBytes is not set."));
     }
 
     [Test]
@@ -148,8 +159,8 @@ public sealed class PageStoresOptionsTests {
     [Test]
     public void AKeyLimitBelowTheShortestUsefulKeyStopsTheSite() {
         ConfigurationException error = Assert.Throws<ConfigurationException>(() =>
-            PageStoresOptions.FromConfiguration(ShippedConfiguration.Read(("Pages:Stores:MaxKeyChars", "4"))))!;
+            PageStoresOptions.FromConfiguration(ShippedConfiguration.Read(("Pages:Stores:MaxKeyBytes", "4"))))!;
 
-        Assert.That(error.Message, Does.Contain("Pages:Stores:MaxKeyChars is 4"));
+        Assert.That(error.Message, Does.Contain("Pages:Stores:MaxKeyBytes is 4"));
     }
 }

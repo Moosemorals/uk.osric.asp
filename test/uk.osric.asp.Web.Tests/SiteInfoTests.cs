@@ -142,8 +142,8 @@ public sealed class SiteInfoTests {
 
     internal static SiteBounds Bounds(int available) => new(
         new SiteAllowance(10, available, 2, "Pages:Fetch:FetchesPerSecond"),
-        new SiteAllowance(100, available * 10, 20, "Pages:Read:SourceCharsPerSecond"),
-        new SiteCounter(1000, available * 10, "Pages:Render:MaxBodyChars"),
+        new SiteAllowance(100, available * 10, 20, "Pages:Read:SourceBytesPerSecond"),
+        new SiteCounter(1000, available * 10, "Pages:Render:MaxBodyBytes"),
         new SiteCounter(8, available, "Pages:Render:MaxEmbeds"),
         new SiteTime(TimeSpan.FromSeconds(5), TimeSpan.FromSeconds(available), "Pages:Render:TimeoutSeconds"));
 }

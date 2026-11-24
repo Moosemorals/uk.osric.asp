@@ -225,7 +225,7 @@ public sealed class SimpleResponseTests {
             new PageBody(
                 new StringWriter(),
                 PageHarness.Key("/page"),
-                new BodyBudget(TestOptions.Render.MaxBodyChars),
+                new BodyBudget(TestOptions.Render.MaxBodyBytes),
                 new PageCommitState(),
                 canStream ? sink : null,
                 CancellationToken.None),

@@ -294,7 +294,7 @@ before the first flush: their cookies can no longer be sent afterwards.</p>
 <p>A failure after the commit cannot become an error page. An exception is logged and the response is
 truncated. A <code>HEAD</code> request commits but sends no body, and a streamed response has no
 <code>Content-Length</code>.</p>
-<p><code>Pages:Render:MaxBodyChars</code> still limits what is buffered before the first flush. After the
+<p><code>Pages:Render:MaxBodyBytes</code> still limits what is buffered before the first flush. After the
 commit the body is not charged, because it is already on its way to the visitor.</p>
 <p>The commit is also where the render's own budget ends and the stream's two clocks start. A stream
 is truncated when nothing has been flushed for <code>Pages:Stream:SilenceSeconds</code> (60 seconds by
@@ -404,7 +404,7 @@ starting page's data, which the page can read again; <code>context.Stores.Visito
 starter's, with only a <code>Person</code> lifetime because a job has no session and no browser; and
 <code>context.Stores.For(context.Worker)</code> is the worker's own namespace, shared by every run of
 that worker. Its fetch and catalog are the worker's own — with their own rates,
-<code>Pages:Jobs:FetchesPerSecond</code> and <code>Pages:Jobs:SourceCharsPerSecond</code>, refilled for
+<code>Pages:Jobs:FetchesPerSecond</code> and <code>Pages:Jobs:SourceBytesPerSecond</code>, refilled for
 the whole life of the job — so a credential bound to the worker stays the worker's. It asks for those through <code>context.Capabilities</code> exactly as a page does.</p>
 <p><strong>A job writes with the credential that started it.</strong> The writer is the page store's
 usual <a href="/admin/reference/sdk#t-IPageWrites"><code>IPageWrites</code></a>, bound to the starting
@@ -719,7 +719,8 @@ the text itself — no character is syntax — and
 a source is read, and a construct the host cannot carry is refused then. <code>IgnoreCase</code> is true
 unless you say otherwise.</p>
 <p>A match carries a snippet of its line rather than the whole line. <code>Text</code> is the line cut to <code>Context</code>
-characters — 64 by default — centred on the match and never shorter than the match itself, so a long
+bytes — 64 by default — grown around the match, never splitting a character and never shorter than the
+match itself, so a long
 match widens the snippet instead of being cut. <code>TextColumn</code> is the column the snippet starts
 at, <code>Clipped</code> says the line goes on beyond it, and
 <code>Column - TextColumn</code> is where the match sits inside <code>Text</code>. A line with
@@ -761,8 +762,10 @@ says what it is in <code>Kind</code>, as flags that combine — <code>Page</code
 a folder is one row, and <code>IsDeleted</code> and <code>IsReserved</code> read the same fact. A
 folder is not stored: it exists because a key lives below it, and the host works it out, so there is
 never a folder to create or delete. A row with no head — a folder, or a route — has no
-<code>SavedAt</code>, no <code>Hash</code> and no <code>State</code>, and <code>IsHtml</code> is
-false unless the key is a page or a route. This is why a page that wants only pages filters on
+<code>SavedAt</code>, no <code>Hash</code>, no <code>State</code> and no <code>SourceBytes</code>,
+and <code>IsHtml</code> is false unless the key is a page or a route. <code>SourceBytes</code> is the
+head's stored template size in UTF-8 bytes, so a listing tells you how large a page is without
+reading it. This is why a page that wants only pages filters on
 <code>Kind.HasFlag(PageEntryKind.Page)</code>.</p>
 <p>Every remaining mark is the host's rule rather than yours: <code>IsHtml</code> is the content-type
 table's answer, <code>IsAsset</code>, <code>IsLibrary</code> and <code>IsWorker</code> are what the
@@ -783,9 +786,9 @@ a template whose own guard hides its output, and including the history of a dele
 scrubbed. The seeded <a href="<%= site.EditorPath %>"><%= site.EditorPath %></a> is a guarded listing, source view and
 history: the same capability with that one line at the top of its source.</p>
 <p>The read is bounded. One listing returns at most the configured row limit (500 as shipped) and
-refuses rather than truncating. Source reads are a rate: <code>Pages:Read:SourceCharsPerSecond</code>
+refuses rather than truncating. Source reads are a rate: <code>Pages:Read:SourceBytesPerSecond</code>
 (104858 as shipped) refills a burst that is the rate times <code>Pages:Render:TimeoutSeconds</code>,
-which is 524290 characters as shipped, shared across the page and its layouts. A read is whole, so a
+which is 524290 bytes as shipped, shared across the page and its layouts. A read is whole, so a
 template larger than that burst is refused at any rate, and a refusal leaves the allowance untouched
 rather than half a page. A listing charges nothing, because its rows are metadata and the body limit
 bounds what a page can write out of them. Both are set under <code>Pages:Read</code>, and a missing or
@@ -1025,7 +1028,7 @@ entries are re-keyed into the account in one transaction, so a one-shot survives
 <code>Session</code> entries go with the rotation, and its <code>Browser</code> entries stay on the
 device. A read searches the session, then the browser, then the account, so the more ephemeral value
 shadows the longer-lived one. A page never sees the session id, the account name or the browser id.</p>
-<p>Keys are ordinal and case-sensitive, 1 to 200 characters, with no control characters. A value is
+<p>Keys are ordinal and case-sensitive, 1 to 200 UTF-8 bytes, with no control characters. A value is
 JSON; the limits are per subject instance, and a write past one throws when it is awaited. The Page
 subject may hold 256 keys and 256 KiB with 64 KiB for one value. The Visitor subject gets 8 keys and
 16 KiB anonymous, 32 keys and 64 KiB signed in, 8 keys and 16 KiB for a browser, with 4 KiB or
@@ -1227,7 +1230,7 @@ it runs. A secret is never in the source, a revision, a listing, a search result
 <code>/admin/export</code> archive, and an archive that carries one is refused. Deleting the page
 deletes its secrets, moving it re-keys them and a scrub removes them. A <code>HEAD</code> may read a
 secret and may not write one.</p>
-<p>One name may be 100 characters, one secret 8 KiB, and a page may hold 16 names totalling 32 KiB. The
+<p>One name may be 100 UTF-8 bytes, one secret 8 KiB, and a page may hold 16 names totalling 32 KiB. The
 rows are text at rest, as a password hash or a session row is, so treat a stored secret as readable by
 anyone who can read the database. An operator's credential is still never shown to a page: a page names
 a credential in <code>Pages:Fetch:Credentials</code> and the host attaches it, and a page's own key is a

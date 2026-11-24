@@ -35,7 +35,7 @@ internal static class SiteBoundsSnapshot {
         return new SiteBounds(
             Allowance(fetches),
             Allowance(template),
-            new SiteCounter(body.MaxChars, body.Remaining, RenderOptions.MaxBodyCharsKey),
+            new SiteCounter(body.MaxBytes, body.Remaining, RenderOptions.MaxBodyBytesKey),
             new SiteCounter(embedCapacity, Math.Max(embedCapacity - embedsMade, 0), RenderOptions.MaxEmbedsKey),
             new SiteTime(total, remaining, RenderOptions.TimeoutSecondsKey));
     }

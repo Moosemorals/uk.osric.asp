@@ -30,7 +30,7 @@ internal sealed class PageValueStore : RenderBoundCapability, IValueStore {
     private readonly IPageSessionStore? _sessions;
     private readonly PageReaderSubject? _reader;
     private readonly SubjectLimits _pageLimits;
-    private readonly int _maxKeyChars;
+    private readonly int _maxKeyBytes;
     private readonly bool _writable;
     private readonly PageCommitState? _commit;
     private readonly StoreLifetimeKind? _only;
@@ -59,7 +59,7 @@ internal sealed class PageValueStore : RenderBoundCapability, IValueStore {
         _bound = bound;
         _store = store;
         _pageLimits = limits;
-        _maxKeyChars = maxKeyChars;
+        _maxKeyBytes = maxKeyChars;
         _writable = writable;
         _validate = validate;
     }
@@ -95,7 +95,7 @@ internal sealed class PageValueStore : RenderBoundCapability, IValueStore {
         _sessions = sessions;
         _reader = reader;
         _pageLimits = new SubjectLimits(0, 0, 0);
-        _maxKeyChars = maxKeyChars;
+        _maxKeyBytes = maxKeyChars;
         _writable = writable;
         _commit = commit;
         _only = only;
@@ -112,7 +112,7 @@ internal sealed class PageValueStore : RenderBoundCapability, IValueStore {
         ArgumentNullException.ThrowIfNull(_sessions);
 
         PageValueStore view = new(
-            _bound, _store, _sessions, _reader, _maxKeyChars, writable ?? _writable, _commit, kind, slides);
+            _bound, _store, _sessions, _reader, _maxKeyBytes, writable ?? _writable, _commit, kind, slides);
         view.AttachDeadline(Deadline);
 
         return view;
@@ -325,7 +325,7 @@ internal sealed class PageValueStore : RenderBoundCapability, IValueStore {
         }
     }
 
-    private void ValidateKey(string key) => PageStateKey.Validate(key, _maxKeyChars);
+    private void ValidateKey(string key) => PageStateKey.Validate(key, _maxKeyBytes);
 
     private void ThrowIfReadOnly() {
         if (!_writable) {

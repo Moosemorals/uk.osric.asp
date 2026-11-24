@@ -77,6 +77,7 @@ internal sealed class ListPagesTool : AssistantTool {
                 path = item.Path.Key,
                 kind = item.IsShellFile ? "shell" : "page",
                 mode = PageMode.Describe(item.CanWrite),
+                bytes = item.SourceBytes,
                 deleted = item.IsDeleted,
                 status = item.State?.Describe(),
             }),
@@ -283,7 +284,7 @@ internal sealed class EditPageTool : AssistantTool {
         PageRangeEditResult edited = PageRangeEditor.ReplaceAll(
             current.Template,
             edits!,
-            services.Options.MaxPageChars);
+            services.Options.MaxPageBytes);
         if (!edited.IsSuccess) {
             return services.Results.Failure(edited.Error!, $"{Spec.Verb} {path!.Describe()}: rejected");
         }
@@ -395,12 +396,13 @@ internal sealed class EditPageTool : AssistantTool {
     // and JSON escaping can double a line break, so it is sized to fit inside the envelope as it is.
     private static (string Text, bool Truncated) BoundedDiff(ToolServices services, DiffDocument comparison) {
         string text = comparison.ToUnified();
-        int budget = Math.Max(1, (int)Math.Min(services.Budget.ToolResultChars, int.MaxValue));
-        if (text.Length <= budget) {
+        int budget = Math.Max(1, (int)Math.Min(services.Budget.ToolResultBytes, int.MaxValue));
+        const string trailer = "\n[truncated]";
+        if (Utf8.SizeInBytes(text) <= budget) {
             return (text, false);
         }
 
-        return (text[..budget] + "\n[truncated]", true);
+        return (Utf8.Clip(text, Math.Max(1, budget - Utf8.SizeInBytes(trailer))) + trailer, true);
     }
 }
 
@@ -432,8 +434,8 @@ internal sealed class WritePageTool : AssistantTool {
         }
 
         string content = values.RequiredString("content");
-        if (content.Length > services.Options.MaxPageChars) {
-            return services.Results.Failure("The page exceeds Assistant:MaxPageChars.", $"{Spec.Verb} {path!.Describe()}: too large");
+        if (Utf8.SizeInBytes(content) > services.Options.MaxPageBytes) {
+            return services.Results.Failure("The page exceeds Assistant:MaxPageBytes.", $"{Spec.Verb} {path!.Describe()}: too large");
         }
 
         SavedRevision saved = await services.Pages.SaveAsync(path!, content, cancellationToken);
@@ -515,7 +517,7 @@ internal sealed class SearchPagesTool : AssistantTool {
         object[] matches = [.. found.Matches.Select(match => new {
             path = match.Path.Key,
             line = match.Line,
-            text = match.Text[..Math.Min(match.Text.Length, 240)],
+            text = Utf8.Clip(match.Text, 240),
         })];
 
         return services.Results.Success(new { query, matches, truncated = found.Truncated }, $"Found {matches.Length} matches");
@@ -683,8 +685,8 @@ internal static class PageToolData {
         }
 
         string source = string.Join('\n', numbered);
-        int limit = (int)Math.Min(budget.ToolResultChars, int.MaxValue);
-        bool truncated = source.Length > limit;
+        int limit = (int)Math.Min(budget.ToolResultBytes, int.MaxValue);
+        bool truncated = Utf8.SizeInBytes(source) > limit;
         if (truncated) {
             source = Window(source, Math.Max(1, limit));
         }
@@ -700,14 +702,27 @@ internal static class PageToolData {
         // Both ends together are what the window is: half each, so the answer stays inside the share
         // of the budget it was given rather than being twice it.
         int half = Math.Max(1, window / 2);
-        string head = source[..Math.Min(half, source.Length)];
+        string head = Utf8.Clip(source, half);
         int lastBreak = head.LastIndexOf('\n');
         if (lastBreak >= 0) {
             head = head[..lastBreak];
         }
 
-        int tailStart = Math.Max(1, source.Length - half);
-        int lineStart = source.LastIndexOf('\n', tailStart - 1);
+        // The tail is the last whole lines that fit the other half, found by walking back by code points.
+        int tailStart = source.Length;
+        int used = 0;
+        while (tailStart > 0) {
+            int units = Utf8.PreviousCodePointUnits(source, tailStart);
+            int bytes = Utf8.SizeInBytes(source.Substring(tailStart - units, units));
+            if (used + bytes > half) {
+                break;
+            }
+
+            used += bytes;
+            tailStart -= units;
+        }
+
+        int lineStart = tailStart > 0 ? source.IndexOf('\n', tailStart) : -1;
         string tail = lineStart >= 0 ? source[(lineStart + 1)..] : string.Empty;
 
         return head + "\n\u2026[source omitted; request a line range]\u2026\n" + tail;

@@ -3,9 +3,11 @@
 
 namespace uk.osric.asp.Web.Pages;
 
+using uk.osric.asp.Core.Text;
+
 /// <summary>The rule a page's state key obeys, shared by a page's own write and an imported archive.</summary>
 /// <remarks>
-/// A key is 1 to <see cref="PageStoresOptions.MaxKeyChars"/> characters with no control characters.
+/// A key is 1 to <see cref="PageStoresOptions.MaxKeyBytes"/> UTF-8 bytes with no control characters.
 /// An archive is validated against this before anything is staged, so an import cannot store a key a
 /// page could not have written itself.
 /// </remarks>
@@ -13,9 +15,9 @@ internal static class PageStateKey {
 
     /// <summary>Whether <paramref name="key"/> may name a state value.</summary>
     /// <param name="key">The key to test.</param>
-    /// <param name="maxChars">The configured maximum length.</param>
-    public static bool IsValid(string? key, int maxChars) {
-        if (string.IsNullOrEmpty(key) || key.Length > maxChars) {
+    /// <param name="maxBytes">The configured maximum length in UTF-8 bytes.</param>
+    public static bool IsValid(string? key, int maxBytes) {
+        if (string.IsNullOrEmpty(key) || Utf8.SizeInBytes(key) > maxBytes) {
             return false;
         }
 
@@ -30,13 +32,13 @@ internal static class PageStateKey {
 
     /// <summary>Throws when <paramref name="key"/> may not name a state value.</summary>
     /// <param name="key">The key to check.</param>
-    /// <param name="maxChars">The configured maximum length.</param>
+    /// <param name="maxBytes">The configured maximum length in UTF-8 bytes.</param>
     /// <exception cref="ArgumentException">The key is empty, too long, or carries a control character.</exception>
-    public static void Validate(string? key, int maxChars) {
+    public static void Validate(string? key, int maxBytes) {
         ArgumentException.ThrowIfNullOrEmpty(key);
 
-        if (key.Length > maxChars) {
-            throw new ArgumentException($"A key may be at most {maxChars} characters.", nameof(key));
+        if (Utf8.SizeInBytes(key) > maxBytes) {
+            throw new ArgumentException($"A key may be at most {maxBytes} bytes.", nameof(key));
         }
 
         foreach (char character in key) {

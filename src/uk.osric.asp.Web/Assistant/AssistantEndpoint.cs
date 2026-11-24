@@ -114,10 +114,10 @@ internal static class AssistantEndpoint {
             || !context.Request.Form.TryGetValue("content", out Microsoft.Extensions.Primitives.StringValues contentValues)
             || contentValues.Count != 1
             || string.IsNullOrWhiteSpace(contentValues[0])
-            || contentValues[0]!.Length > budget.MessageChars) {
+            || Utf8.SizeInBytes(contentValues[0]!) > budget.MessageBytes) {
             await WriteJsonErrorAsync(context, StatusCodes.Status400BadRequest,
                 "assistant.message_invalid", "The message is empty or too long",
-                $"A message needs one value no longer than {budget.MessageChars.ToString(CultureInfo.InvariantCulture)} characters.");
+                $"A message needs one value no longer than {budget.MessageBytes.ToString(CultureInfo.InvariantCulture)} bytes.");
             return;
         }
         if (await conversations.GetActiveRunAsync(id, owner, context.RequestAborted) is not null) {
@@ -421,7 +421,7 @@ internal static class AssistantEndpoint {
                     }
 
                     OwnerAnswerInput[] inputs = [.. questions.Questions.Select((_, index) => AnswerInput(context, index))];
-                    OwnerAnswersResult answers = OwnerQuestions.Answer(questions, inputs, budget.MessageChars);
+                    OwnerAnswersResult answers = OwnerQuestions.Answer(questions, inputs, budget.MessageBytes);
                     if (!answers.IsSuccess) {
                         await WriteJsonErrorAsync(context, StatusCodes.Status400BadRequest,
                             "assistant.answer_invalid", "The answer could not be recorded", answers.Error!);

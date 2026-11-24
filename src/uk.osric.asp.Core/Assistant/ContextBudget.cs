@@ -44,14 +44,14 @@ public sealed record ContextBudget {
     /// <summary>The prompt's share of the window: everything except the reply's floor.</summary>
     public long PromptBudget => ContextWindow - MinimumOutputTokens;
 
-    /// <summary>The most characters one tool result may carry, an eighth of the prompt budget.</summary>
-    public long ToolResultChars => CharsOf(PromptBudget / ToolResultFraction);
+    /// <summary>The most bytes one tool result may carry, an eighth of the prompt budget.</summary>
+    public long ToolResultBytes => BytesOf(PromptBudget / ToolResultFraction);
 
-    /// <summary>The most characters the owner's message may carry, an eighth of the prompt budget.</summary>
-    public long MessageChars => ToolResultChars;
+    /// <summary>The most bytes the owner's message may carry, an eighth of the prompt budget.</summary>
+    public long MessageBytes => ToolResultBytes;
 
-    /// <summary>The most characters a run's memory block may cost, a thirty-second of the prompt budget.</summary>
-    public long MemoryCharsPerRun => CharsOf(PromptBudget / MemoryFraction);
+    /// <summary>The most bytes a run's memory block may cost, a thirty-second of the prompt budget.</summary>
+    public long MemoryBytesPerRun => BytesOf(PromptBudget / MemoryFraction);
 
     /// <summary>Resolves a reported window and the configured floor into the budget a run is given.</summary>
     /// <param name="contextWindow">The window the provider reported, in tokens.</param>
@@ -105,5 +105,5 @@ public sealed record ContextBudget {
     /// <returns>The margin in tokens, which is the prompt budget times the estimator's margin over one.</returns>
     public long EstimateMargin => (long)(PromptBudget * (TokenEstimator.DeltaMargin - 1));
 
-    private static long CharsOf(long tokens) => (long)(tokens * BytesPerToken);
+    private static long BytesOf(long tokens) => (long)(tokens * BytesPerToken);
 }

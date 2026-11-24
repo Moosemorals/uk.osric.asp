@@ -423,8 +423,8 @@ internal sealed class RunProcessor(
                         // and it moves as the card appears rather than when the step is recorded. The cost
                         // of the call is known before it runs, so it is published in the same snapshot.
                         budgets = budgets with { ToolCalls = toolCallCount + 1 };
-                        if (call.Arguments.Length > budgets.LongestArguments) {
-                            budgets = budgets with { LongestArguments = call.Arguments.Length };
+                        if (Utf8.SizeInBytes(call.Arguments) > budgets.LongestArguments) {
+                            budgets = budgets with { LongestArguments = Utf8.SizeInBytes(call.Arguments) };
                         }
                         PublishBudgets(stream, budgets, usageTotals, budget, stepLimit, toolCallLimit);
 
@@ -476,8 +476,8 @@ internal sealed class RunProcessor(
                         });
 
                         // The stored result is what the page measures, so a longer one moves the row now.
-                        if (result.Content.Length > budgets.LongestResult) {
-                            budgets = budgets with { LongestResult = result.Content.Length };
+                        if (Utf8.SizeInBytes(result.Content) > budgets.LongestResult) {
+                            budgets = budgets with { LongestResult = Utf8.SizeInBytes(result.Content) };
                             PublishBudgets(stream, budgets, usageTotals, budget, stepLimit, toolCallLimit);
                         }
                         activeToolCallId = null;
@@ -585,15 +585,15 @@ internal sealed class RunProcessor(
 
             // Recall is bounded by the memory block's share of the budget rather than a count: relevance
             // already ranks, and the budget is what decides how much of it the model may read.
-            int memoryChars = (int)Math.Min(budget.MemoryCharsPerRun, int.MaxValue);
+            int memoryChars = (int)Math.Min(budget.MemoryBytesPerRun, int.MaxValue);
             MemorySelection selection = MemoryRecall.Select(pinned, used, matched, memoryChars);
-            metrics.RecordMemoryRecall(selection.Memories.Count, selection.Characters);
+            metrics.RecordMemoryRecall(selection.Memories.Count, selection.Bytes);
             if (selection.IsEmpty) {
                 return string.Empty;
             }
 
             logger.LogInformation("Assistant run {RunId} recalled {Memories} memories ({Chars} chars)",
-                queued.RunId, selection.Memories.Count, selection.Characters);
+                queued.RunId, selection.Memories.Count, selection.Bytes);
             try {
                 await memories.TouchAsync(
                     queued.Owner, [.. selection.Memories.Select(memory => memory.Id)], queued.ConversationId, cancellationToken);

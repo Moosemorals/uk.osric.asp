@@ -782,9 +782,9 @@ public sealed class PageToolExecutorTests {
             "shell", "{\"command\":\"ls -l /a\"}", Context, CancellationToken.None);
 
         Assert.Multiple(() => {
-            Assert.That(Output(root).Split('\n'), Does.Contain("drwxr-xr-x /a"), "a key with keys beneath it is a folder");
-            Assert.That(Output(root).Split('\n'), Does.Not.Contain("-rw-r--r-- /b"), "a deleted page is not listed");
-            Assert.That(Output(folder), Is.EqualTo("-rw-r--r-- /a/child"));
+            Assert.That(Output(root).Split('\n'), Does.Contain("drwxr-xr-x 5 /a"), "a key with keys beneath it is a folder, and it holds a page");
+            Assert.That(Output(root).Split('\n'), Does.Not.Contain("-rw-r--r-- 5 /b"), "a deleted page is not listed");
+            Assert.That(Output(folder), Is.EqualTo("-rw-r--r-- 5 /a/child"));
         });
     }
 
@@ -820,10 +820,10 @@ public sealed class PageToolExecutorTests {
         ToolExecutionResult route = await tools.ExecuteAsync("shell", "{\"command\":\"ls -l /admin/scrub\"}", Context, CancellationToken.None);
 
         Assert.Multiple(() => {
-            Assert.That(Output(root).Split('\n'), Does.Contain("dr-xr-xr-x /admin"));
-            Assert.That(Output(root).Split('\n'), Does.Contain("-r--r--r-- /login"));
-            Assert.That(Output(root).Split('\n'), Does.Contain("-rw-r--r-- /blog"));
-            Assert.That(Output(route), Is.EqualTo("-r--r--r-- /admin/scrub"), "a route owns the subtree, not a page");
+            Assert.That(Output(root).Split('\n'), Does.Contain("dr-xr-xr-x - /admin"));
+            Assert.That(Output(root).Split('\n'), Does.Contain("-r--r--r-- - /login"));
+            Assert.That(Output(root).Split('\n'), Does.Contain("-rw-r--r-- 5 /blog"));
+            Assert.That(Output(route), Is.EqualTo("-r--r--r-- - /admin/scrub"), "a route owns the subtree, not a page");
         });
     }
 
@@ -1031,7 +1031,7 @@ public sealed class PageToolExecutorTests {
         using ServiceProvider services = Services(pages);
         PageToolExecutor tools = CreateTools(
             services,
-            TestOptions.Assistant with { MaxToolArgumentChars = 4096, MaxPageChars = 4096 },
+            TestOptions.Assistant with { MaxToolArgumentBytes = 4096, MaxPageBytes = 4096 },
             TestOptions.BudgetOfResultChars(65_536));
 
         ToolExecutionResult result = await tools.ExecuteAsync(
@@ -1368,7 +1368,7 @@ public sealed class PageToolExecutorTests {
         using ServiceProvider services = Services(pages);
         PageToolExecutor tools = CreateTools(
             services,
-            TestOptions.Assistant with { MaxToolArgumentChars = 4096, MaxPageChars = 4096 },
+            TestOptions.Assistant with { MaxToolArgumentBytes = 4096, MaxPageBytes = 4096 },
             TestOptions.BudgetOfResultChars(4_096));
 
         ToolExecutionResult result = await tools.ExecuteAsync(
@@ -1428,15 +1428,15 @@ public sealed class PageToolExecutorTests {
         using PageHarness pages = new(storage);
         using ServiceProvider services = Services(pages);
         PageToolExecutor tools = CreateTools(services, TestOptions.Assistant with {
-            MaxToolArgumentChars = 8192,
-            MaxPageChars = 1024,
+            MaxToolArgumentBytes = 8192,
+            MaxPageBytes = 1024,
         });
         string arguments = JsonSerializer.Serialize(new { path = "/big", content = new string('x', 2000) });
 
         ToolExecutionResult result = await tools.ExecuteAsync("write_page", arguments, Context, CancellationToken.None);
 
         Assert.That(result.IsSuccess, Is.False);
-        Assert.That(result.Content, Does.Contain("MaxPageChars"));
+        Assert.That(result.Content, Does.Contain("MaxPageBytes"));
         Assert.That(storage.WriteCount, Is.Zero);
     }
 
@@ -1606,7 +1606,7 @@ public sealed class PageToolExecutorTests {
         ToolExecutionResult result = await tools.ExecuteAsync(
             "shell", "{\"command\":\"stat /notes\"}", Context, CancellationToken.None);
 
-        Assert.That(Output(result), Does.Contain("/notes\n-rw-r--r--\n3 chars\n").And.Contain(page.Hash));
+        Assert.That(Output(result), Does.Contain("/notes\n-rw-r--r--\n3 bytes\n").And.Contain(page.Hash));
     }
 
     [Test]
@@ -1634,7 +1634,7 @@ public sealed class PageToolExecutorTests {
         using ServiceProvider services = Services(pages);
         PageToolExecutor tools = CreateTools(
             services,
-            TestOptions.Assistant with { MaxToolArgumentChars = 4096, MaxPageChars = 4096 },
+            TestOptions.Assistant with { MaxToolArgumentBytes = 4096, MaxPageBytes = 4096 },
             TestOptions.BudgetOfResultChars(1024));
 
         ToolExecutionResult result = await tools.ExecuteAsync(
@@ -1872,7 +1872,7 @@ public sealed class PageToolExecutorTests {
         using ServiceProvider services = Services(pages);
         PageToolExecutor tools = CreateTools(services, TestOptions.Assistant with {
             MaxCheckDiagnostics = 2,
-            MaxToolArgumentChars = 4_096,
+            MaxToolArgumentBytes = 4_096,
         });
         string arguments = JsonSerializer.Serialize(new {
             language = "template",
@@ -2058,7 +2058,7 @@ public sealed class PageToolExecutorTests {
         ContextBudget? budget = null) => new(
         services.GetRequiredService<IServiceScopeFactory>(),
         new PagePathPolicy(new ReservedPaths(ReservedPaths.Default), TestOptions.Assistant),
-        options ?? TestOptions.Assistant with { MaxToolArgumentChars = 4096, MaxPageChars = 4096 },
+        options ?? TestOptions.Assistant with { MaxToolArgumentBytes = 4096, MaxPageBytes = 4096 },
         ModelWindowSource.Fixed(budget ?? TestOptions.Budget),
         new AssistantMetrics(),
         new FakeAssistantFetcher());

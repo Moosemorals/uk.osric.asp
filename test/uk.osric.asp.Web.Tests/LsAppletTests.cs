@@ -32,8 +32,8 @@ public sealed class LsAppletTests {
         string output = await ShellKernelHarness.OutputAsync(pages.Editor, "ls -l /a");
 
         Assert.Multiple(() => {
-            Assert.That(output.Split('\n'), Does.Contain("drwxr-xr-x /a/deep"));
-            Assert.That(output.Split('\n'), Does.Contain("-rw-r--r-- /a/one"));
+            Assert.That(output.Split('\n'), Does.Contain("drwxr-xr-x - /a/deep"));
+            Assert.That(output.Split('\n'), Does.Contain("-rw-r--r-- 5 /a/one"), "the stored size in bytes");
         });
     }
 

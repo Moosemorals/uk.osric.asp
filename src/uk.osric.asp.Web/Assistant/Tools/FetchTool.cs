@@ -5,6 +5,7 @@ namespace uk.osric.asp.Web.Assistant.Tools;
 
 using System.Globalization;
 using uk.osric.asp.Core.Assistant;
+using uk.osric.asp.Core.Text;
 
 /// <summary>Gets a URL over HTTP or HTTPS and returns its status, type and text body.</summary>
 internal sealed class FetchTool : AssistantTool {
@@ -48,11 +49,11 @@ internal sealed class FetchTool : AssistantTool {
                 return services.Results.Failure("The fetch did not produce a response.", "Fetch failed");
         }
 
-        int budget = (int)Math.Min(services.Budget.ToolResultChars, int.MaxValue);
+        int budget = (int)Math.Min(services.Budget.ToolResultBytes, int.MaxValue);
         string content = response.Body;
         bool truncated = response.Truncated;
-        if (content.Length > budget) {
-            content = content[..budget];
+        if (Utf8.SizeInBytes(content) > budget) {
+            content = Utf8.Clip(content, budget);
             truncated = true;
         }
 

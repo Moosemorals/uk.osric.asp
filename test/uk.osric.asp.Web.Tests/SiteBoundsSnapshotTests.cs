@@ -27,8 +27,8 @@ public sealed class SiteBoundsSnapshotTests {
             Assert.That(bounds.Fetches.PerSecond, Is.EqualTo(2));
             Assert.That(bounds.Fetches.Key, Is.EqualTo("Pages:Fetch:FetchesPerSecond"));
             Assert.That(bounds.Template.Available, Is.EqualTo(template.Available));
-            Assert.That(bounds.Template.Key, Is.EqualTo("Pages:Read:SourceCharsPerSecond"));
-            Assert.That(bounds.Body, Is.EqualTo(new SiteCounter(4096, 3072, "Pages:Render:MaxBodyChars")));
+            Assert.That(bounds.Template.Key, Is.EqualTo("Pages:Read:SourceBytesPerSecond"));
+            Assert.That(bounds.Body, Is.EqualTo(new SiteCounter(4096, 3072, "Pages:Render:MaxBodyBytes")));
             Assert.That(bounds.Embeds, Is.EqualTo(new SiteCounter(32, 30, "Pages:Render:MaxEmbeds")));
             Assert.That(bounds.Time, Is.EqualTo(new SiteTime(
                 TimeSpan.FromSeconds(5), TimeSpan.FromSeconds(3), "Pages:Render:TimeoutSeconds")));
@@ -73,7 +73,7 @@ public sealed class SiteBoundsSnapshotTests {
 
         Assert.Multiple(() => {
             Assert.That(bounds.Fetches.Key, Is.EqualTo("Pages:Jobs:FetchesPerSecond"));
-            Assert.That(bounds.Template.Key, Is.EqualTo("Pages:Jobs:SourceCharsPerSecond"));
+            Assert.That(bounds.Template.Key, Is.EqualTo("Pages:Jobs:SourceBytesPerSecond"));
             Assert.That(bounds.Time, Is.EqualTo(new SiteTime(
                 TimeSpan.FromSeconds(32_400), TimeSpan.FromSeconds(100), "Pages:Jobs:MaxDurationSeconds")));
             Assert.That(bounds.Body, Is.Null, "a job has no response to buffer");

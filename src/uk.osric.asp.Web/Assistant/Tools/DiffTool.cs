@@ -6,6 +6,7 @@ namespace uk.osric.asp.Web.Assistant.Tools;
 using uk.osric.asp.Core.Assistant;
 using uk.osric.asp.Core.Diff;
 using uk.osric.asp.Core.Pages;
+using uk.osric.asp.Core.Text;
 using uk.osric.asp.Runtime;
 using uk.osric.asp.Web.Http;
 using uk.osric.asp.Web.Pages;
@@ -75,10 +76,11 @@ internal sealed class DiffPageTool : AssistantTool {
 
         DiffDocument comparison = DiffRenderer.Compare(before.Template, after.Template);
         string text = comparison.ToUnified();
-        int budget = (int)Math.Min(services.Budget.ToolResultChars, int.MaxValue);
-        bool truncated = text.Length > budget;
+        int budget = (int)Math.Min(services.Budget.ToolResultBytes, int.MaxValue);
+        const string trailer = "\n[truncated]";
+        bool truncated = Utf8.SizeInBytes(text) > budget;
         if (truncated) {
-            text = text[..budget] + "\n[truncated]";
+            text = Utf8.Clip(text, Math.Max(1, budget - Utf8.SizeInBytes(trailer))) + trailer;
         }
 
         object data = new {

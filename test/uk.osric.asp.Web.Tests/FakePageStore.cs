@@ -131,7 +131,8 @@ internal sealed class FakePageStore : IPageStore {
             .Select(item => new PageListRow(
                 PagePath.Normalize(item.Key),
                 item.Value,
-                StateOf(_pages.GetValueOrDefault(item.Key)?.Image)))];
+                StateOf(_pages.GetValueOrDefault(item.Key)?.Image),
+                _pages.GetValueOrDefault(item.Key) is { } page ? System.Text.Encoding.UTF8.GetByteCount(page.Template) : null))];
         return Task.FromResult(result);
     }
 

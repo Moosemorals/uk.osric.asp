@@ -23,6 +23,9 @@ internal sealed class StorageDbContext(DbContextOptions<StorageDbContext> option
     }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder) {
+        modelBuilder.HasDbFunction(typeof(SqliteTextFunctions).GetMethod(nameof(SqliteTextFunctions.OctetLength))!)
+            .HasName("octet_length");
+
         modelBuilder.Entity<PageRevision>(revision => {
             revision.ToTable("PageRevisions");
             revision.HasKey(row => row.RevisionId);

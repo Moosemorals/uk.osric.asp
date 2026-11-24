@@ -41,8 +41,8 @@ internal static class AssistantConversationPage {
 
         ContextBudget? budget = windows.Budget;
         string messageLimit = budget is null ? string.Empty
-            : $" maxlength=\"{budget.MessageChars.ToString(CultureInfo.InvariantCulture)}\"";
-        string messageScale = budget is null ? string.Empty : $" / {BudgetAmount.Format(budget.MessageChars)}";
+            : $" maxlength=\"{budget.MessageBytes.ToString(CultureInfo.InvariantCulture)}\"";
+        string messageScale = budget is null ? string.Empty : $" / {BudgetAmount.Format(budget.MessageBytes)}";
         string? owner = SignedInOwner.Of(context);
         Conversation? conversation = owner is null ? null : await conversations.GetAsync(id, owner, context.RequestAborted);
         if (conversation is null) {
@@ -452,7 +452,7 @@ internal static class AssistantConversationPage {
                 <legend>Budgets</legend>
                 <dl class="assistant-budget-list">
             """);
-        await WriteBudgetAsync(context, "message", "Message", 0, budget?.MessageChars, "chars");
+        await WriteBudgetAsync(context, "message", "Message", 0, budget?.MessageBytes, "bytes");
         await WriteBudgetAsync(context, "context", "Context", snapshot.ContextTokens, budget?.PromptBudget, "tokens");
         // The reply's allowance is a figure, not a share: it is whatever the prompt left of the window.
         await WriteBudgetAsync(context, "reply", "Reply", snapshot.MaxTokens, null, "tokens");
@@ -460,8 +460,8 @@ internal static class AssistantConversationPage {
         await WriteEstimateAsync(context, snapshot, budget?.EstimateMargin);
         await WriteBudgetAsync(context, "steps", "Steps", snapshot.Steps, run?.StepLimit ?? options.MaxSteps, "steps");
         await WriteBudgetAsync(context, "tool-calls", "Tool calls", snapshot.ToolCalls, run?.ToolCallLimit ?? options.MaxToolCalls, "calls");
-        await WriteBudgetAsync(context, "tool-arguments", "Tool arguments", snapshot.LongestArguments, options.MaxToolArgumentChars, "chars");
-        await WriteBudgetAsync(context, "tool-result", "Tool result", snapshot.LongestResult, budget?.ToolResultChars, "chars");
+        await WriteBudgetAsync(context, "tool-arguments", "Tool arguments", snapshot.LongestArguments, options.MaxToolArgumentBytes, "bytes");
+        await WriteBudgetAsync(context, "tool-result", "Tool result", snapshot.LongestResult, budget?.ToolResultBytes, "bytes");
         await WriteBudgetAsync(context, "output", "Completion", snapshot.LastCompletionTokens,
             snapshot.LastMaxTokens == 0 ? null : snapshot.LastMaxTokens, "tokens");
         await context.Response.WriteAsync("""

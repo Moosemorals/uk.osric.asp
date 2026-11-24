@@ -151,7 +151,7 @@ cannot read the secret of the page it wraps; a page-owned job's `Page` handle is
 worker started by a page holds that page's key for as long as it runs.
 
 The limits are `Pages:Stores:Secrets`, its own row rather than the value limits reused:
-`MaxNameChars`, `MaxSecretBytes`, `MaxSecrets` and `MaxSubjectBytes`, counted as the UTF-8 bytes of the
+`MaxNameBytes`, `MaxSecretBytes`, `MaxSecrets` and `MaxSubjectBytes`, counted as the UTF-8 bytes of the
 name and the value and proved in the statement that writes. Deleting a page removes its secrets in the
 tombstone's transaction, moving it re-keys them and `users remove` takes them with the rest of a
 subject's rows. Nothing else returns them: `IPageCatalog` — source, revision, listing and search —
@@ -313,11 +313,14 @@ SQLite's `length()` and `substr`, which count characters where a `string.Length`
 UTF-16 units. Because a folder is derived from the head rows, its token moves exactly when the token of
 the heads under it does, and the routes sit outside it because the route table is the build's.
 `Pages:Read:MaxRowsPerList`
-(500 shipped) is enforced in the statement and refuses one row past the limit,
-`Pages:Read:SourceCharsPerSecond` (104858 shipped, whose burst is that rate times
+(500 shipped) is enforced in the statement and refuses one row past the limit. A row also carries the
+head's stored size, `octet_length(Template)` read from the record header in the join the listing
+already makes, so a page cannot see another page's size without the store having read it or a column
+holding a copy that could drift,
+`Pages:Read:SourceBytesPerSecond` (104858 shipped, whose burst is that rate times
 `Pages:Render:TimeoutSeconds`) is one `ReadBudget` shared by every layer of the chain and refuses
 rather than truncating, and both the deadline and abandonment stop a read. A job reads at its own
-`Pages:Jobs:SourceCharsPerSecond`, refilled for as long as the job runs. The
+`Pages:Jobs:SourceBytesPerSecond`, refilled for as long as the job runs. The
 read is as public as the page that calls it: the host adds no gate, a page that wants privacy writes
 the ordinary `ctx.User` guard, and a page that reads source publishes it to whoever can reach that
 page. A listing's `PageListing.Version` is derived rather than stored: the read fingerprints the head
@@ -334,7 +337,7 @@ as long as it runs and pins nothing beyond it, so a source is read only when the
 stopped by its allowance leaves nothing open. Its sources are the live pages and the shell's route records;
 a tombstone is never one, and a route takes the place of a head it shadows. `Pages:Search:MaxDurationMs`
 bounds the whole call — the prefix's fingerprint, the reads and the matching — while
-`Pages:Search:MaxMatches` and `Pages:Search:MaxContextChars` bound what an answer may hold. None of them
+`Pages:Search:MaxMatches` and `Pages:Search:MaxContextBytes` bound what an answer may hold. None of them
 charges `Pages:Read:MaxSourceCharsPerRender`: a search answers snippets, not sources, so the render's
 source allowance is not its currency.
 

@@ -221,7 +221,7 @@ public sealed class PageToolExecutorViewTests {
         return new PageToolExecutor(
             services.GetRequiredService<IServiceScopeFactory>(),
             new PagePathPolicy(new ReservedPaths(ReservedPaths.Default), TestOptions.Assistant),
-            TestOptions.Assistant with { MaxToolArgumentChars = 4096, MaxPageChars = 4096 },
+            TestOptions.Assistant with { MaxToolArgumentBytes = 4096, MaxPageBytes = 4096 },
             ModelWindowSource.Fixed(budget ?? TestOptions.Budget),
             new AssistantMetrics(),
             fetcher);

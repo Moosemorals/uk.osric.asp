@@ -177,7 +177,7 @@ public sealed class SimpleContextTests {
             CapabilitiesFor(stores),
             stores,
             contentTypes ?? TestContentTypes.Shipped,
-            TestOptions.Render.MaxBodyChars,
+            TestOptions.Render.MaxBodyBytes,
             TestOptions.Editor.Key,
             user);
     }

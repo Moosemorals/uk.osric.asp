@@ -29,11 +29,11 @@ internal sealed class AssistantOptionsValidator : IValidateOptions<AssistantOpti
         }
         // A page's content travels inside a tool call's arguments, so a limit below the page limit would let
         // the configuration accept a page no tool could write.
-        if (options.MaxToolArgumentChars <= options.MaxPageChars) {
+        if (options.MaxToolArgumentBytes <= options.MaxPageBytes) {
             failures.Add(
-                $"Assistant:MaxToolArgumentChars is {options.MaxToolArgumentChars}, which must exceed "
-                + $"Assistant:MaxPageChars ({options.MaxPageChars}) so a page the store accepts can be written; "
-                + $"{options.MaxPageChars + 8_192} is recommended.");
+                $"Assistant:MaxToolArgumentBytes is {options.MaxToolArgumentBytes}, which must exceed "
+                + $"Assistant:MaxPageBytes ({options.MaxPageBytes}) so a page the store accepts can be written; "
+                + $"{options.MaxPageBytes + 8_192} is recommended.");
         }
 
         return failures.Count == 0 ? ValidateOptionsResult.Success : ValidateOptionsResult.Fail(failures);

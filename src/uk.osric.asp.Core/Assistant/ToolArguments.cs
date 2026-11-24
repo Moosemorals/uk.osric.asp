@@ -60,16 +60,16 @@ public static class ToolArguments {
     /// <summary>Parses an object against an explicit allow-list and type schema.</summary>
     /// <param name="json">The provider-supplied argument JSON.</param>
     /// <param name="schema">The complete set of accepted argument names and types.</param>
-    /// <param name="maximumChars">The maximum serialized argument length.</param>
+    /// <param name="maximumBytes">The maximum serialized argument length, in UTF-8 bytes.</param>
     public static ToolArgumentsResult Parse(
         string json,
         IReadOnlyList<ToolArgumentSchema> schema,
-        int maximumChars) {
+        int maximumBytes) {
         ArgumentNullException.ThrowIfNull(json);
         ArgumentNullException.ThrowIfNull(schema);
-        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(maximumChars);
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(maximumBytes);
 
-        if (json.Length > maximumChars) {
+        if (Utf8.SizeInBytes(json) > maximumBytes) {
             return Invalid("Tool arguments exceed the configured size limit.");
         }
 

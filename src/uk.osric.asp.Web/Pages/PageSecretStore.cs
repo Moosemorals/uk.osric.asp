@@ -5,6 +5,7 @@ namespace uk.osric.asp.Web.Pages;
 
 using System.Text;
 using uk.osric.asp.Core.Pages;
+using uk.osric.asp.Core.Text;
 using uk.osric.asp.Sdk;
 
 /// <summary>The Page subject's <see cref="ISecretStore"/>, bound to the layer's page.</summary>
@@ -102,9 +103,9 @@ internal sealed class PageSecretStore : RenderBoundCapability, ISecretStore {
     private void ValidateName(string name) {
         ArgumentException.ThrowIfNullOrEmpty(name);
 
-        if (name.Length > _limits.MaxNameChars) {
+        if (Utf8.SizeInBytes(name) > _limits.MaxNameBytes) {
             throw new ArgumentException(
-                $"A secret name may be at most {_limits.MaxNameChars} characters.", nameof(name));
+                $"A secret name may be at most {_limits.MaxNameBytes} bytes.", nameof(name));
         }
 
         foreach (char character in name) {

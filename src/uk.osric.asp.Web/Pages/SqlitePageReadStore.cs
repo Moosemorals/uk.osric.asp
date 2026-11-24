@@ -89,6 +89,7 @@ internal sealed class SqlitePageReadStore(IDbContextFactory<StorageDbContext> co
                         revision.RuntimeId,
                         HasImage = revision.Image != null,
                         HasDiagnostics = revision.Diagnostics != null && revision.Diagnostics != "[]",
+                        SourceBytes = SqliteTextFunctions.OctetLength(revision.Template),
                     })
                 .OrderBy(row => row.Path)
                 .Take(limit)
@@ -100,7 +101,7 @@ internal sealed class SqlitePageReadStore(IDbContextFactory<StorageDbContext> co
                 [.. rows.Select(row => new PageReadHead(
                     row.Path, row.SavedAt, row.Hash, row.IsDeleted, row.TemplateKind,
                     row.RuntimeId, row.HasImage, row.HasDiagnostics, row.SeedHash, row.ContentHash,
-                    row.TemplateLibraries))],
+                    row.TemplateLibraries, row.SourceBytes))],
                 PageSubtreeFingerprint.Of(facts));
         }, cancellationToken);
     }
@@ -251,6 +252,7 @@ internal sealed class SqlitePageReadStore(IDbContextFactory<StorageDbContext> co
             .Select(revision => new {
                 revision.Hash,
                 revision.SavedAt,
+                SourceBytes = SqliteTextFunctions.OctetLength(revision.Template),
                 IsCurrent = database.Set<PageHead>().Any(head =>
                     head.Path == key
                     && !head.IsDeleted
@@ -261,7 +263,7 @@ internal sealed class SqlitePageReadStore(IDbContextFactory<StorageDbContext> co
         return [.. rows
             .OrderByDescending(row => row.SavedAt)
             .ThenByDescending(row => row.Hash, StringComparer.Ordinal)
-            .Select(row => new PageReadRevision(row.Hash, row.SavedAt, row.IsCurrent))];
+            .Select(row => new PageReadRevision(row.Hash, row.SavedAt, row.IsCurrent, row.SourceBytes))];
     }
 
     /// <inheritdoc/>

@@ -16,6 +16,7 @@ using uk.osric.asp.Web.Shell;
 /// <param name="IsDeleted">Whether the key is a tombstone that still has its history.</param>
 /// <param name="CanWrite">Whether a save at the key would be accepted, which is the permission column.</param>
 /// <param name="State">What the page's current revision compiled to, or null when the key holds no page.</param>
+/// <param name="SourceBytes">The stored template's size in UTF-8 bytes, or null when no head is stored.</param>
 /// <remarks>
 /// The node carries facts rather than words: the permission column and the compile state are formatted
 /// by whoever shows them, with <see cref="PageMode"/> and <see cref="PageImageStatus"/>, so a tool and
@@ -28,7 +29,8 @@ internal sealed record PageNode(
     bool IsShellFile,
     bool IsDeleted,
     bool CanWrite,
-    PageImageState? State);
+    PageImageState? State,
+    int? SourceBytes = null);
 
 /// <summary>What one key holds.</summary>
 /// <param name="Path">The canonical key.</param>
@@ -110,13 +112,13 @@ internal sealed class PageStoreReader(PageEditor pages, PagePathPolicy paths, IP
 
     /// <inheritdoc/>
     public async Task<IReadOnlyList<PageNode>> TreeAsync(bool includeDeleted, CancellationToken cancellationToken) {
-        Dictionary<string, (bool IsDeleted, PageImageState State)> stored = [with(StringComparer.Ordinal)];
+        Dictionary<string, (bool IsDeleted, PageImageState State, int? SourceBytes)> stored = [with(StringComparer.Ordinal)];
         foreach (PageListRow head in await pages.ListAsync(cancellationToken)) {
             if (paths.IsReserved(head.Path) || (head.IsDeleted && !includeDeleted)) {
                 continue;
             }
 
-            stored[head.Path.Key] = (head.IsDeleted, head.State);
+            stored[head.Path.Key] = (head.IsDeleted, head.State, head.SourceBytes);
         }
 
         HashSet<string> reserved = [with(StringComparer.Ordinal), .. paths.Reserved.Select(key => key.Key)];
@@ -134,7 +136,7 @@ internal sealed class PageStoreReader(PageEditor pages, PagePathPolicy paths, IP
             PagePath path = PagePath.Normalize(node);
             bool isFolder = nodes.Any(other => PagePath.Normalize(other).IsBelow(path));
             bool isShellFile = reserved.Contains(path.Key);
-            bool isStored = stored.TryGetValue(path.Key, out (bool IsDeleted, PageImageState State) row);
+            bool isStored = stored.TryGetValue(path.Key, out (bool IsDeleted, PageImageState State, int? SourceBytes) row);
 
             tree.Add(new PageNode(
                 path,
@@ -143,7 +145,8 @@ internal sealed class PageStoreReader(PageEditor pages, PagePathPolicy paths, IP
                 IsShellFile: isShellFile,
                 IsDeleted: isStored && row.IsDeleted,
                 paths.CanWrite(path),
-                isShellFile || !isStored ? null : row.State));
+                isShellFile || !isStored ? null : row.State,
+                isShellFile || !isStored ? null : row.SourceBytes));
         }
 
         return tree;

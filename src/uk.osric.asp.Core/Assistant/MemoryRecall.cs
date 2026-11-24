@@ -5,6 +5,7 @@ namespace uk.osric.asp.Core.Assistant;
 
 using System.Globalization;
 using System.Text;
+using uk.osric.asp.Core.Text;
 
 /// <summary>Chooses the memories one run is given, and writes the block they appear in.</summary>
 /// <remarks>
@@ -29,21 +30,21 @@ public static class MemoryRecall {
     /// <param name="pinned">The owner's pinned memories, newest change first.</param>
     /// <param name="used">The memories this conversation has already used, most recently used first.</param>
     /// <param name="query">The query's best matches, best first.</param>
-    /// <param name="maximumChars">The most characters the block may cost, a fraction of the context budget.</param>
+    /// <param name="maximumBytes">The most bytes the block may cost, a fraction of the context budget.</param>
     /// <returns>The chosen memories, their cost, and whether anything was left out.</returns>
     public static MemorySelection Select(
         IReadOnlyList<MemoryCandidate> pinned,
         IReadOnlyList<MemoryCandidate> used,
         IReadOnlyList<MemoryCandidate> query,
-        int maximumChars) {
+        int maximumBytes) {
         ArgumentNullException.ThrowIfNull(pinned);
         ArgumentNullException.ThrowIfNull(used);
         ArgumentNullException.ThrowIfNull(query);
-        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(maximumChars);
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(maximumBytes);
 
         List<MemoryCandidate> chosen = [];
         HashSet<long> taken = [];
-        int characters = 0;
+        int bytes = 0;
         bool truncated = false;
 
         foreach (MemoryCandidate candidate in pinned.Concat(used).Concat(query)) {
@@ -51,17 +52,17 @@ public static class MemoryRecall {
                 continue;
             }
 
-            int cost = candidate.Content.Length + TagAllowance;
-            if (characters + cost > maximumChars) {
+            int cost = Utf8.SizeInBytes(candidate.Content) + TagAllowance;
+            if (bytes + cost > maximumBytes) {
                 truncated = true;
                 break;
             }
 
             chosen.Add(candidate);
-            characters += cost;
+            bytes += cost;
         }
 
-        return new MemorySelection(chosen, characters, truncated);
+        return new MemorySelection(chosen, bytes, truncated);
     }
 
     /// <summary>Writes the prompt block for a selection.</summary>

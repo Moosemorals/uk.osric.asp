@@ -80,7 +80,8 @@ internal sealed class FakePageReadStore : IPageReadStore {
                     item.Key, item.Revision.SavedAt, item.Revision.Hash, IsDeleted: false,
                     item.Revision.TemplateKind, item.Revision.RuntimeId,
                     item.Revision.HasImage, item.Revision.HasDiagnostics,
-                    item.Revision.SeedHash, item.Revision.ContentHash)),
+                    item.Revision.SeedHash, item.Revision.ContentHash,
+                    SourceBytes: System.Text.Encoding.UTF8.GetByteCount(item.Revision.Template))),
         ]);
     }
 
@@ -105,7 +106,7 @@ internal sealed class FakePageReadStore : IPageReadStore {
                     return new PageReadHead(
                         item.Key, latest.SavedAt, latest.Hash, _deleted.Contains(item.Key), latest.TemplateKind,
                         latest.RuntimeId, latest.HasImage, latest.HasDiagnostics, latest.SeedHash, latest.ContentHash,
-                        latest.TemplateLibraries);
+                        latest.TemplateLibraries, System.Text.Encoding.UTF8.GetByteCount(latest.Template));
                 })],
             PageSubtreeFingerprint.Of(Facts(prefix)));
     }
@@ -217,7 +218,8 @@ internal sealed class FakePageReadStore : IPageReadStore {
             .OrderByDescending(revision => revision.SavedAt)
             .ThenByDescending(revision => revision.Hash, StringComparer.Ordinal)
             .Select(revision => new PageReadRevision(
-                revision.Hash, revision.SavedAt, live && ReferenceEquals(revision, current)))];
+                revision.Hash, revision.SavedAt, live && ReferenceEquals(revision, current),
+                System.Text.Encoding.UTF8.GetByteCount(revision.Template)))];
     }
 
     /// <inheritdoc/>
