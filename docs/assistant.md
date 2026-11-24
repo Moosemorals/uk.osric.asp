@@ -145,7 +145,7 @@ again. The call belongs alone in its step because the run stops, it is not appro
 timeout does not apply to it, and the owner's wait is taken off `assistant.tool.duration`, which stays
 tool time. The question and the answer are stored and sent to the provider like a message, so the tool
 description and the prompt forbid asking for a secret. The limits are `Assistant:MaxQuestionsPerCall`,
-`MaxQuestionOptions` and `MaxQuestionChars`, and a finished turn reads its questions and answers from
+`MaxQuestionOptions` and `MaxQuestionBytes`, and a finished turn reads its questions and answers from
 the resolved interrupt records rather than the tool result, because a long result is cut at the tool
 limit. Its arguments are the schema's first per-parameter descriptions; the arguments whose names are
 ambiguous now describe themselves too, and a closed set is the schema's `enum` rather than a sentence.
@@ -207,7 +207,7 @@ run: a memory the model writes mid-run reaches the next run, not the turn that w
 user message becomes quoted FTS5 prefix terms, the owner's pinned memories and the memories this
 conversation has already used are mixed with the ranked matches by a pure rule, and the selection
 stops at the memory block's share of the context budget — a thirty-second of the prompt's, 45,875
-characters shipped — rather than at a count: relevance already ranks, and the budget is what decides
+bytes shipped — rather than at a count: relevance already ranks, and the budget is what decides
 how much of it the model may read. The block is appended to
 the system prompt rather than sent as its own message, so the context row counts it with everything
 else and the invariant part of the prompt stays the prefix the provider's cache keys on. It declares
@@ -225,7 +225,7 @@ carries the version it read, and a stale one is refused with the current content
 its memory and a `memory_unavailable` warning in the transcript, and nothing else.
 
 The provider receives memory and page source alike; enabling the assistant sends both. Memory is never
-in a log line and never a metric tag: a recall line has the run, the count and the characters, and a
+in a log line and never a metric tag: a recall line has the run, the count and the bytes, and a
 write line has the operation, the kind and the outcome.
 
 An assistant reply is Markdown and the transcript renders it. The restricted profile is the second
@@ -241,14 +241,14 @@ shows, so a model can link the owner to the line changes it read (`pages-diff`).
 
 The feature bounds run duration, concurrency, queue depth, steps, tool calls, arguments, page size,
 results, context and event replay. The shipped limits are 160 steps and 128 tool calls per run, a
-262,144-character page, 270,336 characters of tool-call arguments, 100 diagnostics in one `check`
+262,144-byte page, 270,336 bytes of tool-call arguments, 100 diagnostics in one `check`
 answer, and a reply floor of 131,072 tokens. Everything the model reads is measured against one budget: the window the provider's model
 list reports for the configured model, less that floor (`assistant-the-budget-is-window-minus-reply`).
 `deepseek-flash` reports a 1,048,576-token window and a 393,216-token output maximum, so the prompt's
 share is 917,504 tokens, one tool result is an eighth of it, the owner's message another eighth and a
 run's memory block a thirty-second. Those fractions are invariants in `ContextBudget`, not
 configuration, so no setting can raise one to the whole budget. The argument limit is the one number
-that is not a fraction: it is `MaxPageChars` plus room for the envelope, because a page the store
+that is not a fraction: it is `MaxPageBytes` plus room for the envelope, because a page the store
 accepts must be writable through a tool. Every remaining limit is configuration — the shipped
 `appsettings.json` is the whole list — and every one of them is required, so a missing or
 out-of-range value stops the site at startup

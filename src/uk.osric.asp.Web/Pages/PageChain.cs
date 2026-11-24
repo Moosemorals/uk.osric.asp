@@ -278,7 +278,7 @@ internal sealed class PageChain {
             capabilities,
             stores,
             _environment.ContentTypes,
-            _environment.Render.MaxBodyChars,
+            _environment.Render.MaxBodyBytes,
             _environment.Editor.Key,
             _user,
             _loginRedirect,

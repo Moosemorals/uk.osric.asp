@@ -16,7 +16,7 @@ using uk.osric.asp.Web.Configuration;
 internal sealed record PageStoresOptions {
 
     /// <summary>The longest key any store accepts.</summary>
-    public required int MaxKeyChars { get; init; }
+    public required int MaxKeyBytes { get; init; }
 
     /// <summary>How long one storage command may run.</summary>
     public required int CommandTimeoutSeconds { get; init; }
@@ -63,7 +63,7 @@ internal sealed record PageStoresOptions {
         ArgumentNullException.ThrowIfNull(reader);
 
         PageStoresOptions options = new() {
-            MaxKeyChars = reader.Number("MaxKeyChars", recommended: 200, minimum: 16, maximum: 4_096),
+            MaxKeyBytes = reader.Number("MaxKeyBytes", recommended: 200, minimum: 16, maximum: 4_096),
             CommandTimeoutSeconds = reader.Number("CommandTimeoutSeconds", recommended: 5, minimum: 1, maximum: 120),
             BusyTimeoutSeconds = reader.Number("BusyTimeoutSeconds", recommended: 5, minimum: 1, maximum: 120),
             Page = SubjectLimits.Read(reader.For("Page"), SubjectLimits.Page),
@@ -73,6 +73,10 @@ internal sealed record PageStoresOptions {
             Objects = PageObjectOptions.Read(reader.For("Objects")),
             Secrets = PageSecretOptions.Read(reader.For("Secrets")),
         };
+
+        reader.FailIf(reader.Has("MaxKeyChars"), "MaxKeyChars",
+            "is no longer read. MaxKeyBytes is a store key's size in UTF-8 bytes, so rename the key and restart");
+
         return options;
     }
 }
@@ -160,21 +164,21 @@ internal sealed record VisitorOptions(
 /// <summary>The record shape's limits: what a declaration may declare and what a statement may cost.</summary>
 /// <param name="MaxTablesPerSource">The most tables one source may declare.</param>
 /// <param name="MaxColumnsPerTable">The most columns one table may declare.</param>
-/// <param name="MaxNameChars">The longest table or column name.</param>
+/// <param name="MaxNameBytes">The longest table or column name.</param>
 /// <param name="MaxRowsPerSubject">The most rows one subject may hold in one table.</param>
 /// <param name="MaxBytesPerSubject">The most bytes one subject may hold in one table.</param>
 /// <param name="MaxResultRows">The most rows one statement may answer.</param>
-/// <param name="MaxResultChars">The most text one statement may answer.</param>
+/// <param name="MaxResultBytes">The most text one statement may answer.</param>
 /// <param name="StatementMaxSeconds">How long one statement may run before it is interrupted.</param>
 /// <param name="TransactionMaxSeconds">How long a page's transaction may stay open.</param>
 internal sealed record PageRecordOptions(
     int MaxTablesPerSource,
     int MaxColumnsPerTable,
-    int MaxNameChars,
+    int MaxNameBytes,
     int MaxRowsPerSubject,
     int MaxBytesPerSubject,
     int MaxResultRows,
-    int MaxResultChars,
+    int MaxResultBytes,
     int StatementMaxSeconds,
     int TransactionMaxSeconds) {
 
@@ -188,7 +192,7 @@ internal sealed record PageRecordOptions(
     public TimeSpan TransactionTimeout => TimeSpan.FromSeconds(TransactionMaxSeconds);
 
     /// <summary>The declaration limits, as the schema value states them.</summary>
-    public PageSchemaLimits SchemaLimits => new(MaxTablesPerSource, MaxColumnsPerTable, MaxNameChars);
+    public PageSchemaLimits SchemaLimits => new(MaxTablesPerSource, MaxColumnsPerTable, MaxNameBytes);
 
     /// <summary>Reads <c>Pages:Stores:Records</c>.</summary>
     /// <param name="reader">A reader opened on <c>Pages:Stores:Records</c>, which the caller completes.</param>
@@ -200,16 +204,20 @@ internal sealed record PageRecordOptions(
         PageRecordOptions options = new(
             reader.Number("MaxTablesPerSource", shipped.MaxTablesPerSource, minimum: 1, maximum: 64),
             reader.Number("MaxColumnsPerTable", shipped.MaxColumnsPerTable, minimum: 1, maximum: 256),
-            reader.Number("MaxNameChars", shipped.MaxNameChars, minimum: 8, maximum: 512),
+            reader.Number("MaxNameBytes", shipped.MaxNameBytes, minimum: 8, maximum: 512),
             reader.Number("MaxRowsPerSubject", shipped.MaxRowsPerSubject, minimum: 1, maximum: 10_000_000),
             reader.Number("MaxBytesPerSubject", shipped.MaxBytesPerSubject, minimum: 1024, maximum: int.MaxValue),
             reader.Number("MaxResultRows", shipped.MaxResultRows, minimum: 1, maximum: 100_000),
-            reader.Number("MaxResultChars", shipped.MaxResultChars, minimum: 1024, maximum: 64 * 1024 * 1024),
+            reader.Number("MaxResultBytes", shipped.MaxResultBytes, minimum: 1024, maximum: 64 * 1024 * 1024),
             reader.Number("StatementMaxSeconds", shipped.StatementMaxSeconds, minimum: 1, maximum: 300),
             reader.Number("TransactionMaxSeconds", shipped.TransactionMaxSeconds, minimum: 1, maximum: 300));
 
         reader.FailIf(options.MaxResultRows > options.MaxRowsPerSubject, "MaxResultRows",
             $"is {options.MaxResultRows}, which is more than MaxRowsPerSubject ({options.MaxRowsPerSubject})");
+        reader.FailIf(reader.Has("MaxNameChars"), "MaxNameChars",
+            "is no longer read. MaxNameBytes is a table or column name's size in UTF-8 bytes, so rename the key and restart");
+        reader.FailIf(reader.Has("MaxResultChars"), "MaxResultChars",
+            "is no longer read. MaxResultBytes is a statement's answer in UTF-8 bytes, so rename the key and restart");
 
         return options;
     }
@@ -270,11 +278,11 @@ internal sealed record PageObjectOptions(int MaxObjectBytes, long MaxSubjectByte
 /// Its own row rather than the value limits reused: a secret is authority, not data, and a signing key
 /// and a stored word are different sizes. The bytes are counted as UTF-8 of the name and the value.
 /// </remarks>
-/// <param name="MaxNameChars">The longest a secret's name may be.</param>
+/// <param name="MaxNameBytes">The longest a secret's name may be.</param>
 /// <param name="MaxSecretBytes">The largest one secret may be, in bytes.</param>
 /// <param name="MaxSecrets">The most secrets one page may hold.</param>
 /// <param name="MaxSubjectBytes">The most bytes one page's secrets may total.</param>
-internal sealed record PageSecretOptions(int MaxNameChars, int MaxSecretBytes, int MaxSecrets, long MaxSubjectBytes) {
+internal sealed record PageSecretOptions(int MaxNameBytes, int MaxSecretBytes, int MaxSecrets, long MaxSubjectBytes) {
 
     /// <summary>The shipped secret limits.</summary>
     public static PageSecretOptions Shipped { get; } = new(100, 8 * 1024, 16, 32L * 1024);
@@ -290,8 +298,11 @@ internal sealed record PageSecretOptions(int MaxNameChars, int MaxSecretBytes, i
         reader.FailIf(maxSubjectBytes < maxSecretBytes, "MaxSubjectBytes",
             $"is {maxSubjectBytes}, which is smaller than MaxSecretBytes ({maxSecretBytes})");
 
+        reader.FailIf(reader.Has("MaxNameChars"), "MaxNameChars",
+            "is no longer read. MaxNameBytes is a secret name's size in UTF-8 bytes, so rename the key and restart");
+
         return new PageSecretOptions(
-            reader.Number("MaxNameChars", Shipped.MaxNameChars, minimum: 8, maximum: 512),
+            reader.Number("MaxNameBytes", Shipped.MaxNameBytes, minimum: 8, maximum: 512),
             maxSecretBytes,
             reader.Number("MaxSecrets", Shipped.MaxSecrets, minimum: 1, maximum: 1_024),
             maxSubjectBytes);

@@ -371,8 +371,8 @@ internal sealed class PageArchiveReader(
                     continue;
                 }
 
-                if (!PageStateKey.IsValid(key, stores.MaxKeyChars)) {
-                    Add(problems, $"That archive has the state key \"{MessageText.Sanitize(key)}\" for \"{MessageText.Sanitize(pagePath)}\", which is not a key this site stores (1–{stores.MaxKeyChars.ToString(CultureInfo.InvariantCulture)} characters, no control characters).");
+                if (!PageStateKey.IsValid(key, stores.MaxKeyBytes)) {
+                    Add(problems, $"That archive has the state key \"{MessageText.Sanitize(key)}\" for \"{MessageText.Sanitize(pagePath)}\", which is not a key this site stores (1–{stores.MaxKeyBytes.ToString(CultureInfo.InvariantCulture)} characters, no control characters).");
                     continue;
                 }
 

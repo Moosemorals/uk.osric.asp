@@ -3,6 +3,8 @@
 
 namespace uk.osric.asp.Core.Pages;
 
+using uk.osric.asp.Core.Text;
+
 /// <summary>Whose rows a declared table holds.</summary>
 /// <remarks>
 /// Core cannot reference the page contract, so this mirrors <c>StoreSubject</c> the way
@@ -138,9 +140,9 @@ public sealed record PageSchema {
     }
 
     private static IEnumerable<PageSchemaProblem> CheckTable(PageTable table, PageSchemaLimits limits) {
-        if (!IsIdentifier(table.Name) || table.Name.Length > limits.MaxNameChars) {
+        if (!IsIdentifier(table.Name) || Utf8.SizeInBytes(table.Name) > limits.MaxNameBytes) {
             yield return new(table.Name, null,
-                $"\"{table.Name}\" cannot be a table name: it is 1 to {limits.MaxNameChars} letters, digits and underscores, and does not start with a digit.");
+                $"\"{table.Name}\" cannot be a table name: it is 1 to {limits.MaxNameBytes} bytes of letters, digits and underscores, and does not start with a digit.");
         }
 
         if (string.Equals(table.Name, "Id", StringComparison.OrdinalIgnoreCase)
@@ -170,9 +172,9 @@ public sealed record PageSchema {
                     $"the column name \"{column.Name}\" is declared more than once on \"{table.Name}\".");
             }
 
-            if (!IsIdentifier(column.Name) || column.Name.Length > limits.MaxNameChars) {
+            if (!IsIdentifier(column.Name) || Utf8.SizeInBytes(column.Name) > limits.MaxNameBytes) {
                 yield return new(table.Name, column.Name,
-                    $"\"{column.Name}\" cannot be a column name: it is 1 to {limits.MaxNameChars} letters, digits and underscores, and does not start with a digit.");
+                    $"\"{column.Name}\" cannot be a column name: it is 1 to {limits.MaxNameBytes} bytes of letters, digits and underscores, and does not start with a digit.");
             }
 
             if (string.Equals(column.Name, "Id", StringComparison.OrdinalIgnoreCase)
@@ -201,8 +203,8 @@ public sealed record PageSchema {
 /// <summary>The limits a declaration obeys.</summary>
 /// <param name="MaxTablesPerSource">The most tables one source may declare.</param>
 /// <param name="MaxColumnsPerTable">The most columns one table may declare.</param>
-/// <param name="MaxNameChars">The longest table or column name.</param>
-public sealed record PageSchemaLimits(int MaxTablesPerSource, int MaxColumnsPerTable, int MaxNameChars);
+/// <param name="MaxNameBytes">The longest table or column name.</param>
+public sealed record PageSchemaLimits(int MaxTablesPerSource, int MaxColumnsPerTable, int MaxNameBytes);
 
 /// <summary>One reason a declaration cannot be applied.</summary>
 /// <param name="Table">The table it is about, or <see langword="null"/> when it is about the source.</param>

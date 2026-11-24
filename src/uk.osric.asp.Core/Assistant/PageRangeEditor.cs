@@ -3,6 +3,8 @@
 
 namespace uk.osric.asp.Core.Assistant;
 
+using uk.osric.asp.Core.Text;
+
 /// <summary>The result of replacing a bounded 1-based range of page lines.</summary>
 /// <param name="Content">The new source, or null when validation failed.</param>
 /// <param name="Error">A safe validation error, or null when replacement succeeded.</param>
@@ -40,21 +42,21 @@ public static class PageRangeEditor {
     /// <param name="startLine">The first 1-based physical template-source line to replace.</param>
     /// <param name="endLine">The last 1-based physical template-source line to replace, inclusive.</param>
     /// <param name="replacement">The replacement source, which may contain line breaks.</param>
-    /// <param name="maximumChars">The maximum resulting source length.</param>
+    /// <param name="maximumBytes">The maximum resulting source length.</param>
     public static PageRangeEditResult Replace(
         string source,
         int startLine,
         int endLine,
         string replacement,
-        int maximumChars) =>
-        Replace(source, startLine, endLine, replacement, maximumChars, expectFirst: null, expectLast: null);
+        int maximumBytes) =>
+        Replace(source, startLine, endLine, replacement, maximumBytes, expectFirst: null, expectLast: null);
 
     /// <summary>Replaces the selected lines when they still hold the text the caller expected.</summary>
     /// <param name="source">The complete current page source.</param>
     /// <param name="startLine">The first 1-based physical template-source line to replace.</param>
     /// <param name="endLine">The last 1-based physical template-source line to replace, inclusive.</param>
     /// <param name="replacement">The replacement source, which may contain line breaks.</param>
-    /// <param name="maximumChars">The maximum resulting source length.</param>
+    /// <param name="maximumBytes">The maximum resulting source length.</param>
     /// <param name="expectFirst">The exact text of <paramref name="startLine"/>, or null to accept whatever is there.</param>
     /// <param name="expectLast">The exact text of <paramref name="endLine"/>, or null to accept whatever is there.</param>
     public static PageRangeEditResult Replace(
@@ -62,12 +64,12 @@ public static class PageRangeEditor {
         int startLine,
         int endLine,
         string replacement,
-        int maximumChars,
+        int maximumBytes,
         string? expectFirst,
         string? expectLast) {
         ArgumentNullException.ThrowIfNull(source);
         ArgumentNullException.ThrowIfNull(replacement);
-        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(maximumChars);
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(maximumBytes);
 
         List<(int Start, int ContentEnd)> lines = GetLines(source);
         if (!TryResolve(lines, startLine, endLine, out int start, out int end)) {
@@ -77,18 +79,16 @@ public static class PageRangeEditor {
             return Invalid(expectationError!);
         }
 
-        long resultingLength = (long)source.Length - (end - start) + replacement.Length;
-        if (resultingLength > maximumChars) {
-            return Invalid("The resulting page exceeds the configured size limit.");
-        }
-
-        return new PageRangeEditResult(source[..start] + replacement + source[end..], null);
+        string result = source[..start] + replacement + source[end..];
+        return Utf8.SizeInBytes(result) > maximumBytes
+            ? Invalid("The resulting page exceeds the configured size limit.")
+            : new PageRangeEditResult(result, null);
     }
 
     /// <summary>Applies several line replacements as one edit, refusing overlapping ranges or oversized output.</summary>
     /// <param name="source">The complete current page source.</param>
     /// <param name="edits">The replacements, whose line numbers all refer to <paramref name="source"/>.</param>
-    /// <param name="maximumChars">The maximum resulting source length.</param>
+    /// <param name="maximumBytes">The maximum resulting source length.</param>
     /// <returns>
     /// The source with every edit applied, or a refusal. The edits are applied from the bottom up, so
     /// one replacement's line numbers do not shift another's.
@@ -96,10 +96,10 @@ public static class PageRangeEditor {
     public static PageRangeEditResult ReplaceAll(
         string source,
         IReadOnlyList<PageLineEdit> edits,
-        int maximumChars) {
+        int maximumBytes) {
         ArgumentNullException.ThrowIfNull(source);
         ArgumentNullException.ThrowIfNull(edits);
-        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(maximumChars);
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(maximumBytes);
 
         if (edits.Count == 0) {
             return Invalid("No edits were supplied.");
@@ -108,7 +108,6 @@ public static class PageRangeEditor {
         List<(int Start, int ContentEnd)> lines = GetLines(source);
         List<(int Start, int End, string Replacement)> resolved = [];
         List<(int StartLine, int EndLine)> ranges = [];
-        long resultingLength = source.Length;
         foreach (PageLineEdit edit in edits) {
             ArgumentNullException.ThrowIfNull(edit);
             ArgumentNullException.ThrowIfNull(edit.Replacement);
@@ -122,7 +121,6 @@ public static class PageRangeEditor {
 
             resolved.Add((start, end, edit.Replacement));
             ranges.Add((edit.StartLine, edit.EndLine));
-            resultingLength += edit.Replacement.Length - (end - start);
         }
 
         ranges.Sort((left, right) => left.StartLine.CompareTo(right.StartLine));
@@ -132,17 +130,15 @@ public static class PageRangeEditor {
             }
         }
 
-        if (resultingLength > maximumChars) {
-            return Invalid("The resulting page exceeds the configured size limit.");
-        }
-
         resolved.Sort((left, right) => right.Start.CompareTo(left.Start));
         string result = source;
         foreach ((int start, int end, string replacement) in resolved) {
             result = result[..start] + replacement + result[end..];
         }
 
-        return new PageRangeEditResult(result, null);
+        return Utf8.SizeInBytes(result) > maximumBytes
+            ? Invalid("The resulting page exceeds the configured size limit.")
+            : new PageRangeEditResult(result, null);
     }
 
     private static bool TryResolve(

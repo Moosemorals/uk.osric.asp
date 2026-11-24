@@ -18,9 +18,9 @@ public sealed class PageToolExecutorMemoryTests {
     private static DatabaseTemplate? s_template;
 
     private readonly AssistantOptions _options = TestOptions.Assistant with {
-        MaxToolArgumentChars = 4_096,
+        MaxToolArgumentBytes = 4_096,
 
-        MaxPageChars = 4_096,
+        MaxPageBytes = 4_096,
     };
 
     private string _databasePath = string.Empty;

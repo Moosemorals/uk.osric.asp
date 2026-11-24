@@ -3,6 +3,8 @@
 
 namespace uk.osric.asp.Sdk;
 
+using System.Text;
+
 /// <summary>The name of a message queue that has no page behind it.</summary>
 /// <remarks>
 /// <para>
@@ -18,7 +20,7 @@ namespace uk.osric.asp.Sdk;
 /// </remarks>
 public sealed record PageTopic {
 
-    private const int MaxNameChars = 64;
+    private const int MaxNameBytes = 64;
 
     private PageTopic(string name) => Name = name;
 
@@ -39,9 +41,9 @@ public sealed record PageTopic {
         // shared, and a name is validated after it is canonicalised because that is the stored text.
         string canonical = name.ToLowerInvariant().Normalize();
 
-        if (canonical.Length > MaxNameChars) {
+        if (Encoding.UTF8.GetByteCount(canonical) > MaxNameBytes) {
             throw new ArgumentException(
-                $"The topic name {name} is longer than the {MaxNameChars} character limit.", nameof(name));
+                $"The topic name {name} is longer than the {MaxNameBytes}-byte limit.", nameof(name));
         }
 
         foreach (char character in canonical) {

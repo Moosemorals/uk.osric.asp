@@ -18,7 +18,7 @@ namespace uk.osric.asp.Sdk;
 /// account is only honoured for that account.
 /// </para>
 /// <para>
-/// Values are JSON. Keys are ordinal and case-sensitive, 1 to the configured maximum characters,
+/// Values are JSON. Keys are ordinal and case-sensitive, 1 to the configured maximum in UTF-8 bytes,
 /// with no control characters. A write validates before it returns, and a read fails when its task
 /// is awaited: a key that is too long, a value that cannot be serialised as JSON, a value over its
 /// limit, a session over its key count or byte total, a write on a <c>HEAD</c> request, or a write to
@@ -33,7 +33,7 @@ namespace uk.osric.asp.Sdk;
 public interface IPageSession {
     /// <summary>Reads one of this page's values and reports whether the key exists.</summary>
     /// <typeparam name="T">The type to deserialise the stored JSON as.</typeparam>
-    /// <param name="key">The key; ordinal, 1 to the configured maximum characters, no control
+    /// <param name="key">The key; ordinal, 1 to the configured maximum in UTF-8 bytes, no control
     /// characters.</param>
     /// <returns>
     /// Whether the key was found, and the value when it was. A missing key is not found with the
@@ -56,7 +56,7 @@ public interface IPageSession {
 
     /// <summary>Stores one of this page's values, replacing any value already under the key.</summary>
     /// <typeparam name="T">The type to serialise.</typeparam>
-    /// <param name="key">The key; ordinal, 1 to the configured maximum characters, no control
+    /// <param name="key">The key; ordinal, 1 to the configured maximum in UTF-8 bytes, no control
     /// characters.</param>
     /// <param name="value">The value; a null is stored as JSON <c>null</c>.</param>
     /// <returns>A task that completes when the write is committed.</returns>

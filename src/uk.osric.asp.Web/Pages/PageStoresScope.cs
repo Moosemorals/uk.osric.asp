@@ -84,8 +84,8 @@ internal sealed class PageStoresScope : RenderBoundCapability, IPageStores, IAsy
         _writable = writable;
         _commit = commit;
 
-        PageValues = new PageValueStore(key, store, options.Page, options.MaxKeyChars, writable);
-        VisitorValues = new PageValueStore(key, store, sessions, reader, options.MaxKeyChars, writable, commit);
+        PageValues = new PageValueStore(key, store, options.Page, options.MaxKeyBytes, writable);
+        VisitorValues = new PageValueStore(key, store, sessions, reader, options.MaxKeyBytes, writable, commit);
         Messages = new PageMessageStore(
             key, messages, sessions, reader, readStore, reserved, options.Messages, writable, commit, activity);
 
@@ -140,7 +140,7 @@ internal sealed class PageStoresScope : RenderBoundCapability, IPageStores, IAsy
             other,
             _store,
             _options.Page,
-            _options.MaxKeyChars,
+            _options.MaxKeyBytes,
             _writable,
             ConfirmAsync);
         values.AttachDeadline(_deadline);

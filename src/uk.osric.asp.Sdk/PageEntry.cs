@@ -100,6 +100,15 @@ public readonly record struct PageEntry(string Key, PageEntryKind Kind) {
     /// </summary>
     public PageSeedSummary? Seed { get; init; }
 
+    /// <summary>
+    /// The stored template's size in UTF-8 bytes, or <see langword="null"/> when no head is stored.
+    /// </summary>
+    /// <remarks>
+    /// It is the head revision's source, not the bytes a response would carry, and the store answers it
+    /// from the row rather than by reading the template.
+    /// </remarks>
+    public int? SourceBytes { get; init; }
+
     /// <summary>Whether the stored head is deleted. Reads <see cref="Kind"/>.</summary>
     public bool IsDeleted => Kind.HasFlag(PageEntryKind.Tombstone);
 

@@ -450,6 +450,31 @@ may still build its own options, because its types and its API are its own.
 
 *Recorded in [json options](plans/archive/json-options-one-set.md), [JSON](architecture.md#json).*
 
+### code-a-size-is-bytes
+
+A limit that bounds text bounds its UTF-8 encoding, and the setting, constant or field that holds it
+says `Bytes`. `Core.Text.Utf8` is the only place the unit is spelled — `SizeInBytes` counts, `Clip`
+cuts — and `string.Length` is an index into a string, never a limit. Bytes rather than code points or
+UTF-16 units because the database answers a byte count from a record header, the shapes built after the
+storage model already limit in bytes, and the assistant's estimator already divides a request's bytes
+by its tokens. A `...Chars` key from the release before is refused at startup with its replacement
+named, the way every retired policy value is. The values a person chose as a number of characters keep
+their numbers; the manual states what a byte buys, so a limit is smaller in CJK and smaller again in
+emoji rather than silently different.
+
+*Recorded in [Utf8](../src/uk.osric.asp.Core/Text/Utf8.cs), [configuration](architecture.md#configuration), [counting bytes](plans/counting-bytes.md).*
+
+### code-a-clip-ends-on-a-boundary
+
+Text cut to a limit is cut by `Utf8.Clip`, which returns the longest prefix whose UTF-8 encoding fits
+the budget and never splits a code point: an unpaired surrogate is counted and kept the way
+`Encoding.UTF8` writes it, so a clip is always valid text and never longer than its budget. Every
+truncation site uses it, and a cut result's note says how many bytes it kept. A cut made with a
+character index is how a multi-byte character ends up as a replacement character in a transcript, a
+snippet or a stored page.
+
+*Recorded in [Utf8](../src/uk.osric.asp.Core/Text/Utf8.cs), [ToolResults](../src/uk.osric.asp.Web/Assistant/Tools/ToolResults.cs), [counting bytes](plans/counting-bytes.md).*
+
 ## Pages
 
 ### pages-the-contract-is-the-seam
@@ -726,7 +751,7 @@ The response body is buffered by default: status, content type and headers are a
 opts into streaming at its first `IContext.FlushAsync`, whose first flush is the commit point; a page
 that never flushes keeps the buffered all-or-nothing behaviour, the error page and the `504`. The
 request's own body over 1 MiB is refused with `413` before it is read, and the buffered response is
-limited by `Pages:Render:MaxBodyChars` so a loop fails quickly instead of growing the process. The limit
+limited by `Pages:Render:MaxBodyBytes` so a loop fails quickly instead of growing the process. The limit
 stops at the first flush: it still bounds what a page buffers before committing, and after the commit
 the body is on the wire, bounded by the deadline and the container rather than by the limit.
 
@@ -1383,7 +1408,9 @@ A listing row is a key with a kind — `Page`, `Tombstone`, `Route` and `Folder`
 combine — and the head's facts where a head is stored, so a page filters rather than re-deriving the
 host's rules; a row with no head has no saved time, no hash and no state, and `IsDeleted` and
 `IsReserved` read the kind. A prefix selects a subtree — the key itself and keys beneath it — never a
-string prefix; ordering is by key. A node carries facts, not words: `PageNode` answers the key,
+string prefix; ordering is by key. A row also carries the head's stored size in UTF-8 bytes,
+`SourceBytes`, derived by the query rather than kept (`pages-a-listing-row-carries-its-size`), and a
+row with no head has none. A node carries facts, not words: `PageNode` answers the key,
 whether it is a folder, a page, a shell file or a tombstone, whether a save would be accepted and the
 page's image state, and the permission column and the state are formatted by whoever shows them, with
 `PageMode` and `PageImageStatus`, so `ls -l`, `stat`, `list_pages` and `read_page` cannot spell one
@@ -2133,7 +2160,7 @@ which is how the value is tuned.
 ### pages-allowances-are-a-rate
 
 **An allowance is a rate with a burst.** `Pages:Fetch:FetchesPerSecond` and
-`Pages:Read:SourceCharsPerSecond` bound outbound requests and template reads. The burst an allowance
+`Pages:Read:SourceBytesPerSecond` bound outbound requests and template reads. The burst an allowance
 starts with is what its rate spends in `Pages:Render:TimeoutSeconds`, derived once by
 `RenderOptions.BurstFor` rather than configured, so no second key can disagree and nothing a deployment
 could spend before is refused now. The derived burst is never below one unit, because a fractional
@@ -2147,7 +2174,7 @@ and publish the capacity, what is available and the rate, because the object tha
 one that can say what it has left.
 
 **A job is refilled for as long as it runs.** `Pages:Jobs:FetchesPerSecond` and
-`Pages:Jobs:SourceCharsPerSecond` give a worker its own allowance, and the job's duration is its only
+`Pages:Jobs:SourceBytesPerSecond` give a worker its own allowance, and the job's duration is its only
 ceiling: a job that lives nine hours must not be given the allowance of a page that lives five
 seconds.
 
@@ -2198,6 +2225,19 @@ rather than starting a second, and asks for only the value it needs. The corpus 
 `Web`'s files, and a page can render a reference without the shell.
 
 *Recorded in [pages](pages.md#page-contract), [ISiteInfo](../src/uk.osric.asp.Sdk/ISiteInfo.cs), [SiteFacts](../src/uk.osric.asp.Web/Pages/SiteFacts.cs), [SiteBoundsSnapshot](../src/uk.osric.asp.Web/Pages/SiteBoundsSnapshot.cs), [site-info](plans/archive/site-info.md).*
+
+### pages-a-listing-row-carries-its-size
+
+A listing row carries the head revision's stored size in UTF-8 bytes as `PageEntry.SourceBytes`, and a
+row with no head — a folder, or a route — has none. The same number is on `PageRevisionInfo` for a
+history. It is the template's own encoding, answered by the query as `octet_length(Template)` from the
+record header rather than by reading the source, so nothing is stored that could drift from the text
+it describes and an old row answers exactly as a new one does. That is why the size is a listing fact
+rather than a cached count: on a 500-row store of 11 KB pages a listing took 0.31 ms without the size,
+0.34 ms with `octet_length` and 1.97 ms with `length()`, so the byte count is a header read and a
+character count is a scan.
+
+*Recorded in [PageEntry](../src/uk.osric.asp.Sdk/PageEntry.cs), [SqlitePageReadStore](../src/uk.osric.asp.Web/Pages/SqlitePageReadStore.cs), [pages](pages.md#page-contract), [counting bytes](plans/counting-bytes.md).*
 
 ## Shell
 
@@ -3077,11 +3117,11 @@ There is one content budget, derived from the model's window, and every other co
 of it or gone: one tool result and one owner's message are an eighth of the prompt's share, a run's
 memory block a thirty-second. The fractions are invariants in `ContextBudget` rather than configuration,
 because a value that could raise one to the whole budget would switch the guard off. The one exception
-is a tool call's arguments, which must carry a page and so is `MaxPageChars` plus room for the envelope.
+is a tool call's arguments, which must carry a page and so is `MaxPageBytes` plus room for the envelope.
 A limit that cannot be derived this way must either come from the model or have a note and a way to ask
 again; a free-standing character count never decides what the model may read. `MaxContextTokens`,
 `ModelContextTokens`, `MaxOutputTokens`, `MaxToolResultChars`, `MaxMessageChars`,
-`MaxMemoryCharsPerRun` and `MaxMemoriesPerRun` are gone.
+`MaxMemoryBytesPerRun` and `MaxMemoriesPerRun` are gone.
 
 *Recorded in [ContextBudget](../src/uk.osric.asp.Core/Assistant/ContextBudget.cs), [AssistantOptions](../src/uk.osric.asp.Web/Assistant/AssistantOptions.cs), [assistant](assistant.md).*
 
@@ -3089,7 +3129,8 @@ again; a free-standing character count never decides what the model may read. `M
 
 At a limit, a tool result is truncated, marked `truncated: true` and named in the note, and the head is
 kept. It is never replaced by a refusal, because a refusal loses the information and the fact that there
-was information, and the model usually calls the tool again. Refusals stay for what they are for: an
+was information, and the model usually calls the tool again. The limit is a byte count and the cut is
+`Utf8.Clip`'s, so a result of multi-byte characters is cut at its budget and never inside a character. Refusals stay for what they are for: an
 invalid argument, a stale revision hash, a path outside the writable prefix, a missing page.
 
 *Recorded in [ToolResults](../src/uk.osric.asp.Web/Assistant/Tools/ToolResults.cs), [assistant](assistant.md), [metrics](metrics.md).*
@@ -3132,7 +3173,7 @@ apply and the owner's wait is taken off `assistant.tool.duration`. A question le
 interpret. The card is one form holding every question, so the owner can read the whole set before
 answering any of it, and a finished turn reads the question and the answer from the resolved records
 rather than the tool result, which may be cut at its limit. The questions are bounded by
-`Assistant:MaxQuestionsPerCall`, `MaxQuestionOptions` and `MaxQuestionChars`, and the answer by the
+`Assistant:MaxQuestionsPerCall`, `MaxQuestionOptions` and `MaxQuestionBytes`, and the answer by the
 owner message's share of the budget. A tool argument may describe itself in the schema, emitted only
 when set, and this tool's arguments do.
 

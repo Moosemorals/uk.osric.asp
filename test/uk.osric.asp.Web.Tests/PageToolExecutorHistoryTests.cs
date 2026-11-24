@@ -337,9 +337,9 @@ public sealed class PageToolExecutorHistoryTests {
     }
 
     private static AssistantOptions SmallBudget() => TestOptions.Assistant with {
-        MaxToolArgumentChars = 65_536,
+        MaxToolArgumentBytes = 65_536,
 
-        MaxPageChars = 65_536,
+        MaxPageBytes = 65_536,
     };
 
     private static string[] Properties(ToolDefinition definition) {
@@ -370,7 +370,7 @@ public sealed class PageToolExecutorHistoryTests {
         PageToolExecutor tools = new(
             services.GetRequiredService<IServiceScopeFactory>(),
             new PagePathPolicy(new ReservedPaths(ReservedPaths.Default), TestOptions.Assistant),
-            options ?? TestOptions.Assistant with { MaxToolArgumentChars = 65_536, MaxPageChars = 65_536 },
+            options ?? TestOptions.Assistant with { MaxToolArgumentBytes = 65_536, MaxPageBytes = 65_536 },
             ModelWindowSource.Fixed(budget ?? TestOptions.Budget),
             new AssistantMetrics(),
             new FakeAssistantFetcher());

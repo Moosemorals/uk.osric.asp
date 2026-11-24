@@ -49,24 +49,24 @@ internal sealed class ToolResults(ContextBudget budget) {
     /// </remarks>
     private ToolExecutionResult Bounded(object envelope, string summary, bool success = true) {
         string json = JsonSerializer.Serialize(envelope, JsonSerialization.Options);
-        int limit = (int)Math.Min(budget.ToolResultChars + EnvelopeChars, int.MaxValue);
-        if (json.Length <= limit) {
+        int limit = (int)Math.Min(budget.ToolResultBytes + EnvelopeChars, int.MaxValue);
+        if (Utf8.SizeInBytes(json) <= limit) {
             return new ToolExecutionResult(success, json, summary);
         }
 
         // The head is what the model can still read; the note is what tells it the rest exists. The
         // envelope around the head costs a fixed handful of characters, so the cut is the limit less
         // that, narrowed once if the note's own digits made the envelope longer than expected.
-        string note = $"The tool result was truncated at {limit.ToString(CultureInfo.InvariantCulture)} characters.";
+        string note = $"The tool result was truncated at {limit.ToString(CultureInfo.InvariantCulture)} bytes.";
         string head = json;
         string truncated = string.Empty;
         for (int attempt = 0; attempt < 4; attempt++) {
             truncated = JsonSerializer.Serialize(
                 new { ok = success, data = head, truncated = true, note }, JsonSerialization.Options);
-            if (truncated.Length <= limit) {
+            if (Utf8.SizeInBytes(truncated) <= limit) {
                 break;
             }
-            head = json[..Math.Max(0, head.Length - (truncated.Length - limit) - 8)];
+            head = Utf8.Clip(json, Math.Max(0, Utf8.SizeInBytes(head) - (Utf8.SizeInBytes(truncated) - limit) - 8));
         }
 
         return new ToolExecutionResult(success, truncated, summary);

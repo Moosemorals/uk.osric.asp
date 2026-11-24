@@ -260,7 +260,8 @@ internal static class AssistantMemoryEndpoint {
                 <input type="hidden" name="expectedVersion" value="{version.ToString(CultureInfo.InvariantCulture)}">
                 <fieldset>
                     <legend><label class="visually-hidden" for="memory-{id}-content">Content of memory {id}</label>Memory {id}</legend>
-                    <textarea id="memory-{id}-content" name="content" maxlength="{options.MaxMemoryChars.ToString(CultureInfo.InvariantCulture)}" rows="4">{Encode(content)}</textarea>
+                    <textarea id="memory-{id}-content" name="content" rows="4" aria-describedby="memory-{id}-limit">{Encode(content)}</textarea>
+                    <p class="hint" id="memory-{id}-limit">Up to {options.MaxMemoryBytes.ToString(CultureInfo.InvariantCulture)} bytes.</p>
                 </fieldset>
                 <dl>
                     <dt><label for="memory-{id}-kind">Kind</label></dt>

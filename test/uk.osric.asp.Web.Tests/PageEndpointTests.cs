@@ -545,7 +545,7 @@ public sealed class PageEndpointTests {
         DefaultHttpContext context = CreateContext("chatty.cs");
         FakePageStore storage = new();
         storage["/chatty.cs"] = new PageTemplate(PagePath.Normalize("/chatty.cs"), "0123456789");
-        RenderOptions options = TestOptions.Render with { MaxBodyChars = 5 };
+        RenderOptions options = TestOptions.Render with { MaxBodyBytes = 5 };
 
         await Assert.ThrowsAsync<InvalidOperationException>(() =>
             PageEndpoint.HandleAsync(context, CreatePages(storage, options), NullLoggerFactory.Instance, EndpointEnvironment(options)));

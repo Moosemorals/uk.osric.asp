@@ -45,15 +45,24 @@ public sealed class PageRangeEditorTests {
         Assert.That(result.IsSuccess, Is.False);
     }
 
-    // The replacement is 11 characters and the range is line 2 of 16 characters, so the real result
-    // is 23 characters: a budget below that must fail and one at or above it must not.
+    // The replacement is 11 bytes and the range is line 2 of 16 bytes, so the real result is 23
+    // bytes: a budget below that must fail and one at or above it must not.
     [TestCase(13, true)]
     [TestCase(23, false)]
     [TestCase(25, false)]
-    public void TheSizeLimitIsCheckedAgainstTheRealResultingLength(int maximumChars, bool rejected) {
-        PageRangeEditResult result = PageRangeEditor.Replace("one\r\ntwo\r\nthree", 2, 2, "replacement", maximumChars);
+    public void TheSizeLimitIsCheckedAgainstTheRealResultingLength(int maximumBytes, bool rejected) {
+        PageRangeEditResult result = PageRangeEditor.Replace("one\r\ntwo\r\nthree", 2, 2, "replacement", maximumBytes);
 
         Assert.That(result.Error is not null, Is.EqualTo(rejected));
+    }
+
+    [Test]
+    public void TheSizeLimitIsCountedInUtf8Bytes() {
+        // Five of these are fifteen bytes, so a fifteen-byte budget fits and fourteen does not.
+        Assert.Multiple(() => {
+            Assert.That(PageRangeEditor.Replace("a", 1, 1, "水水水水水", 15).IsSuccess, Is.True);
+            Assert.That(PageRangeEditor.Replace("a", 1, 1, "水水水水水", 14).IsSuccess, Is.False);
+        });
     }
 
     [Test]

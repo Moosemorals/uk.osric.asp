@@ -4,6 +4,6 @@
 namespace uk.osric.asp.Web.Pages;
 
 /// <summary>One key of one page's state, with its value as the stored JSON text.</summary>
-/// <param name="Key">The key, 1–<see cref="PageStoresOptions.MaxKeyChars"/> characters, no control characters.</param>
+/// <param name="Key">The key, 1–<see cref="PageStoresOptions.MaxKeyBytes"/> characters, no control characters.</param>
 /// <param name="Value">The value as JSON. A stored <c>null</c> is the text <c>null</c>, not a missing row.</param>
 internal sealed record PageStateValue(string Key, string Value);

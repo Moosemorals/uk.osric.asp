@@ -18,6 +18,17 @@ public sealed class PageBudgetTests {
         Assert.That(options.Timeout, Is.EqualTo(TimeSpan.FromMilliseconds(250)));
     }
 
+    [Test]
+    public void TheRetiredBodyCountStopsTheSite() {
+        ConfigurationException error = Assert.Throws<ConfigurationException>(() => RenderOptions.FromConfiguration(
+            ShippedConfiguration.Read(("Pages:Render:MaxBodyChars", "4096"))))!;
+
+        Assert.Multiple(() => {
+            Assert.That(error.Message, Does.Contain("Pages:Render:MaxBodyChars is no longer read"));
+            Assert.That(error.Message, Does.Contain("Pages:Render:MaxBodyBytes"));
+        });
+    }
+
     [TestCase("0")]
     [TestCase("-5")]
     public void ABudgetThatWouldDisableTheLimitStopsTheSite(string configured) {

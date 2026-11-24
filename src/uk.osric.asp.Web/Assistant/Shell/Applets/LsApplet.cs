@@ -16,7 +16,8 @@ internal sealed class LsApplet : ShellApplet {
     public override string Description => "List what is at a path: the keys in it, or the path itself when it is a page.";
 
     public override string? Notes =>
-        "'-l' puts the permission in front of each key, '-R' lists everything below the paths, and '-r'\n"
+        "'-l' puts the permission and the stored size in bytes in front of each key, '-R' lists everything\n"
+        + "below the paths, and '-r'\n"
         + "reverses the order. A path that names a folder lists what is in it; a path that names a page\n"
         + "names the page, as a shell's ls does.";
 
@@ -71,7 +72,7 @@ internal sealed class LsApplet : ShellApplet {
         string where = string.Join(' ', scopes.Select(scope => scope.Path.Key));
         foreach (PageNode entry in unique.Take(context.Output.ListingLimit)) {
             string name = entry.Path.Key;
-            context.Output.Line(longListing ? $"{Mode(entry)} {name}" : name);
+            context.Output.Line(longListing ? $"{Mode(entry)} {Size(entry)} {name}" : name);
         }
         if (unique.Count > context.Output.ListingLimit) {
             context.Output.Stopped($"{context.Output.ListingLimit} entries shown, and there are more. List a path to see the rest.");
@@ -85,4 +86,8 @@ internal sealed class LsApplet : ShellApplet {
     private static string Mode(PageNode node) => node.IsFolder
         ? PageMode.DescribeFolder(node.CanWrite)
         : PageMode.Describe(node.CanWrite);
+
+    // A folder and a site route hold no source, so the column says so rather than inventing a zero.
+    private static string Size(PageNode node) =>
+        node.SourceBytes?.ToString(System.Globalization.CultureInfo.InvariantCulture) ?? "-";
 }

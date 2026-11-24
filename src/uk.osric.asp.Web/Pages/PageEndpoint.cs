@@ -229,7 +229,7 @@ internal sealed class PageEndpoint() {
             session,
             reader,
             isHead,
-            new BodyBudget(environment.Render.MaxBodyChars),
+            new BodyBudget(environment.Render.MaxBodyBytes),
             bodySink,
             new FetchBudget(
                 environment.Render.BurstFor(environment.Fetch.FetchesPerSecond),
@@ -237,8 +237,8 @@ internal sealed class PageEndpoint() {
                 environment.Clock,
                 PageFetchOptions.RateKey),
             new ReadBudget(
-                environment.Render.BurstFor(environment.Read.SourceCharsPerSecond),
-                environment.Read.SourceCharsPerSecond,
+                environment.Render.BurstFor(environment.Read.SourceBytesPerSecond),
+                environment.Read.SourceBytesPerSecond,
                 environment.Clock,
                 PageReadOptions.RateKey),
             assets,
@@ -252,7 +252,7 @@ internal sealed class PageEndpoint() {
             path,
             PageLayerRole.Content,
             snapshot,
-            new BodyBudget(environment.Render.MaxBodyChars),
+            new BodyBudget(environment.Render.MaxBodyBytes),
             [PageRenderIdentity.Of(path, snapshot)],
             depth: 0);
 

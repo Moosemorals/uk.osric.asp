@@ -72,7 +72,7 @@ override uk.osric.asp.Core.Shell.ShellWord.ToString() -> string!
 static uk.osric.asp.Core.Assistant.BudgetAmount.Format(double value) -> string!
 static uk.osric.asp.Core.Assistant.MemoryCandidate.operator !=(uk.osric.asp.Core.Assistant.MemoryCandidate? left, uk.osric.asp.Core.Assistant.MemoryCandidate? right) -> bool
 static uk.osric.asp.Core.Assistant.MemoryCandidate.operator ==(uk.osric.asp.Core.Assistant.MemoryCandidate? left, uk.osric.asp.Core.Assistant.MemoryCandidate? right) -> bool
-static uk.osric.asp.Core.Assistant.MemoryContent.Normalise(string? content, int maximumChars) -> uk.osric.asp.Core.Assistant.MemoryContentResult!
+static uk.osric.asp.Core.Assistant.MemoryContent.Normalise(string? content, int maximumBytes) -> uk.osric.asp.Core.Assistant.MemoryContentResult!
 static uk.osric.asp.Core.Assistant.MemoryContent.SameNote(string! left, string! right) -> bool
 static uk.osric.asp.Core.Assistant.MemoryContentResult.operator !=(uk.osric.asp.Core.Assistant.MemoryContentResult? left, uk.osric.asp.Core.Assistant.MemoryContentResult? right) -> bool
 static uk.osric.asp.Core.Assistant.MemoryContentResult.operator ==(uk.osric.asp.Core.Assistant.MemoryContentResult? left, uk.osric.asp.Core.Assistant.MemoryContentResult? right) -> bool
@@ -198,14 +198,14 @@ uk.osric.asp.Core.Assistant.MemoryRecall
 uk.osric.asp.Core.Assistant.MemorySecrets
 uk.osric.asp.Core.Assistant.MemorySelection
 uk.osric.asp.Core.Assistant.MemorySelection.<Clone>$() -> uk.osric.asp.Core.Assistant.MemorySelection!
-uk.osric.asp.Core.Assistant.MemorySelection.Characters.get -> int
-uk.osric.asp.Core.Assistant.MemorySelection.Characters.init -> void
-uk.osric.asp.Core.Assistant.MemorySelection.Deconstruct(out System.Collections.Generic.IReadOnlyList<uk.osric.asp.Core.Assistant.MemoryCandidate!>! Memories, out int Characters, out bool Truncated) -> void
+uk.osric.asp.Core.Assistant.MemorySelection.Bytes.get -> int
+uk.osric.asp.Core.Assistant.MemorySelection.Bytes.init -> void
+uk.osric.asp.Core.Assistant.MemorySelection.Deconstruct(out System.Collections.Generic.IReadOnlyList<uk.osric.asp.Core.Assistant.MemoryCandidate!>! Memories, out int Bytes, out bool Truncated) -> void
 uk.osric.asp.Core.Assistant.MemorySelection.Equals(uk.osric.asp.Core.Assistant.MemorySelection? other) -> bool
 uk.osric.asp.Core.Assistant.MemorySelection.IsEmpty.get -> bool
 uk.osric.asp.Core.Assistant.MemorySelection.Memories.get -> System.Collections.Generic.IReadOnlyList<uk.osric.asp.Core.Assistant.MemoryCandidate!>!
 uk.osric.asp.Core.Assistant.MemorySelection.Memories.init -> void
-uk.osric.asp.Core.Assistant.MemorySelection.MemorySelection(System.Collections.Generic.IReadOnlyList<uk.osric.asp.Core.Assistant.MemoryCandidate!>! Memories, int Characters, bool Truncated) -> void
+uk.osric.asp.Core.Assistant.MemorySelection.MemorySelection(System.Collections.Generic.IReadOnlyList<uk.osric.asp.Core.Assistant.MemoryCandidate!>! Memories, int Bytes, bool Truncated) -> void
 uk.osric.asp.Core.Assistant.MemorySelection.Truncated.get -> bool
 uk.osric.asp.Core.Assistant.MemorySelection.Truncated.init -> void
 *REMOVED*uk.osric.asp.Core.Assistant.VirtualShellCommand.Deconstruct(out string! Name, out System.Collections.Generic.IReadOnlyList<string!>! Arguments) -> void
@@ -609,8 +609,8 @@ override uk.osric.asp.Core.Assistant.PageLineEdit.GetHashCode() -> int
 override uk.osric.asp.Core.Assistant.PageLineEdit.ToString() -> string!
 static uk.osric.asp.Core.Assistant.PageLineEdit.operator !=(uk.osric.asp.Core.Assistant.PageLineEdit? left, uk.osric.asp.Core.Assistant.PageLineEdit? right) -> bool
 static uk.osric.asp.Core.Assistant.PageLineEdit.operator ==(uk.osric.asp.Core.Assistant.PageLineEdit? left, uk.osric.asp.Core.Assistant.PageLineEdit? right) -> bool
-static uk.osric.asp.Core.Assistant.PageRangeEditor.ReplaceAll(string! source, System.Collections.Generic.IReadOnlyList<uk.osric.asp.Core.Assistant.PageLineEdit!>! edits, int maximumChars) -> uk.osric.asp.Core.Assistant.PageRangeEditResult!
-static uk.osric.asp.Core.Assistant.PageRangeEditor.Replace(string! source, int startLine, int endLine, string! replacement, int maximumChars, string? expectFirst, string? expectLast) -> uk.osric.asp.Core.Assistant.PageRangeEditResult!
+static uk.osric.asp.Core.Assistant.PageRangeEditor.ReplaceAll(string! source, System.Collections.Generic.IReadOnlyList<uk.osric.asp.Core.Assistant.PageLineEdit!>! edits, int maximumBytes) -> uk.osric.asp.Core.Assistant.PageRangeEditResult!
+static uk.osric.asp.Core.Assistant.PageRangeEditor.Replace(string! source, int startLine, int endLine, string! replacement, int maximumBytes, string? expectFirst, string? expectLast) -> uk.osric.asp.Core.Assistant.PageRangeEditResult!
 static uk.osric.asp.Core.Compilation.TemplateShapeCheck.Check(string! template) -> System.Collections.Generic.IReadOnlyList<uk.osric.asp.Core.Compilation.PageDiagnostic!>!
 uk.osric.asp.Core.Assistant.PageLineEdit
 uk.osric.asp.Core.Assistant.PageLineEdit.<Clone>$() -> uk.osric.asp.Core.Assistant.PageLineEdit!
@@ -805,9 +805,9 @@ uk.osric.asp.Core.Assistant.ChatRequest.ChatRequest(string! Model, System.Collec
 uk.osric.asp.Core.Assistant.ContextBudget.MaximumOutputTokens.get -> int
 uk.osric.asp.Core.Assistant.ContextBudget.PromptBudget.get -> long
 uk.osric.asp.Core.Assistant.ContextBudget.MinimumOutputTokens.get -> int
-uk.osric.asp.Core.Assistant.ContextBudget.ToolResultChars.get -> long
-uk.osric.asp.Core.Assistant.ContextBudget.MessageChars.get -> long
-uk.osric.asp.Core.Assistant.ContextBudget.MemoryCharsPerRun.get -> long
+uk.osric.asp.Core.Assistant.ContextBudget.ToolResultBytes.get -> long
+uk.osric.asp.Core.Assistant.ContextBudget.MessageBytes.get -> long
+uk.osric.asp.Core.Assistant.ContextBudget.MemoryBytesPerRun.get -> long
 uk.osric.asp.Core.Assistant.ContextPlan.MaxTokens.get -> int
 static uk.osric.asp.Core.Assistant.ContextBudget.Create(long contextWindow, int maximumOutputTokens, int minimumOutputTokens) -> uk.osric.asp.Core.Assistant.ContextBudget!
 static uk.osric.asp.Core.Assistant.ContextPlanner.Build(uk.osric.asp.Core.Assistant.ChatRequest! request, uk.osric.asp.Core.Assistant.ContextBudget! budget, uk.osric.asp.Core.Assistant.TokenEstimator! estimator) -> uk.osric.asp.Core.Assistant.ContextPlan!
@@ -839,7 +839,7 @@ uk.osric.asp.Core.Assistant.BudgetSnapshot.LastMaxTokens.get -> int
 uk.osric.asp.Core.Assistant.BudgetSnapshot.LastMaxTokens.init -> void
 uk.osric.asp.Core.Assistant.BudgetSnapshot.BudgetSnapshot(long ContextTokens, int Steps, int ToolCalls, int LongestArguments, int LongestResult, int LastCompletionTokens, long Window, int MaxTokens, int LastMaxTokens, long EstimateError) -> void
 static uk.osric.asp.Core.Assistant.BudgetSnapshot.Measure(uk.osric.asp.Core.Assistant.ContextPlan! plan, System.Collections.Generic.IReadOnlyList<uk.osric.asp.Core.Assistant.ChatMessage!>! stored, int steps, int toolCalls, int? lastCompletionTokens, int? lastMaxTokens, uk.osric.asp.Core.Assistant.ContextBudget! budget, long estimateError) -> uk.osric.asp.Core.Assistant.BudgetSnapshot!
-static uk.osric.asp.Core.Assistant.MemoryRecall.Select(System.Collections.Generic.IReadOnlyList<uk.osric.asp.Core.Assistant.MemoryCandidate!>! pinned, System.Collections.Generic.IReadOnlyList<uk.osric.asp.Core.Assistant.MemoryCandidate!>! used, System.Collections.Generic.IReadOnlyList<uk.osric.asp.Core.Assistant.MemoryCandidate!>! query, int maximumChars) -> uk.osric.asp.Core.Assistant.MemorySelection!
+static uk.osric.asp.Core.Assistant.MemoryRecall.Select(System.Collections.Generic.IReadOnlyList<uk.osric.asp.Core.Assistant.MemoryCandidate!>! pinned, System.Collections.Generic.IReadOnlyList<uk.osric.asp.Core.Assistant.MemoryCandidate!>! used, System.Collections.Generic.IReadOnlyList<uk.osric.asp.Core.Assistant.MemoryCandidate!>! query, int maximumBytes) -> uk.osric.asp.Core.Assistant.MemorySelection!
 const uk.osric.asp.Core.Assistant.ContextBudget.MinimumPromptTokens = 16384 -> long
 uk.osric.asp.Core.Assistant.BudgetSnapshot.EstimateErrorMagnitude.get -> long
 uk.osric.asp.Core.Assistant.ContextBudget.ContextWindow.get -> long
@@ -882,12 +882,12 @@ static uk.osric.asp.Core.Assistant.OwnerQuestion.operator !=(uk.osric.asp.Core.A
 static uk.osric.asp.Core.Assistant.OwnerQuestion.operator ==(uk.osric.asp.Core.Assistant.OwnerQuestion? left, uk.osric.asp.Core.Assistant.OwnerQuestion? right) -> bool
 static uk.osric.asp.Core.Assistant.OwnerQuestionOption.operator !=(uk.osric.asp.Core.Assistant.OwnerQuestionOption? left, uk.osric.asp.Core.Assistant.OwnerQuestionOption? right) -> bool
 static uk.osric.asp.Core.Assistant.OwnerQuestionOption.operator ==(uk.osric.asp.Core.Assistant.OwnerQuestionOption? left, uk.osric.asp.Core.Assistant.OwnerQuestionOption? right) -> bool
-static uk.osric.asp.Core.Assistant.OwnerQuestions.Answer(uk.osric.asp.Core.Assistant.OwnerQuestionSet! questions, System.Collections.Generic.IReadOnlyList<uk.osric.asp.Core.Assistant.OwnerAnswerInput!>! inputs, long maximumChars) -> uk.osric.asp.Core.Assistant.OwnerAnswersResult!
+static uk.osric.asp.Core.Assistant.OwnerQuestions.Answer(uk.osric.asp.Core.Assistant.OwnerQuestionSet! questions, System.Collections.Generic.IReadOnlyList<uk.osric.asp.Core.Assistant.OwnerAnswerInput!>! inputs, long maximumBytes) -> uk.osric.asp.Core.Assistant.OwnerAnswersResult!
 static uk.osric.asp.Core.Assistant.OwnerQuestionSet.operator !=(uk.osric.asp.Core.Assistant.OwnerQuestionSet? left, uk.osric.asp.Core.Assistant.OwnerQuestionSet? right) -> bool
 static uk.osric.asp.Core.Assistant.OwnerQuestionSet.operator ==(uk.osric.asp.Core.Assistant.OwnerQuestionSet? left, uk.osric.asp.Core.Assistant.OwnerQuestionSet? right) -> bool
 static uk.osric.asp.Core.Assistant.OwnerQuestions.ReadAnswers(string? json) -> uk.osric.asp.Core.Assistant.OwnerAnswerSet?
 static uk.osric.asp.Core.Assistant.OwnerQuestions.Read(string? json) -> uk.osric.asp.Core.Assistant.OwnerQuestionSet?
-static uk.osric.asp.Core.Assistant.OwnerQuestions.Validate(uk.osric.asp.Core.Assistant.OwnerQuestionSet! questions, int maximumQuestions, int maximumOptions, int maximumChars) -> string?
+static uk.osric.asp.Core.Assistant.OwnerQuestions.Validate(uk.osric.asp.Core.Assistant.OwnerQuestionSet! questions, int maximumQuestions, int maximumOptions, int maximumBytes) -> string?
 static uk.osric.asp.Core.Assistant.OwnerQuestions.WriteAnswers(uk.osric.asp.Core.Assistant.OwnerAnswerSet! answers) -> string!
 static uk.osric.asp.Core.Assistant.OwnerQuestions.Write(uk.osric.asp.Core.Assistant.OwnerQuestionSet! questions) -> string!
 uk.osric.asp.Core.Assistant.OwnerAnswer
@@ -1057,15 +1057,15 @@ uk.osric.asp.Core.Pages.PageSchema.Equals(uk.osric.asp.Core.Pages.PageSchema? ot
 uk.osric.asp.Core.Pages.PageSchema.IsEmpty.get -> bool
 uk.osric.asp.Core.Pages.PageSchemaLimits
 uk.osric.asp.Core.Pages.PageSchemaLimits.<Clone>$() -> uk.osric.asp.Core.Pages.PageSchemaLimits!
-uk.osric.asp.Core.Pages.PageSchemaLimits.Deconstruct(out int MaxTablesPerSource, out int MaxColumnsPerTable, out int MaxNameChars) -> void
+uk.osric.asp.Core.Pages.PageSchemaLimits.Deconstruct(out int MaxTablesPerSource, out int MaxColumnsPerTable, out int MaxNameBytes) -> void
 uk.osric.asp.Core.Pages.PageSchemaLimits.Equals(uk.osric.asp.Core.Pages.PageSchemaLimits? other) -> bool
 uk.osric.asp.Core.Pages.PageSchemaLimits.MaxColumnsPerTable.get -> int
 uk.osric.asp.Core.Pages.PageSchemaLimits.MaxColumnsPerTable.init -> void
-uk.osric.asp.Core.Pages.PageSchemaLimits.MaxNameChars.get -> int
-uk.osric.asp.Core.Pages.PageSchemaLimits.MaxNameChars.init -> void
+uk.osric.asp.Core.Pages.PageSchemaLimits.MaxNameBytes.get -> int
+uk.osric.asp.Core.Pages.PageSchemaLimits.MaxNameBytes.init -> void
 uk.osric.asp.Core.Pages.PageSchemaLimits.MaxTablesPerSource.get -> int
 uk.osric.asp.Core.Pages.PageSchemaLimits.MaxTablesPerSource.init -> void
-uk.osric.asp.Core.Pages.PageSchemaLimits.PageSchemaLimits(int MaxTablesPerSource, int MaxColumnsPerTable, int MaxNameChars) -> void
+uk.osric.asp.Core.Pages.PageSchemaLimits.PageSchemaLimits(int MaxTablesPerSource, int MaxColumnsPerTable, int MaxNameBytes) -> void
 uk.osric.asp.Core.Pages.PageSchema.PageSchema(System.Collections.Generic.IReadOnlyList<uk.osric.asp.Core.Pages.PageTable!>! tables) -> void
 uk.osric.asp.Core.Pages.PageSchemaProblem
 uk.osric.asp.Core.Pages.PageSchemaProblem.<Clone>$() -> uk.osric.asp.Core.Pages.PageSchemaProblem!
@@ -1124,3 +1124,14 @@ static uk.osric.asp.Core.Pages.PageObjectTypes.Canonical(string! contentType) ->
 static uk.osric.asp.Core.Pages.PageObjectTypes.IsAllowed(string? contentType) -> bool
 uk.osric.asp.Core.Pages.PageObjectHash
 uk.osric.asp.Core.Pages.PageObjectTypes
+
+uk.osric.asp.Core.Text.Utf8
+static uk.osric.asp.Core.Text.Utf8.Clip(string! text, int maxBytes) -> string!
+static uk.osric.asp.Core.Text.Utf8.PreviousCodePointUnits(string! text, int index) -> int
+static uk.osric.asp.Core.Text.Utf8.NextCodePointUnits(string! text, int index) -> int
+static uk.osric.asp.Core.Text.Utf8.SizeInBytes(string! text) -> int
+
+*REMOVED*static uk.osric.asp.Core.Assistant.ToolArguments.Parse(string! json, System.Collections.Generic.IReadOnlyList<uk.osric.asp.Core.Assistant.ToolArgumentSchema!>! schema, int maximumChars) -> uk.osric.asp.Core.Assistant.ToolArgumentsResult!
+static uk.osric.asp.Core.Assistant.ToolArguments.Parse(string! json, System.Collections.Generic.IReadOnlyList<uk.osric.asp.Core.Assistant.ToolArgumentSchema!>! schema, int maximumBytes) -> uk.osric.asp.Core.Assistant.ToolArgumentsResult!
+*REMOVED*static uk.osric.asp.Core.Assistant.PageRangeEditor.Replace(string! source, int startLine, int endLine, string! replacement, int maximumChars) -> uk.osric.asp.Core.Assistant.PageRangeEditResult!
+static uk.osric.asp.Core.Assistant.PageRangeEditor.Replace(string! source, int startLine, int endLine, string! replacement, int maximumBytes) -> uk.osric.asp.Core.Assistant.PageRangeEditResult!

@@ -182,8 +182,8 @@ internal sealed class PageJobRunner(
             environment.Metrics,
             loggerFactory.CreateLogger(SimpleContext.PageCategory));
         ReadBudget readBudget = new(
-            environment.Render.BurstFor(environment.Jobs.SourceCharsPerSecond),
-            environment.Jobs.SourceCharsPerSecond,
+            environment.Render.BurstFor(environment.Jobs.SourceBytesPerSecond),
+            environment.Jobs.SourceBytesPerSecond,
             environment.Clock,
             PageJobOptions.ReadRateKey);
         PageCatalogScope catalog = new(

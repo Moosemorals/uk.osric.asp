@@ -356,7 +356,7 @@ public sealed class PageCompositionTests {
                } %>
             """);
 
-        Rendered rendered = await RenderAsync("/page", render: TestOptions.Render with { MaxBodyChars = 100 });
+        Rendered rendered = await RenderAsync("/page", render: TestOptions.Render with { MaxBodyBytes = 100 });
 
         Assert.That(rendered.Body, Is.EqualTo("before|refused"), "a refused embed wrote nothing");
     }

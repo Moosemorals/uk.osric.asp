@@ -22,7 +22,7 @@ public sealed class AssistantMemoryPageTests {
     private readonly TestAntiforgery _antiforgery = new();
     private readonly AssistantOptions _options = TestOptions.Assistant with {
         MaxMemoriesPerOwner = 3,
-        MaxMemoryChars = 40,
+        MaxMemoryBytes = 40,
     };
 
     private string _databasePath = string.Empty;

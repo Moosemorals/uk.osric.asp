@@ -9,7 +9,7 @@ using uk.osric.asp.Web.Shell;
 
 /// <summary>The system prompt and worked examples that teach the model to write a page.</summary>
 internal static class PageAuthorPrompt {
-    public const string Version = "page-author-v64";
+    public const string Version = "page-author-v65";
 
     public static IReadOnlyList<(string Name, string Source)> Examples { get; } = [
         ("query-driven", """
@@ -316,7 +316,7 @@ internal static class PageAuthorPrompt {
         open across pages, so `TryGetValueAsync<T>(pagePath, key)` shows what
         another page left for it. Values are JSON, so a record with public
         properties or a scalar round-trips and a value that cannot be
-        serialised throws. Keys are 1-200 characters, ordinal, with no control
+        serialised throws. Keys are 1-200 UTF-8 bytes, ordinal, with no control
         characters. Reads and writes are awaited, and a write past a limit throws
         when it is awaited. `PageValue<T>` has `Found` (false when the key is
         absent), `Value` (null when the stored value is JSON null), `Lifetime`
@@ -442,7 +442,7 @@ internal static class PageAuthorPrompt {
         secret is never in the source, a revision, a listing, a search or an
         export archive, and a `HEAD` may read but not write one. Keep a value a
         visitor may see in `Values`; keep here only what the page must prove it
-        holds. The limits are 100 characters per name, 8 KiB per secret, 16 names
+        holds. The limits are 100 UTF-8 bytes per name, 8 KiB per secret, 16 names
         and 32 KiB per page.
 
         ## Page store read
@@ -494,7 +494,8 @@ internal static class PageAuthorPrompt {
         `Kind: PageSearchPatternKind.BasicRegularExpression`, where `^ $ . *`
         and `[abc]` are metacharacters, `\|` is either-this-or-that and every
         other character is itself. `Context` is how wide a snippet is, in
-        characters; a match is never cut, and a line with several matches is
+        UTF-8 bytes, grown around the match and never split inside a character;
+        a match is never cut, and a line with several matches is
         one row. `Truncated` says the scan stopped before the end of the store,
         because `Limit` was reached or the host's time allowance ran out, and
         `Cursor` is where to ask again: pass it back as `After` with the
@@ -523,7 +524,10 @@ internal static class PageAuthorPrompt {
         page. A listing is bounded by the site's configured row limit and one
         render may read a bounded amount of template across the page and its
         layouts; both are refusals, not truncations, and the refusal names the
-        limit. The seeded `/pages` is a guarded listing, a source view and a
+        limit. Every limit that bounds text bounds its UTF-8 bytes, so a page of
+        CJK reaches a limit sooner than a page of ASCII. A listing row carries
+        `SourceBytes`, the head's stored size, so a page can say how large
+        another page is without reading it. The seeded `/pages` is a guarded listing, a source view and a
         history: the read with the one guard a private page writes.
 
         ## Writing the page store

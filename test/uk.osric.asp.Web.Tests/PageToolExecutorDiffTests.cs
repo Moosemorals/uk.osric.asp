@@ -147,7 +147,7 @@ public sealed class PageToolExecutorDiffTests {
         ToolExecutionResult result = await RunAsync(
             storage,
             """{"path":"/notes"}""",
-            TestOptions.Assistant with { MaxToolArgumentChars = 8_192, MaxPageChars = 8_192 },
+            TestOptions.Assistant with { MaxToolArgumentBytes = 8_192, MaxPageBytes = 8_192 },
             TestOptions.BudgetOfResultChars(2_048));
 
         JsonElement data = Data(result);
@@ -173,7 +173,7 @@ public sealed class PageToolExecutorDiffTests {
         PageToolExecutor tools = new(
             services.GetRequiredService<IServiceScopeFactory>(),
             new PagePathPolicy(new ReservedPaths(ReservedPaths.Default), TestOptions.Assistant),
-            options ?? TestOptions.Assistant with { MaxToolArgumentChars = 8_192, MaxPageChars = 8_192 },
+            options ?? TestOptions.Assistant with { MaxToolArgumentBytes = 8_192, MaxPageBytes = 8_192 },
             ModelWindowSource.Fixed(budget ?? TestOptions.Budget),
             new AssistantMetrics(),
             new FakeAssistantFetcher());

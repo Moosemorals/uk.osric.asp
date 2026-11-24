@@ -106,7 +106,9 @@ one:
   values. A listing answers the tree: each `PageEntry` is a key with a `Kind` —
   flags that combine, `Page`, `Tombstone`, `Route` and `Folder`, so a key that is both a page and a
   folder is one row — and the head's facts where a head is stored: `SavedAt`, `Hash`, `IsHtml`,
-  `IsAsset`, `IsLibrary`, `IsWorker`, `State`, `Libraries` and `Seed`. A folder is not stored: it
+  `IsAsset`, `IsLibrary`, `IsWorker`, `State`, `Libraries`, `Seed` and `SourceBytes` — the head's
+  stored template size in UTF-8 bytes, answered from the row, so a listing knows how large a page is
+  without reading it. A folder is not stored: it
   exists because a key lives below it, and the host derives it with `PageTree`'s rule, so no write path
   maintains one and a page never folds keys itself (`pages-a-folder-is-a-key-not-a-row`). The site's own
   routes are rows too, so a page draws the tree the shell's `ls` draws without owning the route table
@@ -740,13 +742,13 @@ waits for it against one deadline that covers both queueing and running:
 - A compile is *not* cancelled by the render's deadline. Throwing the work away would leave the page
   unservable — every request would pay the same compile — so it finishes, stores its image, and the
   request answers `504` without starting the page. The next request is served from the store.
-- `Pages:Render:MaxBodyChars` limits the buffered body, so a page that writes in a loop fails quickly
+- `Pages:Render:MaxBodyBytes` limits the buffered body, so a page that writes in a loop fails quickly
   instead of growing the process. The limit stops at the first flush: a streamed body is already on the
   wire and is not charged, so a post-commit loop is bounded by the stream's clocks and the container
   rather than by this setting. An embed renders into a view of what is left, and the caller is charged
   once when it writes the result, so the embedded text is neither counted twice nor able to skip the
   limit.
-- `Pages:Fetch:FetchesPerSecond` and `Pages:Read:SourceCharsPerSecond` bound outbound requests and
+- `Pages:Fetch:FetchesPerSecond` and `Pages:Read:SourceBytesPerSecond` bound outbound requests and
   template reads as rates with a burst. The burst is what the rate spends in
   `Pages:Render:TimeoutSeconds`, so a render starts with today's count available at once and refills
   while it still runs, and the burst is never below one unit however short the deadline. A job has its

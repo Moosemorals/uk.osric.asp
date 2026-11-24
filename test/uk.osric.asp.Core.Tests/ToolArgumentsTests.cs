@@ -26,6 +26,19 @@ public sealed class ToolArgumentsTests {
     }
 
     [Test]
+    public void TheArgumentLimitIsCountedInUtf8Bytes() {
+        // The JSON is 19 code units and 25 bytes: a budget of 20 fits it as characters and refuses it
+        // as bytes, which is the difference the unit makes.
+        string json = "{\"path\":\"😀😀😀\"}";
+
+        Assert.Multiple(() => {
+            Assert.That(json.Length, Is.LessThan(20));
+            Assert.That(ToolArguments.Parse(json, Schema, 40).IsSuccess, Is.True);
+            Assert.That(ToolArguments.Parse(json, Schema, 20).Error, Does.Contain("size limit"));
+        });
+    }
+
+    [Test]
     public void MissingRequiredArgumentIsRejected() {
         ToolArgumentsResult result = ToolArguments.Parse("{}", Schema, 200);
 

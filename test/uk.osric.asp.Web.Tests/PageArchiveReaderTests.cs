@@ -114,7 +114,7 @@ public sealed class PageArchiveReaderTests {
             [("/about", "About")],
             [("/about", new string('k', 24), "1")]);
 
-        AssertRejected(Reader(stores: TestOptions.Stores with { MaxKeyChars = 16 }).Read(bytes), "state key");
+        AssertRejected(Reader(stores: TestOptions.Stores with { MaxKeyBytes = 16 }).Read(bytes), "state key");
     }
 
     [Test]

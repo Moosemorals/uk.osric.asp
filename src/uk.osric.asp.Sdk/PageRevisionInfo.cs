@@ -13,4 +13,8 @@ namespace uk.osric.asp.Sdk;
 public readonly record struct PageRevisionInfo(
     string Hash,
     DateTimeOffset SavedAt,
-    bool IsCurrent);
+    bool IsCurrent) {
+
+    /// <summary>The revision's stored template size in UTF-8 bytes.</summary>
+    public int? SourceBytes { get; init; }
+}

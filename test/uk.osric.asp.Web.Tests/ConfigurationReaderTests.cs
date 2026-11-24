@@ -120,12 +120,12 @@ public sealed class ConfigurationReaderTests {
 
     [Test]
     public void AReaderOpenedAtAnotherSectionNamesThatSection() {
-        ConfigurationReader reader = Reader(("Storage:MaxKeyChars", "0"));
+        ConfigurationReader reader = Reader(("Storage:MaxKeyBytes", "0"));
 
-        _ = reader.At("Storage").Number("MaxKeyChars", recommended: 200, minimum: 16, maximum: 4_096);
+        _ = reader.At("Storage").Number("MaxKeyBytes", recommended: 200, minimum: 16, maximum: 4_096);
 
         Assert.That(Assert.Throws<ConfigurationException>(reader.Complete)!.Message,
-            Does.Contain("Storage:MaxKeyChars is 0"));
+            Does.Contain("Storage:MaxKeyBytes is 0"));
     }
 
     [Test]

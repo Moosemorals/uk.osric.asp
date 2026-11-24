@@ -386,7 +386,7 @@ public sealed class PageRendererTests {
     public async Task APageThatWritesPastTheBodyLimitFailsAsync() {
         FakePageStore storage = new();
         storage["/chatty"] = new PageTemplate(PageHarness.Key("/chatty"), "0123456789");
-        using PageHarness pages = new(storage, options: TestOptions.Render with { MaxBodyChars = 5 });
+        using PageHarness pages = new(storage, options: TestOptions.Render with { MaxBodyBytes = 5 });
 
         InvalidOperationException? thrown = await Assert.ThrowsAsync<InvalidOperationException>(
             () => pages.RenderAsync("/chatty", maxBodyChars: 5));

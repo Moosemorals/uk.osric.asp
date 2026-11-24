@@ -25,10 +25,10 @@ public sealed class ContextBudgetTests {
         ContextBudget larger = ContextBudget.Create(2_097_152, 393_216, 131_072);
 
         Assert.Multiple(() => {
-            Assert.That(Shipped.ToolResultChars, Is.EqualTo(183_500));
-            Assert.That(Shipped.MessageChars, Is.EqualTo(Shipped.ToolResultChars));
-            Assert.That(Shipped.MemoryCharsPerRun, Is.EqualTo(45_875));
-            Assert.That(larger.ToolResultChars, Is.GreaterThan(Shipped.ToolResultChars));
+            Assert.That(Shipped.ToolResultBytes, Is.EqualTo(183_500));
+            Assert.That(Shipped.MessageBytes, Is.EqualTo(Shipped.ToolResultBytes));
+            Assert.That(Shipped.MemoryBytesPerRun, Is.EqualTo(45_875));
+            Assert.That(larger.ToolResultBytes, Is.GreaterThan(Shipped.ToolResultBytes));
         });
     }
 

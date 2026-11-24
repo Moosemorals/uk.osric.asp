@@ -61,7 +61,7 @@ internal sealed class AskUserTool : AssistantTool {
 
         OwnerQuestionSet set = Read(values);
         string? error = OwnerQuestions.Validate(
-            set, services.Options.MaxQuestionsPerCall, services.Options.MaxQuestionOptions, services.Options.MaxQuestionChars);
+            set, services.Options.MaxQuestionsPerCall, services.Options.MaxQuestionOptions, services.Options.MaxQuestionBytes);
         if (error is not null) {
             return services.Results.Failure(error, $"{Spec.Verb} refused");
         }

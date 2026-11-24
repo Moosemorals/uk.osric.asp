@@ -5,6 +5,7 @@ namespace uk.osric.asp.Web.Assistant.Shell.Applets;
 
 using uk.osric.asp.Core.Pages;
 using uk.osric.asp.Core.Shell;
+using uk.osric.asp.Core.Text;
 using uk.osric.asp.Web.Pages;
 
 /// <summary>Prints a record for each key: its permission, size, revision and compile state.</summary>
@@ -34,8 +35,8 @@ internal sealed class StatApplet : ShellApplet {
         foreach (PageRead file in files) {
             string mode = PageMode.Describe(file.CanWrite);
             context.Output.Raw(file.Page is null
-                ? $"{file.Path.Key}\n{mode}\nshell file\n{ShellText.Split(file.Text).Length} lines, {file.Text.Length} chars"
-                : $"{file.Path.Key}\n{mode}\n{file.Page.Template.Length} chars\n{file.Page.Hash}\n{file.Page.SavedAt:O}\n{file.State!.Value.Describe()}");
+                ? $"{file.Path.Key}\n{mode}\nshell file\n{ShellText.Split(file.Text).Length} lines, {Utf8.SizeInBytes(file.Text)} bytes"
+                : $"{file.Path.Key}\n{mode}\n{Utf8.SizeInBytes(file.Page.Template)} bytes\n{file.Page.Hash}\n{file.Page.SavedAt:O}\n{file.State!.Value.Describe()}");
         }
 
         return ShellResult.Ok($"stat {string.Join(' ', context.Paths.Select(path => path.Path.Key))}");

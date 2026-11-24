@@ -24,7 +24,7 @@ internal sealed record PageJobOptions {
     public const string FetchRateKey = "Pages:Jobs:FetchesPerSecond";
 
     /// <summary>The key that sets a job's read rate, named in a refusal.</summary>
-    public const string ReadRateKey = "Pages:Jobs:SourceCharsPerSecond";
+    public const string ReadRateKey = "Pages:Jobs:SourceBytesPerSecond";
 
     /// <summary>The key that sets a job's ceiling, named in a page's bounds.</summary>
     public const string MaxDurationKey = "Pages:Jobs:MaxDurationSeconds";
@@ -49,7 +49,7 @@ internal sealed record PageJobOptions {
     public required double FetchesPerSecond { get; init; }
 
     /// <summary>The rate one job may read page source at, for as long as it runs.</summary>
-    public required int SourceCharsPerSecond { get; init; }
+    public required int SourceBytesPerSecond { get; init; }
 
     /// <summary>Events one job's journal keeps before it drops the oldest.</summary>
     public required int MaxEvents { get; init; }
@@ -107,8 +107,8 @@ internal sealed record PageJobOptions {
                 minimum: PageBudget.MinimumTimeoutSeconds, maximum: 604_800),
             FetchesPerSecond = reader.Decimal("FetchesPerSecond", recommended: 2,
                 minimum: 0.01, maximum: 100),
-            SourceCharsPerSecond = reader.Number("SourceCharsPerSecond", recommended: 104_858,
-                minimum: PageReadOptions.MinimumSourceCharsPerSecond, maximum: 16 * 1024 * 1024),
+            SourceBytesPerSecond = reader.Number("SourceBytesPerSecond", recommended: 104_858,
+                minimum: PageReadOptions.MinimumSourceBytesPerSecond, maximum: 16 * 1024 * 1024),
             MaxEvents = reader.Number("MaxEvents", recommended: 512, minimum: 1, maximum: 100_000),
             MaxEventBytes = reader.Number("MaxEventBytes", recommended: 256 * 1024,
                 minimum: 1024, maximum: 16 * 1024 * 1024),
@@ -121,6 +121,11 @@ internal sealed record PageJobOptions {
             MaxPendingMessages = reader.Number("MaxPendingMessages", recommended: 32,
                 minimum: 1, maximum: 1_000),
         };
+
+        reader.FailIf(reader.Has("SourceCharsPerSecond"), "SourceCharsPerSecond",
+            "is no longer read. SourceBytesPerSecond is a worker's read rate in UTF-8 bytes per second, "
+            + "so rename the key and restart");
+
         return options;
     }
 }

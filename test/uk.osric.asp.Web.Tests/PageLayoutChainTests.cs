@@ -585,7 +585,7 @@ public sealed class PageLayoutChainTests {
             """);
 
         InvalidOperationException? thrown = await Assert.ThrowsAsync<InvalidOperationException>(
-            async () => await RenderAsync("/page", render: TestOptions.Render with { MaxBodyChars = 100 }));
+            async () => await RenderAsync("/page", render: TestOptions.Render with { MaxBodyBytes = 100 }));
 
         Assert.That(thrown.Message, Does.Contain("/_layout"));
     }
@@ -733,7 +733,7 @@ public sealed class PageLayoutChainTests {
             """);
 
         InvalidOperationException? refused = await Assert.ThrowsAsync<InvalidOperationException>(
-            () => RenderAsync("/page", read: TestOptions.Read with { SourceCharsPerSecond = 2 }));
+            () => RenderAsync("/page", read: TestOptions.Read with { SourceBytesPerSecond = 2 }));
 
         Assert.That(refused?.Message, Does.Contain(PageReadOptions.RateKey));
     }

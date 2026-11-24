@@ -135,7 +135,7 @@ public sealed class PageLayerRoleTests {
             new PageBody(
                 new StringWriter(),
                 PagePath.Normalize("/page"),
-                new BodyBudget(TestOptions.Render.MaxBodyChars),
+                new BodyBudget(TestOptions.Render.MaxBodyBytes),
                 new PageCommitState(),
                 new FakePageBodySink(),
                 CancellationToken.None),

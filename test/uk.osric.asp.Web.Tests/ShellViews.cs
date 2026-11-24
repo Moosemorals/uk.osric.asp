@@ -433,7 +433,7 @@ internal static class ShellViews {
     private static async Task<string> AssistantMemoryAsync() {
         DefaultHttpContext context = AuthenticatedContext(AssistantMemoryEndpoint.Path);
         await AssistantMemoryEndpoint.ListAsync(context, new ShellMemoryStore(), new TestAntiforgery(),
-            TestOptions.Assistant with { MaxMemoriesPerOwner = 200, MaxMemoryChars = 1_000 });
+            TestOptions.Assistant with { MaxMemoriesPerOwner = 200, MaxMemoryBytes = 1_000 });
         return await TestHttp.ReadBodyAsync(context);
     }
 

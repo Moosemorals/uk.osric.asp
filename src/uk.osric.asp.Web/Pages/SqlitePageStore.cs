@@ -49,6 +49,7 @@ internal sealed class SqlitePageStore(
                     revision.TemplateKind,
                     HasImage = revision.Image != null,
                     HasDiagnostics = revision.Diagnostics != null && revision.Diagnostics != "[]",
+                    SourceBytes = SqliteTextFunctions.OctetLength(revision.Template),
                 })
             .ToArrayAsync(cancellationToken);
 
@@ -56,7 +57,8 @@ internal sealed class SqlitePageStore(
             .Select(row => new PageListRow(
                 PagePath.Normalize(row.Path),
                 row.IsDeleted,
-                PageImageStatus.Describe(row.RuntimeId, row.HasImage, row.HasDiagnostics, currentRuntimeId, row.TemplateKind)))];
+                PageImageStatus.Describe(row.RuntimeId, row.HasImage, row.HasDiagnostics, currentRuntimeId, row.TemplateKind),
+                row.SourceBytes))];
     }
 
     public async Task<IReadOnlyList<PagePath>> ListStoredPathsAsync(CancellationToken cancellationToken = default) {

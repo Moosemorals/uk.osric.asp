@@ -56,6 +56,29 @@ public sealed class SqlitePageReadStoreTests {
     }
 
     [Test]
+    public async Task ALiveRowCarriesItsStoredSizeInBytesAsync() {
+        const string source = "水水水\n😀";
+        await DatabaseTemplate.SavePageAsync(_options, "/sized", source);
+
+        PageReadSlice slice = await ReadStore().ListAsync("", after: null, limit: 10);
+
+        Assert.That(
+            slice.Rows.Single(row => row.Key == "/sized").SourceBytes,
+            Is.EqualTo(System.Text.Encoding.UTF8.GetByteCount(source)),
+            "bytes, not code units: the source is 5 code units and 14 bytes");
+    }
+
+    [Test]
+    public async Task ARevisionCarriesItsStoredSizeInBytesAsync() {
+        const string source = "水水水";
+        await DatabaseTemplate.SavePageAsync(_options, "/sized", source);
+
+        IReadOnlyList<PageReadRevision> revisions = await ReadStore().ListRevisionsAsync("/sized");
+
+        Assert.That(revisions.Single().SourceBytes, Is.EqualTo(9));
+    }
+
+    [Test]
     public async Task TheListingIncludesTombstonesAndSeedsAsync() {
         await DatabaseTemplate.SavePageAsync(_options, "/site.css", "body { color: red; }");
         await DatabaseTemplate.SavePageAsync(_options, "/gone", "deleted source");

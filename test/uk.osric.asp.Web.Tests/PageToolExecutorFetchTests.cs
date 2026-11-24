@@ -109,7 +109,7 @@ public sealed class PageToolExecutorFetchTests {
             HttpFetchFailure.None,
             false));
         PageToolExecutor tools = CreateTools(fetcher,
-            TestOptions.Assistant with { MaxToolArgumentChars = 4096, MaxPageChars = 4096 },
+            TestOptions.Assistant with { MaxToolArgumentBytes = 4096, MaxPageBytes = 4096 },
             TestOptions.BudgetOfResultChars(2048));
 
         ToolExecutionResult result = await tools.ExecuteAsync(
@@ -182,7 +182,7 @@ public sealed class PageToolExecutorFetchTests {
         return new PageToolExecutor(
             services.GetRequiredService<IServiceScopeFactory>(),
             new PagePathPolicy(new ReservedPaths(ReservedPaths.Default), TestOptions.Assistant),
-            options ?? TestOptions.Assistant with { MaxToolArgumentChars = 4096, MaxPageChars = 4096 },
+            options ?? TestOptions.Assistant with { MaxToolArgumentBytes = 4096, MaxPageBytes = 4096 },
             ModelWindowSource.Fixed(budget ?? TestOptions.Budget),
             new AssistantMetrics(),
             fetcher);

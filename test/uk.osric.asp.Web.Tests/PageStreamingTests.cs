@@ -400,7 +400,7 @@ public sealed class PageStreamingTests {
             <% ctx.Response.Write("0123456789"); await ctx.Response.FlushAsync();
                ctx.Response.Write("0123456789"); await ctx.Response.FlushAsync(); %>
             """);
-        RenderOptions options = TestOptions.Render with { MaxBodyChars = 10 };
+        RenderOptions options = TestOptions.Render with { MaxBodyBytes = 10 };
 
         (_, string body) = await RenderAsync("/stream", options: options);
 

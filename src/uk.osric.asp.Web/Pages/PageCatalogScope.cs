@@ -6,6 +6,7 @@ namespace uk.osric.asp.Web.Pages;
 using System.Runtime.CompilerServices;
 using uk.osric.asp.Core.Compilation;
 using uk.osric.asp.Core.Pages;
+using uk.osric.asp.Core.Text;
 using uk.osric.asp.Sdk;
 using uk.osric.asp.Web.Shell;
 
@@ -124,13 +125,13 @@ internal sealed class PageCatalogScope(
                 + "Raise Pages:Search:MaxMatches, or ask for a slice and resume from the last Cursor.");
         }
 
-        int context = request.Context ?? search.Options.DefaultContextChars;
-        if (context < 1 || context > search.Options.MaxContextChars) {
+        int context = request.Context ?? search.Options.DefaultContextBytes;
+        if (context < 1 || context > search.Options.MaxContextBytes) {
             throw new ArgumentOutOfRangeException(
                 nameof(request),
                 context,
-                $"A search of {path.Key} asked for a {context}-character snippet; a context is 1 to "
-                + $"{search.Options.MaxContextChars}. Raise Pages:Search:MaxContextChars, or read the page for the rest of a line.");
+                $"A search of {path.Key} asked for a {context}-byte snippet; a context is 1 to "
+                + $"{search.Options.MaxContextBytes}. Raise Pages:Search:MaxContextBytes, or read the page for the rest of a line.");
         }
 
         PageSearchCursor? after = request.After is { } cursor ? NormalizeCursor(cursor) : null;
@@ -178,7 +179,7 @@ internal sealed class PageCatalogScope(
             return null;
         }
 
-        Charge(source.Template.Length, source.Key);
+        Charge(Utf8.SizeInBytes(source.Template), source.Key);
 
         return new PageSource(source.Key, source.Hash, source.SavedAt, source.Template);
     }
@@ -191,7 +192,7 @@ internal sealed class PageCatalogScope(
         IReadOnlyList<PageReadRevision> revisions = await store.ListRevisionsAsync(normalized, Cancellation());
 
         return [.. revisions.Select(revision =>
-            new PageRevisionInfo(revision.Hash, revision.SavedAt, revision.IsCurrent))];
+            new PageRevisionInfo(revision.Hash, revision.SavedAt, revision.IsCurrent) { SourceBytes = revision.SourceBytes })];
     }
 
     /// <inheritdoc/>
@@ -205,7 +206,7 @@ internal sealed class PageCatalogScope(
             return null;
         }
 
-        Charge(source.Template.Length, $"{source.Key} at {source.Hash}");
+        Charge(Utf8.SizeInBytes(source.Template), $"{source.Key} at {source.Hash}");
 
         return new PageSource(source.Key, source.Hash, source.SavedAt, source.Template);
     }
@@ -280,6 +281,7 @@ internal sealed class PageCatalogScope(
                 State = state.Describe(),
                 Libraries = PageLibraryFingerprint.KeysOf(head.TemplateLibraries),
                 Seed = DescribeSeed(head),
+                SourceBytes = head.SourceBytes,
             };
         }
 
@@ -330,8 +332,8 @@ internal sealed class PageCatalogScope(
     private bool IsHtml(string key) =>
         contentTypes.ForPath(key).StartsWith("text/html", StringComparison.OrdinalIgnoreCase);
 
-    private void Charge(int chars, string what) {
-        if (!budget.TryCharge(chars)) {
+    private void Charge(int bytes, string what) {
+        if (!budget.TryCharge(bytes)) {
             throw new InvalidOperationException(
                 $"Reading {what} on {path.Key} was refused: {budget.DescribeRefusal()}. "
                 + "Raise the rate, or read a smaller revision.");

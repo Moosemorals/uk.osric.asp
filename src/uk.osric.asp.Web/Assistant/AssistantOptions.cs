@@ -53,19 +53,19 @@ internal sealed record AssistantOptions {
     public required int MaxProviderRetries { get; init; }
 
     /// <summary>The most characters a stored page may carry: the page store's bound, not a context rule.</summary>
-    public required int MaxPageChars { get; init; }
+    public required int MaxPageBytes { get; init; }
 
     /// <summary>
-    /// The most characters one tool call's arguments may carry. It must exceed <see cref="MaxPageChars"/>
+    /// The most characters one tool call's arguments may carry. It must exceed <see cref="MaxPageBytes"/>
     /// with room for the envelope, because a page the store accepts must be writable through a tool.
     /// </summary>
-    public required int MaxToolArgumentChars { get; init; }
+    public required int MaxToolArgumentBytes { get; init; }
 
     /// <summary>The most memories one owner may hold; past this <c>remember</c> refuses.</summary>
     public required int MaxMemoriesPerOwner { get; init; }
 
     /// <summary>The longest memory, in characters. One longer is refused, never truncated.</summary>
-    public required int MaxMemoryChars { get; init; }
+    public required int MaxMemoryBytes { get; init; }
 
     /// <summary>The most candidates a memory search ranks, for recall and for the tool.</summary>
     public required int MaxMemorySearchResults { get; init; }
@@ -80,7 +80,7 @@ internal sealed record AssistantOptions {
     public required int MaxQuestionOptions { get; init; }
 
     /// <summary>The longest question, header, option label or option description may be.</summary>
-    public required int MaxQuestionChars { get; init; }
+    public required int MaxQuestionBytes { get; init; }
 
     public required int HeartbeatSeconds { get; init; }
     public required int JournalMaxEvents { get; init; }
@@ -155,15 +155,15 @@ internal sealed record AssistantOptions {
             BalanceTimeoutSeconds = reader.Decimal("BalanceTimeoutSeconds", recommended: 3, minimum: 1, maximum: 60),
             BalanceSampleSeconds = reader.Number("BalanceSampleSeconds", recommended: 60, minimum: 30, maximum: 3_600),
             MaxProviderRetries = reader.Number("MaxProviderRetries", recommended: 1, minimum: 0, maximum: 10),
-            MaxPageChars = reader.Number("MaxPageChars", recommended: 262_144, minimum: 1, maximum: 4_194_304),
-            MaxToolArgumentChars = reader.Number("MaxToolArgumentChars", recommended: 270_336, minimum: 1, maximum: 4_194_304),
+            MaxPageBytes = reader.Number("MaxPageBytes", recommended: 262_144, minimum: 1, maximum: 4_194_304),
+            MaxToolArgumentBytes = reader.Number("MaxToolArgumentBytes", recommended: 270_336, minimum: 1, maximum: 4_194_304),
             MaxMemoriesPerOwner = reader.Number("MaxMemoriesPerOwner", recommended: 200, minimum: 1, maximum: 10_000),
-            MaxMemoryChars = reader.Number("MaxMemoryChars", recommended: 1_000, minimum: 1, maximum: 100_000),
+            MaxMemoryBytes = reader.Number("MaxMemoryBytes", recommended: 1_000, minimum: 1, maximum: 100_000),
             MaxMemorySearchResults = reader.Number("MaxMemorySearchResults", recommended: 50, minimum: 1, maximum: 1_000),
             MaxMemoryQueryTerms = reader.Number("MaxMemoryQueryTerms", recommended: 12, minimum: 2, maximum: 100),
             MaxQuestionsPerCall = reader.Number("MaxQuestionsPerCall", recommended: 4, minimum: 1, maximum: 8),
             MaxQuestionOptions = reader.Number("MaxQuestionOptions", recommended: 5, minimum: 2, maximum: 10),
-            MaxQuestionChars = reader.Number("MaxQuestionChars", recommended: 500, minimum: 20, maximum: 4_000),
+            MaxQuestionBytes = reader.Number("MaxQuestionBytes", recommended: 500, minimum: 20, maximum: 4_000),
             HeartbeatSeconds = reader.Number("HeartbeatSeconds", recommended: 15, minimum: 1, maximum: 300),
             JournalMaxEvents = reader.Number("JournalMaxEvents", recommended: 20_000, minimum: 1, maximum: 1_000_000),
             JournalMaxBytes = reader.Number("JournalMaxBytes", recommended: 4_194_304, minimum: 1_024, maximum: 1_073_741_824),
@@ -177,6 +177,16 @@ internal sealed record AssistantOptions {
             ShellDefaultLines = reader.Number("ShellDefaultLines", recommended: 10, minimum: 1, maximum: 1_000),
             MaxCheckDiagnostics = reader.Number("MaxCheckDiagnostics", recommended: 100, minimum: 1, maximum: 10_000),
         };
+
+        // A count from the release before this one is refused rather than ignored.
+        reader.FailIf(reader.Has("MaxPageChars"), "MaxPageChars",
+            "is no longer read. MaxPageBytes is the page's size in UTF-8 bytes, so rename the key and restart");
+        reader.FailIf(reader.Has("MaxToolArgumentChars"), "MaxToolArgumentChars",
+            "is no longer read. MaxToolArgumentBytes is a call's arguments in UTF-8 bytes, so rename the key and restart");
+        reader.FailIf(reader.Has("MaxMemoryChars"), "MaxMemoryChars",
+            "is no longer read. MaxMemoryBytes is a memory's size in UTF-8 bytes, so rename the key and restart");
+        reader.FailIf(reader.Has("MaxQuestionChars"), "MaxQuestionChars",
+            "is no longer read. MaxQuestionBytes is a question's size in UTF-8 bytes, so rename the key and restart");
 
         reader.FailIf(requireApiKey && options.ApiKey is null, "ApiKey",
             "is not set. Set it to the provider's key, or set Assistant:RequireApiKey to false for a provider that needs none");

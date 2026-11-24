@@ -154,13 +154,13 @@ public sealed class PageSecretStoreTests {
     [Test]
     public async Task ANameOverItsLengthIsRefusedAsync() {
         FakeStoreSecrets secrets = new();
-        PageSecretStore handle = Handle("/a", secrets, limits: TestOptions.Stores.Secrets with { MaxNameChars = 8 });
+        PageSecretStore handle = Handle("/a", secrets, limits: TestOptions.Stores.Secrets with { MaxNameBytes = 8 });
 
         ArgumentException refused = (await Assert.ThrowsAsync<ArgumentException>(
             async () => await handle.SetAsync("a-name-too-long", "a key")))!;
 
         Assert.Multiple(() => {
-            Assert.That(refused.Message, Does.Contain("at most 8 characters"));
+            Assert.That(refused.Message, Does.Contain("at most 8 bytes"));
             Assert.That(secrets.WriteCount, Is.Zero);
         });
     }

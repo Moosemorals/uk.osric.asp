@@ -11,6 +11,17 @@ using uk.osric.asp.Web.Pages;
 public sealed class PageJobOptionsTests {
 
     [Test]
+    public void TheRetiredReadRateStopsTheSite() {
+        ConfigurationException error = Assert.Throws<ConfigurationException>(() => PageJobOptions.FromConfiguration(
+            ShippedConfiguration.Read(("Pages:Jobs:SourceCharsPerSecond", "4096"))))!;
+
+        Assert.Multiple(() => {
+            Assert.That(error.Message, Does.Contain("Pages:Jobs:SourceCharsPerSecond is no longer read"));
+            Assert.That(error.Message, Does.Contain("SourceBytesPerSecond"));
+        });
+    }
+
+    [Test]
     public void TheShippedValuesAreTheOnesTheSiteRunsWith() {
         PageJobOptions options = PageJobOptions.FromConfiguration(ShippedConfiguration.Read());
 
@@ -20,7 +31,7 @@ public sealed class PageJobOptionsTests {
             Assert.That(options.SilenceSeconds, Is.EqualTo(120));
             Assert.That(options.MaxDurationSeconds, Is.EqualTo(32_400));
             Assert.That(options.FetchesPerSecond, Is.EqualTo(2));
-            Assert.That(options.SourceCharsPerSecond, Is.EqualTo(104_858));
+            Assert.That(options.SourceBytesPerSecond, Is.EqualTo(104_858));
             Assert.That(options.MaxEvents, Is.EqualTo(512));
             Assert.That(options.MaxEventBytes, Is.EqualTo(256 * 1024));
             Assert.That(options.RetentionMinutes, Is.EqualTo(30));
@@ -38,7 +49,7 @@ public sealed class PageJobOptionsTests {
             ("Pages:Jobs:SilenceSeconds", "5"),
             ("Pages:Jobs:MaxEvents", "16"),
             ("Pages:Jobs:FetchesPerSecond", "0.5"),
-            ("Pages:Jobs:SourceCharsPerSecond", "2048"));
+            ("Pages:Jobs:SourceBytesPerSecond", "2048"));
 
         Assert.Multiple(() => {
             Assert.That(options.QueueCapacity, Is.EqualTo(3));
@@ -46,7 +57,7 @@ public sealed class PageJobOptionsTests {
             Assert.That(options.Silence, Is.EqualTo(TimeSpan.FromSeconds(5)));
             Assert.That(options.MaxEvents, Is.EqualTo(16));
             Assert.That(options.FetchesPerSecond, Is.EqualTo(0.5));
-            Assert.That(options.SourceCharsPerSecond, Is.EqualTo(2048));
+            Assert.That(options.SourceBytesPerSecond, Is.EqualTo(2048));
         });
     }
 
@@ -61,7 +72,7 @@ public sealed class PageJobOptionsTests {
     [TestCase("MaxMessageBytes", "1")]
     [TestCase("MaxPendingMessages", "0")]
     [TestCase("FetchesPerSecond", "0")]
-    [TestCase("SourceCharsPerSecond", "1")]
+    [TestCase("SourceBytesPerSecond", "1")]
     public void AnUnusableValueStopsStartup(string key, string value) {
         ConfigurationException? exception = Assert.Throws<ConfigurationException>(
             () => Options(($"Pages:Jobs:{key}", value)));

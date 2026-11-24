@@ -18,10 +18,10 @@ internal sealed record PageReadOptions {
     public const int MaximumRowsPerList = 10_000;
 
     /// <summary>The smallest source rate the site will run with.</summary>
-    public const int MinimumSourceCharsPerSecond = 1024;
+    public const int MinimumSourceBytesPerSecond = 1024;
 
     /// <summary>The key that sets the rate, named in a refusal.</summary>
-    public const string RateKey = "Pages:Read:SourceCharsPerSecond";
+    public const string RateKey = "Pages:Read:SourceBytesPerSecond";
 
     /// <summary>The most rows one listing may return.</summary>
     public required int MaxRowsPerList { get; init; }
@@ -32,7 +32,7 @@ internal sealed record PageReadOptions {
     /// <c>Pages:Render:TimeoutSeconds</c>. A read is whole, so the burst is also the largest single
     /// template that can ever be read.
     /// </remarks>
-    public required int SourceCharsPerSecond { get; init; }
+    public required int SourceBytesPerSecond { get; init; }
 
     /// <summary>Reads <c>Pages:Read</c>.</summary>
     /// <param name="configuration">The application configuration.</param>
@@ -54,9 +54,13 @@ internal sealed record PageReadOptions {
         PageReadOptions options = new() {
             MaxRowsPerList = reader.Number("MaxRowsPerList", recommended: 500,
                 minimum: 1, maximum: MaximumRowsPerList),
-            SourceCharsPerSecond = reader.Number("SourceCharsPerSecond", recommended: 104_858,
-                minimum: MinimumSourceCharsPerSecond, maximum: 16 * 1024 * 1024),
+            SourceBytesPerSecond = reader.Number("SourceBytesPerSecond", recommended: 104_858,
+                minimum: MinimumSourceBytesPerSecond, maximum: 16 * 1024 * 1024),
         };
+
+        reader.FailIf(reader.Has("SourceCharsPerSecond"), "SourceCharsPerSecond",
+            $"is no longer read. {RateKey} is the rate a render may read page source at, in UTF-8 bytes per second, "
+            + "so rename the key and restart");
 
         // A count from the release before this one is refused rather than ignored.
         reader.FailIf(reader.Has("MaxSourceCharsPerRender"), "MaxSourceCharsPerRender",

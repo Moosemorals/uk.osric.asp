@@ -9,7 +9,7 @@ namespace uk.osric.asp.Sdk;
 /// <param name="PerSecond">The rate the configuration sets.</param>
 /// <param name="Key">The configuration key that sets the rate.</param>
 /// <remarks>
-/// One shape covers fetches, measured in requests, and template reads, measured in characters,
+/// One shape covers fetches, measured in requests, and template reads, measured in UTF-8 bytes,
 /// because both enforcers answer the same four figures.
 /// </remarks>
 public sealed record SiteAllowance(int Capacity, int Available, double PerSecond, string Key);

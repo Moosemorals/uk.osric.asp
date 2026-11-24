@@ -69,7 +69,7 @@ internal sealed class PageToolExecutor(
             return results.Failure($"Unknown tool '{unknown}'.", $"Unknown tool {unknown}");
         }
 
-        ToolArgumentsResult parsed = ToolArguments.Parse(argumentsJson, tool.Spec.Arguments, options.MaxToolArgumentChars);
+        ToolArgumentsResult parsed = ToolArguments.Parse(argumentsJson, tool.Spec.Arguments, options.MaxToolArgumentBytes);
         if (!parsed.IsSuccess) {
             return results.Failure(parsed.Error!, $"Invalid arguments for {name}");
         }
@@ -99,7 +99,7 @@ internal sealed class PageToolExecutor(
             return null;
         }
 
-        ToolArgumentsResult parsed = ToolArguments.Parse(argumentsJson, tool.Spec.Arguments, options.MaxToolArgumentChars);
+        ToolArgumentsResult parsed = ToolArguments.Parse(argumentsJson, tool.Spec.Arguments, options.MaxToolArgumentBytes);
         if (!parsed.IsSuccess || new ToolValues(parsed.Values).String(pathArgument) is not { } pathText) {
             return null;
         }

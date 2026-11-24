@@ -408,8 +408,8 @@ internal sealed class PageHarness : IDisposable {
                 ReadOptions,
                 Scan,
                 readBudget ?? new ReadBudget(
-                    Options.BurstFor(ReadOptions.SourceCharsPerSecond),
-                    ReadOptions.SourceCharsPerSecond,
+                    Options.BurstFor(ReadOptions.SourceBytesPerSecond),
+                    ReadOptions.SourceBytesPerSecond,
                     Clock,
                     PageReadOptions.RateKey),
                 new ReservedPaths(ReservedPaths.Default),
@@ -432,7 +432,7 @@ internal sealed class PageHarness : IDisposable {
             capabilities,
             stores,
             ContentTypes,
-            maxBodyChars ?? TestOptions.Render.MaxBodyChars,
+            maxBodyChars ?? TestOptions.Render.MaxBodyBytes,
             TestOptions.Editor.Key,
             user);
     }

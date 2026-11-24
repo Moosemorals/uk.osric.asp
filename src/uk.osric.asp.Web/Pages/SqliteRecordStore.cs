@@ -446,12 +446,12 @@ internal sealed class SqliteRecordStore : RenderBoundCapability, IRecordStore, I
             string[] names = [.. Enumerable.Range(0, reader.FieldCount).Select(reader.GetName)];
 
             List<PageRow> rows = [];
-            long chars = 0;
+            long bytes = 0;
             while (await reader.ReadAsync(deadline.Token)) {
                 object?[] values = new object?[names.Length];
                 for (int index = 0; index < names.Length; index++) {
                     values[index] = await reader.IsDBNullAsync(index, deadline.Token) ? null : Read(reader, index);
-                    chars += values[index] is string text ? text.Length : 0;
+                    bytes += values[index] is string text ? Utf8.SizeInBytes(text) : 0;
                 }
 
                 rows.Add(new PageRow(names, values));
@@ -461,9 +461,9 @@ internal sealed class SqliteRecordStore : RenderBoundCapability, IRecordStore, I
                         $"This statement answered more than Pages:Stores:Records:MaxResultRows ({_records.MaxResultRows}) rows; bound it with LIMIT.");
                 }
 
-                if (chars > _records.MaxResultChars) {
+                if (bytes > _records.MaxResultBytes) {
                     throw new InvalidOperationException(
-                        $"This statement answered more than Pages:Stores:Records:MaxResultChars ({_records.MaxResultChars}) characters; select fewer columns or bound it with LIMIT.");
+                        $"This statement answered more than Pages:Stores:Records:MaxResultBytes ({_records.MaxResultBytes}) bytes; select fewer columns or bound it with LIMIT.");
                 }
             }
 

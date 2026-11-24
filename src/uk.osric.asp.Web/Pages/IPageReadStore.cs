@@ -22,6 +22,7 @@ using uk.osric.asp.Core.Pages;
 /// The fingerprint of the libraries the head was compiled against, or <see langword="null"/> when it
 /// named none.
 /// </param>
+/// <param name="SourceBytes">The head revision's stored template size in UTF-8 bytes.</param>
 internal sealed record PageReadHead(
     string Key,
     DateTimeOffset SavedAt,
@@ -33,7 +34,8 @@ internal sealed record PageReadHead(
     bool HasDiagnostics = false,
     string? SeedHash = null,
     string? ContentHash = null,
-    string? TemplateLibraries = null);
+    string? TemplateLibraries = null,
+    int? SourceBytes = null);
 
 /// <summary>One slice of a listing, and the fingerprint of every head under its prefix.</summary>
 /// <param name="Rows">The heads the slice selected, in key order.</param>
@@ -51,7 +53,8 @@ internal sealed record PageReadSource(string Key, string Hash, DateTimeOffset Sa
 /// <param name="Hash">The revision's hash.</param>
 /// <param name="SavedAt">When the revision was saved.</param>
 /// <param name="IsCurrent">Whether the live head points at this revision.</param>
-internal sealed record PageReadRevision(string Hash, DateTimeOffset SavedAt, bool IsCurrent);
+/// <param name="SourceBytes">The revision's stored template size in UTF-8 bytes.</param>
+internal sealed record PageReadRevision(string Hash, DateTimeOffset SavedAt, bool IsCurrent, int? SourceBytes = null);
 
 /// <summary>The read-only seam a page's catalog reads through.</summary>
 /// <remarks>

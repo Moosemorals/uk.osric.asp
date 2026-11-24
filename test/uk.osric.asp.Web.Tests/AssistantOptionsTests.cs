@@ -17,6 +17,20 @@ public sealed class AssistantOptionsTests {
         Assert.That(Validate(TestOptions.Assistant).Failed, Is.False);
     }
 
+    [TestCase("MaxPageChars")]
+    [TestCase("MaxToolArgumentChars")]
+    [TestCase("MaxMemoryChars")]
+    [TestCase("MaxQuestionChars")]
+    public void ACountFromTheReleaseBeforeIsRefused(string retired) {
+        ConfigurationException error = Assert.Throws<ConfigurationException>(() => AssistantOptions.FromConfiguration(
+            ShippedConfiguration.Read(($"Assistant:{retired}", "10"))))!;
+
+        Assert.Multiple(() => {
+            Assert.That(error.Message, Does.Contain($"Assistant:{retired} is no longer read"));
+            Assert.That(error.Message, Does.Contain("Bytes is"));
+        });
+    }
+
     [Test]
     public void EveryValueIsRequired() {
         ConfigurationException error = Assert.Throws<ConfigurationException>(() => AssistantOptions.FromConfiguration(
@@ -137,13 +151,13 @@ public sealed class AssistantOptionsTests {
         // half-page bug: the store would accept a page that no tool could write.
         AssistantOptions options = TestOptions.Assistant with {
             ApiKey = "configured",
-            MaxPageChars = 262_144,
-            MaxToolArgumentChars = 131_072,
+            MaxPageBytes = 262_144,
+            MaxToolArgumentBytes = 131_072,
         };
 
         Assert.Multiple(() => {
             Assert.That(Validate(options).Failed, Is.True);
-            Assert.That(Validate(options).FailureMessage, Does.Contain("MaxToolArgumentChars"));
+            Assert.That(Validate(options).FailureMessage, Does.Contain("MaxToolArgumentBytes"));
         });
     }
 
@@ -151,8 +165,8 @@ public sealed class AssistantOptionsTests {
     public void AnArgumentLimitJustOverThePageLimitIsAccepted() {
         AssistantOptions options = TestOptions.Assistant with {
             ApiKey = "configured",
-            MaxPageChars = 262_144,
-            MaxToolArgumentChars = 270_336,
+            MaxPageBytes = 262_144,
+            MaxToolArgumentBytes = 270_336,
         };
 
         Assert.That(Validate(options).Failed, Is.False);
@@ -188,7 +202,7 @@ public sealed class AssistantOptionsTests {
         Assert.Multiple(() => {
             Assert.That(TestOptions.Assistant.MaxQuestionsPerCall, Is.EqualTo(4));
             Assert.That(TestOptions.Assistant.MaxQuestionOptions, Is.EqualTo(5));
-            Assert.That(TestOptions.Assistant.MaxQuestionChars, Is.EqualTo(500));
+            Assert.That(TestOptions.Assistant.MaxQuestionBytes, Is.EqualTo(500));
         });
     }
 
