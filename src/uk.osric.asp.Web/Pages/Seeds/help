@@ -27,6 +27,7 @@ can improve it at <a href="<%= site.EditorPath %>?edit=<%= System.Uri.EscapeData
         <li><a href="#storage">Storage</a></li>
         <li><a href="#messages">Messages between pages</a></li>
         <li><a href="#objects">Objects</a></li>
+        <li><a href="#secrets">Secrets</a></li>
         <li><a href="#assets">Assets and recovery</a></li>
         <li><a href="#keeping-current">Keeping this page current</a></li>
     </ul>
@@ -1198,6 +1199,40 @@ objects, moving it re-keys them, signing in adopts a <code>Person</code> object 
 signing out, the sweep and <code>users remove</code> take a session's or an expired one. A
 <code>HEAD</code> may open and may not put. The seeded <a href="/privacy">/privacy</a> page says what an
 object is and what happens to it.</p>
+
+<h2 id="secrets">Secrets</h2>
+<p><code>Secrets</code> keeps text that nothing else in the site returns: a signing key, a token for a
+service this page talks to, the private half of a key pair whose public half it publishes. It lives on
+the page and only on the page — <code>ctx.Stores.Visitor</code> has no
+<a href="/admin/reference/sdk#m-IPageSubject.Secrets"><code>Secrets</code></a> — and the handle answers
+its own key's names and nothing else.</p>
+<pre class="source" tabindex="0"><code>&lt;% await ctx.Stores.Page.Secrets.SetAsync("signing", keyText);
+   string? key = await ctx.Stores.Page.Secrets.TryGetAsync("signing"); %&gt;</code></pre>
+<p><a href="/admin/reference/sdk#m-ISecretStore.TryGetAsync-string"><code>TryGetAsync(name)</code></a>
+answers the text or <code>null</code>;
+<a href="/admin/reference/sdk#m-ISecretStore.SetAsync-string-string"><code>SetAsync(name, value)</code></a>
+stores it, replacing what the name held;
+<a href="/admin/reference/sdk#m-ISecretStore.DeleteAsync-string"><code>DeleteAsync(name)</code></a> answers
+whether it removed anything, and
+<a href="/admin/reference/sdk#m-ISecretStore.NamesAsync"><code>NamesAsync()</code></a> lists the names
+without a value or a preview, so a page can offer to rotate a key without the store handing out what it
+protects. The value is opaque text rather than JSON, so a page cannot be handed a structured secret by
+accident, and an empty value is refused: a name holds the page's text or it is deleted.</p>
+<p><strong>There is no cross-page read.</strong> A value may be read by naming another page's key; a
+secret may not, and there is no argument to try with. A layout's <code>ctx.Stores.Page</code> is the
+layout's own key, so a wrapper cannot read the secret of the page it wraps; a job's
+<code>ctx.Stores.Page</code> is the page that started it, so a worker holds that page's key for as long as
+it runs. A secret is never in the source, a revision, a listing, a search result or an
+<code>/admin/export</code> archive, and an archive that carries one is refused. Deleting the page
+deletes its secrets, moving it re-keys them and a scrub removes them. A <code>HEAD</code> may read a
+secret and may not write one.</p>
+<p>One name may be 100 characters, one secret 8 KiB, and a page may hold 16 names totalling 32 KiB. The
+rows are text at rest, as a password hash or a session row is, so treat a stored secret as readable by
+anyone who can read the database. An operator's credential is still never shown to a page: a page names
+a credential in <code>Pages:Fetch:Credentials</code> and the host attaches it, and a page's own key is a
+different thing, kept here because the page is its owner.</p>
+<p>This is not a page's data and not a page's memory. Keep a value a visitor may see in
+<code>ctx.Stores.Page.Values</code>; keep here only what the page must prove it holds.</p>
 
 <h2 id="private">Private pages and forms</h2>
 <p>Pages are public unless their own code checks <a href="/admin/reference/sdk#m-IContext.User"><code>ctx.User</code></a>. Put the guard at the top and
