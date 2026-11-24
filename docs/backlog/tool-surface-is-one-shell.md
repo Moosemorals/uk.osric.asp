@@ -9,8 +9,8 @@ SPDX-License-Identifier: MIT
 | --- | --- |
 | Difficulty | protective-dragon |
 | Utility | high |
-| Status | planned |
-| Blocked by | — |
+| Status | blocked |
+| Blocked by | `a-page-has-no-size` |
 | Plan | [assistant-shell-tool](../plans/assistant-shell-tool.md) |
 | Area | Core (Shell, Assistant), Shell, Web (assistant, site), docs, build |
 | Location | `src/uk.osric.asp.Web/Assistant/Tools/ToolRegistry.cs`, `src/uk.osric.asp.Web/Assistant/Shell/`, `src/uk.osric.asp.Core/Shell/`, `src/uk.osric.asp.Shell/` |
