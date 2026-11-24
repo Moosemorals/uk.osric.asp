@@ -43,8 +43,10 @@ table and the items to it.
 
 | Slug | Title | Difficulty | Utility | Status | Blocked by |
 | --- | --- | --- | --- | --- | --- |
-| [`tool-surface-is-one-shell`](backlog/tool-surface-is-one-shell.md) | The assistant's tool surface is one shell, one question and one memory | protective-dragon 🔥🐉 | high | [planned](plans/assistant-shell-tool.md) | — |
-| | *The shell already carries eleven of the twenty tools; making it POSIX, composable and the preferred surface leaves three tools and buys back the ceiling. `check` and the page's search have landed, so this is the next step.* | | | | |
+| [`a-page-has-no-size`](backlog/a-page-has-no-size.md) | A page has no size, and the site counts two units | determined-mountain-goat 💪🐐 | high | [planned](plans/counting-bytes.md) | — |
+| | *The listing has no size for `stat`, and the store answers one for free in bytes while the site's older limits count UTF-16 units — so one change gives pages a size and leaves one unit.* | | | | |
+| [`tool-surface-is-one-shell`](backlog/tool-surface-is-one-shell.md) | The assistant's tool surface is one shell, one question and one memory | protective-dragon 🔥🐉 | high | blocked | `a-page-has-no-size` |
+| | *The shell already carries eleven of the twenty tools; making it POSIX, composable and the preferred surface leaves three tools and buys back the ceiling. `check` and the page's search have landed, and the size a `stat` reports is `a-page-has-no-size`, which comes first.* | | | | |
 | [`update-the-prompt`](backlog/update-the-prompt.md) | The assistant's prompt is a reference manual with the instructions at the bottom | determined-mountain-goat 💪🐐 | high | blocked | `tool-surface-is-one-shell` |
 | | *51,800 characters sent as the head of every request, of which 3,000 restate tool descriptions that travel beside it and the operating rules start past 34,000. It is rewritten once the shell has landed, so it is built against three tools and a POSIX command set rather than optimising a surface about to disappear.* | | | | |
 | [`outbound-headers-are-an-allow-list`](backlog/outbound-headers-are-an-allow-list.md) | Outbound headers are an allow-list, so a page cannot sign a request | caffeinated-squirrel ☕🐿️ | high | [planned](plans/outbound-headers.md) | — |
