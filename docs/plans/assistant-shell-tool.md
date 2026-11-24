@@ -164,8 +164,8 @@ Six things are load-bearing:
 - **Objects as a path.** `/o` stays a route with mode `000`: `IObjectStore` is bound to one subject
   and cannot list, so a mount would need a capability that does not exist, and
   [`object-access-is-only-its-hash`](../backlog/object-access-is-only-its-hash.md) is still deciding
-  who may read a page's objects. `whim-assistant-reads-objects` in
-  [the whims](../backlog/WHIMS.md) carries it.
+  who may read a page's objects.
+  [`objects-cannot-be-read-back`](../backlog/objects-cannot-be-read-back.md) carries it.
 - **The terminal UI.** [`terminal-cannot-reach-the-shell`](../backlog/terminal-cannot-reach-the-shell.md)
   owns the transport, the page and `vi`.
 - **Background jobs, subshells, command substitution, variable assignment and job control.** Refused

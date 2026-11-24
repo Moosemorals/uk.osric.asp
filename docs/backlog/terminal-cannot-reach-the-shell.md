@@ -11,7 +11,6 @@ SPDX-License-Identifier: MIT
 | Utility | medium |
 | Status | open |
 | Blocked by | — |
-| Plan | — |
 | Area | Core (Shell), Web (assistant, pages), docs |
 | Location | `src/uk.osric.asp.Web/Assistant/Shell/`, `src/uk.osric.asp.Core/Shell/`, `src/uk.osric.asp.Web/Pages/Seeds/` |
 | Spike | — |

@@ -26,13 +26,12 @@ make worktree-remove BRANCH=idea/check-without-storing
 
 The branch is `kind/filename`, and the name comes from the work:
 
-- the item's slug, for planning work and for an item small enough to need no plan — an idea takes
-  `idea/` in front of it, so [`nothing-checks-page-assets`](docs/backlog/nothing-checks-page-assets.md)
-  is `idea/nothing-checks-page-assets`, and a defect's slug is split at its first hyphen, so
+- the item's slug, for shaping it, writing its plan and implementing it — an idea takes `idea/` in
+  front of it, so [`nothing-checks-page-assets`](docs/backlog/nothing-checks-page-assets.md) is
+  `idea/nothing-checks-page-assets`, and a defect's slug is split at its first hyphen, so
   [`ops-no-ci`](docs/backlog/closed.md) is `ops/no-ci`;
-- the plan's file name once a plan is being implemented — [page-first](docs/plans/archive/page-first.md)
-  is `plan/page-editor`. An item whose plan has a different name has two branches: the first writes
-  the plan, `plan/page-streaming` implements it.
+- `plan/<file>` only for one of the seven plans written before a plan became a section of its item —
+  [email](docs/plans/email.md) is `plan/email`.
 
 Work lands as a merge commit (`git merge --no-ff`) rather than a fast-forward, so the branch and the
 work it carries stay one unit in the history. After the merge its worktree is removed and the branch
@@ -42,8 +41,11 @@ deleted; nothing is pushed to `origin` until asked. With the host as `origin`
 `https://moosemorals.com/ci/status.json` is the answer, and a red trunk is fixed forward. A decision
 is named rather than numbered and its name is taken when the work merges
 ([the record](docs/decisions.md)), so a branch states the name it intends until then and the merge
-writes the entry. The merge also closes the plan: its Status becomes merged and it moves to
-[docs/plans/archive](docs/plans/archive), with every link into it retargeted in the same change.
+writes the entry. The merge also closes the work's file: an item moves to
+[docs/backlog/archive](docs/backlog/archive/README.md) with its plan section and writes the row in
+[closed.md](docs/backlog/closed.md) that keeps its slug and links it, while one of the seven older
+plans sets its Status merged and moves to [docs/plans/archive](docs/plans/archive). Every link into
+the file is retargeted in the same change.
 
 **The owner merges, not the agent.** A branch is a proposal. When its work is done and its gate is
 run, the agent stops and says what changed, what proved it and what it is unsure of; the owner answers.

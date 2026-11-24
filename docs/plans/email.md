@@ -825,7 +825,8 @@ and the numbers:
 - **Admin pages for mail**: accounts, aliases and settings, editing the rows Phase 1 created.
 - **Webmail as a page capability**: an IMAP capability in the page contract. Two host users mean two
   podman networks, so the first question is the path the app takes to IMAP.
-  [`whim-mcp-server-tools`](../backlog/WHIMS.md) already has the mailbox as its example.
+  [`tools-are-a-closed-list`](../backlog/tools-are-a-closed-list.md) already has the mailbox as its
+  example.
 - **DNS for the whole zone**: [`dns-manages-only-mail-records`](../backlog/dns-manages-only-mail-records.md).
 - Bayes tuning: autolearn thresholds, token expiry (a Redis-only module today), and a per-account
   reset that drops one account's tokens without touching anyone else's.

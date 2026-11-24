@@ -8,9 +8,10 @@ using System.Text.RegularExpressions;
 // that drifts. It reads the difficulty scale out of the backlog index, the order out of docs/README.md
 // and the decision areas out of the record, so each list has one home, and reports what a reader would
 // otherwise find by hand: a slug outside the shape, a slug used twice, a missing field, an item missing
-// from the order or listed twice, a row that disagrees with its item, an order that puts an item above
-// its blocker, a cycle, a plan that does not link back, and a citation of an item that is not in the
-// record. Problems print in the file:line shape a problem matcher reads.
+// from the order or one that has no shape being in it, a row that disagrees with its item, an order
+// that puts an item above its blocker, a cycle, a plan that exists twice or does not link back, a
+// withdrawn slug still cited, and a citation of an item that is not in the record. Problems print in
+// the file:line shape a problem matcher reads.
 if (args.Length == 0) {
     Console.Error.WriteLine("usage: check-backlog <repository-root>");
     return 2;
@@ -39,7 +40,7 @@ List<Problem> problems = [];
 
 HashSet<string> areas = DecisionAreas(root);
 HashSet<string> utilities = ["low", "medium", "high"];
-HashSet<string> statuses = ["open", "planned", "blocked", "parked"];
+HashSet<string> statuses = ["unshaped", "open", "planned", "blocked", "parked"];
 
 string[] indexLines = File.ReadAllLines(index);
 List<string> difficulties = DifficultyScale(indexLines);
@@ -75,13 +76,34 @@ foreach (Item item in items) {
         problems.Add(new(item.File, item.Line, "the H1 still carries an old number; the H1 is the title"));
     }
 
-    Present(item, "Difficulty", difficulties, problems);
-    Present(item, "Utility", utilities, problems);
+    Present(item, "Difficulty", difficulties, problems, mayBeUnset: true);
+    Present(item, "Utility", utilities, problems, mayBeUnset: true);
     Present(item, "Status", statuses, problems);
-    Present(item, "Blocked by", null, problems);
-    Present(item, "Plan", null, problems);
-    Present(item, "Area", null, problems);
-    Present(item, "Location", null, problems);
+    Present(item, "Blocked by", null, problems, mayBeUnset: true);
+
+    bool unshaped = Unshaped(item);
+    if ((item.Header.GetValueOrDefault("Difficulty") == NotSet) != (item.Header.GetValueOrDefault("Utility") == NotSet)) {
+        problems.Add(new(item.File, item.HeaderLine("Difficulty"), "`Difficulty` and `Utility` answer together: both a value or both `—`"));
+    }
+
+    Present(item, "Area", null, problems, mayBeUnset: unshaped);
+    Present(item, "Location", null, problems, mayBeUnset: unshaped);
+
+    if (unshaped) {
+        if (item.Header.GetValueOrDefault("Blocked by") is { } cell && cell != NotSet) {
+            problems.Add(new(item.File, item.HeaderLine("Blocked by"), "an unshaped item cannot be blocked; shape it first"));
+        }
+
+        if (item.Plan) {
+            problems.Add(new(item.File, item.Line, "an unshaped item has a `## Plan` section; shape it first"));
+        }
+
+        if (item.Header.ContainsKey("Plan")) {
+            problems.Add(new(item.File, item.HeaderLine("Plan"), "an unshaped item has a `Plan` row; shape it first"));
+        }
+    }
+
+    PlanRow(item, problems);
 }
 
 Dictionary<string, List<string>> blocks = [];
@@ -118,7 +140,15 @@ foreach (Row row in rows) {
 
 foreach (Item item in items) {
     if (!rowOf.TryGetValue(item.Slug, out Row? row)) {
-        problems.Add(new(item.File, item.Line, $"`{item.Slug}` is not in the order"));
+        if (!Unshaped(item)) {
+            problems.Add(new(item.File, item.Line, $"`{item.Slug}` is not in the order"));
+        }
+
+        continue;
+    }
+
+    if (Unshaped(item)) {
+        problems.Add(new(shownOrder, row.Line, $"`{item.Slug}` is unshaped and is in the order; shape it first"));
         continue;
     }
 
@@ -150,10 +180,17 @@ foreach (Item item in items) {
         problems.Add(new(shownOrder, row.Line, $"the row is {row.Status} and `{item.Slug}` is {item.Header.GetValueOrDefault("Status")}"));
     }
 
-    string headerPlan = PlanName(item.Header.GetValueOrDefault("Plan") ?? "—");
-    if (row.Status == "planned" && !string.Equals(row.Plan, headerPlan, StringComparison.Ordinal)) {
-        problems.Add(new(shownOrder, row.Line, $"the row is planned for {row.Plan} and `{item.Slug}` names {headerPlan}"));
-    } else if (row.Status != "planned" && row.Plan != "—") {
+    if (row.Status == "planned") {
+        // The row links what makes the item planned: its own section, or the plan file it still names.
+        bool links = item.Plan
+            ? row.Target.EndsWith($"{item.Slug}.md#plan", StringComparison.Ordinal)
+            : string.Equals(row.Plan, PlanName(item.Header.GetValueOrDefault("Plan") ?? "—"), StringComparison.Ordinal);
+        if (!links) {
+            problems.Add(new(shownOrder, row.Line, item.Plan
+                ? $"the row is planned and does not link `{item.Slug}.md#plan`"
+                : $"the row is planned for {row.Plan} and `{item.Slug}` names {PlanName(item.Header.GetValueOrDefault("Plan") ?? "—")}"));
+        }
+    } else if (row.Target != "—") {
         problems.Add(new(shownOrder, row.Line, $"the row is {row.Status} and links a plan; only planned needs one"));
     }
 }
@@ -173,8 +210,9 @@ foreach (Row row in rows) {
 // Status is derived from the graph and the plan and then checked, so the field cannot become a
 // second, staler opinion; the order is then checked against the same graph.
 foreach (Item item in items) {
-    string expected = blocks[item.Slug].Any(bySlug.ContainsKey) ? "blocked"
-        : Live(item) ? "planned"
+    string expected = Unshaped(item) ? "unshaped"
+        : blocks[item.Slug].Any(bySlug.ContainsKey) ? "blocked"
+        : Planned(item) ? "planned"
         : "open";
     string? stored = item.Header.GetValueOrDefault("Status");
     if (stored != "parked" && !string.Equals(stored, expected, StringComparison.Ordinal)) {
@@ -194,7 +232,6 @@ foreach (Item item in items) {
 
 Cycles(blocks, bySlug, problems);
 Plans(directory, items, problems);
-Whims(root, Path.Combine(directory, "WHIMS.md"), problems);
 int citations = Citations(root, bySlug, (closedSlugs, closedNumbers), problems);
 
 foreach (Problem problem in problems.OrderBy(p => p.File, StringComparer.Ordinal).ThenBy(p => p.Line)) {
@@ -206,7 +243,7 @@ if (problems.Count > 0) {
     return 1;
 }
 
-Console.WriteLine($"backlog: {items.Count} items in {rows.Count} rows, {citations} citations resolved");
+Console.WriteLine($"backlog: {items.Count} items ({items.Count(Unshaped)} unshaped) in {rows.Count} rows, {citations} citations resolved");
 return 0;
 
 int Rank(string? level) {
@@ -264,7 +301,7 @@ static List<Item> Items(string root, string directory) {
     List<Item> found = [];
     foreach (string file in Directory.EnumerateFiles(directory, "*.md", SearchOption.TopDirectoryOnly)) {
         string slug = Path.GetFileNameWithoutExtension(file);
-        if (slug is "README" or "closed" or "WHIMS") {
+        if (slug is "README" or "closed") {
             continue;
         }
 
@@ -305,18 +342,53 @@ static Item Item(string root, string file, string slug) {
         break;
     }
 
-    return new(Path.GetRelativePath(root, file), slug, line, title, header, at);
+    return new(Path.GetRelativePath(root, file), slug, line, title, header, at,
+        lines.Any(text => string.Equals(text.Trim(), "## Plan", StringComparison.Ordinal)));
 }
 
-// A field is present and, where it has a closed set, one of the values in it.
-static void Present(Item item, string key, IReadOnlyCollection<string>? allowed, List<Problem> problems) {
+// A field is present and, where it has a closed set, one of the values in it. A field the shape
+// supplies may be an em dash instead, which is what an item with no answers yet leaves.
+static void Present(Item item, string key, IReadOnlyCollection<string>? allowed, List<Problem> problems, bool mayBeUnset = false) {
     if (!item.Header.TryGetValue(key, out string? value) || value.Length == 0) {
         problems.Add(new(item.File, item.Line, $"no `{key}` row in the header"));
         return;
     }
 
+    if (value == NotSet) {
+        if (!mayBeUnset) {
+            problems.Add(new(item.File, item.HeaderLine(key), $"`{key}` is `—` on a shaped item"));
+        }
+
+        return;
+    }
+
     if (allowed is { Count: > 0 } && !allowed.Contains(value)) {
         problems.Add(new(item.File, item.HeaderLine(key), $"`{value}` is not one of {string.Join(", ", allowed)}"));
+    }
+}
+
+// A shape is four answers or none. An item with neither is a whim: it has no difficulty to rank and no
+// utility to sort by, so it is not work yet and nothing may depend on it.
+static bool Unshaped(Item item) =>
+    item.Header.GetValueOrDefault("Difficulty") == NotSet && item.Header.GetValueOrDefault("Utility") == NotSet;
+
+// A plan is the item's own section, or a file in docs/plans written before the file became one.
+static bool Planned(Item item) => item.Plan || Live(item);
+
+// A `Plan` row survives only for those older plans, so it is a link and nothing else; an item's own
+// plan is a section and needs no row. When the last of the seven lands, the row goes with it.
+static void PlanRow(Item item, List<Problem> problems) {
+    if (!item.Header.TryGetValue("Plan", out string? cell)) {
+        return;
+    }
+
+    if (cell == NotSet) {
+        problems.Add(new(item.File, item.HeaderLine("Plan"), "the `Plan` row says `—`; drop the row or link the plan it names"));
+        return;
+    }
+
+    if (item.Plan) {
+        problems.Add(new(item.File, item.HeaderLine("Plan"), "the item has a `## Plan` section and a `Plan` row; one or the other"));
     }
 }
 
@@ -348,7 +420,7 @@ static List<Row> Order(string[] lines) {
         string status = Status(match.Groups["status"].Value);
         found.Add(new(i + 1, found.Count + 1, match.Groups["title"].Value.Trim(), Level(match.Groups["difficulty"].Value),
             match.Groups["utility"].Value.Trim(), status, PlanName(match.Groups["status"].Value),
-            slugs, Reason(lines, i)));
+            Target(match.Groups["status"].Value), slugs, Reason(lines, i)));
     }
 
     return found;
@@ -384,6 +456,12 @@ static string Status(string cell) {
 static string PlanName(string cell) {
     Match match = Program.Link().Match(cell);
     return match.Success ? Path.GetFileName(match.Groups["target"].Value) : "—";
+}
+
+// A planned row links its own item's section, so the whole target is what is compared, fragment and all.
+static string Target(string cell) {
+    Match match = Program.Link().Match(cell);
+    return match.Success ? match.Groups["target"].Value : "—";
 }
 
 // The cell is the level's slug and then its emoji, so the level is the first word.
@@ -453,27 +531,6 @@ static void Plans(string directory, List<Item> items, List<Problem> problems) {
     }
 }
 
-static void Whims(string root, string file, List<Problem> problems) {
-    if (!File.Exists(file)) {
-        return;
-    }
-
-    string shown = Path.GetRelativePath(root, file);
-    HashSet<string> seen = [];
-    string[] lines = File.ReadAllLines(file);
-    for (int i = 0; i < lines.Length; i++) {
-        Match match = Program.WhimRow().Match(lines[i]);
-        if (!match.Success) {
-            continue;
-        }
-
-        string slug = match.Groups["slug"].Value;
-        if (!seen.Add(slug)) {
-            problems.Add(new(shown, i + 1, $"`{slug}` is used twice"));
-        }
-    }
-}
-
 // A citation is a backticked token that names an item, and an item it does not find is a reader sent
 // to a file that is not there. A backticked old number is allowed only where closed.md kept it. An
 // idea's slug carries no kind for a token to be recognised by, so a link into the record is what
@@ -495,6 +552,11 @@ static int Citations(string root, Dictionary<string, Item> bySlug, (HashSet<stri
                 if (!bySlug.ContainsKey(slug) && !closed.Slugs.Contains(slug)) {
                     problems.Add(new(shown, i + 1, $"`{slug}` is cited but is not in the record"));
                 }
+            }
+
+            foreach (Match match in Program.Withdrawn().Matches(lines[i])) {
+                count++;
+                problems.Add(new(shown, i + 1, $"`{match.Groups["slug"].Value}` uses a `whim-` prefix the record no longer has; cite the item it became"));
             }
 
             foreach (Match match in Program.Legacy().Matches(lines[i])) {
@@ -529,7 +591,7 @@ static int Citations(string root, Dictionary<string, Item> bySlug, (HashSet<stri
 // The frozen files keep the numbers and the prose a reader was sent to when they were written.
 static bool Frozen(string shown) =>
     shown == Path.Combine("docs", "backlog", "closed.md")
-    || shown == Path.Combine("docs", "backlog", "WHIMS.md")
+    || shown.StartsWith(Path.Combine("docs", "backlog", "archive") + Path.DirectorySeparatorChar, StringComparison.Ordinal)
     || shown.StartsWith(Path.Combine("docs", "archive") + Path.DirectorySeparatorChar, StringComparison.Ordinal)
     || shown.StartsWith(Path.Combine("docs", "plans", "archive") + Path.DirectorySeparatorChar, StringComparison.Ordinal);
 
@@ -572,13 +634,13 @@ static IEnumerable<string> Sources(string root) {
     }
 }
 
-internal sealed record Item(string File, string Slug, int Line, string Title, Dictionary<string, string> Header, Dictionary<string, int> Rows) {
+internal sealed record Item(string File, string Slug, int Line, string Title, Dictionary<string, string> Header, Dictionary<string, int> Rows, bool Plan) {
     internal int HeaderLine(string key) => Rows.GetValueOrDefault(key, Line);
 }
 
 // Number is the row's position in the table, so the messages can name one without the table carrying a
 // column that has to be renumbered by hand.
-internal sealed record Row(int Line, int Number, string Title, string Difficulty, string Utility, string Status, string Plan, List<string> Slugs, bool Reason);
+internal sealed record Row(int Line, int Number, string Title, string Difficulty, string Utility, string Status, string Plan, string Target, List<string> Slugs, bool Reason);
 
 internal sealed record Problem(string File, int Line, string Message);
 
@@ -611,6 +673,6 @@ internal static partial class Program {
     [GeneratedRegex(@"`(?<id>(?:IDEA|SEC|OPS|ARCH|BUG)-\d+)`")]
     internal static partial Regex Legacy();
 
-    [GeneratedRegex(@"^\| `(?<slug>whim-[a-z0-9]+(?:-[a-z0-9]+)*)` \|")]
-    internal static partial Regex WhimRow();
+    [GeneratedRegex(@"`(?<slug>whim-[a-z0-9]+(?:-[a-z0-9]+)*)`")]
+    internal static partial Regex Withdrawn();
 }

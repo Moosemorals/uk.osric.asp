@@ -11,7 +11,6 @@ SPDX-License-Identifier: MIT
 | Utility | high |
 | Status | open |
 | Blocked by | — |
-| Plan | — |
 | Area | Sdk, Web (pages, shell), docs |
 | Location | `src/uk.osric.asp.Web/Shell/ObjectEndpoint.cs`, `src/uk.osric.asp.Web/Pages/PageObjectStore.cs`, `src/uk.osric.asp.Web/Pages/SqliteStoreObjects.cs`, `src/uk.osric.asp.Sdk/IObjectStore.cs`, `src/uk.osric.asp.Web/Pages/Seeds/help`, `docs/pages.md`, `docs/shell.md` |
 | Spike | — |
@@ -105,8 +104,9 @@ the answers, because neither changes the shape.
 
 ## Not in scope
 
-- **Uploads and downloads.** [`whim-page-file-upload`](WHIMS.md) and
-  [`whim-page-file-download`](WHIMS.md) are the two ends of a byte stream, not who may read one.
+- **Uploads and downloads.** [`page-cannot-take-a-file`](page-cannot-take-a-file.md) and
+  [`page-cannot-send-bytes`](page-cannot-send-bytes.md) are the two ends of a byte stream, not who may
+  read one.
 - **Secrets.** A Page secret is already unreadable through any other shape
   ([`a-page-cannot-keep-a-secret`](closed.md)); this item is about bytes that are
   meant to be served.

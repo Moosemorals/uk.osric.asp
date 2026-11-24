@@ -11,7 +11,6 @@ SPDX-License-Identifier: MIT
 | Utility | high |
 | Status | open |
 | Blocked by | — |
-| Plan | — |
 | Area | Sdk, Web (pages), docs |
 | Location | `src/uk.osric.asp.Sdk/PageRequest.cs`, `src/uk.osric.asp.Web/Pages/PageRequestSnapshot.cs`, `src/uk.osric.asp.Web/Pages/PageEndpoint.cs`, `src/uk.osric.asp.Web/Pages/Seeds/help`, `docs/pages.md` |
 | Spike | — |
@@ -60,8 +59,8 @@ The body needs a bound, and the bound already exists: the form reader buffers to
 
 - **A response body a page cannot hold.** The response is text with a character budget; a binary
   response is a different item.
-- **A multipart upload.** `PageRequest.Files` is a whim ([`whim-page-file-upload`](WHIMS.md)), not this
-  read.
+- **A multipart upload.** `PageRequest.Files` is
+  [`page-cannot-take-a-file`](page-cannot-take-a-file.md), not this read.
 - **The primitives and the headers.** RSA is [`the-page-api-signs`](the-page-api-signs.md); sending a
   signed header is [`outbound-headers-are-an-allow-list`](outbound-headers-are-an-allow-list.md).
 

@@ -10,7 +10,10 @@ the time, against the code of the time; they are not maintained. A later plan th
 code updates its own document, not these, and a statement here that has since been overtaken is
 expected rather than a defect.
 
-`docs/plans/` holds only work that is still proposed or in progress.
+**The folder is closed to new plans as of 2026-11-24.** A plan is a `## Plan` section of its item's
+file (`product-a-step-is-one-file`), and finished work archives in
+[docs/backlog/archive](../../backlog/archive/README.md) with its item. The seven plans written before
+the change are still live in [docs/plans](../README.md) and join this folder when their work lands.
 
 ## Contents
 
@@ -46,4 +49,4 @@ Every archived plan, by its slug:
 | [semantic-html-and-accessibility](semantic-html-and-accessibility.md) | [shell-navigation](shell-navigation.md) | [shell-route-catalogue](shell-route-catalogue.md) |
 | [simple-context](simple-context.md) | [site-info](site-info.md) | [site-navigation](site-navigation.md) |
 | [status-page-rebuild](status-page-rebuild.md) | [storage-model](storage-model.md) | [template-runtime-errors](template-runtime-errors.md) |
-| [template-value-output](template-value-output.md) | [xml-reference](xml-reference.md) |  |
+| [template-value-output](template-value-output.md) | [the-step-is-one-file](the-step-is-one-file.md) | [xml-reference](xml-reference.md) |

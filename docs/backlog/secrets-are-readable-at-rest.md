@@ -11,7 +11,6 @@ SPDX-License-Identifier: MIT
 | Utility | medium |
 | Status | open |
 | Blocked by | — |
-| Plan | — |
 | Area | Web (storage, configuration), deploy, docs |
 | Location | `src/uk.osric.asp.Web/Pages/PageStoresOptions.cs`, `StoreSecrets` (new), `src/uk.osric.asp.Web/appsettings.json`, `deploy/operations.md`, `docs/storage.md` |
 | Spike | — |

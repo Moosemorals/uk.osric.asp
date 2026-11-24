@@ -11,7 +11,6 @@ SPDX-License-Identifier: MIT
 | Utility | low |
 | Status | open |
 | Blocked by | — |
-| Plan | — |
 | Area | Core (Assistant), Runtime, Web (assistant), docs |
 | Location | `src/uk.osric.asp.Runtime/` beside `JavaScriptValidator.cs`, `src/uk.osric.asp.Core/Assistant/`, `src/uk.osric.asp.Web/Assistant/Tools/CheckTool.cs`, `docs/assistant.md` |
 

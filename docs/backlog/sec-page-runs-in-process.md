@@ -12,7 +12,6 @@ SPDX-License-Identifier: MIT
 | Severity | Medium |
 | Status | open |
 | Blocked by | — |
-| Plan | — |
 | Area | Security, runtime |
 | Location | `src/uk.osric.asp.Web/Pages/PageRenderer.cs`, `src/uk.osric.asp.Runtime/LoadedPage.cs`, `src/uk.osric.asp.Web/Pages/PageCapabilities.cs` |
 | Spike | [Per-page NativeAOT binaries](../spikes/aot-page-binary-spike.md) |

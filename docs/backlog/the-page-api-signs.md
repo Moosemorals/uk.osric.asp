@@ -11,7 +11,6 @@ SPDX-License-Identifier: MIT
 | Utility | high |
 | Status | open |
 | Blocked by | — |
-| Plan | — |
 | Area | Core (compilation), docs |
 | Location | `src/uk.osric.asp.Core/Compilation/PageApiPolicy.cs`, `test/uk.osric.asp.Core.Tests/PageApiPolicyTests.cs`, `src/uk.osric.asp.Web/Pages/Seeds/help`, `docs/pages.md`, `docs/decisions.md` |
 | Spike | — |

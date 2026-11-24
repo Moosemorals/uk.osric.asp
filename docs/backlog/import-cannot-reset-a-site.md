@@ -11,7 +11,6 @@ SPDX-License-Identifier: MIT
 | Utility | medium |
 | Status | open |
 | Blocked by | — |
-| Plan | — |
 | Area | Web, product, storage, operations |
 | Location | `src/uk.osric.asp.Web/Admin/`, `src/uk.osric.asp.Web/Pages/` |
 

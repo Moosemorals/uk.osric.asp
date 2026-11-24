@@ -12,7 +12,6 @@ SPDX-License-Identifier: MIT
 | Severity | Medium |
 | Status | open |
 | Blocked by | — |
-| Plan | — |
 | Area | Operations, deployment |
 | Location | `deploy/`, `src/uk.osric.asp.Web` |
 

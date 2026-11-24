@@ -11,7 +11,6 @@ SPDX-License-Identifier: MIT
 | Utility | high |
 | Status | open |
 | Blocked by | — |
-| Plan | — |
 | Area | Web, developer experience |
 | Location | `src/uk.osric.asp.Web/Editor/PageEditor.cs` |
 | Spike | [Ace evaluated as the editor](../spikes/ace-editor.md) |

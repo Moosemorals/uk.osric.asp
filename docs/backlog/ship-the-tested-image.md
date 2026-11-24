@@ -11,7 +11,6 @@ SPDX-License-Identifier: MIT
 | Utility | high |
 | Status | open |
 | Blocked by | — |
-| Plan | — |
 | Area | Deploy, testing, Makefile |
 | Location | `test/uk.osric.asp.Web.BrowserTests/BrowserHost.cs`, `Makefile`, `deploy/` |
 | Spike | — |

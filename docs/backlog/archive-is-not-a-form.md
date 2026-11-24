@@ -11,7 +11,6 @@ SPDX-License-Identifier: MIT
 | Utility | low |
 | Status | open |
 | Blocked by | — |
-| Plan | — |
 | Area | Sdk, Web, storage |
 | Location | `src/uk.osric.asp.Sdk/IContext.cs`, `src/uk.osric.asp.Web/Admin/`, `src/uk.osric.asp.Web/Pages/` |
 

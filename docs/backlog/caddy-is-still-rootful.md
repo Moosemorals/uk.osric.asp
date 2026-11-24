@@ -11,7 +11,6 @@ SPDX-License-Identifier: MIT
 | Utility | medium |
 | Status | open |
 | Blocked by | — |
-| Plan | — |
 | Area | Operations, deployment |
 | Location | `deploy/caddy.container`, `deploy/deploy-host`, `deploy/host/` |
 | Spike | — |

@@ -11,7 +11,6 @@ SPDX-License-Identifier: MIT
 | Utility | low |
 | Status | open |
 | Blocked by | — |
-| Plan | — |
 | Area | Sdk, Web (pages, jobs), deploy, docs, security |
 | Location | `src/uk.osric.asp.Sdk/` (a new capability and its values), `src/uk.osric.asp.Web/Pages/`, `src/uk.osric.asp.Web/Work/`, `deploy/` (a quadlet and an internal network), `deploy/README.md`, `src/uk.osric.asp.Web/Pages/Seeds/help`, `src/uk.osric.asp.Web/Assistant/PageAuthorPrompt.cs` |
 

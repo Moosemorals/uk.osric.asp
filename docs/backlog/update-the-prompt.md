@@ -11,7 +11,6 @@ SPDX-License-Identifier: MIT
 | Utility | high |
 | Status | blocked |
 | Blocked by | `tool-surface-is-one-shell` |
-| Plan | — |
 | Area | Web (assistant), docs, test |
 | Location | `src/uk.osric.asp.Web/Assistant/PageAuthorPrompt.cs` |
 | Spike | — |

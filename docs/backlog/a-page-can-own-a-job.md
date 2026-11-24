@@ -11,7 +11,6 @@ SPDX-License-Identifier: MIT
 | Utility | high |
 | Status | blocked |
 | Blocked by | `a-page-sees-its-request` |
-| Plan | — |
 | Area | Sdk, Web (work, pages), docs |
 | Location | `src/uk.osric.asp.Sdk/IPageJobs.cs`, `src/uk.osric.asp.Web/Pages/PageJobsScope.cs`, `src/uk.osric.asp.Web/Work/PageJobs.cs`, `PageJobRunner.cs`, `PageJob.cs`, `WorkerContext.cs`, `src/uk.osric.asp.Web/Pages/Seeds/help`, `docs/pages.md`, `docs/decisions.md` |
 | Spike | — |

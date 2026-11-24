@@ -7,7 +7,9 @@ SPDX-License-Identifier: MIT
 
 The record of what the site should become. One file per item — something the site gets wrong
 (`bug-`, `sec-`, `ops-`, `arch-`) or something it could usefully become (no kind at all) — named by
-the item's **slug**, which is how it is cited in commits, branches, plans and discussion.
+the item's **slug**, which is how it is cited in commits, branches, plans and discussion. The file is
+the whole of the item's life: it is kept through planning, where its plan is a `## Plan` section of
+it, and it is archived when the work lands.
 
 Nothing here is scheduled. The order in [the documentation index](../README.md#the-order) is the
 owner's judgement of what comes next, and every step is proposed and waits for the owner
@@ -43,15 +45,19 @@ Every item opens with a header table, so an item read alone carries the facts it
 
 | Field | What it says |
 | --- | --- |
-| Difficulty | one of the ten levels below, and never a duration |
-| Utility | `low`, `medium` or `high` — what the owner gets when it is done |
+| Difficulty | one of the ten levels below, and never a duration — or `—` while the item has no shape |
+| Utility | `low`, `medium` or `high`, what the owner gets when it is done — or `—` while the item has no shape |
 | Severity | a defect only: the reviewer's risk assessment. An idea is not something that has gone wrong, so it has none |
-| Status | `open`, `planned`, `blocked` or `parked` — and only `parked` is the owner's to write (see below) |
+| Status | `unshaped`, `open`, `planned`, `blocked` or `parked` — and only `parked` is the owner's to write (see below) |
 | Blocked by | the slugs of the items that must land first, or `—` |
-| Plan | the plan that carries the work, or `—` |
-| Area | what the work touches |
-| Location | where in the tree it starts |
+| Area | what the work touches — or `—` while the item has no shape |
+| Location | where in the tree it starts — or `—` while the item has no shape |
 | Spike | a spike that was written, or `—` |
+
+There is no `Plan` row. A plan is the item's `## Plan` section, written when the work is large enough
+to want one, and the section is what makes the item `planned`. A plan written before 2026-11-24 is
+still a file in [plans](../plans/README.md) and its item keeps a `Plan` row that links it until that
+item is next touched; a row that says `—` is a mistake, because a plan that is not there is not a row.
 
 ### Difficulty is a level, not a duration
 
@@ -79,13 +85,16 @@ may need none, and an `eager-beaver` may need one, because a plan is about coord
 
 ### Status is checked, not trusted
 
-Three of the four states are the record's, not the author's:
+Every state but `parked` is the record's, not the author's, and they are read in this order:
 
+- `unshaped` — Difficulty and Utility are both `—`: a whim that has no answers yet. It cannot be
+  blocked or planned, and it is not in the order;
 - `blocked` — at least one item in `Blocked by` is still open;
-- `planned` — nothing blocks it and its `Plan` names a plan that has not been archived, so the plan is
-  written and waits for a yes. In the table the state is the link — `[planned](../plans/ide-host.md)`
-  — so the cell answers both what the item waits for and where the answer is;
-- `open` — nothing blocks it and there is no live plan.
+- `planned` — nothing blocks it and it has a plan: a `## Plan` section in its own file, or a `Plan` row
+  that links a live plan written before the file became one. In the table the state is the link, and
+  its target is the item's own file and `#plan`, so the cell answers both what the item waits for and
+  where the answer is;
+- `open` — nothing blocks it and it has no plan.
 
 `make backlog` fails on an item that says one and the record says another, and on a `Blocked by` that
 names something which is not in the record — an open slug, or a closed item by the number it closed
@@ -107,13 +116,16 @@ Below its head the order spends the easy utility first: a blocker sits above the
 everything else sorts by utility descending and then by difficulty ascending, so the most valuable work
 that is cheapest to do comes first. The head is the owner's exception — the assistant's two steps and
 the items in front of them, one programme rather than the next rows of that rule. A `parked` item sorts
-last whatever its utility, because the owner has said it is not work. A `planned` item carries its plan
-in its status, so the list says at a glance which items are a yes away — but a plan says an item is
-ready, not that it is urgent, and a planned item sorts by its utility and difficulty like any other.
+last whatever its utility, because the owner has said it is not work. An unshaped item is not a row:
+it has no utility or difficulty to sort by, and shaping it is what earns its place. A `planned` item
+carries its plan in its status, so the list says at a glance which items are a yes away — but a plan
+says an item is ready, not that it is urgent, and a planned item sorts by its utility and difficulty
+like any other.
 
-`make backlog` checks that every open item appears exactly once in that table, that a row's difficulty,
-utility and status are the item's, that a `planned` row links the plan its item names, that every row is
-followed by its reason, and that no item sits above something that blocks it.
+`make backlog` checks that every shaped item appears exactly once in that table and no unshaped one
+does, that a row's difficulty, utility and status are the item's, that a `planned` row links what makes
+its item planned, that every row is followed by its reason, and that no item sits above something that
+blocks it.
 
 Every step is one unit of work, on one branch in one worktree named `kind/filename`
 ([how](../../CONTRIBUTING.md#working-on-it)). Two independent steps may run at once, each in its own
@@ -141,17 +153,27 @@ What a step proves is its own evidence and never its permission: a green `make c
 and finishing a step is not a reason to start the next one, merge the branch, or read silence, a
 promise or an unanswered question as approval.
 
-## Whims
+## An item before it has a shape
 
-A whim is an idea that has not acquired a shape. It gets a slug (`whim-…`) and one or two lines in
-[WHIMS.md](WHIMS.md), never a file of its own, and it is not counted, sized or ordered here.
-Promoting a whim means writing an item file and removing its line; deleting one is free.
+A whim is an item that has no answers yet. It is a file like any other — a title, a line or two under
+`## Idea`, and `—` for Difficulty, Utility, Area and Location — and its `Status` is `unshaped`.
+
+It is not counted, sized or ordered here, and it has no plan: shaping it is answering those four
+fields, and its row in the order is added at the same time. Nothing else about the file changes, so
+there is no line to delete and no second record to keep in step. Naming the gap is part of the shape:
+the slug is fixed with `git mv` and every citation in the same change, and it is permanent once it is
+on trunk.
+
+An unshaped item that turns out to be nothing is deleted. Nothing cites it yet, and `make backlog`
+would refuse the deletion if something did.
 
 ## Closed items
 
-A resolved item moves to [closed.md](closed.md), where its row keeps the id it was cited by — a legacy
-`IDEA-` number for an item old enough to have one, its slug for everything since — so a plan, a commit
-or a decision written before the move still means what it meant.
+A resolved item's file moves to [archive/](archive/README.md), where it is frozen, and its row in
+[closed.md](closed.md) keeps the id it was cited by — a legacy `IDEA-` number for an item old enough to
+have one, its slug for everything since — and links the file. A plan, a commit or a decision written
+before the move still means what it meant, and the record keeps what was asked as well as what was
+done.
 
 ## Help for authors
 
@@ -166,11 +188,12 @@ follow-up.
 `make backlog` reads these rules, [the order](../README.md#the-order) and the items beside it, and
 fails on a slug outside the shape, a slug used twice or one that begins with a decision area, a
 missing or malformed field, a `Status` the
-blockers and the plan do not say, an item missing from the order or listed twice, a row whose
-difficulty, utility or status disagrees with the item, a `planned` row that links the wrong plan, an
-order that puts an item above its blocker, a cycle, a plan that does not link back, a kinded
-citation of an item that is not in the record, and a link into the record that names a file it does
-not have. `make check` runs it, so the record cannot drift from itself.
+graph and the plan do not say, an unshaped item that has a blocker, a plan or a row, an item missing
+from the order or listed twice, a row whose difficulty, utility or status disagrees with the item, a
+`planned` row that links the wrong thing, a `Plan` row that says `—`, an order that puts an item above
+its blocker, a cycle, a plan that does not link back, a kinded citation of an item that is not in the
+record, a `whim-` slug still written, and a link into the record that names a file it does not
+have. `make check` runs it, so the record cannot drift from itself.
 
 An idea's slug has no kind for the citation check to recognise, so a link is how one is cited and how
 the check finds it. A backticked mention still reads well in prose; the link is what is verified.
