@@ -165,6 +165,7 @@ internal sealed class PageJobRunner(
             commit: null,
             environment.Records,
             objects: environment.Objects,
+            secrets: environment.Secrets,
             activity: job.Lifetime.ReArm);
         stores.AttachDeadline(token);
         FetchBudget fetchBudget = new(

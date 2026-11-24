@@ -27,6 +27,7 @@ using uk.osric.asp.Web.Work;
 /// <param name="StoreValues">Where a page's values are read and written.</param>
 /// <param name="Messages">Where a page's messages are queued, taken and peeked.</param>
 /// <param name="Objects">Where a page's objects are stored and read.</param>
+/// <param name="Secrets">Where a page's secrets are read and written.</param>
 /// <param name="ReadStore">Where a page's catalog reads the page store.</param>
 /// <param name="Seeds">The pack this release ships, read once.</param>
 /// <param name="Saver">Where a page's save, and the editor's, compiles and stores a revision.</param>
@@ -72,6 +73,7 @@ internal sealed record PageEnvironment(
     IStoreValues StoreValues,
     IStoreMessages Messages,
     IStoreObjects Objects,
+    IStoreSecrets Secrets,
     IPageReadStore ReadStore,
     PageSeeds Seeds,
     PageSaver Saver,

@@ -20,6 +20,7 @@ internal sealed class PageStoresScope : RenderBoundCapability, IPageStores, IAsy
     private readonly PagePath _key;
     private readonly IRecordCatalog? _records;
     private readonly IStoreObjects? _objects;
+    private readonly IStoreSecrets? _secrets;
     private readonly IPageSessionStore _sessions;
     private readonly IStoreValues _store;
     private readonly PageStoresOptions _options;
@@ -30,6 +31,7 @@ internal sealed class PageStoresScope : RenderBoundCapability, IPageStores, IAsy
     private readonly VisitorSubjectHandle _visitor;
     private readonly List<SqliteRecordStore> _stores = [];
     private readonly List<PageObjectStore> _objectStores = [];
+    private readonly List<PageSecretStore> _secretStores = [];
     private CancellationToken _deadline;
 
     /// <summary>Creates the layer's handles.</summary>
@@ -46,6 +48,7 @@ internal sealed class PageStoresScope : RenderBoundCapability, IPageStores, IAsy
     /// <param name="records">Where a record handle's catalogue and database are read, or <see langword="null"/>.</param>
     /// <param name="activity">What a posted or taken message re-arms, or <see langword="null"/>.</param>
     /// <param name="objects">Where objects live, or <see langword="null"/> when this host has no store.</param>
+    /// <param name="secrets">Where secrets live, or <see langword="null"/> when this host has no store.</param>
     public PageStoresScope(
         PagePath key,
         PageReaderSubject reader,
@@ -59,7 +62,8 @@ internal sealed class PageStoresScope : RenderBoundCapability, IPageStores, IAsy
         PageCommitState? commit,
         IRecordCatalog? records = null,
         Action? activity = null,
-        IStoreObjects? objects = null) {
+        IStoreObjects? objects = null,
+        IStoreSecrets? secrets = null) {
         ArgumentNullException.ThrowIfNull(key);
         ArgumentNullException.ThrowIfNull(reader);
         ArgumentNullException.ThrowIfNull(store);
@@ -72,6 +76,7 @@ internal sealed class PageStoresScope : RenderBoundCapability, IPageStores, IAsy
         _key = key;
         _records = records;
         _objects = objects;
+        _secrets = secrets;
         _sessions = sessions;
         _store = store;
         _options = options;
@@ -90,7 +95,8 @@ internal sealed class PageStoresScope : RenderBoundCapability, IPageStores, IAsy
         _page = new PageSubjectHandle(
             PageValues,
             PageObjects,
-            RecordsFor(key, SqliteRecordStore.SubjectKind.Page, reader, writable));
+            RecordsFor(key, SqliteRecordStore.SubjectKind.Page, reader, writable),
+            SecretStoreFor(key, writable));
         _visitor = new VisitorSubjectHandle(
             VisitorValues,
             VisitorObjects,
@@ -147,7 +153,8 @@ internal sealed class PageStoresScope : RenderBoundCapability, IPageStores, IAsy
         return new PageSubjectHandle(
             values,
             objects,
-            RecordsFor(other, SqliteRecordStore.SubjectKind.Page, null, _writable, ConfirmAsync));
+            RecordsFor(other, SqliteRecordStore.SubjectKind.Page, null, _writable, ConfirmAsync),
+            SecretStoreFor(other, _writable, ConfirmAsync));
     }
 
     // A declared table's lifetime is Core's, and the reader's subjects are the contract's: one enum
@@ -196,6 +203,7 @@ internal sealed class PageStoresScope : RenderBoundCapability, IPageStores, IAsy
 
         _stores.Clear();
         _objectStores.Clear();
+        _secretStores.Clear();
     }
 
     /// <inheritdoc/>
@@ -207,6 +215,9 @@ internal sealed class PageStoresScope : RenderBoundCapability, IPageStores, IAsy
         Messages.AttachDeadline(deadline);
         PageObjects?.AttachDeadline(deadline);
         VisitorObjects?.AttachDeadline(deadline);
+        foreach (PageSecretStore store in _secretStores) {
+            store.AttachDeadline(deadline);
+        }
     }
 
     /// <inheritdoc/>
@@ -217,6 +228,9 @@ internal sealed class PageStoresScope : RenderBoundCapability, IPageStores, IAsy
         Messages.Abandon();
         PageObjects?.Abandon();
         VisitorObjects?.Abandon();
+        foreach (PageSecretStore store in _secretStores) {
+            store.Abandon();
+        }
     }
 
     // An object store owns the readers it issues, so it is made per handle and disposed with the
@@ -244,6 +258,26 @@ internal sealed class PageStoresScope : RenderBoundCapability, IPageStores, IAsy
         return store;
     }
 
+    // A secret store holds nothing but its bound key, so it is made per handle and kept for the
+    // deadline and the abandonment; For's proof of a live library or worker is the same delegate.
+    private PageSecretStore? SecretStoreFor(
+        PagePath source,
+        bool writable,
+        Func<CancellationToken, Task>? validate = null) {
+        if (_secrets is null) {
+            return null;
+        }
+
+        PageSecretStore store = new(source, _secrets, _options.Secrets, writable, validate);
+        store.AttachDeadline(_deadline);
+        if (IsAbandoned) {
+            store.Abandon();
+        }
+
+        _secretStores.Add(store);
+        return store;
+    }
+
     private static PageReaderSubject RequireReader(PageReaderSubject? reader) =>
         reader ?? throw new InvalidOperationException("A Visitor subject needs a reader.");
 
@@ -259,7 +293,11 @@ internal sealed class PageStoresScope : RenderBoundCapability, IPageStores, IAsy
         }
     }
 
-    private sealed class PageSubjectHandle(IValueStore values, IObjectStore? objects, IRecordStore? records) : IPageSubject {
+    private sealed class PageSubjectHandle(
+        IValueStore values,
+        IObjectStore? objects,
+        IRecordStore? records,
+        ISecretStore? secrets) : IPageSubject {
         public IValueStore Values { get; } = values;
 
         public IObjectStore Objects => objects
@@ -267,6 +305,9 @@ internal sealed class PageStoresScope : RenderBoundCapability, IPageStores, IAsy
 
         public IRecordStore Records => records
             ?? throw new InvalidOperationException("This layer has no record store.");
+
+        public ISecretStore Secrets => secrets
+            ?? throw new InvalidOperationException("This layer has no secret store.");
     }
 
     private sealed class VisitorSubjectHandle(

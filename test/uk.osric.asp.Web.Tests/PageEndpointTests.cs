@@ -55,6 +55,7 @@ public sealed class PageEndpointTests {
             new FakeStoreValues(),
             new FakeStoreMessages(),
             new FakeStoreObjects(),
+            new FakeStoreSecrets(),
             new FakePageReadStore(),
             TestOptions.Seeds,
             Saver(render ?? Options),

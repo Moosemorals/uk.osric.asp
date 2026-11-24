@@ -25,4 +25,7 @@ public interface IPageSubject {
 
     /// <summary>The subject's stored bytes.</summary>
     public IObjectStore Objects { get; }
+
+    /// <summary>The page's secrets: opaque text that nothing else returns.</summary>
+    public ISecretStore Secrets { get; }
 }

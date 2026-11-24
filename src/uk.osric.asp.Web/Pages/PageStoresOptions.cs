@@ -39,6 +39,9 @@ internal sealed record PageStoresOptions {
     /// <summary>The object shape's limits.</summary>
     public required PageObjectOptions Objects { get; init; }
 
+    /// <summary>The secret shape's limits.</summary>
+    public required PageSecretOptions Secrets { get; init; }
+
     /// <summary>The command timeout as a time span.</summary>
     public TimeSpan CommandTimeout => TimeSpan.FromSeconds(CommandTimeoutSeconds);
 
@@ -68,6 +71,7 @@ internal sealed record PageStoresOptions {
             Records = PageRecordOptions.Read(reader.For("Records")),
             Messages = PageMessageOptions.Read(reader.For("Messages")),
             Objects = PageObjectOptions.Read(reader.For("Objects")),
+            Secrets = PageSecretOptions.Read(reader.For("Secrets")),
         };
         return options;
     }
@@ -258,5 +262,38 @@ internal sealed record PageObjectOptions(int MaxObjectBytes, long MaxSubjectByte
             $"is {maxSubjectBytes}, which is smaller than MaxObjectBytes ({maxObjectBytes})");
 
         return new PageObjectOptions(maxObjectBytes, maxSubjectBytes);
+    }
+}
+
+/// <summary>The secret shape's limits: one name, one value, and what one page may hold.</summary>
+/// <remarks>
+/// Its own row rather than the value limits reused: a secret is authority, not data, and a signing key
+/// and a stored word are different sizes. The bytes are counted as UTF-8 of the name and the value.
+/// </remarks>
+/// <param name="MaxNameChars">The longest a secret's name may be.</param>
+/// <param name="MaxSecretBytes">The largest one secret may be, in bytes.</param>
+/// <param name="MaxSecrets">The most secrets one page may hold.</param>
+/// <param name="MaxSubjectBytes">The most bytes one page's secrets may total.</param>
+internal sealed record PageSecretOptions(int MaxNameChars, int MaxSecretBytes, int MaxSecrets, long MaxSubjectBytes) {
+
+    /// <summary>The shipped secret limits.</summary>
+    public static PageSecretOptions Shipped { get; } = new(100, 8 * 1024, 16, 32L * 1024);
+
+    /// <summary>Reads <c>Pages:Stores:Secrets</c>.</summary>
+    /// <param name="reader">A reader opened on <c>Pages:Stores:Secrets</c>, which the caller completes.</param>
+    /// <exception cref="ConfigurationException">A value is missing or unusable.</exception>
+    internal static PageSecretOptions Read(ConfigurationReader reader) {
+        ArgumentNullException.ThrowIfNull(reader);
+
+        int maxSecretBytes = reader.Number("MaxSecretBytes", Shipped.MaxSecretBytes, minimum: 64, maximum: 1024 * 1024);
+        long maxSubjectBytes = reader.Number("MaxSubjectBytes", (int)Shipped.MaxSubjectBytes, minimum: 1024, maximum: 16 * 1024 * 1024);
+        reader.FailIf(maxSubjectBytes < maxSecretBytes, "MaxSubjectBytes",
+            $"is {maxSubjectBytes}, which is smaller than MaxSecretBytes ({maxSecretBytes})");
+
+        return new PageSecretOptions(
+            reader.Number("MaxNameChars", Shipped.MaxNameChars, minimum: 8, maximum: 512),
+            maxSecretBytes,
+            reader.Number("MaxSecrets", Shipped.MaxSecrets, minimum: 1, maximum: 1_024),
+            maxSubjectBytes);
     }
 }

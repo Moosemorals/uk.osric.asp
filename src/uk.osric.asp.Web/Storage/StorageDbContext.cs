@@ -83,6 +83,15 @@ internal sealed class StorageDbContext(DbContextOptions<StorageDbContext> option
             stored.HasIndex(row => row.ExpiresAt);
         });
 
+        modelBuilder.Entity<StoreSecretEntry>(secret => {
+            secret.ToTable("StoreSecrets");
+            secret.HasKey(row => new { row.Subject, row.PageKey, row.Name });
+            secret.Property(row => row.Subject).UseCollation("BINARY");
+            secret.Property(row => row.PageKey).UseCollation("BINARY");
+            secret.Property(row => row.Name).UseCollation("BINARY");
+            // Every read is the subject's own rows, which the primary key already orders.
+        });
+
         modelBuilder.Entity<DeclaredTableEntry>(table => {
             table.ToTable("DeclaredTables");
             table.HasKey(row => row.Id);

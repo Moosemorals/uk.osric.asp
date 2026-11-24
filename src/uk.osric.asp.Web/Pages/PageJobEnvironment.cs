@@ -17,6 +17,7 @@ using uk.osric.asp.Web.Work;
 /// <param name="StoreValues">Where the job's values are read and written.</param>
 /// <param name="Messages">Where the job's messages are queued, taken and peeked.</param>
 /// <param name="Objects">Where the job's objects are stored and read.</param>
+/// <param name="Secrets">Where a page-owned job reads its starting page's secrets.</param>
 /// <param name="Stores">The page stores' limits and identity bounds.</param>
 /// <param name="SessionStore">The session identity, which a job reads its starter through.</param>
 /// <param name="Fetcher">Where a worker's outbound request goes.</param>
@@ -47,6 +48,7 @@ internal sealed record PageJobEnvironment(
     IStoreValues StoreValues,
     IStoreMessages Messages,
     IStoreObjects Objects,
+    IStoreSecrets Secrets,
     PageStoresOptions Stores,
     IPageSessionStore SessionStore,
     IPageFetcher Fetcher,

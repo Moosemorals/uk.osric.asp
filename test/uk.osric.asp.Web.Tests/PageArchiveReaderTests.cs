@@ -185,6 +185,25 @@ public sealed class PageArchiveReaderTests {
     }
 
     [Test]
+    public void AnArchiveCarryingSecretsIsRefused() {
+        byte[] bytes = TestArchive.Archive(connection => {
+            TestArchive.CreateTables(connection);
+            TestArchive.Execute(connection, """
+                CREATE TABLE "StoreSecrets" (
+                    "Subject"   TEXT NOT NULL,
+                    "PageKey"   TEXT NOT NULL,
+                    "Name"      TEXT NOT NULL,
+                    "Value"     TEXT NOT NULL,
+                    "UpdatedAt" TEXT NOT NULL,
+                    PRIMARY KEY ("Subject", "PageKey", "Name")
+                ) WITHOUT ROWID
+                """);
+        });
+
+        AssertRejected(Reader().Read(bytes), "StoreSecrets");
+    }
+
+    [Test]
     public void AnExtraColumnIsRejected() {
         byte[] bytes = TestArchive.Archive(connection => {
             TestArchive.Execute(connection, """

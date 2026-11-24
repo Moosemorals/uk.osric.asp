@@ -1373,3 +1373,9 @@ uk.osric.asp.Sdk.SiteTime.Remaining.init -> void
 uk.osric.asp.Sdk.SiteTime.SiteTime(System.TimeSpan Total, System.TimeSpan Remaining, string! Key) -> void
 uk.osric.asp.Sdk.SiteTime.Total.get -> System.TimeSpan
 uk.osric.asp.Sdk.SiteTime.Total.init -> void
+uk.osric.asp.Sdk.IPageSubject.Secrets.get -> uk.osric.asp.Sdk.ISecretStore!
+uk.osric.asp.Sdk.ISecretStore
+uk.osric.asp.Sdk.ISecretStore.DeleteAsync(string! name) -> System.Threading.Tasks.Task<bool>!
+uk.osric.asp.Sdk.ISecretStore.NamesAsync() -> System.Threading.Tasks.Task<System.Collections.Generic.IReadOnlyList<string!>!>!
+uk.osric.asp.Sdk.ISecretStore.SetAsync(string! name, string! value) -> System.Threading.Tasks.Task!
+uk.osric.asp.Sdk.ISecretStore.TryGetAsync(string! name) -> System.Threading.Tasks.Task<string?>!

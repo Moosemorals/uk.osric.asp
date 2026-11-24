@@ -26,6 +26,7 @@ public sealed class PageStoresOptionsTests {
             Assert.That(stores.Visitor.MaxLiveSessions, Is.EqualTo(2_048));
             Assert.That(stores.Messages, Is.EqualTo(new PageMessageOptions(16_384, 8, 65_536)));
             Assert.That(stores.Objects, Is.EqualTo(new PageObjectOptions(8_388_608, 67_108_864)));
+            Assert.That(stores.Secrets, Is.EqualTo(new PageSecretOptions(100, 8_192, 16, 32_768)));
         });
     }
 
@@ -54,7 +55,11 @@ public sealed class PageStoresOptionsTests {
             ("Pages:Stores:Messages:MaxMessagesPerSubject", "3"),
             ("Pages:Stores:Messages:MaxSubjectBytes", "8192"),
             ("Pages:Stores:Objects:MaxObjectBytes", "2048"),
-            ("Pages:Stores:Objects:MaxSubjectBytes", "8192")));
+            ("Pages:Stores:Objects:MaxSubjectBytes", "8192"),
+            ("Pages:Stores:Secrets:MaxNameChars", "40"),
+            ("Pages:Stores:Secrets:MaxSecretBytes", "512"),
+            ("Pages:Stores:Secrets:MaxSecrets", "4"),
+            ("Pages:Stores:Secrets:MaxSubjectBytes", "4096")));
 
         Assert.Multiple(() => {
             Assert.That(stores.MaxKeyChars, Is.EqualTo(32));
@@ -69,6 +74,7 @@ public sealed class PageStoresOptionsTests {
             Assert.That(stores.Visitor.MaxLiveSessions, Is.EqualTo(64));
             Assert.That(stores.Messages, Is.EqualTo(new PageMessageOptions(2_048, 3, 8_192)));
             Assert.That(stores.Objects, Is.EqualTo(new PageObjectOptions(2_048, 8_192)));
+            Assert.That(stores.Secrets, Is.EqualTo(new PageSecretOptions(40, 512, 4, 4_096)));
         });
     }
 
@@ -118,6 +124,17 @@ public sealed class PageStoresOptionsTests {
 
         Assert.That(error.Message, Does.Contain(
             "Pages:Stores:Objects:MaxSubjectBytes is 2048, which is smaller than MaxObjectBytes (4096)"));
+    }
+
+    [Test]
+    public void ASecretTotalSmallerThanOneSecretStopsTheSite() {
+        ConfigurationException error = Assert.Throws<ConfigurationException>(() =>
+            PageStoresOptions.FromConfiguration(ShippedConfiguration.Read(
+                ("Pages:Stores:Secrets:MaxSecretBytes", "2048"),
+                ("Pages:Stores:Secrets:MaxSubjectBytes", "1024"))))!;
+
+        Assert.That(error.Message, Does.Contain(
+            "Pages:Stores:Secrets:MaxSubjectBytes is 1024, which is smaller than MaxSecretBytes (2048)"));
     }
 
     [Test]

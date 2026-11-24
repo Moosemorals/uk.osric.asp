@@ -15,7 +15,7 @@ partial class StorageDbContextModelSnapshot : ModelSnapshot
     // If you encounter a merge conflict in the line below, it means you need to
     // discard one of the migration branches and recreate its migrations on top of
     // the other branch. See https://aka.ms/efcore-docs-migrations-conflicts for more info.
-    public override string LastMigrationId => "20261123082135_AddStoreObjects";
+    public override string LastMigrationId => "20261124073830_AddStoreSecrets";
 
     protected override void BuildModel(ModelBuilder modelBuilder)
     {
@@ -624,6 +624,33 @@ partial class StorageDbContextModelSnapshot : ModelSnapshot
                 b.HasIndex("Sha");
 
                 b.ToTable("StoreObjects");
+            });
+
+        modelBuilder.Entity("uk.osric.asp.Web.Pages.StoreSecretEntry", b =>
+            {
+                b.Property<string>("Subject")
+                    .HasColumnType("TEXT")
+                    .UseCollation("BINARY");
+
+                b.Property<string>("PageKey")
+                    .HasColumnType("TEXT")
+                    .UseCollation("BINARY");
+
+                b.Property<string>("Name")
+                    .HasColumnType("TEXT")
+                    .UseCollation("BINARY");
+
+                b.Property<string>("UpdatedAt")
+                    .IsRequired()
+                    .HasColumnType("TEXT");
+
+                b.Property<string>("Value")
+                    .IsRequired()
+                    .HasColumnType("TEXT");
+
+                b.HasKey("Subject", "PageKey", "Name");
+
+                b.ToTable("StoreSecrets");
             });
 
         modelBuilder.Entity("uk.osric.asp.Web.Pages.StoreValueEntry", b =>

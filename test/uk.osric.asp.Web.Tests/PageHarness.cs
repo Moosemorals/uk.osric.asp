@@ -128,7 +128,7 @@ internal sealed class PageHarness : IDisposable {
             JobQueue,
             Jobs,
             new PageJobEnvironment(
-                JobOptions, WorkerStore, State, Messages, Objects, StoresOptions, Sessions, Fetch, FetchOptions, ReadStore, Seeds, ReadOptions,
+                JobOptions, WorkerStore, State, Messages, Objects, Secrets, StoresOptions, Sessions, Fetch, FetchOptions, ReadStore, Seeds, ReadOptions,
                 Scan, Reserved, ContentTypes, Images, Libraries, Compiler, Metrics,
                 _authorities.GetRequiredService<IServiceScopeFactory>(),
                 Options,
@@ -164,6 +164,9 @@ internal sealed class PageHarness : IDisposable {
 
     /// <summary>The objects every render in this harness shares.</summary>
     public FakeStoreObjects Objects { get; } = new();
+
+    /// <summary>Where a page's secrets are kept, in memory.</summary>
+    public FakeStoreSecrets Secrets { get; } = new();
 
     /// <summary>Where a record handle finds its declared tables; the harness declares none.</summary>
     public IRecordCatalog Catalog { get; } = new HarnessCatalog();
@@ -458,6 +461,7 @@ internal sealed class PageHarness : IDisposable {
             State,
             Messages,
             Objects,
+            Secrets,
             ReadStore,
             Seeds,
             Saver,
