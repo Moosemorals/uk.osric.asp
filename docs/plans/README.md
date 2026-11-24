@@ -27,3 +27,4 @@ other; `make decisions` checks the names.
 | [email](email.md) | Proposed 2026-11-06, revised 2026-11-23 — questions answered, rootless, identity in the site's database; waits for a yes | — (operations and the site's service endpoints) |
 | [email-configuration](email-configuration.md) | Configuration excerpts for [email](email.md); nothing deployed | — |
 | [ide-host](ide-host.md) | Proposed 2026-11-15; slices 0–6 merged, the search with its own archived plan; slice 7 waits on the owner | [`cannot-search-the-store`](../backlog/closed.md) |
+| [the-step-is-one-file](the-step-is-one-file.md) | Proposed 2026-11-24, questions answered; nothing built | — (the record itself) |
