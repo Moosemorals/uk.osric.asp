@@ -251,8 +251,9 @@ page's own keys:
 - `ctx.Stores.For(key)` is a live library's or worker's namespace, for the library to hand out and a page
   to reach only through that library's methods.
 
-Each subject carries the shapes it has — `Values`, `Records` and `Objects`, with `Messages` only on the
-Visitor — and a shape a subject does not have is absent from the type rather than a runtime surprise. `Values` is a JSON key/value store: `TryGetValueAsync<T>(key)` reads the bound page's key,
+Each subject carries the shapes it has — `Values`, `Records` and `Objects` on both, with `Messages`
+only on the Visitor and `Secrets` only on the Page — and a shape a subject does not have is absent from
+the type rather than a runtime surprise. `Values` is a JSON key/value store: `TryGetValueAsync<T>(key)` reads the bound page's key,
 `TryGetValueAsync<T>(pageKey, key)` reads what another page left, `TryTakeAsync<T>(key)` consumes a
 one-shot, `SetAsync` and `DeleteAsync` write and remove, and `KeysAsync`/`AllKeysAsync` list without
 consuming. A read answers the lifetime the entry carries and the page that wrote it.
@@ -286,6 +287,15 @@ digest; a visitor subject's is the reader's alone. The route serves a page objec
 `HEAD`, and the content type is a fixed allow-list with no SVG
 (`pages-an-object-is-content-addressed`). The per-object and per-subject limits are rows of
 `Pages:Stores:Objects`; [storage](storage.md#objects) has the table and the route.
+
+`Secrets` is the page's own opaque text, by name, and nothing else returns it:
+`SetAsync(name, value)`, `TryGetAsync(name)` (the text or `null`), `DeleteAsync(name)` and
+`NamesAsync()`, which answers names and never a value. It is on the Page subject only and has no
+page-key argument, so another page's secret cannot be read; a layout's handle is the layout's own key
+and a job's is the page that started it. The value is text rather than JSON, there is no lifetime, and a
+secret never appears in source, a revision, a listing, a search or an archive
+(`pages-a-secret-is-not-a-value`). Its limits are rows of `Pages:Stores:Secrets`;
+[storage](storage.md#secrets) has the table.
 
 `Records` is rows rather than keys: a source declares a table with `[PageTable]` on a class in a
 `<%! %>` block, and the properties are the columns. The declaration is part of the revision, so a save

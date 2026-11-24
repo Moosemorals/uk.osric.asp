@@ -9,7 +9,7 @@ using uk.osric.asp.Web.Shell;
 
 /// <summary>The system prompt and worked examples that teach the model to write a page.</summary>
 internal static class PageAuthorPrompt {
-    public const string Version = "page-author-v63";
+    public const string Version = "page-author-v64";
 
     public static IReadOnlyList<(string Name, string Source)> Examples { get; } = [
         ("query-driven", """
@@ -429,6 +429,21 @@ internal static class PageAuthorPrompt {
         `await using`, which releases the connection. `Length` and `ContentType`
         answer without reading. A page object is cached for a year; a visitor's is
         `private, no-store`. The limits are 8 MiB per object and 64 MiB per subject.
+
+        ## Page secrets
+        `ctx.Stores.Page.Secrets` keeps text nothing else returns: a signing key,
+        or a token for another service. `SetAsync(name, value)`,
+        `TryGetAsync(name)` (the text or null), `DeleteAsync(name)` and
+        `NamesAsync()`, which answers names and never a value. It is on the Page
+        subject only — `ctx.Stores.Visitor` has no `Secrets` — and there is no
+        page-key argument, so another page's secret cannot be read: a layout's
+        `Page` handle is the layout's key and a job's is the page that started it.
+        The value is opaque text, not JSON, and an empty value is refused. A
+        secret is never in the source, a revision, a listing, a search or an
+        export archive, and a `HEAD` may read but not write one. Keep a value a
+        visitor may see in `Values`; keep here only what the page must prove it
+        holds. The limits are 100 characters per name, 8 KiB per secret, 16 names
+        and 32 KiB per page.
 
         ## Page store read
         `ctx.Capabilities.GetRequired<IPageCatalog>()` reads the site's page store

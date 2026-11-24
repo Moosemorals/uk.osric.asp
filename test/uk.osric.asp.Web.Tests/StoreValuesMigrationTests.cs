@@ -16,6 +16,8 @@ public sealed class StoreValuesMigrationTests {
 
     private const string BeforeObjects = "20261122190711_AddStoreMessages";
 
+    private const string BeforeSecrets = "20261123082135_AddStoreObjects";
+
     private static readonly string[] Migrated = [
         "page:/p|/p|k|1||v|2026-11-20T10:00:00.1230000Z",
         "session:s1|/p|sk|3||sv|2026-11-20T11:00:00.0000000Z",
@@ -81,6 +83,29 @@ public sealed class StoreValuesMigrationTests {
             Assert.That(SchemaNames(database), Does.Contain("StoreObjects"));
             Assert.That(IndexNames(database), Does.Contain("IX_StoreObjects_Sha"));
         });
+    }
+
+    [Test]
+    public async Task TheSecretMigrationCreatesItsTableAsync() {
+        await using StorageDbContext database = new(DatabaseTemplate.Options(_databasePath));
+        await database.Database.MigrateAsync(BeforeSecrets);
+
+        await database.Database.MigrateAsync();
+
+        Assert.That(SchemaNames(database), Does.Contain("StoreSecrets"));
+    }
+
+    [Test]
+    public async Task TheDownSecretMigrationRemovesTheTableAndUpRebuildsItAsync() {
+        await using StorageDbContext database = new(DatabaseTemplate.Options(_databasePath));
+        await database.Database.MigrateAsync(BeforeSecrets);
+        await database.Database.MigrateAsync();
+
+        await database.Database.MigrateAsync(BeforeSecrets);
+        Assert.That(SchemaNames(database), Does.Not.Contain("StoreSecrets"));
+
+        await database.Database.MigrateAsync();
+        Assert.That(SchemaNames(database), Does.Contain("StoreSecrets"));
     }
 
     [Test]

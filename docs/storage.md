@@ -5,8 +5,8 @@ SPDX-License-Identifier: MIT
 
 # Storage
 
-The SQLite database behind the site: pages and their revisions, the values, messages and objects a page
-keeps, a visitor's session and browser, and the archive that moves pages between sites. [Pages](pages.md#compiled-pages) says what a stored image is and when it
+The SQLite database behind the site: pages and their revisions, the values, messages, objects and
+secrets a page keeps, a visitor's session and browser, and the archive that moves pages between sites. [Pages](pages.md#compiled-pages) says what a stored image is and when it
 is stale; [running it](../deploy/operations.md#storage-and-migrations) is the volume, the migrations
 and the backups.
 
@@ -130,6 +130,35 @@ transaction, moving it re-keys them, signing in adopts a `Person` object into th
 out, the session sweep and `users remove` remove a subject's objects with its values and its declared
 rows. The five-minute sweep also removes an expired object and a `browser:` object whose subject nothing
 has written for the browser's lifetime (`pages-an-object-is-content-addressed`).
+
+### Secrets
+
+`StoreSecrets` holds the text a page must keep and nothing else may read. One row is the owner's
+subject, the page key, the name, the value and when it was written; the primary key is
+`(Subject, PageKey, Name)`, as `StoreValues`' is, but there is no lifetime column and no expiry: a
+secret is the page's or it is not there. The subject is always a page's, because the shape exists on
+`ctx.Stores.Page` only — `ctx.Stores.Visitor` has no `Secrets`, and the absence is a type rather than a
+runtime surprise, as a Page subject has no `Messages`.
+
+`ISecretStore` answers `TryGetAsync(name)`, `SetAsync(name, value)`, `DeleteAsync(name)` and
+`NamesAsync()`. There is no `pageKey` overload beside the read and no listing that carries a value or a
+preview: a secret is authority rather than data, so the handle answers its own key's names and nothing
+else, and the open cross-page read a value allows stops here (`pages-a-secret-is-not-a-value`). The
+value is opaque text — the signature is `string`, not JSON, so the one-set serializer is not involved
+and a page cannot be handed a structured secret by accident — and an empty value is refused, because a
+name either holds the page's text or is deleted. A layer's `Page` handle is its own key, so a layout
+cannot read the secret of the page it wraps; a page-owned job's `Page` handle is the starting page, so a
+worker started by a page holds that page's key for as long as it runs.
+
+The limits are `Pages:Stores:Secrets`, its own row rather than the value limits reused:
+`MaxNameChars`, `MaxSecretBytes`, `MaxSecrets` and `MaxSubjectBytes`, counted as the UTF-8 bytes of the
+name and the value and proved in the statement that writes. Deleting a page removes its secrets in the
+tombstone's transaction, moving it re-keys them and `users remove` takes them with the rest of a
+subject's rows. Nothing else returns them: `IPageCatalog` — source, revision, listing and search —
+never carries a name or a value, `/admin/export` writes no secret and the import reader refuses an
+archive that carries one, and the assistant reads the page store rather than this. The rows are text at
+rest, the same boundary as a password hash or a session row; a cipher and a rotation are
+[`secrets-are-readable-at-rest`](backlog/secrets-are-readable-at-rest.md), not a promise this makes.
 
 ### Declared tables
 
@@ -366,7 +395,8 @@ built in memory with `sqlite3_serialize` and read by deserializing an upload rea
 The second table keeps the name and the shape it had before `StoreValues` replaced it, so an archive
 written by an earlier release still imports.
 
-The archive carries source and the page's own values and nothing else. Only a `Page` lifetime row
+The archive carries source and the page's own values and nothing else — no secret, no object, and no
+name or value from either. Only a `Page` lifetime row
 with no expiry under `page:<key>` goes into `PageState`; a `Person`, `Session`, `Browser` or
 `NextRead` row is somebody's rather than the page's, and an expiring row is not content. Revision
 history, tombstones, users, page sessions and configuration belong to the site that made them — a
@@ -378,7 +408,7 @@ through the same factory an editor save uses, so an overwrite is an ordinary new
 source stays in history.
 
 Validation treats the file as hostile and is all or nothing: the schema must be exactly the two
-tables and their columns, every path must already be canonical, addressable and unreserved, every
+tables and their columns — any other table, a `StoreSecrets` among them, rejects the file — every path must already be canonical, addressable and unreserved, every
 value must be text that decodes as strict UTF-8, every state key and value must pass the storage limits
 the store enforces, and one bad row rejects the whole archive before anything is staged. Problems are
 collected up to ten so the error page can list several at once, but each is independently fatal.

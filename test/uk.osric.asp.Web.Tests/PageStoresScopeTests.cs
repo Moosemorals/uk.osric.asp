@@ -25,6 +25,7 @@ public sealed class PageStoresScopeTests {
     private static DatabaseTemplate? s_template;
 
     private readonly FakeStoreObjects _objects = new();
+    private readonly FakeStoreSecrets _secrets = new();
     private string _databasePath = string.Empty;
     private DbContextOptions<StorageDbContext> _options = new DbContextOptionsBuilder<StorageDbContext>().Options;
 
@@ -98,6 +99,40 @@ public sealed class PageStoresScopeTests {
     }
 
     [Test]
+    public async Task AForOfALiveLibraryReachesItsSecretsAsync() {
+        FakePageReadStore readStore = new();
+        readStore.Save(LibraryKey, "a library", templateKind: PageKind.Library);
+
+        IPageSubject library = Scope(readStore).For(LibraryKey);
+        await library.Secrets.SetAsync("signing", "the library's key");
+
+        await Assert.MultipleAsync(async () => {
+            Assert.That(await library.Secrets.TryGetAsync("signing"), Is.EqualTo("the library's key"));
+            // The caller's own key is a different subject, so the library's secret is not its own.
+            Assert.That(await Scope(readStore).Page.Secrets.TryGetAsync("signing"), Is.Null);
+        });
+    }
+
+    [Test]
+    public async Task AForOfAPageKeyIsRefusedBySecretsAsync() {
+        FakePageReadStore readStore = new();
+        readStore.Save("/plain", "a page");
+        IPageSubject other = Scope(readStore).For("/plain");
+
+        ArgumentException refused = (await Assert.ThrowsAsync<ArgumentException>(
+            async () => await other.Secrets.SetAsync("signing", "a key")))!;
+
+        Assert.That(refused.Message, Does.Contain("not a live library or worker"));
+    }
+
+    [Test]
+    public void AVisitorSubjectHasNoSecretShape() {
+        // The absence is a type rather than a runtime surprise: a visitor's subject declares the
+        // shapes it offers, and a secret is a page's.
+        Assert.That(typeof(IVisitorSubject).GetProperty("Secrets"), Is.Null);
+    }
+
+    [Test]
     public async Task AForOfAPageKeyIsRefusedByValuesAsync() {
         FakePageReadStore readStore = new();
         readStore.Save("/plain", "a page");
@@ -160,7 +195,8 @@ public sealed class PageStoresScopeTests {
         writable: true,
         commit: new PageCommitState(),
         records: new SqliteRecordCatalog(DatabaseTemplate.Factory(_options)),
-        objects: _objects);
+        objects: _objects,
+        secrets: _secrets);
 
     private async Task InsertTitleAsync(string title) {
         await using SqliteRecordStore library = new(
