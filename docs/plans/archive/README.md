@@ -45,5 +45,5 @@ Every archived plan, by its slug:
 | [seed-page](seed-page.md) | [seed-provenance](seed-provenance.md) | [seed-trimming](seed-trimming.md) |
 | [semantic-html-and-accessibility](semantic-html-and-accessibility.md) | [shell-navigation](shell-navigation.md) | [shell-route-catalogue](shell-route-catalogue.md) |
 | [simple-context](simple-context.md) | [site-info](site-info.md) | [site-navigation](site-navigation.md) |
-| [status-page-rebuild](status-page-rebuild.md) | [template-runtime-errors](template-runtime-errors.md) | [template-value-output](template-value-output.md) |
-| [xml-reference](xml-reference.md) |  |  |
+| [status-page-rebuild](status-page-rebuild.md) | [storage-model](storage-model.md) | [template-runtime-errors](template-runtime-errors.md) |
+| [template-value-output](template-value-output.md) | [xml-reference](xml-reference.md) |  |

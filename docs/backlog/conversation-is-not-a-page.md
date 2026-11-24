@@ -9,8 +9,8 @@ SPDX-License-Identifier: MIT
 | --- | --- |
 | Difficulty | protective-dragon |
 | Utility | medium |
-| Status | blocked |
-| Blocked by | `no-account-store` |
+| Status | open |
+| Blocked by | — |
 | Plan | — |
 | Area | Sdk, Web, assistant |
 | Location | `src/uk.osric.asp.Web/Assistant/AssistantEndpoint.cs`, `src/uk.osric.asp.Web/Assistant/RunQueue.cs`, `src/uk.osric.asp.Sdk/IContext.cs` |
@@ -115,17 +115,16 @@ message-and-event pair the run loop already speaks.
 
 ### 3. The transcript and memory need a store that belongs to an account
 
-This is [`no-account-store`](no-account-store.md) and it blocks both the conversation view and the memory view. A page's
-`IPageStorage` is shared by **every** visitor and `IPageSession` goes when the visitor signs out, so
-neither can hold one account's conversation. Memory is the assistant's own rows with FTS5 recall,
-versions, pins and provenance (`assistant-memory-belongs-to-the-assistant`); a view of it needs the same account-scoped store, and a
-conversation needs it for its transcript. Until it exists, a ported page could show a transcript only
-to everyone; that is not the feature.
+The store exists now: `ctx.Stores.Visitor.Records` is one account's rows, declared as a `[PageTable]`
+class and reached through the subject handle, so a page can hold a transcript and a memory view
+without sharing it with every visitor (`pages-a-record-is-declared-sql`, `pages-a-record-is-sandboxed`).
+Memory stays the assistant's own rows with FTS5 recall, versions, pins and provenance
+(`assistant-memory-belongs-to-the-assistant`); what a view of it needs is the read, not a second store.
 
-The approval does **not** need it. A decision is a message to the running job, and a wait in
+The approval does **not** need it either. A decision is a message to the running job, and a wait in
 `ReceiveAsync` pauses the job's silence clock while the ceiling still bounds it — which is the shape
 an approval needs, and it is available today. A decision that must survive a restart becomes a row in
-the account store, and that is `no-account-store` again.
+the visitor's records.
 
 ### 4. A worker cannot save a page, and the tools do
 

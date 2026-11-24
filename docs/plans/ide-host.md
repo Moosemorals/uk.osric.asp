@@ -28,7 +28,7 @@ largest view the shell had ever held, and the one view the assistant could not r
 assistant cannot do for itself is widen the contract, and that is this plan.
 
 The comparison that produced the backlog is worth stating once: of the IDE plan's twelve wishes, two
-were already jobs ([`no-account-store`](../backlog/no-account-store.md) for per-account preferences and favourites,
+were already jobs ([`no-account-store`](../backlog/closed.md) for per-account preferences and favourites,
 [`editor-is-a-textarea`](../backlog/editor-is-a-textarea.md) for highlighting), one was not the host's business, and seven had
 nothing behind them. One of those seven split into two jobs, and the check it produced got a plan of
 its own ([one check](archive/one-check.md)), which has landed, so the list above is seven.
@@ -309,5 +309,5 @@ are affordable.
   mechanism is recorded here so the next version finds it.
 - **Search inside a worker's run.** A worker's read budget is built once per job, so it does not lift
   the scan's ceiling; 038 gives the scan its own allowance instead.
-- **Per-account preferences, favourites and tags.** [`no-account-store`](../backlog/no-account-store.md), unchanged, and the
+- **Per-account preferences, favourites and tags.** [`no-account-store`](../backlog/closed.md), unchanged, and the
   IDE plan itself declines to put its own state there.

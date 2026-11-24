@@ -26,4 +26,3 @@ other; `make decisions` checks the names.
 | [email](email.md) | Proposed 2026-11-06, revised 2026-11-23 — questions answered, rootless, identity in the site's database; waits for a yes | — (operations and the site's service endpoints) |
 | [email-configuration](email-configuration.md) | Configuration excerpts for [email](email.md); nothing deployed | — |
 | [ide-host](ide-host.md) | Proposed 2026-11-15; slices 0–6 merged, the search with its own archived plan; slice 7 waits on the owner | [`cannot-search-the-store`](../backlog/closed.md) |
-| [storage-model](storage-model.md) | Agreed 2026-11-21, revised against trunk 2026-11-22; slice 0, the [sandbox spike](../spikes/store-sandbox.md), and slice 1, values, lifetimes and identity, slice 2, records and the sandbox, slice 3, messages, slice 4, objects, and slice 5, secrets, are merged; slice 6, the ends, is built and waits for the owner | [`storage-is-not-one-model`](../backlog/storage-is-not-one-model.md) |

@@ -9,8 +9,8 @@ SPDX-License-Identifier: MIT
 | --- | --- |
 | Difficulty | protective-dragon |
 | Utility | high |
-| Status | blocked |
-| Blocked by | `storage-is-not-one-model` |
+| Status | open |
+| Blocked by | — |
 | Plan | — |
 | Area | Sdk, Web (pages, shell), docs |
 | Location | `src/uk.osric.asp.Web/Shell/ObjectEndpoint.cs`, `src/uk.osric.asp.Web/Pages/PageObjectStore.cs`, `src/uk.osric.asp.Web/Pages/SqliteStoreObjects.cs`, `src/uk.osric.asp.Sdk/IObjectStore.cs`, `src/uk.osric.asp.Web/Pages/Seeds/help`, `docs/pages.md`, `docs/shell.md` |
@@ -108,7 +108,7 @@ the answers, because neither changes the shape.
 - **Uploads and downloads.** [`whim-page-file-upload`](WHIMS.md) and
   [`whim-page-file-download`](WHIMS.md) are the two ends of a byte stream, not who may read one.
 - **Secrets.** A Page secret is already unreadable through any other shape
-  ([`a-page-cannot-keep-a-secret`](a-page-cannot-keep-a-secret.md)); this item is about bytes that are
+  ([`a-page-cannot-keep-a-secret`](closed.md)); this item is about bytes that are
   meant to be served.
 - **An object in the archive.** The archive carries Page values and nothing else, and that stands.
 - **A transform or an image pipeline.** Re-encoding needs a capability that does not exist, and it

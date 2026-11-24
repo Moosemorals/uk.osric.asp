@@ -48,7 +48,7 @@ scratch directory, and history as paths rather than three more tools.
    content type rather than printing bytes into the transcript. Read-only, because an object is named
    by its hash and writing one is not a path operation. `/o` is reserved by the site's route table
    because the site answers the route, so the mount needs no reservation of its own, and the bytes are
-   read through the subject handles [`storage-is-not-one-model`](storage-is-not-one-model.md) adds.
+   read through the subject handles [`storage-is-not-one-model`](closed.md) adds.
 7. **Memory stays a tool.** Kinds, versions, pinning, limits and FTS5 recall are too much to shoehorn
    into files; one action-dispatched tool replaces four.
 8. **A write is planned before it is approved.** The kernel resolves every operand and classifies

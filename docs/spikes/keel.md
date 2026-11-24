@@ -162,10 +162,10 @@ the cause, and it is the reason that survives the next refactor.
 
 ### `/assistant` — already a job
 
-8,071 code lines, already in the backlog ([IDEA-025](../backlog/conversation-is-not-a-page.md)),
-blocked by the per-account store ([`no-account-store`](../backlog/no-account-store.md)), which waits on
-the storage model. Nothing to decide here until those land; the assistant is the proof that the page
-contract is close to enough, because it is the largest thing left.
+8,071 code lines, already in the backlog ([`conversation-is-not-a-page`](../backlog/conversation-is-not-a-page.md)).
+The per-account store it needed landed as `Visitor.Records` in the storage model, so nothing is left
+underneath it; the assistant is the proof that the page contract is close to enough, because it is the
+largest thing left.
 
 ### The runtime — never leaves
 

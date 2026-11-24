@@ -57,24 +57,16 @@ table and the items to it.
 | | *Work a page can start on behalf of nobody: a page-owned job with `Page` data only, its own queue and its own rate, which is what an inbox needs and what no visitor-scoped start can do.* | | | | |
 | [`manual-is-a-reference-dump`](backlog/manual-is-a-reference-dump.md) | The author manual is a reference dump whose contents list has drifted | determined-mountain-goat 💪🐐 | high | open | — |
 | | *The author's source of truth, ordered by API rather than by what an author wants to do, with an index that has already drifted; it is rewritten once the contract work in front of it has landed.* | | | | |
-| [`storage-is-not-one-model`](backlog/storage-is-not-one-model.md) | Storage is not one model: a page reaches a patchwork of stores | protective-dragon 🔥🐉 | high | [planned](plans/storage-model.md) | — |
-| | *The model every storage gap resolves into; it supersedes the two storage plans waiting for a yes, so it is read before them.* | | | | |
-| [`a-page-cannot-keep-a-secret`](backlog/a-page-cannot-keep-a-secret.md) | A page cannot keep a secret | determined-mountain-goat 💪🐐 | high | blocked | `storage-is-not-one-model` |
-| | *The secrets slice of the storage model, added at the owner's request before the release closes: a fifth shape on the Page subject, with no cross-page read, nothing catalogued, and plaintext at rest until [`secrets-are-readable-at-rest`](backlog/secrets-are-readable-at-rest.md) lands.* | | | | |
-| [`no-account-store`](backlog/no-account-store.md) | A page has no persistent per-account store | protective-dragon 🔥🐉 | high | blocked | `storage-is-not-one-model` |
-| | *The records slice of the storage model, which absorbs the item and its plan; it lands with [`storage-is-not-one-model`](backlog/storage-is-not-one-model.md) rather than beside it.* | | | | |
-| [`conversation-is-not-a-page`](backlog/conversation-is-not-a-page.md) | The assistant's conversation is a stream and a set of host actions, not a page | protective-dragon 🔥🐉 | medium | blocked | `no-account-store` |
-| | *The assistant's conversation as a page needs the account store beneath it, and that is [`no-account-store`](backlog/no-account-store.md).* | | | | |
+| [`conversation-is-not-a-page`](backlog/conversation-is-not-a-page.md) | The assistant's conversation is a stream and a set of host actions, not a page | protective-dragon 🔥🐉 | medium | open | — |
+| | *The account store beneath it landed as `Visitor.Records` in the storage model, so the view and the run are page code with nothing left to design underneath them.* | | | | |
 | [`editor-is-a-textarea`](backlog/editor-is-a-textarea.md) | The editor is a plain textarea | determined-mountain-goat 💪🐐 | high | open | — |
 | | *High use and high cost; the gutter, the diagnostics and the row state already cover the worst of it.* | | | | |
 | [`ship-the-tested-image`](backlog/ship-the-tested-image.md) | A release does not ship the image the tests passed | persistent-salmon ⬆️🐟 | high | open | — |
 | | *The browser suite drives a source build while the deploy ships an image built later; this makes the promoted image the one the browser drove, and the host gate already builds one twice without keeping it.* | | | | |
-| [`message-does-not-survive-a-redirect`](backlog/message-does-not-survive-a-redirect.md) | A page cannot leave a message for a page it sends a visitor to | protective-dragon 🔥🐉 | high | blocked | `storage-is-not-one-model` |
-| | *The messages slice of the storage model, which absorbs the item and its plan; it lands with [`storage-is-not-one-model`](backlog/storage-is-not-one-model.md) rather than beside it.* | | | | |
-| [`object-access-is-only-its-hash`](backlog/object-access-is-only-its-hash.md) | An object's only access control is that you have to know its hash | protective-dragon 🔥🐉 | high | blocked | `storage-is-not-one-model` |
-| | *A Page object is public to anyone with the digest and `/o` is unthrottled, so access control is designed once rather than grown a knob at a time; it waits for the shape to be on trunk.* | | | | |
-| [`secrets-are-readable-at-rest`](backlog/secrets-are-readable-at-rest.md) | A secret a page keeps is plaintext in the database and in every backup | determined-mountain-goat 💪🐐 | medium | blocked | `a-page-cannot-keep-a-secret` |
-| | *A second pass over the storage model's secrets shape: the shape lands with [`storage-is-not-one-model`](backlog/storage-is-not-one-model.md), and the cipher, key and rotation land here.* | | | | |
+| [`object-access-is-only-its-hash`](backlog/object-access-is-only-its-hash.md) | An object's only access control is that you have to know its hash | protective-dragon 🔥🐉 | high | open | — |
+| | *A Page object is public to anyone with the digest and `/o` is unthrottled, so access control is designed once rather than grown a knob at a time; the shape is on trunk.* | | | | |
+| [`secrets-are-readable-at-rest`](backlog/secrets-are-readable-at-rest.md) | A secret a page keeps is plaintext in the database and in every backup | determined-mountain-goat 💪🐐 | medium | open | — |
+| | *A second pass over the shape now on trunk: the cipher, the key and the rotation land here.* | | | | |
 | [`sec-page-runs-in-process`](backlog/sec-page-runs-in-process.md) | Page code has no process boundary | cornered-porcupine 📍🦔 | high | open | — |
 | | *High utility and a redesign of how a page runs; the unit is now a long-lived worker per author over a socket rather than a process per render, and the author it keys on is not in the store yet.* | | | | |
 | [`revision-hides-its-diagnostics`](backlog/revision-hides-its-diagnostics.md) | A page cannot read a revision's diagnostics | eager-beaver ⚙️🦫 | medium | open | — |

@@ -7,12 +7,12 @@ SPDX-License-Identifier: MIT
 
 | | |
 | --- | --- |
-| Status | Agreed 2026-11-21 — the owner said yes — and revised against trunk 2026-11-22, after the page search, the reference corpus, the slow test half and the documentation index landed, and again the same day to add the secrets slice at the owner's request, and on 2026-11-23 to make `IPageSubject` and `IVisitorSubject` independent of each other, to call a configured maximum a limit, and to give a page a streaming object reader at the owner's request. Slices 0 to 5 are merged; slice 6 is built on its branch and waits for the owner, and the release that closes the window follows |
+| Status | Merged 2026-11-24 — slices 0 to 6 are in and the release that removes the old spellings follows. Agreed 2026-11-21 — the owner said yes — and revised against trunk 2026-11-22, after the page search, the reference corpus, the slow test half and the documentation index landed, and again the same day to add the secrets slice at the owner's request, and on 2026-11-23 to make `IPageSubject` and `IVisitorSubject` independent of each other, to call a configured maximum a limit, and to give a page a streaming object reader at the owner's request. Slices 0 to 6 are merged |
 | Size | Large as a programme, small as a step: a spike, six slices and the release that closes the window, each its own branch and its own stop. The values slice is the floor; the record slice is the risk; the secrets slice is the one that cannot wait for the window to close |
-| First customer | The two plans this supersedes: the assistant's transcript (a Record for the signed-in visitor) and the redirect flash (a `NextRead` value). Editor mode is the first `Browser` value, and `/help`'s counter is the first Page value. A signing key ([`a-page-cannot-keep-a-secret`](../backlog/a-page-cannot-keep-a-secret.md)) is the first secret |
-| Spike | Slice 0: [the record sandbox](../spikes/store-sandbox.md), written before anything was built. Six of the sandbox section's details were corrected by what it measured |
+| First customer | The two plans this supersedes: the assistant's transcript (a Record for the signed-in visitor) and the redirect flash (a `NextRead` value). Editor mode is the first `Browser` value, and `/help`'s counter is the first Page value. A signing key ([`a-page-cannot-keep-a-secret`](../../backlog/closed.md)) is the first secret |
+| Spike | Slice 0: [the record sandbox](../../spikes/store-sandbox.md), written before anything was built. Six of the sandbox section's details were corrected by what it measured |
 | Decisions | Slice 5 records `pages-a-secret-is-not-a-value` and amends `pages-fetch-credentials`, `pages-the-subject-is-the-binding`, `pages-an-archive-is-a-database` and `pages-one-stores-section`. Slice 4 records `pages-an-object-is-content-addressed`. Slice 3 records `pages-a-message-is-taken-once`. Slice 2's merge recorded `pages-a-record-is-declared-sql`, `pages-a-record-is-sandboxed` and `pages-a-library-owns-its-schema`. Slice 1's merge recorded `pages-the-subject-is-the-binding`, `pages-a-lifetime-belongs-to-the-entry`, `pages-a-browser-is-a-lifetime`, `pages-adoption-re-keys-at-sign-in` and `pages-one-stores-section`, and edited `pages-page-storage`, `pages-the-session` and `pages-an-archive-is-a-database`. The remaining names are recorded by the slice that delivers them, and the plan is archived when the last slice's merge closes the programme |
-| Backlog | [`storage-is-not-one-model`](../backlog/storage-is-not-one-model.md) is this job. It absorbs [`no-account-store`](../backlog/no-account-store.md), [`message-does-not-survive-a-redirect`](../backlog/message-does-not-survive-a-redirect.md) and, from 2026-11-22, [`a-page-cannot-keep-a-secret`](../backlog/a-page-cannot-keep-a-secret.md), whose plans [account-store](archive/account-store.md) and [page-inbox](archive/page-inbox.md) are superseded in shape |
+| Backlog | [`storage-is-not-one-model`](../../backlog/closed.md) is this job. It absorbs [`no-account-store`](../../backlog/closed.md), [`message-does-not-survive-a-redirect`](../../backlog/closed.md) and, from 2026-11-22, [`a-page-cannot-keep-a-secret`](../../backlog/closed.md), whose plans [account-store](archive/account-store.md) and [page-inbox](archive/page-inbox.md) are superseded in shape |
 
 ## The short version
 
@@ -606,7 +606,7 @@ public interface ISecretStore {
   exists to avoid"* is right about an operator's token and wrong about a page's own key.
 - **Plaintext at rest.** The rows are text in `storage.db`, the same boundary as a password hash or a
   session row, and the cipher, key and rotation are
-  [`secrets-are-readable-at-rest`](../backlog/secrets-are-readable-at-rest.md). The shape's docs say
+  [`secrets-are-readable-at-rest`](../../backlog/secrets-are-readable-at-rest.md). The shape's docs say
   so, so nobody assumes a guarantee it does not give.
 
 ### Jobs
@@ -953,7 +953,7 @@ record sandbox says of itself.
 
 Each slice is one branch, one step through the gate and one stop for the owner. The programme merges
 phase by phase, so a regression is bisectable and its branch goes when its last slice is in. The
-owner said yes to this plan on 2026-11-21. Slice 0 is [written](../spikes/store-sandbox.md), and
+owner said yes to this plan on 2026-11-21. Slice 0 is [written](../../spikes/store-sandbox.md), and
 slices 1 to 4 are merged; slice 5 is next.
 
 0. **The sandbox spike** (`S`, docs only) — **written**. A scratch console over the real SQLite
@@ -1037,7 +1037,7 @@ slices 1 to 4 are merged; slice 5 is next.
    revision read, a listing, a search and an export carry neither name nor value; an import that
    carries one is refused; a move re-keys it and a scrub removes it; a `HEAD` refuses every write; the
    limits refuse at the boundary with the setting's name.
-6. **The ends** (`S`) — **built, waits for the owner**. `users remove` extended to every declared table,
+6. **The ends** (`S`) — **merged**. `users remove` extended to every declared table,
    which the proof found bound the table's name as a parameter and never removed a declared row at all;
    the archive's import and export
    tests for what it refuses to carry; the sampler and `/status`; `/privacy`'s last paragraph;
@@ -1072,7 +1072,7 @@ separate worktrees. Slice 6 waits for them.
 | `src/uk.osric.asp.Web/Pages/Seeds/` | `help`, `privacy`, `editor-mode`, `_lib/editor`; `_layout` unchanged |
 | `src/uk.osric.asp.Web/Assistant/PageAuthorPrompt.cs` | The stores section and `Version` to `page-author-v58` |
 | `src/uk.osric.asp.Web/appsettings.json` | `Pages:Stores`; `Pages:Storage` and `Pages:Session` removed; `Pages:Search` unchanged |
-| `docs/` | `storage.md`, `pages.md`, `architecture.md`, `shell.md`, `glossary.md`, `testing.md`, `decisions.md` at each merge, the plan, [`README.md`](../README.md)'s order, [`plans/README.md`](README.md), [`spikes/README.md`](../spikes/README.md) and the backlog |
+| `docs/` | `storage.md`, `pages.md`, `architecture.md`, `shell.md`, `glossary.md`, `testing.md`, `decisions.md` at each merge, the plan, [`README.md`](../../README.md)'s order, [`plans/README.md`](../README.md), [`spikes/README.md`](../../spikes/README.md) and the backlog |
 
 ## Tests
 
@@ -1120,16 +1120,16 @@ separate worktrees. Slice 6 waits for them.
   a page delete and a scrub take, the object bytes, and what the archive carries.
 - **`PageAuthorPrompt` and its `Version`**, or the assistant keeps reaching for `IPageStorage` and a
   shared row.
-- **[pages](../pages.md)** counts one capability instead of two and gains its section;
-  **[storage](../storage.md)** gains the four tables, the lifetimes, adoption, the DDL and catalogue,
-  the object route and the archive rule; **[architecture](../architecture.md)** lists the new policy
-  values and the invariants; **[the site document](../shell.md)** gains `/o/{sha}` and the `b` cookie;
-  **[the glossary](../glossary.md)** defines **store**, **subject**, **lifetime**, **value**,
+- **[pages](../../pages.md)** counts one capability instead of two and gains its section;
+  **[storage](../../storage.md)** gains the four tables, the lifetimes, adoption, the DDL and catalogue,
+  the object route and the archive rule; **[architecture](../../architecture.md)** lists the new policy
+  values and the invariants; **[the site document](../../shell.md)** gains `/o/{sha}` and the `b` cookie;
+  **[the glossary](../../glossary.md)** defines **store**, **subject**, **lifetime**, **value**,
   **record**, **message**, **object**, **browser** and **adoption**, and rewrites **session**.
-- **[the record](../decisions.md)** at each merge: the eleven names above, the eight edited entries and
+- **[the record](../../decisions.md)** at each merge: the eleven names above, the eight edited entries and
   the citation the object route adds.
-- **The indexes** as they move: [`docs/README.md`](../README.md)'s order row and
-  [`plans/README.md`](README.md)'s status at each merge, and [`spikes/README.md`](../spikes/README.md)
+- **The indexes** as they move: [`docs/README.md`](../../README.md)'s order row and
+  [`plans/README.md`](../README.md)'s status at each merge, and [`spikes/README.md`](../../spikes/README.md)
   in slice 0, because `make backlog` reads the first and `make decisions` the rest.
 - **The backlog** at the first merge: this item is already `planned` with this plan; the two plans it
   supersedes are archived with a note, and `no-account-store` and `message-does-not-survive-a-redirect`
@@ -1360,6 +1360,6 @@ a per-account namespace with no Page subject, a fixed 30-day inbox clock, a `fla
 eight-hour signed-in session — are replaced.
 
 Neither plan should be approved. At this plan's merge, both are archived with a superseded note, and
-[`no-account-store`](../backlog/no-account-store.md) and
-[`message-does-not-survive-a-redirect`](../backlog/message-does-not-survive-a-redirect.md) point at
+[`no-account-store`](../../backlog/closed.md) and
+[`message-does-not-survive-a-redirect`](../../backlog/closed.md) point at
 this plan with the slice that delivers them: records for the first, messages for the second.

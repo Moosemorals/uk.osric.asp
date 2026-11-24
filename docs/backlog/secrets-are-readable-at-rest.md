@@ -9,8 +9,8 @@ SPDX-License-Identifier: MIT
 | --- | --- |
 | Difficulty | determined-mountain-goat |
 | Utility | medium |
-| Status | blocked |
-| Blocked by | `a-page-cannot-keep-a-secret` |
+| Status | open |
+| Blocked by | — |
 | Plan | — |
 | Area | Web (storage, configuration), deploy, docs |
 | Location | `src/uk.osric.asp.Web/Pages/PageStoresOptions.cs`, `StoreSecrets` (new), `src/uk.osric.asp.Web/appsettings.json`, `deploy/operations.md`, `docs/storage.md` |
@@ -19,12 +19,10 @@ SPDX-License-Identifier: MIT
 ## Idea
 
 A page that must hold a credential — a signing key, a remote API's token — cannot put it in page source
-or in `IPageStorage`: both are readable through `/pages` and the whole revision history. The shape that
-answers that is a secrets shape on the Page subject —
-[`a-page-cannot-keep-a-secret`](a-page-cannot-keep-a-secret.md), a slice of
-[`storage-is-not-one-model`](storage-is-not-one-model.md), which keeps opaque text that
+or in page values: both are readable through `/pages` and the whole revision history. The shape that
+answers that is on trunk — `ctx.Stores.Page.Secrets`, which keeps opaque text that
 `IPageCatalog` never returns, that no revision, search or archive carries, and that is deleted and
-scrubbed with the page.
+scrubbed with the page (`pages-a-secret-is-not-a-value`).
 
 That shape is plaintext at rest. It is the same trust boundary as the password hashes and the session
 rows already in `storage.db`, and the owner chose plaintext for the shape so it could land before the
@@ -56,9 +54,8 @@ owner decides what may be kept there.
 
 ## Not in scope
 
-- **The shape itself.** That is [`a-page-cannot-keep-a-secret`](a-page-cannot-keep-a-secret.md), the
-  secrets slice of
-  [`storage-is-not-one-model`](storage-is-not-one-model.md); this item encrypts what it stores.
+- **The shape itself.** That landed as the storage model's secrets slice; this item encrypts what it
+  stores.
 - **A page managing keys.** A page writes and reads its own opaque text; the cipher is the host's.
 - **Other stored data.** Passwords stay hashed and sessions stay tokens; this is the page's secrets.
 

@@ -2790,7 +2790,7 @@ Memory is the assistant's, not the page contract's. Its store, its FTS5 recall, 
 provenance are written by the assistant's tools inside a run and read back into the next prompt, so the
 owner's view of it arrives with the assistant page rather than as a capability of its own. What a page
 cannot do is keep anything for a signed-in account: page storage is shared by every visitor and a page
-session belongs to one browser and goes when it signs out. That gap is [`no-account-store`](backlog/no-account-store.md),
+session belongs to one browser and goes when it signs out. That gap is [`no-account-store`](backlog/closed.md),
 shaped as a per-account SQL store whose tables the page declares, and a capability arrives with the view
 that needs it, so the job names its first customer before it is built.
 
@@ -3433,5 +3433,5 @@ Not decisions yet — recorded so they are not rediscovered:
   the member list is the only exception surface.
 - `pages-page-storage` makes page state shared by every visitor and racy under concurrency: an increment
   is last-write-wins, not atomic. The identity hook a per-user store needs exists, and that store is
-  [`no-account-store`](backlog/no-account-store.md) — a job with its own plan, migration and decision rather than a blocked
+  [`no-account-store`](backlog/closed.md) — a job with its own plan, migration and decision rather than a blocked
   one. An atomic increment would still be a different storage primitive.
