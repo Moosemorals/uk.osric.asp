@@ -50,3 +50,4 @@ Every archived plan, by its slug:
 | [simple-context](simple-context.md) | [site-info](site-info.md) | [site-navigation](site-navigation.md) |
 | [status-page-rebuild](status-page-rebuild.md) | [storage-model](storage-model.md) | [template-runtime-errors](template-runtime-errors.md) |
 | [template-value-output](template-value-output.md) | [the-step-is-one-file](the-step-is-one-file.md) | [xml-reference](xml-reference.md) |
+| [counting-bytes](counting-bytes.md) | | |

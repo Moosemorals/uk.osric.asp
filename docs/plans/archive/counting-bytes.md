@@ -7,11 +7,11 @@ SPDX-License-Identifier: MIT
 
 | | |
 | --- | --- |
-| Status | Proposed 2026-11-24 — written from the owner's answers of 2026-11-24: bytes are the site's one size unit, the human-facing numbers keep their values and the manual states the smaller floor, the search snippet window moves to bytes with the rest, and the size shows in `stat` and as a column in `ls -l`. Nothing below is built; it waits for a yes |
+| Status | Merged 2026-11-24 — built as one change; proposed and answered the same day: bytes are the site's one size unit, the human-facing numbers keep their values and the manual states the smaller floor, the search snippet window moves to bytes with the rest, and the size shows in `stat` and as a column in `ls -l` |
 | Size | Medium — a `Core` helper, eleven settings renamed, the sites that compare them, a field on two listing records, the surfaces that print a size, and the manual |
 | Area | Core (pages, assistant), Sdk, Web (pages, assistant, configuration), docs, seeds |
-| Spike | None. The counts were read off `trunk` on 2026-11-24: eleven setting names ending in `Chars` across thirteen entries, 62 `.Length` comparisons of which 11 are truncation slices, and every shape built after the storage model already limits in UTF-8 bytes. The files read: [`ContextBudget`](../../src/uk.osric.asp.Core/Assistant/ContextBudget.cs), [`TokenEstimator`](../../src/uk.osric.asp.Core/Assistant/TokenEstimator.cs), [`ToolResults`](../../src/uk.osric.asp.Web/Assistant/Tools/ToolResults.cs), [`PageCatalogScope`](../../src/uk.osric.asp.Web/Pages/PageCatalogScope.cs), [`BodyBudget`](../../src/uk.osric.asp.Web/Pages/BodyBudget.cs), [`PageEntry`](../../src/uk.osric.asp.Sdk/PageEntry.cs) |
-| Backlog | [`a-page-has-no-size`](../backlog/a-page-has-no-size.md) is this plan. It blocks [`tool-surface-is-one-shell`](../backlog/tool-surface-is-one-shell.md), because the size a `stat` reports is the last fact the shell is missing |
+| Spike | None. The counts were read off `trunk` on 2026-11-24: eleven setting names ending in `Chars` across thirteen entries, 62 `.Length` comparisons of which 11 are truncation slices, and every shape built after the storage model already limits in UTF-8 bytes. The files read: [`ContextBudget`](../../../src/uk.osric.asp.Core/Assistant/ContextBudget.cs), [`TokenEstimator`](../../../src/uk.osric.asp.Core/Assistant/TokenEstimator.cs), [`ToolResults`](../../../src/uk.osric.asp.Web/Assistant/Tools/ToolResults.cs), [`PageCatalogScope`](../../../src/uk.osric.asp.Web/Pages/PageCatalogScope.cs), [`BodyBudget`](../../../src/uk.osric.asp.Web/Pages/BodyBudget.cs), [`PageEntry`](../../../src/uk.osric.asp.Sdk/PageEntry.cs) |
+| Backlog | [`a-page-has-no-size`](../../backlog/archive/a-page-has-no-size.md) is this plan, and it blocked [`tool-surface-is-one-shell`](../../backlog/tool-surface-is-one-shell.md) until the size a `stat` reports landed with it |
 | Depends on | Nothing new. `TokenEstimator` already divides UTF-8 bytes by tokens per byte, and objects, messages, secrets, jobs, declared values and the archive already limit in bytes |
 | Decisions | New names proposed: **code-a-size-is-bytes**, **pages-a-listing-row-carries-its-size** and **code-a-clip-ends-on-a-boundary**. Edits `pages-a-listing-carries-facts` in place (a row carries the head's size), `pages-allowances-are-a-rate` in place (a read's rate is bytes per second), `assistant-one-budget-decides-what-fits` in place (its shares are measured in bytes) and `assistant-tool-results-are-cut-not-refused` in place (the cut is at a byte limit, on a boundary). Relies on `code-policy-values-are-configuration`, `assistant-the-request-budget-is-tokens`, `assistant-the-budget-is-window-minus-reply`, `pages-a-listing-resumes-from-a-key` and `pages-a-folder-is-a-key-not-a-row` |
 
@@ -41,18 +41,18 @@ Five things are load-bearing:
 
 ## What exists when this starts
 
-- **The byte-based shapes.** [`IObjectStore`](../../src/uk.osric.asp.Sdk/IObjectStore.cs) limits bytes
+- **The byte-based shapes.** [`IObjectStore`](../../../src/uk.osric.asp.Sdk/IObjectStore.cs) limits bytes
   per object and per subject; messages, secrets, jobs, the journal, declared values and the archive
   all limit `Encoding.UTF8.GetByteCount` or the encoded array's length. None of them changes.
 - **The assistant already counts bytes where it matters.** `TokenEstimator` divides a request's exact
   UTF-8 size by its token count
-  ([`TokenEstimator.cs:82`](../../src/uk.osric.asp.Core/Assistant/TokenEstimator.cs:82)), and
+  ([`TokenEstimator.cs:82`](../../../src/uk.osric.asp.Core/Assistant/TokenEstimator.cs:82)), and
   `ContextBudget.BytesPerToken` is 1.6
-  ([`ContextBudget.cs:20`](../../src/uk.osric.asp.Core/Assistant/ContextBudget.cs:20)). But
+  ([`ContextBudget.cs:20`](../../../src/uk.osric.asp.Core/Assistant/ContextBudget.cs:20)). But
   `ToolResultChars`, `MessageChars` and `MemoryCharsPerRun` are named for characters and are produced
   by `CharsOf(tokens) = tokens × BytesPerToken`
-  ([`ContextBudget.cs:108`](../../src/uk.osric.asp.Core/Assistant/ContextBudget.cs:108)), and the cut
-  compares `json.Length` ([`ToolResults.cs:53`](../../src/uk.osric.asp.Web/Assistant/Tools/ToolResults.cs:53)).
+  ([`ContextBudget.cs:108`](../../../src/uk.osric.asp.Core/Assistant/ContextBudget.cs:108)), and the cut
+  compares `json.Length` ([`ToolResults.cs:53`](../../../src/uk.osric.asp.Web/Assistant/Tools/ToolResults.cs:53)).
 - **The char-named settings.** `Assistant:MaxPageChars`, `MaxToolArgumentChars`, `MaxMemoryChars` and
   `MaxQuestionChars`; `Pages:Render:MaxBodyChars`;
   `Pages:Read:SourceCharsPerSecond` and `Pages:Jobs:SourceCharsPerSecond`;
@@ -61,22 +61,22 @@ Five things are load-bearing:
   `Pages:Search:DefaultContextChars` and `MaxContextChars`. Each has a shipped value, an options
   record, a `FromConfiguration` refusal and a test.
 - **The char-guarded sites.** `PageCatalogScope` charges a read with
-  `source.Template.Length` ([`PageCatalogScope.cs:181`](../../src/uk.osric.asp.Web/Pages/PageCatalogScope.cs:181));
+  `source.Template.Length` ([`PageCatalogScope.cs:181`](../../../src/uk.osric.asp.Web/Pages/PageCatalogScope.cs:181));
   `ReadBudget.TryCharge(int chars)`
-  ([`ReadBudget.cs:62`](../../src/uk.osric.asp.Web/Pages/ReadBudget.cs:62)); `BodyBudget.TryCharge`
-  from `text.Length` ([`PageBody.cs:104`](../../src/uk.osric.asp.Web/Pages/PageBody.cs:104));
+  ([`ReadBudget.cs:62`](../../../src/uk.osric.asp.Web/Pages/ReadBudget.cs:62)); `BodyBudget.TryCharge`
+  from `text.Length` ([`PageBody.cs:104`](../../../src/uk.osric.asp.Web/Pages/PageBody.cs:104));
   `ToolArguments.Parse` and the assistant's page, memory and question limits; the declared table's
-  result limit ([`SqliteRecordStore.cs:464`](../../src/uk.osric.asp.Web/Pages/SqliteRecordStore.cs:464));
-  the search snippet window ([`PageCatalogScope.cs:127`](../../src/uk.osric.asp.Web/Pages/PageCatalogScope.cs:127)).
+  result limit ([`SqliteRecordStore.cs:464`](../../../src/uk.osric.asp.Web/Pages/SqliteRecordStore.cs:464));
+  the search snippet window ([`PageCatalogScope.cs:127`](../../../src/uk.osric.asp.Web/Pages/PageCatalogScope.cs:127)).
 - **Two name limits that are not settings.** `PageTopic.MaxNameChars` is a constant in `Sdk`
-  ([`PageTopic.cs:21`](../../src/uk.osric.asp.Sdk/PageTopic.cs:21)), and
+  ([`PageTopic.cs:21`](../../../src/uk.osric.asp.Sdk/PageTopic.cs:21)), and
   `PageSearchOptions.MaximumContextChars` is an invariant
-  ([`PageSearchOptions.cs:31`](../../src/uk.osric.asp.Web/Pages/PageSearchOptions.cs:31)); both keep
+  ([`PageSearchOptions.cs:31`](../../../src/uk.osric.asp.Web/Pages/PageSearchOptions.cs:31)); both keep
   their numbers and take the new name.
 - **A listing row has no size.** `PageEntry` carries the key, the kind, the head's hash, saved time,
   state, libraries and seed — and no length
-  ([`PageEntry.cs:50`](../../src/uk.osric.asp.Sdk/PageEntry.cs:50)); `PageRevisionInfo` carries the
-  hash, saved time and current mark ([`PageRevisionInfo.cs:13`](../../src/uk.osric.asp.Sdk/PageRevisionInfo.cs:13)).
+  ([`PageEntry.cs:50`](../../../src/uk.osric.asp.Sdk/PageEntry.cs:50)); `PageRevisionInfo` carries the
+  hash, saved time and current mark ([`PageRevisionInfo.cs:13`](../../../src/uk.osric.asp.Sdk/PageRevisionInfo.cs:13)).
   Both queries join `PageRevisions`, whose `Template` is the text the answer would measure.
 - **What prints a size today.** `stat` prints `{Template.Length} chars` for a page and a line/char
   count for a site route; `ls -l` prints the mode and the key; the conversation page's budget panel
@@ -177,7 +177,7 @@ becomes `MaximumContextBytes` (16384 stays). `PageSearchRequest.Context` is a by
 same range and a refusal that says bytes.
 
 The two places that compare one setting with another — `MaxToolArgumentBytes` must exceed
-`MaxPageBytes` ([`AssistantOptionsValidator.cs:32`](../../src/uk.osric.asp.Web/Assistant/AssistantOptionsValidator.cs:32))
+`MaxPageBytes` ([`AssistantOptionsValidator.cs:32`](../../../src/uk.osric.asp.Web/Assistant/AssistantOptionsValidator.cs:32))
 — keep their rule and take the new names.
 
 ### D3 — The limit sites
@@ -213,7 +213,7 @@ Two records gain the head's stored size, both from the query that already joins 
   answers it and `ls -l /snapshots` can show one.
 
 Both are projected as `length(CAST(revision."Template" AS BLOB))` in
-[`ListAsync`](../../src/uk.osric.asp.Web/Pages/SqlitePageReadStore.cs:61) and the history query, so
+[`ListAsync`](../../../src/uk.osric.asp.Web/Pages/SqlitePageReadStore.cs:61) and the history query, so
 the value cannot drift from the source, needs no column, no migration and no backfill, and old rows
 answer exactly as new ones do.
 
@@ -233,9 +233,9 @@ in bytes, derived from the source, and a row with no head has none. It edits
 - **`/help` and the prompt** say bytes wherever they bounded characters, and the author prompt's page
   and store sections gain one sentence: a limit is bytes, not characters, so a page of CJK reaches
   it sooner. The prompt's version moves to the next one; `update-the-prompt` rewrites it afterwards.
-- **The pages** — [architecture](../architecture.md#configuration) for the unit and the refusal,
-  [pages](../pages.md#page-contract) for the listing fact, [assistant](../assistant.md) for the
-  budgets, [storage](../storage.md) for the object and result limits that were already bytes.
+- **The pages** — [architecture](../../architecture.md#configuration) for the unit and the refusal,
+  [pages](../../pages.md#page-contract) for the listing fact, [assistant](../../assistant.md) for the
+  budgets, [storage](../../storage.md) for the object and result limits that were already bytes.
 
 ### D6 — What does not change
 
@@ -312,21 +312,21 @@ Each phase is a commit or a short series, and each ends with its tests green.
 
 | Item | Disposition |
 | --- | --- |
-| [`a-page-has-no-size`](../backlog/a-page-has-no-size.md) | this plan |
-| [`tool-surface-is-one-shell`](../backlog/tool-surface-is-one-shell.md) | blocked by this item; the size a `stat` reports is what it was missing, and its plan follows |
-| [`nothing-checks-page-assets`](../backlog/nothing-checks-page-assets.md) | a checker's input is a page's source; it is unaffected |
-| [`the-page-api-signs`](../backlog/the-page-api-signs.md), [`a-page-sees-its-request`](../backlog/a-page-sees-its-request.md) | their body limits are already bytes; unchanged |
-| [`secrets-are-readable-at-rest`](../backlog/secrets-are-readable-at-rest.md), [`object-access-is-only-its-hash`](../backlog/object-access-is-only-its-hash.md) | already in bytes; unchanged |
+| [`a-page-has-no-size`](../../backlog/archive/a-page-has-no-size.md) | this plan |
+| [`tool-surface-is-one-shell`](../../backlog/tool-surface-is-one-shell.md) | blocked by this item; the size a `stat` reports is what it was missing, and its plan follows |
+| [`nothing-checks-page-assets`](../../backlog/nothing-checks-page-assets.md) | a checker's input is a page's source; it is unaffected |
+| [`the-page-api-signs`](../../backlog/the-page-api-signs.md), [`a-page-sees-its-request`](../../backlog/a-page-sees-its-request.md) | their body limits are already bytes; unchanged |
+| [`secrets-are-readable-at-rest`](../../backlog/secrets-are-readable-at-rest.md), [`object-access-is-only-its-hash`](../../backlog/object-access-is-only-its-hash.md) | already in bytes; unchanged |
 
 ## Close-out
 
-- The three names are written into [the record](../decisions.md) with their "Recorded in" lines, and
+- The three names are written into [the record](../../decisions.md) with their "Recorded in" lines, and
   `pages-a-listing-carries-facts`, `pages-allowances-are-a-rate`,
   `assistant-one-budget-decides-what-fits` and `assistant-tool-results-are-cut-not-refused` are
   edited in place.
-- [Pages](../pages.md), [assistant](../assistant.md), [storage](../storage.md),
-  [architecture](../architecture.md#configuration) and
-  [the manual](../../src/uk.osric.asp.Web/Pages/Seeds/help) say bytes; no live document says a limit
+- [Pages](../../pages.md), [assistant](../../assistant.md), [storage](../../storage.md),
+  [architecture](../../architecture.md#configuration) and
+  [the manual](../../../src/uk.osric.asp.Web/Pages/Seeds/help) say bytes; no live document says a limit
   is measured in characters.
 - `make check` is green, including `make decisions`, `make backlog` and `make check-pages`.
 - `tool-surface-is-one-shell` is unblocked, and its plan's `stat` row changes from a gap to a fact.

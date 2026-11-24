@@ -489,7 +489,7 @@ named, the way every retired policy value is. The values a person chose as a num
 their numbers; the manual states what a byte buys, so a limit is smaller in CJK and smaller again in
 emoji rather than silently different.
 
-*Recorded in [Utf8](../src/uk.osric.asp.Core/Text/Utf8.cs), [configuration](architecture.md#configuration), [counting bytes](plans/counting-bytes.md).*
+*Recorded in [Utf8](../src/uk.osric.asp.Core/Text/Utf8.cs), [configuration](architecture.md#configuration), [counting bytes](plans/archive/counting-bytes.md).*
 
 ### code-a-clip-ends-on-a-boundary
 
@@ -500,7 +500,7 @@ truncation site uses it, and a cut result's note says how many bytes it kept. A 
 character index is how a multi-byte character ends up as a replacement character in a transcript, a
 snippet or a stored page.
 
-*Recorded in [Utf8](../src/uk.osric.asp.Core/Text/Utf8.cs), [ToolResults](../src/uk.osric.asp.Web/Assistant/Tools/ToolResults.cs), [counting bytes](plans/counting-bytes.md).*
+*Recorded in [Utf8](../src/uk.osric.asp.Core/Text/Utf8.cs), [ToolResults](../src/uk.osric.asp.Web/Assistant/Tools/ToolResults.cs), [counting bytes](plans/archive/counting-bytes.md).*
 
 ## Pages
 
@@ -2264,7 +2264,7 @@ rather than a cached count: on a 500-row store of 11 KB pages a listing took 0.3
 0.34 ms with `octet_length` and 1.97 ms with `length()`, so the byte count is a header read and a
 character count is a scan.
 
-*Recorded in [PageEntry](../src/uk.osric.asp.Sdk/PageEntry.cs), [SqlitePageReadStore](../src/uk.osric.asp.Web/Pages/SqlitePageReadStore.cs), [pages](pages.md#page-contract), [counting bytes](plans/counting-bytes.md).*
+*Recorded in [PageEntry](../src/uk.osric.asp.Sdk/PageEntry.cs), [SqlitePageReadStore](../src/uk.osric.asp.Web/Pages/SqlitePageReadStore.cs), [pages](pages.md#page-contract), [counting bytes](plans/archive/counting-bytes.md).*
 
 ## Shell
 

@@ -11,10 +11,14 @@ SPDX-License-Identifier: MIT
 | Utility | high |
 | Status | planned |
 | Blocked by | — |
-| Plan | [counting-bytes](../plans/counting-bytes.md) |
+| Plan | [counting-bytes](../../plans/archive/counting-bytes.md) |
 | Area | Core (Assistant), Sdk, Web (pages, assistant, configuration), docs, seeds |
 | Location | `src/uk.osric.asp.Sdk/PageEntry.cs`, `src/uk.osric.asp.Web/Pages/SqlitePageReadStore.cs`, `src/uk.osric.asp.Core/Assistant/ContextBudget.cs`, `src/uk.osric.asp.Web/appsettings.json`, `src/uk.osric.asp.Web/Pages/Seeds/help` |
 | Spike | — |
+
+**Merged 2026-11-24.** One unit, and it is UTF-8 bytes; a listing row and a history row carry the
+head's stored size. `code-a-size-is-bytes`, `code-a-clip-ends-on-a-boundary` and
+`pages-a-listing-row-carries-its-size`.
 
 ## Idea
 

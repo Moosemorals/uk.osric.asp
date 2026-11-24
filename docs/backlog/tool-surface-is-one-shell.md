@@ -9,8 +9,8 @@ SPDX-License-Identifier: MIT
 | --- | --- |
 | Difficulty | protective-dragon |
 | Utility | high |
-| Status | blocked |
-| Blocked by | `a-page-has-no-size` |
+| Status | planned |
+| Blocked by | — |
 | Plan | [assistant-shell-tool](../plans/assistant-shell-tool.md) |
 | Area | Core (Shell, Assistant), Shell, Web (assistant, site), docs, build |
 | Location | `src/uk.osric.asp.Web/Assistant/Tools/ToolRegistry.cs`, `src/uk.osric.asp.Web/Assistant/Shell/`, `src/uk.osric.asp.Core/Shell/`, `src/uk.osric.asp.Shell/` |
@@ -51,9 +51,9 @@ scratch directory, and history as paths rather than three more tools.
    `IPageWrites`, and the site's facts through `ISiteInfo`; a command that cannot be built is a gap in
    the page contract, not a private seam. The gaps it started with have closed: a page can search the
    source now ([`cannot-search-the-store`](closed.md)), so `grep` is a command this plan builds on
-   that scan, and `check-without-storing` landed the capability beside the one `check` tool. Nothing
-   waits for a page capability except the stored size a `stat` reports, which is
-   [`a-page-has-no-size`](a-page-has-no-size.md); the commands are the port's work.
+   that scan, and `check-without-storing` landed the capability beside the one `check` tool. The stored size a `stat`
+   reports landed with [`a-page-has-no-size`](closed.md), so nothing waits for a page capability; the
+   commands are the port's work.
 
 [The plan](../plans/assistant-shell-tool.md) carries the detail, the phases and the risks.
 
