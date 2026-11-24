@@ -13,7 +13,7 @@ SPDX-License-Identifier: MIT
 | Spike | None. The claims about today's shell were read off `trunk` on 2026-11-19: [`ShellRunner`](../../src/uk.osric.asp.Web/Assistant/Shell/ShellRunner.cs), the eleven applets, [`ShellApplet`](../../src/uk.osric.asp.Web/Assistant/Shell/ShellApplet.cs), [`ShellTool`](../../src/uk.osric.asp.Web/Assistant/Tools/ShellTool.cs), [`PageStoreReader`](../../src/uk.osric.asp.Web/Assistant/PageStoreReader.cs) and [`PagePathPolicy`](../../src/uk.osric.asp.Web/Assistant/PagePathPolicy.cs). The tool-count evidence is [the ask tool's shape](../spikes/ask-tool-shape.md). The capability evidence was read the same day: [`IPageCatalog`](../../src/uk.osric.asp.Sdk/IPageCatalog.cs), [`IPageWrites`](../../src/uk.osric.asp.Sdk/IPageWrites.cs), [`PageCatalogScope`](../../src/uk.osric.asp.Web/Pages/PageCatalogScope.cs), [`PageWritesScope`](../../src/uk.osric.asp.Web/Pages/PageWritesScope.cs) and the worker's capability set in [`PageJobRunner`](../../src/uk.osric.asp.Web/Work/PageJobRunner.cs:140) |
 | Backlog | [`tool-surface-is-one-shell`](../backlog/tool-surface-is-one-shell.md) is this plan; [`cannot-ask-the-owner`](../backlog/closed.md) was a dependency and has landed; `tool-arguments-say-nothing` has closed with one check. One item landed first and is not this plan: [`cannot-search-the-store`](../backlog/closed.md). `check-without-storing` has landed — the language-named capability and the one `check` tool, planned by [one check](archive/one-check.md) — so `check` is a command this plan builds rather than a dependency. [`a-page-cannot-list-folders`](../backlog/closed.md) has landed, so `ls` has its folder rows. The old assistant check item is subsumed: its capability half is the capability above and its tool half is this plan. [`nothing-checks-page-assets`](../backlog/nothing-checks-page-assets.md) grows the language set later, the page transaction has landed ([IDEA-047](../backlog/closed.md)), and [`page-cannot-move`](../backlog/closed.md) has landed, so `mv` is already an applet; [`view-cannot-submit-a-form`](../backlog/view-cannot-submit-a-form.md) and [`terminal-cannot-reach-the-shell`](../backlog/terminal-cannot-reach-the-shell.md) are named here and are not this plan |
 | Depends on | `ask_user`, `mv` and `check` have landed ([the ask plan](archive/assistant-ask-owner.md), [the move plan](archive/page-move.md), [one check](archive/one-check.md)); the page capability before phase 0 has landed: [`cannot-search-the-store`](../backlog/closed.md) for `grep`; [`a-page-cannot-list-folders`](../backlog/closed.md) has landed and gives `ls` its folder rows |
-| Decisions | New names proposed: **code-a-shell-is-the-interpreter**, **assistant-the-shell-is-the-tool**, **assistant-a-command-is-posix**, **assistant-a-write-is-planned-before-it-approves**, **assistant-scratch-is-not-persistent**, **assistant-a-snapshot-is-a-path**, **assistant-patch-carries-the-hash**, **assistant-memory-is-one-tool**, **assistant-man-is-the-reference**, **assistant-a-command-uses-page-capabilities** and **pages-a-capability-serves-one-caller**; the check's own name, **pages-a-check-names-its-language**, belongs to `check-without-storing` and is not taken here. Relies on `assistant-a-tool-is-one-type`, `assistant-the-shell-is-applets`, `assistant-the-shell-lexes-before-it-judges`, `assistant-the-shell-is-posix`, `assistant-writes-are-revisions`, `assistant-edit-page-is-safe`, `assistant-reads-history`, `assistant-script-checks`, `assistant-reads-the-shell-files`, `assistant-memory-is-the-owners`, `assistant-memory-recall-is-fts5`, `assistant-memory-page`, `assistant-a-view-is-a-read`, `assistant-a-view-is-the-response`, `assistant-tool-results-are-cut-not-refused`, `assistant-old-tool-results-are-masked`, `pages-the-store-is-read-through-one-seam`, `pages-outbound-fetch`, `auth-a-view-token-reads-only` and `code-policy-values-are-configuration`. Edits `assistant-the-shell-is-posix` in place to name the conformance target, `pages-the-store-is-read-through-one-seam` in place because the seam the shell asks is now `IPageCatalog`, and `assistant-the-shell-is-applets` in place to name the capabilities in an applet's context |
+| Decisions | New names proposed: **code-a-shell-is-the-interpreter**, **assistant-the-shell-is-the-tool**, **assistant-a-command-is-posix**, **assistant-a-write-is-planned-before-it-approves**, **assistant-scratch-is-not-persistent**, **assistant-a-snapshot-is-a-path**, **assistant-patch-carries-the-hash**, **assistant-memory-is-one-tool**, **assistant-man-is-the-reference**, **assistant-a-command-uses-page-capabilities** and **pages-a-capability-serves-one-caller**; the check's own name, **pages-a-check-names-its-language**, belongs to `check-without-storing` and is not taken here. Relies on `assistant-a-tool-is-one-type`, `assistant-the-shell-is-applets`, `assistant-the-shell-lexes-before-it-judges`, `assistant-the-shell-is-posix`, `assistant-writes-are-revisions`, `assistant-edit-page-is-safe`, `assistant-reads-history`, `assistant-script-checks`, `assistant-reads-the-shell-files`, `assistant-memory-is-the-owners`, `assistant-memory-recall-is-fts5`, `assistant-memory-page`, `assistant-a-view-is-a-read`, `assistant-a-view-is-the-response`, `assistant-tool-results-are-cut-not-refused`, `assistant-old-tool-results-are-masked`, `pages-the-store-is-read-through-one-seam`, `pages-outbound-fetch`, `auth-a-view-token-reads-only` and `code-policy-values-are-configuration`. Edits `assistant-the-shell-is-posix` in place to name the conformance target, `pages-the-store-is-read-through-one-seam` in place because the seam the shell asks is now `IPageCatalog`, `assistant-the-shell-is-applets` in place to name the capabilities in an applet's context, and `assistant-a-tool-is-one-type` in place so the flag it names is an approval verdict |
 
 ## The short version
 
@@ -49,9 +49,10 @@ Six things are load-bearing:
 3. **Pipes and redirects are the point.** Without them the shell is twenty tools with a grammar
    and no composition; with them the model splits a read before it becomes a tool result, writes a draft
    to `/tmp`, and diffs against a snapshot.
-4. **A write is planned before it is approved.** A single `shell` tool cannot carry `NeedsApproval`
-   per call, so the kernel resolves every operand, classifies every effect, and the approval is the
-   owner answering for the effects rather than for the line.
+4. **A write is planned before it is approved.** A single `shell` tool cannot answer approval with one
+   flag, so it declares `FromCall` and the kernel's plan supplies the answer: it resolves every
+   operand, classifies every effect, and the approval is the owner answering for the effects rather
+   than for the line.
 5. **The store's guarantees do not move.** A page write is still `PageEditor`'s, still one revision,
    still compiled before it is saved, still path-policy checked, still listed in the changed-pages
    card (`assistant-writes-are-revisions`, `assistant-edit-page-is-safe`).
@@ -220,14 +221,17 @@ the record keeps its history rather than being disambiguated with a suffix.
 ### D1 — Three tools, and the registry is still the only list
 
 `ToolRegistry.Default` becomes `shell`, `ask_user`, `memory`, in that order. `assistant-a-tool-is-one-type`
-is unchanged: a tool is still one type carrying its name, description, schema and the code that runs
-it. What changes is that `NeedsApproval` is no longer a boolean on the type: a capability whose
-approval depends on its arguments declares a verdict instead. `WaitsForOwner`, which `ask_user`
-added, asks a different question — whether the call stops for the owner at all — and stays as it is.
+keeps its shape and is edited in place: a tool is still one type carrying its name, description,
+schema and the code that runs it, and it still says whether a call needs approval — as an approval
+**verdict** rather than a boolean. A tool whose answer is always the same declares `Always` or
+`Never`; one whose answer depends on the call declares `FromCall`, and the call answers before
+anything runs. So the knowledge stays on the tool, and what changes is that the answer may be
+supplied per call instead of being fixed at the type. `WaitsForOwner`, which `ask_user` added, asks a
+different question — whether the call stops for the owner at all — and stays as it is.
 
-- `shell`: the kernel decides from the line's plan.
-- `memory`: the three write actions are gated under `RequireApproval`, `search` is not.
-- `ask_user`: never gated; a question is not an approval (`assistant-a-run-waits-on-one-owner-interrupt`).
+- `shell`: `FromCall` — the kernel answers from the line's plan.
+- `memory`: `FromCall` — the three write actions are gated under `RequireApproval`, `search` is not.
+- `ask_user`: `Never`; a question is not an approval (`assistant-a-run-waits-on-one-owner-interrupt`).
 
 `ToolSpecsTests` keeps its invariants and pins three.
 
@@ -338,10 +342,11 @@ of a word into a path or a literal. Then:
    writable prefix — and a refusal there is a policy refusal.
 2. One approval covers the line, and its card lists the **effects**: path, verb, and a diff preview
    for a patch or a whole write under `Assistant:ApprovalPreviewChars`.
-3. `AlwaysApprove` still plans — for the changed-pages card and for the policy — it simply does not
-   wait.
-4. `RequireApproval` waits once per call, not once per write. The run still waits on one thing at a
-   time (`assistant-a-run-waits-on-one-owner-interrupt`).
+3. The plan answers the tool's `FromCall` verdict: a line that only reads is `NotNeeded` and never
+   asks; a line with a page write or a network effect is `Needed`.
+4. `AlwaysApprove` still plans — for the changed-pages card and for the policy — it simply does not
+   wait on a `Needed` line. `RequireApproval` waits once per call, not once per write. The run still
+   waits on one thing at a time (`assistant-a-run-waits-on-one-owner-interrupt`).
 5. **Several page writes land as one transaction.** A line that writes two pages opens one
    `IPageTransaction` on `IPageWrites`, stages both and commits once, so the call's writes become the
    store's state together or not at all (`pages-writes-are-transactions`). The result's `writes` lists
@@ -595,14 +600,14 @@ waits is `curl`'s same-origin leg, and it waits for a security review rather tha
 | `src/uk.osric.asp.Web/Assistant/Shell/` | moves to the new project; the applet context takes the capabilities, not the reader and the editor |
 | `src/uk.osric.asp.Web/Assistant/PageStoreReader.cs` | deleted with its suite; `IPageReadStore` behind `PageCatalogScope` is the seam. `ShellCatalogue.Text` retires with it |
 | `src/uk.osric.asp.Web/Assistant/Tools/` | `ShellTool`; the per-call capability set in `ToolServices`; `MemoryTool` replaces four; `fetch`/`view` stay for now; seventeen tools deleted or replaced |
-| `src/uk.osric.asp.Web/Assistant/Tools/ToolRegistry.cs`, `Tools/ToolSpec.cs` | three tools; `NeedsApproval` becomes a per-call verdict |
+| `src/uk.osric.asp.Web/Assistant/Tools/ToolRegistry.cs`, `Tools/ToolSpec.cs` | three tools; `NeedsApproval` becomes an approval verdict — `Always`, `Never` or `FromCall` — so a tool still says whether its calls ask |
 | `src/uk.osric.asp.Web/Assistant/PagePathPolicy.cs`, `PageEditor` | unchanged in authority; the planner asks the mount's access first and the policy for the assistant's prefix |
 | `src/uk.osric.asp.Web/Assistant/PageAuthorPrompt.cs` | `page-author-next`, the shell section and the site route's permission |
 | `src/uk.osric.asp.Web/Shell/`, `src/uk.osric.asp.Web/Html/ShellDocument.cs`, `src/uk.osric.asp.Sdk/IPageCatalog.cs` | D0's rename: `SiteCatalogue`, `SiteLayout`, `SiteLink`, `SiteLinks()`. The capabilities are read, not changed: the folder rows and the search land in their prerequisites, and `IPageCheck` is [one check](archive/one-check.md)'s |
 | `src/uk.osric.asp.Web/Configuration/` | `Assistant:ScratchMaxBytes`, `Assistant:ScratchMaxFiles`, `Assistant:ShellMaxStages`, `Assistant:ShellMaxPipelineBytes`, `Assistant:ApprovalPreviewChars` |
 | `uk.osric.asp.slnx`, `Makefile` | the project, `SHELL_TESTS`, a `test-shell` target and `test:` |
 | `docs/assistant.md`, `docs/site.md`, `docs/shell.md`, `docs/glossary.md`, `docs/architecture.md` | the tool list, the mounts, the planner, the result shape, D0's words, the new interpreter page and the dependency direction |
-| `docs/decisions.md` | the eleven new names and the three edits |
+| `docs/decisions.md` | the eleven new names and the four edits |
 | `docs/backlog/` | this item, the whim the `/o` deferral adds and the dispositions below |
 | `test/…Shell.Tests/` | the applets against fake capabilities, the kernel, the mounts, the register |
 | `test/…Web.Tests/` | the per-call set, the planner, the approval, the memory tool, the prompt, the real capabilities |
@@ -742,8 +747,8 @@ the new folder item keeps its place above this one in the order, and the reasons
 ## Close-out
 
 - The eleven names are written into [the record](../decisions.md) with their "Recorded in" lines, and
-  `assistant-the-shell-is-posix`, `pages-the-store-is-read-through-one-seam` and
-  `assistant-the-shell-is-applets` are edited in place.
+  `assistant-the-shell-is-posix`, `pages-the-store-is-read-through-one-seam`,
+  `assistant-the-shell-is-applets` and `assistant-a-tool-is-one-type` are edited in place.
 - [The assistant](../assistant.md), [the site](../shell.md) (renamed to `docs/site.md` in phase 0),
   [the shell](../shell.md) and [the architecture](../architecture.md) describe three tools, the four
   mounts, the planner, the result, the capability client and the register.
