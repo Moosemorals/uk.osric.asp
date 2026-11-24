@@ -97,6 +97,12 @@ public sealed class StatusPageTests : IntegrationTest {
         Assert.That(body.Split("<figure class=\"panel\">").Length - 1, Is.EqualTo(StatusCatalogue.Panels.Count));
         Assert.That(body, Does.Contain("<svg xmlns=\"http://www.w3.org/2000/svg\" class=\"chart\""));
         Assert.That(body, Does.Contain("<svg xmlns=\"http://www.w3.org/2000/svg\" class=\"heatmap\""));
+
+        // The storage group names the payload, every shape's figure in one drawing, and the
+        // declared tables beside them.
+        Assert.That(body, Does.Contain("Stored payload"));
+        Assert.That(body, Does.Contain("Stored bytes by shape"));
+        Assert.That(body, Does.Contain("Declared tables"));
     }
 
     [Test]

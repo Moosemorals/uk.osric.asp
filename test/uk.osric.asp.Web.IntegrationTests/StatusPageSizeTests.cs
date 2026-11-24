@@ -13,11 +13,10 @@ public sealed class StatusPageSizeTests : IntegrationTest {
     private const int Samples = 500;
     private const int HistogramSeries = 15;
     private const int ChartSeries = 8;
-    // Forty-seven panels, every query answered with eight series of five hundred samples. The five
-    // fail2ban panels the Host group gained moved this from 2.8 MB, the four context-budget
-    // instruments moved it again, and the search's duration and outcome panels took it to about
-    // 4.11 MB: the number is a ceiling to raise deliberately with the catalogue, not a target to
-    // approach, and it stays under the 4 MiB body limit the render refuses past.
+    // Forty-nine panels, every query answered as wide as it can be: a histogram's le buckets, eight
+    // series for a topk or a grouped query, and one for a bare max() over a family with no label.
+    // About 3.29 MB of markup. The number is a ceiling to raise deliberately with the catalogue, not
+    // a target to approach, and it stays under the 4 MiB body limit the render refuses past.
     private const int PageBudgetBytes = 4_150_000;
 
     internal override AspApplication CreateApplication() => new(metricsSource: new WideMetricsSource());
@@ -44,9 +43,12 @@ public sealed class StatusPageSizeTests : IntegrationTest {
             CancellationToken cancellationToken) {
 
             TimeSpan span = to - from;
-            // A histogram answers with one series per le bucket; every other query answers with the
-            // eight series a topk or a bounded split can produce.
-            int series = query.Contains("by (le)", StringComparison.Ordinal) ? HistogramSeries : ChartSeries;
+            // A histogram answers with one series per le bucket; a topk or a grouped query answers with
+            // the eight series a bounded split can produce; anything else is one series, because a
+            // bare max() over one family has no label to split on.
+            int series = query.Contains("by (le)", StringComparison.Ordinal) ? HistogramSeries
+                : query.Contains("topk(", StringComparison.Ordinal) || query.Contains(" by (", StringComparison.Ordinal) ? ChartSeries
+                : 1;
             List<ChartSeries> answer = [];
 
             for (int line = 0; line < series; line++) {

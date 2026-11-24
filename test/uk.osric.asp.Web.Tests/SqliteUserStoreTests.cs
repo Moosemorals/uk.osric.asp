@@ -5,6 +5,9 @@ namespace uk.osric.asp.Web.Tests;
 
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
+using uk.osric.asp.Core.Pages;
+using uk.osric.asp.Sdk;
+using uk.osric.asp.Web.Pages;
 using uk.osric.asp.Web.Storage;
 using uk.osric.asp.Web.Users;
 
@@ -130,6 +133,95 @@ public sealed class SqliteUserStoreTests {
         Assert.That(await users.RemoveAsync("owner"), Is.False);
         Assert.That(await users.FindAsync("owner"), Is.Null);
     }
+
+    [Test]
+    public async Task RemovingAnAccountLeavesNoRowOfItAnywhereAsync() {
+        const string Session = "one";
+        await using (StorageDbContext database = new(_options)) {
+            _ = await new DeclaredTableApplier(TestOptions.Stores.Records).ApplyAsync(
+                database, PagePath.Normalize("/lib"), Notes());
+        }
+
+        await InsertNoteAsync("account:owner", "mine");
+        await InsertNoteAsync("account:other", "theirs");
+
+        IDbContextFactory<StorageDbContext> contexts = DatabaseTemplate.Factory(_options);
+        await new SqliteStoreValues(contexts, TestOptions.Stores, TimeProvider.System).WriteAsync(
+            new StoreValueWrite("account:owner", "/lib", "k", (int)StoreLifetimeKind.Person, null, "\"v\"", RequireLivePage: false),
+            TestOptions.Stores.Visitor.SignedIn,
+            CancellationToken.None);
+        _ = await new SqliteStoreMessages(contexts, TestOptions.Stores, TimeProvider.System).PostAsync(
+            new StoreMessageWrite("account:owner", "/lib", null, "/lib", "hi", (int)StoreLifetimeKind.Person, null),
+            TestOptions.Stores.Messages,
+            CancellationToken.None);
+
+        byte[] bytes = "mine"u8.ToArray();
+        await new SqliteStoreObjects(contexts, TestOptions.Stores, TimeProvider.System).WriteAsync(
+            new StoreObjectWrite(
+                "account:owner", PageObjectHash.Of(bytes), bytes.LongLength, "text/plain; charset=utf-8",
+                (int)StoreLifetimeKind.Person, null, bytes, RequireLivePage: false),
+            TestOptions.Stores.Objects,
+            CancellationToken.None);
+
+        await using (StorageDbContext database = new(_options)) {
+            database.Set<PageSessionEntry>().Add(new PageSessionEntry {
+                SessionId = Session,
+                Account = "owner",
+                CreatedAt = DateTime.UtcNow,
+                UpdatedAt = DateTime.UtcNow,
+            });
+            _ = await database.SaveChangesAsync();
+        }
+
+        await using (StorageDbContext database = new(_options)) {
+            IUserStore users = new SqliteUserStore(database, NullLogger<SqliteUserStore>.Instance);
+            _ = await users.TryAddAsync(User("owner"));
+            _ = await users.RemoveAsync("owner");
+        }
+
+        await using (StorageDbContext database = new(_options)) {
+            await Assert.MultipleAsync(async () => {
+                Assert.That(await database.Set<StoreValueEntry>().CountAsync(row => row.Subject == "account:owner"), Is.Zero);
+                Assert.That(await database.Set<StoreMessageEntry>().CountAsync(row => row.Subject == "account:owner"), Is.Zero);
+                Assert.That(await database.Set<StoreObjectEntry>().CountAsync(row => row.Subject == "account:owner"), Is.Zero);
+                Assert.That(await database.Set<PageSessionEntry>().CountAsync(row => row.SessionId == Session), Is.Zero);
+                Assert.That(await CountNotesAsync("account:owner"), Is.Zero);
+                Assert.That(await CountNotesAsync("account:other"), Is.EqualTo(1), "another account's row stays");
+                Assert.That(await database.Set<LocalUser>().AnyAsync(), Is.False);
+            });
+        }
+    }
+
+    private async Task InsertNoteAsync(string subject, string title) {
+        await using SqliteRecordStore records = NotesFor(subject);
+        _ = await records.ExecuteAsync(
+            """INSERT INTO "notes" ("Title") VALUES ($title)""",
+            new PageParameters().Add("title", title));
+    }
+
+    // The handle's view filters by its subject, so this counts the rows one account can still see.
+    private async Task<int> CountNotesAsync(string subject) {
+        await using SqliteRecordStore records = NotesFor(subject);
+        IReadOnlyList<PageRow> rows = await records.QueryAsync("""SELECT COUNT(*) AS "Counted" FROM "notes" """);
+
+        return (int)(rows.Single().GetInt64("Counted") ?? 0);
+    }
+
+    private SqliteRecordStore NotesFor(string subject) => new(
+        PagePath.Normalize("/lib"),
+        _ => subject,
+        SqliteRecordStore.SubjectKind.Visitor,
+        new SqliteRecordCatalog(DatabaseTemplate.Factory(_options)),
+        TestOptions.Stores.Records,
+        writable: true);
+
+    private static PageSchema Notes() => new([
+        new PageTable(
+            "notes",
+            StoreTableSubject.Visitor,
+            StoreTableLifetime.Person,
+            [new PageColumn("Title", PageColumnType.Text)]),
+    ]);
 
     private static LocalUser User(string name) {
         return new LocalUser {

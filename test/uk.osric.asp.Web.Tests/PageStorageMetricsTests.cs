@@ -8,7 +8,9 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
 using System.Diagnostics.Metrics;
+using System.Text;
 using uk.osric.asp.Core.Pages;
+using uk.osric.asp.Sdk;
 using uk.osric.asp.Web.Pages;
 using uk.osric.asp.Web.Storage;
 
@@ -34,15 +36,30 @@ public sealed class PageStorageMetricsTests {
             CREATE TABLE StoreObjects (Subject TEXT, Sha TEXT, Length INTEGER, ContentType TEXT,
                 Lifetime INTEGER, ExpiresAt TEXT, Content BLOB, CreatedAt TEXT);
             INSERT INTO StoreObjects VALUES ('page:/p', 'sha', 3, 'application/octet-stream', 1, NULL, zeroblob(3), 'date');
+            CREATE TABLE StoreMessages (Id INTEGER PRIMARY KEY, Subject TEXT, ToPageKey TEXT, Topic TEXT,
+                FromPageKey TEXT, Body TEXT, Lifetime INTEGER, ExpiresAt TEXT, SentAt TEXT);
+            INSERT INTO StoreMessages VALUES (1, 'session:s', '/landing', NULL, '/page', 'hi', 2, NULL, 'date');
+            CREATE TABLE StoreSecrets (Subject TEXT, PageKey TEXT, Name TEXT, Value TEXT, UpdatedAt TEXT);
+            INSERT INTO StoreSecrets VALUES ('page:/p', '/p', 'k', 'v', 'date');
+            CREATE TABLE DeclaredTables (Id INTEGER PRIMARY KEY, SourceKey TEXT, Name TEXT);
+            INSERT INTO DeclaredTables VALUES (1, '/lib', 'notes'), (2, '/lib', 'tags');
             """;
         await command.ExecuteNonQueryAsync();
 
-        (long payload, long allocated) = await PageStorageSampler.ReadSizesAsync(connection, CancellationToken.None);
+        (StorageSample sample, long allocated) = await PageStorageSampler.ReadSizesAsync(connection, CancellationToken.None);
 
-        // 41 bytes of revisions, 37 of store values and 41 of store objects: the subject, digest,
-        // content type, content and timestamp of the one object row.
-        Assert.That(payload, Is.EqualTo(119));
-        Assert.That(allocated, Is.GreaterThan(payload));
+        // 41 bytes of revisions, 37 of values, 28 of messages, 41 of objects and 15 of secrets: the
+        // columns each row stores, as the sampler counts them. The declared tables are a count.
+        Assert.Multiple(() => {
+            Assert.That(sample.Revisions, Is.EqualTo(41));
+            Assert.That(sample.Values, Is.EqualTo(37));
+            Assert.That(sample.Messages, Is.EqualTo(28));
+            Assert.That(sample.Objects, Is.EqualTo(41));
+            Assert.That(sample.Secrets, Is.EqualTo(15));
+            Assert.That(sample.DeclaredTables, Is.EqualTo(2));
+            Assert.That(sample.Payload, Is.EqualTo(162));
+            Assert.That(allocated, Is.GreaterThan(sample.Payload));
+        });
     }
 
     [Test]
@@ -54,11 +71,11 @@ public sealed class PageStorageMetricsTests {
         StorageDbContext database = scope.ServiceProvider.GetRequiredService<StorageDbContext>();
         await database.Database.EnsureCreatedAsync();
 
-        (long payload, long allocated) = await PageStorageSampler.ReadSizesAsync(connection, CancellationToken.None);
+        (StorageSample sample, long allocated) = await PageStorageSampler.ReadSizesAsync(connection, CancellationToken.None);
         await using SqliteCommand command = connection.CreateCommand();
         command.CommandText = "SELECT page_count * page_size FROM pragma_page_count(), pragma_page_size()";
 
-        Assert.That(payload, Is.Zero);
+        Assert.That(sample.Payload, Is.Zero);
         Assert.That(allocated, Is.EqualTo((long)(await command.ExecuteScalarAsync())!).And.GreaterThan(0));
     }
 
@@ -72,15 +89,78 @@ public sealed class PageStorageMetricsTests {
         await database.Database.EnsureCreatedAsync();
         SqlitePageStore store = new(database, NullLogger<SqlitePageStore>.Instance);
         await store.SavePageAsync(new PageTemplate(PagePath.Normalize("/large"), new string('x', 131072)));
-        (long beforePayload, long beforeAllocated) = await PageStorageSampler.ReadSizesAsync(connection, CancellationToken.None);
+        (StorageSample before, long beforeAllocated) = await PageStorageSampler.ReadSizesAsync(connection, CancellationToken.None);
         await store.DeletePageAsync(PagePath.Normalize("/large"));
 
         await store.ScrubPageAsync(PagePath.Normalize("/large"));
-        (long payload, long allocated) = await PageStorageSampler.ReadSizesAsync(connection, CancellationToken.None);
+        (StorageSample after, long allocated) = await PageStorageSampler.ReadSizesAsync(connection, CancellationToken.None);
 
-        Assert.That(beforePayload, Is.GreaterThan(131072));
-        Assert.That(payload, Is.Zero);
+        Assert.That(before.Payload, Is.GreaterThan(131072));
+        Assert.That(after.Payload, Is.Zero);
         Assert.That(allocated, Is.EqualTo(beforeAllocated));
+    }
+
+    [Test]
+    public async Task EveryShapeMovesTheFigureItBelongsToAsync() {
+        await using SqliteConnection connection = new("Data Source=:memory:");
+        await connection.OpenAsync();
+        DbContextOptions<StorageDbContext> contextOptions = new DbContextOptionsBuilder<StorageDbContext>()
+            .UseSqlite(connection)
+            .Options;
+        IDbContextFactory<StorageDbContext> factory = new TestContextFactory(contextOptions);
+
+        await using (StorageDbContext database = new(contextOptions)) {
+            await database.Database.EnsureCreatedAsync();
+            SqlitePageStore pages = new(database, NullLogger<SqlitePageStore>.Instance);
+            await pages.SavePageAsync(new PageTemplate(PagePath.Normalize("/shapes"), "payload"));
+            _ = await new DeclaredTableApplier(TestOptions.Stores.Records).ApplyAsync(
+                database,
+                PagePath.Normalize("/shapes"),
+                new PageSchema([
+                    new PageTable("notes", StoreTableSubject.Page, StoreTableLifetime.Page,
+                        [new PageColumn("Title", PageColumnType.Text)]),
+                ]));
+        }
+
+        await new SqliteStoreValues(factory, TestOptions.Stores, TimeProvider.System).WriteAsync(
+            new StoreValueWrite("page:/shapes", "/shapes", "k", (int)StoreLifetimeKind.Page, null, "\"v\"", RequireLivePage: true),
+            TestOptions.Stores.Page,
+            CancellationToken.None);
+        _ = await new SqliteStoreMessages(factory, TestOptions.Stores, TimeProvider.System).PostAsync(
+            new StoreMessageWrite("session:s", "/shapes", null, "/shapes", "hi", (int)StoreLifetimeKind.Person, null),
+            TestOptions.Stores.Messages,
+            CancellationToken.None);
+
+        byte[] bytes = Encoding.UTF8.GetBytes("the object");
+        await new SqliteStoreObjects(factory, TestOptions.Stores, TimeProvider.System).WriteAsync(
+            new StoreObjectWrite(
+                "page:/shapes",
+                PageObjectHash.Of(bytes),
+                bytes.LongLength,
+                "text/plain; charset=utf-8",
+                (int)StoreLifetimeKind.Page,
+                null,
+                bytes,
+                RequireLivePage: true),
+            TestOptions.Stores.Objects,
+            CancellationToken.None);
+        await new SqliteStoreSecrets(factory, TestOptions.Stores, TimeProvider.System).WriteAsync(
+            new StoreSecretWrite("page:/shapes", "/shapes", "signing", "text", RequireLivePage: true),
+            TestOptions.Stores.Secrets,
+            CancellationToken.None);
+
+        (StorageSample sample, _) = await PageStorageSampler.ReadSizesAsync(connection, CancellationToken.None);
+
+        Assert.Multiple(() => {
+            Assert.That(sample.Revisions, Is.GreaterThan(0), "the saved revision");
+            Assert.That(sample.Values, Is.GreaterThan(0), "the value");
+            Assert.That(sample.Messages, Is.GreaterThan(0), "the message");
+            Assert.That(sample.Objects, Is.GreaterThan(0), "the object");
+            Assert.That(sample.Secrets, Is.GreaterThan(0), "the secret");
+            Assert.That(sample.DeclaredTables, Is.EqualTo(1), "the declared table");
+            Assert.That(sample.Payload, Is.EqualTo(
+                sample.Revisions + sample.Values + sample.Messages + sample.Objects + sample.Secrets));
+        });
     }
 
     [TestCase("/var/data/pages.db", "/", true)]
@@ -164,6 +244,13 @@ public sealed class PageStorageMetricsTests {
         await Assert.ThrowsAsync<OperationCanceledException>(() => waiting);
     }
 
+    private sealed class TestContextFactory(DbContextOptions<StorageDbContext> options) : IDbContextFactory<StorageDbContext> {
+        public StorageDbContext CreateDbContext() => new(options);
+
+        public Task<StorageDbContext> CreateDbContextAsync(CancellationToken cancellationToken = default) =>
+            Task.FromResult(new StorageDbContext(options));
+    }
+
     private static ServiceProvider CreateServices(SqliteConnection connection) {
         ServiceCollection services = new();
         services.AddDbContext<StorageDbContext>(options => options.UseSqlite(connection));
@@ -174,7 +261,10 @@ public sealed class PageStorageMetricsTests {
         MeterListener listener = new() {
             InstrumentPublished = (instrument, owner) => {
                 if (instrument.Meter.Name == PageMetrics.MeterName && instrument.Name.StartsWith("page.storage.", StringComparison.Ordinal)) {
-                    Assert.That(instrument.Unit, Is.EqualTo("By"));
+                    if (instrument.Name != "page.storage.declared_tables") {
+                        Assert.That(instrument.Unit, Is.EqualTo("By"));
+                    }
+
                     Assert.That(instrument.IsObservable, Is.True);
                     owner.EnableMeasurementEvents(instrument);
                 }

@@ -7,6 +7,7 @@ using System.Diagnostics;
 using System.Diagnostics.Metrics;
 using uk.osric.asp.Core.Pages;
 using uk.osric.asp.Web.Metrics;
+using uk.osric.asp.Web.Storage;
 
 /// <summary>The meter and instruments that describe compiling and rendering pages.</summary>
 /// <remarks>
@@ -44,6 +45,12 @@ internal sealed class PageMetrics : IDisposable {
         new("page.layout.fallback", InstrumentKind.Counter, "1"),
         new("page.composition.recursive", InstrumentKind.Counter, "1"),
         new("page.storage.payload.size", InstrumentKind.Gauge, "By"),
+        new("page.storage.revisions.size", InstrumentKind.Gauge, "By"),
+        new("page.storage.values.size", InstrumentKind.Gauge, "By"),
+        new("page.storage.messages.size", InstrumentKind.Gauge, "By"),
+        new("page.storage.objects.size", InstrumentKind.Gauge, "By"),
+        new("page.storage.secrets.size", InstrumentKind.Gauge, "By"),
+        new("page.storage.declared_tables", InstrumentKind.Gauge, "1"),
         new("page.storage.database.size", InstrumentKind.Gauge, "By"),
         new("page.storage.volume.capacity", InstrumentKind.Gauge, "By"),
     ];
@@ -264,8 +271,26 @@ internal sealed class PageMetrics : IDisposable {
         _searchRequests = _meter.CreateCounter<long>(
             "page.search.requests", null, "Searches, by whether the scan finished or the time allowance stopped it.");
         _meter.CreateObservableGauge("page.storage.payload.size",
-            () => ObserveStorage(value => value.Payload), "By",
-            "Logical PageRevisions TEXT bytes and image/symbol blob bytes, plus StoreValues subject, keys and value bytes; excludes indexes and SQLite overhead.");
+            () => ObserveStorage(value => value.Sample.Payload), "By",
+            "Logical bytes every shape holds — revisions, values, messages, objects and secrets; excludes indexes and SQLite overhead.");
+        _meter.CreateObservableGauge("page.storage.revisions.size",
+            () => ObserveStorage(value => value.Sample.Revisions), "By",
+            "Logical PageRevisions TEXT bytes and image/symbol blob bytes.");
+        _meter.CreateObservableGauge("page.storage.values.size",
+            () => ObserveStorage(value => value.Sample.Values), "By",
+            "Logical StoreValues subject, page, key, JSON value and stamp bytes.");
+        _meter.CreateObservableGauge("page.storage.messages.size",
+            () => ObserveStorage(value => value.Sample.Messages), "By",
+            "Logical StoreMessages subject, address, body and stamp bytes.");
+        _meter.CreateObservableGauge("page.storage.objects.size",
+            () => ObserveStorage(value => value.Sample.Objects), "By",
+            "Logical StoreObjects subject, digest, content type, blob and stamp bytes.");
+        _meter.CreateObservableGauge("page.storage.secrets.size",
+            () => ObserveStorage(value => value.Sample.Secrets), "By",
+            "Logical StoreSecrets subject, page, name, text and stamp bytes.");
+        _meter.CreateObservableGauge("page.storage.declared_tables",
+            () => ObserveStorage(value => value.Sample.DeclaredTables), "1",
+            "How many tables the page store's sources declare, as the catalogue counts them.");
         _meter.CreateObservableGauge("page.storage.database.size",
             () => ObserveStorage(value => value.Database), "By",
             "Whole SQLite database page_count times page_size, including indexes and freelist; excludes separate WAL.");
@@ -274,8 +299,12 @@ internal sealed class PageMetrics : IDisposable {
             "Total capacity of the filesystem volume containing the SQLite database.");
     }
 
-    public void RecordStorage(long payload, long database, long? capacity) {
-        Volatile.Write(ref _storage, new StorageSizes(payload, database, capacity));
+    /// <summary>Records the latest sample of what the database holds.</summary>
+    /// <param name="sample">The bytes each shape holds and the declared table count.</param>
+    /// <param name="database">The whole database's page count times page size.</param>
+    /// <param name="capacity">The volume's capacity, or <see langword="null"/> when it cannot be read.</param>
+    public void RecordStorage(StorageSample sample, long database, long? capacity) {
+        Volatile.Write(ref _storage, new StorageSizes(sample, database, capacity));
     }
 
     private IEnumerable<Measurement<long>> ObserveStorage(Func<StorageSizes, long?> select) {
@@ -470,5 +499,5 @@ internal sealed class PageMetrics : IDisposable {
         _meter.Dispose();
     }
 
-    private sealed record StorageSizes(long Payload, long Database, long? Capacity);
+    private sealed record StorageSizes(StorageSample Sample, long Database, long? Capacity);
 }

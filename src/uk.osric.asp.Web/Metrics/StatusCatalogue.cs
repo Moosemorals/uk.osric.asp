@@ -85,8 +85,12 @@ internal static class StatusCatalogue {
             "Pages composed inside themselves with a different request, per second, by page; the depth limit bounds them.",
             "compositions/s", topk: "page_path"),
         Line(Page("page.storage.payload.size"), "Stored payload",
-            "Logical bytes held in page revisions and compiled images, excluding indexes and SQLite overhead.",
+            "Logical bytes every shape holds — revisions, values, messages, objects and secrets — excluding indexes and SQLite overhead.",
             "bytes"),
+        StoredBytes(),
+        Line(Page("page.storage.declared_tables"), "Declared tables",
+            "How many tables the page store's sources declare, as the catalogue counts them.",
+            "tables"),
         Line(Page("page.storage.database.size"), "Database size",
             "The whole SQLite database, including indexes and free space, but not the separate write-ahead log.",
             "bytes"),
@@ -346,6 +350,39 @@ internal static class StatusCatalogue {
             Queries = [new PanelQuery(query, string.Empty)],
             SourceInstruments = [wait.Name, compile.Name, load.Name, invoke.Name],
             PartsOfAWhole = "stage",
+        };
+    }
+
+    // Five gauges in one drawing rather than five drawings: each is the same question — how many
+    // bytes does this shape hold — so one legend reads them together, and the page pays for one chart.
+    private static Panel StoredBytes() {
+        MetricInstrument revisions = Page("page.storage.revisions.size");
+        MetricInstrument values = Page("page.storage.values.size");
+        MetricInstrument messages = Page("page.storage.messages.size");
+        MetricInstrument objects = Page("page.storage.objects.size");
+        MetricInstrument secrets = Page("page.storage.secrets.size");
+
+        // rate() would ask a gauge for a _total family it never writes, so each series is the level
+        // itself; label_replace names the series after rate() has dropped __name__.
+        static string Shape(MetricInstrument instrument, string shape) =>
+            $"label_replace(max({instrument.Family()}), \"shape\", \"{shape}\", \"__name__\", \".*\")";
+
+        string query =
+            $"sum by (shape) ({Shape(revisions, "revisions")}"
+            + $" or {Shape(values, "values")}"
+            + $" or {Shape(messages, "messages")}"
+            + $" or {Shape(objects, "objects")}"
+            + $" or {Shape(secrets, "secrets")})";
+
+        return new Panel {
+            Id = "page.storage.shapes",
+            Group = "Pages",
+            Title = "Stored bytes by shape",
+            Description = "The logical bytes each shape holds: stored source, values, messages, objects and secrets, excluding indexes and SQLite overhead.",
+            YTitle = "bytes",
+            Chart = PanelChart.Line,
+            Queries = [new PanelQuery(query, string.Empty)],
+            SourceInstruments = [revisions.Name, values.Name, messages.Name, objects.Name, secrets.Name],
         };
     }
 
