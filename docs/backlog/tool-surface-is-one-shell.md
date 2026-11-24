@@ -42,37 +42,33 @@ scratch directory, and history as paths rather than three more tools.
    no revision.
 5. **History as a mount.** `/snapshots/<key>/<hash>` makes `ls`, `cat`, `diff` and `cp` answer what
    three history tools answer today; an edit is a patch that carries the hash it was made from.
-6. **Objects as a read-only mount.** `/o/<sha>` answers a page's content-addressed bytes — the same
-   rows the site's `/o/{sha}` route serves — so `ls -l /o` says what a page's images are, `stat` says
-   the content type and the size, and `cat` reads a text object while refusing a binary one by its
-   content type rather than printing bytes into the transcript. Read-only, because an object is named
-   by its hash and writing one is not a path operation. `/o` is reserved by the site's route table
-   because the site answers the route, so the mount needs no reservation of its own, and the bytes are
-   read through the subject handles [`storage-is-not-one-model`](closed.md) adds.
-7. **Memory stays a tool.** Kinds, versions, pinning, limits and FTS5 recall are too much to shoehorn
+6. **Memory stays a tool.** Kinds, versions, pinning, limits and FTS5 recall are too much to shoehorn
    into files; one action-dispatched tool replaces four.
-8. **A write is planned before it is approved.** The kernel resolves every operand and classifies
+7. **A write is planned before it is approved.** The kernel resolves every operand and classifies
    every effect, so one approval covers the line and the changed-pages card still knows what changed.
-9. **Built from the page capabilities.** An applet reaches the store through `IPageCatalog` and
-   `IPageWrites`; a command that cannot be built is a gap in the page contract, not a private seam.
-   The gap it started with has closed: a page can search the source now
-   ([`cannot-search-the-store`](closed.md)), so `grep` is a command this plan builds on that scan.
-   `check` is not a gap any more either — `check-without-storing` landed the capability and the `check`
-   tool — so only the commands wait for the port.
+   A line that writes two pages opens one transaction and commits once.
+8. **Built from the page capabilities.** An applet reaches the store through `IPageCatalog` and
+   `IPageWrites`, and the site's facts through `ISiteInfo`; a command that cannot be built is a gap in
+   the page contract, not a private seam. The gaps it started with have closed: a page can search the
+   source now ([`cannot-search-the-store`](closed.md)), so `grep` is a command this plan builds on
+   that scan, and `check-without-storing` landed the capability beside the one `check` tool. Nothing
+   waits for a page capability except the stored size a `stat` reports, which is
+   [`a-page-has-no-size`](a-page-has-no-size.md); the commands are the port's work.
 
 [The plan](../plans/assistant-shell-tool.md) carries the detail, the phases and the risks.
 
 ## Not in scope
 
+- **Objects as a path.** `/o` stays a route with mode `000`: `IObjectStore` is bound to one subject
+  and cannot list, so a mount needs a capability that does not exist yet, and
+  [`object-access-is-only-its-hash`](object-access-is-only-its-hash.md) is still deciding who may read
+  a page's objects. `whim-assistant-reads-objects` in [the whims](WHIMS.md) carries it.
 - **A POSTing view.** [`view-cannot-submit-a-form`](view-cannot-submit-a-form.md) is its own security
   problem: the run's token reads and never writes, and that is what lets a view run unapproved.
 - **The terminal.** [`terminal-cannot-reach-the-shell`](terminal-cannot-reach-the-shell.md) is the
   owner's own way into the same kernel.
 - **`mv`.** [`page-cannot-move`](closed.md) has landed; the shell's applet is already there, and this
   item removes the typed `move_page` beside it.
-- **More than one page write per call.** The page transaction landed on 2026-11-20
-  (`pages-writes-are-transactions`), so a plan that names two pages is one commit; v1 still refuses one
-  until this item's shell is built on it.
 - **A page that runs the shell.** The shell is host code and a page still cannot run a command; what
   changes is that the shell is built from the capabilities a page is offered, so the two cannot drift
   apart.
