@@ -8,6 +8,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Primitives;
 using System.Globalization;
 using uk.osric.asp.Core.Pages;
+using uk.osric.asp.Sdk;
 using uk.osric.asp.Web.Admin;
 using uk.osric.asp.Web.Pages;
 
@@ -98,6 +99,34 @@ public sealed class ExportEndpointTests {
 
         PageArchiveReadResult result = Reader().Read(Body(context));
         Assert.That(result.Pages.Single().State, Is.EqualTo(new List<PageStateValue> { new("visits", "3") }));
+    }
+
+    [Test]
+    public async Task DownloadCarriesThePagesOwnValuesAndNoOneShotAsync() {
+        FakePageStore store = NewStore();
+        _state.Seed("/blog", "visits", "3");
+        _state.Seed("/blog", "until", "4", expiresAt: DateTimeOffset.UtcNow.AddHours(1));
+        _state.SeedVisitor("page:/blog", "/blog", "flash", "\"next\"", StoreLifetimeKind.NextRead);
+
+        DefaultHttpContext context = await DownloadAsync(store, ["/blog"]);
+
+        PageArchiveReadResult result = Reader().Read(Body(context));
+        Assert.That(result.Problems, Is.Empty);
+        Assert.That(result.Pages.Single().State, Is.EqualTo(new List<PageStateValue> { new("visits", "3") }));
+    }
+
+    [Test]
+    public async Task DownloadWritesOnlyThePagesAndPageStateTablesAsync() {
+        FakePageStore store = NewStore();
+        _state.Seed("/blog", "visits", "3");
+
+        DefaultHttpContext context = await DownloadAsync(store, ["/blog"]);
+
+        using OpenArchive archive = new(Body(context));
+        Assert.That(
+            Tables(archive),
+            Is.EqualTo(new List<string> { "PageState", "Pages" }),
+            "the archive carries source and Page values, and no other shape's table");
     }
 
     [Test]
@@ -200,6 +229,18 @@ public sealed class ExportEndpointTests {
         };
 
         return store;
+    }
+
+    private static List<string> Tables(OpenArchive archive) {
+        List<string> names = [];
+        using Microsoft.Data.Sqlite.SqliteCommand command = archive.Connection.CreateCommand();
+        command.CommandText = """SELECT "name" FROM "sqlite_master" WHERE "type" = 'table' ORDER BY "name" """;
+        using Microsoft.Data.Sqlite.SqliteDataReader reader = command.ExecuteReader();
+        while (reader.Read()) {
+            names.Add(reader.GetString(0));
+        }
+
+        return names;
     }
 
     private static PageArchiveReader Reader() =>

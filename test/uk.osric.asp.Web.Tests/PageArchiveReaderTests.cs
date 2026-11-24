@@ -184,23 +184,18 @@ public sealed class PageArchiveReaderTests {
         AssertRejected(Reader().Read(bytes), "Extra");
     }
 
-    [Test]
-    public void AnArchiveCarryingSecretsIsRefused() {
+    [TestCase("StoreSecrets")]
+    [TestCase("StoreObjects")]
+    [TestCase("StoreMessages")]
+    public void AnArchiveCarryingAnotherShapesTableIsRefused(string table) {
+        // The archive is source and Page values: the reader's schema rule is what keeps a file from
+        // importing a visitor's messages, a page's bytes or a page's secrets beside the pages.
         byte[] bytes = TestArchive.Archive(connection => {
             TestArchive.CreateTables(connection);
-            TestArchive.Execute(connection, """
-                CREATE TABLE "StoreSecrets" (
-                    "Subject"   TEXT NOT NULL,
-                    "PageKey"   TEXT NOT NULL,
-                    "Name"      TEXT NOT NULL,
-                    "Value"     TEXT NOT NULL,
-                    "UpdatedAt" TEXT NOT NULL,
-                    PRIMARY KEY ("Subject", "PageKey", "Name")
-                ) WITHOUT ROWID
-                """);
+            TestArchive.Execute(connection, $"""CREATE TABLE "{table}" ("Value" TEXT NOT NULL)""");
         });
 
-        AssertRejected(Reader().Read(bytes), "StoreSecrets");
+        AssertRejected(Reader().Read(bytes), table);
     }
 
     [Test]
