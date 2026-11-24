@@ -7,12 +7,12 @@ SPDX-License-Identifier: MIT
 
 | | |
 | --- | --- |
-| Status | Agreed 2026-11-21 — the owner said yes — and revised against trunk 2026-11-22, after the page search, the reference corpus, the slow test half and the documentation index landed, and again the same day to add the secrets slice at the owner's request, and on 2026-11-23 to make `IPageSubject` and `IVisitorSubject` independent of each other, to call a configured maximum a limit, and to give a page a streaming object reader at the owner's request. Slices 0 to 5 are merged and nothing of slice 6 is built |
+| Status | Agreed 2026-11-21 — the owner said yes — and revised against trunk 2026-11-22, after the page search, the reference corpus, the slow test half and the documentation index landed, and again the same day to add the secrets slice at the owner's request, and on 2026-11-23 to make `IPageSubject` and `IVisitorSubject` independent of each other, to call a configured maximum a limit, and to give a page a streaming object reader at the owner's request. Slices 0 to 5 are merged; slice 6 is built on its branch and waits for the owner, and the release that closes the window follows |
 | Size | Large as a programme, small as a step: a spike, six slices and the release that closes the window, each its own branch and its own stop. The values slice is the floor; the record slice is the risk; the secrets slice is the one that cannot wait for the window to close |
 | First customer | The two plans this supersedes: the assistant's transcript (a Record for the signed-in visitor) and the redirect flash (a `NextRead` value). Editor mode is the first `Browser` value, and `/help`'s counter is the first Page value. A signing key ([`a-page-cannot-keep-a-secret`](../backlog/a-page-cannot-keep-a-secret.md)) is the first secret |
 | Spike | Slice 0: [the record sandbox](../spikes/store-sandbox.md), written before anything was built. Six of the sandbox section's details were corrected by what it measured |
 | Decisions | Slice 5 records `pages-a-secret-is-not-a-value` and amends `pages-fetch-credentials`, `pages-the-subject-is-the-binding`, `pages-an-archive-is-a-database` and `pages-one-stores-section`. Slice 4 records `pages-an-object-is-content-addressed`. Slice 3 records `pages-a-message-is-taken-once`. Slice 2's merge recorded `pages-a-record-is-declared-sql`, `pages-a-record-is-sandboxed` and `pages-a-library-owns-its-schema`. Slice 1's merge recorded `pages-the-subject-is-the-binding`, `pages-a-lifetime-belongs-to-the-entry`, `pages-a-browser-is-a-lifetime`, `pages-adoption-re-keys-at-sign-in` and `pages-one-stores-section`, and edited `pages-page-storage`, `pages-the-session` and `pages-an-archive-is-a-database`. The remaining names are recorded by the slice that delivers them, and the plan is archived when the last slice's merge closes the programme |
-| Backlog | [`storage-is-not-one-model`](../backlog/storage-is-not-one-model.md) is this job. It absorbs [`no-account-store`](../backlog/no-account-store.md), [`message-does-not-survive-a-redirect`](../backlog/message-does-not-survive-a-redirect.md) and, from 2026-11-22, [`a-page-cannot-keep-a-secret`](../backlog/a-page-cannot-keep-a-secret.md), whose plans [account-store](account-store.md) and [page-inbox](page-inbox.md) are superseded in shape |
+| Backlog | [`storage-is-not-one-model`](../backlog/storage-is-not-one-model.md) is this job. It absorbs [`no-account-store`](../backlog/no-account-store.md), [`message-does-not-survive-a-redirect`](../backlog/message-does-not-survive-a-redirect.md) and, from 2026-11-22, [`a-page-cannot-keep-a-secret`](../backlog/a-page-cannot-keep-a-secret.md), whose plans [account-store](archive/account-store.md) and [page-inbox](archive/page-inbox.md) are superseded in shape |
 
 ## The short version
 
@@ -1037,7 +1037,9 @@ slices 1 to 4 are merged; slice 5 is next.
    revision read, a listing, a search and an export carry neither name nor value; an import that
    carries one is refused; a move re-keys it and a scrub removes it; a `HEAD` refuses every write; the
    limits refuse at the boundary with the setting's name.
-6. **The ends** (`S`). `users remove` extended to every declared table; the archive's import and export
+6. **The ends** (`S`) — **built, waits for the owner**. `users remove` extended to every declared table,
+   which the proof found bound the table's name as a parameter and never removed a declared row at all;
+   the archive's import and export
    tests for what it refuses to carry; the sampler and `/status`; `/privacy`'s last paragraph;
    `/help`'s index; `docs/storage.md`, `docs/pages.md`, `docs/architecture.md`, `docs/glossary.md`,
    `docs/shell.md`; the two superseded plans.
@@ -1350,7 +1352,7 @@ to query it, so `IRecordStore.SearchAsync` is now the one call that reaches the 
 
 ## The two waiting plans
 
-[account-store](account-store.md) and [page-inbox](page-inbox.md) were written before the model and are
+[account-store](archive/account-store.md) and [page-inbox](archive/page-inbox.md) were written before the model and are
 superseded in shape. Their answers that survive — the declaration is part of the revision, the owner
 filter is structural, the take is one atomic statement, the limits are inside the statement that writes,
 a save is never refused for correctness — are folded into the slices above. Their answers that do not —

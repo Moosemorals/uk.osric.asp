@@ -3,6 +3,7 @@
 
 namespace uk.osric.asp.Web.Pages;
 
+using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using System.Data.Common;
 using System.Text.Json;
@@ -104,8 +105,15 @@ internal sealed class DeclaredTableApplier(PageRecordOptions records) {
 
         int removed = 0;
         foreach (DeclaredTableEntry table in tables) {
-            removed += await database.Database.ExecuteSqlAsync(
-                $"""DELETE FROM "{table.RealName}" WHERE "Owner" = {subject}""", cancellationToken);
+            // The real name is the catalogue's own generated identifier, so it is part of the text;
+            // the subject is the one value, and it is bound. An interpolated string handed to
+            // ExecuteSqlAsync would bind the table name as a parameter, which no table has.
+#pragma warning disable CA2100 // The name is a base64url token the host minted, never a page's.
+            string statement = $"""DELETE FROM "{table.RealName}" WHERE "Owner" = @subject""";
+#pragma warning restore CA2100
+
+            object[] parameters = [new SqliteParameter("@subject", subject)];
+            removed += await database.Database.ExecuteSqlRawAsync(statement, parameters, cancellationToken);
         }
 
         return removed;

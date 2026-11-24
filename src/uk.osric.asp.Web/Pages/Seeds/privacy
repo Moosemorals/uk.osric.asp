@@ -41,6 +41,10 @@ scripts the site uses are served from here.</p>
     <li><strong>A form token.</strong> Pages with a form carry a short-lived token so that another
     site cannot submit that form as you. It says nothing about you.</li>
 </ul>
+<p>Some of what is kept is not yours at all. A page's own values, its objects and the rows it keeps
+are the page's, shared by every visitor, and a page may keep a <em>secret</em> &mdash; a signing key or
+a token for a service it talks to &mdash; that nothing else in the site returns, that no export carries
+and that is deleted with the page. That is the page's, not a visitor's, and it says nothing about you.</p>
 <p>None of these are used to build a profile. Nothing here is shared, sold or sent to anyone else,
 and there is no consent banner because there is nothing to consent to.</p>
 

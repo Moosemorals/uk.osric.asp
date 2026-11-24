@@ -139,7 +139,7 @@ the fix moves, and it carries an extent covering the two of them.
 | The SQLite store behind a vertical's interface — `SqlitePageStore`, `SqliteUserStore`, `SqliteConversationStore` | `Web`, beside the interface it implements |
 | Local accounts, password hashing and the `users` command | `Web`, under `Users` |
 | Cookie authentication, the `Editor` policy, antiforgery and login throttling | `Web`, under `Authentication` |
-| The page contract: `IContext`, `PageRequest`, `PageResponse`, `PageUser`, `IHandler`, `UserFacingException`, `IPageCapabilities`, `ISiteInfo` and its fact records, `IPageStorage`/`PageValue<T>`, `IHttpFetch`/`HttpFetchRequest`/`HttpFetchResponse`/`HttpFetchMethod`/`HttpFetchFailure`, `IWorker`/`IWorkerContext` | `Sdk`, as plain values a compiled page binds against |
+| The page contract: `IContext`, `PageRequest`, `PageResponse`, `PageUser`, `IHandler`, `UserFacingException`, `IPageCapabilities`, `ISiteInfo` and its fact records, `IPageStores`/`IPageSubject`/`IVisitorSubject` and the five shapes a subject offers (`IValueStore`, `IRecordStore`, `IMessageStore`, `IObjectStore`, `ISecretStore`), `PageValue<T>`, `IHttpFetch`/`HttpFetchRequest`/`HttpFetchResponse`/`HttpFetchMethod`/`HttpFetchFailure`, `IWorker`/`IWorkerContext`; the obsolete `IPageStorage`/`IPageSession` adapters until the release that removes them (`old-storage-spelling`) | `Sdk`, as plain values a compiled page binds against |
 | The page policy: `PageApiPolicy`, `ApiReference` | `Core.Compilation`, as a pure rule over strings |
 | Which media type a page's key names, and what an unmapped key falls back to | `Core.Pages`, as `PageContentTypes` beside `PagePath`; `Web` reads the section |
 | The Roslyn walk that applies the page policy | `Runtime` |

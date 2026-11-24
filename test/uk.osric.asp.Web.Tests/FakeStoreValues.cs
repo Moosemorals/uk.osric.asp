@@ -241,13 +241,18 @@ internal sealed class FakeStoreValues(PageStoresOptions? options = null, TestClo
             cancellationToken);
 
     /// <summary>Puts a Page value in without the limits, as a database direct write would.</summary>
-    public void Seed(string pagePath, string key, string value) {
+    /// <param name="pagePath">The page that holds it.</param>
+    /// <param name="key">The value's key.</param>
+    /// <param name="value">The value as JSON.</param>
+    /// <param name="expiresAt">An expiry, which makes it an <c>Until</c> value, or <see langword="null"/>.</param>
+    public void Seed(string pagePath, string key, string value, DateTimeOffset? expiresAt = null) {
         LivePages.Add(pagePath);
         _rows.Add(new Row {
             Subject = StoreSubjectKeys.PagePrefix + pagePath,
             PageKey = pagePath,
             Key = key,
             Lifetime = (int)StoreLifetimeKind.Page,
+            ExpiresAt = expiresAt is { } expiry ? StoreSubjectKeys.Stamp(expiry) : null,
             Value = value,
             UpdatedAt = StoreSubjectKeys.Stamp(_clock.GetUtcNow()),
         });

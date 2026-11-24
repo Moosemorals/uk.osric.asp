@@ -24,7 +24,7 @@ internal sealed class PageStorageSampler(
             StorageDbContext database = scope.ServiceProvider.GetRequiredService<StorageDbContext>();
             await database.Database.OpenConnectionAsync(deadline.Token);
             DbConnection connection = database.Database.GetDbConnection();
-            (long payload, long allocated) = await ReadSizesAsync(connection, deadline.Token);
+            (StorageSample sample, long allocated) = await ReadSizesAsync(connection, deadline.Token);
             long? capacity = null;
             if (connection.DataSource.Length > 0 && connection.DataSource != ":memory:") {
                 string path = Path.GetFullPath(connection.DataSource);
@@ -35,7 +35,7 @@ internal sealed class PageStorageSampler(
                 capacity = drive?.TotalSize;
             }
 
-            metrics.RecordStorage(payload, allocated, capacity);
+            metrics.RecordStorage(sample, allocated, capacity);
         } catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) {
             throw;
         } catch (Exception exception) {
@@ -43,7 +43,9 @@ internal sealed class PageStorageSampler(
         }
     }
 
-    public static async Task<(long Payload, long Allocated)> ReadSizesAsync(DbConnection connection, CancellationToken cancellationToken) {
+    public static async Task<(StorageSample Sample, long Allocated)> ReadSizesAsync(
+        DbConnection connection,
+        CancellationToken cancellationToken) {
         ArgumentNullException.ThrowIfNull(connection);
         using CancellationTokenRegistration interrupt = cancellationToken.Register(() => {
             if (connection is SqliteConnection sqlite) {
@@ -63,7 +65,7 @@ internal sealed class PageStorageSampler(
                 COALESCE(length(Image), 0) + COALESCE(length(Symbols), 0)), 0)
             FROM PageRevisions;
             """;
-        long payload = Convert.ToInt64(await command.ExecuteScalarAsync(cancellationToken), CultureInfo.InvariantCulture);
+        long revisions = Convert.ToInt64(await command.ExecuteScalarAsync(cancellationToken), CultureInfo.InvariantCulture);
         command.CommandText = """
             SELECT COALESCE(SUM(
                 length(CAST(Subject AS BLOB)) + length(CAST(PageKey AS BLOB)) +
@@ -71,7 +73,16 @@ internal sealed class PageStorageSampler(
                 length(CAST(UpdatedAt AS BLOB)) + COALESCE(length(CAST(ExpiresAt AS BLOB)), 0)), 0)
             FROM StoreValues;
             """;
-        payload += Convert.ToInt64(await command.ExecuteScalarAsync(cancellationToken), CultureInfo.InvariantCulture);
+        long values = Convert.ToInt64(await command.ExecuteScalarAsync(cancellationToken), CultureInfo.InvariantCulture);
+        command.CommandText = """
+            SELECT COALESCE(SUM(
+                length(CAST(Subject AS BLOB)) + COALESCE(length(CAST(ToPageKey AS BLOB)), 0) +
+                COALESCE(length(CAST(Topic AS BLOB)), 0) + length(CAST(FromPageKey AS BLOB)) +
+                length(CAST(Body AS BLOB)) + length(CAST(SentAt AS BLOB)) +
+                COALESCE(length(CAST(ExpiresAt AS BLOB)), 0)), 0)
+            FROM StoreMessages;
+            """;
+        long messages = Convert.ToInt64(await command.ExecuteScalarAsync(cancellationToken), CultureInfo.InvariantCulture);
         command.CommandText = """
             SELECT COALESCE(SUM(
                 length(CAST(Subject AS BLOB)) + length(CAST(Sha AS BLOB)) +
@@ -79,12 +90,24 @@ internal sealed class PageStorageSampler(
                 length(CAST(Content AS BLOB)) + length(CAST(CreatedAt AS BLOB))), 0)
             FROM StoreObjects;
             """;
-        payload += Convert.ToInt64(await command.ExecuteScalarAsync(cancellationToken), CultureInfo.InvariantCulture);
+        long objects = Convert.ToInt64(await command.ExecuteScalarAsync(cancellationToken), CultureInfo.InvariantCulture);
+        command.CommandText = """
+            SELECT COALESCE(SUM(
+                length(CAST(Subject AS BLOB)) + length(CAST(PageKey AS BLOB)) +
+                length(CAST(Name AS BLOB)) + length(CAST(Value AS BLOB)) +
+                length(CAST(UpdatedAt AS BLOB))), 0)
+            FROM StoreSecrets;
+            """;
+        long secrets = Convert.ToInt64(await command.ExecuteScalarAsync(cancellationToken), CultureInfo.InvariantCulture);
+        command.CommandText = """SELECT COUNT(*) FROM DeclaredTables""";
+        long declared = Convert.ToInt64(await command.ExecuteScalarAsync(cancellationToken), CultureInfo.InvariantCulture);
         command.CommandText = "PRAGMA page_count";
         long count = Convert.ToInt64(await command.ExecuteScalarAsync(cancellationToken), CultureInfo.InvariantCulture);
         command.CommandText = "PRAGMA page_size";
         long size = Convert.ToInt64(await command.ExecuteScalarAsync(cancellationToken), CultureInfo.InvariantCulture);
-        return (payload, checked(count * size));
+        return (
+            new StorageSample(revisions, values, messages, objects, secrets, declared),
+            checked(count * size));
     }
 
     public static bool IsOnVolume(string databasePath, string root) {

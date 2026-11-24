@@ -17,7 +17,7 @@ SPDX-License-Identifier: MIT
 
 > **Absorbed 2026-11-21** — [one storage model](../plans/storage-model.md) delivers this item as its
 > records slice, and the per-account store plan it was planned by
-> ([account-store](../plans/account-store.md)) is superseded in shape and should not be approved. The
+> ([account-store](../plans/archive/account-store.md)) is superseded in shape and should not be approved. The
 > answers that survive are folded into that plan's record slice; memory stays the assistant's, and the
 > view arrives with the assistant page's port ([`conversation-is-not-a-page`](conversation-is-not-a-page.md)
 > §3) rather than as a capability here. Nothing is built until the storage model's slices land.
@@ -132,7 +132,7 @@ Why one namespace per account:
 
 ## Open questions
 
-Each was answered by [the account-store plan](../plans/account-store.md) and is settled again by
+Each was answered by [the account-store plan](../plans/archive/account-store.md) and is settled again by
 [the storage model](../plans/storage-model.md), which is the plan this item now waits on.
 
 1. **How the owner filter becomes structural.** A per-connection `TEMP VIEW` plus `INSTEAD OF` triggers

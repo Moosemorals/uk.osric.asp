@@ -250,17 +250,20 @@ public sealed class SqliteStoreValuesTests {
             Pooling = false,
         }.ToString());
         await connection.OpenAsync();
-        (long withValues, _) = await PageStorageSampler.ReadSizesAsync(connection, CancellationToken.None);
+        (StorageSample withValues, _) = await PageStorageSampler.ReadSizesAsync(connection, CancellationToken.None);
         await using (SqliteCommand command = connection.CreateCommand()) {
             command.CommandText = "DELETE FROM StoreValues";
             await command.ExecuteNonQueryAsync();
         }
 
-        (long withoutValues, _) = await PageStorageSampler.ReadSizesAsync(connection, CancellationToken.None);
+        (StorageSample withoutValues, _) = await PageStorageSampler.ReadSizesAsync(connection, CancellationToken.None);
 
         // The row adds its subject, page, key and value bytes; the revision bytes are unchanged either way.
-        Assert.That(withValues - withoutValues, Is.GreaterThanOrEqualTo(5 + 5 + 3 + 5),
-            "the subject, page, key and value bytes must be in the payload");
+        Assert.Multiple(() => {
+            Assert.That(withValues.Payload - withoutValues.Payload, Is.GreaterThanOrEqualTo(5 + 5 + 3 + 5),
+                "the subject, page, key and value bytes must be in the payload");
+            Assert.That(withValues.Values - withoutValues.Values, Is.EqualTo(withValues.Payload - withoutValues.Payload));
+        });
     }
 
     [Test]

@@ -16,7 +16,7 @@ SPDX-License-Identifier: MIT
 | Location | `src/uk.osric.asp.Sdk/IPageInbox.cs` (new), `src/uk.osric.asp.Sdk/PageTopic.cs` (new), `src/uk.osric.asp.Web/Pages/PageInboxScope.cs` (new), `src/uk.osric.asp.Web/Pages/SqlitePageInboxStore.cs` (new), `src/uk.osric.asp.Web/Pages/PageSessionOptions.cs`, `src/uk.osric.asp.Web/Work/PageJobRunner.cs`, `src/uk.osric.asp.Web/Pages/PageChain.cs`, `src/uk.osric.asp.Web/Storage/`, `src/uk.osric.asp.Web/Pages/Seeds/_layout`, `src/uk.osric.asp.Web/Pages/Seeds/help`, `src/uk.osric.asp.Web/Pages/Seeds/privacy` |
 
 > **Absorbed 2026-11-21** — [one storage model](../plans/storage-model.md) delivers this item as its
-> messages slice, and the inbox plan it was planned by ([page-inbox](../plans/page-inbox.md)) is
+> messages slice, and the inbox plan it was planned by ([page-inbox](../plans/archive/page-inbox.md)) is
 > superseded in shape and should not be approved. A message belongs to the visitor subject: an
 > account's when signed in, the session's when anonymous, and a one-shot value is a lifetime rather
 > than an inbox. The take stays one atomic statement and every expected outcome is a value; the

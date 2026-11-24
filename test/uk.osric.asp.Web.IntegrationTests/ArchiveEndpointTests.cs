@@ -8,6 +8,7 @@ using System.Net;
 using System.Net.Http.Headers;
 using System.Text.RegularExpressions;
 using uk.osric.asp.Core.Pages;
+using uk.osric.asp.Sdk;
 using uk.osric.asp.Web.Admin;
 using uk.osric.asp.Web.Pages;
 
@@ -62,8 +63,14 @@ public sealed partial class ArchiveEndpointTests : IntegrationTest {
 
         IReadOnlyList<StoreValueRow> state = await WithServicesAsync(services =>
             services.GetRequiredService<IStoreValues>().GetPageValuesAsync(PagePath.Normalize("/round-trip")));
-        Assert.That(state.Select(row => new PageStateValue(row.Key, row.Value)),
-            Is.EqualTo(new List<PageStateValue> { new("visits", "7") }));
+        Assert.Multiple(() => {
+            Assert.That(state.Select(row => new PageStateValue(row.Key, row.Value)),
+                Is.EqualTo(new List<PageStateValue> { new("visits", "7") }));
+            // An import writes each value back under the Page lifetime with no expiry, so the page
+            // arrives with the shared data it left with and nothing one-shot.
+            Assert.That(state.Single().Lifetime, Is.EqualTo((int)StoreLifetimeKind.Page));
+            Assert.That(state.Single().ExpiresAt, Is.Null);
+        });
     }
 
     [Test]

@@ -7,12 +7,12 @@ SPDX-License-Identifier: MIT
 
 | | |
 | --- | --- |
-| Status | Superseded in shape 2026-11-21 by [one storage model](storage-model.md), which is the plan to read; this one should not be approved. Nothing below is built |
+| Status | Archived 2026-11-24 — superseded in shape 2026-11-21 by [one storage model](../storage-model.md), which is the plan to read. It was never approved and nothing below was built; its work landed as storage model slices 1 to 5 |
 | Size | Large as a programme, small as a step: six slices, each its own branch and its own stop. Three are `S` and three are `M`, and the first is the one worth arguing about |
-| First customer | The assistant page's port ([`conversation-is-not-a-page`](../backlog/conversation-is-not-a-page.md) §3): a conversation's transcript is an ordered, filtered, paged list of one account's rows. Memory keeps `AssistantMemories` and stays the assistant's (`assistant-memory-belongs-to-the-assistant`); the memory view is that plan's, and this store's search is what will let it be a page |
+| First customer | The assistant page's port ([`conversation-is-not-a-page`](../../backlog/conversation-is-not-a-page.md) §3): a conversation's transcript is an ordered, filtered, paged list of one account's rows. Memory keeps `AssistantMemories` and stays the assistant's (`assistant-memory-belongs-to-the-assistant`); the memory view is that plan's, and this store's search is what will let it be a page |
 | Spike | A scratch console over the real SQLite build before slice 1: an unpooled connection, a `TEMP VIEW` over a table with `INSTEAD OF` triggers, the four verbs through it, a trigger `RAISE` at a limit, and `SQLITE_LIMIT_ATTACHED = 0` |
 | Decisions | None recorded yet. They are named at each merge (`product-plan-before-building`); this plan states the seven names it intends |
-| Backlog | [`no-account-store`](../backlog/no-account-store.md) (this job), [`conversation-is-not-a-page`](../backlog/conversation-is-not-a-page.md) (the customer) |
+| Backlog | [`no-account-store`](../../backlog/no-account-store.md) (this job), [`conversation-is-not-a-page`](../../backlog/conversation-is-not-a-page.md) (the customer) |
 
 ## The short version
 
@@ -22,7 +22,7 @@ itself belongs to the site. So a page cannot keep a personal list, a preference 
 person signed in, and a view that wants one has to be shell code that owns a table — which is the
 third reason in `pages-page-first` and the reason such views are not written at all.
 
-The owner's answer, recorded in [`no-account-store`](../backlog/no-account-store.md), is **SQL with one namespace per
+The owner's answer, recorded in [`no-account-store`](../../backlog/no-account-store.md), is **SQL with one namespace per
 account**: the page declares its tables and its columns, the host creates them, filters every statement
 to the signed-in account, and bounds what a statement may do. This plan does not re-argue that. It
 answers the seven questions the idea left to the plan, orders the work so each slice ships alone, and
@@ -336,14 +336,14 @@ phase so a regression is bisectable, and its branch goes when its last slice is 
   limits, the refusals and the lifetime (`product-manual-is-a-page`).
 - **`PageAuthorPrompt` and its `Version`**, or the assistant keeps reaching for `IPageStorage` and a
   shared row.
-- **[pages](../pages.md)** counts a twelfth capability and gains its section, **[storage](../storage.md)**
-  gains the tables, the catalogue and the DDL lifecycle, and the **[glossary](../glossary.md)** defines
+- **[pages](../../pages.md)** counts a twelfth capability and gains its section, **[storage](../../storage.md)**
+  gains the tables, the catalogue and the DDL lifecycle, and the **[glossary](../../glossary.md)** defines
   the term.
 - **`/privacy` and `deploy/operations.md`** for a store that survives sign-out and dies with the page —
   the privacy page names what a delete takes and what a scrub takes, in the same paragraph as the
   backup caveat.
-- **[the record](../decisions.md)** at each merge, and this plan and
-  [`no-account-store`](../backlog/no-account-store.md) pointed at what landed.
+- **[the record](../../decisions.md)** at each merge, and this plan and
+  [`no-account-store`](../../backlog/no-account-store.md) pointed at what landed.
 
 ## Risks
 
@@ -393,7 +393,7 @@ phase so a regression is bisectable, and its branch goes when its last slice is 
 ## Not in scope
 
 - **Memory.** `AssistantMemories`, its versions, pins and FTS5 stay the assistant's
-  (`assistant-memory-belongs-to-the-assistant`); the view arrives with [`conversation-is-not-a-page`](../backlog/conversation-is-not-a-page.md),
+  (`assistant-memory-belongs-to-the-assistant`); the view arrives with [`conversation-is-not-a-page`](../../backlog/conversation-is-not-a-page.md),
   and this store's search is what will let it be a page.
 - **Sharing, roles, or a row another account can read.** One owner per row,
   `product-one-owner`.

@@ -13,7 +13,7 @@ SPDX-License-Identifier: MIT
 | Blocked by | — |
 | Plan | [storage-model](../plans/storage-model.md) |
 | Area | Sdk, Runtime, Web (pages, storage, work), docs |
-| Location | `src/uk.osric.asp.Sdk/IPageStores.cs` (new), `IValueStore.cs` (new), `IRecordStore.cs` (new), `IMessageStore.cs` (new), `IObjectStore.cs` (new), `ISecretStore.cs` (new), `StoreLifetime.cs` (new), `StoreFilter.cs` (new), `PageValue.cs`, `IContext.cs`, `IPageResponse.cs`, `src/uk.osric.asp.Web/Pages/PageStoresScope.cs` (new), `PageChain.cs`, `PageStorageScope.cs`, `PageSessionScope.cs`, `src/uk.osric.asp.Web/Storage/`, `src/uk.osric.asp.Web/Pages/Seeds/help`, `privacy`, `_layout`, `editor-mode`, `_lib/editor`, `docs/storage.md`, `docs/pages.md`, `docs/plans/account-store.md`, `docs/plans/page-inbox.md` |
+| Location | `src/uk.osric.asp.Sdk/IPageStores.cs` (new), `IValueStore.cs` (new), `IRecordStore.cs` (new), `IMessageStore.cs` (new), `IObjectStore.cs` (new), `ISecretStore.cs` (new), `StoreLifetime.cs` (new), `StoreFilter.cs` (new), `PageValue.cs`, `IContext.cs`, `IPageResponse.cs`, `src/uk.osric.asp.Web/Pages/PageStoresScope.cs` (new), `PageChain.cs`, `PageStorageScope.cs`, `PageSessionScope.cs`, `src/uk.osric.asp.Web/Storage/`, `src/uk.osric.asp.Web/Pages/Seeds/help`, `privacy`, `_layout`, `editor-mode`, `_lib/editor`, `docs/storage.md`, `docs/pages.md`, `docs/plans/archive/account-store.md`, `docs/plans/archive/page-inbox.md` |
 | Spike | [The record sandbox](../spikes/store-sandbox.md) |
 
 > **Planned 2026-11-21** — [one storage model](../plans/storage-model.md) designs the record sandbox,
@@ -26,7 +26,8 @@ SPDX-License-Identifier: MIT
 > The old capabilities stay one release as obsolete adapters and then go.
 > The owner said yes on 2026-11-21. Slice 0 — the sandbox spike — is
 > [written](../spikes/store-sandbox.md); slice 1, values, lifetimes and identity, and slice 2,
-> records and the sandbox, slice 3, messages, slice 4, objects, and slice 5, secrets, are merged.
+> records and the sandbox, slice 3, messages, slice 4, objects, and slice 5, secrets, are merged, and slice 6, the ends, is built on its branch and
+> waits for the owner.
 
 ## Idea
 
@@ -158,8 +159,8 @@ it owns, not what it can reach. `pages-one-render-three-roles` and `pages-layout
 their response half and lose their capability half, and the layout, `HEAD` and embedded exclusions on
 `IPageWrites`, `IPageJobs` and the session store go.
 
-The two plans already waiting for a yes — [account-store](../plans/account-store.md) and
-[page-inbox](../plans/page-inbox.md) — are superseded in shape. Their items become cells rather than
+The two plans already waiting for a yes — [account-store](../plans/archive/account-store.md) and
+[page-inbox](../plans/archive/page-inbox.md) — are superseded in shape. Their items become cells rather than
 stores, and neither plan should be approved: this item replaces what they would have built.
 
 ## What the owner answered

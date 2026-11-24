@@ -8,6 +8,7 @@ using uk.osric.asp.Core.Pages;
 using uk.osric.asp.Web.Assistant;
 using uk.osric.asp.Web.Metrics;
 using uk.osric.asp.Web.Pages;
+using uk.osric.asp.Web.Storage;
 
 /// <summary>Proves the families the catalogue queries are the ones the exporter writes.</summary>
 /// <remarks>
@@ -72,7 +73,7 @@ public sealed class MetricNamesTests : IntegrationTest {
             pages.RecordStaleness(path, PageMetrics.StaleNeverCompiled);
             pages.RecordAsset(PageMetrics.AssetServed);
             pages.RecordLayoutFallback(path);
-            pages.RecordStorage(1, 2, 3);
+            pages.RecordStorage(new StorageSample(1, 2, 3, 4, 5, 6), 7, 8);
         }
 
         using (AssistantMetrics assistant = new()) {
