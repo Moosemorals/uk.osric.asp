@@ -30,7 +30,13 @@ the other half of the same question and live in [logging](logging.md).
 | `page.layout.fallback` | counter | — | `page.path` — pages served without the default layout because it could not be served |
 | `page.composition.recursive` | counter | — | `page.path` — pages composed inside themselves with a different request, which the depth limit bounds |
 | `page.asset.requests` | counter | — | `outcome` (`served`, `not-modified`, `unknown`, `non-asset`) — no path label; the access log names the URL |
-| `page.storage.payload.size` | observable gauge | By | — logical UTF-8 bytes for every revision text column plus image/symbol blobs, and the `StoreValues` subject, page key, key, value, timestamp and expiry bytes; excludes indexes and SQLite overhead |
+| `page.storage.payload.size` | observable gauge | By | — logical bytes every shape holds: revisions, values, messages, objects and secrets; excludes indexes and SQLite overhead |
+| `page.storage.revisions.size` | observable gauge | By | — logical bytes of `PageRevisions`: every text column plus image and symbol blobs |
+| `page.storage.values.size` | observable gauge | By | — logical bytes of `StoreValues`: subject, page key, key, value, timestamp and expiry |
+| `page.storage.messages.size` | observable gauge | By | — logical bytes of `StoreMessages`: subject, address, body, sent time and expiry |
+| `page.storage.objects.size` | observable gauge | By | — logical bytes of `StoreObjects`: subject, digest, content type, blob, write time and expiry |
+| `page.storage.secrets.size` | observable gauge | By | — logical bytes of `StoreSecrets`: subject, page key, name, text and write time |
+| `page.storage.declared_tables` | observable gauge | 1 | — how many tables the page store's sources declare, as `DeclaredTables` counts them |
 | `page.storage.database.size` | observable gauge | By | — whole database `page_count * page_size`, including indexes and freelist pages; excludes the separate WAL |
 | `page.storage.volume.capacity` | observable gauge | By | — total capacity of the filesystem volume containing the database |
 | `page.cache.lookups` | counter | — | `result` (`hit`, `stale`, `absent`) |
@@ -75,7 +81,9 @@ look while the site runs: `dotnet-counters monitor --counters uk.osric.asp.Pages
 
 The bundled SQLite build does not provide `dbstat`, so exact allocated bytes for an individual table
 and its indexes/overflow pages are not available without adding a dependency. The payload gauge is
-explicitly logical size, not allocated table size. `PageStorageSampler` samples at startup and about
+explicitly logical size, not allocated table size. A declared table's rows are not in the payload: the
+table's real name is the catalogue's and the sample does not enumerate it, so the figure beside them is
+the catalogue's count. `PageStorageSampler` samples at startup and about
 every 60 seconds, and a scrub requests a coalesced refresh. It uses a short-lived database scope,
 bounded SQLite commands and cancellation; observable gauge callbacks return the last cached sample
 without database or filesystem I/O. Failed samples are logged and retain the prior values. Compare
@@ -86,7 +94,9 @@ automatic pruning is performed.
 ## The panels
 
 The dashboard is built from the instruments rather than written beside them: one panel per
-instrument, and the instrument's type decides the chart (`metrics-one-panel-per-instrument`).
+instrument, and the instrument's type decides the chart (`metrics-one-panel-per-instrument`). A
+question that spans instruments may add one composed panel that names its sources and owns none: the
+render chain, and the five storage shapes whose figures stack to the payload.
 
 | Instrument | Chart | Why |
 | --- | --- | --- |
@@ -95,9 +105,10 @@ instrument, and the instrument's type decides the chart (`metrics-one-panel-per-
 | counter whose labels partition one total | stacked area | The parts and the whole are readable, and the top edge of the stack is the total. |
 | gauge | line chart | A level over time. |
 
-`StatusCatalogue` holds the list: twenty-two Pages panels (eleven heatmaps for the duration and size
+`StatusCatalogue` holds the list: twenty-four Pages panels (eleven heatmaps for the duration and size
 histograms, stacked areas for the render chain, cache lookups, staleness, asset requests and searches,
-line charts for abandoned renders, layout fallbacks, recursive composition and the three storage gauges),
+line charts for abandoned renders, layout fallbacks, recursive composition, the stored payload, the five
+shapes' figures composed into one drawing, the declared tables, and the database and volume gauges),
 fifteen Assistant panels
 (nine heatmaps, the token counter, the shaped-request, exhausted-budget and truncated-result counters
 as line charts, memory writes as a stacked area and the account balance as a line chart split by

@@ -7,11 +7,11 @@ SPDX-License-Identifier: MIT
 
 | | |
 | --- | --- |
-| Status | Superseded in shape 2026-11-21 by [one storage model](storage-model.md), which is the plan to read; this one should not be approved. Nothing below is built |
+| Status | Archived 2026-11-24 — superseded in shape 2026-11-21 by [one storage model](../storage-model.md), which is the plan to read. It was never approved and nothing below was built; its work landed as storage model slices 1 to 5 |
 | Size | Large — one `Sdk` capability with six types, offered to two kinds of caller; two tables and a migration; a store, a render-bound scope and a worker binding; an account-keyed recipient check; named topics; configuration; the activity slide and the cascades; the page-delete cleanup; the layout flash; the page session's signed-in lifetime moved onto the sign-in; the manual, the privacy page and the docs |
 | Area | Sdk, Web (pages, work, storage), docs |
 | Spike | None. Every count, path and behaviour below was taken off `trunk` on 2026-11-17 |
-| Backlog | [`message-does-not-survive-a-redirect`](../backlog/message-does-not-survive-a-redirect.md) is this step. It was sized `S` when the sketch was one store write; the shape below is larger |
+| Backlog | [`message-does-not-survive-a-redirect`](../../backlog/message-does-not-survive-a-redirect.md) is this step. It was sized `S` when the sketch was one store write; the shape below is larger |
 | Decisions | New names proposed: **pages-a-page-has-an-inbox**, **pages-a-topic-is-a-named-inbox**, **pages-an-inbox-belongs-to-its-visitor**, **pages-a-message-is-taken-once**. Edits **pages-the-session**, **pages-a-job-is-not-durable** and **pages-layouts-are-markup**. Relies on `pages-capabilities-are-one-seam`, `pages-page-io-is-async`, `pages-jobs-run-a-worker-for-the-page`, `pages-a-worker-gets-no-response`, `pages-a-page-has-a-state`, `code-policy-values-are-configuration` and `code-validation-at-the-boundary` |
 
 ## The short version
@@ -459,7 +459,7 @@ starts with an empty inbox and its own byte total.
   page saved at the same path must not inherit it. It deletes `PageInboxMessages` with the same
   conditions, for the same reason: a re-created key inherits no mail. `ScrubPageAsync` does the same
   when it finally removes a tombstone. Only `PagePath` rows are deleted; a topic is not a page.
-- **Move.** The [page move](archive/page-move.md) that has landed renames a key. The inbox is addressed by path, so
+- **Move.** The [page move](page-move.md) that has landed renames a key. The inbox is addressed by path, so
   a move drops the old path's messages; the move's own plan must add the delete (or decide to carry
   them) when it lands. Nothing in this plan depends on the move.
 - **Sign-out.** `PageSessionCookie.ClearAsync` removes the page session, so anonymous messages go

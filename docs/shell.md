@@ -417,8 +417,9 @@ two (`shell-the-cookie-names`).
 
 ### Page sessions
 
-A page keeps per-visitor data through `ctx.Stores.Visitor` (see [pages](pages.md#page-data)). The
-shell owns the identity:
+A page keeps per-visitor data through `ctx.Stores.Visitor`, and the page's own through
+`ctx.Stores.Page` (see [pages](pages.md#page-data) for what a layer reaches and
+[storage](storage.md#values) for the tables). The shell owns the identity:
 
 - **Minted lazily.** `PageEndpoint` resolves the visitor once per request, before any layer runs. A
   session row is created on the first write that needs one and the cookie is set on the response that
