@@ -12,7 +12,6 @@ SPDX-License-Identifier: MIT
 | Severity | Medium |
 | Status | open |
 | Blocked by | — |
-| Plan | — |
 | Area | Security, deployment |
 | Location | `deploy/cloud-init.yaml`, `deploy/deploy-host`, `Makefile` |
 | Spike | — |
