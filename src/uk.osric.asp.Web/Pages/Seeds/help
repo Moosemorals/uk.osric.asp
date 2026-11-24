@@ -985,7 +985,8 @@ editor's history page compares two revisions for you.</p>
 every visitor; <a href="/admin/reference/sdk#t-IVisitorSubject"><code>Stores.Visitor</code></a> is the person reading. A write always uses
 the layer's own key, so a page cannot write another page's data; a read is open across pages, so a
 page can show what another page left for it. Neither handle has an argument that names someone
-else's data.</p>
+else's data, and a secret is the exception the other way round: it has no cross-page read at all
+(<a href="#secrets">Secrets</a>).</p>
 <pre class="source" tabindex="0"><code>&lt;% if (ctx.Request.Method == "POST") {
        await ctx.Stores.Visitor.Values.SetAsync("notice", "Your note was saved.", StoreLifetime.NextRead);
        ctx.Response.Redirect(ctx.Path, 303);
