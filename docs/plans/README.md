@@ -21,7 +21,7 @@ other; `make decisions` checks the names.
 
 | Plan | Status | Backlog |
 | --- | --- | --- |
-| [assistant-shell-tool](assistant-shell-tool.md) | Proposed 2026-11-19, waits for the owner; nothing built | [`tool-surface-is-one-shell`](../backlog/tool-surface-is-one-shell.md) |
+| [assistant-shell-tool](assistant-shell-tool.md) | Proposed 2026-11-19, revised 2026-11-24, waits for the owner; nothing built | [`tool-surface-is-one-shell`](../backlog/tool-surface-is-one-shell.md) |
 | [build-metrics](build-metrics.md) | Proposed 2026-11-15, waits for the owner; nothing built | [`whim-build-timings`](../backlog/WHIMS.md) |
 | [email](email.md) | Proposed 2026-11-06, revised 2026-11-23 — questions answered, rootless, identity in the site's database; waits for a yes | — (operations and the site's service endpoints) |
 | [email-configuration](email-configuration.md) | Configuration excerpts for [email](email.md); nothing deployed | — |

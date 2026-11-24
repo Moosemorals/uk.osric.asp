@@ -7,7 +7,7 @@ SPDX-License-Identifier: MIT
 
 | | |
 | --- | --- |
-| Status | Proposed 2026-11-19 — the owner set the shape, asked for this plan, and then asked for the shell to be built from the page capabilities so that a command which cannot be built names a gap in the page contract. Nothing below is built; it waits for a yes |
+| Status | Proposed 2026-11-19, revised 2026-11-24 — the owner set the shape, asked for this plan, and then asked for the shell to be built from the page capabilities so that a command which cannot be built names a gap in the page contract; the revision names the document `SiteLayout` and drops the `/o` mount. Nothing below is built; it waits for a yes |
 | Size | Large — a new `Shell` project, a capability client built per call, a shell kernel, a mount table, a planner, a rewritten applet set, the shell tool rebuilt and the memory tool reshaped, the prompt, and the removal of seventeen tools. The largest change to the assistant since it landed |
 | Area | Core (Shell, Assistant), Shell, Web (assistant, site), docs, build |
 | Spike | None. The claims about today's shell were read off `trunk` on 2026-11-19: [`ShellRunner`](../../src/uk.osric.asp.Web/Assistant/Shell/ShellRunner.cs), the eleven applets, [`ShellApplet`](../../src/uk.osric.asp.Web/Assistant/Shell/ShellApplet.cs), [`ShellTool`](../../src/uk.osric.asp.Web/Assistant/Tools/ShellTool.cs), [`PageStoreReader`](../../src/uk.osric.asp.Web/Assistant/PageStoreReader.cs) and [`PagePathPolicy`](../../src/uk.osric.asp.Web/Assistant/PagePathPolicy.cs). The tool-count evidence is [the ask tool's shape](../spikes/ask-tool-shape.md). The capability evidence was read the same day: [`IPageCatalog`](../../src/uk.osric.asp.Sdk/IPageCatalog.cs), [`IPageWrites`](../../src/uk.osric.asp.Sdk/IPageWrites.cs), [`PageCatalogScope`](../../src/uk.osric.asp.Web/Pages/PageCatalogScope.cs), [`PageWritesScope`](../../src/uk.osric.asp.Web/Pages/PageWritesScope.cs) and the worker's capability set in [`PageJobRunner`](../../src/uk.osric.asp.Web/Work/PageJobRunner.cs:140) |
@@ -28,7 +28,7 @@ This plan makes the shell the tool. It ends with **three** capabilities:
 
 | Tool | What it is |
 | --- | --- |
-| `shell` | one POSIX-shaped command line over a tree: the page store, `/snapshots`, `/o`, `/tmp`, the site's own routes, `man`, `check`, and `curl` when the security review lands |
+| `shell` | one POSIX-shaped command line over a tree: the page store, `/snapshots`, `/tmp`, the site's own routes, `man`, `check`, and `curl` when the security review lands |
 | `ask_user` | the question that waits on the owner, from [the ask plan](archive/assistant-ask-owner.md) |
 | `memory` | one tool over the assistant's notes, with an action, because a file cannot carry a kind, a version, a pin and FTS5 without re-inventing all four |
 
@@ -134,13 +134,11 @@ Six things are load-bearing:
 4. `/tmp` is scratch a run may write without touching the store, bounded, per run and never persisted.
 5. `/snapshots` makes history a path, so `ls`, `cat`, `diff` and `cp` answer what three typed tools
    answer today, and a restore is `cp` from a revision.
-6. `/o` makes a page's objects a path: listed with size and content type, stat-able, read as text and
-   refused as bytes by content type, and read-only because an object is named by its hash.
-7. An edit is a patch made against a named revision, so the atomic check `edit_page` has survives the
+6. An edit is a patch made against a named revision, so the atomic check `edit_page` has survives the
    move to a command.
-8. Every write still goes through `PageEditor`, every result is still bounded and cut rather than
+7. Every write still goes through `PageEditor`, every result is still bounded and cut rather than
    refused, and the approval card still shows what will change.
-9. The terminal the owner wants later reads the same kernel through a stdin and an output; an applet
+8. The terminal the owner wants later reads the same kernel through a stdin and an output; an applet
    never learns it is talking to a model.
 9. An applet names no host type: every store read is `IPageCatalog`, every write is `IPageWrites`, and
    the only things it owns are the registry, the run's scratch and streams, and `man`. The applet
@@ -156,6 +154,11 @@ Six things are load-bearing:
   removes the typed tool beside it, and does not change the move itself.
 - **Memory as files.** The owner's answer, and the record's: kinds, versions, pinning, limits and FTS5
   recall are five things a directory does not carry.
+- **Objects as a path.** `/o` stays a route with mode `000`: `IObjectStore` is bound to one subject
+  and cannot list, so a mount would need a capability that does not exist, and
+  [`object-access-is-only-its-hash`](../backlog/object-access-is-only-its-hash.md) is still deciding
+  who may read a page's objects. `whim-assistant-reads-objects` in
+  [the whims](../backlog/WHIMS.md) carries it.
 - **The terminal UI.** [`terminal-cannot-reach-the-shell`](../backlog/terminal-cannot-reach-the-shell.md)
   owns the transport, the page and `vi`.
 - **Background jobs, subshells, command substitution, variable assignment and job control.** Refused
@@ -189,13 +192,17 @@ The rename is mechanical and mostly `git mv`:
 | --- | --- |
 | `Web/Shell/ShellCatalogue` | `Web/Site/SiteCatalogue` |
 | `ShellRoute`, `ShellEntry`, `ShellMenu`, `ShellSection`, `ShellAudience`, `ShellMatch`, `ShellPage` | `SiteRoute`, `SiteEntry`, `SiteMenu`, `SiteSection`, `SiteAudience`, `SiteMatch`, `SitePage` |
-| `Html/ShellDocument` | `Html/SiteDocument` |
+| `Html/ShellDocument` | `Html/SiteLayout` |
 | `ShellLink`, `IPageCatalog.ShellLinks()` | `SiteLink`, `IPageCatalog.SiteLinks()` |
-| `body.shell`, `ShellDocument.ShellClass` | `body.site`, `SiteDocument.SiteClass` |
+| `body.shell`, `ShellDocument.ShellClass` | `body.site`, `SiteLayout.SiteClass` |
 | "shell file", "shell page", "shell route", "shell document" in prose | "site file", "site page", "site route", "site document" |
 | `docs/shell.md` | `docs/site.md` |
-| `ShellDocumentTests`, `ShellDocumentFragmentTests`, `ShellCatalogueTests`, `ShellMenusTests`, `ShellViews`, `ShellMemoryStore` | `SiteDocumentTests`, `SiteDocumentFragmentTests`, `SiteCatalogueTests`, `SiteMenusTests`, `SiteViews`, `SiteMemoryStore` |
+| `ShellDocumentTests`, `ShellDocumentFragmentTests`, `ShellCatalogueTests`, `ShellMenusTests`, `ShellViews`, `ShellMemoryStore` | `SiteLayoutTests`, `SiteLayoutFragmentTests`, `SiteCatalogueTests`, `SiteMenusTests`, `SiteViews`, `SiteMemoryStore` |
 | "functional core, imperative shell" in [the architecture](../architecture.md) | "functional core, the site's code" |
+
+`SiteLayout`, not `SiteDocument`: the contract already has a `SiteDocument` — the record of a licence
+or notices file a page reads through `ISiteInfo.Documents` — so the document a site page is served in
+takes the other name.
 
 Three things do **not** move:
 
@@ -221,14 +228,13 @@ added, asks a different question — whether the call stops for the owner at all
 
 `ToolSpecsTests` keeps its invariants and pins three.
 
-### D2 — One tree, five mounts
+### D2 — One tree, four mounts
 
 | Path | Answers | Writable |
 | --- | --- | --- |
 | `/` | the page store's keys; a folder exists when a key lives below it | yes, through `IPageWrites`, with approval |
 | the site's own routes (`/login`, `/assistant`, `/admin/...`) | nothing: the site answers the key, so it is listed with mode `000` and never has a source | no |
 | `/snapshots/<key>/<hash>` | every retained revision, including a tombstoned key's | no |
-| `/o/<sha>` | a page subject's content-addressed bytes, with the size and the content type the store holds | no |
 | `/tmp` | the run's scratch | yes, no approval |
 
 `/tmp` and `/snapshots` join the site's reserved keys — `ShellCatalogue.Reserved` today,
@@ -237,15 +243,8 @@ seed. A mount is one type — it resolves a key to a source — and the kernel a
 the mount table, not the store, so the page store never learns about `/tmp`. The page-store mount asks
 `IPageCatalog` and `IPageWrites` (D15), `/snapshots` asks `RevisionsAsync` and `ReadRevisionAsync`,
 and `/tmp` is the run's own. Every node carries an access, and a site route's is `None`: it is listed
-and stat-able, and it cannot be read.
-
-`/o` is the exception to that last sentence. The site's route table reserves the prefix, because the
-site answers `/o/{sha}`, but the tree resolves the prefix to a mount before it consults the site-route
-listing, so `/o` and everything below it are a readable mount rather than a `000` node. It lists and
-stats without an approval and reads through the object store on the subject handles, so an image a page
-shows and an object the assistant stats are one row. `cat` refuses a binary object by content type —
-the same rule D3 applies to a flag it does not implement: the refusal names the type rather than
-printing bytes at the model.
+and stat-able, and it cannot be read. `/o` stays one of those routes, because the assistant's access
+to objects is not this plan's (the non-goal below).
 
 Path resolution stays `PagePath`'s: a key is normalised, `IsAddressable` is required, and a mount
 prefix is stripped before `IPageCatalog` sees it. A shell operand that is not a key in any mount is
@@ -592,7 +591,7 @@ shell, and the three holes are named rather than worked around.
 | `src/uk.osric.asp.Web/Assistant/Tools/ToolRegistry.cs`, `Tools/ToolSpec.cs` | three tools; `NeedsApproval` becomes a per-call verdict |
 | `src/uk.osric.asp.Web/Assistant/PagePathPolicy.cs`, `PageEditor` | unchanged in authority; the planner asks the mount's access first and the policy for the assistant's prefix |
 | `src/uk.osric.asp.Web/Assistant/PageAuthorPrompt.cs` | `page-author-v57`, the shell section and the site route's permission |
-| `src/uk.osric.asp.Web/Shell/`, `src/uk.osric.asp.Web/Html/ShellDocument.cs`, `src/uk.osric.asp.Sdk/IPageCatalog.cs` | D0's rename: `SiteCatalogue`, `SiteDocument`, `SiteLink`, `SiteLinks()`. The capabilities are read, not changed: the folder rows and the search land in their prerequisites, and `IPageCheck` is [one check](archive/one-check.md)'s |
+| `src/uk.osric.asp.Web/Shell/`, `src/uk.osric.asp.Web/Html/ShellDocument.cs`, `src/uk.osric.asp.Sdk/IPageCatalog.cs` | D0's rename: `SiteCatalogue`, `SiteLayout`, `SiteLink`, `SiteLinks()`. The capabilities are read, not changed: the folder rows and the search land in their prerequisites, and `IPageCheck` is [one check](archive/one-check.md)'s |
 | `src/uk.osric.asp.Web/Configuration/` | `Assistant:ScratchMaxBytes`, `Assistant:ScratchMaxFiles`, `Assistant:ShellMaxStages`, `Assistant:ShellMaxPipelineBytes`, `Assistant:ShellMaxSourceChars`, `Assistant:ApprovalPreviewChars` |
 | `uk.osric.asp.slnx`, `Makefile` | the project, `SHELL_TESTS`, a `test-shell` target and `test:` |
 | `docs/assistant.md`, `docs/site.md`, `docs/shell.md`, `docs/glossary.md`, `docs/architecture.md` | the tool list, the mounts, the planner, the result shape, D0's words, the new interpreter page and the dependency direction |
@@ -614,7 +613,7 @@ Before phase 0, one page capability lands; it is not this plan.
 Until the search is in, this plan has nowhere to put `grep`, and no typed tool stays to pretend
 otherwise.
 
-0. **The words.** D0's rename: `Web/Shell` to `Web/Site`, `ShellDocument` to `SiteDocument`,
+0. **The words.** D0's rename: `Web/Shell` to `Web/Site`, `ShellDocument` to `SiteLayout`,
    `ShellLinks` to `SiteLinks`, the `body` class, the prose in the live documents, and `docs/shell.md`
    to `docs/site.md`. No behaviour changes; the tests move with their types. Tests: the renamed suites
    pass unchanged, and a grep for the old words in the live tree finds only the decision area, the
@@ -738,7 +737,7 @@ the new folder item keeps its place above this one in the order, and the reasons
   `assistant-the-shell-is-posix`, `pages-the-store-is-read-through-one-seam` and
   `assistant-the-shell-is-applets` are edited in place.
 - [The assistant](../assistant.md), [the site](../shell.md) (renamed to `docs/site.md` in phase 0),
-  [the shell](../shell.md) and [the architecture](../architecture.md) describe three tools, the five
+  [the shell](../shell.md) and [the architecture](../architecture.md) describe three tools, the four
   mounts, the planner, the result, the capability client and the register.
 - [The backlog](../backlog/README.md) carries the new folder item and the dispositions above, in an
   order where every blocker sits above the item it blocks.

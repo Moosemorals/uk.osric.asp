@@ -42,18 +42,11 @@ scratch directory, and history as paths rather than three more tools.
    no revision.
 5. **History as a mount.** `/snapshots/<key>/<hash>` makes `ls`, `cat`, `diff` and `cp` answer what
    three history tools answer today; an edit is a patch that carries the hash it was made from.
-6. **Objects as a read-only mount.** `/o/<sha>` answers a page's content-addressed bytes — the same
-   rows the site's `/o/{sha}` route serves — so `ls -l /o` says what a page's images are, `stat` says
-   the content type and the size, and `cat` reads a text object while refusing a binary one by its
-   content type rather than printing bytes into the transcript. Read-only, because an object is named
-   by its hash and writing one is not a path operation. `/o` is reserved by the site's route table
-   because the site answers the route, so the mount needs no reservation of its own, and the bytes are
-   read through the subject handles [`storage-is-not-one-model`](closed.md) adds.
-7. **Memory stays a tool.** Kinds, versions, pinning, limits and FTS5 recall are too much to shoehorn
+6. **Memory stays a tool.** Kinds, versions, pinning, limits and FTS5 recall are too much to shoehorn
    into files; one action-dispatched tool replaces four.
-8. **A write is planned before it is approved.** The kernel resolves every operand and classifies
+7. **A write is planned before it is approved.** The kernel resolves every operand and classifies
    every effect, so one approval covers the line and the changed-pages card still knows what changed.
-9. **Built from the page capabilities.** An applet reaches the store through `IPageCatalog` and
+8. **Built from the page capabilities.** An applet reaches the store through `IPageCatalog` and
    `IPageWrites`; a command that cannot be built is a gap in the page contract, not a private seam.
    The gap it started with has closed: a page can search the source now
    ([`cannot-search-the-store`](closed.md)), so `grep` is a command this plan builds on that scan.
@@ -64,6 +57,10 @@ scratch directory, and history as paths rather than three more tools.
 
 ## Not in scope
 
+- **Objects as a path.** `/o` stays a route with mode `000`: `IObjectStore` is bound to one subject
+  and cannot list, so a mount needs a capability that does not exist yet, and
+  [`object-access-is-only-its-hash`](object-access-is-only-its-hash.md) is still deciding who may read
+  a page's objects. `whim-assistant-reads-objects` in [the whims](WHIMS.md) carries it.
 - **A POSTing view.** [`view-cannot-submit-a-form`](view-cannot-submit-a-form.md) is its own security
   problem: the run's token reads and never writes, and that is what lets a view run unapproved.
 - **The terminal.** [`terminal-cannot-reach-the-shell`](terminal-cannot-reach-the-shell.md) is the

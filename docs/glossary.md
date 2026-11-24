@@ -603,7 +603,7 @@ label, and its menu is the site's routes rather than the pages the store holds.
 what failed, which is why none of them is a stored page; a view the store could serve is a page
 (`pages-page-first`, `shell-the-shell-is-marked`).
 
-**Owner:** site — `ShellDocument`, renamed to `SiteDocument` by
+**Owner:** site — `ShellDocument`, renamed to `SiteLayout` by
 [the shell plan](plans/assistant-shell-tool.md), `SiteNavigation` and `AdminNavigation`.
 
 ## Slot
