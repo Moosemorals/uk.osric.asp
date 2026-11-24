@@ -122,7 +122,7 @@ Caddy's store.
 Three things were said to need root; none does:
 
 - **Low ports.** Inside a user namespace the container is root and binds 25, 587 and 993; only the
-  host-side publish is privileged, and `rootlessport` manages it once
+  host-side publish is privileged, and **pasta** makes it once
   `net.ipv4.ip_unprivileged_port_start` is lowered to 25. That is one `sysctl.d` file, and its cost is
   plain: any local user could then bind a privileged port. One human and one service account bound
   it; a second tenant is the moment to revisit.
@@ -180,14 +180,17 @@ maps themselves are answers, not files (Decision 8).
 `osric+anything@moosemorals.com` must reach `osric@moosemorals.com` with no alias line, and the
 extension must survive, because it is the most useful thing in the message:
 
-- **`recipient_delimiter = +` on both sides.** Postfix consults its maps with the extension stripped —
-  so the address is known to exist — and delivers the recipient with it intact; Dovecot resolves the
-  same user.
+- **`recipient_delimiter = +` in both places, and it is a delivery setting, not an identity.**
+  Postfix consults its maps with the extension stripped — so the address is known to exist — and
+  delivers the recipient with it intact. Dovecot's LMTP splits it at `smtp_address_detail_parse_temp`
+  and delivers to the user before the `+`; **authentication does not split it at all** — `+` appears
+  nowhere in `src/auth` — so a plus address is something a sender uses, never a way to log in
+  ([spike](../spikes/mail-stack-preflight.md)).
 - **`propagate_unmatched_extensions`** stays at its default (`canonical, virtual`), written out because
   it is load-bearing: `shopping+order@` → `osric@` arrives as `osric+order@`.
-- **Sieve gets the detail** as the envelope's, and `mail-check` asserts the resolution
-  (`doveadm user osric+probe@…` returns `osric@…`), because a userdb that failed to strip it would
-  tempfail every plus address.
+- **Sieve gets the detail** as the envelope's, and `mail-check` asserts the resolution by delivering,
+  not by asking the userdb: `doveadm user` consults the userdb, which never sees a split, so the check
+  is a message to `osric+probe@` landing in `osric@`'s mailbox.
 
 If the pinned Dovecot does not strip the detail, the fallback is a Postfix regexp map that does — and
 its cost is exactly the detail Sieve would then lose.
@@ -203,14 +206,15 @@ host hands the message to a listener that trusts it.
   glance and at a filter. A send-only SMTP client is TLS, DNS, SASL, address parsing and
   dot-stuffing somebody else already got wrong; we own four lines of config.
 - **`local_submission` on 2525**, published as `127.0.0.1:2525` only: no SASL, no TLS, `permit_mynetworks`
-  with a `mynetworks` of the pod's loopback plus the address the publication arrives from, and
+  with a `mynetworks` of the pod's loopback plus **the host's own address**, and
   `milter_macro_daemon_name=ORIGINATING`.
 - **Header qualification gets its own `cleanup`**, because that is where the setting lives: `From: root`
   becomes `From: root@neith.moosemorals.com`.
-- **The address the publication arrives from is read in Phase 0.** A `rootlessport` publication appears
-  at the container as the pod network's gateway, and that value follows backend and creation order —
-  `vmail`'s first network is not the app's. Pinned in `mynetworks`; omitted, 25 accepts and 2525
-  rejects, which is loud.
+- **The address the publication arrives from is the host's, and it is measured.** Pasta forwards a
+  published port itself and preserves the source, so the container sees the host's own address rather
+  than a pod gateway: `mail-deploy` writes that address into `mynetworks` where it writes the rest of
+  the host's facts. Omitted, 25 accepts and 2525 rejects, which is loud
+  ([spike](../spikes/mail-stack-preflight.md)).
 
 `myhostname = neith.moosemorals.com`, `myorigin = $myhostname`, empty `mydestination`: `root` becomes
 the machine's address, matched by an alias, delivered to the owner's mailbox. `neith.moosemorals.com` is
@@ -264,12 +268,13 @@ service rather than rendering a page:
 - **A passdb cannot fill the userdb instead.** `auth_password_verify` may return a fields table, but
   with a userdb configured Dovecot still looks the user up; the round trip is saved by the userdb being
   local, not by the passdb being chatty.
-- **None of this traffic goes through Caddy.** The mail containers call the app at
-  `http://127.0.0.1:8080` — the address Caddy proxies to — reached through pasta's host-loopback
-  mapping. No name, no TLS, nothing off the host; plain HTTP is the same clear hop Caddy already
-  makes. That is the one assumption here that is not already true, so Phase 0 proves it; the fallback
-  is the public name behind a loopback-only edge rule, which is worse because the edge must then trust
-  the container's source address.
+- **None of this traffic goes through Caddy.** The mail containers call the app at a **mapped literal,
+  `http://169.254.42.42:8080`**, which pasta translates to the host's `127.0.0.1:8080` — the address
+  Caddy proxies to. Nothing off the host, no name, no TLS; plain HTTP is the same clear hop Caddy
+  already makes. `127.0.0.1` is *not* the answer: inside the pod it is the pod's own loopback. The
+  mapping is one option on the pod (`pasta:--map-host-loopback=169.254.42.42`), proven in
+  [the spike](../spikes/mail-stack-preflight.md), and the host sees the request as coming from
+  `127.0.0.1`.
 - **`/internal/*` is refused at the edge.** Caddy answers `404` for the whole prefix in the website's
   site block. Defence in depth: the routes live on the app's loopback listener, and the edge rule makes
   a leaked token useless from the internet.
@@ -389,6 +394,16 @@ requirement. `backend = "sqlite3"` with a `path` per statfile keeps the token co
   deleting both files and seeding again.
 - **Not backed up.** The tokens are derived data, so the backup carries the mailbox and not the
   classifier (Decision 14).
+- **The extractor declares its own map, because the named lookup does not work.** `get_maps()` returns
+  an array rather than a name-keyed table, so `get_maps()['ALIASES']` is nil and the extractor quietly
+  falls back to the recipient — the exact failure this design has to avoid.
+  `rspamd_config:add_map{ type = 'map'; url = 'file://…' }` inside the `per_user` chunk is what works,
+  and [the spike](../spikes/mail-stack-preflight.md) proves an alias, a plus address and a second
+  account land in the corpora they should.
+- **The state directory is the entrypoint's job.** The image does not create `/var/lib/rspamd/bayes`,
+  and the classifier refuses to start without it.
+- **Seeding reports its skips.** The shipped `learn_condition` declines a learn the classifier already
+  agrees with, so `make mail-learn` prints how many of each class were taken.
 - **`rspamadm configdump classifier` is the check** that the backend and both paths landed, in place of
   a config file to read.
 
@@ -401,11 +416,14 @@ Two questions, two units:
 | How much spam this reader tolerates | **the account** | a property of the human, not the hat |
 | Which folder a message lands in | **the address** | the point of handing out an address |
 
-**Tuning is per account, and the addresses behind it are computed.** Rspamd matches `rcpt` against the
-SMTP recipient, so the settings for a mailbox match its address, its aliases and its plus pattern
-(`/^osric\+.*@moosemorals\.com$/`, since plus addresses are never aliases): the endpoint answers
-directly, or — if Phase 0 finds the selector cannot name a recipient — one block per account is
-rendered from an export route added for that purpose alone. A static domain default is the floor:
+**Tuning is per account, and the addresses behind it are computed.** Rspamd matches the recipient
+against the settings, so the settings for a mailbox match its address, its aliases and its plus pattern
+(`/^osric\+.*@moosemorals\.com$/`, since plus addresses are never aliases). The endpoint answers
+directly — Phase 0 proved the selector names the SMTP recipient
+([spike](../spikes/mail-stack-preflight.md)) — and sends `{"rcpt":["…"]}`, an array even for one
+recipient. **The answer may never contain `actions`**: a settings response can lower `reject`, which is
+the one invariant the plan treats as absolute, so the endpoint emits scores, symbols and thresholds
+only, and `mail-check` asserts the shape of what it returns. A static domain default is the floor:
 
 ```hcl
 "default" {
@@ -531,9 +549,12 @@ holds the key *and* the credential that publishes its own record, so revoking a 
 revoke the API key, delete the selector, mint a new one, read the reports.
 
 **The host publishes all of it** through [the Mythic Beasts DNS API
-v2](https://www.mythic-beasts.com/support/api/dnsv2): HTTP with the API key, records addressed as
+v2](https://www.mythic-beasts.com/support/api/dnsv2): records addressed as
 `/zones/{zone}/records/{host}/{type}`, `PUT` replacing an RRset and `POST` adding, and `verify=true`
-making the API compare its authoritative answers with what it holds. Keys are restrictable to zones,
+making the API compare its authoritative answers with what it holds. The key is not sent to the API
+itself: it is exchanged at `auth.mythic-beasts.com/login` for a bearer token that **belongs to the IP
+that asked for it and expires after 300 idle seconds**, so `dns-sync` logs in at the start of every run
+and holds the key rather than a token ([spike](../spikes/mail-stack-preflight.md)). Keys are restrictable to zones,
 records and types, and that is what makes the rest safe: **this key writes exactly the mail records** —
 the apex `MX` and `TXT`, `neith`'s `A`, `AAAA` and `TXT`, and the `_domainkey`, `_dmarc` and
 `_smtp._tls` records — so the worst a compromised mail host can do to DNS is lie about itself. The
@@ -596,6 +617,8 @@ without `storage.db` is a mailbox nothing can log in to.
   `doveadm service status`, `rspamadm control ping`.
 - **A queue alert matters more than a CPU alert**: `postqueue -p` non-empty for an hour, or more than 50
   messages, means delivery is failing.
+- **The settings answer is checked, not trusted.** `mail-check` asserts it carries no `actions` block,
+  because a response that did could make Rspamd reject a message the plan says can never be rejected.
 - **The auth route's p99 is a mail number**, because every login waits on it. Watch it; cache in the Lua
   script rather than adding a credential store.
 - `auth_failure_delay = 2 secs` slows credential stuffing; if the journal shows a sustained attack, add
@@ -606,7 +629,7 @@ without `storage.db` is a mailbox nothing can log in to.
 ```
 deploy/mail/
   Containerfile              # four targets: postfix, dovecot, rspamd, mail-maps
-  mail.pod                   # 25/587/993 via rootlessport, 2525 on loopback
+  mail.pod                   # 25/587/993 published through pasta, 2525 on loopback
   postfix.container
   dovecot.container
   rspamd.container
@@ -638,14 +661,18 @@ deploy/dns/
 deploy/host/
   msmtprc                    # 0600 root:root
   mailname                   # neith.moosemorals.com
-  vmail-user.sh              # useradd, subuid range, enable-linger — idempotent
+  vmail-user.sh              # useradd, subuid range, enable-linger — idempotent, installed
+  25-unprivileged-ports.conf # the floor of 25 — installed
   25-unprivileged-ports.conf # net.ipv4.ip_unprivileged_port_start=25
 ```
 
 `vmail` is created by that script: home, `/usr/sbin/nologin`, `/etc/subuid` and `/etc/subgid` ranges
 (rootless podman needs one even when nobody logs in), `loginctl enable-linger vmail`. `make mail-deploy`
-drives the units as `sudo -iu vmail -- systemctl --user …` and `mail-check` reads `vmail`'s journal;
-the cost of two users is that every mail command names one.
+drives the units through `vmail`'s own user manager, because the account has no shell to log in with —
+`sudo -u vmail -- env HOME=/home/vmail XDG_RUNTIME_DIR=/run/user/<uid> systemctl --user …`, from a
+directory `vmail` can read — and `mail-check` reads `vmail`'s journal; the cost of two users is that
+every mail command names one, and the cost of no shell is that every command spells out the runtime
+directory.
 
 Images come from `debian:13-slim` pinned by digest, exact package versions, `--timestamp` from the
 commit. Debian's `postfix` needs a debconf preseed so the build does not prompt; the runtime config
@@ -688,19 +715,42 @@ work for other plans; each names its own level where it is filed.
 
 - Read the VM's addresses from the Hetzner console; record the current SPF and the absent MX.
 - Confirm the quota arithmetic: 5 GB per mailbox against 80 GB shared with everything else.
-- Spike, together: `vmail` with no shell and a subuid range; a pod publishing 25 through
-  `rootlessport`; a certificate the root timer copied into `vmail`'s home; units starting at boot under
-  `enable-linger`. Read the published port's source address from `vmail`'s own network and pin it.
-- Spike pasta's host-loopback mapping: can a container in `vmail` reach `http://127.0.0.1:8080`?
-- Spike Rspamd's `external_map` selector: can it name the SMTP recipient? The answer decides endpoint
-  or export, so it is asked before either is written.
-- Spike the classifier's `per_user` extractor: can a `map:get_key` lookup run there, and does an alias
-  resolve to the account's user name in time to key the tokens? Per-account Bayes stands or falls on
-  that call, so it is spiked against a real message, not a config dump.
-- Confirm Dovecot 2.4 with `recipient_delimiter = +` resolves `osric+probe@…` to `osric@` and leaves
-  `probe` in the envelope detail `doveadm` and Sieve see.
-- Confirm the Mythic Beasts key is scoped as intended by asking it to write the apex `A` and expecting
-  `403`.
+
+**Measured on the dev box, and done** — [the spike](../spikes/mail-stack-preflight.md) has the commands
+and the numbers:
+
+- Pasta reaches the site's loopback at a mapped literal, not `127.0.0.1`, and the pod carries the
+  option; the host sees `127.0.0.1` as the client.
+- A published port is forwarded by pasta, which refuses 25 until the sysctl is lowered and preserves the
+  source address, so the host's own address is what `mynetworks` names.
+- Per-account Bayes keys an alias, a plus address and a whole account correctly, through
+  `rspamd_config:add_map` inside the `per_user` chunk.
+- Dovecot 2.4 wants `userdb_fields` for the static userdb's values, `%{user | lower}` for the username
+  format, and a Lua passdb can name the account; `+detail` is split by LMTP and never by auth.
+
+**Measured on the host, and left in place:**
+
+- `vmail` exists — uid 988, no shell, `/home/vmail` `0700`, subuid range `296608`, `Linger=yes` — and
+  `deploy/host/vmail-user.sh` installs it idempotently.
+- `net.ipv4.ip_unprivileged_port_start` is 25 from `deploy/host/25-unprivileged-ports.conf`, and a pod
+  published 25 as `vmail` from a container that was then removed.
+- A remote client's address survives the publication (`81.141.12.20` v4, `2a00:23c7:…` v6), and a v4
+  `PublishPort` serves IPv6 to any listener that accepts it — Postfix does.
+- Caddy's leaf copies into `vmail`'s home and is readable by the daemons there; it is **EC P-256**, and
+  currently SANs `moosemorals.com` alone.
+- A quadlet in `vmail`'s config is generated and active with no session, so linger carries it.
+- **`sudo -iu vmail` does not work** — `nologin` refuses `-i` — so every mail command names
+  `XDG_RUNTIME_DIR=/run/user/988` and a directory instead.
+- Rspamd's settings selector is `id('rcpt');rcpts('smtp'):addr`, and its answer may never carry
+  `actions`.
+
+**Still open in this phase:**
+
+- **The Mythic Beasts key does not authenticate.** A key file exists on the dev box but the auth
+  service answers `401 invalid_client` for it, so the scope test — write the apex `A`, expect `403` —
+  has not been run, and Phase 3 waits on a key that logs in.
+- **A reboot**, to see a `vmail` quadlet come up without a session — the last piece of the linger claim.
+- The certificate the root timer copies, which is Phase 2's script rather than a spike.
 
 ### Phase 1 — the website answers (`determined-mountain-goat`)
 
@@ -805,8 +855,8 @@ work for other plans; each names its own level where it is filed.
 | `POST /internal/mail/auth`, right password | `200`, and Dovecot logs in |
 | The same with a revoked password, or none | `401`, identical for an unknown address and a wrong password |
 | `POST /internal/mail/auth` while the database is down | `5xx`, so Dovecot tempfails rather than saying no |
-| `ss -ltnp` | 25/587/993 via `rootlessport`; 2525 and 11334 on `127.0.0.1` |
-| `sudo -iu vmail -- systemctl --user status mail-pod` | running as `vmail`; no rootful mail unit; nothing owned by the website's user |
+| `ss -ltnp` | 25/587/993 held by `pasta`; 2525 and 11334 on `127.0.0.1` |
+| `sudo -u vmail -- env HOME=/home/vmail XDG_RUNTIME_DIR=/run/user/988 systemctl --user status mail-pod` | running as `vmail`; no rootful mail unit; nothing owned by the website's user |
 | `swaks --server neith.moosemorals.com --port 25` | 250, in the Maildir |
 | Same, unknown recipient | 550 at RCPT, nothing queued |
 | `swaks --port 587` with SASL + STARTTLS | accepted; DKIM signature present |
@@ -856,8 +906,9 @@ work for other plans; each names its own level where it is filed.
 - **The local corridor cannot alert about itself**, and `msmtp` does not queue, so a notification during
   a pod outage is gone.
 - **The port sysctl is host-wide**; one human and one service account bound it, a second tenant ends it.
-- **`rootlessport` is a layer that can break.** 25/587/993 are bound by it, not the container, and the
-  source address it presents can move; `ss -ltnp` and an outside `swaks` are the checks.
+- **The port publisher is a layer that can break.** 25/587/993 are bound by pasta, not the container;
+  it preserves the client's address, which Phase 0 measured, and `ss -ltnp` plus an outside `swaks`
+  are the checks that it is still doing so.
 - **The pinned Rspamd decides the settings door.** Merging a config rule with a per-message HTTP header
   is 4.0.1+ behaviour; before that the first source to answer won.
 - **The per-account key is derived, not given.** Rspamd hands the extractor the address as sent, and the
@@ -913,7 +964,8 @@ Done means these are true on the deployed host. The first group is the revision'
 9. `dig MX`, both SPF records naming the live addresses, both `_domainkey`, `_dmarc` and `dig -x` all
    return the intended values; the PTR matches `myhostname`; `mail-tester.com` reports all three pass.
 10. A mailbox plus `storage.db` restore into scratch and open over IMAP, counts matching.
-11. `sudo -iu vmail -- systemctl --user status mail-pod` is healthy; `ufw` allows 25, 587, 993 and
+11. `sudo -u vmail -- env HOME=/home/vmail XDG_RUNTIME_DIR=/run/user/988 systemctl --user status mail-pod`
+    is healthy; `ufw` allows 25, 587, 993 and
     nothing else new; 2525 listens only on `127.0.0.1`.
 12. Nothing listens on 110, 143, 465 or 995.
 13. The website still deploys and answers `/health`; its units, network and volumes are untouched, and

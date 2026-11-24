@@ -69,6 +69,8 @@ table and the items to it.
 | | *A Page object is public to anyone with the digest and `/o` is unthrottled, so access control is designed once rather than grown a knob at a time; the shape is on trunk.* | | | | |
 | [`secrets-are-readable-at-rest`](backlog/secrets-are-readable-at-rest.md) | A secret a page keeps is plaintext in the database and in every backup | determined-mountain-goat 💪🐐 | medium | open | — |
 | | *A second pass over the shape now on trunk: the cipher, the key and the rotation land here.* | | | | |
+| [`sec-site-runs-as-a-sudoer`](backlog/sec-site-runs-as-a-sudoer.md) | The site runs as the account that administers the host | determined-mountain-goat 💪🐐 | high | open | — |
+| | *The container is the boundary, but everything the site owns — its units, volumes, image store, provider key and snapshots — sits in the account with `NOPASSWD: ALL`; a second account with no sudo puts a compromise on the site's side of the host.* | | | | |
 | [`sec-page-runs-in-process`](backlog/sec-page-runs-in-process.md) | Page code has no process boundary | cornered-porcupine 📍🦔 | high | open | — |
 | | *High utility and a redesign of how a page runs; the unit is now a long-lived worker per author over a socket rather than a process per render, and the author it keys on is not in the store yet.* | | | | |
 | [`revision-hides-its-diagnostics`](backlog/revision-hides-its-diagnostics.md) | A page cannot read a revision's diagnostics | eager-beaver ⚙️🦫 | medium | open | — |
