@@ -807,10 +807,14 @@ A page's data is reached through `ctx.Stores`, which carries two subjects and on
 `ctx.Stores.Page` is the page itself, `ctx.Stores.Visitor` is the reader, and `ctx.Stores.For(key)` is a
 live library's or worker's own namespace. The handle is the binding: it is written with one subject key
 and one page key, so a write, a delete and a listing cannot name another writer, while a read is open
-across page keys because showing what another page left is what the read is for. A page never sees a
-subject key, a session id or an account name — the shell resolves the reader once per request and hands
-the layer a handle. The binding is ownership, not protection: it decides whose row is written, and
-`For(key)` hands a library's namespace to the methods its callers reach it by.
+across page keys because showing what another page left is what the read is for. The open read stops at
+`Secrets`: a secret is authority rather than data, so its handle answers its own key's names and has no
+page-key argument ([`pages-a-secret-is-not-a-value`](#pages-a-secret-is-not-a-value)). The two subject
+types declare their own shapes and neither inherits from the other, so a shape a subject lacks is absent
+from its type rather than a runtime surprise. A page never sees a subject key, a session id or an account
+name — the shell resolves the reader once per request and hands the layer a handle. The binding is
+ownership, not protection: it decides whose row is written, and `For(key)` hands a library's namespace to
+the methods its callers reach it by.
 
 *Recorded in [pages](pages.md#page-data), [IPageStores](../src/uk.osric.asp.Sdk/IPageStores.cs), [PageValueStore](../src/uk.osric.asp.Web/Pages/PageValueStore.cs).*
 
@@ -860,7 +864,8 @@ draw on one budget per subject, so they are read and refused together. The two s
 `Pages:Storage` and `Pages:Session`, are refused at startup rather than ignored: an operator who kept one
 believes it still bounds something, and it does not. The message shape's body, count and total limits are
 rows of the same record, for the same reason: they draw on the subject's budget. The object shape's
-per-object and per-subject byte limits are rows of it too. The subject prefixes,
+per-object and per-subject byte limits are rows of it too, and so are the secret shape's name length,
+per-secret bytes, count and subject total. The subject prefixes,
 the lifetime numbers and a topic's canonical form stay in code, because they are the stored form of
 every row and configuration could only orphan them.
 
@@ -918,6 +923,32 @@ rather than grows a knob at a time. Deleting a page takes its page objects, movi
 adopts a `Person` object, and signing out or the sweep removes a `Session`, browser or expired one.
 
 *Recorded in [pages](pages.md#page-data), [storage](storage.md#objects), [IObjectStore](../src/uk.osric.asp.Sdk/IObjectStore.cs), [PageObjectStream](../src/uk.osric.asp.Sdk/PageObjectStream.cs), [ObjectEndpoint](../src/uk.osric.asp.Web/Shell/ObjectEndpoint.cs).*
+
+### pages-a-secret-is-not-a-value
+
+A secret is a page's opaque text by name, and it is the one shape that is not a store of data. It is
+`ctx.Stores.Page.Secrets` and only that: `ctx.Stores.Visitor` has no `Secrets`, and the shape is declared
+by the subject type rather than inherited, so its absence is a type rather than a runtime surprise, as a
+Page subject has no `Messages`. The handle answers `TryGetAsync(name)`, `SetAsync(name, value)`,
+`DeleteAsync(name)` and `NamesAsync()`, each shaped like its `IValueStore` sibling. There is no
+`pageKey` argument: the open cross-page read a value allows stops here, because a value is a page's data
+and a secret is authority, and a layout's handle is the layout's own key while a page-owned job's is the
+page that started it.
+
+The value is `string` rather than JSON, so the one-set serializer is not involved and a page cannot be
+handed a structured secret by accident; an empty value is refused, because a name holds the page's text or
+it is deleted. `NamesAsync` answers names, never a value or a preview, so a page can offer rotation
+without the store handing out what it protects. A secret has no lifetime: it is the page's or it is not
+there. Deleting a page takes its secrets, moving it re-keys them and a scrub destroys them. Nothing else
+returns one — `IPageCatalog` carries neither a name nor a value through source, revision, listing or
+search, `/admin/export` writes none, the import reader refuses a file that carries one, and the
+assistant reads the page store. The rows are text at rest, the same boundary as a password hash, and
+[`secrets-are-readable-at-rest`](backlog/secrets-are-readable-at-rest.md) is the cipher, the key and the
+rotation. It is not the operator's credential, which a page still never sees
+([`pages-fetch-credentials`](#pages-fetch-credentials)); the limits are `Pages:Stores:Secrets`
+([`pages-one-stores-section`](#pages-one-stores-section)).
+
+*Recorded in [pages](pages.md#page-data), [storage](storage.md#secrets), [ISecretStore](../src/uk.osric.asp.Sdk/ISecretStore.cs), [PageSecretStore](../src/uk.osric.asp.Web/Pages/PageSecretStore.cs).*
 
 ### pages-a-record-is-declared-sql
 
@@ -1012,6 +1043,12 @@ the header only to that host, only from a page inside the binding, only over HTT
 drops it on a redirect to another host or to plaintext. The value
 is never in page source, page state, a revision, an export archive or the assistant transcript, and a
 page that names an unknown credential gets an `InvalidRequest` rather than an exception.
+
+The distinction is who owns the key: an operator's credential belongs to the site, so the host attaches
+it and a page bug cannot leak what the page cannot read. A page's own key belongs to the page, which is
+its only reader and signer, and it is kept in `ctx.Stores.Page.Secrets`
+([`pages-a-secret-is-not-a-value`](#pages-a-secret-is-not-a-value)); readable by the page is the property
+that shape exists for.
 
 *Recorded in [pages](pages.md#page-contract), [PageFetcher](../src/uk.osric.asp.Web/Pages/PageFetcher.cs).*
 
@@ -1831,10 +1868,12 @@ It carries source and a page's own values only — history, tombstones, users an
 the site that made it, and so does every value that is somebody's rather than the page's: `PageState`
 keeps the shape it had before `StoreValues` replaced it and holds only a `Page` lifetime row with no
 expiry, so an archive from an earlier release still imports and a `Person`, `Session`, `Browser` or
-`NextRead` row never leaves the site. Import is additive and all or nothing: every row is validated before anything is staged, the
-approved batch is compiled one page at a time with nothing written, then every page, head and state key
-is written in one transaction, so a compile failure is a stored revision with diagnostics and a crash or
-failed write leaves nothing applied.
+`NextRead` row never leaves the site. Neither does a secret, a name or a value: the archive's schema is
+exactly the two tables, so a file that carries a secrets table is refused rather than read for the pages
+it also holds ([`pages-a-secret-is-not-a-value`](#pages-a-secret-is-not-a-value)). Import is additive and
+all or nothing: every row is validated before anything is staged, the approved batch is compiled one page
+at a time with nothing written, then every page, head and state key is written in one transaction, so a
+compile failure is a stored revision with diagnostics and a crash or failed write leaves nothing applied.
 
 *Recorded in [import and export](plans/archive/page-import-export.md).*
 

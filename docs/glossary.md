@@ -513,6 +513,19 @@ running code, browser copies, archives or backups.
 **Owner:** pages — `IPageStore.ScrubPageAsync`, `PageEditor.ScrubAsync` and the editor's
 `?cmd=scrub`.
 
+## Secret
+Opaque text a page keeps by name that nothing else in the site returns: a signing key, a token for a
+service the page talks to. It is a shape of the Page subject only, with no page-key argument and no
+lifetime, and a listing answers names rather than values.
+
+**Not** a value, and not the operator's credential. A value is JSON a page may show, and a page may read
+another page's; a secret is authority, readable only through the page's own handle. An operator's
+credential belongs to the site, is named in `Pages:Fetch:Credentials` and attached by the host, so a
+page never sees it.
+
+**Owner:** pages — `ISecretStore`, `PageSecretStore` and `StoreSecrets`
+(`pages-a-secret-is-not-a-value`).
+
 ## Seed
 A page template bundled with the release, used to create a page that has never existed and to install
 over a seeded one.

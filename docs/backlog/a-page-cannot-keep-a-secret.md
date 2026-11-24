@@ -19,7 +19,9 @@ SPDX-License-Identifier: MIT
 > **Absorbed 2026-11-22** — [one storage model](../plans/storage-model.md) delivers this item as its
 > secrets slice: a fifth shape, `Secrets`, on the `Page` subject. It is recorded here rather than as a
 > plan of its own because it is the same table, the same limits section and the same delete, move and
-> scrub paths as the shapes already landing there.
+> scrub paths as the shapes already landing there. The slice is built on its branch, with the shape,
+> the table, the `Pages:Stores:Secrets` limits, the delete, move and scrub paths, the archive's refusal
+> and the manual, and it waits for the owner.
 
 ## Idea
 
