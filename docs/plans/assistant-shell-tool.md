@@ -7,7 +7,7 @@ SPDX-License-Identifier: MIT
 
 | | |
 | --- | --- |
-| Status | Proposed 2026-11-19, revised 2026-11-24 — the owner set the shape, asked for this plan, and then asked for the shell to be built from the page capabilities so that a command which cannot be built names a gap in the page contract; the revision names the document `SiteLayout` and drops the `/o` mount. Nothing below is built; it waits for a yes |
+| Status | Proposed 2026-11-19, revised 2026-11-24 — the owner set the shape, asked for this plan, and then asked for the shell to be built from the page capabilities so that a command which cannot be built names a gap in the page contract; the revision names the document `SiteLayout`, drops the `/o` mount, takes `ISiteInfo` and the page's read allowance, lifts the one-write rule and leaves the prompt's number to its own change. Nothing below is built; it waits for a yes |
 | Size | Large — a new `Shell` project, a capability client built per call, a shell kernel, a mount table, a planner, a rewritten applet set, the shell tool rebuilt and the memory tool reshaped, the prompt, and the removal of seventeen tools. The largest change to the assistant since it landed |
 | Area | Core (Shell, Assistant), Shell, Web (assistant, site), docs, build |
 | Spike | None. The claims about today's shell were read off `trunk` on 2026-11-19: [`ShellRunner`](../../src/uk.osric.asp.Web/Assistant/Shell/ShellRunner.cs), the eleven applets, [`ShellApplet`](../../src/uk.osric.asp.Web/Assistant/Shell/ShellApplet.cs), [`ShellTool`](../../src/uk.osric.asp.Web/Assistant/Tools/ShellTool.cs), [`PageStoreReader`](../../src/uk.osric.asp.Web/Assistant/PageStoreReader.cs) and [`PagePathPolicy`](../../src/uk.osric.asp.Web/Assistant/PagePathPolicy.cs). The tool-count evidence is [the ask tool's shape](../spikes/ask-tool-shape.md). The capability evidence was read the same day: [`IPageCatalog`](../../src/uk.osric.asp.Sdk/IPageCatalog.cs), [`IPageWrites`](../../src/uk.osric.asp.Sdk/IPageWrites.cs), [`PageCatalogScope`](../../src/uk.osric.asp.Web/Pages/PageCatalogScope.cs), [`PageWritesScope`](../../src/uk.osric.asp.Web/Pages/PageWritesScope.cs) and the worker's capability set in [`PageJobRunner`](../../src/uk.osric.asp.Web/Work/PageJobRunner.cs:140) |
@@ -110,14 +110,20 @@ Six things are load-bearing:
 - **The view.** `ViewGuard` refuses anything but `GET`/`HEAD` with `405` and `Allow: GET, HEAD`
   ([`ViewGuard.cs:57`](../../src/uk.osric.asp.Web/Authentication/ViewGuard.cs:57));
   `auth-a-view-token-reads-only` is why `view` needs no approval.
-- **The prompt.** `PageAuthorPrompt.Version` is `page-author-v56`.
-- **The capabilities a page gets.** `IPageCatalog` answers a listing, one source, a history and one
-  revision; `IPageWrites` saves, moves, deletes and restores, each with the head hash and each through
-  `PageEditor`; `IHttpFetch` is the page's egress. A capability is bound to one unit of work —
-  `RenderBoundCapability` and `PageWritesScope` spend one action per render — and a worker proves a
-  set can be built outside a render: [`PageJobRunner`](../../src/uk.osric.asp.Web/Work/PageJobRunner.cs:140)
-  hands its job an `IPageCatalog`, `IPageStorage`, `IHttpFetch` and `IPageJobs` with no request and
-  no visitor.
+- **The prompt.** `PageAuthorPrompt.Version` is a hand-written heading, bumped with every change to
+  it. This plan lands the next version and calls it `page-author-next` rather than fixing a number
+  here, because [`update-the-prompt`](../backlog/update-the-prompt.md) rewrites the prompt once the
+  shell has landed.
+- **The capabilities a page gets.** `ISiteInfo` is the site's own facts — the origin, the editor's
+  key, the contract's corpus and the budgets a caller has left; `IPageCatalog` answers a listing, one
+  source, a history, one revision and a search; `IPageWrites` saves, moves, deletes and restores,
+  each with the head hash and each through `PageEditor`, and opens the transaction several of them
+  land in; `IPageCheck` checks a source without storing it; `IHttpFetch` is the page's egress. A
+  capability is bound to one unit of work — `RenderBoundCapability` and `PageWritesScope` spend one
+  action per render — and a worker proves a set can be built outside a render:
+  [`PageJobRunner`](../../src/uk.osric.asp.Web/Work/PageJobRunner.cs) hands its job an `ISiteInfo`,
+  an `IPageCatalog`, an `IPageWrites`, an `IHttpFetch` and an `IPageJobs` with no request and no
+  visitor.
 - **The shell does not use them.** `ShellRunner` constructs a `PageStoreReader` over `PageEditor` and
   `PagePathPolicy`, and `ShellContext` hands an applet that reader and the editor. `PageStoreReader`
   is also what the typed tools read.
@@ -165,9 +171,6 @@ Six things are load-bearing:
   as "not there yet", the way separators are refused today.
 - **Full POSIX.** The target is the options models emit; a command that accepts all of POSIX is a
   much larger promise than this change needs.
-- **More than one page write per call.** The page transaction landed on 2026-11-20
-  (`pages-writes-are-transactions`), so a plan that names two pages is one commit; v1 still refuses one
-  until the shell is built on it.
 - **A page that runs the shell.** The shell is host code and a page still cannot run a command; that
   is the security line, and it does not move. What moves is the dependency: the shell is built from
   the capabilities a page is offered, not from the host's own seams (D15).
@@ -339,9 +342,10 @@ of a word into a path or a literal. Then:
    wait.
 4. `RequireApproval` waits once per call, not once per write. The run still waits on one thing at a
    time (`assistant-a-run-waits-on-one-owner-interrupt`).
-5. **v1 writes at most one page per call.** A plan that names two refuses, and the transaction that
-   would let it write them is landed ([IDEA-047](../backlog/closed.md)). The result's `writes` is an array so
-   the day the blocker lands is a removal of the refusal, not a shape change.
+5. **Several page writes land as one transaction.** A line that writes two pages opens one
+   `IPageTransaction` on `IPageWrites`, stages both and commits once, so the call's writes become the
+   store's state together or not at all (`pages-writes-are-transactions`). The result's `writes` lists
+   each one and the changed-pages card reads them all.
 6. A write that would leave the source byte-identical refuses and stores nothing
    (`assistant-edit-page-is-safe`).
 
@@ -397,8 +401,8 @@ holds; a line range is `head`/`tail`/`sed -n` and no longer an argument to a too
 
 ### D9 — `man`, `help` and `check`
 
-`man` reads the page contract's XML documentation — the corpus `reference` reads today — and answers
-a type's summary, remarks and members. `man -k cookie` searches names and summaries. It reads
+`man` reads the page contract's XML documentation — the corpus `ISiteInfo.Reference` carries — and
+answers a type's summary, remarks and members. `man -k cookie` searches names and summaries. It reads
 `uk.osric.asp.Sdk` only, and refuses a type from another assembly by name
 (`shell-the-reference`). The human page at `/admin/reference` is unchanged.
 
@@ -435,7 +439,8 @@ approval gate learns that an action can decide whether a call asks.
 `curl` is the command the shell should end with:
 
 - to an absolute `http`/`https` URL on another host, anonymous and approved, as `fetch` is;
-- to a path on `Site:Origin`, as the run's owner with the read token, unapproved, as `view` is;
+- to a path on the site's own origin (`ISiteInfo.Origin`), as the run's owner with the read token,
+  unapproved, as `view` is;
 - `-X GET|HEAD` only in this plan; `-X POST` is the item;
 - the response is the transport's own: status, every header, the body, redirects (`assistant-a-view-is-the-response`).
 
@@ -469,7 +474,7 @@ at the tool limit rather than refused (`assistant-tool-results-are-cut-not-refus
 
 The shell's description is the cached prefix's cost, so it is one paragraph: the commands that pay,
 the fact that it is POSIX-shaped, and "run help". The prompt gains a **Working the shell** section
-with four idioms, and moves to `page-author-v57`:
+with four idioms, and moves to `page-author-next`:
 
 1. read one page with `cat -n`, a tree with `ls -R` or `find`, a phrase with `grep -rn`;
 2. pipe before you read: `cat /notes | head -40`, `grep -rn cookie / | wc -l`;
@@ -507,7 +512,8 @@ Three things are the shell's own, because they are about the tool rather than th
 
 - `help` — the applet registry;
 - `/tmp`, `df`, `echo`, `printf`, `sort`, `uniq`, `cut`, `tr` — the run's scratch and streams;
-- `man` — the contract the shell is written against, not the site's data.
+- `man` — the command is the shell's own, and the text it selects from is the contract's corpus, read
+  through `ISiteInfo.Reference`.
 
 Everything else is a capability or a refusal. A shortcut is exactly what would hide the gap: if
 `grep` called `PageSourceSearch` directly, the contract would look adequate while no page could
@@ -530,16 +536,18 @@ builds one for a worker:
 
 | Capability | Built with | Bound by |
 | --- | --- | --- |
-| `IPageCatalog` | a caller label — the key the call is acting in (`/`) — an empty link list, because a call has no request and no visitor to show a menu, and the call's `ReadBudget` | the call's deadline and token |
+| `ISiteInfo` | the site's own facts, warmed at startup, with the call's `Bounds` snapshot | the call |
+| `IPageCatalog` | a caller label — the key the call is acting in (`/`) — an empty link list, because a call has no request and no visitor to show a menu, and the page's `ReadBudget` | the call's deadline and token |
 | `IPageWrites` | `new PageUser(context.Owner)`, so the authority is still the signed-in visitor's, and one `PageTransactionGate` | the call |
 | `IPageCheck` | the run's owner — [one check](archive/one-check.md) offers it only to a signed-in render — and the call's wait for a compile slot | the call |
 | `IHttpFetch` | only when `curl` lands; the anonymous leg is unbound (D11) | the call |
 
-The budgets are the assistant's — `Assistant:ShellMaxSourceChars` beside
-`Assistant:ShellMaxPipelineBytes` — passed in as plain values, so a shell read is bounded by the
-assistant's policy and not by a page's render allowance. That is also the answer to
-[`cannot-search-the-store`](../backlog/closed.md)'s open question 2: a scan is
-charged to its caller's bound.
+The read allowance is the page's, inherited rather than configured a second time: the call's
+`ReadBudget` is built from `Pages:Read:SourceCharsPerSecond`, with the burst `RenderOptions.BurstFor`
+derives from `Pages:Render:TimeoutSeconds`, exactly as a render's chain has it, so a shell read is
+bounded by the page policy and a scan is charged to its caller's bound — which is the answer to
+[`cannot-search-the-store`](../backlog/closed.md)'s open question 2. Only the output is the
+assistant's: `Assistant:ShellMaxPipelineBytes` is a tool result rather than a store read.
 
 The applet context loses `IPageStoreReader` and `PageEditor` and carries the set; keys arrive as
 strings and answers as `Sdk` records. `PageStoreReader` and its suite go: `IPageReadStore` behind
@@ -567,16 +575,15 @@ close-out no longer says the manual is untouched.
 | `grep`, `find` with a match | matches across a scope | none | **Built**: [`cannot-search-the-store`](../backlog/closed.md) has landed, and the command is built on that scan |
 | `patch`, `cp`, `rm`, `mv` | save, restore, delete and move with the hash they were made from | `IPageWrites` | **Fits**. The compile-before-store and the one action are the capability's |
 | `check -l template`, `check -l javascript` | a compile and a parse, neither storing | none | **Fits**: `check-without-storing` landed `IPageCheck` and its closed language set, so the applet is this plan's |
-| `man` | the contract's XML documentation | none | **Exempt** — the contract is the shell's subject, not the site's data |
+| `man` | the contract's XML documentation | `ISiteInfo.Reference` | **Fits**, from the site's own facts |
 | `curl`, anonymous | one outbound request | `IHttpFetch` | **Fits** when D11 lands |
 | `curl`, same origin | the run's read token | none | **Depend** on D11's security review; `view` stays typed |
 | `help`, `df`, `echo`, `printf`, `sed`, `sort`, `uniq`, `cut`, `tr` | registry, scratch, streams | none | **Exempt** |
 
-The port is possible today for the rows `ls` needs once the folder read lands, for every read and
-write that is not a search or a check, and for `curl`'s anonymous leg. It is impossible for `grep`
-and `check` until two items that are already planned land, and it needs one new read — the folder
-rows — before `ls` can be built at all. That is the finding: the contract is nearly adequate for a
-shell, and the three holes are named rather than worked around.
+The port is possible today for every row: the store reads and writes, the search, the check and the
+corpus are page capabilities already, and `/o` is out of scope rather than a hole. The one row that
+waits is `curl`'s same-origin leg, and it waits for a security review rather than a capability
+(D11).
 
 ## What it touches
 
@@ -590,13 +597,13 @@ shell, and the three holes are named rather than worked around.
 | `src/uk.osric.asp.Web/Assistant/Tools/` | `ShellTool`; the per-call capability set in `ToolServices`; `MemoryTool` replaces four; `fetch`/`view` stay for now; seventeen tools deleted or replaced |
 | `src/uk.osric.asp.Web/Assistant/Tools/ToolRegistry.cs`, `Tools/ToolSpec.cs` | three tools; `NeedsApproval` becomes a per-call verdict |
 | `src/uk.osric.asp.Web/Assistant/PagePathPolicy.cs`, `PageEditor` | unchanged in authority; the planner asks the mount's access first and the policy for the assistant's prefix |
-| `src/uk.osric.asp.Web/Assistant/PageAuthorPrompt.cs` | `page-author-v57`, the shell section and the site route's permission |
+| `src/uk.osric.asp.Web/Assistant/PageAuthorPrompt.cs` | `page-author-next`, the shell section and the site route's permission |
 | `src/uk.osric.asp.Web/Shell/`, `src/uk.osric.asp.Web/Html/ShellDocument.cs`, `src/uk.osric.asp.Sdk/IPageCatalog.cs` | D0's rename: `SiteCatalogue`, `SiteLayout`, `SiteLink`, `SiteLinks()`. The capabilities are read, not changed: the folder rows and the search land in their prerequisites, and `IPageCheck` is [one check](archive/one-check.md)'s |
-| `src/uk.osric.asp.Web/Configuration/` | `Assistant:ScratchMaxBytes`, `Assistant:ScratchMaxFiles`, `Assistant:ShellMaxStages`, `Assistant:ShellMaxPipelineBytes`, `Assistant:ShellMaxSourceChars`, `Assistant:ApprovalPreviewChars` |
+| `src/uk.osric.asp.Web/Configuration/` | `Assistant:ScratchMaxBytes`, `Assistant:ScratchMaxFiles`, `Assistant:ShellMaxStages`, `Assistant:ShellMaxPipelineBytes`, `Assistant:ApprovalPreviewChars` |
 | `uk.osric.asp.slnx`, `Makefile` | the project, `SHELL_TESTS`, a `test-shell` target and `test:` |
 | `docs/assistant.md`, `docs/site.md`, `docs/shell.md`, `docs/glossary.md`, `docs/architecture.md` | the tool list, the mounts, the planner, the result shape, D0's words, the new interpreter page and the dependency direction |
 | `docs/decisions.md` | the eleven new names and the three edits |
-| `docs/backlog/` | this item, the new folder item and the dispositions below |
+| `docs/backlog/` | this item, the whim the `/o` deferral adds and the dispositions below |
 | `test/…Shell.Tests/` | the applets against fake capabilities, the kernel, the mounts, the register |
 | `test/…Web.Tests/` | the per-call set, the planner, the approval, the memory tool, the prompt, the real capabilities |
 | `test/…Web.IntegrationTests/` | one end-to-end: a run writes, patches and restores through the shell |
@@ -606,12 +613,11 @@ shell, and the three holes are named rather than worked around.
 
 Each phase is a commit or a short series, and each ends with its tests green.
 
-Before phase 0, one page capability lands; it is not this plan.
-[`cannot-search-the-store`](../backlog/closed.md) now gives `grep` its scan.
-`check-without-storing` has landed one language-named capability over the compile and the parse, and
-[`a-page-cannot-list-folders`](../backlog/closed.md) has landed and gives `ls` its folder rows.
-Until the search is in, this plan has nowhere to put `grep`, and no typed tool stays to pretend
-otherwise.
+Before phase 0, this plan needs no new page capability: every one it builds on has landed.
+[`cannot-search-the-store`](../backlog/closed.md) gives `grep` its scan, `check-without-storing` gives
+`check` its one language-named command, and
+[`a-page-cannot-list-folders`](../backlog/closed.md) gives `ls` its tree. No typed tool stays as a
+substitute for a command.
 
 0. **The words.** D0's rename: `Web/Shell` to `Web/Site`, `ShellDocument` to `SiteLayout`,
    `ShellLinks` to `SiteLinks`, the `body` class, the prose in the live documents, and `docs/shell.md`
@@ -643,7 +649,7 @@ otherwise.
    `fetch` and `view` remain for phase 9. Tests: every removed capability has a command case.
 7. **Memory as one tool.** The action dispatch, the per-action approval, the four actions against the
    existing stores. Tests: each action; approval under both modes; a stale version refused.
-8. **The prompt, the docs and the measurement.** `page-author-v57`, the descriptions, the manual
+8. **The prompt, the docs and the measurement.** `page-author-next`, the descriptions, the manual
    pages, the definitions' token count before and after, and a live run of the common tasks. The
    register is closed: every row has an item or an exemption, and every closed capability has its
    `/help` section.
@@ -666,7 +672,8 @@ otherwise.
   `Permission denied` with exit `1` from a read and `2` from `grep`; a write is refused before the
   owner is asked.
 - **The planner.** Reads, scratch writes, page writes, network; the mount's access refuses before the
-  owner; the policy refuses the assistant's prefix; the card lists effects; one write in v1.
+  owner; the policy refuses the assistant's prefix; the card lists effects; several writes are one
+  transaction.
 - **The patch.** A matching hash saves once; a stale hash refuses with both; a missing hash points at
   `stat`; a no-op refuses; a rejected patch changes nothing.
 - **The memory tool.** Four actions; the owner from the conversation; the version check; the limit;
@@ -696,9 +703,9 @@ otherwise.
   lands the definition changes in as few steps as it can.
 - **Conformance creep.** Every new option is a row in `help` and a test. A command that grows all of
   POSIX is a different plan.
-- **Three capabilities gate the start.** The shell cannot build `ls`, `grep` or `check` until the
-  three items land; if one slips, the plan waits rather than re-opens a seam. That is the cost of the
-  hard rule, and it is the point of it.
+- **The prerequisites have landed.** `ls`, `grep` and `check` each waited on a page capability, and
+  all three are there; if a later one slips, the plan waits rather than re-opens a seam. That is the
+  cost of the hard rule, and it is the point of it.
 - **The route record is gone.** The model can no longer `cat /login`; the prompt has to say so, or a
   model that has used a real shell will keep trying.
 - **The project move is large.** The applets and their tests change home, and the harness changes from
@@ -713,11 +720,12 @@ otherwise.
 | --- | --- |
 | [`tool-surface-is-one-shell`](../backlog/tool-surface-is-one-shell.md) | this plan |
 | `tool-arguments-say-nothing` | closed with [one check](archive/one-check.md)'s third slice: the schema carries a closed set as an `enum`, and the ambiguous arguments describe themselves |
+| [`update-the-prompt`](../backlog/update-the-prompt.md) | blocked by this item; it rewrites the prompt against three tools once the shell lands, so this plan leaves `page-author-next` behind rather than the final text |
 | [`nothing-checks-page-assets`](../backlog/nothing-checks-page-assets.md) | grows `check`'s language set once the capability exists; unchanged |
-| [IDEA-047](../backlog/closed.md) | landed 2026-11-20: the capability now takes several writes as one transaction, so v1's one-page rule is the shell's to lift, and this plan is where it lifts |
+| [IDEA-047](../backlog/closed.md) | landed 2026-11-20: the capability takes several writes as one transaction, and this plan lifts the one-page rule — one call's writes commit once |
 | [`page-cannot-move`](../backlog/closed.md) | landed 2026-11-19; the shell's `mv` is already there, and the typed `move_page` goes with the rest |
 | [`cannot-ask-the-owner`](../backlog/closed.md) | a dependency; landed 2026-11-19 |
-| [`cannot-search-the-store`](../backlog/closed.md) | the hard dependency, landed: the shell is its second caller. It also settles the item's open question 2 — a scan is charged to its caller's bound, not the render's |
+| [`cannot-search-the-store`](../backlog/closed.md) | the hard dependency, landed: the shell is its second caller. It also settles the item's open question 2 — a scan is charged to its caller's bound, which for the shell is the page's read allowance |
 | [`a-page-cannot-list-folders`](../backlog/closed.md) | landed 2026-11-21: `ls` needs the folder rows and there is no honest way to fold them in the shell that a page could also use |
 | `check-without-storing` | landed: [one check](archive/one-check.md) landed the capability, its language set and the one `check` tool; the shell's `check` applet is this plan's |
 | [`editor-is-a-textarea`](../backlog/editor-is-a-textarea.md) | the terminal's `vi` may share `/vim.js`; unchanged |

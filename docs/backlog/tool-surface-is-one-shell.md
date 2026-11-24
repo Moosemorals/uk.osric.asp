@@ -46,12 +46,13 @@ scratch directory, and history as paths rather than three more tools.
    into files; one action-dispatched tool replaces four.
 7. **A write is planned before it is approved.** The kernel resolves every operand and classifies
    every effect, so one approval covers the line and the changed-pages card still knows what changed.
+   A line that writes two pages opens one transaction and commits once.
 8. **Built from the page capabilities.** An applet reaches the store through `IPageCatalog` and
-   `IPageWrites`; a command that cannot be built is a gap in the page contract, not a private seam.
-   The gap it started with has closed: a page can search the source now
-   ([`cannot-search-the-store`](closed.md)), so `grep` is a command this plan builds on that scan.
-   `check` is not a gap any more either — `check-without-storing` landed the capability and the `check`
-   tool — so only the commands wait for the port.
+   `IPageWrites`, and the site's facts through `ISiteInfo`; a command that cannot be built is a gap in
+   the page contract, not a private seam. The gaps it started with have closed: a page can search the
+   source now ([`cannot-search-the-store`](closed.md)), so `grep` is a command this plan builds on
+   that scan, and `check-without-storing` landed the capability beside the one `check` tool. Nothing
+   waits for a page capability; the commands are the port's work.
 
 [The plan](../plans/assistant-shell-tool.md) carries the detail, the phases and the risks.
 
@@ -67,9 +68,6 @@ scratch directory, and history as paths rather than three more tools.
   owner's own way into the same kernel.
 - **`mv`.** [`page-cannot-move`](closed.md) has landed; the shell's applet is already there, and this
   item removes the typed `move_page` beside it.
-- **More than one page write per call.** The page transaction landed on 2026-11-20
-  (`pages-writes-are-transactions`), so a plan that names two pages is one commit; v1 still refuses one
-  until this item's shell is built on it.
 - **A page that runs the shell.** The shell is host code and a page still cannot run a command; what
   changes is that the shell is built from the capabilities a page is offered, so the two cannot drift
   apart.
