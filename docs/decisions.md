@@ -130,10 +130,12 @@ Work is tracked in the backlog: one file per item in `docs/backlog`, named by a 
 words that state the gap. A defect's slug begins with its kind, `bug`, `sec`, `ops` or `arch`; an
 idea's carries none, because an idea is what an item is when its slug names no defect, and its branch
 carries the word the slug does not. An item's title is its H1, its header carries Difficulty on the
-animal scale, Utility, Status, Blocked by and Plan, and the one order table is the priority — small,
-high-utility work first because it never gets scheduled otherwise. A job is the host's `PageJob`; the
-record does not use the word for an item. Speculative product work is an item, not a licence to widen
-the task in hand. The name is kept though the record moved on, because a name is permanent.
+animal scale, Utility, Status and Blocked by, and the one order table is the priority — small,
+high-utility work first because it never gets scheduled otherwise. Its file is kept through planning,
+where the plan is a `## Plan` section of it, and archived when the work lands. A job is the host's
+`PageJob`; the record does not use the word for an item. Speculative product work is an item, not a
+licence to widen the task in hand. The name is kept though the record moved on, because a name is
+permanent.
 
 *Recorded in [the backlog](backlog/README.md), [the plan](plans/archive/backlog-record.md).*
 
@@ -142,25 +144,50 @@ the task in hand. The name is kept though the record moved on, because a name is
 An item's difficulty is a level on the animal scale — sleepy hamster to tiger with a toothache — and
 never a guess at the calendar. No document in the record estimates hours or days: a time estimate
 ignores who is doing the work, what interrupts them and what they already know, and it reads as a
-promise nobody can keep. Whether an item wants a plan is the `Plan` field's business, not difficulty's,
-because a plan is about coordination rather than size.
+promise nobody can keep. Whether an item wants a plan is its `## Plan` section's business, not
+difficulty's, because a plan is about coordination rather than size.
 
 *Recorded in [the backlog](backlog/README.md#difficulty-is-a-level-not-a-duration), [the plan](plans/archive/backlog-record.md).*
 
 ### product-a-merged-plan-is-archived
 
-A plan is finished when the work merges, and it leaves `docs/plans/` for `docs/plans/archive/` in that
-same merge: the merge that writes the decision also sets the plan's Status to merged and moves it,
-retargeting every link into it. The live plans are then the ones still being worked. A finished plan
-that stays live asks to be read and is not — eight had merged for days, three of them still saying
-proposed or waiting — and the stale Status line is what a reader trusts.
+A plan is finished when the work merges, and it leaves the live record in that same merge: the
+item's file moves to `docs/backlog/archive/` with its `## Plan` section — or, for a plan written before
+2026-11-24, the file in `docs/plans/archive/` — and the merge that writes the decision also sets the
+Status to merged, retargeting every link into it. The live plans are then the ones still being worked.
+A finished plan that stays live asks to be read and is not — eight had merged for days, three of them
+still saying proposed or waiting — and the stale Status line is what a reader trusts. The name is older
+than the rule it now states and is kept, because a name is permanent.
 
-*Recorded in [CONTRIBUTING](../CONTRIBUTING.md#working-on-it), [the record](#taking-a-name), [the plan](plans/archive/backlog-record.md).*
+*Recorded in [CONTRIBUTING](../CONTRIBUTING.md#working-on-it), [the record](#taking-a-name), [the plan](plans/archive/backlog-record.md), [the one-file plan](plans/archive/the-step-is-one-file.md).*
+
+### product-a-step-is-one-file
+
+An item is one file from the moment it is written down until its work merges. Its plan is a `## Plan`
+section of that file, so there is no second document to keep in step and no two-way link to police;
+the order row's `planned` status links the item's own `#plan`. The merge moves the file to
+`docs/backlog/archive/` and writes the row in `closed.md` that keeps its slug and links it, so the
+record keeps what was asked as well as what was done. A plan written before 2026-11-24 is still a file
+in `docs/plans/` and its item keeps a `Plan` row until that item is next touched; the last of the seven
+to land deletes the allowance with its check.
+
+*Recorded in [the backlog](backlog/README.md), [plans](plans/README.md), [CONTRIBUTING](../CONTRIBUTING.md#working-on-it), [the plan](plans/archive/the-step-is-one-file.md).*
+
+### product-a-whim-is-an-item
+
+A whim is an item that has no answers yet, not a line in a separate table: a title, a line or two
+under `## Idea`, an em dash where Difficulty, Utility, Area and Location are the owner's judgement,
+and `Status unshaped`. It has no plan and no row in the order until it is shaped, and naming the gap
+is part of the shape — the slug is renamed before it is cited. There is no second record to promote it
+out of, and deleting one costs a file that nothing cites.
+
+*Recorded in [the backlog](backlog/README.md#an-item-before-it-has-a-shape), [the plan](plans/archive/the-step-is-one-file.md).*
 
 ### product-plan-before-building
 
-A plan is written before a large change and kept as the record of the reasoning, including the options
-that were rejected. Plans are not rewritten into marketing copy afterwards.
+A plan is written before a large change, as a `## Plan` section of its item's file, and kept as the
+record of the reasoning, including the options that were rejected. Plans are not rewritten into
+marketing copy afterwards.
 
 *Recorded in [plans](plans).*
 

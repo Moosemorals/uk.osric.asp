@@ -11,7 +11,6 @@ SPDX-License-Identifier: MIT
 | Utility | medium |
 | Status | open |
 | Blocked by | — |
-| Plan | — |
 | Area | Sdk, Web (pages, storage), docs |
 | Location | `src/uk.osric.asp.Sdk/PageSource.cs`, `src/uk.osric.asp.Sdk/PageRevisionInfo.cs`, `src/uk.osric.asp.Sdk/IPageCatalog.cs`, `src/uk.osric.asp.Web/Pages/IPageReadStore.cs`, `src/uk.osric.asp.Web/Pages/SqlitePageReadStore.cs`, `src/uk.osric.asp.Web/Pages/PageCatalogScope.cs`, `src/uk.osric.asp.Web/Pages/SqlitePageStore.cs`, `src/uk.osric.asp.Web/Pages/Seeds/help`, `docs/pages.md` |
 | Spike | — |

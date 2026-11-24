@@ -11,7 +11,6 @@ SPDX-License-Identifier: MIT
 | Utility | medium |
 | Status | open |
 | Blocked by | — |
-| Plan | — |
 | Area | Sdk, Web, assistant |
 | Location | `src/uk.osric.asp.Web/Assistant/AssistantEndpoint.cs`, `src/uk.osric.asp.Web/Assistant/RunQueue.cs`, `src/uk.osric.asp.Sdk/IContext.cs` |
 

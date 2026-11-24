@@ -33,12 +33,13 @@ New files need their SPDX tags or `make license-check` fails; files that cannot 
 
 ## Plans and decisions
 
-A plan is written before a large change (`product-plan-before-building`), and it proposes the decision
-it records by the name that decision will carry. A decision has a name rather than a number —
-`area-subject`, from the fixed list of areas — and the name is taken when the work merges, not when it
-is planned: until then the plan states the name it intends, and the merge writes the entry in
-`docs/decisions.md`, points the plan at it, marks the plan's Status merged and moves the plan to
-`docs/plans/archive/`. A name is permanent once merged, is cited in backticks
+A plan is written before a large change (`product-plan-before-building`), as a `## Plan` section of
+its item's file, and it proposes the decision it records by the name that decision will carry. A
+decision has a name rather than a number — `area-subject`, from the fixed list of areas — and the name
+is taken when the work merges, not when it is planned: until then the plan states the name it intends,
+and the merge writes the entry in `docs/decisions.md`, points the plan at it, marks the file's Status
+merged and moves it — an item to `docs/backlog/archive/` with its plan, one of the seven plans written
+before 2026-11-24 to `docs/plans/archive/`. A name is permanent once merged, is cited in backticks
 with no number, and is never disambiguated with a suffix: if two branches land one name, the merge
 folds them into one entry or narrows one of the names, and updates every citation in that branch.
 `docs/archive/decisions.md` is frozen — a `DEC-` number written before 2026-11-15 means what it meant then.
@@ -56,8 +57,9 @@ merge, to push, or to start the next step — ask, and stop.
 
 The work itself is the backlog in `docs/backlog`: an item is a slug and a title, where a defect's
 slug states its kind and an idea's states none, and `job` is the host's word for a `PageJob` rather
-than for an item. `make backlog` is the gate's check on the record;
-[its index](../docs/backlog/README.md) says what an item carries and how it is ordered.
+than for an item. An item with no answers yet is `unshaped` — a whim is one of those, not a row in a
+separate table — and it has no row in the order until it is shaped. `make backlog` is the gate's check
+on the record; [its index](../docs/backlog/README.md) says what an item carries and how it is ordered.
 
 ## Core and shell
 

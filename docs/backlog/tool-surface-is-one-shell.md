@@ -62,7 +62,7 @@ scratch directory, and history as paths rather than three more tools.
 - **Objects as a path.** `/o` stays a route with mode `000`: `IObjectStore` is bound to one subject
   and cannot list, so a mount needs a capability that does not exist yet, and
   [`object-access-is-only-its-hash`](object-access-is-only-its-hash.md) is still deciding who may read
-  a page's objects. `whim-assistant-reads-objects` in [the whims](WHIMS.md) carries it.
+  a page's objects. [`objects-cannot-be-read-back`](objects-cannot-be-read-back.md) carries it.
 - **A POSTing view.** [`view-cannot-submit-a-form`](view-cannot-submit-a-form.md) is its own security
   problem: the run's token reads and never writes, and that is what lets a view run unapproved.
 - **The terminal.** [`terminal-cannot-reach-the-shell`](terminal-cannot-reach-the-shell.md) is the

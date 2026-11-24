@@ -11,7 +11,6 @@ SPDX-License-Identifier: MIT
 | Utility | medium |
 | Status | open |
 | Blocked by | — |
-| Plan | — |
 | Area | Core (Compilation), tools (VS Code grammar), Web (seeds), docs |
 | Location | `src/uk.osric.asp.Core/Compilation/TemplateTokenizer.cs`, `Token.cs`, `TemplateScriptSkeleton.cs`, `TemplateShapeCheck.cs`, `tools/vscode-asp/syntaxes/asp.tmLanguage.json`, `src/uk.osric.asp.Web/Pages/Seeds/`, `docs/architecture.md`, `src/uk.osric.asp.Web/Pages/Seeds/help` |
 

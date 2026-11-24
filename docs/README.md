@@ -7,9 +7,9 @@ SPDX-License-Identifier: MIT
 
 The site's design record and its work. [Architecture](architecture.md) is the map; each subsystem
 page below describes one part of it, [decisions](decisions.md) is the named record of what was
-settled and why, and [the backlog](backlog/README.md) and [plans](plans/README.md) are what is still
-to do. Everything here is checked: `make decisions`, `make backlog` and `make check-pages` fail a
-record that has drifted from itself.
+settled and why, and [the backlog](backlog/README.md) is what is still to do and
+[the plans archive](plans/archive/README.md) is what was done. Everything here is checked:
+`make decisions`, `make backlog` and `make check-pages` fail a record that has drifted from itself.
 
 ## Contents
 
@@ -26,8 +26,9 @@ record that has drifted from itself.
 - [Testing](testing.md) — the suites, what each proves and the rules a test follows.
 - [Glossary](glossary.md) — the site's words, each with what it is and is not.
 - [Decisions](decisions.md) — every decision, named and cited from the code and these pages.
-- [Backlog](backlog/README.md) — the rules an item follows and the items themselves.
-- [Plans](plans/README.md) — the plans proposed or in progress.
+- [Backlog](backlog/README.md) — the rules an item follows, the items themselves and the plan each
+  carries while it is worked.
+- [Plans](plans/README.md) — the seven plans still written as files, and why nothing new goes there.
 - [Spikes](spikes/README.md) — the questions answered with evidence before anything was built.
 - [Security reviews](security/README.md) — the reviews that were written rather than assumed.
 - [Archived decisions](archive/README.md) — the frozen record from before decisions had names.
@@ -39,7 +40,8 @@ record that has drifted from itself.
 The backlog table is both the inventory and the order: a row's place is its priority, and the line
 under it in italics is the reason it sits there. [The backlog index](backlog/README.md) says what each
 column means, how the order is decided and how a step stops for the owner; `make backlog` holds this
-table and the items to it.
+table and the items to it. An unshaped item is not in it: the order spends utility and difficulty, and
+shaping an item is what earns its row.
 
 | Slug | Title | Difficulty | Utility | Status | Blocked by |
 | --- | --- | --- | --- | --- | --- |

@@ -11,7 +11,6 @@ SPDX-License-Identifier: MIT
 | Utility | medium |
 | Status | open |
 | Blocked by | — |
-| Plan | — |
 | Area | Auth, Core (Assistant), Web (assistant, pages), docs |
 | Location | `src/uk.osric.asp.Web/Authentication/ViewGuard.cs`, `src/uk.osric.asp.Web/Authentication/ViewToken.cs`, `src/uk.osric.asp.Web/Assistant/Tools/ViewTool.cs` |
 | Spike | — |
